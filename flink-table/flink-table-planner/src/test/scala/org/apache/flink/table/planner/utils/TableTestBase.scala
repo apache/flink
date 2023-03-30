@@ -1177,7 +1177,7 @@ abstract class TableTestUtil(
       tableSource: TableSource[_],
       statistic: FlinkStatistic): Table = {
     // TODO RichTableSourceQueryOperation should be deleted and use registerTableSourceInternal
-    //  method instead of registerTable method here after unique key in TableSchema is ready
+    //  method instead of createTemporaryView method here after unique key in TableSchema is ready
     //  and setting catalog statistic to TableSourceTable in DatabaseCalciteSchema is ready
     val identifier = ObjectIdentifier.of(
       testingTableEnv.getCurrentCatalog,
@@ -1185,7 +1185,7 @@ abstract class TableTestUtil(
       name)
     val operation = new RichTableSourceQueryOperation(identifier, tableSource, statistic)
     val table = testingTableEnv.createTable(operation)
-    testingTableEnv.registerTable(name, table)
+    testingTableEnv.createTemporaryView(name, table)
     testingTableEnv.from(name)
   }
 
@@ -1315,7 +1315,7 @@ case class StreamTableTestUtil(
       expr
     )
     val queryOperation = new PlannerQueryOperation(watermarkAssigner)
-    testingTableEnv.registerTable(tableName, testingTableEnv.createTable(queryOperation))
+    testingTableEnv.createTemporaryView(tableName, testingTableEnv.createTable(queryOperation))
   }
 
   def buildStreamProgram(firstProgramNameToRemove: String): Unit = {
@@ -1722,7 +1722,8 @@ object TableTestUtil {
       statistic.getOrElse(FlinkStatistic.UNKNOWN)
     )
     val table = tEnv.asInstanceOf[TableEnvironmentImpl].createTable(dataStreamQueryOperation)
-    tEnv.registerTable(name, table)
+    // the table name is UUID generated which should be quoted to parse safely
+    tEnv.createTemporaryView(s"`$name`", table)
   }
 
   def readFromResource(path: String): String = {

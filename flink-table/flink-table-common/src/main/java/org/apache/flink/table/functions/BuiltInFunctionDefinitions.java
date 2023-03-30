@@ -130,6 +130,47 @@ public final class BuiltInFunctionDefinitions {
                     .runtimeClass("org.apache.flink.table.runtime.functions.scalar.IfNullFunction")
                     .build();
 
+    public static final BuiltInFunctionDefinition MAP_KEYS =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("MAP_KEYS")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    new String[] {"input"},
+                                    new ArgumentTypeStrategy[] {logical(LogicalTypeRoot.MAP)}))
+                    .outputTypeStrategy(nullableIfArgs(SpecificInputTypeStrategies.MAP_KEYS))
+                    .runtimeClass("org.apache.flink.table.runtime.functions.scalar.MapKeysFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition MAP_VALUES =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("MAP_VALUES")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    new String[] {"input"},
+                                    new ArgumentTypeStrategy[] {logical(LogicalTypeRoot.MAP)}))
+                    .outputTypeStrategy(nullableIfArgs(SpecificInputTypeStrategies.MAP_VALUES))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.MapValuesFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition MAP_FROM_ARRAYS =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("MAP_FROM_ARRAYS")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    new String[] {"keysArray", "valuesArray"},
+                                    new ArgumentTypeStrategy[] {
+                                        logical(LogicalTypeRoot.ARRAY),
+                                        logical(LogicalTypeRoot.ARRAY)
+                                    }))
+                    .outputTypeStrategy(nullableIfArgs(SpecificInputTypeStrategies.ARRAYS_FOR_MAP))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.MapFromArraysFunction")
+                    .build();
+
     public static final BuiltInFunctionDefinition SOURCE_WATERMARK =
             BuiltInFunctionDefinition.newBuilder()
                     .name("SOURCE_WATERMARK")
@@ -178,6 +219,21 @@ public final class BuiltInFunctionDefinitions {
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.ArrayDistinctFunction")
                     .build();
+
+    public static final BuiltInFunctionDefinition ARRAY_REMOVE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ARRAY_REMOVE")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    Arrays.asList("haystack", "needle"),
+                                    Arrays.asList(
+                                            logical(LogicalTypeRoot.ARRAY), ARRAY_ELEMENT_ARG)))
+                    .outputTypeStrategy(nullableIfArgs(ConstantArgumentCount.of(0), argument(0)))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.ArrayRemoveFunction")
+                    .build();
+
     public static final BuiltInFunctionDefinition INTERNAL_REPLICATE_ROWS =
             BuiltInFunctionDefinition.newBuilder()
                     .name("$REPLICATE_ROWS$1")
@@ -192,7 +248,7 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("$UNNEST_ROWS$1")
                     .kind(TABLE)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .outputTypeStrategy(SpecificTypeStrategies.UNUSED)
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.table.UnnestRowsFunction")
                     .internal()

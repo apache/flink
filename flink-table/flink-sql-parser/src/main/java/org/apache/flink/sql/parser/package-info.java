@@ -23,8 +23,7 @@
  * <p>Most of the sql grammars belong to sql standard or Flink's dialect. To support a new sql
  * dialect, add a new sql conformance to {@link
  * org.apache.flink.sql.parser.validate.FlinkSqlConformance}, then use this sql conformance to make
- * context aware decisions in parse block. See the usage of {@link
- * org.apache.flink.sql.parser.validate.FlinkSqlConformance#HIVE} in {@code parserImpls.ftl}.
+ * context aware decisions in parse block.
  *
  * <p>To use a specific sql dialect for the parser, config the parser to the specific sql
  * conformance with a code snippet like below:

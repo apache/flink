@@ -19,7 +19,6 @@
 package org.apache.flink.table.client.util;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.Catalog;
@@ -46,6 +45,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+
+import static org.apache.flink.table.catalog.hive.util.Constants.IDENTIFIER;
 
 /**
  * A test factory that is the same as {@link HiveCatalogFactory} except returning a {@link
@@ -107,7 +108,7 @@ public class TestHiveCatalogFactory extends HiveCatalogFactory {
     private ResolvedCatalogTable createResolvedTable(
             String[] fieldNames, DataType[] fieldDataTypes) {
         final Map<String, String> options = new HashMap<>();
-        options.put(FactoryUtil.CONNECTOR.key(), SqlCreateHiveTable.IDENTIFIER);
+        options.put(FactoryUtil.CONNECTOR.key(), IDENTIFIER);
         final CatalogTable origin =
                 CatalogTable.of(
                         Schema.newBuilder().fromFields(fieldNames, fieldDataTypes).build(),

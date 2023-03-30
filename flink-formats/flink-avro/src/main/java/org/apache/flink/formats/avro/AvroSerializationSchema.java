@@ -23,6 +23,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.WrappingRuntimeException;
 
 import org.apache.avro.Schema;
+import org.apache.avro.Schema.Parser;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
@@ -116,6 +117,13 @@ public class AvroSerializationSchema<T> implements SerializationSchema<T> {
 
     protected ByteArrayOutputStream getOutputStream() {
         return arrayOutputStream;
+    }
+
+    @Override
+    public void open(InitializationContext context) throws Exception {
+        if (schemaString != null) {
+            this.schema = new Parser().parse(schemaString);
+        }
     }
 
     @Override

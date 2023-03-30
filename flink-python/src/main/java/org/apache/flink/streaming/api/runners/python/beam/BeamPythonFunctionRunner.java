@@ -38,6 +38,8 @@ import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.streaming.api.operators.python.process.timer.TimerRegistration;
 import org.apache.flink.streaming.api.runners.python.beam.state.BeamStateRequestHandler;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.ShutdownHookUtil;
+import org.apache.flink.util.TemporaryClassLoaderContext;
 import org.apache.flink.util.function.LongFunctionWithException;
 
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -186,6 +188,8 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     /** The shared resource among Python operators of the same slot. */
     private transient OpaqueMemoryResource<PythonSharedResources> sharedResources;
 
+    private transient Thread shutdownHook;
+
     public BeamPythonFunctionRunner(
             String taskName,
             ProcessPythonEnvironmentManager environmentManager,
@@ -234,8 +238,14 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
         // The creation of stageBundleFactory depends on the initialized environment manager.
         environmentManager.open();
 
-        PortablePipelineOptions portableOptions =
-                PipelineOptionsFactory.as(PortablePipelineOptions.class);
+        PortablePipelineOptions portableOptions;
+        try (TemporaryClassLoaderContext ignored =
+                TemporaryClassLoaderContext.of(getClass().getClassLoader())) {
+            // It loads classes using service loader under context classloader in Beam,
+            // make sure the classloader used to load SPI classes is the same as the class loader of
+            // the current class.
+            portableOptions = PipelineOptionsFactory.as(PortablePipelineOptions.class);
+        }
 
         int stateCacheSize = config.get(PythonOptions.STATE_CACHE_SIZE);
         if (stateCacheSize > 0) {
@@ -287,6 +297,10 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                             jobBundleFactory, createPythonExecutionEnvironment(config, -1));
         }
         progressHandler = getProgressHandler(flinkMetricContainer);
+
+        shutdownHook =
+                ShutdownHookUtil.addShutdownHook(
+                        this, BeamPythonFunctionRunner.class.getSimpleName(), LOG);
     }
 
     @Override
@@ -310,6 +324,12 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
             }
         } finally {
             sharedResources = null;
+        }
+
+        if (shutdownHook != null) {
+            ShutdownHookUtil.removeShutdownHook(
+                    shutdownHook, BeamPythonFunctionRunner.class.getSimpleName(), LOG);
+            shutdownHook = null;
         }
     }
 
@@ -609,18 +629,28 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
     @VisibleForTesting
     public JobBundleFactory createJobBundleFactory(Struct pipelineOptions) throws Exception {
-        return DefaultJobBundleFactory.create(
-                JobInfo.create(
-                        taskName,
-                        taskName,
-                        environmentManager.createRetrievalToken(),
-                        pipelineOptions));
+        try (TemporaryClassLoaderContext ignored =
+                TemporaryClassLoaderContext.of(getClass().getClassLoader())) {
+            // It loads classes using service loader under context classloader in Beam,
+            // make sure the classloader used to load SPI classes is the same as the class
+            // loader of the current class.
+            return DefaultJobBundleFactory.create(
+                    JobInfo.create(
+                            taskName,
+                            taskName,
+                            environmentManager.createRetrievalToken(),
+                            pipelineOptions));
+        }
     }
 
     /** To make the error messages more user friendly, throws an exception with the boot logs. */
     private StageBundleFactory createStageBundleFactory(
             JobBundleFactory jobBundleFactory, RunnerApi.Environment environment) throws Exception {
-        try {
+        try (TemporaryClassLoaderContext ignored =
+                TemporaryClassLoaderContext.of(getClass().getClassLoader())) {
+            // It loads classes using service loader under context classloader in Beam,
+            // make sure the classloader used to load SPI classes is the same as the class
+            // loader of the current class.
             return jobBundleFactory.forStage(createExecutableStage(environment));
         } catch (Throwable e) {
             throw new RuntimeException(environmentManager.getBootLog(), e);

@@ -63,7 +63,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     data.+=((9, "h"))
 
     val t = env.fromCollection(data).toTable(tEnv, 'id, 'name, 'proctime.proctime)
-    tEnv.registerTable("MyTable", t)
+    tEnv.createTemporaryView("MyTable", t)
 
     val sqlQuery =
       s"""
@@ -109,7 +109,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     data.+=((9, null, null))
 
     val t = env.fromCollection(data).toTable(tEnv, 'id, 'name, 'nullField, 'proctime.proctime)
-    tEnv.registerTable("MyTable", t)
+    tEnv.createTemporaryView("MyTable", t)
 
     val sqlQuery =
       s"""
@@ -161,7 +161,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     val t = env
       .fromCollection(data)
       .toTable(tEnv, 'id, 'name, 'key1, 'key2, 'proctime.proctime)
-    tEnv.registerTable("MyTable", t)
+    tEnv.createTemporaryView("MyTable", t)
 
     val sqlQuery =
       s"""
@@ -222,7 +222,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     val t = env
       .addSource(new EventTimeSourceFunction[(Int, Int, String, Int)](data))
       .toTable(tEnv, 'secondaryOrder, 'ternaryOrder, 'name, 'id, 'rowtime.rowtime)
-    tEnv.registerTable("MyTable", t)
+    tEnv.createTemporaryView("MyTable", t)
 
     val sqlQuery =
       s"""
@@ -278,7 +278,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
       .fromCollection(data)
       .assignAscendingTimestamps(e => e._2)
       .toTable(tEnv, 'symbol, 'rowtime.rowtime, 'price, 'tax)
-    tEnv.registerTable("Ticker", t)
+    tEnv.createTemporaryView("Ticker", t)
 
     val sqlQuery =
       s"""
@@ -332,7 +332,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
       .assignAscendingTimestamps(tickerEvent => tickerEvent._2)
       .toTable(tEnv, 'symbol, 'rowtime.rowtime, 'price, 'tax)
 
-    tEnv.registerTable("Ticker", tickerEvents)
+    tEnv.createTemporaryView("Ticker", tickerEvents)
 
     val sqlQuery =
       s"""
@@ -450,7 +450,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     val t = env
       .fromCollection(data)
       .toTable(tEnv, 'symbol, 'tstamp, 'price, 'tax, 'proctime.proctime)
-    tEnv.registerTable("Ticker", t)
+    tEnv.createTemporaryView("Ticker", t)
 
     val sqlQuery =
       s"""
@@ -498,7 +498,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
       .assignAscendingTimestamps(tickerEvent => tickerEvent._2)
       .setParallelism(env.getParallelism)
       .toTable(tEnv, 'symbol, 'rowtime.rowtime, 'price, 'tax)
-    tEnv.registerTable("Ticker", t)
+    tEnv.createTemporaryView("Ticker", t)
 
     val sqlQuery =
       s"""
@@ -546,7 +546,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     val t = env
       .fromCollection(data)
       .toTable(tEnv, 'id, 'symbol, 'tstamp, 'price, 'proctime.proctime)
-    tEnv.registerTable("Ticker", t)
+    tEnv.createTemporaryView("Ticker", t)
 
     val sqlQuery =
       s"""
@@ -603,7 +603,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     val t = env
       .fromCollection(data)
       .toTable(tEnv, 'symbol, 'tstamp, 'price, 'tax, 'proctime.proctime)
-    tEnv.registerTable("Ticker", t)
+    tEnv.createTemporaryView("Ticker", t)
 
     val sqlQuery =
       s"""
@@ -663,7 +663,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     val t = env
       .fromCollection(data)
       .toTable(tEnv, 'id, 'name, 'price, 'rate, 'weight, 'proctime.proctime)
-    tEnv.registerTable("MyTable", t)
+    tEnv.createTemporaryView("MyTable", t)
     tEnv.createTemporarySystemFunction("weightedAvg", classOf[WeightedAvg])
 
     val sqlQuery =
@@ -726,7 +726,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
           BasicTypeInfo.STRING_TYPE_INFO,
           BasicTypeInfo.INT_TYPE_INFO))
       .toTable(tEnv, 'id, 'name, 'price, 'proctime.proctime)
-    tEnv.registerTable("MyTable", t)
+    tEnv.createTemporaryView("MyTable", t)
     tEnv.registerFunction("weightedAvg", new WeightedAvg)
 
     val sqlQuery =
@@ -768,7 +768,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     data.+=((1, "a"))
 
     val t = env.fromCollection(data).toTable(tEnv, 'id, 'name, 'proctime.proctime)
-    tEnv.registerTable("MyTable", t)
+    tEnv.createTemporaryView("MyTable", t)
 
     val sqlQuery =
       s"""
@@ -818,7 +818,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     val t = env
       .fromCollection(data)
       .toTable(tEnv, 'id, 'name, 'price, 'proctime.proctime)
-    tEnv.registerTable("MyTable", t)
+    tEnv.createTemporaryView("MyTable", t)
     tEnv.registerFunction("prefix", new PrefixingScalarFunc)
     tEnv.registerFunction("countFrom", new RichAggFunc)
     val prefix = "PREF"

@@ -45,6 +45,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.util.ArrayDeque;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Random;
@@ -222,10 +223,6 @@ class HsFileDataManagerTest {
     void testRunRequestBufferTimeout(@TempDir Path tempDir) throws Exception {
         Duration bufferRequestTimeout = Duration.ofSeconds(3);
 
-        // request all buffer first.
-        bufferPool.requestBuffers();
-        assertThat(bufferPool.getAvailableBuffers()).isZero();
-
         fileDataManager =
                 new HsFileDataManager(
                         bufferPool,
@@ -244,11 +241,23 @@ class HsFileDataManagerTest {
         CompletableFuture<Throwable> cause = new CompletableFuture<>();
         reader.setPrepareForSchedulingRunnable(() -> prepareForSchedulingFinished.complete(null));
         reader.setFailConsumer((cause::complete));
+        reader.setReadBuffersConsumer(
+                (requestedBuffers, ignore) -> {
+                    assertThat(requestedBuffers).hasSize(bufferPool.getNumTotalBuffers());
+                    // discard all buffers so that they cannot be recycled.
+                    requestedBuffers.clear();
+                });
         factory.allReaders.add(reader);
 
+        // register a new consumer, this will trigger io scheduler run a round.
         fileDataManager.registerNewConsumer(0, DEFAULT, subpartitionViewOperation);
 
+        // first round run will allocate and use all buffers.
         ioExecutor.trigger();
+        assertThat(bufferPool.getAvailableBuffers()).isZero();
+
+        // second round run will trigger timeout.
+        fileDataManager.run();
 
         assertThat(prepareForSchedulingFinished).isCompleted();
         assertThat(cause).isCompleted();
@@ -476,12 +485,13 @@ class HsFileDataManagerTest {
 
         @Override
         public Optional<ResultSubpartition.BufferAndBacklog> consumeBuffer(
-                int nextBufferToConsume) {
+                int nextBufferToConsume, Collection<Buffer> buffersToRecycle) {
             return Optional.empty();
         }
 
         @Override
-        public Buffer.DataType peekNextToConsumeDataType(int nextBufferToConsume) {
+        public Buffer.DataType peekNextToConsumeDataType(
+                int nextBufferToConsume, Collection<Buffer> buffersToRecycle) {
             return Buffer.DataType.NONE;
         }
 

@@ -22,9 +22,12 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
@@ -36,13 +39,14 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.IDENTIFIER;
+import static org.apache.flink.table.catalog.hive.util.Constants.IDENTIFIER;
 import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -70,12 +74,17 @@ public class HiveSourceITCase {
         ObjectPath tablePath = new ObjectPath("default", "tbl1");
         Map<String, String> tableOptions = new HashMap<>();
         tableOptions.put(CONNECTOR.key(), IDENTIFIER);
+        ResolvedSchema resolvedSchema = ResolvedSchema.of(Column.physical("i", DataTypes.INT()));
+
         hiveCatalog.createTable(
                 tablePath,
-                new CatalogTableImpl(
-                        TableSchema.builder().field("i", DataTypes.INT()).build(),
-                        tableOptions,
-                        null),
+                new ResolvedCatalogTable(
+                        CatalogTable.of(
+                                Schema.newBuilder().fromResolvedSchema(resolvedSchema).build(),
+                                null,
+                                new ArrayList<>(),
+                                tableOptions),
+                        resolvedSchema),
                 false);
         HiveTestUtils.createTextTableInserter(
                         hiveCatalog, tablePath.getDatabaseName(), tablePath.getObjectName())
@@ -109,16 +118,20 @@ public class HiveSourceITCase {
 
         // test partitioned table
         tablePath = new ObjectPath("default", "tbl2");
+        resolvedSchema =
+                ResolvedSchema.of(
+                        Column.physical("i", DataTypes.INT()),
+                        Column.physical("p", DataTypes.STRING()));
+
         hiveCatalog.createTable(
                 tablePath,
-                new CatalogTableImpl(
-                        TableSchema.builder()
-                                .field("i", DataTypes.INT())
-                                .field("p", DataTypes.STRING())
-                                .build(),
-                        Collections.singletonList("p"),
-                        tableOptions,
-                        null),
+                new ResolvedCatalogTable(
+                        CatalogTable.of(
+                                Schema.newBuilder().fromResolvedSchema(resolvedSchema).build(),
+                                null,
+                                Collections.singletonList("p"),
+                                tableOptions),
+                        resolvedSchema),
                 false);
         HiveTestUtils.createTextTableInserter(
                         hiveCatalog, tablePath.getDatabaseName(), tablePath.getObjectName())

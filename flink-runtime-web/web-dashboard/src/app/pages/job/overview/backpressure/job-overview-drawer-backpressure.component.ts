@@ -153,6 +153,14 @@ export class JobOverviewDrawerBackpressureComponent implements OnInit, OnDestroy
     }
   }
 
+  sortByBackpressureRatio(a: JobBackpressureSubtask, b: JobBackpressureSubtask): number {
+    return a.ratio - b.ratio;
+  }
+
+  sortByIdleRatio(a: JobBackpressureSubtask, b: JobBackpressureSubtask): number {
+    return a.idleRatio - b.idleRatio;
+  }
+
   sortByBusyRatio(a: JobBackpressureSubtask, b: JobBackpressureSubtask): number {
     return a.busyRatio - b.busyRatio;
   }

@@ -22,9 +22,11 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.lit;
 
 /** Tests for math {@link BuiltInFunctionDefinitions} that fully use the new type system. */
 class MathFunctionsITCase extends BuiltInFunctionTestBase {
@@ -78,8 +80,11 @@ class MathFunctionsITCase extends BuiltInFunctionTestBase {
                                 new BigDecimal("1.0000000000000000000"),
                                 DataTypes.DECIMAL(38, 19).notNull()),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.TIMES)
-                        .onFieldsWithData(new BigDecimal("1514356320000"))
-                        .andDataTypes(DataTypes.DECIMAL(19, 0))
+                        .onFieldsWithData(new BigDecimal("1514356320000"), Duration.ofSeconds(2), 2)
+                        .andDataTypes(
+                                DataTypes.DECIMAL(19, 0),
+                                DataTypes.INTERVAL(DataTypes.SECOND(3)),
+                                DataTypes.INT())
                         // DECIMAL(19, 0) * INT(10, 0) => DECIMAL(29, 0)
                         .testResult(
                                 $("f0").times(6),
@@ -91,7 +96,21 @@ class MathFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f0").times($("f0")),
                                 "f0 * f0",
                                 new BigDecimal("2293275063923942400000000"),
-                                DataTypes.DECIMAL(38, 0)),
+                                DataTypes.DECIMAL(38, 0))
+                        .testResult(
+                                $("f1").times(3),
+                                "f1 * 3",
+                                Duration.ofSeconds(6),
+                                DataTypes.INTERVAL(DataTypes.SECOND(3)))
+                        .testResult(
+                                $("f2").times(
+                                                lit(3).seconds()
+                                                        .cast(
+                                                                DataTypes.INTERVAL(
+                                                                        DataTypes.SECOND(3)))),
+                                "f2 * interval '3' second(3)",
+                                Duration.ofSeconds(6),
+                                DataTypes.INTERVAL(DataTypes.SECOND(3))),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.MOD)
                         .onFieldsWithData(new BigDecimal("1514356320000"), 44L, 3)
                         .andDataTypes(DataTypes.DECIMAL(19, 0), DataTypes.BIGINT(), DataTypes.INT())

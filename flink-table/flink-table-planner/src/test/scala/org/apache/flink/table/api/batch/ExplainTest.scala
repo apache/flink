@@ -101,7 +101,7 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
   def testExplainWithMultiSinks(): Unit = {
     val stmtSet = util.tableEnv.createStatementSet()
     val table = util.tableEnv.sqlQuery("SELECT a, COUNT(*) AS cnt FROM MyTable1 GROUP BY a")
-    util.tableEnv.registerTable("TempTable", table)
+    util.tableEnv.createTemporaryView("TempTable", table)
 
     val table1 = util.tableEnv.sqlQuery("SELECT * FROM TempTable WHERE cnt > 10")
     val sink1 = util.createCollectTableSink(Array("a", "cnt"), Array(INT, LONG))

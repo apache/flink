@@ -24,6 +24,7 @@ import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsAddition;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
+import org.apache.flink.connector.base.source.reader.splitreader.SplitsRemoval;
 
 import java.util.Collection;
 import java.util.HashSet;
@@ -31,6 +32,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -51,6 +53,7 @@ public class MockSplitReader implements SplitReader<int[], MockSourceSplit> {
     private volatile Thread threadInBlocking;
     private boolean wokenUp;
     private Set<MockSourceSplit> pausedSplits = new HashSet<>();
+    private Set<String> removedSplits = new HashSet<>();
 
     protected MockSplitReader(
             int numRecordsPerSplitPerFetch,
@@ -70,6 +73,12 @@ public class MockSplitReader implements SplitReader<int[], MockSourceSplit> {
     public void handleSplitsChanges(SplitsChange<MockSourceSplit> splitsChange) {
         if (splitsChange instanceof SplitsAddition) {
             splitsChange.splits().forEach(s -> splits.put(s.splitId(), s));
+        } else if (splitsChange instanceof SplitsRemoval) {
+            splitsChange.splits().forEach(s -> splits.remove(s.splitId()));
+            removedSplits.addAll(
+                    splitsChange.splits().stream()
+                            .map(MockSourceSplit::splitId)
+                            .collect(Collectors.toSet()));
         } else {
             throw new IllegalArgumentException("Do not recognize split change: " + splitsChange);
         }
@@ -95,6 +104,7 @@ public class MockSplitReader implements SplitReader<int[], MockSourceSplit> {
         synchronized (wakeupLock) {
             if (wokenUp) {
                 wokenUp = false;
+                markFinishedSplits(records);
                 return records.build();
             }
             threadInBlocking = Thread.currentThread();
@@ -143,7 +153,7 @@ public class MockSplitReader implements SplitReader<int[], MockSourceSplit> {
                 threadInBlocking = null;
             }
         }
-
+        markFinishedSplits(records);
         return records.build();
     }
 
@@ -156,6 +166,13 @@ public class MockSplitReader implements SplitReader<int[], MockSourceSplit> {
         pausedSplits.addAll(splitsToPause);
         assertThat(pausedSplits).containsAll(splitsToResume);
         pausedSplits.removeAll(splitsToResume);
+    }
+
+    private void markFinishedSplits(RecordsBySplits.Builder recordsBuilder) {
+        if (!removedSplits.isEmpty()) {
+            recordsBuilder.addFinishedSplits(removedSplits);
+            removedSplits.clear();
+        }
     }
 
     /** Builder for {@link MockSplitReader}. */

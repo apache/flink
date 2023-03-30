@@ -598,6 +598,8 @@ public final class TestValuesTableFactory
 
         final int[] primaryKeyIndices =
                 TableSchemaUtils.getPrimaryKeyIndices(context.getCatalogTable().getSchema());
+        TableSchema tableSchema =
+                TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
 
         if (sinkClass.equals("DEFAULT")) {
             int rowTimeIndex =
@@ -613,7 +615,8 @@ public final class TestValuesTableFactory
                     writableMetadata,
                     parallelism,
                     changelogMode,
-                    rowTimeIndex);
+                    rowTimeIndex,
+                    tableSchema);
         } else {
             try {
                 return InstantiationUtil.instantiate(
@@ -1813,6 +1816,7 @@ public final class TestValuesTableFactory
         private final Integer parallelism;
         private final ChangelogMode changelogModeEnforced;
         private final int rowtimeIndex;
+        private final TableSchema tableSchema;
 
         private TestValuesTableSink(
                 DataType consumedDataType,
@@ -1824,7 +1828,8 @@ public final class TestValuesTableFactory
                 Map<String, DataType> writableMetadata,
                 @Nullable Integer parallelism,
                 @Nullable ChangelogMode changelogModeEnforced,
-                int rowtimeIndex) {
+                int rowtimeIndex,
+                TableSchema tableSchema) {
             this.consumedDataType = consumedDataType;
             this.primaryKeyIndices = primaryKeyIndices;
             this.tableName = tableName;
@@ -1835,6 +1840,7 @@ public final class TestValuesTableFactory
             this.parallelism = parallelism;
             this.changelogModeEnforced = changelogModeEnforced;
             this.rowtimeIndex = rowtimeIndex;
+            this.tableSchema = tableSchema;
         }
 
         @Override
@@ -1927,9 +1933,20 @@ public final class TestValuesTableFactory
                 assertThat(runtimeSink.equals("SinkFunction")).isTrue();
                 SinkFunction<RowData> sinkFunction;
                 if (primaryKeyIndices.length > 0) {
+                    // TODO FLINK-31301 currently partial-insert composite columns are not supported
+                    int[][] targetColumns = context.getTargetColumns().orElse(new int[0][]);
+                    checkArgument(
+                            Arrays.stream(targetColumns).allMatch(subArr -> subArr.length <= 1),
+                            "partial-insert composite columns are not supported yet!");
+
                     sinkFunction =
                             new KeyedUpsertingSinkFunction(
-                                    tableName, converter, primaryKeyIndices, expectedNum);
+                                    tableName,
+                                    converter,
+                                    primaryKeyIndices,
+                                    Arrays.stream(targetColumns).mapToInt(a -> a[0]).toArray(),
+                                    expectedNum,
+                                    tableSchema.getFieldCount());
                 } else {
                     checkArgument(
                             expectedNum == -1,
@@ -1954,7 +1971,8 @@ public final class TestValuesTableFactory
                     writableMetadata,
                     parallelism,
                     changelogModeEnforced,
-                    rowtimeIndex);
+                    rowtimeIndex,
+                    tableSchema);
         }
 
         @Override

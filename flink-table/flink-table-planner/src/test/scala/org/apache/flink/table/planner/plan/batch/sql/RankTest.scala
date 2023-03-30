@@ -21,6 +21,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.TableTestBase
 
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.Test
 
 class RankTest extends TableTestBase {
@@ -28,13 +29,36 @@ class RankTest extends TableTestBase {
   private val util = batchTestUtil()
   util.addTableSource[(Int, String, Long)]("MyTable", 'a, 'b, 'c)
 
-  @Test(expected = classOf[RuntimeException])
   def testRowNumberWithoutOrderBy(): Unit = {
     val sqlQuery =
       """
         |SELECT ROW_NUMBER() over (partition by a) FROM MyTable
       """.stripMargin
-    util.verifyExecPlan(sqlQuery)
+    assertThatThrownBy(() => util.tableEnv.executeSql(sqlQuery))
+      .hasRootCauseMessage(
+        "Over Agg: The window rank function requires order by clause with non-constant fields. " +
+          "please re-check the over window statement.")
+  }
+
+  @Test
+  def testRowNumberWithOrderByConstant(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT *
+        |FROM (
+        |  SELECT a, b,
+        |  ROW_NUMBER() OVER (PARTITION BY b ORDER BY key) AS row_num
+        |  FROM (
+        |  SELECT *, '2023-03-29' AS key
+        |  FROM MyTable
+        |  ) tmp)
+        |WHERE row_num <= 10
+      """.stripMargin
+
+    assertThatThrownBy(() => util.tableEnv.executeSql(sqlQuery))
+      .hasRootCauseMessage(
+        "Over Agg: The window rank function requires order by clause with non-constant fields. " +
+          "please re-check the over window statement.")
   }
 
   @Test(expected = classOf[RuntimeException])

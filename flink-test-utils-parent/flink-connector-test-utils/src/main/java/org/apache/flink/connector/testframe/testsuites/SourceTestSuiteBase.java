@@ -74,13 +74,12 @@ import java.util.concurrent.TimeUnit;
 
 import static java.util.Collections.singletonList;
 import static java.util.concurrent.CompletableFuture.runAsync;
-import static org.apache.flink.connector.testframe.utils.ConnectorTestConstants.DEFAULT_COLLECT_DATA_TIMEOUT;
 import static org.apache.flink.connector.testframe.utils.MetricQuerier.getJobDetails;
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.terminateJob;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForJobStatus;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitUntilCondition;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 /**
  * Base class for all test suites.
@@ -738,7 +737,7 @@ public abstract class SourceTestSuiteBase<T> {
                                     .withNumRecordsLimit(limit)
                                     .matchesRecordsFromSource(testData, semantic);
 
-            assertThat(runAsync(runnable)).succeedsWithin(DEFAULT_COLLECT_DATA_TIMEOUT);
+            assertThatFuture(runAsync(runnable)).eventuallySucceeds();
         } else {
             CollectIteratorAssertions.assertThat(resultIterator)
                     .matchesRecordsFromSource(testData, semantic);

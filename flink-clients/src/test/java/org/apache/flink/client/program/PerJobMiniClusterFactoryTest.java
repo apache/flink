@@ -37,11 +37,11 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
-import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -91,9 +91,8 @@ class PerJobMiniClusterFactoryTest {
 
         jobClient.cancel().get();
 
-        assertThat(jobClient.getJobExecutionResult())
-                .failsWithin(Duration.ofSeconds(1))
-                .withThrowableOfType(ExecutionException.class)
+        assertThatFuture(jobClient.getJobExecutionResult())
+                .eventuallyFailsWith(ExecutionException.class)
                 .withMessageContaining("Job was cancelled");
 
         assertThatMiniClusterIsShutdown();
@@ -116,9 +115,8 @@ class PerJobMiniClusterFactoryTest {
                         "is not a streaming job.")
                 .isInstanceOf(ExecutionException.class);
 
-        assertThat(jobClient.stopWithSavepoint(true, null, SavepointFormatType.DEFAULT))
-                .failsWithin(Duration.ofSeconds(5L))
-                .withThrowableOfType(ExecutionException.class)
+        assertThatFuture(jobClient.stopWithSavepoint(true, null, SavepointFormatType.DEFAULT))
+                .eventuallyFailsWith(ExecutionException.class)
                 .withMessageContaining("is not a streaming job.");
     }
 
@@ -182,9 +180,8 @@ class PerJobMiniClusterFactoryTest {
         BlockingInvokable.latch.await();
 
         jobClient.cancel().get();
-        assertThat(jobClient.getJobExecutionResult())
-                .failsWithin(Duration.ofSeconds(1))
-                .withThrowableOfType(ExecutionException.class)
+        assertThatFuture(jobClient.getJobExecutionResult())
+                .eventuallyFailsWith(ExecutionException.class)
                 .withMessageContaining("Job was cancelled");
 
         assertThatMiniClusterIsShutdown();

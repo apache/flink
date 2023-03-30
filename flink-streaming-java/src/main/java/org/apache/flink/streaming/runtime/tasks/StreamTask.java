@@ -670,7 +670,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 TtlTimeProvider.DEFAULT,
                 timerServiceProvider != null
                         ? timerServiceProvider
-                        : InternalTimeServiceManagerImpl::create);
+                        : InternalTimeServiceManagerImpl::create,
+                () -> canceled);
     }
 
     protected Counter setupNumRecordsInCounter(StreamOperator streamOperator) {

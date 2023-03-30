@@ -40,7 +40,7 @@ public final class BinaryInMemorySortBuffer extends BinaryIndexedSortable {
 
     private static final int MIN_REQUIRED_BUFFERS = 3;
 
-    private AbstractRowDataSerializer<RowData> inputSerializer;
+    private final AbstractRowDataSerializer<RowData> inputSerializer;
     private final ArrayList<MemorySegment> recordBufferSegments;
     private final SimpleCollectingOutputView recordCollector;
     private final int totalNumBuffers;
@@ -185,7 +185,7 @@ public final class BinaryInMemorySortBuffer extends BinaryIndexedSortable {
      *
      * @return An iterator returning the records in their logical order.
      */
-    public final MutableObjectIterator<BinaryRowData> getIterator() {
+    public MutableObjectIterator<BinaryRowData> getIterator() {
         return new MutableObjectIterator<BinaryRowData>() {
             private final int size = size();
             private int current = 0;

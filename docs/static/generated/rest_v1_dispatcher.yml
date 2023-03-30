@@ -6,7 +6,7 @@ info:
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
-  version: v1/1.17-SNAPSHOT
+  version: v1/1.18-SNAPSHOT
 paths:
   /cluster:
     delete:
@@ -269,9 +269,6 @@ paths:
             application/json:
               schema:
                 type: array
-                properties:
-                  empty:
-                    type: boolean
                 items:
                   $ref: '#/components/schemas/ConfigurationInfoEntry'
   /jobmanager/environment:
@@ -722,9 +719,6 @@ paths:
             application/json:
               schema:
                 type: array
-                properties:
-                  empty:
-                    type: boolean
                 items:
                   $ref: '#/components/schemas/ConfigurationInfoEntry'
   /jobs/{jobid}/jobmanager/environment:
@@ -1883,9 +1877,6 @@ components:
             type: boolean
     ConfigurationInfo:
       type: array
-      properties:
-        empty:
-          type: boolean
       items:
         $ref: '#/components/schemas/ConfigurationInfoEntry'
     ConfigurationInfoEntry:

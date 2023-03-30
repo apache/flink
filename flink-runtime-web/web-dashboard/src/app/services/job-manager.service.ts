@@ -97,15 +97,17 @@ export class JobManagerService {
 
   loadMetrics(listOfMetricName: string[]): Observable<MetricMap> {
     const metricName = listOfMetricName.join(',');
-    return this.httpClient.get<JobMetric[]>(`${this.configService.BASE_URL}/jobmanager/metrics?get=${metricName}`).pipe(
-      map(arr => {
-        const result: MetricMap = {};
-        arr.forEach(item => {
-          result[item.id] = parseInt(item.value, 10);
-        });
-        return result;
-      })
-    );
+    return this.httpClient
+      .get<JobMetric[]>(`${this.configService.BASE_URL}/jobmanager/metrics`, { params: { get: metricName } })
+      .pipe(
+        map(arr => {
+          const result: MetricMap = {};
+          arr.forEach(item => {
+            result[item.id] = parseInt(item.value, 10);
+          });
+          return result;
+        })
+      );
   }
 
   loadHistoryServerConfig(jobId: string): Observable<ClusterConfiguration[]> {

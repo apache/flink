@@ -22,6 +22,7 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.generated.UnionLogicalType;
 import org.apache.flink.formats.avro.utils.TestDataGenerator;
+import org.apache.flink.util.InstantiationUtil;
 
 import org.apache.avro.generic.GenericRecord;
 import org.junit.jupiter.api.Test;
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 import java.util.Random;
 
+import static org.apache.flink.formats.avro.utils.AvroTestUtils.getSmallSchema;
 import static org.apache.flink.formats.avro.utils.AvroTestUtils.writeRecord;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -67,5 +69,21 @@ class AvroSerializationSchemaTest {
         byte[] encodedData = writeRecord(data);
         byte[] serializedData = serializer.serialize(data);
         assertThat(serializedData).isEqualTo(encodedData);
+    }
+
+    @Test
+    void testSerializability() throws Exception {
+        AvroSerializationSchema<GenericRecord> ser =
+                AvroSerializationSchema.forGeneric(getSmallSchema());
+        final byte[] serBytes = InstantiationUtil.serializeObject(ser);
+
+        final AvroSerializationSchema<GenericRecord> serCopy =
+                InstantiationUtil.deserializeObject(
+                        serBytes, Thread.currentThread().getContextClassLoader());
+
+        assertThat(serCopy.getSchema()).isNull();
+        serCopy.open(null);
+        assertThat(serCopy.getSchema()).isNotNull();
+        assertThat(serCopy.getSchema()).isEqualTo(getSmallSchema());
     }
 }

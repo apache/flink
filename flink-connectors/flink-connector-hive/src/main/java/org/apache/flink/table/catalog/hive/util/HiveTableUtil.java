@@ -19,21 +19,23 @@
 package org.apache.flink.table.catalog.hive.util;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.connectors.hive.FlinkHiveException;
-import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable;
-import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableRowFormat;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
-import org.apache.flink.table.catalog.CatalogBaseTable;
+import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogView;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedCatalogView;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveCatalogConfig;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
-import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.Schema;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionVisitor;
@@ -63,25 +65,32 @@ import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 
+import javax.annotation.Nullable;
+
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
-import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.ALTER_TABLE_OP;
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableRowFormat.SERDE_INFO_PROP_PREFIX;
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableRowFormat.SERDE_LIB_CLASS_NAME;
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableStoredAs.STORED_AS_FILE_FORMAT;
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableStoredAs.STORED_AS_INPUT_FORMAT;
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableStoredAs.STORED_AS_OUTPUT_FORMAT;
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_IS_EXTERNAL;
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_LOCATION_URI;
 import static org.apache.flink.table.catalog.CatalogPropertiesUtil.FLINK_PROPERTY_PREFIX;
 import static org.apache.flink.table.catalog.CatalogPropertiesUtil.IS_GENERIC;
+import static org.apache.flink.table.catalog.hive.util.Constants.ALTER_TABLE_OP;
+import static org.apache.flink.table.catalog.hive.util.Constants.COLLECTION_DELIM;
+import static org.apache.flink.table.catalog.hive.util.Constants.SERDE_INFO_PROP_PREFIX;
+import static org.apache.flink.table.catalog.hive.util.Constants.SERDE_LIB_CLASS_NAME;
+import static org.apache.flink.table.catalog.hive.util.Constants.STORED_AS_FILE_FORMAT;
+import static org.apache.flink.table.catalog.hive.util.Constants.STORED_AS_INPUT_FORMAT;
+import static org.apache.flink.table.catalog.hive.util.Constants.STORED_AS_OUTPUT_FORMAT;
+import static org.apache.flink.table.catalog.hive.util.Constants.TABLE_IS_EXTERNAL;
+import static org.apache.flink.table.catalog.hive.util.Constants.TABLE_LOCATION_URI;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -97,11 +106,115 @@ public class HiveTableUtil {
 
     private HiveTableUtil() {}
 
-    public static TableSchema createTableSchema(
+    /** Create a Flink's Schema by hive client. */
+    public static org.apache.flink.table.api.Schema createSchema(
             HiveConf hiveConf,
             Table hiveTable,
             HiveMetastoreClientWrapper client,
             HiveShim hiveShim) {
+
+        Tuple4<List<FieldSchema>, List<FieldSchema>, Set<String>, Optional<UniqueConstraint>>
+                hiveTableInfo = extractHiveTableInfo(hiveConf, hiveTable, client, hiveShim);
+
+        return createSchema(
+                hiveTableInfo.f0,
+                hiveTableInfo.f1,
+                hiveTableInfo.f2,
+                hiveTableInfo.f3.orElse(null));
+    }
+
+    /** Create a Flink's Schema from Hive table's columns and partition keys. */
+    public static org.apache.flink.table.api.Schema createSchema(
+            List<FieldSchema> nonPartCols,
+            List<FieldSchema> partitionKeys,
+            Set<String> notNullColumns,
+            @Nullable UniqueConstraint primaryKey) {
+        Tuple2<String[], DataType[]> columnInformation =
+                getColumnInformation(nonPartCols, partitionKeys, notNullColumns, primaryKey);
+        org.apache.flink.table.api.Schema.Builder builder =
+                org.apache.flink.table.api.Schema.newBuilder()
+                        .fromFields(columnInformation.f0, columnInformation.f1);
+        if (primaryKey != null) {
+            builder.primaryKeyNamed(
+                    primaryKey.getName(), primaryKey.getColumns().toArray(new String[0]));
+        }
+        return builder.build();
+    }
+
+    /** Create a Flink's ResolvedSchema from Hive table's columns and partition keys. */
+    public static ResolvedSchema createResolvedSchema(
+            List<FieldSchema> nonPartCols,
+            List<FieldSchema> partitionKeys,
+            Set<String> notNullColumns,
+            @Nullable UniqueConstraint primaryKey) {
+
+        Tuple2<String[], DataType[]> columnInformation =
+                getColumnInformation(nonPartCols, partitionKeys, notNullColumns, primaryKey);
+
+        return new ResolvedSchema(
+                IntStream.range(0, columnInformation.f0.length)
+                        .mapToObj(
+                                i ->
+                                        Column.physical(
+                                                columnInformation.f0[i], columnInformation.f1[i]))
+                        .collect(Collectors.toList()),
+                Collections.emptyList(),
+                primaryKey == null
+                        ? null
+                        : org.apache.flink.table.catalog.UniqueConstraint.primaryKey(
+                                primaryKey.getName(), primaryKey.getColumns()));
+    }
+
+    /** Create the Hive table's row type. */
+    public static DataType extractRowType(
+            HiveConf hiveConf,
+            Table hiveTable,
+            HiveMetastoreClientWrapper client,
+            HiveShim hiveShim) {
+
+        Tuple4<List<FieldSchema>, List<FieldSchema>, Set<String>, Optional<UniqueConstraint>>
+                hiveTableInfo = extractHiveTableInfo(hiveConf, hiveTable, client, hiveShim);
+        Tuple2<String[], DataType[]> types =
+                extractColumnInformation(
+                        Stream.of(hiveTableInfo.f0, hiveTableInfo.f1)
+                                .flatMap(Collection::stream)
+                                .collect(Collectors.toList()),
+                        hiveTableInfo.f2);
+
+        return DataTypes.ROW(
+                IntStream.range(0, types.f0.length)
+                        .mapToObj(i -> DataTypes.FIELD(types.f0[i], types.f1[i]))
+                        .collect(Collectors.toList()));
+    }
+
+    private static Tuple2<String[], DataType[]> getColumnInformation(
+            List<FieldSchema> nonPartCols,
+            List<FieldSchema> partitionKeys,
+            Set<String> notNullColumns,
+            @Nullable UniqueConstraint primaryKey) {
+        List<FieldSchema> allCols = new ArrayList<>(nonPartCols);
+        allCols.addAll(partitionKeys);
+
+        // PK columns cannot be null
+        if (primaryKey != null) {
+            notNullColumns.addAll(primaryKey.getColumns());
+        }
+
+        return extractColumnInformation(allCols, notNullColumns);
+    }
+
+    /**
+     * Get the hive table's information.
+     *
+     * @return non-part fields, part fields, notNullColumns, primaryKey.
+     */
+    private static Tuple4<
+                    List<FieldSchema>, List<FieldSchema>, Set<String>, Optional<UniqueConstraint>>
+            extractHiveTableInfo(
+                    HiveConf hiveConf,
+                    Table hiveTable,
+                    HiveMetastoreClientWrapper client,
+                    HiveShim hiveShim) {
         List<FieldSchema> fields = getNonPartitionFields(hiveConf, hiveTable, hiveShim);
         Set<String> notNullColumns =
                 client.getNotNullColumns(hiveConf, hiveTable.getDbName(), hiveTable.getTableName());
@@ -112,25 +225,17 @@ public class HiveTableUtil {
                         HiveTableUtil.relyConstraint((byte) 0));
         // PK columns cannot be null
         primaryKey.ifPresent(pk -> notNullColumns.addAll(pk.getColumns()));
-        return createTableSchema(
-                fields, hiveTable.getPartitionKeys(), notNullColumns, primaryKey.orElse(null));
+
+        return Tuple4.of(fields, hiveTable.getPartitionKeys(), notNullColumns, primaryKey);
     }
 
-    /** Create a Flink's TableSchema from Hive table's columns and partition keys. */
-    public static TableSchema createTableSchema(
-            List<FieldSchema> cols,
-            List<FieldSchema> partitionKeys,
-            Set<String> notNullColumns,
-            UniqueConstraint primaryKey) {
-        List<FieldSchema> allCols = new ArrayList<>(cols);
-        allCols.addAll(partitionKeys);
-
+    private static Tuple2<String[], DataType[]> extractColumnInformation(
+            List<FieldSchema> allCols, Set<String> notNullColumns) {
         String[] colNames = new String[allCols.size()];
         DataType[] colTypes = new DataType[allCols.size()];
 
         for (int i = 0; i < allCols.size(); i++) {
             FieldSchema fs = allCols.get(i);
-
             colNames[i] = fs.getName();
             colTypes[i] =
                     HiveTypeUtil.toFlinkType(TypeInfoUtils.getTypeInfoFromTypeString(fs.getType()));
@@ -139,18 +244,13 @@ public class HiveTableUtil {
             }
         }
 
-        TableSchema.Builder builder = TableSchema.builder().fields(colNames, colTypes);
-        if (primaryKey != null) {
-            builder.primaryKey(
-                    primaryKey.getName(), primaryKey.getColumns().toArray(new String[0]));
-        }
-        return builder.build();
+        return Tuple2.of(colNames, colTypes);
     }
 
-    /** Create Hive columns from Flink TableSchema. */
-    public static List<FieldSchema> createHiveColumns(TableSchema schema) {
-        String[] fieldNames = schema.getFieldNames();
-        DataType[] fieldTypes = schema.getFieldDataTypes();
+    /** Create Hive columns from Flink ResolvedSchema. */
+    public static List<FieldSchema> createHiveColumns(ResolvedSchema schema) {
+        String[] fieldNames = schema.getColumnNames().toArray(new String[0]);
+        DataType[] fieldTypes = schema.getColumnDataTypes().toArray(new DataType[0]);
 
         List<FieldSchema> columns = new ArrayList<>(fieldNames.length);
 
@@ -288,7 +388,7 @@ public class HiveTableUtil {
             // there was a typo of this property in hive, and was fixed in 3.0.0 --
             // https://issues.apache.org/jira/browse/HIVE-16922
             String key =
-                    prop.equals(HiveTableRowFormat.COLLECTION_DELIM)
+                    prop.equals(COLLECTION_DELIM)
                             ? serdeConstants.COLLECTION_DELIM
                             : prop.substring(SERDE_INFO_PROP_PREFIX.length());
             sd.getSerdeInfo().getParameters().put(key, value);
@@ -342,24 +442,26 @@ public class HiveTableUtil {
         setStorageFormat(sd, "TextFile", hiveConf);
     }
 
-    public static void alterColumns(StorageDescriptor sd, CatalogTable catalogTable) {
-        List<FieldSchema> allCols = HiveTableUtil.createHiveColumns(catalogTable.getSchema());
+    public static void alterColumns(
+            StorageDescriptor sd, ResolvedCatalogTable resolvedCatalogTable) {
+        List<FieldSchema> allCols =
+                HiveTableUtil.createHiveColumns(resolvedCatalogTable.getResolvedSchema());
         List<FieldSchema> nonPartCols =
-                allCols.subList(0, allCols.size() - catalogTable.getPartitionKeys().size());
+                allCols.subList(0, allCols.size() - resolvedCatalogTable.getPartitionKeys().size());
         sd.setCols(nonPartCols);
     }
 
-    public static SqlAlterHiveTable.AlterTableOp extractAlterTableOp(Map<String, String> props) {
+    public static AlterTableOp extractAlterTableOp(Map<String, String> props) {
         String opStr = props.remove(ALTER_TABLE_OP);
         if (opStr != null) {
-            return SqlAlterHiveTable.AlterTableOp.valueOf(opStr);
+            return AlterTableOp.valueOf(opStr);
         }
         return null;
     }
 
     public static Table alterTableViaCatalogBaseTable(
             ObjectPath tablePath,
-            CatalogBaseTable baseTable,
+            ResolvedCatalogBaseTable baseTable,
             Table oldHiveTable,
             HiveConf hiveConf,
             boolean managedTable) {
@@ -373,7 +475,10 @@ public class HiveTableUtil {
     }
 
     public static Table instantiateHiveTable(
-            ObjectPath tablePath, CatalogBaseTable table, HiveConf hiveConf, boolean managedTable) {
+            ObjectPath tablePath,
+            ResolvedCatalogBaseTable table,
+            HiveConf hiveConf,
+            boolean managedTable) {
         final boolean isView = table instanceof CatalogView;
         // let Hive set default parameters for us, e.g. serialization.format
         Table hiveTable =
@@ -401,7 +506,8 @@ public class HiveTableUtil {
         // because hive cannot understand the expanded query anyway
         if (isHiveTable && !isView) {
             HiveTableUtil.initiateTableFromProperties(hiveTable, properties, hiveConf);
-            List<FieldSchema> allColumns = HiveTableUtil.createHiveColumns(table.getSchema());
+            List<FieldSchema> allColumns =
+                    HiveTableUtil.createHiveColumns(table.getResolvedSchema());
             // Table columns and partition keys
             if (table instanceof CatalogTable) {
                 CatalogTable catalogTable = (CatalogTable) table;
@@ -426,14 +532,14 @@ public class HiveTableUtil {
             // Table properties
             hiveTable.getParameters().putAll(properties);
         } else {
-            DescriptorProperties tableSchemaProps = new DescriptorProperties(true);
-            tableSchemaProps.putTableSchema(Schema.SCHEMA, table.getSchema());
-
-            if (table instanceof CatalogTable) {
-                tableSchemaProps.putPartitionKeys(((CatalogTable) table).getPartitionKeys());
+            if (isView) {
+                properties.putAll(
+                        CatalogPropertiesUtil.serializeCatalogView((ResolvedCatalogView) table));
+            } else {
+                properties.putAll(
+                        CatalogPropertiesUtil.serializeCatalogTable((ResolvedCatalogTable) table));
             }
 
-            properties.putAll(tableSchemaProps.asMap());
             properties = maskFlinkProperties(properties);
             // we may need to explicitly set is_generic flag in the following cases:
             // 1. user doesn't specify 'connector' or 'connector.type' when creating a table, w/o

@@ -50,7 +50,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       ("fruit", 5, 22))
 
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'num)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       """
@@ -91,7 +91,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       ("fruit", 5, 22))
 
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'num)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       s"""
@@ -121,7 +121,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       ("fruit", 5, 22))
 
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'num)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       """
@@ -175,7 +175,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     )
 
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'num)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       """
@@ -234,7 +234,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     )
 
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'price)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       """
@@ -276,7 +276,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       ("fruit", 5, 22))
 
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'num)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       """
@@ -323,7 +323,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     val ds = env.fromCollection(data)
     val t = ds.toTable(tEnv, 'category, 'shopId, 'num)
-    tEnv.registerTable("T", t)
+    tEnv.createTemporaryView("T", t)
 
     val subquery =
       """
@@ -369,7 +369,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       ("fruit", 5, 22))
 
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'num)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       """
@@ -411,7 +411,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       ("fruit", 5, 22))
 
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'num)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       """
@@ -448,7 +448,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       ("fruit", 5, 22))
 
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'num)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       """
@@ -496,7 +496,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     )
 
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'sellId)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       """
@@ -566,7 +566,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     )
 
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'sellId)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       s"""
@@ -611,7 +611,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     env.setParallelism(1)
     val ds = failingDataSource(data).toTable(tEnv, 'cate, 'shopId, 'sells)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       """
@@ -696,7 +696,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     env.setParallelism(1)
     val ds = failingDataSource(data).toTable(tEnv, 'cate, 'shopId, 'sells)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       """
@@ -768,7 +768,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     )
 
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'sellId, 'topSize)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       """
@@ -826,7 +826,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     env.setParallelism(1)
 
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'num)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       """
@@ -895,7 +895,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     env.setParallelism(1)
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'sellId)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       """
@@ -976,7 +976,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     env.setParallelism(1)
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'sellId)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       """
@@ -1042,7 +1042,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     env.setParallelism(1)
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'num)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       """
@@ -1092,7 +1092,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
       env.setParallelism(1)
       val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'num)
-      tEnv.registerTable("T", ds)
+      tEnv.createTemporaryView("T", ds)
 
       val subquery =
         s"""
@@ -1103,7 +1103,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
            |""".stripMargin
 
       val t1 = tEnv.sqlQuery(subquery)
-      tEnv.registerTable("MyView", t1)
+      tEnv.createTemporaryView("MyView", t1)
     }
 
     registerView()
@@ -1158,7 +1158,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     env.setParallelism(1)
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'num)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val subquery =
       s"""
@@ -1168,7 +1168,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
          |""".stripMargin
 
     val t1 = tEnv.sqlQuery(subquery)
-    tEnv.registerTable("MyView", t1)
+    tEnv.createTemporaryView("MyView", t1)
 
     val table1 = tEnv.sqlQuery(
       s"""
@@ -1222,7 +1222,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     env.setParallelism(1)
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'num)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val subquery =
       s"""
@@ -1232,7 +1232,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
          |""".stripMargin
 
     val t1 = tEnv.sqlQuery(subquery)
-    tEnv.registerTable("MyView", t1)
+    tEnv.createTemporaryView("MyView", t1)
 
     val table1 = tEnv.sqlQuery(
       s"""
@@ -1330,7 +1330,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       ("fruit", "aws", 5, 22))
 
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'seller, 'shopId, 'num)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       """

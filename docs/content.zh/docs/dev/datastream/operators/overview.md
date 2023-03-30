@@ -869,7 +869,7 @@ some_stream.filter(...).name("filter").set_description("x in (1, 2, 3, 4) and y 
 节点的描述默认是按照一个多行的树形结构来构建的，用户可以通过把`pipeline.vertex-description-mode`设为`CASCADING`, 实现将描述改为老版本的单行递归模式。
 
 Flink SQL框架生成的算子默认会有一个由算子的类型以及id构成的名字，以及一个带有详细信息的描述。
-用户可以通过将`table.optimizer.simplify-operator-name-enabled`设为`false`，将名字改为和以前的版本一样的详细描述。
+用户可以通过将`table.exec.simplify-operator-name-enabled`设为`false`，将名字改为和以前的版本一样的详细描述。
 
 当一个作业的拓扑很复杂时，用户可以把`pipeline.vertex-name-include-index-prefix`设为`true`，在节点的名字前增加一个拓扑序的前缀，这样就可以很容易根据指标以及日志的信息快速找到拓扑图中对应节点。
 

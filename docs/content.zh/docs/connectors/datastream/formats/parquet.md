@@ -123,7 +123,6 @@ FileSource.forRecordStreamFormat(StreamFormat,Path...)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-{{< tab "Python" >}}
 ```python
 
 # Parquet rows are decoded in batches

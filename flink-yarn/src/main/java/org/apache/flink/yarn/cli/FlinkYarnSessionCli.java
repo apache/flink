@@ -20,6 +20,8 @@ package org.apache.flink.yarn.cli;
 
 import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.cli.CliFrontend;
+import org.apache.flink.client.cli.CliFrontendParser;
+import org.apache.flink.client.cli.DynamicPropertiesUtil;
 import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterSpecification;
@@ -59,7 +61,6 @@ import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.exceptions.YarnException;
-import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -319,7 +320,7 @@ public class FlinkYarnSessionCli extends AbstractYarnCli {
             try {
                 // try converting id to ApplicationId
                 yarnApplicationIdFromYarnProperties =
-                        ConverterUtils.toApplicationId(yarnApplicationIdString);
+                        ApplicationId.fromString(yarnApplicationIdString);
             } catch (Exception e) {
                 throw new FlinkException(
                         "YARN properties contain an invalid entry for "
@@ -405,7 +406,7 @@ public class FlinkYarnSessionCli extends AbstractYarnCli {
 
             effectiveConfiguration.setString(HA_CLUSTER_ID, zooKeeperNamespace);
             effectiveConfiguration.setString(
-                    YarnConfigOptions.APPLICATION_ID, ConverterUtils.toString(applicationId));
+                    YarnConfigOptions.APPLICATION_ID, applicationId.toString());
             effectiveConfiguration.setString(
                     DeploymentOptions.TARGET, YarnSessionClusterExecutor.NAME);
         } else {
@@ -453,11 +454,9 @@ public class FlinkYarnSessionCli extends AbstractYarnCli {
 
     private ApplicationId getApplicationId(CommandLine commandLine) {
         if (commandLine.hasOption(applicationId.getOpt())) {
-            return ConverterUtils.toApplicationId(
-                    commandLine.getOptionValue(applicationId.getOpt()));
+            return ApplicationId.fromString(commandLine.getOptionValue(applicationId.getOpt()));
         } else if (configuration.getOptional(YarnConfigOptions.APPLICATION_ID).isPresent()) {
-            return ConverterUtils.toApplicationId(
-                    configuration.get(YarnConfigOptions.APPLICATION_ID));
+            return ApplicationId.fromString(configuration.get(YarnConfigOptions.APPLICATION_ID));
         } else if (isYarnPropertiesFileMode(commandLine)) {
             return yarnApplicationIdFromYarnProperties;
         }
@@ -593,8 +592,7 @@ public class FlinkYarnSessionCli extends AbstractYarnCli {
 
                 if (cmd.hasOption(applicationId.getOpt())) {
                     yarnApplicationId =
-                            ConverterUtils.toApplicationId(
-                                    cmd.getOptionValue(applicationId.getOpt()));
+                            ApplicationId.fromString(cmd.getOptionValue(applicationId.getOpt()));
 
                     clusterClientProvider = yarnClusterDescriptor.retrieve(yarnApplicationId);
                 } else {
@@ -857,7 +855,12 @@ public class FlinkYarnSessionCli extends AbstractYarnCli {
                             "",
                             ""); // no prefix for the YARN session
 
-            SecurityUtils.install(new SecurityConfiguration(flinkConfiguration));
+            final CommandLine commandLine = CliFrontendParser.parse(cli.allOptions, args, true);
+
+            final Configuration securityFlinkConfiguration = flinkConfiguration.clone();
+            DynamicPropertiesUtil.encodeDynamicProperties(commandLine, securityFlinkConfiguration);
+
+            SecurityUtils.install(new SecurityConfiguration(securityFlinkConfiguration));
 
             retCode = SecurityUtils.getInstalledContext().runSecured(() -> cli.run(args));
         } catch (CliArgsException e) {

@@ -53,6 +53,25 @@ public class SingleThreadFetcherManager<E, SplitT extends SourceSplit>
      *     the same queue instance that is also passed to the {@link SourceReaderBase}.
      * @param splitReaderSupplier The factory for the split reader that connects to the source
      *     system.
+     * @deprecated Please use {@link #SingleThreadFetcherManager(FutureCompletingBlockingQueue,
+     *     Supplier, Configuration)} instead.
+     */
+    @Deprecated
+    public SingleThreadFetcherManager(
+            FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
+            Supplier<SplitReader<E, SplitT>> splitReaderSupplier) {
+        this(elementsQueue, splitReaderSupplier, new Configuration());
+    }
+
+    /**
+     * Creates a new SplitFetcherManager with a single I/O threads.
+     *
+     * @param elementsQueue The queue that is used to hand over data from the I/O thread (the
+     *     fetchers) to the reader (which emits the records and book-keeps the state. This must be
+     *     the same queue instance that is also passed to the {@link SourceReaderBase}.
+     * @param splitReaderSupplier The factory for the split reader that connects to the source
+     *     system.
+     * @param configuration The configuration to create the fetcher manager.
      */
     public SingleThreadFetcherManager(
             FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
@@ -69,6 +88,7 @@ public class SingleThreadFetcherManager<E, SplitT extends SourceSplit>
      *     the same queue instance that is also passed to the {@link SourceReaderBase}.
      * @param splitReaderSupplier The factory for the split reader that connects to the source
      *     system.
+     * @param configuration The configuration to create the fetcher manager.
      * @param splitFinishedHook Hook for handling finished splits in split fetchers
      */
     @VisibleForTesting
@@ -90,6 +110,14 @@ public class SingleThreadFetcherManager<E, SplitT extends SourceSplit>
             startFetcher(fetcher);
         } else {
             fetcher.addSplits(splitsToAdd);
+        }
+    }
+
+    @Override
+    public void removeSplits(List<SplitT> splitsToRemove) {
+        SplitFetcher<E, SplitT> fetcher = getRunningFetcher();
+        if (fetcher != null) {
+            fetcher.removeSplits(splitsToRemove);
         }
     }
 

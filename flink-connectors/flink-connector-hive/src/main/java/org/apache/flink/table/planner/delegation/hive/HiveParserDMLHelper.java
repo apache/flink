@@ -22,11 +22,11 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.table.api.Schema;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
@@ -90,7 +90,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_LOCATION_URI;
+import static org.apache.flink.table.catalog.hive.util.Constants.TABLE_LOCATION_URI;
 import static org.apache.flink.table.planner.delegation.hive.HiveParserConstants.IS_INSERT_DIRECTORY;
 import static org.apache.flink.table.planner.delegation.hive.HiveParserConstants.IS_TO_LOCAL_DIRECTORY;
 
@@ -154,11 +154,11 @@ public class HiveParserDMLHelper {
         RelDataTypeFactory typeFactory = plannerContext.getTypeFactory();
         LinkedHashMap<String, RelDataType> targetColToCalcType = new LinkedHashMap<>();
         List<TypeInfo> targetHiveTypes = new ArrayList<>();
-        TableSchema tableSchema =
-                HiveParserUtils.fromUnresolvedSchema(destTable.getUnresolvedSchema());
-        String[] fieldNames = tableSchema.getFieldNames();
+        ResolvedSchema resolvedSchema = ((ResolvedCatalogTable) destTable).getResolvedSchema();
+        String[] fieldNames = resolvedSchema.getColumnNames().toArray(new String[] {});
         for (String fieldName : fieldNames) {
-            Optional<DataType> dataType = tableSchema.getFieldDataType(fieldName);
+            Optional<DataType> dataType =
+                    resolvedSchema.getColumn(fieldName).map(Column::getDataType);
             TypeInfo hiveType =
                     HiveTypeUtil.toHiveTypeInfo(
                             dataType.orElseThrow(
@@ -340,6 +340,7 @@ public class HiveParserDMLHelper {
                 catalogManager.getTableOrError(insertOperationInfo.f0),
                 insertOperationInfo.f1,
                 insertOperationInfo.f2,
+                null, // targetColumns
                 insertOperationInfo.f3,
                 Collections.emptyMap());
     }
@@ -392,6 +393,7 @@ public class HiveParserDMLHelper {
                         plannerQueryOperation.getResolvedSchema(), props),
                 plannerQueryOperation,
                 Collections.emptyMap(),
+                null, // targetColumns
                 true, // insert into directory is always for overwrite
                 Collections.emptyMap());
     }
@@ -682,11 +684,11 @@ public class HiveParserDMLHelper {
             return queryRelNode;
         }
 
+        ResolvedCatalogTable resolvedCatalogTable = (ResolvedCatalogTable) destTable;
         // natural schema should contain regular cols + dynamic cols
-        TableSchema tableSchema =
-                HiveParserUtils.fromUnresolvedSchema(destTable.getUnresolvedSchema());
+        ResolvedSchema resolvedSchema = resolvedCatalogTable.getResolvedSchema();
         List<String> naturalSchema = new ArrayList<>();
-        for (String fieldName : tableSchema.getFieldNames()) {
+        for (String fieldName : resolvedSchema.getColumnNames()) {
             // only add no partition cols and dynamic partition cols
             if (!staticParts.contains(fieldName)) {
                 naturalSchema.add(fieldName);
@@ -703,7 +705,8 @@ public class HiveParserDMLHelper {
         for (String col : naturalSchema) {
             int index = destSchema.indexOf(col);
             if (index < 0) {
-                Optional<DataType> dataType = tableSchema.getFieldDataType(col);
+                Optional<DataType> dataType =
+                        resolvedSchema.getColumn(col).map(Column::getDataType);
                 TypeInfo hiveType =
                         HiveTypeUtil.toHiveTypeInfo(
                                 dataType.orElseThrow(

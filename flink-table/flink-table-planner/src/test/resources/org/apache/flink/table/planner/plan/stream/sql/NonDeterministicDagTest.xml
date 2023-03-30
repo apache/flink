@@ -409,7 +409,7 @@ from cdc t1, lateral table(ndTableFunc(a)) as T(a1)
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, EXPR$1, EXPR$2])
+LogicalSink(table=[default_catalog.default_database.sink_with_pk], targetColumns=[[0]], fields=[a, EXPR$1, EXPR$2])
 +- LogicalProject(a=[CAST($4):INTEGER], EXPR$1=[null:BIGINT], EXPR$2=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
       :- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
@@ -418,7 +418,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, EX
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, EXPR$1, EXPR$2], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.sink_with_pk], targetColumns=[[0]], fields=[a, EXPR$1, EXPR$2], upsertMaterialize=[true])
 +- Calc(select=[CAST(EXPR$0 AS INTEGER) AS a, null:BIGINT AS EXPR$1, null:VARCHAR(2147483647) AS EXPR$2])
    +- Correlate(invocation=[ndTableFunc($cor0.a)], correlate=[table(ndTableFunc($cor0.a))], select=[a,b,c,d,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, BIGINT d, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
       +- TableSourceScan(table=[[default_catalog, default_database, cdc]], fields=[a, b, c, d])
@@ -2479,6 +2479,44 @@ Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, ndCnt, mc
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNonDeterministicProjectionWithSinkWithoutPk[nonDeterministicUpdateStrategy=IGNORE]">
+    <Resource name="sql">
+      <![CDATA[
+insert into sink_without_pk
+select
+  a,
+  if(a > 100, b+d, b) as b,
+  case when d > 100 then json_value(c, '$.count')
+  else cast(b as string) || '#' end as c
+from (
+select a, b, c, d from (
+  select *, row_number() over(partition by a order by d desc) as rn
+  from (
+    select a, d as b, c, ndFunc(b) as d from cdc
+  ) tmp
+) tmp where rn = 1) tmp
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[IF(>($0, 100), +($1, $3), $1)], c=[CASE(>($3, 100), JSON_VALUE($2, _UTF-16LE'$.count'), ||(CAST($1):VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'#'))])
+   +- LogicalFilter(condition=[=($4, 1)])
+      +- LogicalProject(a=[$0], b=[$3], c=[$2], d=[ndFunc($1)], rn=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY ndFunc($1) DESC NULLS LAST)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
++- Calc(select=[a, IF((a > 100), (d + $3), d) AS b, CASE(($3 > 100), JSON_VALUE(c, '$.count'), ||(CAST(d AS VARCHAR(2147483647)), '#')) AS c])
+   +- Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[$3 DESC], select=[a, c, d, $3])
+      +- Exchange(distribution=[hash[a]])
+         +- Calc(select=[a, c, d, ndFunc(b) AS $3])
+            +- TableSourceScan(table=[[default_catalog, default_database, cdc]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>

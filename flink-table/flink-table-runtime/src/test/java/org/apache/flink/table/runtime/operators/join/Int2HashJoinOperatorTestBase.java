@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTaskTestHarness;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
@@ -148,6 +149,18 @@ public abstract class Int2HashJoinOperatorTestBase implements Serializable {
                 };
         boolean[] filterNulls = new boolean[] {true};
 
+        int maxNumFileHandles =
+                ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES.defaultValue();
+        boolean compressionEnabled =
+                ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED.defaultValue();
+        int compressionBlockSize =
+                (int)
+                        ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE
+                                .defaultValue()
+                                .getBytes();
+        boolean asyncMergeEnabled =
+                ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED.defaultValue();
+
         SortMergeJoinFunction sortMergeJoinFunction;
         if (buildLeft) {
             sortMergeJoinFunction =
@@ -155,6 +168,10 @@ public abstract class Int2HashJoinOperatorTestBase implements Serializable {
                             0,
                             flinkJoinType,
                             buildLeft,
+                            maxNumFileHandles,
+                            compressionEnabled,
+                            compressionBlockSize,
+                            asyncMergeEnabled,
                             condFuncCode,
                             buildProjectionCode,
                             probeProjectionCode,
@@ -170,6 +187,10 @@ public abstract class Int2HashJoinOperatorTestBase implements Serializable {
                             0,
                             flinkJoinType,
                             buildLeft,
+                            maxNumFileHandles,
+                            compressionEnabled,
+                            compressionBlockSize,
+                            asyncMergeEnabled,
                             condFuncCode,
                             probeProjectionCode,
                             buildProjectionCode,
@@ -184,6 +205,8 @@ public abstract class Int2HashJoinOperatorTestBase implements Serializable {
         return HashJoinOperator.newHashJoinOperator(
                 hashJoinType,
                 buildLeft,
+                compressionEnabled,
+                compressionBlockSize,
                 condFuncCode,
                 reverseJoinFunction,
                 filterNulls,

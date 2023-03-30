@@ -115,7 +115,13 @@ public class BufferedKVExternalSorterTest {
                         computer,
                         comparator,
                         PAGE_SIZE,
-                        conf);
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED),
+                        (int)
+                                conf.get(
+                                                ExecutionConfigOptions
+                                                        .TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
+                                        .getBytes());
         TestMemorySegmentPool pool = new TestMemorySegmentPool(PAGE_SIZE);
         List<Integer> expected = new ArrayList<>();
         for (int i = 0; i < spillNumber; i++) {

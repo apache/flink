@@ -19,7 +19,13 @@
 package org.apache.flink.runtime.testtasks;
 
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.util.Preconditions;
+
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 
 /**
  * Mimics a task that is doing something until some external condition is fulfilled. {@link
@@ -33,45 +39,41 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
  */
 public class OnceBlockingNoOpInvokable extends AbstractInvokable {
 
+    private static final Map<ExecutionAttemptID, CountDownLatch> EXECUTION_LATCHES =
+            new ConcurrentHashMap<>();
+
     private static volatile boolean isBlocking = true;
 
-    private static final Object lock = new Object();
-
-    private static volatile boolean running = true;
+    private final ExecutionAttemptID executionAttemptId;
 
     public OnceBlockingNoOpInvokable(Environment environment) {
         super(environment);
+        this.executionAttemptId = environment.getExecutionId();
+        Preconditions.checkState(
+                EXECUTION_LATCHES.put(executionAttemptId, new CountDownLatch(1)) == null);
     }
 
     @Override
     public void invoke() throws Exception {
-        if (isBlocking) {
-            synchronized (lock) {
-                while (running) {
-                    lock.wait();
-                }
-            }
+        final CountDownLatch executionLatch =
+                Preconditions.checkNotNull(EXECUTION_LATCHES.get(executionAttemptId));
+        while (isBlocking && executionLatch.getCount() > 0) {
+            executionLatch.await();
         }
     }
 
     @Override
     public void cancel() throws Exception {
-        synchronized (lock) {
-            running = false;
-            lock.notifyAll();
-        }
+        Preconditions.checkNotNull(EXECUTION_LATCHES.get(executionAttemptId)).countDown();
     }
 
     public static void unblock() {
-        running = false;
         isBlocking = false;
-        synchronized (lock) {
-            lock.notifyAll();
-        }
+        EXECUTION_LATCHES.values().forEach(CountDownLatch::countDown);
     }
 
     public static void reset() {
         isBlocking = true;
-        running = true;
+        EXECUTION_LATCHES.clear();
     }
 }

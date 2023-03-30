@@ -102,7 +102,7 @@ public abstract class AbstractSqlGatewayStatementITCase extends AbstractTestBase
     }
 
     @BeforeAll
-    public static void setUp() {
+    static void setUp() {
         service = SQL_GATEWAY_SERVICE_EXTENSION.getService();
     }
 

@@ -31,9 +31,7 @@ import org.apache.flink.table.gateway.rest.message.statement.CompleteStatementRe
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
-import java.nio.file.Path;
 import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -44,14 +42,13 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Test basic logic of handlers inherited from {@link AbstractSqlGatewayRestHandler} in statement
  * related cases.
  */
-public class StatementRelatedITCase extends RestAPIITCaseBase {
+class StatementRelatedITCase extends RestAPIITCaseBase {
 
     private SessionHandle sessionHandle;
     private SessionMessageParameters sessionMessageParameters;
-    private @TempDir Path tempDir;
 
     @BeforeEach
-    public void setUp() throws Exception {
+    void setUp() throws Exception {
         CompletableFuture<OpenSessionResponseBody> response =
                 sendRequest(
                         OpenSessionHeaders.getInstance(),
@@ -64,7 +61,7 @@ public class StatementRelatedITCase extends RestAPIITCaseBase {
     }
 
     @Test
-    public void testCompleteStatement() throws Exception {
+    void testCompleteStatement() throws Exception {
         CompletableFuture<CompleteStatementResponseBody> completeStatementResponse =
                 sendRequest(
                         CompleteStatementHeaders.getInstance(),

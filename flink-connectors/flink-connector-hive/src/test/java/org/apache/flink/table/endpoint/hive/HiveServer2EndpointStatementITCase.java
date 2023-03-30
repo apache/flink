@@ -87,7 +87,7 @@ public class HiveServer2EndpointStatementITCase extends AbstractSqlGatewayStatem
     }
 
     @AfterEach
-    public void after() throws Exception {
+    void after() throws Exception {
         statement.close();
         connection.close();
     }

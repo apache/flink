@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.table.api.internal.TableResultImpl;
+import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
@@ -46,5 +48,12 @@ public class AlterTableSchemaOperation extends AlterTableOperation {
                 ignoreIfTableNotExists ? "IF EXISTS " : "",
                 tableIdentifier.asSummaryString(),
                 catalogTable.getUnresolvedSchema().toString());
+    }
+
+    @Override
+    public TableResultInternal execute(Context ctx) {
+        ctx.getCatalogManager()
+                .alterTable(getCatalogTable(), getTableIdentifier(), ignoreIfTableNotExists());
+        return TableResultImpl.TABLE_RESULT_OK;
     }
 }

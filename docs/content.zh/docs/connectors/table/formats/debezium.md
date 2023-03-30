@@ -328,6 +328,13 @@ Flink 提供了 `debezium-avro-confluent` 和 `debezium-json` 两种 format 来�
             <td>Password for SSL truststore</td>
         </tr>
         <tr>
+            <td><h5>debezium-avro-confluent.schema</h5></td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The schema registered or to be registered in the Confluent Schema Registry. If no schema is provided Flink converts the table schema to avro schema. The schema provided must match the Debezium schema which is a nullable record type including fields 'before', 'after', 'op'.</td>
+        </tr>
+        <tr>
             <td><h5>debezium-avro-confluent.subject</h5></td>
             <td>optional</td>
             <td style="word-wrap: break-word;">(none)</td>

@@ -124,8 +124,9 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
 
         this.table =
                 new BinaryHashTable(
-                        getContainingTask().getJobConfiguration(),
                         getContainingTask(),
+                        parameter.compressionEnabled,
+                        parameter.compressionBlockSize,
                         buildSerializer,
                         probeSerializer,
                         parameter.buildProjectionCode.newInstance(cl),
@@ -322,6 +323,8 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
     public static HashJoinOperator newHashJoinOperator(
             HashJoinType type,
             boolean leftIsBuild,
+            boolean compressionEnable,
+            int compressionBlockSize,
             GeneratedJoinCondition condFuncCode,
             boolean reverseJoinFunction,
             boolean[] filterNullKeys,
@@ -337,6 +340,8 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
                 new HashJoinParameter(
                         type,
                         leftIsBuild,
+                        compressionEnable,
+                        compressionBlockSize,
                         condFuncCode,
                         reverseJoinFunction,
                         filterNullKeys,
@@ -372,6 +377,8 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
     static class HashJoinParameter implements Serializable {
         HashJoinType type;
         boolean leftIsBuild;
+        boolean compressionEnabled;
+        int compressionBlockSize;
         GeneratedJoinCondition condFuncCode;
         boolean reverseJoinFunction;
         boolean[] filterNullKeys;
@@ -387,6 +394,8 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
         HashJoinParameter(
                 HashJoinType type,
                 boolean leftIsBuild,
+                boolean compressionEnabled,
+                int compressionBlockSize,
                 GeneratedJoinCondition condFuncCode,
                 boolean reverseJoinFunction,
                 boolean[] filterNullKeys,
@@ -400,6 +409,8 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
                 SortMergeJoinFunction sortMergeJoinFunction) {
             this.type = type;
             this.leftIsBuild = leftIsBuild;
+            this.compressionEnabled = compressionEnabled;
+            this.compressionBlockSize = compressionBlockSize;
             this.condFuncCode = condFuncCode;
             this.reverseJoinFunction = reverseJoinFunction;
             this.filterNullKeys = filterNullKeys;

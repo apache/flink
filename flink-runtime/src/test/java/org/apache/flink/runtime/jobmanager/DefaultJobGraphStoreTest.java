@@ -24,6 +24,8 @@ import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.runtime.checkpoint.TestingRetrievableStateStorageHelper;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
+import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.persistence.IntegerResourceVersion;
 import org.apache.flink.runtime.persistence.StateHandleStore;
 import org.apache.flink.runtime.persistence.TestingStateHandleStore;
@@ -33,13 +35,19 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 
+import org.assertj.core.api.Assertions;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -366,6 +374,78 @@ public class DefaultJobGraphStoreTest extends TestLogger {
 
         final String actual = releaseFuture.get();
         assertThat(actual, is(testingJobGraph.getJobID().toString()));
+    }
+
+    @Test
+    public void testRecoverPersistedJobResourceRequirements() throws Exception {
+        final Map<String, RetrievableStateHandle<JobGraph>> handles = new HashMap<>();
+        final TestingStateHandleStore<JobGraph> stateHandleStore =
+                builder.setAddFunction(
+                                (key, state) -> {
+                                    final RetrievableStateHandle<JobGraph> handle =
+                                            jobGraphStorageHelper.store(state);
+                                    handles.put(key, handle);
+                                    return handle;
+                                })
+                        .setGetFunction(
+                                key -> {
+                                    final RetrievableStateHandle<JobGraph> handle =
+                                            handles.get(key);
+                                    if (handle != null) {
+                                        return handle;
+                                    }
+                                    throw new StateHandleStore.NotExistException("Does not exist.");
+                                })
+                        .build();
+
+        final JobResourceRequirements jobResourceRequirements =
+                JobResourceRequirements.newBuilder()
+                        .setParallelismForJobVertex(new JobVertexID(), 1, 1)
+                        .build();
+
+        final JobGraphStore jobGraphStore = createAndStartJobGraphStore(stateHandleStore);
+        jobGraphStore.putJobGraph(testingJobGraph);
+        jobGraphStore.putJobResourceRequirements(
+                testingJobGraph.getJobID(), jobResourceRequirements);
+
+        assertStoredRequirementsAre(
+                jobGraphStore, testingJobGraph.getJobID(), jobResourceRequirements);
+
+        final JobResourceRequirements updatedJobResourceRequirements =
+                JobResourceRequirements.newBuilder()
+                        .setParallelismForJobVertex(new JobVertexID(), 1, 1)
+                        .build();
+
+        jobGraphStore.putJobResourceRequirements(
+                testingJobGraph.getJobID(), updatedJobResourceRequirements);
+
+        assertStoredRequirementsAre(
+                jobGraphStore, testingJobGraph.getJobID(), updatedJobResourceRequirements);
+    }
+
+    private static void assertStoredRequirementsAre(
+            JobGraphStore jobGraphStore, JobID jobId, JobResourceRequirements expected)
+            throws Exception {
+        final Optional<JobResourceRequirements> maybeRecovered =
+                JobResourceRequirements.readFromJobGraph(
+                        Objects.requireNonNull(jobGraphStore.recoverJobGraph(jobId)));
+        Assertions.assertThat(maybeRecovered).get().isEqualTo(expected);
+    }
+
+    @Test
+    public void testPutJobResourceRequirementsOfNonExistentJob() throws Exception {
+        final TestingStateHandleStore<JobGraph> stateHandleStore =
+                builder.setGetFunction(
+                                ignore -> {
+                                    throw new StateHandleStore.NotExistException("Does not exist.");
+                                })
+                        .build();
+        final JobGraphStore jobGraphStore = createAndStartJobGraphStore(stateHandleStore);
+        assertThrows(
+                NoSuchElementException.class,
+                () ->
+                        jobGraphStore.putJobResourceRequirements(
+                                new JobID(), JobResourceRequirements.empty()));
     }
 
     private JobGraphStore createAndStartJobGraphStore(

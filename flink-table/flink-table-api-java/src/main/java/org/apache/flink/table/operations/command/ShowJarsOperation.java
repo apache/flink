@@ -18,7 +18,11 @@
 
 package org.apache.flink.table.operations.command;
 
+import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.operations.ShowOperation;
+import org.apache.flink.table.resource.ResourceUri;
+
+import static org.apache.flink.table.api.internal.TableResultUtils.buildStringArrayResult;
 
 /** Operation to describe a SHOW JARS statement. */
 public class ShowJarsOperation implements ShowOperation {
@@ -26,5 +30,14 @@ public class ShowJarsOperation implements ShowOperation {
     @Override
     public String asSummaryString() {
         return "SHOW JARS";
+    }
+
+    @Override
+    public TableResultInternal execute(Context ctx) {
+        String[] jars =
+                ctx.getResourceManager().getResources().keySet().stream()
+                        .map(ResourceUri::getUri)
+                        .toArray(String[]::new);
+        return buildStringArrayResult("jars", jars);
     }
 }

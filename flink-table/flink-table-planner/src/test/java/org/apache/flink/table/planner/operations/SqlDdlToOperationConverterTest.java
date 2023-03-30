@@ -32,11 +32,13 @@ import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
@@ -76,6 +78,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -89,8 +92,8 @@ import static org.apache.flink.table.planner.utils.OperationMatchers.withSchema;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Test cases for the DDL statements for {@link SqlToOperationConverter}. */
-public class SqlDdlToOperationConverterTest extends SqlToOperationConverterTestBase {
+/** Test cases for the DDL statements for {@link SqlNodeToOperationConversion}. */
+public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBase {
 
     @Test
     public void testCreateDatabase() {
@@ -185,7 +188,7 @@ public class SqlDdlToOperationConverterTest extends SqlToOperationConverterTestB
     public void testCreateTable() {
         final String sql =
                 "CREATE TABLE tbl1 (\n"
-                        + "  a bigint,\n"
+                        + "  a bigint comment 'column a',\n"
                         + "  b varchar, \n"
                         + "  c int, \n"
                         + "  d varchar"
@@ -211,6 +214,15 @@ public class SqlDdlToOperationConverterTest extends SqlToOperationConverterTestB
                             DataTypes.VARCHAR(Integer.MAX_VALUE),
                             DataTypes.INT(),
                             DataTypes.VARCHAR(Integer.MAX_VALUE)
+                        });
+        assertThat(catalogTable).isInstanceOf(ResolvedCatalogTable.class);
+        ResolvedCatalogTable resolvedCatalogTable = (ResolvedCatalogTable) catalogTable;
+        resolvedCatalogTable
+                .getResolvedSchema()
+                .getColumn(0)
+                .ifPresent(
+                        (Column column) -> {
+                            assertThat(column.getComment()).isEqualTo(Optional.of("column a"));
                         });
     }
 
@@ -305,7 +317,8 @@ public class SqlDdlToOperationConverterTest extends SqlToOperationConverterTestB
         final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
         SqlNode node = parser.parse(sql);
         assertThat(node).isInstanceOf(SqlCreateTable.class);
-        Operation operation = SqlToOperationConverter.convert(planner, catalogManager, node).get();
+        Operation operation =
+                SqlNodeToOperationConversion.convert(planner, catalogManager, node).get();
         assertThat(operation).isInstanceOf(CreateTableOperation.class);
         CreateTableOperation op = (CreateTableOperation) operation;
         CatalogTable catalogTable = op.getCatalogTable();
@@ -341,7 +354,8 @@ public class SqlDdlToOperationConverterTest extends SqlToOperationConverterTestB
         SqlNode node = parser.parse(sql);
         assertThat(node).isInstanceOf(SqlCreateTable.class);
 
-        Operation operation = SqlToOperationConverter.convert(planner, catalogManager, node).get();
+        Operation operation =
+                SqlNodeToOperationConversion.convert(planner, catalogManager, node).get();
         assertThat(operation).isInstanceOf(CreateTableOperation.class);
         CreateTableOperation op = (CreateTableOperation) operation;
         CatalogTable catalogTable = op.getCatalogTable();
@@ -753,7 +767,8 @@ public class SqlDdlToOperationConverterTest extends SqlToOperationConverterTestB
         final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
         SqlNode node = parser.parse(sql);
         assertThat(node).isInstanceOf(SqlCreateTable.class);
-        Operation operation = SqlToOperationConverter.convert(planner, catalogManager, node).get();
+        Operation operation =
+                SqlNodeToOperationConversion.convert(planner, catalogManager, node).get();
         TableSchema schema = ((CreateTableOperation) operation).getCatalogTable().getSchema();
         Object[] expectedDataTypes = testItems.stream().map(item -> item.expectedType).toArray();
         assertThat(schema.getFieldDataTypes()).isEqualTo(expectedDataTypes);
@@ -2340,6 +2355,6 @@ public class SqlDdlToOperationConverterTest extends SqlToOperationConverterTestB
         final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
 
         SqlNode node = parser.parse(sql);
-        return SqlToOperationConverter.convert(planner, catalogManager, node).get();
+        return SqlNodeToOperationConversion.convert(planner, catalogManager, node).get();
     }
 }

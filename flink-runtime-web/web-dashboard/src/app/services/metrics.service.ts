@@ -54,7 +54,9 @@ export class MetricsService {
   public loadMetrics(jobId: string, vertexId: string, listOfMetricName: string[]): Observable<MetricMapWithTimestamp> {
     const metricName = listOfMetricName.join(',');
     return this.httpClient
-      .get<JobMetric[]>(`${this.configService.BASE_URL}/jobs/${jobId}/vertices/${vertexId}/metrics?get=${metricName}`)
+      .get<JobMetric[]>(`${this.configService.BASE_URL}/jobs/${jobId}/vertices/${vertexId}/metrics`, {
+        params: { get: metricName }
+      })
       .pipe(
         map(arr => {
           const result: MetricMap = {};
@@ -79,7 +81,8 @@ export class MetricsService {
     const metricName = listOfMetricName.join(',');
     return this.httpClient
       .get<Array<{ id: string; min: number; max: number; avg: number; sum: number }>>(
-        `${this.configService.BASE_URL}/jobs/${jobId}/vertices/${vertexId}/subtasks/metrics?get=${metricName}`
+        `${this.configService.BASE_URL}/jobs/${jobId}/vertices/${vertexId}/subtasks/metrics`,
+        { params: { get: metricName } }
       )
       .pipe(
         map(arr => {

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -44,6 +45,12 @@ public class StandaloneJobGraphStore implements JobGraphStore {
 
     @Override
     public void putJobGraph(JobGraph jobGraph) {
+        // Nothing to do
+    }
+
+    @Override
+    public void putJobResourceRequirements(
+            JobID jobId, JobResourceRequirements jobResourceRequirements) {
         // Nothing to do
     }
 

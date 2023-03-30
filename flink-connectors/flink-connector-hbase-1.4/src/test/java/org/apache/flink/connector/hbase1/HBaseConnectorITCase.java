@@ -380,7 +380,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
         String srcTableName = "src";
         DataStream<Row> srcDs = execEnv.fromCollection(testData).returns(testTypeInfo);
         Table in = tEnv.fromDataStream(srcDs, $("a"), $("b"), $("c"), $("proc").proctime());
-        tEnv.registerTable(srcTableName, in);
+        tEnv.createTemporaryView(srcTableName, in);
 
         // perform a temporal table join query
         String dimJoinQuery =

@@ -21,6 +21,7 @@ package org.apache.flink.connector.base.source.reader.mocks;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.base.source.reader.RecordEvaluator;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.SingleThreadMultiplexSourceReaderBase;
 import org.apache.flink.connector.base.source.reader.fetcher.SingleThreadFetcherManager;
@@ -57,6 +58,21 @@ public class MockSourceReader
                 elementsQueue,
                 splitSplitFetcherManager,
                 new MockRecordEmitter(context.metricGroup()),
+                config,
+                context);
+    }
+
+    public MockSourceReader(
+            FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue,
+            SingleThreadFetcherManager<int[], MockSourceSplit> splitSplitFetcherManager,
+            Configuration config,
+            SourceReaderContext context,
+            RecordEvaluator<Integer> recordEvaluator) {
+        super(
+                elementsQueue,
+                splitSplitFetcherManager,
+                new MockRecordEmitter(context.metricGroup()),
+                recordEvaluator,
                 config,
                 context);
     }

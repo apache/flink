@@ -31,10 +31,19 @@ public final class ProcTimeIntervalJoin extends TimeIntervalJoin {
             FlinkJoinType joinType,
             long leftLowerBound,
             long leftUpperBound,
+            long minCleanUpInterval,
             InternalTypeInfo<RowData> leftType,
             InternalTypeInfo<RowData> rightType,
             IntervalJoinFunction genJoinFunc) {
-        super(joinType, leftLowerBound, leftUpperBound, 0L, leftType, rightType, genJoinFunc);
+        super(
+                joinType,
+                leftLowerBound,
+                leftUpperBound,
+                0L,
+                minCleanUpInterval,
+                leftType,
+                rightType,
+                genJoinFunc);
     }
 
     @Override

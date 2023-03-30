@@ -18,6 +18,12 @@
 
 package org.apache.flink.table.operations;
 
+import org.apache.flink.table.api.internal.TableResultInternal;
+
+import java.util.Arrays;
+
+import static org.apache.flink.table.api.internal.TableResultUtils.buildStringArrayResult;
+
 /** Operation to describe a SHOW [USER] FUNCTIONS statement. */
 public class ShowFunctionsOperation implements ShowOperation {
 
@@ -56,5 +62,24 @@ public class ShowFunctionsOperation implements ShowOperation {
 
     public FunctionScope getFunctionScope() {
         return functionScope;
+    }
+
+    @Override
+    public TableResultInternal execute(Context ctx) {
+        final String[] functionNames;
+        switch (functionScope) {
+            case USER:
+                functionNames = ctx.getFunctionCatalog().getUserDefinedFunctions();
+                break;
+            case ALL:
+                functionNames = ctx.getFunctionCatalog().getFunctions();
+                break;
+            default:
+                throw new UnsupportedOperationException(
+                        String.format(
+                                "SHOW FUNCTIONS with %s scope is not supported.", functionScope));
+        }
+        Arrays.sort(functionNames);
+        return buildStringArrayResult("function name", functionNames);
     }
 }

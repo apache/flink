@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.codegen;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.utils.SorMergeJoinOperatorUtil;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
@@ -128,6 +129,11 @@ public class LongAdaptiveHashJoinGeneratorTest extends Int2AdaptiveHashJoinOpera
                 reverseJoinFunction,
                 condFunc,
                 buildLeft,
+                ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED.defaultValue(),
+                (int)
+                        ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE
+                                .defaultValue()
+                                .getBytes(),
                 sortMergeJoinFunction);
     }
 }

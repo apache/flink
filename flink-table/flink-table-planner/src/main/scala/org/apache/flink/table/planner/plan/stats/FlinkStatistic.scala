@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.stats
 
-import org.apache.flink.table.catalog.{ContextResolvedTable, ResolvedSchema, UniqueConstraint}
+import org.apache.flink.table.catalog.{ResolvedSchema, UniqueConstraint}
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
 import org.apache.flink.table.planner.plan.`trait`.{RelModifiedMonotonicity, RelWindowProperties}
 
@@ -29,7 +29,6 @@ import org.apache.calcite.util.ImmutableBitSet
 import javax.annotation.Nullable
 
 import java.util
-import java.util.{HashSet, Optional, Set}
 
 import scala.collection.JavaConversions._
 
@@ -206,6 +205,7 @@ object FlinkStatistic {
       this.tableStats = statistic.getTableStats
       this.uniqueKeys = statistic.getUniqueKeys
       this.relModifiedMonotonicity = statistic.getRelModifiedMonotonicity
+      this.windowProperties = statistic.getRelWindowProperties
       this
     }
 
@@ -218,7 +218,7 @@ object FlinkStatistic {
       ) {
         UNKNOWN
       } else {
-        new FlinkStatistic(tableStats, uniqueKeys, relModifiedMonotonicity)
+        new FlinkStatistic(tableStats, uniqueKeys, relModifiedMonotonicity, windowProperties)
       }
     }
   }

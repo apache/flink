@@ -44,9 +44,10 @@ class FlinkLogicalSink(
     hints: util.List[RelHint],
     contextResolvedTable: ContextResolvedTable,
     tableSink: DynamicTableSink,
+    targetColumns: Array[Array[Int]],
     val staticPartitions: Map[String, String],
     val abilitySpecs: Array[SinkAbilitySpec])
-  extends Sink(cluster, traitSet, input, hints, contextResolvedTable, tableSink)
+  extends Sink(cluster, traitSet, input, hints, targetColumns, contextResolvedTable, tableSink)
   with FlinkLogicalRel {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
@@ -57,6 +58,7 @@ class FlinkLogicalSink(
       hints,
       contextResolvedTable,
       tableSink,
+      targetColumns,
       staticPartitions,
       abilitySpecs)
   }
@@ -74,6 +76,7 @@ private class FlinkLogicalSinkConverter(config: Config) extends ConverterRule(co
       sink.contextResolvedTable,
       sink.tableSink,
       sink.staticPartitions,
+      sink.targetColumns,
       sink.abilitySpecs)
   }
 }
@@ -92,6 +95,7 @@ object FlinkLogicalSink {
       contextResolvedTable: ContextResolvedTable,
       tableSink: DynamicTableSink,
       staticPartitions: Map[String, String] = Map(),
+      targetColumns: Array[Array[Int]],
       abilitySpecs: Array[SinkAbilitySpec] = Array.empty): FlinkLogicalSink = {
     val cluster = input.getCluster
     val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).simplify()
@@ -102,6 +106,7 @@ object FlinkLogicalSink {
       hints,
       contextResolvedTable,
       tableSink,
+      targetColumns,
       staticPartitions,
       abilitySpecs)
   }

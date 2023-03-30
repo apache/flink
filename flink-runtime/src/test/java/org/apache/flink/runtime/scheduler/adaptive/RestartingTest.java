@@ -174,7 +174,7 @@ public class RestartingTest extends TestLogger {
         public void archiveFailure(RootExceptionHistoryEntry failure) {}
 
         @Override
-        public void goToWaitingForResources() {
+        public void goToWaitingForResources(ExecutionGraph previousExecutionGraph) {
             waitingForResourcesStateValidator.validateInput(null);
             hadStateTransition = true;
         }

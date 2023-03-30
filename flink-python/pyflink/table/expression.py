@@ -1487,6 +1487,31 @@ class Expression(Generic[T]):
         """
         return _binary_op("arrayDistinct")(self)
 
+    def array_remove(self, needle) -> 'Expression':
+        """
+        Removes all elements that equal to element from array.
+        If the array itself is null, the function will return null. Keeps ordering of elements.
+        """
+        return _binary_op("arrayRemove")(self, needle)
+
+    @property
+    def map_keys(self) -> 'Expression':
+        """
+        Returns the keys of the map as an array. No order guaranteed.
+
+        .. seealso:: :py:attr:`~Expression.map_values`
+        """
+        return _unary_op("mapKeys")(self)
+
+    @property
+    def map_values(self) -> 'Expression':
+        """
+        Returns the values of the map as an array. No order guaranteed.
+
+        .. seealso:: :py:attr:`~Expression.map_keys`
+        """
+        return _unary_op("mapValues")(self)
+
     # ---------------------------- time definition functions -----------------------------
 
     @property

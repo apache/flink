@@ -15,7 +15,7 @@
             <td>The max number of async i/o operation that the async lookup join can trigger.</td>
         </tr>
         <tr>
-            <td><h5>table.exec.async-lookup.output-mode</h5><br> <span class="label label-primary">Batch</span> <span class="label label -primary">Streaming</span></td>
+            <td><h5>table.exec.async-lookup.output-mode</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">ORDERED</td>
             <td><p>Enum</p></td>
             <td>Output mode for asynchronous operations which will convert to {@see AsyncDataStream.OutputMode}, ORDERED by default. If set to ALLOW_UNORDERED, will attempt to use {@see AsyncDataStream.OutputMode.UNORDERED} when it does not affect the correctness of the result, otherwise ORDERED will be still used.<br /><br />Possible values:<ul><li>"ORDERED"</li><li>"ALLOW_UNORDERED"</li></ul></td>
@@ -177,6 +177,12 @@ By default no operator is disabled.</td>
             <td style="word-wrap: break-word;">100000</td>
             <td>Integer</td>
             <td>Sets the window elements buffer size limit used in group window agg operator.</td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.interval-join.min-cleanup-interval</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">0 ms</td>
+            <td>Duration</td>
+            <td>Specifies a minimum time interval for how long cleanup unmatched records in the interval join operator. Before Flink 1.18, the default value of this param was the half of interval duration. Note: Set this option greater than 0 will cause unmatched records in outer joins to be output later than watermark, leading to possible discarding of these records by downstream watermark-dependent operators, such as window operators. The default value is 0, which means it will clean up unmatched records immediately.</td>
         </tr>
     </tbody>
 </table>

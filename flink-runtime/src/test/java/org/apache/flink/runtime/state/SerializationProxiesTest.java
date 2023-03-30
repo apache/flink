@@ -175,7 +175,7 @@ public class SerializationProxiesTest {
 
         OperatorBackendSerializationProxy serializationProxy =
                 new OperatorBackendSerializationProxy(
-                        stateMetaInfoSnapshots, broadcastStateMetaInfoSnapshots);
+                        stateMetaInfoSnapshots, broadcastStateMetaInfoSnapshots, true);
 
         byte[] serialized;
         try (ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos()) {
@@ -191,6 +191,7 @@ public class SerializationProxiesTest {
             serializationProxy.read(new DataInputViewStreamWrapper(in));
         }
 
+        Assert.assertTrue(serializationProxy.isUsingStateCompression());
         assertEqualStateMetaInfoSnapshotsLists(
                 stateMetaInfoSnapshots, serializationProxy.getOperatorStateMetaInfoSnapshots());
         assertEqualStateMetaInfoSnapshotsLists(

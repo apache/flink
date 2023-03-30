@@ -23,6 +23,8 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 
+import javax.annotation.Nullable;
+
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -44,19 +46,28 @@ public class SinkModifyOperation implements ModifyOperation {
     private final boolean overwrite;
     private final Map<String, String> dynamicOptions;
     private final ModifyType modifyType;
+    @Nullable private final int[][] targetColumns;
 
     public SinkModifyOperation(ContextResolvedTable contextResolvedTable, QueryOperation child) {
-        this(contextResolvedTable, child, Collections.emptyMap(), false, Collections.emptyMap());
+        this(
+                contextResolvedTable,
+                child,
+                Collections.emptyMap(),
+                null,
+                false,
+                Collections.emptyMap());
     }
 
     public SinkModifyOperation(
             ContextResolvedTable contextResolvedTable,
             QueryOperation child,
+            int[][] targetColumns,
             ModifyType modifyType) {
         this(
                 contextResolvedTable,
                 child,
                 Collections.emptyMap(),
+                targetColumns,
                 false,
                 Collections.emptyMap(),
                 modifyType);
@@ -66,12 +77,14 @@ public class SinkModifyOperation implements ModifyOperation {
             ContextResolvedTable contextResolvedTable,
             QueryOperation child,
             Map<String, String> staticPartitions,
+            int[][] targetColumns,
             boolean overwrite,
             Map<String, String> dynamicOptions) {
         this(
                 contextResolvedTable,
                 child,
                 staticPartitions,
+                targetColumns,
                 overwrite,
                 dynamicOptions,
                 ModifyType.INSERT);
@@ -81,12 +94,14 @@ public class SinkModifyOperation implements ModifyOperation {
             ContextResolvedTable contextResolvedTable,
             QueryOperation child,
             Map<String, String> staticPartitions,
+            @Nullable int[][] targetColumns,
             boolean overwrite,
             Map<String, String> dynamicOptions,
             ModifyType modifyType) {
         this.contextResolvedTable = contextResolvedTable;
         this.child = child;
         this.staticPartitions = staticPartitions;
+        this.targetColumns = targetColumns;
         this.overwrite = overwrite;
         this.dynamicOptions = dynamicOptions;
         this.modifyType = modifyType;
@@ -121,6 +136,12 @@ public class SinkModifyOperation implements ModifyOperation {
         return child;
     }
 
+    /** return null when no column list specified. */
+    @Nullable
+    public int[][] getTargetColumns() {
+        return targetColumns;
+    }
+
     @Override
     public <T> T accept(ModifyOperationVisitor<T> visitor) {
         return visitor.visit(this);
@@ -132,6 +153,7 @@ public class SinkModifyOperation implements ModifyOperation {
         params.put("identifier", getContextResolvedTable().getIdentifier().asSummaryString());
         params.put("modifyType", modifyType);
         params.put("staticPartitions", staticPartitions);
+        params.put("targetColumns", targetColumns);
         params.put("overwrite", overwrite);
         params.put("dynamicOptions", dynamicOptions);
 

@@ -29,14 +29,15 @@ import org.apache.flink.sql.parser.ddl.constraint.SqlConstraintEnforcement;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.sql.parser.ddl.constraint.SqlUniqueSpec;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableColumn;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
 import org.apache.flink.table.planner.utils.PlannerMocks;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.sql.SqlBasicCall;
@@ -69,14 +70,16 @@ public class MergeTableLikeUtilTest {
                     Thread.currentThread().getContextClassLoader(), FlinkTypeSystem.INSTANCE);
     private final SqlValidator sqlValidator =
             PlannerMocks.create().getPlanner().getOrCreateSqlValidator();
-    private final MergeTableLikeUtil util = new MergeTableLikeUtil(sqlValidator, SqlNode::toString);
+    private final DataTypeFactory dataTypeFactory = new DataTypeFactoryMock();
+    private final MergeTableLikeUtil util =
+            new MergeTableLikeUtil(sqlValidator, SqlNode::toString, dataTypeFactory);
 
     @Test
     public void mergePhysicalColumns() {
-        TableSchema sourceSchema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("one", DataTypes.INT()))
-                        .add(TableColumn.physical("two", DataTypes.STRING()))
+        Schema sourceSchema =
+                Schema.newBuilder()
+                        .column("one", DataTypes.INT())
+                        .column("two", DataTypes.STRING())
                         .build();
 
         List<SqlNode> derivedColumns =
@@ -84,7 +87,7 @@ public class MergeTableLikeUtilTest {
                         regularColumn("three", DataTypes.INT()),
                         regularColumn("four", DataTypes.STRING()));
 
-        TableSchema mergedSchema =
+        Schema mergedSchema =
                 util.mergeTables(
                         getDefaultMergingStrategies(),
                         sourceSchema,
@@ -92,12 +95,12 @@ public class MergeTableLikeUtilTest {
                         Collections.emptyList(),
                         null);
 
-        TableSchema expectedSchema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("one", DataTypes.INT()))
-                        .add(TableColumn.physical("two", DataTypes.STRING()))
-                        .add(TableColumn.physical("three", DataTypes.INT()))
-                        .add(TableColumn.physical("four", DataTypes.STRING()))
+        Schema expectedSchema =
+                Schema.newBuilder()
+                        .column("one", DataTypes.INT())
+                        .column("two", DataTypes.STRING())
+                        .column("three", DataTypes.INT())
+                        .column("four", DataTypes.STRING())
                         .build();
 
         assertThat(mergedSchema).isEqualTo(expectedSchema);
@@ -105,8 +108,7 @@ public class MergeTableLikeUtilTest {
 
     @Test
     public void mergeWithIncludeFailsOnDuplicateColumn() {
-        TableSchema sourceSchema =
-                TableSchema.builder().add(TableColumn.physical("one", DataTypes.INT())).build();
+        Schema sourceSchema = Schema.newBuilder().column("one", DataTypes.INT()).build();
 
         List<SqlNode> derivedColumns =
                 Arrays.asList(
@@ -127,8 +129,7 @@ public class MergeTableLikeUtilTest {
 
     @Test
     public void mergeWithIncludeFailsOnDuplicateRegularColumn() {
-        TableSchema sourceSchema =
-                TableSchema.builder().add(TableColumn.physical("one", DataTypes.INT())).build();
+        Schema sourceSchema = Schema.newBuilder().column("one", DataTypes.INT()).build();
 
         List<SqlNode> derivedColumns =
                 Arrays.asList(
@@ -150,8 +151,7 @@ public class MergeTableLikeUtilTest {
 
     @Test
     public void mergeWithIncludeFailsOnDuplicateRegularColumnAndComputeColumn() {
-        TableSchema sourceSchema =
-                TableSchema.builder().add(TableColumn.physical("one", DataTypes.INT())).build();
+        Schema sourceSchema = Schema.newBuilder().column("one", DataTypes.INT()).build();
 
         List<SqlNode> derivedColumns =
                 Arrays.asList(
@@ -176,8 +176,7 @@ public class MergeTableLikeUtilTest {
 
     @Test
     public void mergeWithIncludeFailsOnDuplicateRegularColumnAndMetadataColumn() {
-        TableSchema sourceSchema =
-                TableSchema.builder().add(TableColumn.physical("one", DataTypes.INT())).build();
+        Schema sourceSchema = Schema.newBuilder().column("one", DataTypes.INT()).build();
 
         List<SqlNode> derivedColumns =
                 Arrays.asList(
@@ -202,10 +201,10 @@ public class MergeTableLikeUtilTest {
 
     @Test
     public void mergeGeneratedColumns() {
-        TableSchema sourceSchema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("one", DataTypes.INT()))
-                        .add(TableColumn.computed("two", DataTypes.INT(), "one + 1"))
+        Schema sourceSchema =
+                Schema.newBuilder()
+                        .column("one", DataTypes.INT())
+                        .columnByExpression("two", "one + 1")
                         .build();
 
         List<SqlNode> derivedColumns =
@@ -213,7 +212,7 @@ public class MergeTableLikeUtilTest {
                         regularColumn("three", DataTypes.INT()),
                         computedColumn("four", plus("one", "3")));
 
-        TableSchema mergedSchema =
+        Schema mergedSchema =
                 util.mergeTables(
                         getDefaultMergingStrategies(),
                         sourceSchema,
@@ -221,12 +220,12 @@ public class MergeTableLikeUtilTest {
                         Collections.emptyList(),
                         null);
 
-        TableSchema expectedSchema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("one", DataTypes.INT()))
-                        .add(TableColumn.computed("two", DataTypes.INT(), "one + 1"))
-                        .add(TableColumn.physical("three", DataTypes.INT()))
-                        .add(TableColumn.computed("four", DataTypes.INT(), "`one` + 3"))
+        Schema expectedSchema =
+                Schema.newBuilder()
+                        .column("one", DataTypes.INT())
+                        .columnByExpression("two", "one + 1")
+                        .column("three", DataTypes.INT())
+                        .columnByExpression("four", "`one` + 3")
                         .build();
 
         assertThat(mergedSchema).isEqualTo(expectedSchema);
@@ -234,11 +233,11 @@ public class MergeTableLikeUtilTest {
 
     @Test
     public void mergeMetadataColumns() {
-        TableSchema sourceSchema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("one", DataTypes.INT()))
-                        .add(TableColumn.metadata("two", DataTypes.INT(), false))
-                        .add(TableColumn.computed("c", DataTypes.INT(), "ABS(two)"))
+        Schema sourceSchema =
+                Schema.newBuilder()
+                        .column("one", DataTypes.INT())
+                        .columnByMetadata("two", DataTypes.INT(), false)
+                        .columnByExpression("c", "ABS(two)")
                         .build();
 
         List<SqlNode> derivedColumns =
@@ -246,7 +245,7 @@ public class MergeTableLikeUtilTest {
                         regularColumn("three", DataTypes.INT()),
                         metadataColumn("four", DataTypes.INT(), true));
 
-        TableSchema mergedSchema =
+        Schema mergedSchema =
                 util.mergeTables(
                         getDefaultMergingStrategies(),
                         sourceSchema,
@@ -254,13 +253,13 @@ public class MergeTableLikeUtilTest {
                         Collections.emptyList(),
                         null);
 
-        TableSchema expectedSchema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("one", DataTypes.INT()))
-                        .add(TableColumn.metadata("two", DataTypes.INT(), false))
-                        .add(TableColumn.computed("c", DataTypes.INT(), "ABS(two)"))
-                        .add(TableColumn.physical("three", DataTypes.INT()))
-                        .add(TableColumn.metadata("four", DataTypes.INT(), true))
+        Schema expectedSchema =
+                Schema.newBuilder()
+                        .column("one", DataTypes.INT())
+                        .columnByMetadata("two", DataTypes.INT(), false)
+                        .columnByExpression("c", "ABS(two)")
+                        .column("three", DataTypes.INT())
+                        .columnByMetadata("four", DataTypes.INT(), true)
                         .build();
 
         assertThat(mergedSchema).isEqualTo(expectedSchema);
@@ -268,10 +267,10 @@ public class MergeTableLikeUtilTest {
 
     @Test
     public void mergeIncludingGeneratedColumnsFailsOnDuplicate() {
-        TableSchema sourceSchema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("one", DataTypes.INT()))
-                        .add(TableColumn.computed("two", DataTypes.INT(), "one + 1"))
+        Schema sourceSchema =
+                Schema.newBuilder()
+                        .column("one", DataTypes.INT())
+                        .columnByExpression("two", "one + 1")
                         .build();
 
         List<SqlNode> derivedColumns =
@@ -294,10 +293,10 @@ public class MergeTableLikeUtilTest {
 
     @Test
     public void mergeIncludingMetadataColumnsFailsOnDuplicate() {
-        TableSchema sourceSchema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("one", DataTypes.INT()))
-                        .add(TableColumn.metadata("two", DataTypes.INT()))
+        Schema sourceSchema =
+                Schema.newBuilder()
+                        .column("one", DataTypes.INT())
+                        .columnByMetadata("two", DataTypes.INT())
                         .build();
 
         List<SqlNode> derivedColumns =
@@ -320,10 +319,10 @@ public class MergeTableLikeUtilTest {
 
     @Test
     public void mergeExcludingGeneratedColumnsDuplicate() {
-        TableSchema sourceSchema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("one", DataTypes.INT()))
-                        .add(TableColumn.computed("two", DataTypes.INT(), "one + 1"))
+        Schema sourceSchema =
+                Schema.newBuilder()
+                        .column("one", DataTypes.INT())
+                        .columnByExpression("two", "one + 1")
                         .build();
 
         List<SqlNode> derivedColumns =
@@ -332,7 +331,7 @@ public class MergeTableLikeUtilTest {
         Map<FeatureOption, MergingStrategy> mergingStrategies = getDefaultMergingStrategies();
         mergingStrategies.put(FeatureOption.GENERATED, MergingStrategy.EXCLUDING);
 
-        TableSchema mergedSchema =
+        Schema mergedSchema =
                 util.mergeTables(
                         mergingStrategies,
                         sourceSchema,
@@ -340,10 +339,10 @@ public class MergeTableLikeUtilTest {
                         Collections.emptyList(),
                         null);
 
-        TableSchema expectedSchema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("one", DataTypes.INT()))
-                        .add(TableColumn.computed("two", DataTypes.INT(), "`one` + 3"))
+        Schema expectedSchema =
+                Schema.newBuilder()
+                        .column("one", DataTypes.INT())
+                        .columnByExpression("two", "`one` + 3")
                         .build();
 
         assertThat(mergedSchema).isEqualTo(expectedSchema);
@@ -351,10 +350,10 @@ public class MergeTableLikeUtilTest {
 
     @Test
     public void mergeExcludingMetadataColumnsDuplicate() {
-        TableSchema sourceSchema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("one", DataTypes.INT()))
-                        .add(TableColumn.metadata("two", DataTypes.INT()))
+        Schema sourceSchema =
+                Schema.newBuilder()
+                        .column("one", DataTypes.INT())
+                        .columnByMetadata("two", DataTypes.INT())
                         .build();
 
         List<SqlNode> derivedColumns =
@@ -363,7 +362,7 @@ public class MergeTableLikeUtilTest {
         Map<FeatureOption, MergingStrategy> mergingStrategies = getDefaultMergingStrategies();
         mergingStrategies.put(FeatureOption.METADATA, MergingStrategy.EXCLUDING);
 
-        TableSchema mergedSchema =
+        Schema mergedSchema =
                 util.mergeTables(
                         mergingStrategies,
                         sourceSchema,
@@ -371,10 +370,10 @@ public class MergeTableLikeUtilTest {
                         Collections.emptyList(),
                         null);
 
-        TableSchema expectedSchema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("one", DataTypes.INT()))
-                        .add(TableColumn.metadata("two", DataTypes.BOOLEAN()))
+        Schema expectedSchema =
+                Schema.newBuilder()
+                        .column("one", DataTypes.INT())
+                        .columnByMetadata("two", DataTypes.BOOLEAN())
                         .build();
 
         assertThat(mergedSchema).isEqualTo(expectedSchema);
@@ -382,10 +381,10 @@ public class MergeTableLikeUtilTest {
 
     @Test
     public void mergeOverwritingGeneratedColumnsDuplicate() {
-        TableSchema sourceSchema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("one", DataTypes.INT()))
-                        .add(TableColumn.computed("two", DataTypes.INT(), "one + 1"))
+        Schema sourceSchema =
+                Schema.newBuilder()
+                        .column("one", DataTypes.INT())
+                        .columnByExpression("two", "one + 1")
                         .build();
 
         List<SqlNode> derivedColumns =
@@ -394,7 +393,7 @@ public class MergeTableLikeUtilTest {
         Map<FeatureOption, MergingStrategy> mergingStrategies = getDefaultMergingStrategies();
         mergingStrategies.put(FeatureOption.GENERATED, MergingStrategy.OVERWRITING);
 
-        TableSchema mergedSchema =
+        Schema mergedSchema =
                 util.mergeTables(
                         mergingStrategies,
                         sourceSchema,
@@ -402,10 +401,10 @@ public class MergeTableLikeUtilTest {
                         Collections.emptyList(),
                         null);
 
-        TableSchema expectedSchema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("one", DataTypes.INT()))
-                        .add(TableColumn.computed("two", DataTypes.INT(), "`one` + 3"))
+        Schema expectedSchema =
+                Schema.newBuilder()
+                        .column("one", DataTypes.INT())
+                        .columnByExpression("two", "`one` + 3")
                         .build();
 
         assertThat(mergedSchema).isEqualTo(expectedSchema);
@@ -413,10 +412,10 @@ public class MergeTableLikeUtilTest {
 
     @Test
     public void mergeOverwritingMetadataColumnsDuplicate() {
-        TableSchema sourceSchema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("one", DataTypes.INT()))
-                        .add(TableColumn.metadata("two", DataTypes.INT()))
+        Schema sourceSchema =
+                Schema.newBuilder()
+                        .column("one", DataTypes.INT())
+                        .columnByMetadata("two", DataTypes.INT())
                         .build();
 
         List<SqlNode> derivedColumns =
@@ -425,7 +424,7 @@ public class MergeTableLikeUtilTest {
         Map<FeatureOption, MergingStrategy> mergingStrategies = getDefaultMergingStrategies();
         mergingStrategies.put(FeatureOption.METADATA, MergingStrategy.OVERWRITING);
 
-        TableSchema mergedSchema =
+        Schema mergedSchema =
                 util.mergeTables(
                         mergingStrategies,
                         sourceSchema,
@@ -433,10 +432,10 @@ public class MergeTableLikeUtilTest {
                         Collections.emptyList(),
                         null);
 
-        TableSchema expectedSchema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("one", DataTypes.INT()))
-                        .add(TableColumn.metadata("two", DataTypes.BOOLEAN(), true))
+        Schema expectedSchema =
+                Schema.newBuilder()
+                        .column("one", DataTypes.INT())
+                        .columnByMetadata("two", DataTypes.BOOLEAN(), true)
                         .build();
 
         assertThat(mergedSchema).isEqualTo(expectedSchema);
@@ -444,10 +443,10 @@ public class MergeTableLikeUtilTest {
 
     @Test
     public void mergeOverwritingPhysicalColumnWithGeneratedColumn() {
-        TableSchema sourceSchema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("one", DataTypes.INT()))
-                        .add(TableColumn.physical("two", DataTypes.INT()))
+        Schema sourceSchema =
+                Schema.newBuilder()
+                        .column("one", DataTypes.INT())
+                        .column("two", DataTypes.INT())
                         .build();
 
         List<SqlNode> derivedColumns =
@@ -473,10 +472,10 @@ public class MergeTableLikeUtilTest {
 
     @Test
     public void mergeOverwritingComputedColumnWithMetadataColumn() {
-        TableSchema sourceSchema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("one", DataTypes.INT()))
-                        .add(TableColumn.computed("two", DataTypes.INT(), "one + 3"))
+        Schema sourceSchema =
+                Schema.newBuilder()
+                        .column("one", DataTypes.INT())
+                        .columnByExpression("two", "one + 3")
                         .build();
 
         List<SqlNode> derivedColumns =
@@ -501,15 +500,12 @@ public class MergeTableLikeUtilTest {
 
     @Test
     public void mergeWatermarks() {
-        TableSchema sourceSchema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("one", DataTypes.INT()))
-                        .add(TableColumn.computed("two", DataTypes.INT(), "one + 1"))
-                        .add(TableColumn.physical("timestamp", DataTypes.TIMESTAMP()))
-                        .watermark(
-                                "timestamp",
-                                "timestamp - INTERVAL '5' SECOND",
-                                DataTypes.TIMESTAMP())
+        Schema sourceSchema =
+                Schema.newBuilder()
+                        .column("one", DataTypes.INT())
+                        .columnByExpression("two", "one +1")
+                        .column("timestamp", DataTypes.TIMESTAMP())
+                        .watermark("timestamp", "timestamp - INTERVAL '5' SECOND")
                         .build();
 
         List<SqlNode> derivedColumns =
@@ -517,7 +513,7 @@ public class MergeTableLikeUtilTest {
                         regularColumn("three", DataTypes.INT()),
                         computedColumn("four", plus("one", "3")));
 
-        TableSchema mergedSchema =
+        Schema mergedSchema =
                 util.mergeTables(
                         getDefaultMergingStrategies(),
                         sourceSchema,
@@ -525,17 +521,14 @@ public class MergeTableLikeUtilTest {
                         Collections.emptyList(),
                         null);
 
-        TableSchema expectedSchema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("one", DataTypes.INT()))
-                        .add(TableColumn.computed("two", DataTypes.INT(), "one + 1"))
-                        .add(TableColumn.physical("timestamp", DataTypes.TIMESTAMP()))
-                        .watermark(
-                                "timestamp",
-                                "timestamp - INTERVAL '5' SECOND",
-                                DataTypes.TIMESTAMP())
-                        .add(TableColumn.physical("three", DataTypes.INT()))
-                        .add(TableColumn.computed("four", DataTypes.INT(), "`one` + 3"))
+        Schema expectedSchema =
+                Schema.newBuilder()
+                        .column("one", DataTypes.INT())
+                        .columnByExpression("two", "one +1")
+                        .column("timestamp", DataTypes.TIMESTAMP())
+                        .watermark("timestamp", "timestamp - INTERVAL '5' SECOND")
+                        .column("three", DataTypes.INT())
+                        .columnByExpression("four", "`one` + 3")
                         .build();
 
         assertThat(mergedSchema).isEqualTo(expectedSchema);
@@ -543,14 +536,11 @@ public class MergeTableLikeUtilTest {
 
     @Test
     public void mergeIncludingWatermarksFailsOnDuplicate() {
-        TableSchema sourceSchema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("one", DataTypes.INT()))
-                        .add(TableColumn.physical("timestamp", DataTypes.TIMESTAMP()))
-                        .watermark(
-                                "timestamp",
-                                "timestamp - INTERVAL '5' SECOND",
-                                DataTypes.TIMESTAMP())
+        Schema sourceSchema =
+                Schema.newBuilder()
+                        .column("one", DataTypes.INT())
+                        .column("timestamp", DataTypes.TIMESTAMP())
+                        .watermark("timestamp", "timestamp - INTERVAL '5' SECOND")
                         .build();
 
         List<SqlWatermark> derivedWatermarkSpecs =
@@ -577,14 +567,11 @@ public class MergeTableLikeUtilTest {
 
     @Test
     public void mergeExcludingWatermarksDuplicate() {
-        TableSchema sourceSchema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("one", DataTypes.INT()))
-                        .add(TableColumn.physical("timestamp", DataTypes.TIMESTAMP()))
-                        .watermark(
-                                "timestamp",
-                                "timestamp - INTERVAL '5' SECOND",
-                                DataTypes.TIMESTAMP())
+        Schema sourceSchema =
+                Schema.newBuilder()
+                        .column("one", DataTypes.INT())
+                        .column("timestamp", DataTypes.TIMESTAMP())
+                        .watermark("timestamp", "timestamp - INTERVAL '5' SECOND")
                         .build();
 
         List<SqlWatermark> derivedWatermarkSpecs =
@@ -597,7 +584,7 @@ public class MergeTableLikeUtilTest {
         Map<FeatureOption, MergingStrategy> mergingStrategies = getDefaultMergingStrategies();
         mergingStrategies.put(FeatureOption.WATERMARKS, MergingStrategy.EXCLUDING);
 
-        TableSchema mergedSchema =
+        Schema mergedSchema =
                 util.mergeTables(
                         mergingStrategies,
                         sourceSchema,
@@ -605,14 +592,11 @@ public class MergeTableLikeUtilTest {
                         derivedWatermarkSpecs,
                         null);
 
-        TableSchema expectedSchema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("one", DataTypes.INT()))
-                        .add(TableColumn.physical("timestamp", DataTypes.TIMESTAMP()))
-                        .watermark(
-                                "timestamp",
-                                "`timestamp` - INTERVAL '10' SECOND",
-                                DataTypes.TIMESTAMP())
+        Schema expectedSchema =
+                Schema.newBuilder()
+                        .column("one", DataTypes.INT())
+                        .column("timestamp", DataTypes.TIMESTAMP())
+                        .watermark("timestamp", "`timestamp` - INTERVAL '10' SECOND")
                         .build();
 
         assertThat(mergedSchema).isEqualTo(expectedSchema);
@@ -620,14 +604,11 @@ public class MergeTableLikeUtilTest {
 
     @Test
     public void mergeOverwritingWatermarksDuplicate() {
-        TableSchema sourceSchema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("one", DataTypes.INT()))
-                        .add(TableColumn.physical("timestamp", DataTypes.TIMESTAMP()))
-                        .watermark(
-                                "timestamp",
-                                "timestamp - INTERVAL '5' SECOND",
-                                DataTypes.TIMESTAMP())
+        Schema sourceSchema =
+                Schema.newBuilder()
+                        .column("one", DataTypes.INT())
+                        .column("timestamp", DataTypes.TIMESTAMP())
+                        .watermark("timestamp", "timestamp - INTERVAL '5' SECOND")
                         .build();
 
         List<SqlWatermark> derivedWatermarkSpecs =
@@ -640,7 +621,7 @@ public class MergeTableLikeUtilTest {
         Map<FeatureOption, MergingStrategy> mergingStrategies = getDefaultMergingStrategies();
         mergingStrategies.put(FeatureOption.WATERMARKS, MergingStrategy.OVERWRITING);
 
-        TableSchema mergedSchema =
+        Schema mergedSchema =
                 util.mergeTables(
                         mergingStrategies,
                         sourceSchema,
@@ -648,14 +629,11 @@ public class MergeTableLikeUtilTest {
                         derivedWatermarkSpecs,
                         null);
 
-        TableSchema expectedSchema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("one", DataTypes.INT()))
-                        .add(TableColumn.physical("timestamp", DataTypes.TIMESTAMP()))
-                        .watermark(
-                                "timestamp",
-                                "`timestamp` - INTERVAL '10' SECOND",
-                                DataTypes.TIMESTAMP())
+        Schema expectedSchema =
+                Schema.newBuilder()
+                        .column("one", DataTypes.INT())
+                        .column("timestamp", DataTypes.TIMESTAMP())
+                        .watermark("timestamp", "`timestamp` - INTERVAL '10' SECOND")
                         .build();
 
         assertThat(mergedSchema).isEqualTo(expectedSchema);
@@ -663,15 +641,15 @@ public class MergeTableLikeUtilTest {
 
     @Test
     public void mergeConstraintsFromBaseTable() {
-        TableSchema sourceSchema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("one", DataTypes.INT().notNull()))
-                        .add(TableColumn.physical("two", DataTypes.STRING().notNull()))
-                        .add(TableColumn.physical("three", DataTypes.FLOAT()))
-                        .primaryKey("constraint-42", new String[] {"one", "two"})
+        Schema sourceSchema =
+                Schema.newBuilder()
+                        .column("one", DataTypes.INT().notNull())
+                        .column("two", DataTypes.STRING().notNull())
+                        .column("three", DataTypes.FLOAT())
+                        .primaryKeyNamed("constraint-42", new String[] {"one", "two"})
                         .build();
 
-        TableSchema mergedSchema =
+        Schema mergedSchema =
                 util.mergeTables(
                         getDefaultMergingStrategies(),
                         sourceSchema,
@@ -679,12 +657,12 @@ public class MergeTableLikeUtilTest {
                         Collections.emptyList(),
                         null);
 
-        TableSchema expectedSchema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("one", DataTypes.INT().notNull()))
-                        .add(TableColumn.physical("two", DataTypes.STRING().notNull()))
-                        .add(TableColumn.physical("three", DataTypes.FLOAT()))
-                        .primaryKey("constraint-42", new String[] {"one", "two"})
+        Schema expectedSchema =
+                Schema.newBuilder()
+                        .column("one", DataTypes.INT().notNull())
+                        .column("two", DataTypes.STRING().notNull())
+                        .column("three", DataTypes.FLOAT())
+                        .primaryKeyNamed("constraint-42", new String[] {"one", "two"})
                         .build();
 
         assertThat(mergedSchema).isEqualTo(expectedSchema);
@@ -692,14 +670,14 @@ public class MergeTableLikeUtilTest {
 
     @Test
     public void mergeConstraintsFromDerivedTable() {
-        TableSchema sourceSchema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("one", DataTypes.INT().notNull()))
-                        .add(TableColumn.physical("two", DataTypes.STRING().notNull()))
-                        .add(TableColumn.physical("three", DataTypes.FLOAT()))
+        Schema sourceSchema =
+                Schema.newBuilder()
+                        .column("one", DataTypes.INT().notNull())
+                        .column("two", DataTypes.STRING().notNull())
+                        .column("three", DataTypes.FLOAT())
                         .build();
 
-        TableSchema mergedSchema =
+        Schema mergedSchema =
                 util.mergeTables(
                         getDefaultMergingStrategies(),
                         sourceSchema,
@@ -707,12 +685,12 @@ public class MergeTableLikeUtilTest {
                         Collections.emptyList(),
                         primaryKey("one", "two"));
 
-        TableSchema expectedSchema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("one", DataTypes.INT().notNull()))
-                        .add(TableColumn.physical("two", DataTypes.STRING().notNull()))
-                        .add(TableColumn.physical("three", DataTypes.FLOAT()))
-                        .primaryKey("PK_3531879", new String[] {"one", "two"})
+        Schema expectedSchema =
+                Schema.newBuilder()
+                        .column("one", DataTypes.INT().notNull())
+                        .column("two", DataTypes.STRING().notNull())
+                        .column("three", DataTypes.FLOAT())
+                        .primaryKeyNamed("PK_3531879", new String[] {"one", "two"})
                         .build();
 
         assertThat(mergedSchema).isEqualTo(expectedSchema);
@@ -720,12 +698,12 @@ public class MergeTableLikeUtilTest {
 
     @Test
     public void mergeIncludingConstraintsFailsOnDuplicate() {
-        TableSchema sourceSchema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("one", DataTypes.INT().notNull()))
-                        .add(TableColumn.physical("two", DataTypes.STRING().notNull()))
-                        .add(TableColumn.physical("three", DataTypes.FLOAT()))
-                        .primaryKey("constraint-42", new String[] {"one", "two"})
+        Schema sourceSchema =
+                Schema.newBuilder()
+                        .column("one", DataTypes.INT().notNull())
+                        .column("two", DataTypes.STRING().notNull())
+                        .column("three", DataTypes.FLOAT())
+                        .primaryKeyNamed("constraint-42", new String[] {"one", "two"})
                         .build();
 
         assertThatThrownBy(
@@ -744,18 +722,18 @@ public class MergeTableLikeUtilTest {
 
     @Test
     public void mergeExcludingConstraintsOnDuplicate() {
-        TableSchema sourceSchema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("one", DataTypes.INT().notNull()))
-                        .add(TableColumn.physical("two", DataTypes.STRING().notNull()))
-                        .add(TableColumn.physical("three", DataTypes.FLOAT().notNull()))
-                        .primaryKey("constraint-42", new String[] {"one", "two", "three"})
+        Schema sourceSchema =
+                Schema.newBuilder()
+                        .column("one", DataTypes.INT().notNull())
+                        .column("two", DataTypes.STRING().notNull())
+                        .column("three", DataTypes.FLOAT())
+                        .primaryKeyNamed("constraint-42", new String[] {"one", "two", "three"})
                         .build();
 
         Map<FeatureOption, MergingStrategy> mergingStrategies = getDefaultMergingStrategies();
         mergingStrategies.put(FeatureOption.CONSTRAINTS, MergingStrategy.EXCLUDING);
 
-        TableSchema mergedSchema =
+        Schema mergedSchema =
                 util.mergeTables(
                         mergingStrategies,
                         sourceSchema,
@@ -763,12 +741,12 @@ public class MergeTableLikeUtilTest {
                         Collections.emptyList(),
                         primaryKey("one", "two"));
 
-        TableSchema expectedSchema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("one", DataTypes.INT().notNull()))
-                        .add(TableColumn.physical("two", DataTypes.STRING().notNull()))
-                        .add(TableColumn.physical("three", DataTypes.FLOAT().notNull()))
-                        .primaryKey("PK_3531879", new String[] {"one", "two"})
+        Schema expectedSchema =
+                Schema.newBuilder()
+                        .column("one", DataTypes.INT().notNull())
+                        .column("two", DataTypes.STRING().notNull())
+                        .column("three", DataTypes.FLOAT())
+                        .primaryKeyNamed("PK_3531879", new String[] {"one", "two"})
                         .build();
 
         assertThat(mergedSchema).isEqualTo(expectedSchema);

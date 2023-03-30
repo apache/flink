@@ -48,6 +48,7 @@ public class SlotManagerConfiguration {
     private final Duration declareNeededResourceDelay;
     private final boolean waitResultConsumedBeforeRelease;
     private final SlotMatchingStrategy slotMatchingStrategy;
+    private final boolean evenlySpreadOutSlots;
     private final WorkerResourceSpec defaultWorkerResourceSpec;
     private final int numSlotsPerWorker;
     private final int maxSlotNum;
@@ -62,7 +63,7 @@ public class SlotManagerConfiguration {
             Duration requirementCheckDelay,
             Duration declareNeededResourceDelay,
             boolean waitResultConsumedBeforeRelease,
-            SlotMatchingStrategy slotMatchingStrategy,
+            boolean evenlySpreadOutSlots,
             WorkerResourceSpec defaultWorkerResourceSpec,
             int numSlotsPerWorker,
             int maxSlotNum,
@@ -76,7 +77,11 @@ public class SlotManagerConfiguration {
         this.requirementCheckDelay = Preconditions.checkNotNull(requirementCheckDelay);
         this.declareNeededResourceDelay = Preconditions.checkNotNull(declareNeededResourceDelay);
         this.waitResultConsumedBeforeRelease = waitResultConsumedBeforeRelease;
-        this.slotMatchingStrategy = Preconditions.checkNotNull(slotMatchingStrategy);
+        this.slotMatchingStrategy =
+                evenlySpreadOutSlots
+                        ? LeastUtilizationSlotMatchingStrategy.INSTANCE
+                        : AnyMatchingSlotMatchingStrategy.INSTANCE;
+        this.evenlySpreadOutSlots = evenlySpreadOutSlots;
         this.defaultWorkerResourceSpec = Preconditions.checkNotNull(defaultWorkerResourceSpec);
         Preconditions.checkState(numSlotsPerWorker > 0);
         Preconditions.checkState(maxSlotNum > 0);
@@ -114,6 +119,10 @@ public class SlotManagerConfiguration {
 
     public SlotMatchingStrategy getSlotMatchingStrategy() {
         return slotMatchingStrategy;
+    }
+
+    public boolean isEvenlySpreadOutSlots() {
+        return evenlySpreadOutSlots;
     }
 
     public WorkerResourceSpec getDefaultWorkerResourceSpec() {
@@ -164,10 +173,6 @@ public class SlotManagerConfiguration {
 
         boolean evenlySpreadOutSlots =
                 configuration.getBoolean(ClusterOptions.EVENLY_SPREAD_OUT_SLOTS_STRATEGY);
-        final SlotMatchingStrategy slotMatchingStrategy =
-                evenlySpreadOutSlots
-                        ? LeastUtilizationSlotMatchingStrategy.INSTANCE
-                        : AnyMatchingSlotMatchingStrategy.INSTANCE;
 
         int numSlotsPerWorker = configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS);
 
@@ -183,7 +188,7 @@ public class SlotManagerConfiguration {
                 requirementCheckDelay,
                 declareNeededResourceDelay,
                 waitResultConsumedBeforeRelease,
-                slotMatchingStrategy,
+                evenlySpreadOutSlots,
                 defaultWorkerResourceSpec,
                 numSlotsPerWorker,
                 maxSlotNum,

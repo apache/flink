@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.dispatcher.cleanup.GloballyCleanableResource;
 import org.apache.flink.runtime.dispatcher.cleanup.LocallyCleanableResource;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.util.concurrent.CompletableFuture;
@@ -35,6 +36,16 @@ public interface JobGraphWriter extends LocallyCleanableResource, GloballyCleana
      * <p>If a job graph with the same {@link JobID} exists, it is replaced.
      */
     void putJobGraph(JobGraph jobGraph) throws Exception;
+
+    /**
+     * Persist {@link JobResourceRequirements job resource requirements} for the given job.
+     *
+     * @param jobId job the given requirements belong to
+     * @param jobResourceRequirements requirements to persist
+     * @throws Exception in case we're not able to persist the requirements for some reason
+     */
+    void putJobResourceRequirements(JobID jobId, JobResourceRequirements jobResourceRequirements)
+            throws Exception;
 
     @Override
     default CompletableFuture<Void> localCleanupAsync(JobID jobId, Executor executor) {

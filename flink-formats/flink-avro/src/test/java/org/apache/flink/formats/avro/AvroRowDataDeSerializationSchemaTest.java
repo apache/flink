@@ -21,14 +21,17 @@ package org.apache.flink.formats.avro;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.formats.avro.generated.LogicalTimeRecord;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
+import org.apache.flink.formats.avro.utils.AvroTestUtils;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.util.InstantiationUtil;
 
 import org.apache.avro.Schema;
+import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
@@ -170,6 +173,86 @@ class AvroRowDataDeSerializationSchemaTest {
 
         RowData rowData = deserializationSchema.deserialize(input);
         byte[] output = serializationSchema.serialize(rowData);
+
+        assertThat(output).isEqualTo(input);
+    }
+
+    @Test
+    void testSerializeDeserializeBasedOnNestedSchema() throws Exception {
+        final Schema innerSchema = AvroTestUtils.getSmallSchema();
+        final DataType dataType = AvroSchemaConverter.convertToDataType(innerSchema.toString());
+
+        SchemaBuilder.FieldAssembler<Schema> outerSchemaBuilder =
+                SchemaBuilder.builder().record("outerSchemaName").fields();
+        outerSchemaBuilder
+                .name("before")
+                .type(Schema.createUnion(SchemaBuilder.builder().nullType(), innerSchema))
+                .withDefault(null);
+        outerSchemaBuilder
+                .name("after")
+                .type(Schema.createUnion(SchemaBuilder.builder().nullType(), innerSchema))
+                .withDefault(null);
+        outerSchemaBuilder
+                .name("op")
+                .type(
+                        Schema.createUnion(
+                                SchemaBuilder.builder().nullType(),
+                                SchemaBuilder.builder().stringType()))
+                .withDefault(null);
+
+        Schema outerSchema = outerSchemaBuilder.endRecord();
+        final Schema nullableOuterSchema =
+                Schema.createUnion(SchemaBuilder.builder().nullType(), outerSchema);
+
+        final GenericRecord innerRecord = new GenericData.Record(innerSchema);
+        innerRecord.put(0, "test");
+        final GenericRecord outerRecord = new GenericData.Record(outerSchema);
+        outerRecord.put(0, null);
+        outerRecord.put(1, innerRecord);
+        outerRecord.put(2, "c");
+
+        RowType rowType =
+                (RowType)
+                        ROW(
+                                        FIELD("before", dataType.nullable()),
+                                        FIELD("after", dataType.nullable()),
+                                        FIELD("op", STRING()))
+                                .getLogicalType();
+
+        AvroRowDataSerializationSchema serializationSchema =
+                new AvroRowDataSerializationSchema(
+                        rowType,
+                        AvroSerializationSchema.forGeneric(nullableOuterSchema),
+                        RowDataToAvroConverters.createConverter(rowType));
+
+        AvroRowDataDeserializationSchema deserializationSchema =
+                new AvroRowDataDeserializationSchema(
+                        AvroDeserializationSchema.forGeneric(nullableOuterSchema),
+                        AvroToRowDataConverters.createRowConverter(rowType),
+                        InternalTypeInfo.of(rowType));
+
+        final byte[] serBytes = InstantiationUtil.serializeObject(serializationSchema);
+        final byte[] deserBytes = InstantiationUtil.serializeObject(deserializationSchema);
+
+        final AvroRowDataSerializationSchema serCopy =
+                InstantiationUtil.deserializeObject(
+                        serBytes, Thread.currentThread().getContextClassLoader());
+        final AvroRowDataDeserializationSchema deserCopy =
+                InstantiationUtil.deserializeObject(
+                        deserBytes, Thread.currentThread().getContextClassLoader());
+
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        GenericDatumWriter<IndexedRecord> datumWriter =
+                new GenericDatumWriter<>(nullableOuterSchema);
+        Encoder encoder = EncoderFactory.get().binaryEncoder(byteArrayOutputStream, null);
+        datumWriter.write(outerRecord, encoder);
+        encoder.flush();
+        byte[] input = byteArrayOutputStream.toByteArray();
+
+        RowData rowData = deserCopy.deserialize(input);
+
+        serCopy.open(null);
+        byte[] output = serCopy.serialize(rowData);
 
         assertThat(output).isEqualTo(input);
     }

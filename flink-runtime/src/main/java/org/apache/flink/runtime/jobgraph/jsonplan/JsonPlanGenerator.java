@@ -33,27 +33,13 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator
 import org.apache.commons.text.StringEscapeUtils;
 
 import java.io.StringWriter;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 @Internal
 public class JsonPlanGenerator {
 
     private static final String NOT_SET = "";
     private static final String EMPTY = "{}";
-    private static final VertexParallelism EMPTY_VERTEX_PARALLELISM =
-            new VertexParallelism() {
-                @Override
-                public Map<JobVertexID, Integer> getMaxParallelismForVertices() {
-                    return Collections.emptyMap();
-                }
-
-                @Override
-                public int getParallelism(JobVertexID jobVertexId) {
-                    return -1;
-                }
-            };
 
     public static String generatePlan(JobGraph jg) {
         return generatePlan(
@@ -61,7 +47,7 @@ public class JsonPlanGenerator {
                 jg.getName(),
                 jg.getJobType(),
                 jg.getVertices(),
-                EMPTY_VERTEX_PARALLELISM);
+                VertexParallelism.empty());
     }
 
     public static String generatePlan(
@@ -116,11 +102,12 @@ public class JsonPlanGenerator {
 
                 // write the core properties
                 JobVertexID vertexID = vertex.getID();
-                int storeParallelism = vertexParallelism.getParallelism(vertexID);
                 gen.writeStringField("id", vertexID.toString());
                 gen.writeNumberField(
                         "parallelism",
-                        storeParallelism != -1 ? storeParallelism : vertex.getParallelism());
+                        vertexParallelism
+                                .getParallelismOptional(vertexID)
+                                .orElse(vertex.getParallelism()));
                 gen.writeStringField("operator", operator);
                 gen.writeStringField("operator_strategy", operatorDescr);
                 gen.writeStringField("description", description);

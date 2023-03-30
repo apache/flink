@@ -56,6 +56,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_CONTAINS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_DISTINCT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_ELEMENT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_REMOVE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ASCII;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ASIN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AT;
@@ -118,6 +119,8 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LOG2;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LOWER;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LPAD;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LTRIM;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAP_KEYS;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAP_VALUES;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAX;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MD5;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MIN;
@@ -1357,6 +1360,26 @@ public abstract class BaseExpressions<InType, OutType> {
      */
     public OutType arrayDistinct() {
         return toApiSpecificExpression(unresolvedCall(ARRAY_DISTINCT, toExpr()));
+    }
+
+    /**
+     * Removes all elements that equal to element from array.
+     *
+     * <p>If the array itself is null, the function will return null. Keeps ordering of elements.
+     */
+    public OutType arrayRemove(InType needle) {
+        return toApiSpecificExpression(
+                unresolvedCall(ARRAY_REMOVE, toExpr(), objectToExpression(needle)));
+    }
+
+    /** Returns the keys of the map as an array. */
+    public OutType mapKeys() {
+        return toApiSpecificExpression(unresolvedCall(MAP_KEYS, toExpr()));
+    }
+
+    /** Returns the values of the map as an array. */
+    public OutType mapValues() {
+        return toApiSpecificExpression(unresolvedCall(MAP_VALUES, toExpr()));
     }
 
     // Time definition

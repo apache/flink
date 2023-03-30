@@ -372,7 +372,7 @@ class CalcITCase extends BatchTestBase {
     UserDefinedFunctionTestUtils.setJobParameters(env, Map("string.value" -> "ABC"))
 
     val ds = CollectionBatchExecTable.getSmall3TupleDataSet(tEnv, "a, b, c")
-    tEnv.registerTable("t1", ds)
+    tEnv.createTemporaryView("t1", ds)
 
     val sqlQuery = "SELECT c FROM t1 where RichFunc2(c)='ABC#Hello'"
 
@@ -391,7 +391,7 @@ class CalcITCase extends BatchTestBase {
     registerFunction("RichFunc3", new RichFunc3)
 
     val ds = CollectionBatchExecTable.getSmall3TupleDataSet(tEnv, "a, b, c")
-    tEnv.registerTable("t1", ds)
+    tEnv.createTemporaryView("t1", ds)
 
     val sqlQuery = "SELECT c FROM t1 where RichFunc3(c)=true"
 
@@ -409,7 +409,7 @@ class CalcITCase extends BatchTestBase {
     UserDefinedFunctionTestUtils.setJobParameters(env, Map("string.value" -> "Abc"))
 
     val ds = CollectionBatchExecTable.getSmall3TupleDataSet(tEnv, "a, b, c")
-    tEnv.registerTable("t1", ds)
+    tEnv.createTemporaryView("t1", ds)
 
     val sqlQuery = "SELECT c FROM t1 where " +
       "RichFunc2(c)='Abc#Hello' or RichFunc1(a)=3 and b=2"

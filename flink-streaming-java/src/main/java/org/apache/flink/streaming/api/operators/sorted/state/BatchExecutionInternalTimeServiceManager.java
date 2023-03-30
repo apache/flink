@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.operators.KeyContext;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
 import org.apache.flink.util.WrappingRuntimeException;
 
 import java.util.HashMap;
@@ -88,7 +89,8 @@ public class BatchExecutionInternalTimeServiceManager<K>
             ClassLoader userClassloader,
             KeyContext keyContext, // the operator
             ProcessingTimeService processingTimeService,
-            Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) {
+            Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates,
+            StreamTaskCancellationContext cancellationContext) {
         checkState(
                 keyedStatedBackend instanceof BatchExecutionKeyedStateBackend,
                 "Batch execution specific time service can work only with BatchExecutionKeyedStateBackend");

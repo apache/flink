@@ -100,6 +100,7 @@ the option `table.exec.hive.native-agg-function.enabled`, which brings significa
 </table>
 
 <span class="label label-danger">Attention</span> The ability of the native aggregation functions doesn't fully align with Hive built-in aggregation functions now, for example, some data types are not supported. If performance is not a bottleneck, you don't need to turn on this option.
+In addition, `table.exec.hive.native-agg-function.enabled` option can't be turned on per job when using it via SqlClient, currently, only the module level is supported. Users should turn on this option first and then load HiveModule. This issue will be fixed in the future.
 
 ## Hive User Defined Functions
 

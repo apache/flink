@@ -18,13 +18,9 @@
 
 package org.apache.flink.table.catalog.hive;
 
-import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable;
-import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable;
 import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
-import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
@@ -32,7 +28,6 @@ import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.CatalogTestUtil;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.Column;
@@ -71,7 +66,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.IDENTIFIER;
+import static org.apache.flink.table.catalog.hive.util.AlterTableOp.CHANGE_TBL_PROPS;
+import static org.apache.flink.table.catalog.hive.util.Constants.ALTER_TABLE_OP;
+import static org.apache.flink.table.catalog.hive.util.Constants.IDENTIFIER;
 import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
@@ -132,7 +129,7 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
         List<FieldSchema> fields = new ArrayList<>();
         for (Schema.UnresolvedColumn column : schema.getColumns()) {
             String name = column.getName();
-            DataType type = (DataType) ((Schema.UnresolvedPhysicalColumn) column).getDataType();
+            DataType type = HiveTestUtils.getType(column);
             fields.add(
                     new FieldSchema(
                             name, HiveTypeUtil.toHiveTypeInfo(type, true).getTypeName(), null));
@@ -173,22 +170,27 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
         String hiveVersion = ((HiveCatalog) catalog).getHiveVersion();
         boolean supportDateStats = hiveVersion.compareTo(HiveShimLoader.HIVE_VERSION_V2_3_0) >= 0;
         catalog.createDatabase(db1, createDb(), false);
-        TableSchema.Builder builder =
-                TableSchema.builder()
-                        .field("first", DataTypes.STRING())
-                        .field("second", DataTypes.INT())
-                        .field("third", DataTypes.BOOLEAN())
-                        .field("fourth", DataTypes.DOUBLE())
-                        .field("fifth", DataTypes.BIGINT())
-                        .field("sixth", DataTypes.BYTES())
-                        .field("seventh", DataTypes.DECIMAL(10, 3))
-                        .field("eighth", DataTypes.DECIMAL(30, 3));
+        List<Column> columns = new ArrayList<>();
+        columns.add(Column.physical("first", DataTypes.STRING()));
+        columns.add(Column.physical("second", DataTypes.INT()));
+        columns.add(Column.physical("third", DataTypes.BOOLEAN()));
+        columns.add(Column.physical("fourth", DataTypes.DOUBLE()));
+        columns.add(Column.physical("fifth", DataTypes.BIGINT()));
+        columns.add(Column.physical("sixth", DataTypes.BYTES()));
+        columns.add(Column.physical("seventh", DataTypes.DECIMAL(10, 3)));
+        columns.add(Column.physical("eighth", DataTypes.DECIMAL(30, 3)));
         if (supportDateStats) {
-            builder.field("ninth", DataTypes.DATE());
+            columns.add(Column.physical("ninth", DataTypes.DATE()));
         }
-        TableSchema tableSchema = builder.build();
+        ResolvedSchema resolvedSchema = new ResolvedSchema(columns, new ArrayList<>(), null);
         CatalogTable catalogTable =
-                new CatalogTableImpl(tableSchema, getBatchTableProperties(), TEST_COMMENT);
+                new ResolvedCatalogTable(
+                        CatalogTable.of(
+                                Schema.newBuilder().fromResolvedSchema(resolvedSchema).build(),
+                                TEST_COMMENT,
+                                new ArrayList<>(),
+                                getBatchTableProperties()),
+                        resolvedSchema);
         catalog.createTable(path1, catalogTable, false);
         Map<String, CatalogColumnStatisticsDataBase> columnStatisticsDataBaseMap = new HashMap<>();
         columnStatisticsDataBaseMap.put(
@@ -259,28 +261,38 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
         assumeThat(HiveVersionTestUtil.HIVE_310_OR_LATER).isTrue();
         HiveCatalog hiveCatalog = (HiveCatalog) catalog;
         hiveCatalog.createDatabase(db1, createDb(), false);
-        TableSchema.Builder builder = TableSchema.builder();
-        builder.fields(
-                new String[] {"x", "y", "z"},
-                new DataType[] {
-                    DataTypes.INT().notNull(), DataTypes.TIMESTAMP(9).notNull(), DataTypes.BIGINT()
-                });
-        builder.primaryKey("pk_name", new String[] {"x"});
+        ResolvedSchema resolvedSchema =
+                new ResolvedSchema(
+                        Arrays.asList(
+                                Column.physical("x", DataTypes.INT().notNull()),
+                                Column.physical("y", DataTypes.TIMESTAMP(9).notNull()),
+                                Column.physical("z", DataTypes.BIGINT())),
+                        new ArrayList<>(),
+                        org.apache.flink.table.catalog.UniqueConstraint.primaryKey(
+                                "pk_name", Collections.singletonList("x")));
+
         hiveCatalog.createTable(
                 path1,
-                new CatalogTableImpl(builder.build(), getBatchTableProperties(), null),
+                new ResolvedCatalogTable(
+                        CatalogTable.of(
+                                Schema.newBuilder().fromResolvedSchema(resolvedSchema).build(),
+                                null,
+                                new ArrayList<>(),
+                                getBatchTableProperties()),
+                        resolvedSchema),
                 false);
         CatalogTable catalogTable = (CatalogTable) hiveCatalog.getTable(path1);
-        assertThat(catalogTable.getSchema().getPrimaryKey()).as("PK not present").isPresent();
-        UniqueConstraint pk = catalogTable.getSchema().getPrimaryKey().get();
-        assertThat(pk.getName()).isEqualTo("pk_name");
-        assertThat(pk.getColumns()).containsExactly("x");
-        assertThat(catalogTable.getSchema().getFieldDataTypes()[0].getLogicalType().isNullable())
-                .isFalse();
-        assertThat(catalogTable.getSchema().getFieldDataTypes()[1].getLogicalType().isNullable())
-                .isFalse();
-        assertThat(catalogTable.getSchema().getFieldDataTypes()[2].getLogicalType().isNullable())
-                .isTrue();
+        assertThat(catalogTable.getUnresolvedSchema().getPrimaryKey())
+                .as("PK not present")
+                .isPresent();
+        Schema.UnresolvedPrimaryKey pk = catalogTable.getUnresolvedSchema().getPrimaryKey().get();
+        assertThat(pk.getConstraintName()).isEqualTo("pk_name");
+        assertThat(pk.getColumnNames()).containsExactly("x");
+
+        List<Schema.UnresolvedColumn> columns = catalogTable.getUnresolvedSchema().getColumns();
+        assertThat(HiveTestUtils.getType(columns.get(0)).getLogicalType().isNullable()).isFalse();
+        assertThat(HiveTestUtils.getType(columns.get(1)).getLogicalType().isNullable()).isFalse();
+        assertThat(HiveTestUtils.getType(columns.get(2)).getLogicalType().isNullable()).isTrue();
 
         hiveCatalog.dropDatabase(db1, false, true);
     }
@@ -299,10 +311,7 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
 
         CatalogPartition another = createPartition();
         another.getProperties().put("k", "v");
-        another.getProperties()
-                .put(
-                        SqlAlterHiveTable.ALTER_TABLE_OP,
-                        SqlAlterHiveTable.AlterTableOp.CHANGE_TBL_PROPS.name());
+        another.getProperties().put(ALTER_TABLE_OP, CHANGE_TBL_PROPS.name());
 
         catalog.alterPartition(path1, createPartitionSpec(), another, false);
 
@@ -318,15 +327,25 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
         catalog.dropTable(path1, true);
 
         Map<String, String> properties = new HashMap<>();
-        properties.put(FactoryUtil.CONNECTOR.key(), SqlCreateHiveTable.IDENTIFIER);
+        properties.put(FactoryUtil.CONNECTOR.key(), IDENTIFIER);
         properties.put(StatsSetupConst.ROW_COUNT, String.valueOf(inputStat));
         properties.put(StatsSetupConst.NUM_FILES, String.valueOf(inputStat));
         properties.put(StatsSetupConst.TOTAL_SIZE, String.valueOf(inputStat));
         properties.put(StatsSetupConst.RAW_DATA_SIZE, String.valueOf(inputStat));
-        CatalogTable catalogTable =
-                new CatalogTableImpl(
-                        TableSchema.builder().field("f0", DataTypes.INT()).build(), properties, "");
-        catalog.createTable(path1, catalogTable, false);
+        ResolvedSchema resolvedSchema =
+                new ResolvedSchema(
+                        Arrays.asList(Column.physical("f0", DataTypes.INT())),
+                        new ArrayList<>(),
+                        null);
+        CatalogTable resolveCatalogTable =
+                new ResolvedCatalogTable(
+                        CatalogTable.of(
+                                Schema.newBuilder().fromResolvedSchema(resolvedSchema).build(),
+                                "",
+                                new ArrayList<>(),
+                                properties),
+                        resolvedSchema);
+        catalog.createTable(path1, resolveCatalogTable, false);
 
         CatalogTableStatistics statistics = catalog.getTableStatistics(path1);
         assertThat(statistics.getRowCount()).isEqualTo(expectStat);

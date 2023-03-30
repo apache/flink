@@ -29,8 +29,6 @@ import org.junit.Assert._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-import scala.collection.Seq
-
 @RunWith(classOf[Parameterized])
 class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithStateTestBase(state) {
 
@@ -40,8 +38,8 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
       .toTable(tEnv, 'a1, 'a2, 'a3)
     val tableB = failingDataSource(TestData.tupleData5)
       .toTable(tEnv, 'b1, 'b2, 'b3, 'b4, 'b5)
-    tEnv.registerTable("A", tableA)
-    tEnv.registerTable("B", tableB)
+    tEnv.createTemporaryView("A", tableA)
+    tEnv.createTemporaryView("B", tableB)
   }
 
   val data = List(
@@ -70,8 +68,8 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
   def testGenericSemiJoin(): Unit = {
     val ds1 = failingDataSource(data2).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = failingDataSource(data).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
-    tEnv.registerTable("ds1", ds1)
-    tEnv.registerTable("ds2", ds2)
+    tEnv.createTemporaryView("ds1", ds1)
+    tEnv.createTemporaryView("ds2", ds2)
     val query = "SELECT a, b, c FROM ds1 WHERE a in (SELECT d from ds2 WHERE d < 3)"
 
     val sink = new TestingRetractSink
@@ -110,8 +108,8 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
 
     val ds1 = failingDataSource(leftTable).toTable(tEnv, 'a, 'b)
     val ds2 = failingDataSource(rightTable).toTable(tEnv, 'c, 'd)
-    tEnv.registerTable("ds1", ds1)
-    tEnv.registerTable("ds2", ds2)
+    tEnv.createTemporaryView("ds1", ds1)
+    tEnv.createTemporaryView("ds2", ds2)
     val query = "SELECT a FROM ds1 WHERE a in (SELECT sum(c) from ds2 GROUP BY d)"
 
     val sink = new TestingRetractSink
@@ -141,10 +139,10 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
     )
     val ds1 = failingDataSource(tableData).toTable(tEnv, 'a, 'b)
     val ds2 = failingDataSource(tableData).toTable(tEnv, 'c, 'd)
-    tEnv.registerTable("ds1", ds1)
-    tEnv.registerTable("ds2", ds2)
+    tEnv.createTemporaryView("ds1", ds1)
+    tEnv.createTemporaryView("ds2", ds2)
     val ds3 = tEnv.sqlQuery("SELECT sum(a) as a FROM ds1 GROUP BY b")
-    tEnv.registerTable("ds3", ds3)
+    tEnv.createTemporaryView("ds3", ds3)
     val query = "SELECT a FROM ds3 WHERE a in (SELECT sum(c) from ds2 GROUP BY d)"
     val result = tEnv.sqlQuery(query)
 
@@ -160,8 +158,8 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
   def testGenericAntiJoin(): Unit = {
     val ds1 = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
     val ds2 = failingDataSource(data2).toTable(tEnv, 'f, 'g, 'h)
-    tEnv.registerTable("ds1", ds1)
-    tEnv.registerTable("ds2", ds2)
+    tEnv.createTemporaryView("ds1", ds1)
+    tEnv.createTemporaryView("ds2", ds2)
     val query = "SELECT c FROM ds1 WHERE NOT EXISTS (SELECT * from ds2 WHERE b = g)"
 
     val sink = new TestingRetractSink
@@ -200,10 +198,10 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
 
     val ds1 = failingDataSource(leftTable).toTable(tEnv, 'a, 'b)
     val ds2 = failingDataSource(rightTable).toTable(tEnv, 'c, 'd)
-    tEnv.registerTable("ds1", ds1)
-    tEnv.registerTable("ds2", ds2)
+    tEnv.createTemporaryView("ds1", ds1)
+    tEnv.createTemporaryView("ds2", ds2)
     val ds3 = tEnv.sqlQuery("SELECT SUM(c) as c FROM ds2 GROUP BY d")
-    tEnv.registerTable("ds3", ds3)
+    tEnv.createTemporaryView("ds3", ds3)
     val query = "SELECT * FROM ds1 WHERE NOT EXISTS (SELECT c from ds3 WHERE a = c)"
     val result = tEnv.sqlQuery(query)
 
@@ -254,12 +252,12 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
 
     val ds1 = failingDataSource(leftTable).toTable(tEnv, 'a, 'b)
     val ds2 = failingDataSource(rightTable).toTable(tEnv, 'c, 'd)
-    tEnv.registerTable("ds1", ds1)
-    tEnv.registerTable("ds2", ds2)
+    tEnv.createTemporaryView("ds1", ds1)
+    tEnv.createTemporaryView("ds2", ds2)
     val ds3 = tEnv.sqlQuery("SELECT SUM(c) as c FROM ds2 GROUP BY d")
-    tEnv.registerTable("ds3", ds3)
+    tEnv.createTemporaryView("ds3", ds3)
     val ds4 = tEnv.sqlQuery("SELECT SUM(a) as a, b FROM ds1 GROUP BY b")
-    tEnv.registerTable("ds4", ds4)
+    tEnv.createTemporaryView("ds4", ds4)
     val query = "SELECT * FROM ds4 WHERE NOT EXISTS (SELECT c from ds3 WHERE a = c)"
     val result = tEnv.sqlQuery(query)
 
@@ -420,8 +418,8 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
 
     val ds1 = failingDataSource(data1).toTable(tEnv, 'pk, 'a)
     val ds2 = failingDataSource(data2).toTable(tEnv, 'pk, 'a)
-    tEnv.registerTable("ds1", ds1)
-    tEnv.registerTable("ds2", ds2)
+    tEnv.createTemporaryView("ds1", ds1)
+    tEnv.createTemporaryView("ds2", ds2)
 
     val sql =
       """
@@ -450,8 +448,8 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
 
     val ds1 = failingDataSource(data1).toTable(tEnv, 'deptno, 'dname, 'loc)
     val ds2 = failingDataSource(data2).toTable(tEnv, 'empno, 'ename, 'deptno)
-    tEnv.registerTable("scott_dept", ds1)
-    tEnv.registerTable("scott_emp", ds2)
+    tEnv.createTemporaryView("scott_dept", ds1)
+    tEnv.createTemporaryView("scott_emp", ds2)
 
     val sql =
       """
@@ -477,8 +475,8 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
 
     val ds1 = failingDataSource(data1).toTable(tEnv, 'pk, 'a)
     val ds2 = failingDataSource(data2).toTable(tEnv, 'pk, 'a)
-    tEnv.registerTable("ds1", ds1)
-    tEnv.registerTable("ds2", ds2)
+    tEnv.createTemporaryView("ds1", ds1)
+    tEnv.createTemporaryView("ds2", ds2)
 
     val sql =
       """
@@ -491,6 +489,31 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
     env.execute()
 
     val expected = Seq("1", "1", "2", "2", "3", "3", "4", "4", "5", "5")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testExistsWithUncorrelated_ComplexCondition(): Unit = {
+    val lTable = List(
+      (1, 1, "a"),
+      (2, 10, "abc"),
+      (3, 20, "abc"),
+      (4, 30, "Hello World!")
+    )
+
+    val rTable = List(0, 1)
+    val ds1 = failingDataSource(lTable).toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = failingDataSource(rTable).toTable(tEnv, 'd)
+    tEnv.createTemporaryView("l", ds1)
+    tEnv.createTemporaryView("r", ds2)
+    val query =
+      "SELECT a + 10, c FROM l WHERE b > 10 AND NOT (c like 'abc' OR NOT EXISTS (SELECT d FROM r))"
+    val result = tEnv.sqlQuery(query)
+    val sink = new TestingRetractSink
+    result.toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = Seq("14,Hello World!")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 }

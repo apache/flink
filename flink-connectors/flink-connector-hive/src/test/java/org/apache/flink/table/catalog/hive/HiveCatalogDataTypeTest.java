@@ -18,14 +18,15 @@
 
 package org.apache.flink.table.catalog.hive;
 
-import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.types.DataType;
@@ -40,8 +41,11 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
+import static org.apache.flink.table.catalog.hive.util.Constants.IDENTIFIER;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for data type mappings in HiveCatalog. */
@@ -189,21 +193,29 @@ public class HiveCatalogDataTypeTest {
     private CatalogTable createCatalogTable(DataType[] types) {
         String[] colNames = new String[types.length];
 
+        List<Column> columns = new ArrayList<>(types.length);
         for (int i = 0; i < types.length; i++) {
-            colNames[i] = String.format("%s_%d", types[i].toString().toLowerCase(), i);
+            columns.add(
+                    Column.physical(
+                            String.format("%s_%d", types[i].toString().toLowerCase(), i),
+                            types[i]));
         }
 
-        TableSchema schema = TableSchema.builder().fields(colNames, types).build();
+        ResolvedSchema resolvedSchema = ResolvedSchema.of(columns);
+        Schema schema = Schema.newBuilder().fromResolvedSchema(resolvedSchema).build();
 
-        return new CatalogTableImpl(
-                schema,
-                new HashMap<String, String>() {
-                    {
-                        put("is_streaming", "false");
-                        put(FactoryUtil.CONNECTOR.key(), SqlCreateHiveTable.IDENTIFIER);
-                    }
-                },
-                "");
+        return new ResolvedCatalogTable(
+                CatalogTable.of(
+                        schema,
+                        "",
+                        new ArrayList<>(),
+                        new HashMap<String, String>() {
+                            {
+                                put("is_streaming", "false");
+                                put(FactoryUtil.CONNECTOR.key(), IDENTIFIER);
+                            }
+                        }),
+                resolvedSchema);
     }
 
     private void verifyDataTypes(DataType[] types) throws Exception {
@@ -212,7 +224,8 @@ public class HiveCatalogDataTypeTest {
         catalog.createDatabase(db1, createDb(), false);
         catalog.createTable(path1, table, false);
 
-        assertThat(catalog.getTable(path1).getSchema()).isEqualTo(table.getSchema());
+        assertThat(catalog.getTable(path1).getUnresolvedSchema())
+                .isEqualTo(table.getUnresolvedSchema());
     }
 
     private static CatalogDatabase createDb() {

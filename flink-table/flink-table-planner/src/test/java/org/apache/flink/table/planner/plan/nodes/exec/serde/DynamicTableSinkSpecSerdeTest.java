@@ -102,6 +102,7 @@ class DynamicTableSinkSpecSerdeTest {
                                         CatalogManagerMocks.DEFAULT_DATABASE,
                                         "MyTable"),
                                 new ResolvedCatalogTable(catalogTable1, resolvedSchema1)),
+                        null,
                         null);
 
         Map<String, String> options2 = new HashMap<>();
@@ -139,7 +140,8 @@ class DynamicTableSinkSpecSerdeTest {
                                             {
                                                 put("p", "A");
                                             }
-                                        })));
+                                        })),
+                        new int[][] {{0}, {1}});
 
         Map<String, String> options3 = new HashMap<>();
         options3.put("connector", TestValuesTableFactory.IDENTIFIER);
@@ -171,7 +173,8 @@ class DynamicTableSinkSpecSerdeTest {
                         Collections.singletonList(
                                 new WritingMetadataSpec(
                                         Collections.singletonList("m"),
-                                        RowType.of(new BigIntType(), new IntType()))));
+                                        RowType.of(new BigIntType(), new IntType()))),
+                        null);
 
         return Stream.of(spec1, spec2, spec3);
     }
@@ -197,7 +200,8 @@ class DynamicTableSinkSpecSerdeTest {
                                 spec.getContextResolvedTable().getIdentifier(),
                                 catalogManager.getCatalog(catalogManager.getCurrentCatalog()).get(),
                                 spec.getContextResolvedTable().getResolvedTable()),
-                        spec.getSinkAbilities());
+                        spec.getSinkAbilities(),
+                        null);
 
         String actualJson = toJson(serdeCtx, spec);
         DynamicTableSinkSpec actual = toObject(serdeCtx, actualJson, DynamicTableSinkSpec.class);
@@ -258,7 +262,8 @@ class DynamicTableSinkSpecSerdeTest {
                                 identifier,
                                 catalogManager.getCatalog(catalogManager.getCurrentCatalog()).get(),
                                 planResolvedCatalogTable),
-                        Collections.emptyList());
+                        Collections.emptyList(),
+                        null);
 
         String actualJson = toJson(serdeCtx, planSpec);
         DynamicTableSinkSpec actual = toObject(serdeCtx, actualJson, DynamicTableSinkSpec.class);

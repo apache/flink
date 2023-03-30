@@ -134,7 +134,14 @@ public class BinaryExternalSorterTest {
                         serializer,
                         IntNormalizedKeyComputer.INSTANCE,
                         IntRecordComparator.INSTANCE,
-                        conf,
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED),
+                        (int)
+                                conf.get(
+                                                ExecutionConfigOptions
+                                                        .TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
+                                        .getBytes(),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED),
                         1f);
         sorter.startThreads();
         sorter.write(reader);
@@ -174,7 +181,14 @@ public class BinaryExternalSorterTest {
                         serializer,
                         IntNormalizedKeyComputer.INSTANCE,
                         IntRecordComparator.INSTANCE,
-                        conf,
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED),
+                        (int)
+                                conf.get(
+                                                ExecutionConfigOptions
+                                                        .TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
+                                        .getBytes(),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED),
                         0.7f);
         sorter.startThreads();
         sorter.write(reader);
@@ -215,7 +229,14 @@ public class BinaryExternalSorterTest {
                             }
                         },
                         IntRecordComparator.INSTANCE,
-                        conf,
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED),
+                        (int)
+                                conf.get(
+                                                ExecutionConfigOptions
+                                                        .TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
+                                        .getBytes(),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED),
                         0.7f);
         sorter.startThreads();
         sorter.write(new MockBinaryRowReader(size));
@@ -257,7 +278,14 @@ public class BinaryExternalSorterTest {
                         serializer,
                         IntNormalizedKeyComputer.INSTANCE,
                         IntRecordComparator.INSTANCE,
-                        conf,
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED),
+                        (int)
+                                conf.get(
+                                                ExecutionConfigOptions
+                                                        .TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
+                                        .getBytes(),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED),
                         0.7f);
         sorter.startThreads();
         sorter.write(reader);
@@ -305,7 +333,14 @@ public class BinaryExternalSorterTest {
                                 return -super.compare(o1, o2);
                             }
                         },
-                        conf,
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED),
+                        (int)
+                                conf.get(
+                                                ExecutionConfigOptions
+                                                        .TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
+                                        .getBytes(),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED),
                         0.7f);
         sorter.startThreads();
         sorter.write(reader);
@@ -351,7 +386,14 @@ public class BinaryExternalSorterTest {
                         serializer,
                         IntNormalizedKeyComputer.INSTANCE,
                         IntRecordComparator.INSTANCE,
-                        conf,
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED),
+                        (int)
+                                conf.get(
+                                                ExecutionConfigOptions
+                                                        .TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
+                                        .getBytes(),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED),
                         0.7f);
         sorter.startThreads();
         sorter.write(reader);
@@ -389,7 +431,14 @@ public class BinaryExternalSorterTest {
                         serializer,
                         IntNormalizedKeyComputer.INSTANCE,
                         IntRecordComparator.INSTANCE,
-                        conf,
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED),
+                        (int)
+                                conf.get(
+                                                ExecutionConfigOptions
+                                                        .TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
+                                        .getBytes(),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED),
                         0.7f);
         sorter.startThreads();
 

@@ -41,7 +41,10 @@ public interface SplitReader<E, SplitT extends SourceSplit> extends AutoCloseabl
      * implementation may either decide to return without throwing an exception, or it can just
      * throw an interrupted exception. In either case, this method should be reentrant, meaning that
      * the next fetch call should just resume from where the last fetch call was waken up or
-     * interrupted.
+     * interrupted. It is up to the implementer to either read all the records of the split or to
+     * stop reading them at some point (for example when a given threshold is exceeded). In that
+     * later case, when fetch is called again, the reading should restart at the record where it
+     * left off based on the {@code SplitState}.
      *
      * @return the Ids of the finished splits.
      * @throws IOException when encountered IO errors, such as deserialization failures.
@@ -55,6 +58,10 @@ public interface SplitReader<E, SplitT extends SourceSplit> extends AutoCloseabl
      * the reader (for example splits without any records), it should be put back into {@link
      * RecordsWithSplitIds} as finished splits so that SourceReaderBase could be able to clean up
      * resources created for it.
+     *
+     * <p>For the consistency of internal state in SourceReaderBase, if a split is removed, it
+     * should be put back into {@link RecordsWithSplitIds} as finished splits so that
+     * SourceReaderBase could be able to clean up resources created for it.
      *
      * @param splitsChanges the split changes that the SplitReader needs to handle.
      */

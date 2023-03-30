@@ -63,6 +63,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -246,9 +247,8 @@ class AkkaRpcActorTest {
                             .connect(rpcGateway.getAddress(), DeserializatonFailingGateway.class)
                             .get();
 
-            assertThat(connect.doStuff())
-                    .failsWithin(Duration.ofHours(1))
-                    .withThrowableOfType(ExecutionException.class)
+            assertThatFuture(connect.doStuff())
+                    .eventuallyFailsWith(ExecutionException.class)
                     .withCauseInstanceOf(RpcException.class);
         } finally {
             RpcUtils.terminateRpcService(clientAkkaRpcService);
@@ -393,9 +393,8 @@ class AkkaRpcActorTest {
             terminationFuture.get();
 
             assertThat(endpoint.getNumberAsyncOperationCalls()).isEqualTo(1);
-            assertThat(secondAsyncOperationFuture)
-                    .failsWithin(timeout)
-                    .withThrowableOfType(ExecutionException.class)
+            assertThatFuture(secondAsyncOperationFuture)
+                    .eventuallyFailsWith(ExecutionException.class)
                     .withCauseInstanceOf(RecipientUnreachableException.class);
         } finally {
             RpcUtils.terminateRpcEndpoint(endpoint);

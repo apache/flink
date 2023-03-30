@@ -75,17 +75,15 @@ import org.apache.flink.types.RowKind;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rex.RexCall;
-import org.apache.calcite.rex.RexInputRef;
-import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
+import org.apache.calcite.rex.RexSlot;
 import org.apache.calcite.sql.SqlExplainLevel;
-import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.util.ImmutableBitSet;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -227,7 +225,7 @@ public class StreamNonDeterministicUpdatePlanVisitor {
                         calc.getProgram().getProjectList().stream()
                                 .map(expr -> calc.getProgram().expandLocalRef(expr))
                                 .collect(Collectors.toList());
-                Map<Integer, Integer> outFromSourcePos = extractSourceMapping(projects);
+                Map<Integer, List<Integer>> outFromSourcePos = extractSourceMapping(projects);
                 List<Integer> conv2Inputs =
                         requireDeterminism.toList().stream()
                                 .map(
@@ -241,7 +239,9 @@ public class StreamNonDeterministicUpdatePlanVisitor {
                                                                                         out,
                                                                                         calc
                                                                                                 .getProgram()))))
+                                .flatMap(Collection::stream)
                                 .filter(index -> index != -1)
+                                .distinct()
                                 .collect(Collectors.toList());
 
                 return transmitDeterminismRequirement(calc, ImmutableBitSet.of(conv2Inputs));
@@ -740,27 +740,18 @@ public class StreamNonDeterministicUpdatePlanVisitor {
     }
 
     /** Extracts the out from source field index mapping of the given projects. */
-    private Map<Integer, Integer> extractSourceMapping(final List<RexNode> projects) {
-        Map<Integer, Integer> mapOutFromInPos = new HashMap<>();
+    private Map<Integer, List<Integer>> extractSourceMapping(final List<RexNode> projects) {
+        Map<Integer, List<Integer>> mapOutFromInPos = new HashMap<>();
 
         for (int index = 0; index < projects.size(); index++) {
             RexNode expr = projects.get(index);
-            if (expr instanceof RexInputRef) {
-                mapOutFromInPos.put(index, ((RexInputRef) expr).getIndex());
-            } else if (expr instanceof RexCall) {
-                // rename or cast call
-                RexCall call = (RexCall) expr;
-                if ((call.getKind().equals(SqlKind.AS) || call.getKind().equals(SqlKind.CAST))
-                        && (call.getOperands().get(0) instanceof RexInputRef)) {
-                    RexInputRef ref = (RexInputRef) call.getOperands().get(0);
-                    mapOutFromInPos.put(index, ref.getIndex());
-                }
-            } else if (expr instanceof RexLiteral) {
-                mapOutFromInPos.put(index, -1);
-            }
-            // else ignore
+            mapOutFromInPos.put(
+                    index,
+                    FlinkRexUtil.findAllInputRefs(expr).stream()
+                            .mapToInt(RexSlot::getIndex)
+                            .boxed()
+                            .collect(Collectors.toList()));
         }
-
         return mapOutFromInPos;
     }
 
@@ -777,7 +768,7 @@ public class StreamNonDeterministicUpdatePlanVisitor {
         // required be deterministic.
         List<RexNode> projects =
                 program.getProjectList().stream()
-                        .map(expr -> program.expandLocalRef(expr))
+                        .map(program::expandLocalRef)
                         .collect(Collectors.toList());
         Map<Integer, String> nonDeterministicCols = new HashMap<>();
         for (int index = 0; index < projects.size(); index++) {
@@ -788,7 +779,7 @@ public class StreamNonDeterministicUpdatePlanVisitor {
         }
         List<Integer> unsatisfiedColumns =
                 requireDeterminism.toList().stream()
-                        .filter(index -> nonDeterministicCols.containsKey(index))
+                        .filter(nonDeterministicCols::containsKey)
                         .collect(Collectors.toList());
         if (!unsatisfiedColumns.isEmpty()) {
             throwNonDeterministicColumnsError(
@@ -803,9 +794,7 @@ public class StreamNonDeterministicUpdatePlanVisitor {
     private void checkNonDeterministicCondition(
             final RexNode condition, final StreamPhysicalRel relatedRel) {
         Optional<String> ndCall = FlinkRexUtil.getNonDeterministicCallName(condition);
-        if (ndCall.isPresent()) {
-            throwNonDeterministicConditionError(ndCall.get(), condition, relatedRel);
-        }
+        ndCall.ifPresent(s -> throwNonDeterministicConditionError(s, condition, relatedRel));
     }
 
     private void checkUnsatisfiedDeterminism(

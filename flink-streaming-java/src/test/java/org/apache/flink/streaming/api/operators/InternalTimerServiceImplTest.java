@@ -30,6 +30,7 @@ import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.runtime.state.PriorityQueueSetFactory;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 
 import org.junit.Assert;
@@ -1100,7 +1101,8 @@ public class InternalTimerServiceImplTest {
                 processingTimeService,
                 createTimerQueue(
                         "__test_processing_timers", timerSerializer, priorityQueueSetFactory),
-                createTimerQueue("__test_event_timers", timerSerializer, priorityQueueSetFactory));
+                createTimerQueue("__test_event_timers", timerSerializer, priorityQueueSetFactory),
+                StreamTaskCancellationContext.alwaysRunning());
     }
 
     private static <K, N>
