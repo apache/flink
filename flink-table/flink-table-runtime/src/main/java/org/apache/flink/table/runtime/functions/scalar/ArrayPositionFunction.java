@@ -63,7 +63,7 @@ public class ArrayPositionFunction extends BuiltInScalarFunction {
         equalityHandle = equalityEvaluator.open(context);
     }
 
-    public @Nullable Long eval(ArrayData haystack, Object needle) {
+    public @Nullable Integer eval(ArrayData haystack, Object needle) {
         try {
             if (haystack == null || needle == null) {
                 return null;
@@ -74,11 +74,11 @@ public class ArrayPositionFunction extends BuiltInScalarFunction {
                 if (element != null) {
                     final boolean isEqual = (boolean) equalityHandle.invoke(element, needle);
                     if (isEqual) {
-                        return Long.valueOf(pos + 1);
+                        return Integer.valueOf(pos + 1);
                     }
                 }
             }
-            return 0L;
+            return 0;
         } catch (Throwable t) {
             throw new FlinkRuntimeException(t);
         }

@@ -227,37 +227,37 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 $("f0").arrayPosition(lit(2, DataTypes.INT().notNull())),
                                 "ARRAY_POSITION(f0, 2)",
-                                3L,
-                                DataTypes.BIGINT().notNull())
+                                3,
+                                DataTypes.INT().notNull())
                         .testResult(
                                 $("f0").arrayPosition(null),
                                 "ARRAY_POSITION(f0, NULL)",
                                 null,
-                                DataTypes.BIGINT())
+                                DataTypes.INT())
                         .testResult(
                                 $("f1").arrayPosition(2),
                                 "ARRAY_POSITION(f1, 2)",
                                 null,
-                                DataTypes.BIGINT())
+                                DataTypes.INT())
                         // ARRAY<ROW<BOOLEAN, DATE>>
                         .testResult(
                                 $("f2").arrayPosition(row(true, LocalDate.of(1990, 10, 14))),
                                 "ARRAY_POSITION(f2, (TRUE, DATE '1990-10-14'))",
-                                2L,
-                                DataTypes.BIGINT())
+                                2,
+                                DataTypes.INT())
                         // ARRAY<ARRAY<INT>>
                         .testResult(
                                 $("f3").arrayPosition(new Integer[] {0, 1}),
                                 "ARRAY_POSITION(f3, ARRAY[0, 1])",
-                                0L,
-                                DataTypes.BIGINT())
+                                0,
+                                DataTypes.INT())
                         // ARRAY<MAP<INT, STRING>>
                         .testResult(
                                 $("f4").arrayPosition(
                                                 CollectionUtil.map(entry(3, "c"), entry(4, "d"))),
                                 "ARRAY_POSITION(f4, MAP[3, 'c', 4, 'd'])",
-                                3L,
-                                DataTypes.BIGINT())
+                                3,
+                                DataTypes.INT())
                         // invalid signatures
                         .testSqlValidationError(
                                 "ARRAY_POSITION(f0, TRUE)",
