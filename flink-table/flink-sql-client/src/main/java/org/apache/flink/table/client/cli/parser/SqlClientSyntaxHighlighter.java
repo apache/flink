@@ -30,6 +30,8 @@ import org.jline.utils.AttributedStringBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
@@ -46,25 +48,25 @@ import java.util.stream.Collectors;
 /** Sql Client syntax highlighter. */
 public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
     private static final Logger LOG = LoggerFactory.getLogger(SqlClientSyntaxHighlighter.class);
-    private static Set<String> flinkKeywordSet;
-    private static Set<Character> flinkKeywordCharacterSet;
+    private static Set<String> keywordSet;
+    private static Set<Character> keywordCharacterSet;
 
     static {
         try (InputStream is =
                 SqlClientSyntaxHighlighter.class.getResourceAsStream("/keywords.properties")) {
             Properties props = new Properties();
             props.load(is);
-            flinkKeywordSet =
+            keywordSet =
                     Collections.unmodifiableSet(
                             Arrays.stream(props.get("default").toString().split(";"))
                                     .collect(Collectors.toSet()));
-            flinkKeywordCharacterSet =
-                    flinkKeywordSet.stream()
+            keywordCharacterSet =
+                    keywordSet.stream()
                             .flatMap(t -> t.chars().mapToObj(c -> (char) c))
                             .collect(Collectors.toSet());
         } catch (IOException e) {
             LOG.error("Exception: ", e);
-            flinkKeywordSet = Collections.emptySet();
+            keywordSet = Collections.emptySet();
         }
     }
 
@@ -103,7 +105,7 @@ public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
             if (currentParseState == null) {
                 currentParseState = State.computeStateAt(buffer, i, dialect);
                 if (currentParseState == null) {
-                    if (!flinkKeywordCharacterSet.contains(Character.toUpperCase(currentChar))) {
+                    if (!keywordCharacterSet.contains(Character.toUpperCase(currentChar))) {
                         handleWord(word, highlightedOutput, currentParseState, style, true);
                         highlightedOutput.append(currentChar);
                     } else {
@@ -132,12 +134,12 @@ public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
     private static void handleWord(
             StringBuilder word,
             AttributedStringBuilder sb,
-            State currentState,
+            @Nullable State currentState,
             SyntaxHighlightStyle style,
             boolean turnOffHighlight) {
         final String wordStr = word.toString();
         if (currentState == null) {
-            if (flinkKeywordSet.contains(wordStr.toUpperCase(Locale.ROOT))) {
+            if (keywordSet.contains(wordStr.toUpperCase(Locale.ROOT))) {
                 sb.style(style.getKeywordStyle());
             } else {
                 sb.style(style.getDefaultStyle());
@@ -160,22 +162,22 @@ public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
      * State of parser while preparing highlighted output. This class represents a state machine.
      *
      * <pre>
-     *      MultiLine Comment                Single Line Comment
-     *           |                                    |
-     *   (&#47;*,*&#47;) |                                    | (--, \n)
-     *           *------------Default-----------------*
+     *      MultiLine Comment           Single Line Comment
+     *           |                              |
+     *   (&#47;*,*&#47;) |                              | (--, \n)
+     *           *------------Default-----------*
      *                        |    |
      *                        |    |
-     *           *------------*    *------------------*
-     *  (&#47;*+,*&#47;) |            |    |                  | (', ')
-     *           |            |    |                  |
-     *         Hint           |    |                String
+     *           *------------*    *------------*
+     *  (&#47;*+,*&#47;) |            |    |            | (', ')
+     *           |            |    |            |
+     *         Hint           |    |          String
      *                        |    |
      *                        |    |
-     *           *------------*    *------------------*
-     *    (&quot;, &quot;) |                                    | (`, `)
-     *           |                                    |
-     *     Hive Identifier                  Flink Default Identifier
+     *           *------------*    *------------*
+     *    (&quot;, &quot;) |                              | (`, `)
+     *           |                              |
+     *     Hive Identifier           Flink Default Identifier
      * </pre>
      */
     private enum State {
