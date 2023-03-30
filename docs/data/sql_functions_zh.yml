@@ -640,7 +640,7 @@ temporal:
       3 代表` TO_TIMESTAMP_LTZ(epochMilliseconds, 3)`。
   - sql: TO_TIMESTAMP(string1[, string2])
     table: toTimestamp(STRING1[, STRING2])
-    description: 将 'UTC+0' 时区下格式为 string2（默认为：'yyyy-MM-dd HH:mm:ss'）的字符串 string1 转换为时间戳。
+    description: 将格式为 string2（默认为：'yyyy-MM-dd HH:mm:ss'）的字符串 string1 转换为 timestamp，不带时区。
   - sql: CURRENT_WATERMARK(rowtime)
     description: |
       返回给定时间列属性 rowtime 的当前水印，如果管道中的当前操作没有可用的上游操作的公共水印时则为 `NULL`。
