@@ -19,16 +19,17 @@
 package org.apache.flink.table.planner.plan;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.TableFactoryUtil;
@@ -230,15 +231,22 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
                 // DataTypeUtils#removeTimeAttribute}
                 ResolvedCatalogTable originTable =
                         schemaTable.getContextResolvedTable().getResolvedTable();
+                ResolvedSchema resolvedSchemaWithRemovedTimeAttribute =
+                        TableSchemaUtils.removeTimeAttributeFromResolvedSchema(
+                                originTable.getResolvedSchema());
                 TableFactoryUtil.findAndCreateTableSource(
                         schemaTable.getContextResolvedTable().getCatalog().orElse(null),
                         schemaTable.getContextResolvedTable().getIdentifier(),
-                        new CatalogTableImpl(
-                                TableSchemaUtils.removeTimeAttributeFromResolvedSchema(
-                                        originTable.getResolvedSchema()),
-                                originTable.getPartitionKeys(),
-                                originTable.getOptions(),
-                                originTable.getComment()),
+                        new ResolvedCatalogTable(
+                                CatalogTable.of(
+                                        Schema.newBuilder()
+                                                .fromResolvedSchema(
+                                                        resolvedSchemaWithRemovedTimeAttribute)
+                                                .build(),
+                                        originTable.getComment(),
+                                        originTable.getPartitionKeys(),
+                                        originTable.getOptions()),
+                                resolvedSchemaWithRemovedTimeAttribute),
                         new Configuration(),
                         schemaTable.isTemporary());
                 // success, then we will use the legacy factories
