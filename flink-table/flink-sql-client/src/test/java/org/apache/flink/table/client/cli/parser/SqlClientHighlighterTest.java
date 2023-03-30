@@ -44,23 +44,62 @@ class SqlClientHighlighterTest {
 
     static Stream<SqlClientHighlighterTestSpec> specProvider() {
         return Stream.of(
-                new SqlClientHighlighterTestSpec(
+                SqlClientHighlighterTestSpec.of(
                         "select",
                         new AttributedStringTestSpecBuilder(DARK.getHighlightStyle())
                                 .appendKeyword("select")),
-                new SqlClientHighlighterTestSpec(
+                SqlClientHighlighterTestSpec.of(
                         "default_style",
                         new AttributedStringTestSpecBuilder(DARK.getHighlightStyle())
                                 .append("default_style")),
-                new SqlClientHighlighterTestSpec(
+                SqlClientHighlighterTestSpec.of(
+                        "SELECT '\\';",
+                        new AttributedStringTestSpecBuilder(DARK.getHighlightStyle())
+                                .appendKeyword("SELECT")
+                                .append(" ")
+                                .appendQuoted("'\\'")
+                                .append(";")),
+                SqlClientHighlighterTestSpec.of(
+                        "SELECT '\\';",
+                        new AttributedStringTestSpecBuilder(DARK.getHighlightStyle())
+                                .appendKeyword("SELECT")
+                                .append(" ")
+                                .appendQuoted("'\\'")
+                                .append(";")),
+                SqlClientHighlighterTestSpec.of(
+                        "SELECT 123 AS `\\`;",
+                        new AttributedStringTestSpecBuilder(DARK.getHighlightStyle())
+                                .appendKeyword("SELECT")
+                                .append(" 123 ")
+                                .appendKeyword("AS")
+                                .append(" ")
+                                .appendSqlIdentifier("`\\`")
+                                .append(";")),
+                SqlClientHighlighterTestSpec.of(
+                        "SELECT '''';",
+                        new AttributedStringTestSpecBuilder(DARK.getHighlightStyle())
+                                .appendKeyword("SELECT")
+                                .append(" ")
+                                .appendQuoted("''''")
+                                .append(";")),
+                SqlClientHighlighterTestSpec.of(
+                        "SELECT 1 AS ````;",
+                        new AttributedStringTestSpecBuilder(DARK.getHighlightStyle())
+                                .appendKeyword("SELECT")
+                                .append(" 1 ")
+                                .appendKeyword("AS")
+                                .append(" ")
+                                .appendSqlIdentifier("````")
+                                .append(";")),
+                SqlClientHighlighterTestSpec.of(
                         "'quoted'",
                         new AttributedStringTestSpecBuilder(LIGHT.getHighlightStyle())
                                 .appendQuoted("'quoted'")),
-                new SqlClientHighlighterTestSpec(
+                SqlClientHighlighterTestSpec.of(
                         "`sqlQuoteIdentifier`",
                         new AttributedStringTestSpecBuilder(LIGHT.getHighlightStyle())
                                 .appendSqlIdentifier("`sqlQuoteIdentifier`")),
-                new SqlClientHighlighterTestSpec(
+                SqlClientHighlighterTestSpec.of(
                         "/*\nmultiline\n comment\n*/",
                         new AttributedStringTestSpecBuilder(LIGHT.getHighlightStyle())
                                 .appendComment("/*\nmultiline\n comment\n*/")),
@@ -68,26 +107,26 @@ class SqlClientHighlighterTest {
                         "/*\nnot finished\nmultiline\n comment\n",
                         new AttributedStringTestSpecBuilder(LIGHT.getHighlightStyle())
                                 .appendComment("/*\nnot finished\nmultiline\n comment\n")),
-                new SqlClientHighlighterTestSpec(
+                SqlClientHighlighterTestSpec.of(
                         "/*+hint*/",
                         new AttributedStringTestSpecBuilder(LIGHT.getHighlightStyle())
                                 .appendHint("/*+hint*/")),
-                new SqlClientHighlighterTestSpec(
+                SqlClientHighlighterTestSpec.of(
                         "'`not a sql quote`''/*not a comment*/''--not a comment'",
                         new AttributedStringTestSpecBuilder(LIGHT.getHighlightStyle())
                                 .appendQuoted(
                                         "'`not a sql quote`''/*not a comment*/''--not a comment'")),
-                new SqlClientHighlighterTestSpec(
+                SqlClientHighlighterTestSpec.of(
                         "`'not a quote'``/*not a comment*/``--not a comment`",
                         new AttributedStringTestSpecBuilder(LIGHT.getHighlightStyle())
                                 .appendSqlIdentifier(
                                         "`'not a quote'``/*not a comment*/``--not a comment`")),
-                new SqlClientHighlighterTestSpec(
+                SqlClientHighlighterTestSpec.of(
                         "/*'not a quote'`not a sql quote``` /*+ not a hint*/",
                         new AttributedStringTestSpecBuilder(LIGHT.getHighlightStyle())
                                 .appendComment(
                                         "/*'not a quote'`not a sql quote``` /*+ not a hint*/")),
-                new SqlClientHighlighterTestSpec(
+                SqlClientHighlighterTestSpec.of(
                         "select/*+ hint*/'1'as`one`/*comment*/from--\ndual;",
                         new AttributedStringTestSpecBuilder(LIGHT.getHighlightStyle())
                                 .appendKeyword("select")
@@ -112,6 +151,10 @@ class SqlClientHighlighterTest {
             this.sql = sql;
             this.expectedBuilder = expectedBuilder;
             this.style = expectedBuilder.style;
+        }
+
+        public static SqlClientHighlighterTestSpec of(String sql, AttributedStringTestSpecBuilder expectedBuilder) {
+            return new SqlClientHighlighterTestSpec(sql, expectedBuilder);
         }
 
         SqlClientHighlighterTestSpec dialect(SqlDialect dialect) {
