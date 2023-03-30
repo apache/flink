@@ -59,6 +59,7 @@ metrics.reporter.my_other_reporter.port: 10000
 **注意**：Flink 在启动时必须能访问到发送器所属的 jar 包，发送器会被加载为 [plugins]({{< ref "docs/deployment/filesystems/plugins" >}})，Flink 自带的发送器（文档中已经列出的发送器）无需做其他配置，开箱即用。
 
 你可以实现 `org.apache.flink.metrics.reporter.MetricReporter` 接口来自定义发送器，并实现 `Scheduled` 接口让发送器周期性地将运行时指标发送出去。
+需要注意 `report()` 方法不应该阻塞太长的时间，所有用时很长的操作应该异步执行。
 另外也可以实现 `MetricReporterFactory` 接口，让发送器作为插件被 Flink 导入。
 
 <a name="identifiers-vs-tags"></a>
