@@ -69,7 +69,7 @@ public class ArrayDistinctFunction extends BuiltInScalarFunction {
                 return null;
             }
 
-            List list = new ArrayList();
+            List<Object> list = new ArrayList();
             boolean alreadyStoredNull = false;
 
             for (int i = 0; i < haystack.size(); i++) {
