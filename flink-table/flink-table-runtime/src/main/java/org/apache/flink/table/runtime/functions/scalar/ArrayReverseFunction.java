@@ -28,9 +28,6 @@ import org.apache.flink.table.types.DataType;
 
 import javax.annotation.Nullable;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /** Implementation of {@link BuiltInFunctionDefinitions#ARRAY_REVERSE}. */
 @Internal
 public class ArrayReverseFunction extends BuiltInScalarFunction {
@@ -51,11 +48,11 @@ public class ArrayReverseFunction extends BuiltInScalarFunction {
         if (haystack.size() <= 1) {
             return haystack;
         }
-        List<Object> list = new ArrayList(haystack.size());
-        for (int j = haystack.size() - 1; j >= 0; j--) {
-            final Object element = elementGetter.getElementOrNull(haystack, j);
-            list.add(element);
+        Object[] array = new Object[haystack.size()];
+        for (int i = 0; i < haystack.size(); i++) {
+            final Object element = elementGetter.getElementOrNull(haystack, i);
+            array[haystack.size() - 1 - i] = element;
         }
-        return new GenericArrayData(list.toArray());
+        return new GenericArrayData(array);
     }
 }
