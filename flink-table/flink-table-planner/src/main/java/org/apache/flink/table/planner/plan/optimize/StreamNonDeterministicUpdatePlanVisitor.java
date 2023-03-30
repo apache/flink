@@ -20,8 +20,8 @@ package org.apache.flink.table.planner.plan.optimize;
 
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.connectors.DynamicSourceUtils;
