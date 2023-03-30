@@ -1489,7 +1489,7 @@ class Expression(Generic[T]):
 
     def array_position(self, needle) -> 'Expression':
         """
-        Returns the position of the first occurrence of element in the given array as long.
+        Returns the position of the first occurrence of element in the given array as int.
 
         Returns 0 if the given value could not be found in the array. Returns null if either of the
         arguments are null.
