@@ -19,7 +19,7 @@
 package org.apache.flink.table.catalog.hive.client;
 
 import org.apache.flink.api.common.serialization.BulkWriter;
-import org.apache.flink.table.api.constraints.UniqueConstraint;
+import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDate;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.LogicalType;

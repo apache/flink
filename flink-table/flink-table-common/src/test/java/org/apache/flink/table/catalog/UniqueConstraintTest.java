@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api.constraints;
+package org.apache.flink.table.catalog;
 
 import org.junit.jupiter.api.Test;
 
