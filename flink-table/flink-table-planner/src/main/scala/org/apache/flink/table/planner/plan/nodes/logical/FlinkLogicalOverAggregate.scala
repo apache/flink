@@ -88,7 +88,7 @@ class FlinkLogicalOverAggregateConverter(config: Config) extends ConverterRule(c
           winAggCall =>
             if (orderKeySize == 0 && winAggCall.op.isInstanceOf[SqlRankFunction]) {
               throw new ValidationException(
-                "Over Agg: The window rank function without order by. " +
+                "Over Agg: The window rank function requires order by clause with non-constant fields. " +
                   "please re-check the over window statement.")
             }
         }
