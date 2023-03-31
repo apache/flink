@@ -38,6 +38,15 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
         return Stream.of(
+                        arrayContainsTestCases(),
+                        arrayDistinctTestCases(),
+                        arrayPositionTestCases(),
+                        arrayRemoveTestCases())
+                .flatMap(s -> s);
+    }
+
+    private Stream<TestSetSpec> arrayContainsTestCases() {
+        return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.ARRAY_CONTAINS)
                         .onFieldsWithData(
                                 new Integer[] {1, 2, 3},
@@ -131,7 +140,11 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                         .testTableApiValidationError(
                                 $("f0").arrayContains(true),
                                 "Invalid input arguments. Expected signatures are:\n"
-                                        + "ARRAY_CONTAINS(haystack <ARRAY>, needle <ARRAY ELEMENT>)"),
+                                        + "ARRAY_CONTAINS(haystack <ARRAY>, needle <ARRAY ELEMENT>)"));
+    }
+
+    private Stream<TestSetSpec> arrayDistinctTestCases() {
+        return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.ARRAY_DISTINCT)
                         .onFieldsWithData(
                                 new Integer[] {1, 2, 3},
@@ -181,7 +194,83 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                     null
                                 },
                                 DataTypes.ARRAY(
-                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE()))),
+                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE()))));
+    }
+
+    private Stream<TestSetSpec> arrayPositionTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.ARRAY_POSITION)
+                        .onFieldsWithData(
+                                new Integer[] {null, 1, 2, 2, null},
+                                null,
+                                new Row[] {
+                                    Row.of(true, LocalDate.of(2022, 4, 20)),
+                                    Row.of(true, LocalDate.of(1990, 10, 14)),
+                                    Row.of(true, LocalDate.of(1990, 10, 14)),
+                                    null
+                                },
+                                new Integer[][] {
+                                    new Integer[] {1, null, 3}, new Integer[] {0}, new Integer[] {1}
+                                },
+                                new Map[] {
+                                    null,
+                                    CollectionUtil.map(entry(1, "a"), entry(2, "b")),
+                                    CollectionUtil.map(entry(3, "c"), entry(4, "d")),
+                                })
+                        .andDataTypes(
+                                DataTypes.ARRAY(DataTypes.INT().notNull()).notNull(),
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(
+                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE())),
+                                DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())),
+                                DataTypes.ARRAY(DataTypes.MAP(DataTypes.INT(), DataTypes.STRING())))
+                        .testResult(
+                                $("f0").arrayPosition(lit(2, DataTypes.INT().notNull())),
+                                "ARRAY_POSITION(f0, 2)",
+                                3,
+                                DataTypes.INT().notNull())
+                        .testResult(
+                                $("f0").arrayPosition(null),
+                                "ARRAY_POSITION(f0, NULL)",
+                                null,
+                                DataTypes.INT())
+                        .testResult(
+                                $("f1").arrayPosition(2),
+                                "ARRAY_POSITION(f1, 2)",
+                                null,
+                                DataTypes.INT())
+                        // ARRAY<ROW<BOOLEAN, DATE>>
+                        .testResult(
+                                $("f2").arrayPosition(row(true, LocalDate.of(1990, 10, 14))),
+                                "ARRAY_POSITION(f2, (TRUE, DATE '1990-10-14'))",
+                                2,
+                                DataTypes.INT())
+                        // ARRAY<ARRAY<INT>>
+                        .testResult(
+                                $("f3").arrayPosition(new Integer[] {0, 1}),
+                                "ARRAY_POSITION(f3, ARRAY[0, 1])",
+                                0,
+                                DataTypes.INT())
+                        // ARRAY<MAP<INT, STRING>>
+                        .testResult(
+                                $("f4").arrayPosition(
+                                                CollectionUtil.map(entry(3, "c"), entry(4, "d"))),
+                                "ARRAY_POSITION(f4, MAP[3, 'c', 4, 'd'])",
+                                3,
+                                DataTypes.INT())
+                        // invalid signatures
+                        .testSqlValidationError(
+                                "ARRAY_POSITION(f0, TRUE)",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ARRAY_POSITION(haystack <ARRAY>, needle <ARRAY ELEMENT>)")
+                        .testTableApiValidationError(
+                                $("f0").arrayPosition(true),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ARRAY_POSITION(haystack <ARRAY>, needle <ARRAY ELEMENT>)"));
+    }
+
+    private Stream<TestSetSpec> arrayRemoveTestCases() {
+        return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.ARRAY_REMOVE)
                         .onFieldsWithData(
                                 new Integer[] {1, 2, 2},

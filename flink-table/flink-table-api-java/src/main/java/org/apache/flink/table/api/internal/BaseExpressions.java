@@ -56,6 +56,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_CONTAINS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_DISTINCT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_ELEMENT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_POSITION;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_REMOVE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ASCII;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ASIN;
@@ -1360,6 +1361,19 @@ public abstract class BaseExpressions<InType, OutType> {
      */
     public OutType arrayDistinct() {
         return toApiSpecificExpression(unresolvedCall(ARRAY_DISTINCT, toExpr()));
+    }
+
+    /**
+     * Returns the position of the first occurrence of element in the given array as int. Returns 0
+     * if the given value could not be found in the array. Returns null if either of the arguments
+     * are null
+     *
+     * <p>NOTE: that this is not zero based, but 1-based index. The first element in the array has
+     * index 1.
+     */
+    public OutType arrayPosition(InType needle) {
+        return toApiSpecificExpression(
+                unresolvedCall(ARRAY_POSITION, toExpr(), objectToExpression(needle)));
     }
 
     /**
