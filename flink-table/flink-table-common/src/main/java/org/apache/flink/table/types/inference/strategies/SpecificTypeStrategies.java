@@ -19,8 +19,14 @@
 package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.types.CollectionDataType;
+import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.inference.TypeStrategy;
+
+import java.util.Optional;
 
 /**
  * Entry point for specific type strategies not covered in {@link TypeStrategies}.
@@ -88,6 +94,49 @@ public final class SpecificTypeStrategies {
 
     /** See {@link ToTimestampLtzTypeStrategy}. */
     public static final TypeStrategy TO_TIMESTAMP_LTZ = new ToTimestampLtzTypeStrategy();
+
+    /** Type strategy specific for {@link BuiltInFunctionDefinitions#MAP_KEYS}. */
+    public static final TypeStrategy MAP_KEYS =
+            callContext ->
+                    Optional.of(
+                            DataTypes.ARRAY(
+                                    ((KeyValueDataType) callContext.getArgumentDataTypes().get(0))
+                                            .getKeyDataType()));
+
+    /** Type strategy specific for {@link BuiltInFunctionDefinitions#MAP_VALUES}. */
+    public static final TypeStrategy MAP_VALUES =
+            callContext ->
+                    Optional.of(
+                            DataTypes.ARRAY(
+                                    ((KeyValueDataType) callContext.getArgumentDataTypes().get(0))
+                                            .getValueDataType()));
+
+    /** Type strategy specific for {@link BuiltInFunctionDefinitions#MAP_ENTRIES}. */
+    public static final TypeStrategy MAP_ENTRIES =
+            callContext ->
+                    Optional.of(
+                            DataTypes.ARRAY(
+                                    DataTypes.ROW(
+                                            ((KeyValueDataType)
+                                                            callContext
+                                                                    .getArgumentDataTypes()
+                                                                    .get(0))
+                                                    .getKeyDataType(),
+                                            ((KeyValueDataType)
+                                                            callContext
+                                                                    .getArgumentDataTypes()
+                                                                    .get(0))
+                                                    .getValueDataType())));
+
+    /** Type strategy specific for {@link BuiltInFunctionDefinitions#MAP_FROM_ARRAYS}. */
+    public static final TypeStrategy MAP_FROM_ARRAYS =
+            callContext ->
+                    Optional.of(
+                            DataTypes.MAP(
+                                    ((CollectionDataType) callContext.getArgumentDataTypes().get(0))
+                                            .getElementDataType(),
+                                    ((CollectionDataType) callContext.getArgumentDataTypes().get(1))
+                                            .getElementDataType()));
 
     private SpecificTypeStrategies() {
         // no instantiation

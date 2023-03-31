@@ -233,6 +233,7 @@ advanced type helper functions
     Expression.array_union
     Expression.map_keys
     Expression.map_values
+    Expression.map_entries
 
 
 time definition functions

@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.functions;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
 import java.math.BigDecimal;
@@ -65,6 +66,16 @@ public class MapFunctionITCase extends BuiltInFunctionTestBase {
 
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
+        return Stream.of(
+                        mapTestCases(),
+                        mapKeysTestCases(),
+                        mapValuesTestCases(),
+                        mapEntriesTestCases(),
+                        mapFromArraysTestCases())
+                .flatMap(s -> s);
+    }
+
+    private Stream<TestSetSpec> mapTestCases() {
         return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.MAP)
                         .onFieldsWithData(
@@ -208,7 +219,11 @@ public class MapFunctionITCase extends BuiltInFunctionTestBase {
                                         DataTypes.MAP(
                                                         STRING().notNull(),
                                                         INTERVAL(MONTH()).nullable())
-                                                .notNull())),
+                                                .notNull())));
+    }
+
+    private Stream<TestSetSpec> mapKeysTestCases() {
+        return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.MAP_KEYS)
                         .onFieldsWithData(
                                 null,
@@ -240,7 +255,11 @@ public class MapFunctionITCase extends BuiltInFunctionTestBase {
                                 $("f3").mapKeys(),
                                 "MAP_KEYS(f3)",
                                 new Integer[][] {new Integer[] {1, 2}},
-                                DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT()))),
+                                DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT()))));
+    }
+
+    private Stream<TestSetSpec> mapValuesTestCases() {
+        return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.MAP_VALUES)
                         .onFieldsWithData(
                                 null,
@@ -276,7 +295,58 @@ public class MapFunctionITCase extends BuiltInFunctionTestBase {
                                 "MAP_VALUES(f3)",
                                 new Map[] {Collections.singletonMap(true, "value2")},
                                 DataTypes.ARRAY(
-                                        DataTypes.MAP(DataTypes.BOOLEAN(), DataTypes.STRING()))),
+                                        DataTypes.MAP(DataTypes.BOOLEAN(), DataTypes.STRING()))));
+    }
+
+    private Stream<TestSetSpec> mapEntriesTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.MAP_ENTRIES)
+                        .onFieldsWithData(
+                                null,
+                                "item",
+                                Collections.singletonMap(1, "value1"),
+                                Collections.singletonMap(
+                                        3, Collections.singletonMap(true, "value2")))
+                        .andDataTypes(
+                                DataTypes.BOOLEAN().nullable(),
+                                DataTypes.STRING(),
+                                DataTypes.MAP(DataTypes.INT(), DataTypes.STRING()),
+                                DataTypes.MAP(
+                                        DataTypes.INT(),
+                                        DataTypes.MAP(DataTypes.BOOLEAN(), DataTypes.STRING())))
+                        .testTableApiValidationError(
+                                call("MAP_ENTRIES", $("f0"), $("f1")),
+                                "Invalid function call:\nMAP_ENTRIES(BOOLEAN, STRING)")
+                        .testResult(
+                                map(
+                                                $("f0").cast(DataTypes.BOOLEAN()),
+                                                $("f1").cast(DataTypes.STRING()))
+                                        .mapEntries(),
+                                "MAP_ENTRIES(MAP[CAST(f0 AS BOOLEAN), CAST(f1 AS STRING)])",
+                                new Row[] {Row.of(null, "item")},
+                                DataTypes.ARRAY(
+                                                DataTypes.ROW(
+                                                        DataTypes.BOOLEAN(), DataTypes.STRING()))
+                                        .notNull())
+                        .testResult(
+                                $("f2").mapEntries(),
+                                "MAP_ENTRIES(f2)",
+                                new Row[] {Row.of(1, "value1")},
+                                DataTypes.ARRAY(DataTypes.ROW(DataTypes.INT(), DataTypes.STRING())))
+                        .testResult(
+                                $("f3").mapEntries(),
+                                "MAP_ENTRIES(f3)",
+                                new Row[] {Row.of(3, Collections.singletonMap(true, "value2"))},
+                                DataTypes.ARRAY(
+                                        DataTypes.ROW(
+                                                DataTypes.INT(),
+                                                DataTypes.MAP(
+                                                        DataTypes.BOOLEAN(),
+                                                        DataTypes.STRING())))));
+    }
+
+    private Stream<TestSetSpec> mapFromArraysTestCases() {
+        return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.MAP_FROM_ARRAYS, "Invalid input")
                         .onFieldsWithData(null, null, new Integer[] {1}, new Integer[] {1, 2})
                         .andDataTypes(
