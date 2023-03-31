@@ -60,6 +60,13 @@
 			<artifactId>flink-table-common</artifactId>
 			<version>${project.version}</version>
 		</dependency>
+
+		<!-- Used to create Executor in connection. -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -84,6 +91,7 @@
 									<include>org.apache.flink:flink-sql-gateway-api</include>
 									<include>org.apache.flink:flink-sql-gateway</include>
 									<include>org.apache.flink:flink-table-common</include>
+									<include>org.apache.flink:flink-core</include>
 								</includes>
 							</artifactSet>
 						</configuration>

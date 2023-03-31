@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.jdbc;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.StatementResult;
@@ -57,7 +56,6 @@ public class FlinkConnection extends BaseConnection {
         throw new SQLFeatureNotSupportedException();
     }
 
-    @VisibleForTesting
     Executor getExecutor() {
         return this.executor;
     }
