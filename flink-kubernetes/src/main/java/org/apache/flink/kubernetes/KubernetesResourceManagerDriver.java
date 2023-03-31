@@ -53,8 +53,6 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import io.fabric8.kubernetes.client.Watcher.Action;
-
 import javax.annotation.Nullable;
 
 import java.io.File;
@@ -66,11 +64,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
-
-import static io.fabric8.kubernetes.client.Watcher.Action.ADDED;
-import static io.fabric8.kubernetes.client.Watcher.Action.DELETED;
-import static io.fabric8.kubernetes.client.Watcher.Action.ERROR;
-import static io.fabric8.kubernetes.client.Watcher.Action.MODIFIED;
 
 /** Implementation of {@link ResourceManagerDriver} for Kubernetes deployment. */
 public class KubernetesResourceManagerDriver
@@ -347,12 +340,15 @@ public class KubernetesResourceManagerDriver
                 blockedNodes);
     }
 
-    private void handlePodEventsInMainThread(List<KubernetesPod> pods, Action action) {
+    private void handlePodEventsInMainThread(List<KubernetesPod> pods, PodEvent podEvent) {
         getMainThreadExecutor()
                 .execute(
                         () -> {
                             for (KubernetesPod pod : pods) {
-                                if (action == DELETED || pod.isTerminated()) {
+                                // we should also handle the deleted event to avoid situations where
+                                // the pod itself doesn't reflect the status correctly (i.e. pod
+                                // removed during the pending phase).
+                                if (podEvent == PodEvent.DELETED || pod.isTerminated()) {
                                     onPodTerminated(pod);
                                 } else if (pod.isScheduled()) {
                                     onPodScheduled(pod);
@@ -423,22 +419,22 @@ public class KubernetesResourceManagerDriver
             implements FlinkKubeClient.WatchCallbackHandler<KubernetesPod> {
         @Override
         public void onAdded(List<KubernetesPod> pods) {
-            handlePodEventsInMainThread(pods, ADDED);
+            handlePodEventsInMainThread(pods, PodEvent.ADDED);
         }
 
         @Override
         public void onModified(List<KubernetesPod> pods) {
-            handlePodEventsInMainThread(pods, MODIFIED);
+            handlePodEventsInMainThread(pods, PodEvent.MODIFIED);
         }
 
         @Override
         public void onDeleted(List<KubernetesPod> pods) {
-            handlePodEventsInMainThread(pods, DELETED);
+            handlePodEventsInMainThread(pods, PodEvent.DELETED);
         }
 
         @Override
         public void onError(List<KubernetesPod> pods) {
-            handlePodEventsInMainThread(pods, ERROR);
+            handlePodEventsInMainThread(pods, PodEvent.ERROR);
         }
 
         @Override
@@ -469,5 +465,13 @@ public class KubernetesResourceManagerDriver
         RetryableException(String message) {
             super(message);
         }
+    }
+
+    /** Internal type of the pod event. */
+    private enum PodEvent {
+        ADDED,
+        MODIFIED,
+        DELETED,
+        ERROR
     }
 }
