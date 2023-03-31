@@ -53,6 +53,8 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 
+import io.fabric8.kubernetes.client.Watcher.Action;
+
 import javax.annotation.Nullable;
 
 import java.io.File;
@@ -64,6 +66,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+
+import static io.fabric8.kubernetes.client.Watcher.Action.ADDED;
+import static io.fabric8.kubernetes.client.Watcher.Action.DELETED;
+import static io.fabric8.kubernetes.client.Watcher.Action.ERROR;
+import static io.fabric8.kubernetes.client.Watcher.Action.MODIFIED;
 
 /** Implementation of {@link ResourceManagerDriver} for Kubernetes deployment. */
 public class KubernetesResourceManagerDriver
@@ -340,12 +347,12 @@ public class KubernetesResourceManagerDriver
                 blockedNodes);
     }
 
-    private void handlePodEventsInMainThread(List<KubernetesPod> pods) {
+    private void handlePodEventsInMainThread(List<KubernetesPod> pods, Action action) {
         getMainThreadExecutor()
                 .execute(
                         () -> {
                             for (KubernetesPod pod : pods) {
-                                if (pod.isTerminated()) {
+                                if (action == DELETED || pod.isTerminated()) {
                                     onPodTerminated(pod);
                                 } else if (pod.isScheduled()) {
                                     onPodScheduled(pod);
@@ -416,22 +423,22 @@ public class KubernetesResourceManagerDriver
             implements FlinkKubeClient.WatchCallbackHandler<KubernetesPod> {
         @Override
         public void onAdded(List<KubernetesPod> pods) {
-            handlePodEventsInMainThread(pods);
+            handlePodEventsInMainThread(pods, ADDED);
         }
 
         @Override
         public void onModified(List<KubernetesPod> pods) {
-            handlePodEventsInMainThread(pods);
+            handlePodEventsInMainThread(pods, MODIFIED);
         }
 
         @Override
         public void onDeleted(List<KubernetesPod> pods) {
-            handlePodEventsInMainThread(pods);
+            handlePodEventsInMainThread(pods, DELETED);
         }
 
         @Override
         public void onError(List<KubernetesPod> pods) {
-            handlePodEventsInMainThread(pods);
+            handlePodEventsInMainThread(pods, ERROR);
         }
 
         @Override
