@@ -190,10 +190,6 @@ under the License.
 			<exclusions>
 				<exclusion>
 					<groupId>org.apache.calcite</groupId>
-					<artifactId>calcite-core</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.calcite</groupId>
 					<artifactId>calcite-testkit</artifactId>
 				</exclusion>
 			</exclusions>

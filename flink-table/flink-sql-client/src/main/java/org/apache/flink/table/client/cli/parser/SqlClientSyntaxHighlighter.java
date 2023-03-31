@@ -30,8 +30,6 @@ import org.jline.utils.AttributedStringBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
@@ -49,7 +47,6 @@ import java.util.stream.Collectors;
 public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
     private static final Logger LOG = LoggerFactory.getLogger(SqlClientSyntaxHighlighter.class);
     private static Set<String> keywordSet;
-    private static Set<Character> keywordCharacterSet;
 
     static {
         try (InputStream is =
@@ -60,10 +57,6 @@ public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
                     Collections.unmodifiableSet(
                             Arrays.stream(props.get("default").toString().split(";"))
                                     .collect(Collectors.toSet()));
-            keywordCharacterSet =
-                    keywordSet.stream()
-                            .flatMap(t -> t.chars().mapToObj(c -> (char) c))
-                            .collect(Collectors.toSet());
         } catch (IOException e) {
             LOG.error("Exception: ", e);
             keywordSet = Collections.emptySet();
@@ -98,21 +91,25 @@ public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
     static AttributedString getHighlightedOutput(
             String buffer, SyntaxHighlightStyle style, SqlDialect dialect) {
         final AttributedStringBuilder highlightedOutput = new AttributedStringBuilder();
-        State currentParseState = null;
+        State currentParseState = State.DEFAULT;
         StringBuilder word = new StringBuilder();
         for (int i = 0; i < buffer.length(); i++) {
             final char currentChar = buffer.charAt(i);
-            if (currentParseState == null) {
+            if (currentParseState == State.DEFAULT) {
                 currentParseState = State.computeStateAt(buffer, i, dialect);
-                if (currentParseState == null) {
-                    if (!keywordCharacterSet.contains(Character.toUpperCase(currentChar))) {
+                if (currentParseState == State.DEFAULT) {
+                    if (isPartOfWord(currentChar)) {
+                        word.append(currentChar);
+                    } else if (keywordSet.contains(word.toString().toUpperCase(Locale.ROOT))) {
                         handleWord(word, highlightedOutput, currentParseState, style, true);
                         highlightedOutput.append(currentChar);
                     } else {
-                        word.append(currentChar);
+                        handleWord(word, highlightedOutput, currentParseState, style, true);
+                        highlightedOutput.append(currentChar);
+                        word.setLength(0);
                     }
                 } else {
-                    handleWord(word, highlightedOutput, null, style, true);
+                    handleWord(word, highlightedOutput, State.DEFAULT, style, true);
                     currentParseState.getStyleSetter().accept(highlightedOutput, style);
                     highlightedOutput.append(currentParseState.getStart());
                     i += currentParseState.getStart().length() - 1;
@@ -123,7 +120,7 @@ public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
                 if (buffer.regionMatches(i, stateEnd, 0, stateEnd.length())) {
                     handleWord(word, highlightedOutput, currentParseState, style, true);
                     i += stateEnd.length() - 1;
-                    currentParseState = null;
+                    currentParseState = State.DEFAULT;
                 }
             }
         }
@@ -131,14 +128,18 @@ public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
         return highlightedOutput.toAttributedString();
     }
 
+    private static boolean isPartOfWord(char c) {
+        return Character.isLetterOrDigit(c) || c == '_' || c == '$';
+    }
+
     private static void handleWord(
             StringBuilder word,
             AttributedStringBuilder sb,
-            @Nullable State currentState,
+            State currentState,
             SyntaxHighlightStyle style,
             boolean turnOffHighlight) {
         final String wordStr = word.toString();
-        if (currentState == null) {
+        if (currentState == State.DEFAULT) {
             if (keywordSet.contains(wordStr.toUpperCase(Locale.ROOT))) {
                 sb.style(style.getKeywordStyle());
             } else {
@@ -196,9 +197,15 @@ public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
                 (asb, style) -> asb.style(style.getSqlIdentifierStyle())),
         ONE_LINE_COMMENTED(
                 3, "--", "\n", dialect -> true, (asb, style) -> asb.style(style.getCommentStyle())),
+        HINTED(4, "/*+", "*/", dialect -> true, (asb, style) -> asb.style(style.getHintStyle())),
         MULTILINE_COMMENTED(
                 5, "/*", "*/", dialect -> true, (asb, style) -> asb.style(style.getCommentStyle())),
-        HINTED(4, "/*+", "*/", dialect -> true, (asb, style) -> asb.style(style.getHintStyle()));
+        DEFAULT(
+                Integer.MAX_VALUE,
+                null,
+                null,
+                dialect -> true,
+                (asb, style) -> asb.style(style.getDefaultStyle()));
 
         private final String start;
         private final String end;
@@ -208,12 +215,14 @@ public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
 
         private final BiConsumer<AttributedStringBuilder, SyntaxHighlightStyle> styleSetter;
 
-        private static final List<State> STATE_LIST =
+        private static final List<State> STATE_LIST_WITHOUT_DEFAULT =
                 Arrays.stream(State.values())
+                        .filter(t -> t != DEFAULT)
                         .sorted(Comparator.comparingInt(o -> o.order))
                         .collect(Collectors.toList());
         private static final Set<Character> STATE_START_SYMBOLS =
                 Arrays.stream(State.values())
+                        .filter(t -> t != DEFAULT)
                         .map(t -> t.start.charAt(0))
                         .collect(Collectors.toSet());
 
@@ -245,15 +254,15 @@ public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
         public static State computeStateAt(String input, int pos, SqlDialect dialect) {
             final char currentChar = input.charAt(pos);
             if (!STATE_START_SYMBOLS.contains(currentChar)) {
-                return null;
+                return DEFAULT;
             }
-            for (State state : STATE_LIST) {
+            for (State state : STATE_LIST_WITHOUT_DEFAULT) {
                 if (state.condition.apply(dialect)
                         && state.start.regionMatches(0, input, pos, state.start.length())) {
                     return state;
                 }
             }
-            return null;
+            return DEFAULT;
         }
     }
 }

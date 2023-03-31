@@ -23,156 +23,323 @@ import org.apache.flink.table.api.SqlDialect;
 import org.jline.utils.AttributedStringBuilder;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
-import static org.apache.flink.table.client.cli.parser.SyntaxHighlightStyle.BuiltInStyle.DARK;
-import static org.apache.flink.table.client.cli.parser.SyntaxHighlightStyle.BuiltInStyle.LIGHT;
+import static org.apache.flink.table.client.cli.parser.SqlClientHighlighterTest.AttributedStringTestSpecBuilder.withStyle;
+import static org.apache.flink.table.client.cli.parser.SqlClientHighlighterTest.SqlClientHighlighterTestSpec.forSql;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link SqlClientSyntaxHighlighter}. */
 class SqlClientHighlighterTest {
     @ParameterizedTest
-    @MethodSource("specProvider")
-    void test(SqlClientHighlighterTestSpec spec) {
-        assertThat(
-                        SqlClientSyntaxHighlighter.getHighlightedOutput(
-                                        spec.sql, spec.style, spec.dialect)
-                                .toAnsi())
-                .isEqualTo(spec.getExpected());
+    @ValueSource(strings = {"select", "join", "match_recognize", "Select", "wHeRe", "FroM"})
+    void keywordsTest(String keyword) {
+        applyTestFor(AttributedStringTestSpecBuilder::appendKeyword, keyword, null);
+        applyTestFor(AttributedStringTestSpecBuilder::appendKeyword, keyword, SqlDialect.HIVE);
+        applyTestFor(AttributedStringTestSpecBuilder::appendKeyword, keyword, SqlDialect.DEFAULT);
     }
 
-    static Stream<SqlClientHighlighterTestSpec> specProvider() {
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "-- one line comment",
+                "--select",
+                "/* \"''\"",
+                "/*",
+                "/*/ this is a comment",
+                "--",
+                "--\n/*",
+                "/* hello\n'wor'ld*/",
+                "/*\"-- \"values*/",
+                "/*\"--;\n FROM*/"
+            })
+    void commentsTest(String comment) {
+        applyTestFor(AttributedStringTestSpecBuilder::appendComment, comment, null);
+        applyTestFor(AttributedStringTestSpecBuilder::appendComment, comment, SqlDialect.HIVE);
+        applyTestFor(AttributedStringTestSpecBuilder::appendComment, comment, SqlDialect.DEFAULT);
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "/*+ this is a hint*/",
+                "/*+ select*/",
+                "/*+ \"''\"*/",
+                "/*+",
+                "/*+/ this is a part of a hint",
+                "/*+ hello\n'wor'ld*/",
+                "/*+\"-- \"values*/",
+                "/*+\"--;\n FROM*/"
+            })
+    void hintsTest(String hint) {
+        applyTestFor(AttributedStringTestSpecBuilder::appendHint, hint, null);
+        applyTestFor(AttributedStringTestSpecBuilder::appendHint, hint, SqlDialect.HIVE);
+        applyTestFor(AttributedStringTestSpecBuilder::appendHint, hint, SqlDialect.DEFAULT);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"select1", "test", "_from", "12", "hello world!", "", " ", "\t", "\n"})
+    void sqlNonKeywordTest(String comment) {
+        applyTestFor(AttributedStringTestSpecBuilder::append, comment, SqlDialect.HIVE);
+        applyTestFor(AttributedStringTestSpecBuilder::append, comment, SqlDialect.DEFAULT);
+        applyTestFor(AttributedStringTestSpecBuilder::append, comment, null);
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "\"",
+                "\"\"",
+                "\"\"\"\"",
+                "\"\"\"\"\"\"",
+                "\"from\"",
+                "\"''\"",
+                "\"test '' \n''select\"",
+                "\"/*   \"",
+                "\"--   \"",
+                "\"\n  \n\""
+            })
+    void hiveSqlIdentifierTest(String sqlIdentifier) {
+        // For non Hive dialect this is not sql identifier style
+        applyTestFor(
+                AttributedStringTestSpecBuilder::appendSqlIdentifier,
+                sqlIdentifier,
+                SqlDialect.HIVE);
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "`",
+                "``",
+                "```",
+                "````",
+                "`select * from`",
+                "`''`",
+                "`hello '' ''select`",
+                "`/*   `",
+                "`--   `",
+                "`\n  \n`"
+            })
+    void sqlIdentifierTest(String sqlIdentifier) {
+        // For Hive dialect this is not sql identifier style
+        applyTestFor(
+                AttributedStringTestSpecBuilder::appendSqlIdentifier,
+                sqlIdentifier,
+                SqlDialect.DEFAULT);
+        applyTestFor(AttributedStringTestSpecBuilder::appendSqlIdentifier, sqlIdentifier, null);
+    }
+
+    private void applyTestFor(
+            BiFunction<AttributedStringTestSpecBuilder, String, AttributedStringTestSpecBuilder>
+                    biFunction,
+            String sql,
+            SqlDialect dialect) {
+        for (SyntaxHighlightStyle.BuiltInStyle style : SyntaxHighlightStyle.BuiltInStyle.values()) {
+            SqlClientHighlighterTestSpec spec =
+                    forSql(
+                            sql,
+                            style1 -> biFunction.apply(withStyle(style1.getHighlightStyle()), sql));
+            assertThat(
+                            SqlClientSyntaxHighlighter.getHighlightedOutput(
+                                            spec.sql, style.getHighlightStyle(), dialect)
+                                    .toAnsi())
+                    .as("sql: " + spec.sql + ", style: " + style + ", dialect: " + dialect)
+                    .isEqualTo(spec.getExpected(style));
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("allDialectsSpecFunctionProvider")
+    void complexTestForAllDialects(SqlClientHighlighterTestSpec spec) {
+        for (SyntaxHighlightStyle.BuiltInStyle style : SyntaxHighlightStyle.BuiltInStyle.values()) {
+            for (SqlDialect dialect : SqlDialect.values()) {
+                verifyHighlighting(spec.sql, style, dialect, spec.getExpected(style));
+            }
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("hiveDialectsSpecFunctionProvider")
+    void complexTestForHiveDialect(SqlClientHighlighterTestSpec spec) {
+        for (SyntaxHighlightStyle.BuiltInStyle style : SyntaxHighlightStyle.BuiltInStyle.values()) {
+            verifyHighlighting(spec.sql, style, SqlDialect.HIVE, spec.getExpected(style));
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("defaultDialectsSpecFunctionProvider")
+    void complexTestForDefaultDialect(SqlClientHighlighterTestSpec spec) {
+        for (SyntaxHighlightStyle.BuiltInStyle style : SyntaxHighlightStyle.BuiltInStyle.values()) {
+            verifyHighlighting(spec.sql, style, SqlDialect.DEFAULT, spec.getExpected(style));
+        }
+    }
+
+    private static void verifyHighlighting(
+            String sql,
+            SyntaxHighlightStyle.BuiltInStyle style,
+            SqlDialect dialect,
+            String expected) {
+        assertThat(
+                        SqlClientSyntaxHighlighter.getHighlightedOutput(
+                                        sql, style.getHighlightStyle(), dialect)
+                                .toAnsi())
+                .as("SQL: " + sql + "\nDialect: " + dialect + "\nStyle: " + style)
+                .isEqualTo(expected);
+    }
+
+    static Stream<SqlClientHighlighterTestSpec> allDialectsSpecFunctionProvider() {
         return Stream.of(
-                SqlClientHighlighterTestSpec.of(
-                        "select",
-                        AttributedStringTestSpecBuilder.of(DARK.getHighlightStyle())
-                                .appendKeyword("select")),
-                SqlClientHighlighterTestSpec.of(
-                        "default_style",
-                        AttributedStringTestSpecBuilder.of(DARK.getHighlightStyle())
-                                .append("default_style")),
-                SqlClientHighlighterTestSpec.of(
+                forSql(
                         "SELECT '\\';",
-                        AttributedStringTestSpecBuilder.of(DARK.getHighlightStyle())
-                                .appendKeyword("SELECT")
-                                .append(" ")
-                                .appendQuoted("'\\'")
-                                .append(";")),
-                SqlClientHighlighterTestSpec.of(
-                        "SELECT '\\';",
-                        AttributedStringTestSpecBuilder.of(DARK.getHighlightStyle())
-                                .appendKeyword("SELECT")
-                                .append(" ")
-                                .appendQuoted("'\\'")
-                                .append(";")),
-                SqlClientHighlighterTestSpec.of(
-                        "SELECT 123 AS `\\`;",
-                        AttributedStringTestSpecBuilder.of(DARK.getHighlightStyle())
-                                .appendKeyword("SELECT")
-                                .append(" 123 ")
-                                .appendKeyword("AS")
-                                .append(" ")
-                                .appendSqlIdentifier("`\\`")
-                                .append(";")),
-                SqlClientHighlighterTestSpec.of(
+                        style ->
+                                withStyle(style.getHighlightStyle())
+                                        .appendKeyword("SELECT")
+                                        .append(" ")
+                                        .appendQuoted("'\\'")
+                                        .append(";")),
+                forSql(
+                        "SELECT.FROM%JOIN;",
+                        style ->
+                                withStyle(style.getHighlightStyle())
+                                        .appendKeyword("SELECT")
+                                        .append(".")
+                                        .appendKeyword("FROM")
+                                        .append("%")
+                                        .appendKeyword("JOIN")
+                                        .append(";")),
+                forSql(
                         "SELECT '''';",
-                        AttributedStringTestSpecBuilder.of(DARK.getHighlightStyle())
-                                .appendKeyword("SELECT")
-                                .append(" ")
-                                .appendQuoted("''''")
-                                .append(";")),
-                SqlClientHighlighterTestSpec.of(
+                        style ->
+                                withStyle(style.getHighlightStyle())
+                                        .appendKeyword("SELECT")
+                                        .append(" ")
+                                        .appendQuoted("''''")
+                                        .append(";")));
+    }
+
+    static Stream<SqlClientHighlighterTestSpec> defaultDialectsSpecFunctionProvider() {
+        return Stream.of(
+                forSql(
+                        "SELECT 123 AS `\\`;",
+                        style ->
+                                withStyle(style.getHighlightStyle())
+                                        .appendKeyword("SELECT")
+                                        .append(" 123 ")
+                                        .appendKeyword("AS")
+                                        .append(" ")
+                                        .appendSqlIdentifier("`\\`")
+                                        .append(";")),
+                forSql(
                         "SELECT 1 AS ````;",
-                        AttributedStringTestSpecBuilder.of(DARK.getHighlightStyle())
-                                .appendKeyword("SELECT")
-                                .append(" 1 ")
-                                .appendKeyword("AS")
-                                .append(" ")
-                                .appendSqlIdentifier("````")
-                                .append(";")),
-                SqlClientHighlighterTestSpec.of(
-                        "'quoted'",
-                        AttributedStringTestSpecBuilder.of(LIGHT.getHighlightStyle())
-                                .appendQuoted("'quoted'")),
-                SqlClientHighlighterTestSpec.of(
-                                "`sqlQuoteIdentifier`",
-                                AttributedStringTestSpecBuilder.of(LIGHT.getHighlightStyle())
-                                        .appendSqlIdentifier("`sqlQuoteIdentifier`"))
-                        .dialect(SqlDialect.DEFAULT),
-                SqlClientHighlighterTestSpec.of(
-                                "/*\nmultiline\n comment\n*/",
-                                AttributedStringTestSpecBuilder.of(LIGHT.getHighlightStyle())
-                                        .appendComment("/*\nmultiline\n comment\n*/"))
-                        .dialect(SqlDialect.HIVE),
-                SqlClientHighlighterTestSpec.of(
-                        "/*\nnot finished\nmultiline\n comment\n",
-                        AttributedStringTestSpecBuilder.of(LIGHT.getHighlightStyle())
-                                .appendComment("/*\nnot finished\nmultiline\n comment\n")),
-                SqlClientHighlighterTestSpec.of(
-                        "/*+hint*/",
-                        AttributedStringTestSpecBuilder.of(LIGHT.getHighlightStyle())
-                                .appendHint("/*+hint*/")),
-                SqlClientHighlighterTestSpec.of(
-                        "'`not a sql quote`''/*not a comment*/''--not a comment'",
-                        AttributedStringTestSpecBuilder.of(LIGHT.getHighlightStyle())
-                                .appendQuoted(
-                                        "'`not a sql quote`''/*not a comment*/''--not a comment'")),
-                SqlClientHighlighterTestSpec.of(
-                                "`'not a quote'``/*not a comment*/``--not a comment`",
-                                AttributedStringTestSpecBuilder.of(LIGHT.getHighlightStyle())
-                                        .appendSqlIdentifier(
-                                                "`'not a quote'``/*not a comment*/``--not a comment`"))
-                        .dialect(SqlDialect.DEFAULT),
-                SqlClientHighlighterTestSpec.of(
-                        "/*'not a quote'`not a sql quote``` /*+ not a hint*/",
-                        AttributedStringTestSpecBuilder.of(LIGHT.getHighlightStyle())
-                                .appendComment(
-                                        "/*'not a quote'`not a sql quote``` /*+ not a hint*/")),
-                SqlClientHighlighterTestSpec.of(
-                        "select/*+ hint*/'1'as`one`/*comment*/from--\ndual;",
-                        AttributedStringTestSpecBuilder.of(LIGHT.getHighlightStyle())
-                                .appendKeyword("select")
-                                .appendHint("/*+ hint*/")
-                                .appendQuoted("'1'")
-                                .appendKeyword("as")
-                                .appendSqlIdentifier("`one`")
-                                .appendComment("/*comment*/")
-                                .appendKeyword("from")
-                                .appendComment("--\n")
-                                .append("dual;")));
+                        style ->
+                                withStyle(style.getHighlightStyle())
+                                        .appendKeyword("SELECT")
+                                        .append(" 1 ")
+                                        .appendKeyword("AS")
+                                        .append(" ")
+                                        .appendSqlIdentifier("````")
+                                        .append(";")),
+                forSql(
+                        // query without spaces
+                        "SELECT/*+hint*/'abc'--one-line-comment\nAS`field`/*\ncomment\n*/;",
+                        style ->
+                                withStyle(style.getHighlightStyle())
+                                        .appendKeyword("SELECT")
+                                        .appendHint("/*+hint*/")
+                                        .appendQuoted("'abc'")
+                                        .appendComment("--one-line-comment\n")
+                                        .appendKeyword("AS")
+                                        .appendSqlIdentifier("`field`")
+                                        .appendComment("/*\ncomment\n*/")
+                                        .append(";")),
+                forSql(
+                        // query without spaces
+                        "SELECT/*+hint*/'abc'--one-line-comment\nAS`field`/*\ncomment\n*/;",
+                        style ->
+                                withStyle(style.getHighlightStyle())
+                                        .appendKeyword("SELECT")
+                                        .appendHint("/*+hint*/")
+                                        .appendQuoted("'abc'")
+                                        .appendComment("--one-line-comment\n")
+                                        .appendKeyword("AS")
+                                        .appendSqlIdentifier("`field`")
+                                        .appendComment("/*\ncomment\n*/")
+                                        .append(";")));
+    }
+
+    static Stream<SqlClientHighlighterTestSpec> hiveDialectsSpecFunctionProvider() {
+        return Stream.of(
+                forSql(
+                        "SELECT 1 AS \"\"\"\";",
+                        style ->
+                                withStyle(style.getHighlightStyle())
+                                        .appendKeyword("SELECT")
+                                        .append(" 1 ")
+                                        .appendKeyword("AS")
+                                        .append(" ")
+                                        .appendSqlIdentifier("\"\"\"\"")
+                                        .append(";")),
+                forSql(
+                        // query without spaces
+                        "SELECT/*+hint*/'abc'--one-line-comment\nAS\"field\"/*\ncomment\n*/;",
+                        style ->
+                                withStyle(style.getHighlightStyle())
+                                        .appendKeyword("SELECT")
+                                        .appendHint("/*+hint*/")
+                                        .appendQuoted("'abc'")
+                                        .appendComment("--one-line-comment\n")
+                                        .appendKeyword("AS")
+                                        .appendSqlIdentifier("\"field\"")
+                                        .appendComment("/*\ncomment\n*/")
+                                        .append(";")),
+                forSql(
+                        // query without spaces
+                        "SELECT/*+hint*/'abc'--one-line-comment\nAS\"joinq\".afrom/*\ncomment\n*/;",
+                        style ->
+                                withStyle(style.getHighlightStyle())
+                                        .appendKeyword("SELECT")
+                                        .appendHint("/*+hint*/")
+                                        .appendQuoted("'abc'")
+                                        .appendComment("--one-line-comment\n")
+                                        .appendKeyword("AS")
+                                        .appendSqlIdentifier("\"joinq\"")
+                                        .append(".afrom")
+                                        .appendComment("/*\ncomment\n*/")
+                                        .append(";")));
     }
 
     static class SqlClientHighlighterTestSpec {
         private String sql;
-        private SqlDialect dialect;
-        private SyntaxHighlightStyle style;
-        private AttributedStringTestSpecBuilder expectedBuilder;
+        private Function<SyntaxHighlightStyle.BuiltInStyle, AttributedStringTestSpecBuilder>
+                function;
 
         private SqlClientHighlighterTestSpec(
-                String sql, AttributedStringTestSpecBuilder expectedBuilder) {
+                String sql,
+                Function<SyntaxHighlightStyle.BuiltInStyle, AttributedStringTestSpecBuilder>
+                        function) {
             this.sql = sql;
-            this.expectedBuilder = expectedBuilder;
-            this.style = expectedBuilder.style;
+            this.function = function;
         }
 
-        public static SqlClientHighlighterTestSpec of(
-                String sql, AttributedStringTestSpecBuilder expectedBuilder) {
+        public static SqlClientHighlighterTestSpec forSql(
+                String sql,
+                Function<SyntaxHighlightStyle.BuiltInStyle, AttributedStringTestSpecBuilder>
+                        expectedBuilder) {
             return new SqlClientHighlighterTestSpec(sql, expectedBuilder);
         }
 
-        SqlClientHighlighterTestSpec dialect(SqlDialect dialect) {
-            this.dialect = dialect;
-            return this;
-        }
-
-        String getExpected() {
-            return expectedBuilder.asb.toAnsi();
+        String getExpected(SyntaxHighlightStyle.BuiltInStyle style) {
+            return function.apply(style).asb.toAnsi();
         }
 
         @Override
         public String toString() {
-            return "Sql=" + sql + ", dialect = " + dialect;
+            return "Sql = " + sql;
         }
     }
 
@@ -184,7 +351,7 @@ class SqlClientHighlighterTest {
             this.style = style;
         }
 
-        public static AttributedStringTestSpecBuilder of(SyntaxHighlightStyle style) {
+        public static AttributedStringTestSpecBuilder withStyle(SyntaxHighlightStyle style) {
             return new AttributedStringTestSpecBuilder(style);
         }
 
