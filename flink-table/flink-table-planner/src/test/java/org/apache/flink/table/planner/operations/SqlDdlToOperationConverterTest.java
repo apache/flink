@@ -251,7 +251,7 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                                 .getPrimaryKey()
                                 .map(UniqueConstraint::asSummaryString)
                                 .orElse("fakeVal"))
-                .isEqualTo("CONSTRAINT `ct1` PRIMARY KEY (`a`, `b`)");
+                .isEqualTo("CONSTRAINT `ct1` PRIMARY KEY (`a`, `b`) NOT ENFORCED");
         assertThat(tableSchema.getFieldNames()).isEqualTo(new String[] {"a", "b", "c", "d"});
         assertThat(tableSchema.getFieldDataTypes())
                 .isEqualTo(
