@@ -945,7 +945,10 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
         final Map<JobVertexID, Integer> maxParallelismPerVertex = new HashMap<>();
         for (JobVertex vertex : jobGraph.getVertices()) {
             maxParallelismPerVertex.put(
-                    vertex.getID(), SchedulerBase.getDefaultMaxParallelism(vertex));
+                    vertex.getID(),
+                    vertex.getMaxParallelism() != JobVertex.MAX_PARALLELISM_DEFAULT
+                            ? vertex.getMaxParallelism()
+                            : SchedulerBase.getDefaultMaxParallelism(vertex));
         }
         return CompletableFuture.completedFuture(maxParallelismPerVertex);
     }
