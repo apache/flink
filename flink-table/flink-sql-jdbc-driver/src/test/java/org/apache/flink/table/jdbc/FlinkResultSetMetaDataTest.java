@@ -45,30 +45,30 @@ public class FlinkResultSetMetaDataTest {
     public void testResultSetMetaData() throws Exception {
         ResolvedSchema schema =
                 ResolvedSchema.of(
-                        Column.physical("v1", DataTypes.BOOLEAN()),
-                        Column.physical("v2", DataTypes.TINYINT()),
-                        Column.physical("v3", DataTypes.SMALLINT()),
-                        Column.physical("v4", DataTypes.INT()),
-                        Column.physical("v5", DataTypes.BIGINT()),
-                        Column.physical("v6", DataTypes.FLOAT()),
-                        Column.physical("v7", DataTypes.DOUBLE()),
-                        Column.physical("v8", DataTypes.DECIMAL(10, 5)),
-                        Column.physical("v9", DataTypes.STRING()),
-                        Column.physical("v10", DataTypes.BYTES()),
-                        Column.physical("v11", DataTypes.TIME()),
-                        Column.physical("v12", DataTypes.DATE()),
-                        Column.physical("v13", DataTypes.TIMESTAMP(6)),
-                        Column.physical("v14", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(5)),
-                        Column.physical("v15", DataTypes.TIMESTAMP_WITH_TIME_ZONE(4)),
-                        Column.physical("v16", DataTypes.ARRAY(DataTypes.INT())),
-                        Column.physical("v17", DataTypes.ROW()),
+                        Column.physical("c1", DataTypes.BOOLEAN()),
+                        Column.physical("c2", DataTypes.TINYINT()),
+                        Column.physical("c3", DataTypes.SMALLINT()),
+                        Column.physical("c4", DataTypes.INT()),
+                        Column.physical("c5", DataTypes.BIGINT()),
+                        Column.physical("c6", DataTypes.FLOAT()),
+                        Column.physical("c7", DataTypes.DOUBLE()),
+                        Column.physical("c8", DataTypes.DECIMAL(10, 5)),
+                        Column.physical("c9", DataTypes.STRING()),
+                        Column.physical("c10", DataTypes.BYTES()),
+                        Column.physical("c11", DataTypes.TIME()),
+                        Column.physical("c12", DataTypes.DATE()),
+                        Column.physical("c13", DataTypes.TIMESTAMP(6)),
+                        Column.physical("c14", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(5)),
+                        Column.physical("c15", DataTypes.TIMESTAMP_WITH_TIME_ZONE(4)),
+                        Column.physical("c16", DataTypes.ARRAY(DataTypes.INT())),
+                        Column.physical("c17", DataTypes.ROW()),
                         Column.physical(
-                                "v18", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())));
+                                "c18", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())));
         FlinkResultSetMetaData metaData = new FlinkResultSetMetaData(schema);
 
         assertEquals(18, metaData.getColumnCount());
         for (int i = 1; i <= 18; i++) {
-            assertEquals("v" + i, metaData.getColumnName(i));
+            assertEquals("c" + i, metaData.getColumnName(i));
             LogicalType logicalType = schema.getColumnDataTypes().get(i - 1).getLogicalType();
             assertEquals(logicalType.asSummaryString(), metaData.getColumnTypeName(i));
             assertEquals(logicalType.is(LogicalTypeFamily.NUMERIC), metaData.isSigned(i));
@@ -115,7 +115,7 @@ public class FlinkResultSetMetaDataTest {
     @Test
     public void testInvalidType() {
         ResolvedSchema schema =
-                ResolvedSchema.of(Column.physical("v1", DataTypes.MULTISET(DataTypes.STRING())));
+                ResolvedSchema.of(Column.physical("c1", DataTypes.MULTISET(DataTypes.STRING())));
         assertThrowsExactly(
                 RuntimeException.class,
                 () -> new FlinkResultSetMetaData(schema),

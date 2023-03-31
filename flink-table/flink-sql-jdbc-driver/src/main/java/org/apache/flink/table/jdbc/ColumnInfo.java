@@ -65,7 +65,7 @@ public class ColumnInfo {
     private final int columnDisplaySize;
     private final String columnName;
 
-    public ColumnInfo(
+    private ColumnInfo(
             int columnType,
             String columnTypeName,
             boolean nullable,
