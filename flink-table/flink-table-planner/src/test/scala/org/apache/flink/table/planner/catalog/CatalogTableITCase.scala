@@ -17,6 +17,12 @@
  */
 package org.apache.flink.table.planner.catalog
 
+import java.io.File
+import java.math.{BigDecimal => JBigDecimal}
+import java.net.URI
+import java.util
+import java.util.UUID
+
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
@@ -30,18 +36,11 @@ import org.apache.flink.table.utils.UserDefinedFunctions.{GENERATED_LOWER_UDF_CL
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 import org.apache.flink.util.{FileUtils, UserClassLoaderJarTestUtils}
-
-import org.junit.{Before, Rule, Test}
 import org.junit.Assert.{assertEquals, fail}
 import org.junit.rules.ExpectedException
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-
-import java.io.File
-import java.math.{BigDecimal => JBigDecimal}
-import java.net.URI
-import java.util
-import java.util.UUID
+import org.junit.{Before, Rule, Test}
 
 import scala.collection.JavaConversions._
 import scala.util.Random
@@ -988,7 +987,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
       .getSchema
     assert(tableSchema1.getPrimaryKey.isPresent)
     assertEquals(
-      "CONSTRAINT ct1 PRIMARY KEY (a)",
+      "CONSTRAINT `ct1` PRIMARY KEY (`a`)",
       tableSchema1.getPrimaryKey.get().asSummaryString())
 
     // alter table drop constraint
