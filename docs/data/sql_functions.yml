@@ -640,6 +640,9 @@ collection:
   - sql: ARRAY_REMOVE(haystack, needle)
     table: haystack.arrayRemove(needle)
     description: Removes all elements that equal to element from array. If the array itself is null, the function will return null. Keeps ordering of elements.
+  - sql: ARRAY_REVERSE(haystack)
+    table: haystack.arrayReverse()
+    description: Returns an array in reverse order. If the array itself is null, the function will return null.
   - sql: MAP_KEYS(map)
     table: MAP.mapKeys()
     description: Returns the keys of the map as array. No order guaranteed.

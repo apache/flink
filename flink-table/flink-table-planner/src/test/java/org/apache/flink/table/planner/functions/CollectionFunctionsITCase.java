@@ -41,7 +41,8 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                         arrayContainsTestCases(),
                         arrayDistinctTestCases(),
                         arrayPositionTestCases(),
-                        arrayRemoveTestCases())
+                        arrayRemoveTestCases(),
+                        arrayReverseTestCases())
                 .flatMap(s -> s);
     }
 
@@ -375,5 +376,43 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f0").arrayRemove(true),
                                 "Invalid input arguments. Expected signatures are:\n"
                                         + "ARRAY_REMOVE(haystack <ARRAY>, needle <ARRAY ELEMENT>)"));
+    }
+
+    private Stream<TestSetSpec> arrayReverseTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.ARRAY_REVERSE)
+                        .onFieldsWithData(
+                                new Integer[] {1, 2, 2, null},
+                                null,
+                                new Row[] {
+                                    Row.of(true, LocalDate.of(2022, 4, 20)),
+                                    Row.of(true, LocalDate.of(1990, 10, 14)),
+                                    null
+                                })
+                        .andDataTypes(
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(
+                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE())))
+                        .testResult(
+                                $("f0").arrayReverse(),
+                                "ARRAY_REVERSE(f0)",
+                                new Integer[] {null, 2, 2, 1},
+                                DataTypes.ARRAY(DataTypes.INT()).nullable())
+                        .testResult(
+                                $("f1").arrayReverse(),
+                                "ARRAY_REVERSE(f1)",
+                                null,
+                                DataTypes.ARRAY(DataTypes.INT()).nullable())
+                        .testResult(
+                                $("f2").arrayReverse(),
+                                "ARRAY_REVERSE(f2)",
+                                new Row[] {
+                                    null,
+                                    Row.of(true, LocalDate.of(1990, 10, 14)),
+                                    Row.of(true, LocalDate.of(2022, 4, 20)),
+                                },
+                                DataTypes.ARRAY(
+                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE()))));
     }
 }
