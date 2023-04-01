@@ -392,6 +392,7 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
                     stateSize += tuple2.f0;
                     checkpointedSize += tuple2.f1;
                 } catch (Exception cancelException) {
+                    LOG.warn("Failed to cleanup checkpoint.", cancelException);
                     exception = ExceptionUtils.firstOrSuppressed(cancelException, exception);
                 }
             }

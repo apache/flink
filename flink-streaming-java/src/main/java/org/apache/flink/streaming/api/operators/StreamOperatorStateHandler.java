@@ -248,6 +248,7 @@ public class StreamOperatorStateHandler {
                 }
             }
         } catch (Exception snapshotException) {
+            LOG.warn("Failed to snapshot state.", snapshotException);
             try {
                 snapshotInProgress.cancel();
             } catch (Exception e) {
