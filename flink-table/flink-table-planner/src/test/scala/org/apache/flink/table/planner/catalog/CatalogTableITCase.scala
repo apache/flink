@@ -988,7 +988,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
       .getSchema
     assert(tableSchema1.getPrimaryKey.isPresent)
     assertEquals(
-      "CONSTRAINT `ct1` PRIMARY KEY (`a`)",
+      "CONSTRAINT `ct1` PRIMARY KEY (`a`) NOT ENFORCED",
       tableSchema1.getPrimaryKey.get().asSummaryString())
 
     // alter table drop constraint
