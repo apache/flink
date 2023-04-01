@@ -480,32 +480,6 @@ public class ZooKeeperStateHandleStore<T extends Serializable>
     }
 
     /**
-     * Releases all lock nodes of this ZooKeeperStateHandleStores and tries to remove all state
-     * nodes which are not locked anymore.
-     *
-     * @throws Exception if the delete operation fails
-     */
-    @Override
-    public void releaseAndTryRemoveAll() throws Exception {
-        Collection<String> children = getAllHandles();
-
-        Exception exception = null;
-
-        for (String child : children) {
-            try {
-                releaseAndTryRemove('/' + child);
-            } catch (Exception e) {
-                exception = ExceptionUtils.firstOrSuppressed(e, exception);
-            }
-        }
-
-        if (exception != null) {
-            throw new Exception(
-                    "Could not properly release and try removing all state nodes.", exception);
-        }
-    }
-
-    /**
      * Releases the lock from the node under the given ZooKeeper path. If no lock exists, then
      * nothing happens.
      *
