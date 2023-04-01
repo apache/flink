@@ -39,7 +39,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -938,37 +937,6 @@ class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTestBase 
     }
 
     @Test
-    void testRemoveAllHandlesAndDiscardState() throws Exception {
-        new Context() {
-            {
-                runTest(
-                        () -> {
-                            leaderCallbackGrantLeadership();
-
-                            final KubernetesStateHandleStore<
-                                            TestingLongStateHandleHelper.LongStateHandle>
-                                    store =
-                                            new KubernetesStateHandleStore<>(
-                                                    flinkKubeClient,
-                                                    LEADER_CONFIGMAP_NAME,
-                                                    longStateStorage,
-                                                    filter,
-                                                    LOCK_IDENTITY);
-                            store.addAndLock(key, state);
-                            store.addAndLock(
-                                    key + "1",
-                                    new TestingLongStateHandleHelper.LongStateHandle(2L));
-                            assertThat(store.getAllAndLock()).hasSize(2);
-                            store.releaseAndTryRemoveAll();
-                            assertThat(store.getAllAndLock()).hasSize(0);
-                            assertThat(TestingLongStateHandleHelper.getGlobalDiscardCount())
-                                    .isEqualTo(2);
-                        });
-            }
-        };
-    }
-
-    @Test
     void testRemoveAllHandles() throws Exception {
         new Context() {
             {
@@ -1064,98 +1032,6 @@ class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTestBase 
                             assertThat(TestingLongStateHandleHelper.getGlobalDiscardCount())
                                     .isEqualTo(1);
                             assertThat(getLeaderConfigMap().getData().containsKey(key)).isFalse();
-                        });
-            }
-        };
-    }
-
-    @Test
-    void testReleaseAndTryRemoveAllIsIdempotent() throws Exception {
-        new Context() {
-            {
-                runTest(
-                        () -> {
-                            leaderCallbackGrantLeadership();
-
-                            final KubernetesStateHandleStore<
-                                            TestingLongStateHandleHelper.LongStateHandle>
-                                    store =
-                                            new KubernetesStateHandleStore<>(
-                                                    flinkKubeClient,
-                                                    LEADER_CONFIGMAP_NAME,
-                                                    longStateStorage,
-                                                    filter,
-                                                    LOCK_IDENTITY);
-                            final int numKeys = 10;
-
-                            final RuntimeException discardException =
-                                    new RuntimeException("Test exception.");
-                            final List<TestingLongStateHandleHelper.LongStateHandle> states =
-                                    new ArrayList<>();
-                            for (int idx = 0; idx < numKeys; idx++) {
-                                final boolean failFirstDiscard = idx % 2 == 0;
-                                final TestingLongStateHandleHelper.LongStateHandle state =
-                                        new TestingLongStateHandleHelper.LongStateHandle(
-                                                idx + 1,
-                                                discardIdx -> {
-                                                    if (failFirstDiscard && discardIdx == 0) {
-                                                        throw discardException;
-                                                    }
-                                                });
-                                states.add(state);
-                                store.addAndLock(key + "_" + idx, state);
-                            }
-
-                            // All keys should be retrievable
-                            assertThat(store.getAllAndLock()).hasSize(numKeys);
-                            for (int idx = 0; idx < numKeys; idx++) {
-                                assertThat(store.getAndLock(key + "_" + idx)).isNotNull();
-                            }
-
-                            // First remove attempt should fail when we're discarding the underlying
-                            // state.
-                            assertThatThrownBy(store::releaseAndTryRemoveAll)
-                                    .satisfies(
-                                            anyCauseMatches(
-                                                    discardException.getClass(),
-                                                    discardException.getMessage()));
-
-                            // Now we should see that the all nodes are "soft-deleted". This means
-                            // it can no longer be accessed by the get methods, but the underlying
-                            // state still exists.
-                            assertThat(store.getAllAndLock()).hasSize(0);
-                            for (int idx = 0; idx < numKeys; idx++) {
-                                final String indexKey = key + "_" + idx;
-                                assertThatThrownBy(() -> store.getAndLock(indexKey));
-                                assertThat(getLeaderConfigMap().getData()).containsKey(indexKey);
-                            }
-                            // Half of the state handles should have been discarded.
-                            assertThat(
-                                            states.stream()
-                                                    .filter(
-                                                            TestingLongStateHandleHelper
-                                                                            .LongStateHandle
-                                                                    ::isDiscarded))
-                                    .hasSize(numKeys / 2);
-
-                            // Second retry should succeed and remove the underlying state and the
-                            // reference in config map.
-                            store.releaseAndTryRemoveAll();
-                            assertThat(store.getAllAndLock()).hasSize(0);
-                            for (int idx = 0; idx < numKeys; idx++) {
-                                final String indexKey = key + "_" + idx;
-                                assertThatThrownBy(() -> store.getAndLock(indexKey));
-                                assertThat(getLeaderConfigMap().getData())
-                                        .doesNotContainKey(indexKey);
-                            }
-                            // All handles should have been discarded.
-                            assertThat(
-                                            states.stream()
-                                                    .filter(
-                                                            TestingLongStateHandleHelper
-                                                                            .LongStateHandle
-                                                                    ::isDiscarded))
-                                    .hasSize(numKeys);
                         });
             }
         };

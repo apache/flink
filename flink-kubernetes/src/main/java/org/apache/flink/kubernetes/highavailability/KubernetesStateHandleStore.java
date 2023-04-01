@@ -44,9 +44,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -109,7 +107,7 @@ public class KubernetesStateHandleStore<T extends Serializable>
 
     /**
      * Wrapper around state object that allows us to implement idempotent {@link
-     * #releaseAndTryRemove(String)} and {@link #releaseAndTryRemoveAll()}.
+     * #releaseAndTryRemove(String)}.
      *
      * @param <T> Type of the state we're storing.
      */
@@ -522,74 +520,6 @@ public class KubernetesStateHandleStore<T extends Serializable>
                             }
                             return CompletableFuture.completedFuture(
                                     stateHandleDoesNotExist.get() || updated);
-                        })
-                .get();
-    }
-
-    /**
-     * Remove all the state handle keys in the ConfigMap and discard the states.
-     *
-     * @throws Exception when removing the keys or discarding the state failed
-     */
-    @Override
-    public void releaseAndTryRemoveAll() throws Exception {
-        final Map<String, RetrievableStateHandle<T>> validStateHandles = new HashMap<>();
-        updateConfigMap(
-                        configMap -> {
-                            final Map<String, String> updateData =
-                                    new HashMap<>(configMap.getData());
-                            for (String key : configMap.getData().keySet()) {
-                                if (configMapKeyFilter.test(key)) {
-                                    try {
-                                        final StateHandleWithDeleteMarker<T> result =
-                                                deserializeStateHandle(
-                                                        Objects.requireNonNull(
-                                                                configMap.getData().get(key)));
-                                        validStateHandles.put(key, result.getInner());
-                                        // Start the "removal transaction" by marking the entries in
-                                        // the ConfigMap as deleting.
-                                        updateData.put(
-                                                key, serializeStateHandle(result.toDeleting()));
-                                    } catch (IOException e) {
-                                        // Just log the invalid entry. It will be implicitly removed
-                                        // because it hasn't been added into the update map.
-                                        logInvalidEntry(key, configMapName, e);
-                                    }
-                                }
-                            }
-                            configMap.getData().clear();
-                            configMap.getData().putAll(updateData);
-                            return Optional.of(configMap);
-                        })
-                .thenCompose(
-                        updated -> {
-                            if (updated && !validStateHandles.isEmpty()) {
-                                Exception exception = null;
-                                for (RetrievableStateHandle<T> stateHandle :
-                                        validStateHandles.values()) {
-                                    try {
-                                        stateHandle.discardState();
-                                    } catch (Exception e) {
-                                        exception = ExceptionUtils.firstOrSuppressed(e, exception);
-                                    }
-                                }
-                                if (exception != null) {
-                                    throw new CompletionException(
-                                            new KubernetesException(
-                                                    "Could not properly remove all state handles.",
-                                                    exception));
-                                }
-                                // Commit the "removal transaction" by removing the entries from the
-                                // ConfigMap.
-                                return updateConfigMap(
-                                        configMap -> {
-                                            for (String key : validStateHandles.keySet()) {
-                                                configMap.getData().remove(key);
-                                            }
-                                            return Optional.of(configMap);
-                                        });
-                            }
-                            return CompletableFuture.completedFuture(updated);
                         })
                 .get();
     }

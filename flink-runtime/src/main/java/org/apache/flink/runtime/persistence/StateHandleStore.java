@@ -127,19 +127,6 @@ public interface StateHandleStore<T extends Serializable, R extends ResourceVers
     boolean releaseAndTryRemove(String name) throws Exception;
 
     /**
-     * Releases and removes all the states. Not only the state handles in the distributed
-     * coordination system will be removed, but also the real state data on the distributed storage
-     * will be discarded. This method should be implemented in a idempotent manner, i.e. failing
-     * calls should be able to be repeated.
-     *
-     * @throws Exception if releasing, removing the handles or discarding the state failed. The
-     *     removal of the states should happen independently from each other, i.e. the method call
-     *     fails if at least one removal failed. But the removal of any other state should still be
-     *     performed.
-     */
-    void releaseAndTryRemoveAll() throws Exception;
-
-    /**
      * Only clears all the state handle pointers on Kubernetes or ZooKeeper.
      *
      * @throws Exception if removing the handles failed

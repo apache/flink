@@ -968,85 +968,6 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
                 TestingLongStateHandleHelper.getGlobalDiscardCount());
     }
 
-    /** Tests that all state handles are correctly discarded. */
-    @Test
-    public void testReleaseAndTryRemoveAll() throws Exception {
-        // Setup
-        final TestingLongStateHandleHelper stateHandleProvider = new TestingLongStateHandleHelper();
-
-        ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> store =
-                new ZooKeeperStateHandleStore<>(ZOOKEEPER.getClient(), stateHandleProvider);
-
-        // Config
-        final String pathInZooKeeper = "/testDiscardAll";
-
-        final Set<Long> expected = new HashSet<>();
-        expected.add(311222268470898L);
-        expected.add(132812888L);
-        expected.add(27255442L);
-        expected.add(11122233124L);
-
-        // Test
-        for (long val : expected) {
-            store.addAndLock(
-                    pathInZooKeeper + val, new TestingLongStateHandleHelper.LongStateHandle(val));
-        }
-
-        store.releaseAndTryRemoveAll();
-
-        // Verify all discarded
-        assertEquals(0, ZOOKEEPER.getClient().getChildren().forPath("/").size());
-    }
-
-    @Test
-    public void testReleaseAndTryRemoveAllRepeatableAfterFailure() throws Exception {
-        // Setup
-        final TestingLongStateHandleHelper stateHandleProvider = new TestingLongStateHandleHelper();
-
-        ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> store =
-                new ZooKeeperStateHandleStore<>(ZOOKEEPER.getClient(), stateHandleProvider);
-
-        // Config
-        final String pathInZooKeeper = "/testDiscardAllWithFailure";
-
-        final long actualValue = 12345L;
-        final RuntimeException expectedException =
-                new RuntimeException("RuntimeException for testing the failing discardState call.");
-        final TestingLongStateHandleHelper.LongStateHandle failingStateHandle =
-                new TestingLongStateHandleHelper.LongStateHandle(
-                        actualValue, throwExceptionOnce(expectedException));
-        store.addAndLock(pathInZooKeeper + "-with-failure", failingStateHandle);
-
-        final TestingLongStateHandleHelper.LongStateHandle succeedingStateHandle =
-                TestingLongStateHandleHelper.createState(42);
-        store.addAndLock(pathInZooKeeper + "-without-failure", succeedingStateHandle);
-
-        try {
-            store.releaseAndTryRemoveAll();
-            fail("An Exception should have been thrown.");
-        } catch (Exception e) {
-            ExceptionUtils.assertThrowable(e, expectedException::equals);
-        }
-
-        assertEquals(
-                "One discardState call should have failed resulting in one node being left, still.",
-                1,
-                ZOOKEEPER.getClient().getChildren().forPath("/").size());
-        assertEquals(0, failingStateHandle.getNumberOfSuccessfulDiscardCalls());
-        assertEquals(1, failingStateHandle.getNumberOfDiscardCalls());
-        assertEquals(1, succeedingStateHandle.getNumberOfSuccessfulDiscardCalls());
-
-        store.releaseAndTryRemoveAll();
-
-        assertTrue(
-                "The second removal attempt should have succeeded with no nodes left.",
-                ZOOKEEPER.getClient().getChildren().forPath("/").isEmpty());
-        assertEquals(1, failingStateHandle.getNumberOfSuccessfulDiscardCalls());
-        assertEquals(2, failingStateHandle.getNumberOfDiscardCalls());
-        assertEquals(1, succeedingStateHandle.getNumberOfSuccessfulDiscardCalls());
-        assertEquals(1, succeedingStateHandle.getNumberOfDiscardCalls());
-    }
-
     /**
      * Tests that the ZooKeeperStateHandleStore can handle corrupted data by releasing and trying to
      * remove the respective ZooKeeper ZNodes.
@@ -1272,7 +1193,7 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
     /**
      * FLINK-6612
      *
-     * <p>Tests that we can release all locked state handles in the ZooKeeperStateHandleStore
+     * <p>Tests that we can release all locked state handles in the ZooKeeperStateHandleStore.
      */
     @Test
     public void testReleaseAll() throws Exception {
@@ -1305,12 +1226,6 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
 
             assertEquals(0, stat.getNumChildren());
         }
-
-        zkStore.releaseAndTryRemoveAll();
-
-        Stat stat = ZOOKEEPER.getClient().checkExists().forPath("/");
-
-        assertEquals(0, stat.getNumChildren());
     }
 
     @Test
