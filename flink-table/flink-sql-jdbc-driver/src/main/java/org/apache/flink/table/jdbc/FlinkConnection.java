@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.jdbc;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.StatementResult;
@@ -39,6 +40,7 @@ public class FlinkConnection extends BaseConnection {
     private volatile boolean closed = false;
 
     public FlinkConnection(DriverUri driverUri) {
+        // TODO Support default context from map to get gid of flink core for jdbc driver
         this.executor =
                 Executor.create(
                         new DefaultContext(
@@ -56,6 +58,7 @@ public class FlinkConnection extends BaseConnection {
         throw new SQLFeatureNotSupportedException();
     }
 
+    @VisibleForTesting
     Executor getExecutor() {
         return this.executor;
     }
@@ -121,6 +124,8 @@ public class FlinkConnection extends BaseConnection {
 
     @Override
     public String getClientInfo(String name) throws SQLException {
+        // TODO Executor should return Map<String, String> here to get rid of flink core for jdbc
+        // driver.
         Configuration configuration = (Configuration) executor.getSessionConfig();
         return configuration.toMap().get(name);
     }
@@ -128,6 +133,8 @@ public class FlinkConnection extends BaseConnection {
     @Override
     public Properties getClientInfo() throws SQLException {
         Properties properties = new Properties();
+        // TODO Executor should return Map<String, String> here to get rid of flink core for jdbc
+        // driver.
         Configuration configuration = (Configuration) executor.getSessionConfig();
         configuration.toMap().forEach(properties::setProperty);
         return properties;
