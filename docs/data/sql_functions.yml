@@ -643,6 +643,9 @@ collection:
   - sql: ARRAY_REVERSE(haystack)
     table: haystack.arrayReverse()
     description: Returns an array in reverse order. If the array itself is null, the function will return null.
+  - sql: ARRAY_INTERSECT(haystack, needle)
+    table: haystack.arrayIntersect(needle)
+    description: Returns an array that contains the common elements of both input arrays.
   - sql: MAP_KEYS(map)
     table: MAP.mapKeys()
     description: Returns the keys of the map as array. No order guaranteed.

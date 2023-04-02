@@ -56,6 +56,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_CONTAINS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_DISTINCT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_ELEMENT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_INTERSECT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_POSITION;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_REMOVE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_REVERSE;
@@ -1394,6 +1395,17 @@ public abstract class BaseExpressions<InType, OutType> {
      */
     public OutType arrayReverse() {
         return toApiSpecificExpression(unresolvedCall(ARRAY_REVERSE, toExpr()));
+    }
+
+    /**
+     * Returns an array that contains the common elements of both input arrays.
+     *
+     * <p>Null values are not considered equal. If any of the input arrays is null, the function
+     * will return null. Keeps ordering of elements in the input arrays.
+     */
+    public OutType arrayIntersect(InType needle) {
+        return toApiSpecificExpression(
+                unresolvedCall(ARRAY_INTERSECT, toExpr(), objectToExpression(needle)));
     }
 
     /** Returns the keys of the map as an array. */

@@ -42,7 +42,8 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                         arrayDistinctTestCases(),
                         arrayPositionTestCases(),
                         arrayRemoveTestCases(),
-                        arrayReverseTestCases())
+                        arrayReverseTestCases(),
+                        arrayIntersectTestCases())
                 .flatMap(s -> s);
     }
 
@@ -414,5 +415,54 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 },
                                 DataTypes.ARRAY(
                                         DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE()))));
+    }
+
+    private Stream<TestSetSpec> arrayIntersectTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.ARRAY_INTERSECT)
+                        .onFieldsWithData(
+                                new Integer[] {1, 2, 2, null},
+                                new Integer[] {2, null},
+                                new String[] {"Hello", null},
+                                new String[] {null, "world"},
+                                new Row[] {
+                                    Row.of(true, LocalDate.of(2023, 4, 2)),
+                                    Row.of(false, LocalDate.of(1996, 7, 1)),
+                                    null
+                                })
+                        .andDataTypes(
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(DataTypes.STRING()),
+                                DataTypes.ARRAY(DataTypes.STRING()),
+                                DataTypes.ARRAY(
+                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE())))
+                        .testResult(
+                                $("f0").arrayIntersect($("f1")),
+                                "ARRAY_INTERSECT(f0, f1)",
+                                new Integer[] {2, null},
+                                DataTypes.ARRAY(DataTypes.INT()).nullable())
+                        .testResult(
+                                $("f2").arrayIntersect($("f3")),
+                                "ARRAY_INTERSECT(f2, f3)",
+                                new String[] {null},
+                                DataTypes.ARRAY(DataTypes.STRING()).nullable())
+                        .testResult(
+                                $("f0").arrayIntersect($("f0")),
+                                "ARRAY_INTERSECT(f0, f0)",
+                                new Integer[] {1, 2, 2, null},
+                                DataTypes.ARRAY(DataTypes.INT()).nullable())
+                        .testResult(
+                                $("f4").arrayIntersect($("f4")),
+                                "ARRAY_INTERSECT(f4, f4)",
+                                new Row[] {
+                                    Row.of(true, LocalDate.of(2023, 4, 2)),
+                                    Row.of(false, LocalDate.of(1996, 7, 1)),
+                                    null
+                                },
+                                DataTypes.ARRAY(
+                                                DataTypes.ROW(
+                                                        DataTypes.BOOLEAN(), DataTypes.DATE()))
+                                        .nullable()));
     }
 }
