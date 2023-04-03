@@ -336,7 +336,9 @@ def extract_stateful_function(
                     user_input = normal_data[2]
 
                 ctx.set_timestamp(timestamp)
-                on_timer_ctx.set_current_key(user_key_selector(user_input))
+                current_user_key = user_key_selector(user_input)
+                ctx.set_current_key(current_user_key)
+                on_timer_ctx.set_current_key(current_user_key)
                 keyed_state_backend.set_current_key(state_key_selector(user_input))
 
                 if is_left:
