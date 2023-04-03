@@ -102,6 +102,12 @@ Flink natively support various connectors. The following tables list all availab
       <td>Unbounded Scan, Bounded Scan, Lookup</td>
       <td>Streaming Sink, Batch Sink</td>
     </tr>
+    <tr>
+      <td><a href="{{< ref "docs/connectors/table/mongodb" >}}">MongoDB</a></td>
+      <td></td>
+      <td>Bounded Scan, Lookup</td>
+      <td>Streaming Sink, Batch Sink</td>
+    </tr>
     </tbody>
 </table>
 
