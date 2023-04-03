@@ -95,6 +95,11 @@ paths:
         required: true
         schema:
           $ref: '#/components/schemas/SessionHandle'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompleteStatementRequestBody'
       responses:
         "200":
           description: The request was successful.
@@ -299,6 +304,14 @@ components:
         logicalType:
           $ref: '#/components/schemas/LogicalType'
         name:
+          type: string
+    CompleteStatementRequestBody:
+      type: object
+      properties:
+        position:
+          type: integer
+          format: int32
+        statement:
           type: string
     CompleteStatementResponseBody:
       type: object
