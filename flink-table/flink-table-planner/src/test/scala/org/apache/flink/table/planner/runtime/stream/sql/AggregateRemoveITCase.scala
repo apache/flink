@@ -276,7 +276,7 @@ class AggregateRemoveITCase(aggMode: AggMode, minibatch: MiniBatchMode, backend:
     data.+=((6, 2))
 
     val t = failingDataSource(data).toTable(tEnv, 'a, 'b)
-    tEnv.registerTable("T1", t)
+    tEnv.createTemporaryView("T1", t)
 
     val t1 = tEnv.sqlQuery("""
                              |select sum(b) from

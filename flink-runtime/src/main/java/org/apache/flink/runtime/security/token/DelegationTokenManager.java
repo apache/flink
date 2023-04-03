@@ -46,8 +46,16 @@ public interface DelegationTokenManager {
     void obtainDelegationTokens(DelegationTokenContainer container) throws Exception;
 
     /**
+     * Obtains new tokens in a one-time fashion and automatically distributes them to all local JVM
+     * receivers.
+     */
+    void obtainDelegationTokens() throws Exception;
+
+    /**
      * Creates a re-occurring task which obtains new tokens and automatically distributes them to
-     * task managers.
+     * all receivers (in local JVM as well as in registered task managers too). Task manager
+     * distribution must be implemented in the listener logic in order to keep the manager logic
+     * clean.
      */
     void start(Listener listener) throws Exception;
 

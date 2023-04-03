@@ -45,6 +45,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.util.ArrayDeque;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Random;
@@ -484,12 +485,13 @@ class HsFileDataManagerTest {
 
         @Override
         public Optional<ResultSubpartition.BufferAndBacklog> consumeBuffer(
-                int nextBufferToConsume) {
+                int nextBufferToConsume, Collection<Buffer> buffersToRecycle) {
             return Optional.empty();
         }
 
         @Override
-        public Buffer.DataType peekNextToConsumeDataType(int nextBufferToConsume) {
+        public Buffer.DataType peekNextToConsumeDataType(
+                int nextBufferToConsume, Collection<Buffer> buffersToRecycle) {
             return Buffer.DataType.NONE;
         }
 

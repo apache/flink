@@ -20,6 +20,7 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -62,6 +63,15 @@ public class SingleJobJobGraphStore implements JobGraphStore {
             throw new FlinkException(
                     "Cannot put additional jobs into this submitted job graph store.");
         }
+    }
+
+    @Override
+    public void putJobResourceRequirements(
+            JobID jobId, JobResourceRequirements jobResourceRequirements) throws Exception {
+        Preconditions.checkArgument(
+                jobId.equals(jobGraph.getJobID()),
+                String.format("The %s can only store a single job.", getClass().getSimpleName()));
+        JobResourceRequirements.writeToJobGraph(jobGraph, jobResourceRequirements);
     }
 
     @Override

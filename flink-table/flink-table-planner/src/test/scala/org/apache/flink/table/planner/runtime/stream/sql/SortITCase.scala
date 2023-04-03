@@ -46,7 +46,7 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     data.+=(("5", "1"))
 
     val da = env.fromCollection(data).toTable(tEnv, 'a1, 'a2)
-    tEnv.registerTable("a", da)
+    tEnv.createTemporaryView("a", da)
 
     thrown.expect(classOf[TableException])
     thrown.expectMessage("Sort on a non-time-attribute field is not supported.")
@@ -63,7 +63,7 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     data.+=(("5", "1"))
 
     val da = failingDataSource(data).toTable(tEnv, 'a1, 'a2)
-    tEnv.registerTable("a", da)
+    tEnv.createTemporaryView("a", da)
 
     val sink = new TestingRetractSink
     tEnv.getConfig
@@ -88,7 +88,7 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     data.+=(("5", "1"))
 
     val da = failingDataSource(data).toTable(tEnv, 'a1, 'a2)
-    tEnv.registerTable("a", da)
+    tEnv.createTemporaryView("a", da)
 
     val sink = new TestingRetractSink
     tEnv.getConfig.set(
@@ -114,7 +114,7 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     data.+=(("1", "2"))
 
     val da = failingDataSource(data).toTable(tEnv, 'a1, 'a2)
-    tEnv.registerTable("a", da)
+    tEnv.createTemporaryView("a", da)
 
     val sink = new TestingRetractSink
     tEnv.getConfig
@@ -139,7 +139,7 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     data.+=(("2", "2"))
 
     val da = failingDataSource(data).toTable(tEnv, 'a1, 'a2)
-    tEnv.registerTable("a", da)
+    tEnv.createTemporaryView("a", da)
 
     val sink = new TestingRetractSink
     tEnv.getConfig
@@ -170,7 +170,7 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     data.+=(("6", "2"))
 
     val da = failingDataSource(data).toTable(tEnv, 'a1, 'a2)
-    tEnv.registerTable("a", da)
+    tEnv.createTemporaryView("a", da)
 
     val sink = new TestingRetractSink
     tEnv.getConfig
@@ -199,7 +199,7 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     data.+=((4, 5))
 
     val da = failingDataSource(data).toTable(tEnv, 'a1)
-    tEnv.registerTable("a", da)
+    tEnv.createTemporaryView("a", da)
 
     val sink = new TestingRetractSink
     tEnv.getConfig

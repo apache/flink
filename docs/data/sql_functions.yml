@@ -634,9 +634,15 @@ collection:
   - sql: ARRAY_DISTINCT(haystack)
     table: haystack.arrayDistinct()
     description: Returns an array with unique elements. If the array itself is null, the function will return null. Keeps ordering of elements.
+  - sql: ARRAY_POSITION(haystack, needle)
+    table: haystack.arrayPosition(needle)
+    description: Returns the position of the first occurrence of element in the given array as int. Returns 0 if the given value could not be found in the array. Returns null if either of the arguments are null. And this is not zero based, but 1-based index. The first element in the array has index 1.
   - sql: ARRAY_REMOVE(haystack, needle)
     table: haystack.arrayRemove(needle)
     description: Removes all elements that equal to element from array. If the array itself is null, the function will return null. Keeps ordering of elements.
+  - sql: ARRAY_REVERSE(haystack)
+    table: haystack.arrayReverse()
+    description: Returns an array in reverse order. If the array itself is null, the function will return null.
   - sql: MAP_KEYS(map)
     table: MAP.mapKeys()
     description: Returns the keys of the map as array. No order guaranteed.

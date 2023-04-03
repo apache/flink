@@ -671,7 +671,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     val sql1 = "SELECT max(id) as id, PROCTIME() as proctime FROM src AS T group by len"
 
     val table1 = tEnv.sqlQuery(sql1)
-    tEnv.registerTable("t1", table1)
+    tEnv.createTemporaryView("t1", table1)
 
     val sql2 = "SELECT t1.id, D.name, D.age FROM t1 LEFT JOIN user_table " +
       "for system_time as of t1.proctime AS D ON t1.id = D.id"
@@ -693,7 +693,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     val sql1 = "SELECT max(id) as id, PROCTIME() as proctime FROM src AS T group by len"
 
     val table1 = tEnv.sqlQuery(sql1)
-    tEnv.registerTable("t1", table1)
+    tEnv.createTemporaryView("t1", table1)
 
     val sql2 = "SELECT t1.id, D.name, D.age FROM t1 LEFT JOIN user_table " +
       "for system_time as of t1.proctime AS D ON D.id = 3"
@@ -716,7 +716,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     val sql1 = "SELECT max(id) as id, PROCTIME() as proctime FROM src AS T group by len"
 
     val table1 = tEnv.sqlQuery(sql1)
-    tEnv.registerTable("t1", table1)
+    tEnv.createTemporaryView("t1", table1)
 
     val sql2 = "SELECT t1.id FROM t1 LEFT JOIN user_table " +
       "for system_time as of t1.proctime AS D ON D.id = 3"

@@ -101,7 +101,7 @@ class LegacyTableSinkValidationTest extends TableTestBase {
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val sourceTable = env.fromCollection(TestData.tupleData3).toTable(tEnv, 'a, 'b, 'c)
-    tEnv.registerTable("source", sourceTable)
+    tEnv.createTemporaryView("source", sourceTable)
     val resultTable = tEnv.sqlQuery("select a, b, c, b as d from source")
 
     val sinkSchema = TableSchema

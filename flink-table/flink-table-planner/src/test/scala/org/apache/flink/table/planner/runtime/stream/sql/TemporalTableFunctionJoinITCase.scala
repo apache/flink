@@ -85,8 +85,8 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
       .fromCollection(ratesHistoryData)
       .toTable(tEnv, 'currency, 'rate, 'proctime.proctime)
 
-    tEnv.registerTable("Orders", orders)
-    tEnv.registerTable("RatesHistory", ratesHistory)
+    tEnv.createTemporaryView("Orders", orders)
+    tEnv.createTemporaryView("RatesHistory", ratesHistory)
     tEnv.createTemporarySystemFunction(
       "Rates",
       ratesHistory.createTemporalTableFunction($"proctime", $"currency"))
@@ -152,14 +152,14 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
       .fromCollection(ratesHistoryData)
       .toTable(tEnv, 'currency, 'rate, 'proctime.proctime)
 
-    tEnv.registerTable("Orders1", orders1)
-    tEnv.registerTable("Orders2", orders2)
-    tEnv.registerTable("RatesHistory", ratesHistory)
+    tEnv.createTemporaryView("Orders1", orders1)
+    tEnv.createTemporaryView("Orders2", orders2)
+    tEnv.createTemporaryView("RatesHistory", ratesHistory)
 
     tEnv.registerFunction(
       "Rates",
       ratesHistory.createTemporalTableFunction($"proctime", $"currency"))
-    tEnv.registerTable(
+    tEnv.createTemporaryView(
       "Orders",
       tEnv.sqlQuery("SELECT * FROM Orders1 UNION ALL SELECT * FROM Orders2"))
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
@@ -210,9 +210,9 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
       .assignTimestampsAndWatermarks(new TimestampExtractor[(String, Long, Timestamp)]())
       .toTable(tEnv, 'currency, 'rate, 'rowtime.rowtime)
 
-    tEnv.registerTable("Orders", orders)
-    tEnv.registerTable("RatesHistory", ratesHistory)
-    tEnv.registerTable(
+    tEnv.createTemporaryView("Orders", orders)
+    tEnv.createTemporaryView("RatesHistory", ratesHistory)
+    tEnv.createTemporaryView(
       "FilteredRatesHistory",
       tEnv.sqlQuery("SELECT * FROM RatesHistory WHERE rate > 110"))
     tEnv.createTemporarySystemFunction(
@@ -220,7 +220,7 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
       tEnv
         .from("FilteredRatesHistory")
         .createTemporalTableFunction($"rowtime", $"currency"))
-    tEnv.registerTable("TemporalJoinResult", tEnv.sqlQuery(sqlQuery))
+    tEnv.createTemporaryView("TemporalJoinResult", tEnv.sqlQuery(sqlQuery))
 
     // Scan from registered table to test for interplay between
     // LogicalCorrelateToTemporalTableJoinRule and TableScanRule

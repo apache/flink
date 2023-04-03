@@ -32,10 +32,12 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<fs.gs.sdk.version>2.2.3</fs.gs.sdk.version>
-		<fs.gs.connector.version>hadoop3-2.2.4</fs.gs.connector.version>
+		<!-- If updating these dependency versions, please also update the corresponding links -->
+		<!-- in the GCS file system documentation. -->
+		<fs.gs.sdk.version>2.15.0</fs.gs.sdk.version>
+		<fs.gs.connector.version>hadoop3-2.2.11</fs.gs.connector.version>
 		<!-- Set this to the highest version of grpc artifacts from gcs-connector and google-cloud-storage -->
-		<fs.gs.grpc.version>1.43.2</fs.gs.grpc.version>
+		<fs.gs.grpc.version>1.50.2</fs.gs.grpc.version>
 	</properties>
 
 	<dependencies>
@@ -188,31 +190,16 @@ under the License.
 								</includes>
 							</artifactSet>
 							<relocations>
-
-								<!-- relocate the references to Hadoop to match the shaded Hadoop config -->
-								<relocation>
-									<pattern>org.apache.hadoop</pattern>
-									<shadedPattern>org.apache.flink.fs.shaded.hadoop3.org.apache.hadoop</shadedPattern>
-								</relocation>
-
-								<!-- shade dependencies internally used by Hadoop and never exposed downstream -->
-								<relocation>
-									<pattern>org.apache.commons</pattern>
-									<shadedPattern>org.apache.flink.fs.shaded.hadoop3.org.apache.commons</shadedPattern>
-								</relocation>
-
-								<!-- shade Flink's Hadoop FS adapter classes  -->
+								<!-- shade Flink's Hadoop FS adapter classes, forces plugin classloader for them -->
 								<relocation>
 									<pattern>org.apache.flink.runtime.fs.hdfs</pattern>
 									<shadedPattern>org.apache.flink.fs.gs.org.apache.flink.runtime.fs.hdfs</shadedPattern>
 								</relocation>
-
-								<!-- shade Flink's Hadoop FS utility classes -->
+								<!-- shade Flink's Hadoop FS utility classes, forces plugin classloader for them -->
 								<relocation>
 									<pattern>org.apache.flink.runtime.util</pattern>
 									<shadedPattern>org.apache.flink.fs.gs.org.apache.flink.runtime.util</shadedPattern>
 								</relocation>
-
 							</relocations>
 							<filters>
 								<filter>

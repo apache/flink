@@ -44,7 +44,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 
 /** State which represents a running job with an {@link ExecutionGraph} and assigned slots. */
-class Executing extends StateWithExecutionGraph implements ResourceConsumer {
+class Executing extends StateWithExecutionGraph implements ResourceListener {
 
     private final Context context;
 
@@ -71,7 +71,7 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         deploy();
 
         // check if new resources have come available in the meantime
-        context.runIfState(this, this::notifyNewResourcesAvailable, Duration.ZERO);
+        context.runIfState(this, this::maybeRescale, Duration.ZERO);
     }
 
     @Override
@@ -123,9 +123,18 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
     }
 
     @Override
-    public void notifyNewResourcesAvailable() {
-        if (context.canScaleUp(getExecutionGraph())) {
-            getLogger().info("New resources are available. Restarting job to scale up.");
+    public void onNewResourcesAvailable() {
+        maybeRescale();
+    }
+
+    @Override
+    public void onNewResourceRequirements() {
+        maybeRescale();
+    }
+
+    private void maybeRescale() {
+        if (context.shouldRescale(getExecutionGraph())) {
+            getLogger().info("Can change the parallelism of job. Restarting job.");
             context.goToRestarting(
                     getExecutionGraph(),
                     getExecutionGraphHandler(),
@@ -184,12 +193,12 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         FailureResult howToHandleFailure(Throwable failure);
 
         /**
-         * Asks if we can scale up the currently executing job.
+         * Asks if we should rescale the currently executing job.
          *
          * @param executionGraph executionGraph for making the scaling decision.
-         * @return true, if we can scale up
+         * @return true, if we should rescale
          */
-        boolean canScaleUp(ExecutionGraph executionGraph);
+        boolean shouldRescale(ExecutionGraph executionGraph);
 
         /**
          * Runs the given action after a delay if the state at this time equals the expected state.

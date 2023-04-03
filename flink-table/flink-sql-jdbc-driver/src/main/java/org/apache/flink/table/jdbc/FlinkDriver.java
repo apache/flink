@@ -18,29 +18,45 @@
 
 package org.apache.flink.table.jdbc;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.sql.Connection;
 import java.sql.Driver;
+import java.sql.DriverManager;
 import java.sql.DriverPropertyInfo;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.util.Properties;
-import java.util.logging.Logger;
+
+import static org.apache.flink.table.jdbc.DriverInfo.DRIVER_VERSION_MAJOR;
+import static org.apache.flink.table.jdbc.DriverInfo.DRIVER_VERSION_MINOR;
 
 /**
  * Jdbc Driver for flink sql gateway. Only Batch Mode queries are supported. If you force to submit
  * streaming queries, you may get unrecognized updates, deletions and other results in result set.
  */
 public class FlinkDriver implements Driver {
-    public static final String URL_PREFIX = "jdbc:flink://";
+    private static final Logger LOG = LoggerFactory.getLogger(FlinkDriver.class);
+
+    static {
+        try {
+            DriverManager.registerDriver(new FlinkDriver());
+        } catch (SQLException e) {
+            // log message since DriverManager hides initialization exceptions
+            LOG.error("Failed to register flink driver", e);
+            throw new RuntimeException(e);
+        }
+    }
 
     @Override
-    public Connection connect(String url, Properties info) throws SQLException {
-        throw new SQLFeatureNotSupportedException("Not implemented yet.");
+    public Connection connect(String url, Properties driverProperties) throws SQLException {
+        return new FlinkConnection(DriverUri.create(url, driverProperties));
     }
 
     @Override
     public boolean acceptsURL(String url) throws SQLException {
-        return url.startsWith(URL_PREFIX);
+        return DriverUri.acceptsURL(url);
     }
 
     @Override
@@ -55,7 +71,7 @@ public class FlinkDriver implements Driver {
      */
     @Override
     public int getMajorVersion() {
-        throw new RuntimeException("Not implemented yet, will use major version of flink.");
+        return DRIVER_VERSION_MAJOR;
     }
 
     /**
@@ -65,7 +81,7 @@ public class FlinkDriver implements Driver {
      */
     @Override
     public int getMinorVersion() {
-        throw new RuntimeException("Not implemented yet, will use minor version of flink.");
+        return DRIVER_VERSION_MINOR;
     }
 
     @Override
@@ -74,7 +90,7 @@ public class FlinkDriver implements Driver {
     }
 
     @Override
-    public Logger getParentLogger() throws SQLFeatureNotSupportedException {
+    public java.util.logging.Logger getParentLogger() throws SQLFeatureNotSupportedException {
         throw new SQLFeatureNotSupportedException(
                 "FlinkDriver#getParentLogger is not supported yet.");
     }

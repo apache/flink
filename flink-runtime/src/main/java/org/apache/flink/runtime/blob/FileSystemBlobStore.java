@@ -49,6 +49,8 @@ public class FileSystemBlobStore implements BlobStoreService {
     /** The file system in which blobs are stored. */
     private final FileSystem fileSystem;
 
+    private volatile boolean basePathCreated;
+
     /** The base path of the blob store. */
     private final String basePath;
 
@@ -57,22 +59,29 @@ public class FileSystemBlobStore implements BlobStoreService {
 
     public FileSystemBlobStore(FileSystem fileSystem, String storagePath) throws IOException {
         this.fileSystem = checkNotNull(fileSystem);
+        this.basePathCreated = false;
         this.basePath = checkNotNull(storagePath) + "/" + BLOB_PATH_NAME;
+    }
 
-        LOG.info("Creating highly available BLOB storage directory at {}", basePath);
-
-        fileSystem.mkdirs(new Path(basePath));
-        LOG.debug("Created highly available BLOB storage directory at {}", basePath);
+    private void createBasePathIfNeeded() throws IOException {
+        if (!basePathCreated) {
+            LOG.info("Creating highly available BLOB storage directory at {}", basePath);
+            fileSystem.mkdirs(new Path(basePath));
+            LOG.debug("Created highly available BLOB storage directory at {}", basePath);
+            basePathCreated = true;
+        }
     }
 
     // - Put ------------------------------------------------------------------
 
     @Override
     public boolean put(File localFile, JobID jobId, BlobKey blobKey) throws IOException {
+        createBasePathIfNeeded();
         return put(localFile, BlobUtils.getStorageLocationPath(basePath, jobId, blobKey));
     }
 
     private boolean put(File fromFile, String toBlobPath) throws IOException {
+        createBasePathIfNeeded();
         try (FSDataOutputStream os =
                 fileSystem.create(new Path(toBlobPath), FileSystem.WriteMode.OVERWRITE)) {
             LOG.debug("Copying from {} to {}.", fromFile, toBlobPath);

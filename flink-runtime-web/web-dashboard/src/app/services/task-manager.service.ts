@@ -100,7 +100,9 @@ export class TaskManagerService {
   loadMetrics(taskManagerId: string, listOfMetricName: string[]): Observable<MetricMap> {
     const metricName = listOfMetricName.join(',');
     return this.httpClient
-      .get<JobMetric[]>(`${this.configService.BASE_URL}/taskmanagers/${taskManagerId}/metrics?get=${metricName}`)
+      .get<JobMetric[]>(`${this.configService.BASE_URL}/taskmanagers/${taskManagerId}/metrics`, {
+        params: { get: metricName }
+      })
       .pipe(
         map(arr => {
           const result: MetricMap = {};

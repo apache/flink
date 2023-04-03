@@ -17,7 +17,9 @@
  */
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.table.api.{DataTypes, TableSchema}
+import org.apache.flink.table.api.{DataTypes, Schema}
+import org.apache.flink.table.catalog.{Column, ResolvedSchema}
+import org.apache.flink.table.expressions.utils.ResolvedExpressionMock
 import org.apache.flink.table.planner.expressions.utils.Func1
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
 import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableConfigUtils, TableTestBase, TestPartitionableSourceFactory}
@@ -58,21 +60,25 @@ class PushPartitionIntoLegacyTableSourceScanRuleTest(
         .build()
     )
 
-    val tableSchema = TableSchema
-      .builder()
-      .field("id", DataTypes.INT())
-      .field("name", DataTypes.STRING())
-      .field("part1", DataTypes.STRING())
-      .field("part2", DataTypes.INT())
+    val tableSchema = Schema
+      .newBuilder()
+      .fromResolvedSchema(ResolvedSchema.of(
+        Column.physical("id", DataTypes.INT()),
+        Column.physical("name", DataTypes.STRING()),
+        Column.physical("part1", DataTypes.STRING()),
+        Column.physical("part2", DataTypes.INT())
+      ))
       .build()
 
-    val tableSchema2 = TableSchema
-      .builder()
-      .field("id", DataTypes.INT())
-      .field("name", DataTypes.STRING())
-      .field("part1", DataTypes.STRING())
-      .field("part2", DataTypes.INT())
-      .field("virtualField", DataTypes.INT(), "`part2` + 1")
+    val tableSchema2 = Schema
+      .newBuilder()
+      .fromResolvedSchema(ResolvedSchema.of(
+        Column.physical("id", DataTypes.INT()),
+        Column.physical("name", DataTypes.STRING()),
+        Column.physical("part1", DataTypes.STRING()),
+        Column.physical("part2", DataTypes.INT()),
+        Column.computed("virtualField", ResolvedExpressionMock.of(DataTypes.INT(), "`part2` + 1"))
+      ))
       .build()
 
     TestPartitionableSourceFactory.createTemporaryTable(

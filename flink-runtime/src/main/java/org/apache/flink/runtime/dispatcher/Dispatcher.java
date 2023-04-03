@@ -55,7 +55,9 @@ import org.apache.flink.runtime.highavailability.JobResultEntry;
 import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.highavailability.JobResultStoreOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
@@ -77,6 +79,7 @@ import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceOverview;
+import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.async.OperationResult;
 import org.apache.flink.runtime.rest.handler.job.AsynchronousJobOperationKey;
 import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
@@ -93,6 +96,8 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.FunctionUtils;
 import org.apache.flink.util.function.ThrowingConsumer;
+
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -189,6 +194,12 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     private final Map<JobID, Long> uninitializedJobClientHeartbeatTimeout = new HashMap<>();
     private final long jobClientAlivenessCheckInterval;
     private ScheduledFuture<?> jobClientAlivenessCheck;
+
+    /**
+     * Simple data-structure to keep track of pending {@link JobResourceRequirements} updates, so we
+     * can prevent race conditions.
+     */
+    private final Set<JobID> pendingJobResourceRequirementsUpdates = new HashSet<>();
 
     /** Enum to distinguish between initial job submission and re-submission for recovery. */
     protected enum ExecutionType {
@@ -1112,6 +1123,73 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                         jobID);
                 cancelJob(jobID, webTimeout);
             }
+        }
+    }
+
+    @Override
+    public CompletableFuture<JobResourceRequirements> requestJobResourceRequirements(JobID jobId) {
+        return performOperationOnJobMasterGateway(
+                jobId, JobMasterGateway::requestJobResourceRequirements);
+    }
+
+    @Override
+    public CompletableFuture<Acknowledge> updateJobResourceRequirements(
+            JobID jobId, JobResourceRequirements jobResourceRequirements) {
+        if (!pendingJobResourceRequirementsUpdates.add(jobId)) {
+            return FutureUtils.completedExceptionally(
+                    new RestHandlerException(
+                            "Another update to the job [%s] resource requirements is in progress.",
+                            HttpResponseStatus.CONFLICT));
+        }
+        return performOperationOnJobMasterGateway(
+                        jobId, JobMasterGateway::getMaxParallelismPerVertex)
+                .thenAccept(
+                        maxParallelismPerJobVertex ->
+                                validateMaxParallelism(
+                                        jobResourceRequirements, maxParallelismPerJobVertex))
+                .thenRunAsync(
+                        () -> {
+                            try {
+                                jobGraphWriter.putJobResourceRequirements(
+                                        jobId, jobResourceRequirements);
+                            } catch (Exception e) {
+                                throw new CompletionException(
+                                        new RestHandlerException(
+                                                "The resource requirements could not be persisted and have not been applied. Please retry.",
+                                                HttpResponseStatus.INTERNAL_SERVER_ERROR,
+                                                e));
+                            }
+                        },
+                        ioExecutor)
+                .thenComposeAsync(
+                        ignored ->
+                                performOperationOnJobMasterGateway(
+                                        jobId,
+                                        jobMasterGateway ->
+                                                jobMasterGateway.updateJobResourceRequirements(
+                                                        jobResourceRequirements)),
+                        getMainThreadExecutor())
+                .whenComplete(
+                        (ack, error) -> {
+                            log.debug("Failed to update requirements for job {}.", jobId, error);
+                            pendingJobResourceRequirementsUpdates.remove(jobId);
+                        });
+    }
+
+    private static void validateMaxParallelism(
+            JobResourceRequirements jobResourceRequirements,
+            Map<JobVertexID, Integer> maxParallelismPerJobVertex) {
+
+        final List<String> validationErrors =
+                JobResourceRequirements.validate(
+                        jobResourceRequirements, maxParallelismPerJobVertex);
+
+        if (!validationErrors.isEmpty()) {
+            throw new CompletionException(
+                    new RestHandlerException(
+                            validationErrors.stream()
+                                    .collect(Collectors.joining(System.lineSeparator())),
+                            HttpResponseStatus.BAD_REQUEST));
         }
     }
 

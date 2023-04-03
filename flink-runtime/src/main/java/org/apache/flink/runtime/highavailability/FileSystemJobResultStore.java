@@ -40,6 +40,9 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.HashSet;
@@ -53,6 +56,8 @@ import static org.apache.flink.util.StringUtils.isNullOrWhitespaceOnly;
  * distributed filesystem.
  */
 public class FileSystemJobResultStore extends AbstractThreadsafeJobResultStore {
+
+    private static final Logger LOG = LoggerFactory.getLogger(FileSystemJobResultStore.class);
 
     @VisibleForTesting static final String FILE_EXTENSION = ".json";
     @VisibleForTesting static final String DIRTY_FILE_EXTENSION = "_DIRTY" + FILE_EXTENSION;
@@ -71,18 +76,17 @@ public class FileSystemJobResultStore extends AbstractThreadsafeJobResultStore {
 
     private final FileSystem fileSystem;
 
+    private volatile boolean basePathCreated;
+
     private final Path basePath;
 
     private final boolean deleteOnCommit;
 
     @VisibleForTesting
-    FileSystemJobResultStore(FileSystem fileSystem, Path basePath, boolean deleteOnCommit)
-            throws IOException {
+    FileSystemJobResultStore(FileSystem fileSystem, Path basePath, boolean deleteOnCommit) {
         this.fileSystem = fileSystem;
         this.basePath = basePath;
         this.deleteOnCommit = deleteOnCommit;
-
-        this.fileSystem.mkdirs(this.basePath);
     }
 
     public static FileSystemJobResultStore fromConfiguration(Configuration config)
@@ -102,6 +106,15 @@ public class FileSystemJobResultStore extends AbstractThreadsafeJobResultStore {
         boolean deleteOnCommit = config.get(JobResultStoreOptions.DELETE_ON_COMMIT);
 
         return new FileSystemJobResultStore(basePath.getFileSystem(), basePath, deleteOnCommit);
+    }
+
+    private void createBasePathIfNeeded() throws IOException {
+        if (!basePathCreated) {
+            LOG.info("Creating highly available job result storage directory at {}", basePath);
+            fileSystem.mkdirs(basePath);
+            LOG.info("Created highly available job result storage directory at {}", basePath);
+            basePathCreated = true;
+        }
     }
 
     public static String createDefaultJobResultStorePath(String baseDir, String clusterId) {
@@ -137,6 +150,8 @@ public class FileSystemJobResultStore extends AbstractThreadsafeJobResultStore {
 
     @Override
     public void createDirtyResultInternal(JobResultEntry jobResultEntry) throws IOException {
+        createBasePathIfNeeded();
+
         final Path path = constructDirtyPath(jobResultEntry.getJobId());
         try (OutputStream os = fileSystem.create(path, FileSystem.WriteMode.NO_OVERWRITE)) {
             mapper.writeValue(
@@ -177,6 +192,8 @@ public class FileSystemJobResultStore extends AbstractThreadsafeJobResultStore {
 
     @Override
     public Set<JobResult> getDirtyResultsInternal() throws IOException {
+        createBasePathIfNeeded();
+
         final FileStatus[] statuses = fileSystem.listStatus(this.basePath);
 
         Preconditions.checkState(

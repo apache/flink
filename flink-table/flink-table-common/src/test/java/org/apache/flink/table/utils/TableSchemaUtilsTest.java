@@ -19,7 +19,6 @@
 package org.apache.flink.table.utils;
 
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
@@ -105,15 +104,20 @@ class TableSchemaUtilsTest {
                         UniqueConstraint.primaryKey("test-pk", Collections.singletonList("id")));
         assertThat(TableSchemaUtils.removeTimeAttributeFromResolvedSchema(schema))
                 .isEqualTo(
-                        TableSchema.builder()
-                                .field("id", DataTypes.INT().notNull())
-                                .field("t", DataTypes.TIMESTAMP(3))
-                                .field("date", DataTypes.DATE(), "TO_DATE(t)")
-                                .add(
-                                        TableColumn.metadata(
-                                                "metadata-1", DataTypes.INT(), "metadata", false))
-                                .watermark("t", "t", rowTimeType)
-                                .primaryKey("test-pk", new String[] {"id"})
-                                .build());
+                        new ResolvedSchema(
+                                Arrays.asList(
+                                        Column.physical("id", DataTypes.INT().notNull()),
+                                        Column.physical("t", DataTypes.TIMESTAMP(3)),
+                                        Column.computed(
+                                                "date",
+                                                new ResolvedExpressionMock(
+                                                        DataTypes.DATE(), () -> "TO_DATE(t)")),
+                                        Column.metadata(
+                                                "metadata-1", DataTypes.INT(), "metadata", false)),
+                                Collections.singletonList(
+                                        WatermarkSpec.of(
+                                                "t", ResolvedExpressionMock.of(rowTimeType, "t"))),
+                                UniqueConstraint.primaryKey(
+                                        "test-pk", Collections.singletonList("id"))));
     }
 }

@@ -87,13 +87,14 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
             long leftLowerBound,
             long leftUpperBound,
             long allowedLateness,
+            long minCleanUpInterval,
             InternalTypeInfo<RowData> leftType,
             InternalTypeInfo<RowData> rightType,
             IntervalJoinFunction joinFunc) {
         this.joinType = joinType;
         this.leftRelativeSize = -leftLowerBound;
         this.rightRelativeSize = leftUpperBound;
-        minCleanUpInterval = (leftRelativeSize + rightRelativeSize) / 2;
+        this.minCleanUpInterval = Math.max(0, minCleanUpInterval);
         if (allowedLateness < 0) {
             throw new IllegalArgumentException("The allowed lateness must be non-negative.");
         }

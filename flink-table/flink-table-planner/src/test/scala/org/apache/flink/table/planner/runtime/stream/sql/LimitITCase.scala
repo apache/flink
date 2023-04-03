@@ -43,7 +43,7 @@ class LimitITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mod
       ("fruit", 5, 22))
 
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'num)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql = "SELECT * FROM T LIMIT 4"
 
@@ -66,7 +66,7 @@ class LimitITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mod
       ("fruit", 5, 22))
 
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'num)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql = "SELECT * FROM T LIMIT 4 OFFSET 2"
 
@@ -90,7 +90,7 @@ class LimitITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mod
       ("fruit", 5, 22))
 
     val t = env.fromCollection(data).toTable(tEnv, 'category, 'shopId, 'num)
-    tEnv.registerTable("T", t)
+    tEnv.createTemporaryView("T", t)
 
     val sql = "SELECT * FROM T OFFSET 2"
     thrown.expect(classOf[TableException])

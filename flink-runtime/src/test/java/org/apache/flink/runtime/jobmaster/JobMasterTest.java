@@ -72,6 +72,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
+import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -97,6 +98,7 @@ import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.exceptions.RecipientUnreachableException;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerFactory;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
+import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.TestingSchedulerNG;
 import org.apache.flink.runtime.scheduler.TestingSchedulerNGFactory;
@@ -117,6 +119,7 @@ import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.jupiter.api.AfterAll;
@@ -125,6 +128,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
 import javax.annotation.Nonnull;
@@ -161,11 +165,13 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link JobMaster}. */
+@ExtendWith(TestLoggerExtension.class)
 class JobMasterTest {
 
     private static final TestingInputSplit[] EMPTY_TESTING_INPUT_SPLITS = new TestingInputSplit[0];
@@ -2030,6 +2036,101 @@ class JobMasterTest {
             assertThat(firstReceivedBlockedNodeFutureOfB.get())
                     .containsExactlyInAnyOrder(blockedNode1, blockedNode2);
             assertThat(secondReceivedBlockedNodeFutureOfA).isNotDone();
+        }
+    }
+
+    @Test
+    public void testGetMaxParallelismPerVertexRespectsUserSpecifiedParallelism() throws Exception {
+        JobVertex vertexWithoutMaxParallelism = new JobVertex("vertex1");
+        vertexWithoutMaxParallelism.setInvokableClass(NoOpInvokable.class);
+        vertexWithoutMaxParallelism.setParallelism(1);
+        JobVertex vertexWithMaxParallelism = new JobVertex("vertex2");
+        vertexWithMaxParallelism.setInvokableClass(NoOpInvokable.class);
+        vertexWithMaxParallelism.setParallelism(1);
+        vertexWithMaxParallelism.setMaxParallelism(4000);
+        final JobGraph jobGraph =
+                JobGraphTestUtils.streamingJobGraph(
+                        vertexWithoutMaxParallelism, vertexWithMaxParallelism);
+
+        try (final JobMaster jobMaster =
+                new JobMasterBuilder(jobGraph, rpcService)
+                        .withConfiguration(configuration)
+                        .createJobMaster()) {
+            jobMaster.start();
+            final JobMasterGateway jobMasterGateway =
+                    jobMaster.getSelfGateway(JobMasterGateway.class);
+
+            assertThatFuture(jobMasterGateway.getMaxParallelismPerVertex())
+                    .eventuallySucceeds()
+                    .satisfies(
+                            maxParallelism ->
+                                    assertThat(maxParallelism)
+                                            .containsEntry(
+                                                    vertexWithMaxParallelism.getID(),
+                                                    vertexWithMaxParallelism.getMaxParallelism())
+                                            .containsEntry(
+                                                    vertexWithoutMaxParallelism.getID(),
+                                                    SchedulerBase.getDefaultMaxParallelism(
+                                                            vertexWithoutMaxParallelism)));
+        }
+    }
+
+    @Test
+    public void testSuccessfulResourceRequirementsUpdate() throws Exception {
+        final CompletableFuture<JobResourceRequirements> schedulerUpdateFuture =
+                new CompletableFuture<>();
+        final TestingSchedulerNG scheduler =
+                TestingSchedulerNG.newBuilder()
+                        .setUpdateJobResourceRequirementsConsumer(schedulerUpdateFuture::complete)
+                        .build();
+        try (final JobMaster jobMaster =
+                new JobMasterBuilder(jobGraph, rpcService)
+                        .withConfiguration(configuration)
+                        .withHighAvailabilityServices(haServices)
+                        .withSlotPoolServiceSchedulerFactory(
+                                DefaultSlotPoolServiceSchedulerFactory.create(
+                                        TestingSlotPoolServiceBuilder.newBuilder(),
+                                        new TestingSchedulerNGFactory(scheduler)))
+                        .createJobMaster()) {
+            jobMaster.start();
+            final JobMasterGateway jobMasterGateway =
+                    jobMaster.getSelfGateway(JobMasterGateway.class);
+
+            final JobResourceRequirements.Builder jobResourceRequirementsBuilder =
+                    JobResourceRequirements.newBuilder();
+            for (JobVertex jobVertex : jobGraph.getVertices()) {
+                jobResourceRequirementsBuilder.setParallelismForJobVertex(jobVertex.getID(), 1, 2);
+            }
+
+            final JobResourceRequirements newRequirements = jobResourceRequirementsBuilder.build();
+            final CompletableFuture<Acknowledge> jobMasterUpdateFuture =
+                    jobMasterGateway.updateJobResourceRequirements(newRequirements);
+
+            assertThatFuture(jobMasterUpdateFuture).eventuallySucceeds();
+            assertThatFuture(schedulerUpdateFuture).eventuallySucceeds().isEqualTo(newRequirements);
+        }
+    }
+
+    @Test
+    public void testResourceRequirementsAreRequestedFromTheScheduler() throws Exception {
+        final JobResourceRequirements jobResourceRequirements = JobResourceRequirements.empty();
+        final TestingSchedulerNG scheduler =
+                TestingSchedulerNG.newBuilder()
+                        .setRequestJobResourceRequirementsSupplier(() -> jobResourceRequirements)
+                        .build();
+        try (final JobMaster jobMaster =
+                new JobMasterBuilder(jobGraph, rpcService)
+                        .withSlotPoolServiceSchedulerFactory(
+                                DefaultSlotPoolServiceSchedulerFactory.create(
+                                        TestingSlotPoolServiceBuilder.newBuilder(),
+                                        new TestingSchedulerNGFactory(scheduler)))
+                        .createJobMaster()) {
+            jobMaster.start();
+            final JobMasterGateway jobMasterGateway =
+                    jobMaster.getSelfGateway(JobMasterGateway.class);
+            assertThatFuture(jobMasterGateway.requestJobResourceRequirements())
+                    .eventuallySucceeds()
+                    .isEqualTo(jobResourceRequirements);
         }
     }
 

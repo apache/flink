@@ -22,6 +22,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.runtime.rest.handler.cluster.ClusterConfigHandler;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
+
 import java.util.ArrayList;
 import java.util.Map;
 
@@ -38,6 +40,12 @@ public class ConfigurationInfo extends ArrayList<ConfigurationInfoEntry> impleme
 
     public ConfigurationInfo(int initialEntries) {
         super(initialEntries);
+    }
+
+    @Override
+    @JsonIgnore
+    public boolean isEmpty() {
+        return super.isEmpty();
     }
 
     public static ConfigurationInfo from(Configuration config) {

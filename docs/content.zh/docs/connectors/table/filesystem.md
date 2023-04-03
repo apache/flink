@@ -58,10 +58,6 @@ CREATE TABLE MyUserTable (
 请确保包含 [Flink File System specific dependencies]({{< ref "docs/deployment/filesystems/overview" >}})。
 {{< /hint >}}
 
-{{< hint info >}}
-基于流的文件系统 sources 仍在开发中。未来，社区将增加对常见地流式用例的支持，例如，对分区和目录的监控等。
-{{< /hint >}}
-
 {{< hint warning >}}
 文件系统连接器的特性与 `previous legacy filesystem connector` 有很大不同：
 path 属性指定的是目录，而不是文件，该目录下的文件也不是肉眼可读的。
@@ -115,9 +111,9 @@ path
 
 ### 目录监控
 
-当运行模式为流模式时，文件系统连接器会自动监控输入目录。
+默认情况下，文件系统连接器是有界的，也就是只会扫描配置路径一遍后就会停止。
 
-可以使用以下属性修改监控时间间隔。
+如果需要，可以通过设置 `source.monitor-interval` 属性来开启目录监控，以便在新文件出现时继续扫描。
 
 <table class="table table-bordered">
   <thead>

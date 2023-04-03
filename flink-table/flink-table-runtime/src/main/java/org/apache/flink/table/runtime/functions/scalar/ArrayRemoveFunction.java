@@ -70,7 +70,7 @@ public class ArrayRemoveFunction extends BuiltInScalarFunction {
                 return null;
             }
 
-            List list = new ArrayList();
+            List<Object> list = new ArrayList();
             final int size = haystack.size();
             for (int pos = 0; pos < size; pos++) {
                 final Object element = elementGetter.getElementOrNull(haystack, pos);
