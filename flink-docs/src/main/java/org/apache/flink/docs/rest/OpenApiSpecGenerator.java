@@ -374,9 +374,7 @@ public class OpenApiSpecGenerator {
 
     private static void setRequest(final Operation operation, final MessageHeaders<?, ?, ?> spec) {
         // empty request bodies should not be documented at all
-        // additionally, hide legacy APIs that accepted parameters via request body
-        if (spec.getRequestClass() != EmptyRequestBody.class
-                && spec.getHttpMethod() != HttpMethodWrapper.GET) {
+        if (spec.getRequestClass() != EmptyRequestBody.class) {
             operation.requestBody(
                     new RequestBody()
                             .content(
