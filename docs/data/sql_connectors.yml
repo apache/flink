@@ -201,3 +201,9 @@ rabbitmq:
     category: connector
     maven: flink-connector-rabbitmq
     sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-rabbitmq/3.0.0-1.16/flink-sql-connector-rabbitmq-3.0.0-1.16.jar
+
+mongodb:
+    name: MongoDB
+    category: connector
+    maven: flink-connector-mongodb
+    sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-mongodb/1.0.0-1.16/flink-sql-connector-mongodb-1.0.0-1.16.jar
