@@ -44,7 +44,7 @@ mkdir tmp
 cd tmp
 
 integrate_connector_docs elasticsearch v3.0.0
-integrate_connector_docs aws v4.1.0
+integrate_connector_docs aws v4.1.0-docs
 integrate_connector_docs cassandra v3.0.0
 integrate_connector_docs pulsar main
 integrate_connector_docs jdbc v3.0.0
