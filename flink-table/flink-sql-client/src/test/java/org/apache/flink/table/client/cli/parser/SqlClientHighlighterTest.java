@@ -50,12 +50,14 @@ class SqlClientHighlighterTest {
                 "--select",
                 "/* \"''\"",
                 "/*",
+                "/*/*/",
                 "/*/ this is a comment",
                 "--",
                 "--\n/*",
                 "/* hello\n'wor'ld*/",
                 "/*\"-- \"values*/",
-                "/*\"--;\n FROM*/"
+                "/*\"--;\n FROM*/",
+                "/*SELECT'''a\n'AS\n`````b``c`\nFROM t*/"
             })
     void commentsTest(String comment) {
         applyTestFor(AttributedStringTestSpecBuilder::appendComment, comment, null);
@@ -82,11 +84,35 @@ class SqlClientHighlighterTest {
     }
 
     @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "'",
+                "''",
+                "'''",
+                "''''",
+                "'\\'",
+                "'\\\\'",
+                "'from'",
+                "'''from'",
+                "'''''where'",
+                "'''''where'''",
+                "'test ` \" \n''select'",
+                "'/*   '",
+                "'''--   '",
+                "'\n  \n'"
+            })
+    void quotedTest(String quotedText) {
+        applyTestFor(AttributedStringTestSpecBuilder::appendQuoted, quotedText, null);
+        applyTestFor(AttributedStringTestSpecBuilder::appendQuoted, quotedText, SqlDialect.HIVE);
+        applyTestFor(AttributedStringTestSpecBuilder::appendQuoted, quotedText, SqlDialect.DEFAULT);
+    }
+
+    @ParameterizedTest
     @ValueSource(strings = {"select1", "test", "_from", "12", "hello world!", "", " ", "\t", "\n"})
-    void sqlNonKeywordTest(String comment) {
-        applyTestFor(AttributedStringTestSpecBuilder::append, comment, SqlDialect.HIVE);
-        applyTestFor(AttributedStringTestSpecBuilder::append, comment, SqlDialect.DEFAULT);
-        applyTestFor(AttributedStringTestSpecBuilder::append, comment, null);
+    void sqlNonKeywordTest(String nonKeyword) {
+        applyTestFor(AttributedStringTestSpecBuilder::append, nonKeyword, SqlDialect.HIVE);
+        applyTestFor(AttributedStringTestSpecBuilder::append, nonKeyword, SqlDialect.DEFAULT);
+        applyTestFor(AttributedStringTestSpecBuilder::append, nonKeyword, null);
     }
 
     @ParameterizedTest
@@ -94,11 +120,14 @@ class SqlClientHighlighterTest {
             strings = {
                 "\"",
                 "\"\"",
+                "\"\"\"test\"",
                 "\"\"\"\"",
                 "\"\"\"\"\"\"",
+                "\"\\\"",
+                "\"\\\\\"",
                 "\"from\"",
                 "\"''\"",
-                "\"test '' \n''select\"",
+                "\"test '' \n\"\"select\"",
                 "\"/*   \"",
                 "\"--   \"",
                 "\"\n  \n\""
@@ -118,6 +147,8 @@ class SqlClientHighlighterTest {
                 "``",
                 "```",
                 "````",
+                "`\\`",
+                "`\\\\`",
                 "`select * from`",
                 "`''`",
                 "`hello '' ''select`",
@@ -245,17 +276,13 @@ class SqlClientHighlighterTest {
                                         .appendSqlIdentifier("````")
                                         .append(";")),
                 forSql(
-                        // query without spaces
-                        "SELECT/*+hint*/'abc'--one-line-comment\nAS`field`/*\ncomment\n*/;",
+                        "SELECT'''''1''from'''AS```1``where``group`;",
                         style ->
                                 withStyle(style.getHighlightStyle())
                                         .appendKeyword("SELECT")
-                                        .appendHint("/*+hint*/")
-                                        .appendQuoted("'abc'")
-                                        .appendComment("--one-line-comment\n")
+                                        .appendQuoted("'''''1''from'''")
                                         .appendKeyword("AS")
-                                        .appendSqlIdentifier("`field`")
-                                        .appendComment("/*\ncomment\n*/")
+                                        .appendSqlIdentifier("```1``where``group`")
                                         .append(";")),
                 forSql(
                         // query without spaces
@@ -269,7 +296,40 @@ class SqlClientHighlighterTest {
                                         .appendKeyword("AS")
                                         .appendSqlIdentifier("`field`")
                                         .appendComment("/*\ncomment\n*/")
-                                        .append(";")));
+                                        .append(";")),
+                forSql(
+                        // query without spaces with double quotes
+                        "SELECT/*+hint*/'abc'--one-line-comment\nAS\"field\"/*\ncomment\n*/;",
+                        style ->
+                                withStyle(style.getHighlightStyle())
+                                        .appendKeyword("SELECT")
+                                        .appendHint("/*+hint*/")
+                                        .appendQuoted("'abc'")
+                                        .appendComment("--one-line-comment\n")
+                                        .appendKeyword("AS")
+                                        .append("\"field\"")
+                                        .appendComment("/*\ncomment\n*/")
+                                        .append(";")),
+                forSql(
+                        // invalid query however highlighting should keep working
+                        "SELECT/*\n * / \n \"q\" \nfrom dual\n where\n 1 = 1",
+                        style ->
+                                withStyle(style.getHighlightStyle())
+                                        .appendKeyword("SELECT")
+                                        .appendComment(
+                                                "/*\n * / \n \"q\" \nfrom dual\n where\n 1 = 1")),
+                forSql(
+                        // invalid query (wrong symbols at the end)
+                        // however highlighting should keep working
+                        "SELECT 1 AS`one`FROM mytable.tfrom//",
+                        style ->
+                                withStyle(style.getHighlightStyle())
+                                        .appendKeyword("SELECT")
+                                        .append(" 1 ")
+                                        .appendKeyword("AS")
+                                        .appendSqlIdentifier("`one`")
+                                        .appendKeyword("FROM")
+                                        .append(" mytable.tfrom//")));
     }
 
     static Stream<SqlClientHighlighterTestSpec> hiveDialectsSpecFunctionProvider() {
@@ -298,8 +358,8 @@ class SqlClientHighlighterTest {
                                         .appendComment("/*\ncomment\n*/")
                                         .append(";")),
                 forSql(
-                        // query without spaces
-                        "SELECT/*+hint*/'abc'--one-line-comment\nAS\"joinq\".afrom/*\ncomment\n*/;",
+                        // query without spaces and ticks
+                        "SELECT/*+hint*/'abc'--one-line-comment\nAS`joinq`.afrom/*\ncomment\n*/;",
                         style ->
                                 withStyle(style.getHighlightStyle())
                                         .appendKeyword("SELECT")
@@ -307,15 +367,35 @@ class SqlClientHighlighterTest {
                                         .appendQuoted("'abc'")
                                         .appendComment("--one-line-comment\n")
                                         .appendKeyword("AS")
-                                        .appendSqlIdentifier("\"joinq\"")
+                                        .append("`joinq`")
                                         .append(".afrom")
                                         .appendComment("/*\ncomment\n*/")
-                                        .append(";")));
+                                        .append(";")),
+                forSql(
+                        // invalid query however highlighting should keep working
+                        "SELECT/*\n * / \n \"q\" \nfrom dual\n where\n 1 = 1",
+                        style ->
+                                withStyle(style.getHighlightStyle())
+                                        .appendKeyword("SELECT")
+                                        .appendComment(
+                                                "/*\n * / \n \"q\" \nfrom dual\n where\n 1 = 1")),
+                forSql(
+                        // invalid query (wrong symbols at the end)
+                        // however highlighting should keep working
+                        "SELECT 1 AS\"one\"FROM mytable.tfrom//",
+                        style ->
+                                withStyle(style.getHighlightStyle())
+                                        .appendKeyword("SELECT")
+                                        .append(" 1 ")
+                                        .appendKeyword("AS")
+                                        .appendSqlIdentifier("\"one\"")
+                                        .appendKeyword("FROM")
+                                        .append(" mytable.tfrom//")));
     }
 
     static class SqlClientHighlighterTestSpec {
-        private String sql;
-        private Function<SyntaxHighlightStyle.BuiltInStyle, AttributedStringTestSpecBuilder>
+        private final String sql;
+        private final Function<SyntaxHighlightStyle.BuiltInStyle, AttributedStringTestSpecBuilder>
                 function;
 
         private SqlClientHighlighterTestSpec(
@@ -339,7 +419,7 @@ class SqlClientHighlighterTest {
 
         @Override
         public String toString() {
-            return "Sql = " + sql;
+            return sql;
         }
     }
 

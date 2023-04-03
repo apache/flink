@@ -90,52 +90,66 @@ public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
 
     static AttributedString getHighlightedOutput(
             String buffer, SyntaxHighlightStyle style, SqlDialect dialect) {
-        final AttributedStringBuilder highlightedOutput =
-                new AttributedStringBuilder().style(style.getDefaultStyle());
+        final AttributedStringBuilder highlightedOutput = new AttributedStringBuilder();
         State prevParseState = State.DEFAULT;
         State currentParseState = State.DEFAULT;
-        int prevStateSwitchPosition = 0;
         final StringBuilder word = new StringBuilder();
         for (int i = 0; i < buffer.length(); i++) {
             final char currentChar = buffer.charAt(i);
-            if (prevParseState != currentParseState) {
-                prevStateSwitchPosition = i - 1;
+            if (prevParseState == State.DEFAULT) {
+                currentParseState = State.computeStateAt(buffer, i, dialect);
+                if (currentParseState == State.DEFAULT) {
+                    if (isPartOfWord(currentChar)) {
+                        word.append(currentChar);
+                    } else {
+                        handleWord(word, highlightedOutput, currentParseState, style);
+                        highlightedOutput.append(currentChar);
+                        word.setLength(0);
+                    }
+                } else {
+                    handleWord(word, highlightedOutput, State.DEFAULT, style);
+                    currentParseState.styleSetter.accept(highlightedOutput, style);
+                    highlightedOutput.append(currentParseState.start);
+                    i += currentParseState.start.length() - 1;
+                }
+            } else {
+                if (currentParseState.isEndOfState(buffer, i)) {
+                    highlightedOutput
+                            .append(word)
+                            .append(currentParseState.end)
+                            .style(style.getDefaultStyle());
+                    word.setLength(0);
+                    i += currentParseState.end.length() - 1;
+                    currentParseState = State.DEFAULT;
+                } else {
+                    word.append(currentChar);
+                }
             }
             prevParseState = currentParseState;
-            currentParseState =
-                    currentParseState.computeStateAt(
-                            currentParseState, buffer, i, prevStateSwitchPosition, dialect);
-            if (isPartOfWord(currentChar)) {
-                word.append(currentChar);
-            } else {
-                if (prevParseState == State.DEFAULT) {
-                    if (word.length() > 0) {
-                        if (keywordSet.contains(word.toString().toUpperCase(Locale.ROOT))) {
-                            highlightedOutput.style(style.getKeywordStyle());
-                        }
-                    }
-                }
-                highlightedOutput.append(word);
-                currentParseState.getStyleSetter().accept(highlightedOutput, style);
-                highlightedOutput.append(currentChar);
-                word.setLength(0);
-            }
         }
-        if (word.length() > 0) {
-            if (currentParseState == State.DEFAULT
-                    && keywordSet.contains(word.toString().toUpperCase(Locale.ROOT))) {
-                highlightedOutput.style(style.getKeywordStyle());
-            } else {
-                currentParseState.getStyleSetter().accept(highlightedOutput, style);
-            }
-            highlightedOutput.append(word);
-            word.setLength(0);
-        }
+        handleWord(word, highlightedOutput, currentParseState, style);
         return highlightedOutput.toAttributedString();
     }
 
     private static boolean isPartOfWord(char c) {
         return Character.isLetterOrDigit(c) || c == '_' || c == '$';
+    }
+
+    private static void handleWord(
+            StringBuilder word,
+            AttributedStringBuilder highlightedOutput,
+            State currentState,
+            SyntaxHighlightStyle style) {
+        final String wordStr = word.toString();
+        if (currentState == State.DEFAULT) {
+            if (keywordSet.contains(wordStr.toUpperCase(Locale.ROOT))) {
+                highlightedOutput.style(style.getKeywordStyle());
+            } else {
+                highlightedOutput.style(style.getDefaultStyle());
+            }
+        }
+        highlightedOutput.append(wordStr).style(style.getDefaultStyle());
+        word.setLength(0);
     }
 
     /**
@@ -218,27 +232,7 @@ public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
             this.styleSetter = styleSetter;
         }
 
-        BiConsumer<AttributedStringBuilder, SyntaxHighlightStyle> getStyleSetter() {
-            return styleSetter;
-        }
-
-        State computeStateAt(
-                State prevState,
-                String input,
-                int pos,
-                int prevStateSwitchPos,
-                SqlDialect dialect) {
-            if (this != DEFAULT) {
-                final int length = prevState.end.length();
-                if (pos - length < prevStateSwitchPos + prevState.start.length()
-                        || !prevState.end.regionMatches(0, input, pos - length, length)) {
-                    return this;
-                }
-                // prevState is finished and should be switched to DEFAULT
-                // however still need to check whether another non-DEFAULT state is started
-                // this check is happening below
-            }
-
+        static State computeStateAt(String input, int pos, SqlDialect dialect) {
             final char currentChar = input.charAt(pos);
             if (!STATE_START_SYMBOLS.contains(currentChar)) {
                 return DEFAULT;
@@ -250,6 +244,13 @@ public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
                 }
             }
             return DEFAULT;
+        }
+
+        boolean isEndOfState(String input, int pos) {
+            if (this == DEFAULT) {
+                return false;
+            }
+            return end.length() > 0 && input.regionMatches(pos, end, 0, end.length());
         }
     }
 }
