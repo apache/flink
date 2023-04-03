@@ -40,7 +40,8 @@ public class FlinkConnection extends BaseConnection {
     private volatile boolean closed = false;
 
     public FlinkConnection(DriverUri driverUri) {
-        // TODO Support default context from map to get gid of flink core for jdbc driver
+        // TODO Support default context from map to get gid of flink core for jdbc driver in
+        // https://issues.apache.org/jira/browse/FLINK-31687.
         this.executor =
                 Executor.create(
                         new DefaultContext(
@@ -125,7 +126,7 @@ public class FlinkConnection extends BaseConnection {
     @Override
     public String getClientInfo(String name) throws SQLException {
         // TODO Executor should return Map<String, String> here to get rid of flink core for jdbc
-        // driver.
+        // driver in https://issues.apache.org/jira/browse/FLINK-31687.
         Configuration configuration = (Configuration) executor.getSessionConfig();
         return configuration.toMap().get(name);
     }
@@ -134,7 +135,7 @@ public class FlinkConnection extends BaseConnection {
     public Properties getClientInfo() throws SQLException {
         Properties properties = new Properties();
         // TODO Executor should return Map<String, String> here to get rid of flink core for jdbc
-        // driver.
+        // driver in https://issues.apache.org/jira/browse/FLINK-31687.
         Configuration configuration = (Configuration) executor.getSessionConfig();
         configuration.toMap().forEach(properties::setProperty);
         return properties;
