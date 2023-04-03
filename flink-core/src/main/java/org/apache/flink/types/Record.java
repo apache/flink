@@ -1584,7 +1584,7 @@ public final class Record implements Value, CopyableValue<Record> {
             }
 
             if (this.position >= this.end) {
-                return -1;
+                return len == 0 ? 0 : -1;
             } else {
                 int toRead = Math.min(this.end - this.position, len);
                 System.arraycopy(this.memory, this.position, b, off, toRead);
