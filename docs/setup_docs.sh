@@ -44,6 +44,7 @@ cd tmp
 integrate_connector_docs elasticsearch v3.0.0
 integrate_connector_docs aws v4.0
 integrate_connector_docs opensearch v1.0.0
+integrate_connector_docs mongodb v1.0.0-docs
 
 cd ..
 rm -rf tmp
