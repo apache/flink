@@ -80,12 +80,8 @@
 				<groupId>io.github.zentol.japicmp</groupId>
 				<artifactId>japicmp-maven-plugin</artifactId>
 				<configuration>
-					<parameter>
-						<excludes combine.children="append">
-							<!-- TODO this should be removed after get rid of flink core in issue https://issues.apache.org/jira/browse/FLINK-31687. -->
-							<exclude>org.apache.flink.api.common.eventtime.WatermarkStrategy</exclude>
-						</excludes>
-					</parameter>
+					<!-- TODO this should be removed after get rid of flink core in issue https://issues.apache.org/jira/browse/FLINK-31687. -->
+					<skip>true</skip>
 				</configuration>
 			</plugin>
 			<!-- Build flink-sql-gateway jar -->
