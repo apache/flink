@@ -24,10 +24,5 @@ under the License.
       <url>https://maven-central-eu.storage-download.googleapis.com/maven2/</url>
       <mirrorOf>central</mirrorOf>
     </mirror>
-    <mirror>
-      <id>conjars-https</id>
-      <url>https://conjars.org/repo/</url>
-      <mirrorOf>conjars</mirrorOf>
-    </mirror>
   </mirrors>
 </settings>
