@@ -26,6 +26,8 @@ import org.apache.flink.runtime.leaderretrieval.DefaultLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalDriver;
 import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalDriverFactory;
 import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.util.TestingFatalErrorHandlerExtension;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperExtension;
 import org.apache.flink.util.ExceptionUtils;
@@ -56,6 +58,10 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
     @RegisterExtension
     private final EachCallbackWrapper<ZooKeeperExtension> eachWrapper =
             new EachCallbackWrapper<>(zooKeeperExtension);
+
+    @RegisterExtension
+    private final TestingFatalErrorHandlerExtension fatalErrorHandlerExtension =
+            new TestingFatalErrorHandlerExtension();
 
     @Test
     void testElectionDriverGainsLeadershipAtStartup() throws Exception {
@@ -170,7 +176,9 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
 
                                 otherLeaderElectionDriver =
                                         createLeaderElectionDriver(
-                                                curatorFramework.asCuratorFramework());
+                                                curatorFramework.asCuratorFramework(),
+                                                fatalErrorHandlerExtension
+                                                        .getTestingFatalErrorHandler());
 
                                 assertThat(otherLeaderElectionDriver.hasLeadership()).isFalse();
 
@@ -238,7 +246,9 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
                     Stream.generate(
                                     () ->
                                             createLeaderElectionDriver(
-                                                    curatorFramework.asCuratorFramework()))
+                                                    curatorFramework.asCuratorFramework(),
+                                                    fatalErrorHandlerExtension
+                                                            .getTestingFatalErrorHandler()))
                             .limit(3)
                             .collect(Collectors.toSet());
 
@@ -328,13 +338,15 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
         };
     }
 
-    private static ElectionDriver createLeaderElectionDriver(CuratorFramework curatorFramework) {
+    private static ElectionDriver createLeaderElectionDriver(
+            CuratorFramework curatorFramework, FatalErrorHandler fatalErrorHandler) {
         final SimpleLeaderElectionListener leaderElectionListener =
                 new SimpleLeaderElectionListener();
 
         try {
             final ZooKeeperMultipleComponentLeaderElectionDriver leaderElectionDriver =
-                    createLeaderElectionDriver(leaderElectionListener, curatorFramework);
+                    createLeaderElectionDriver(
+                            leaderElectionListener, curatorFramework, fatalErrorHandler);
             return new ElectionDriver(leaderElectionDriver, leaderElectionListener);
         } catch (Exception e) {
             ExceptionUtils.rethrow(e);
@@ -399,10 +411,11 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
 
     private static ZooKeeperMultipleComponentLeaderElectionDriver createLeaderElectionDriver(
             MultipleComponentLeaderElectionDriver.Listener leaderElectionListener,
-            CuratorFramework curatorFramework)
+            CuratorFramework curatorFramework,
+            FatalErrorHandler fatalErrorHandler)
             throws Exception {
         return new ZooKeeperMultipleComponentLeaderElectionDriver(
-                curatorFramework, leaderElectionListener);
+                curatorFramework, leaderElectionListener, fatalErrorHandler);
     }
 
     private CuratorFrameworkWithUnhandledErrorListener startCuratorFramework() {
@@ -422,7 +435,9 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
             this.curatorFramework = startCuratorFramework();
             this.leaderElectionDriver =
                     createLeaderElectionDriver(
-                            leaderElectionListener, curatorFramework.asCuratorFramework());
+                            leaderElectionListener,
+                            curatorFramework.asCuratorFramework(),
+                            fatalErrorHandlerExtension.getTestingFatalErrorHandler());
         }
 
         protected final void runTest(RunnableWithException test) throws Exception {

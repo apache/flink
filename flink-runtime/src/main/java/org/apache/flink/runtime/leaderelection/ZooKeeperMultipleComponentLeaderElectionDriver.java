@@ -18,10 +18,12 @@
 
 package org.apache.flink.runtime.leaderelection;
 
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.Executors;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cache.ChildData;
@@ -49,6 +51,8 @@ public class ZooKeeperMultipleComponentLeaderElectionDriver
 
     private final MultipleComponentLeaderElectionDriver.Listener leaderElectionListener;
 
+    private final FatalErrorHandler fatalErrorHandler;
+
     private final LeaderLatch leaderLatch;
 
     private final TreeCache treeCache;
@@ -60,10 +64,12 @@ public class ZooKeeperMultipleComponentLeaderElectionDriver
 
     public ZooKeeperMultipleComponentLeaderElectionDriver(
             CuratorFramework curatorFramework,
-            MultipleComponentLeaderElectionDriver.Listener leaderElectionListener)
+            MultipleComponentLeaderElectionDriver.Listener leaderElectionListener,
+            FatalErrorHandler fatalErrorHandler)
             throws Exception {
         this.curatorFramework = Preconditions.checkNotNull(curatorFramework);
         this.leaderElectionListener = Preconditions.checkNotNull(leaderElectionListener);
+        this.fatalErrorHandler = Preconditions.checkNotNull(fatalErrorHandler);
 
         this.leaderLatch = new LeaderLatch(curatorFramework, ZooKeeperUtils.getLeaderLatchPath());
         this.treeCache =
@@ -133,32 +139,55 @@ public class ZooKeeperMultipleComponentLeaderElectionDriver
     }
 
     @Override
-    public void publishLeaderInformation(String componentId, LeaderInformation leaderInformation)
-            throws Exception {
-        Preconditions.checkState(running.get());
+    public void publishLeaderInformation(String componentId, LeaderInformation leaderInformation) {
+        final String connectionInformationPath =
+                ZooKeeperUtils.generateConnectionInformationPath(componentId);
+        updateZooKeeperNode(
+                connectionInformationPath,
+                path -> {
+                    LOG.debug(
+                            "Write leader information {} to {}.",
+                            LeaderElectionUtils.convertToString(leaderInformation),
+                            connectionInformationPath);
+                    ZooKeeperUtils.writeLeaderInformationToZooKeeper(
+                            leaderInformation,
+                            curatorFramework,
+                            leaderLatch::hasLeadership,
+                            connectionInformationPath);
+                },
+                String.format(
+                        "The new leader information %s couldn't be written to %s.",
+                        LeaderElectionUtils.convertToString(leaderInformation),
+                        connectionInformationPath));
+    }
 
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Write leader information {} for {}.", leaderInformation, componentId);
-        }
+    @Override
+    public void deleteLeaderInformation(String leaderName) {
+        final String pathToDelete = ZooKeeperUtils.generateZookeeperPath(leaderName);
+        updateZooKeeperNode(
+                pathToDelete,
+                path -> {
+                    LOG.debug("Delete leader information stored in {}.", pathToDelete);
+                    ZooKeeperUtils.deleteZNode(curatorFramework, pathToDelete);
+                },
+                String.format("The zNode %s couldn't be deleted.", pathToDelete));
+    }
+
+    private void updateZooKeeperNode(
+            String path,
+            ThrowingConsumer<String, Exception> zkOperation,
+            String fatalErrorMessage) {
+        Preconditions.checkState(running.get());
 
         if (!leaderLatch.hasLeadership()) {
             return;
         }
 
-        final String connectionInformationPath =
-                ZooKeeperUtils.generateConnectionInformationPath(componentId);
-
-        ZooKeeperUtils.writeLeaderInformationToZooKeeper(
-                leaderInformation,
-                curatorFramework,
-                leaderLatch::hasLeadership,
-                connectionInformationPath);
-    }
-
-    @Override
-    public void deleteLeaderInformation(String leaderName) throws Exception {
-        ZooKeeperUtils.deleteZNode(
-                curatorFramework, ZooKeeperUtils.generateZookeeperPath(leaderName));
+        try {
+            zkOperation.accept(path);
+        } catch (Exception e) {
+            fatalErrorHandler.onFatalError(new LeaderElectionException(fatalErrorMessage, e));
+        }
     }
 
     private void handleStateChange(ConnectionState newState) {

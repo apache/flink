@@ -37,9 +37,9 @@ public class ZooKeeperMultipleComponentLeaderElectionDriverFactory
     @Override
     public ZooKeeperMultipleComponentLeaderElectionDriver create(
             MultipleComponentLeaderElectionDriver.Listener leaderElectionListener,
-            FatalErrorHandler unusedFatalErrorHandler)
+            FatalErrorHandler fatalErrorHandler)
             throws Exception {
         return new ZooKeeperMultipleComponentLeaderElectionDriver(
-                curatorFramework, leaderElectionListener);
+                curatorFramework, leaderElectionListener, fatalErrorHandler);
     }
 }
