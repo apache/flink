@@ -435,6 +435,16 @@ public class ExecutionConfigOptions {
                             "Determines whether CAST will operate following the legacy behaviour "
                                     + "or the new one that introduces various fixes and improvements.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<MapKeyDedupPolicy> TABLE_EXEC_MAPKEY_DEDUP_POLICY =
+            key("table.exec.mapkey-dedup-policy")
+                    .enumType(MapKeyDedupPolicy.class)
+                    .defaultValue(MapKeyDedupPolicy.EXCEPTION)
+                    .withDescription(
+                            "The policy to deduplicate map keys in builtin function. "
+                                    + "When EXCEPTION, the query fails if duplicated map keys are detected. "
+                                    + "When LAST_WIN, the map key that is inserted at last takes precedence.");
+
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<Long> TABLE_EXEC_RANK_TOPN_CACHE_SIZE =
             ConfigOptions.key("table.exec.rank.topn-cache-size")
@@ -673,6 +683,25 @@ public class ExecutionConfigOptions {
 
         public boolean isEnabled() {
             return enabled;
+        }
+    }
+
+    /** The policy to deduplicate map keys in builtin function. */
+    @PublicEvolving
+    public enum MapKeyDedupPolicy implements DescribedEnum {
+        EXCEPTION(text("Fails if duplicated map keys are detected")),
+        LAST_WIN(text("The map key that is inserted at last takes precedence."));
+
+        private final InlineElement description;
+
+        MapKeyDedupPolicy(InlineElement description) {
+            this.description = description;
+        }
+
+        @Internal
+        @Override
+        public InlineElement getDescription() {
+            return description;
         }
     }
 

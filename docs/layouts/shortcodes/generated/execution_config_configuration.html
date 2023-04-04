@@ -47,10 +47,22 @@ Operators that can be disabled include "NestedLoopJoin", "ShuffleHashJoin", "Bro
 By default no operator is disabled.</td>
         </tr>
         <tr>
+            <td><h5>table.exec.interval-join.min-cleanup-interval</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">0 ms</td>
+            <td>Duration</td>
+            <td>Specifies a minimum time interval for how long cleanup unmatched records in the interval join operator. Before Flink 1.18, the default value of this param was the half of interval duration. Note: Set this option greater than 0 will cause unmatched records in outer joins to be output later than watermark, leading to possible discarding of these records by downstream watermark-dependent operators, such as window operators. The default value is 0, which means it will clean up unmatched records immediately.</td>
+        </tr>
+        <tr>
             <td><h5>table.exec.legacy-cast-behaviour</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">DISABLED</td>
             <td><p>Enum</p></td>
             <td>Determines whether CAST will operate following the legacy behaviour or the new one that introduces various fixes and improvements.<br /><br />Possible values:<ul><li>"ENABLED": CAST will operate following the legacy behaviour.</li><li>"DISABLED": CAST will operate following the new correct behaviour.</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.mapkey-dedup-policy</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">EXCEPTION</td>
+            <td><p>Enum</p></td>
+            <td>The policy to deduplicate map keys in builtin function. When EXCEPTION, the query fails if duplicated map keys are detected. When LAST_WIN, the map key that is inserted at last takes precedence.<br /><br />Possible values:<ul><li>"EXCEPTION": Fails if duplicated map keys are detected</li><li>"LAST_WIN": The map key that is inserted at last takes precedence.</li></ul></td>
         </tr>
         <tr>
             <td><h5>table.exec.mini-batch.allow-latency</h5><br> <span class="label label-primary">Streaming</span></td>
@@ -177,12 +189,6 @@ By default no operator is disabled.</td>
             <td style="word-wrap: break-word;">100000</td>
             <td>Integer</td>
             <td>Sets the window elements buffer size limit used in group window agg operator.</td>
-        </tr>
-        <tr>
-            <td><h5>table.exec.interval-join.min-cleanup-interval</h5><br> <span class="label label-primary">Streaming</span></td>
-            <td style="word-wrap: break-word;">0 ms</td>
-            <td>Duration</td>
-            <td>Specifies a minimum time interval for how long cleanup unmatched records in the interval join operator. Before Flink 1.18, the default value of this param was the half of interval duration. Note: Set this option greater than 0 will cause unmatched records in outer joins to be output later than watermark, leading to possible discarding of these records by downstream watermark-dependent operators, such as window operators. The default value is 0, which means it will clean up unmatched records immediately.</td>
         </tr>
     </tbody>
 </table>

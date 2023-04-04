@@ -63,6 +63,9 @@ public final class SpecificInputTypeStrategies {
     public static final InputTypeStrategy CURRENT_WATERMARK =
             new CurrentWatermarkInputTypeStrategy();
 
+    /** See {@link MapFromEntriesInputTypeStrategy}. */
+    public static final InputTypeStrategy MAP_FROM_ENTRIES = new MapFromEntriesInputTypeStrategy();
+
     /** Argument type representing all types supported in a JSON context. */
     public static final ArgumentTypeStrategy JSON_ARGUMENT =
             or(

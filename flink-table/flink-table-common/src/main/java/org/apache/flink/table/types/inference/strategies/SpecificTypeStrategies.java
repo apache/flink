@@ -19,8 +19,13 @@
 package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.inference.TypeStrategy;
+
+import java.util.Optional;
 
 /**
  * Entry point for specific type strategies not covered in {@link TypeStrategies}.
@@ -88,6 +93,20 @@ public final class SpecificTypeStrategies {
 
     /** See {@link ToTimestampLtzTypeStrategy}. */
     public static final TypeStrategy TO_TIMESTAMP_LTZ = new ToTimestampLtzTypeStrategy();
+
+    /** Type strategy specific for {@link BuiltInFunctionDefinitions#MAP_FROM_ENTRIES}. */
+    public static final TypeStrategy MAP_FROM_ENTRIES =
+            callContext ->
+                    Optional.of(
+                            DataTypes.MAP(
+                                    ((CollectionDataType) callContext.getArgumentDataTypes().get(0))
+                                            .getElementDataType()
+                                            .getChildren()
+                                            .get(0),
+                                    ((CollectionDataType) callContext.getArgumentDataTypes().get(0))
+                                            .getElementDataType()
+                                            .getChildren()
+                                            .get(1)));
 
     private SpecificTypeStrategies() {
         // no instantiation
