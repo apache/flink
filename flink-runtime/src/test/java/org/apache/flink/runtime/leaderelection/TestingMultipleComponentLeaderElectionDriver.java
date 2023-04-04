@@ -18,9 +18,12 @@
 
 package org.apache.flink.runtime.leaderelection;
 
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
+
+import javax.annotation.Nullable;
 
 import java.util.Optional;
 
@@ -34,6 +37,7 @@ public class TestingMultipleComponentLeaderElectionDriver
     private boolean hasLeadership;
 
     private Optional<Listener> listener;
+    private Optional<FatalErrorHandler> optionalFatalErrorHandler;
 
     private TestingMultipleComponentLeaderElectionDriver(
             BiConsumerWithException<String, LeaderInformation, Exception>
@@ -43,6 +47,7 @@ public class TestingMultipleComponentLeaderElectionDriver
         this.deleteLeaderInformationConsumer = deleteLeaderInformationConsumer;
         hasLeadership = false;
         listener = Optional.empty();
+        optionalFatalErrorHandler = Optional.empty();
     }
 
     public void grantLeadership() {
@@ -62,6 +67,13 @@ public class TestingMultipleComponentLeaderElectionDriver
     public void setListener(Listener listener) {
         Preconditions.checkState(!this.listener.isPresent(), "Can only set a single listener.");
         this.listener = Optional.of(listener);
+    }
+
+    public void setFatalErrorHandler(@Nullable FatalErrorHandler fatalErrorHandler) {
+        Preconditions.checkState(
+                this.optionalFatalErrorHandler.isPresent(),
+                "Only a single fatalErrorHandler can be specified.");
+        this.optionalFatalErrorHandler = Optional.ofNullable(fatalErrorHandler);
     }
 
     @Override

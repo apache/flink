@@ -39,25 +39,23 @@ public class KubernetesMultipleComponentLeaderElectionDriverFactory
 
     private final Executor watchExecutor;
 
-    private final FatalErrorHandler fatalErrorHandler;
-
     public KubernetesMultipleComponentLeaderElectionDriverFactory(
             FlinkKubeClient kubeClient,
             KubernetesLeaderElectionConfiguration kubernetesLeaderElectionConfiguration,
             KubernetesConfigMapSharedWatcher configMapSharedWatcher,
             Executor watchExecutor,
-            FatalErrorHandler fatalErrorHandler) {
+            FatalErrorHandler unusedFatalErrorHandler) {
         this.kubeClient = Preconditions.checkNotNull(kubeClient);
         this.kubernetesLeaderElectionConfiguration =
                 Preconditions.checkNotNull(kubernetesLeaderElectionConfiguration);
         this.configMapSharedWatcher = Preconditions.checkNotNull(configMapSharedWatcher);
         this.watchExecutor = Preconditions.checkNotNull(watchExecutor);
-        this.fatalErrorHandler = Preconditions.checkNotNull(fatalErrorHandler);
     }
 
     @Override
     public KubernetesMultipleComponentLeaderElectionDriver create(
-            MultipleComponentLeaderElectionDriver.Listener leaderElectionListener)
+            MultipleComponentLeaderElectionDriver.Listener leaderElectionListener,
+            FatalErrorHandler fatalErrorHandler)
             throws Exception {
         return new KubernetesMultipleComponentLeaderElectionDriver(
                 kubernetesLeaderElectionConfiguration,

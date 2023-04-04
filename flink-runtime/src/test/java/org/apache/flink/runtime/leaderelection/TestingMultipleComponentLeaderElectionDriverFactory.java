@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.leaderelection;
 
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
+
 /**
  * Testing implementation of {@link MultipleComponentLeaderElectionDriverFactory} that returns a
  * given {@link MultipleComponentLeaderElectionDriver}.
@@ -36,9 +38,11 @@ public class TestingMultipleComponentLeaderElectionDriverFactory
 
     @Override
     public MultipleComponentLeaderElectionDriver create(
-            MultipleComponentLeaderElectionDriver.Listener leaderElectionListener)
+            MultipleComponentLeaderElectionDriver.Listener leaderElectionListener,
+            FatalErrorHandler fatalErrorHandler)
             throws Exception {
         testingMultipleComponentLeaderElectionDriver.setListener(leaderElectionListener);
+        testingMultipleComponentLeaderElectionDriver.setFatalErrorHandler(fatalErrorHandler);
 
         return testingMultipleComponentLeaderElectionDriver;
     }

@@ -86,7 +86,7 @@ public class DefaultMultipleComponentLeaderElectionService
         leaderElectionEventHandlers = new HashMap<>();
 
         multipleComponentLeaderElectionDriver =
-                multipleComponentLeaderElectionDriverFactory.create(this);
+                multipleComponentLeaderElectionDriverFactory.create(this, fatalErrorHandler);
     }
 
     public DefaultMultipleComponentLeaderElectionService(
