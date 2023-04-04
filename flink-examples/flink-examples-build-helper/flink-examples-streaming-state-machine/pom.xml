@@ -27,14 +27,14 @@ under the License.
 		<version>1.18-SNAPSHOT</version>
 	</parent>
 
-	<artifactId>flink-examples-streaming-state-machine_${scala.binary.version}</artifactId>
+	<artifactId>flink-examples-streaming-state-machine</artifactId>
 	<name>Flink : Examples : Build Helper : Streaming State machine</name>
 	<packaging>jar</packaging>
 
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-examples-streaming_${scala.binary.version}</artifactId>
+			<artifactId>flink-examples-streaming</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 	</dependencies>
