@@ -377,8 +377,7 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
             return leaderElectionListener.getLeadershipFuture();
         }
 
-        void publishLeaderInformation(String componentId, LeaderInformation leaderInformation)
-                throws Exception {
+        void publishLeaderInformation(String componentId, LeaderInformation leaderInformation) {
             leaderElectionDriver.publishLeaderInformation(componentId, leaderInformation);
         }
     }

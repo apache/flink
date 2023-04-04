@@ -20,29 +20,27 @@ package org.apache.flink.runtime.leaderelection;
 
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.function.BiConsumerWithException;
-import org.apache.flink.util.function.ThrowingConsumer;
 
 import javax.annotation.Nullable;
 
 import java.util.Optional;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /** Testing implementation of {@link MultipleComponentLeaderElectionDriver}. */
 public class TestingMultipleComponentLeaderElectionDriver
         implements MultipleComponentLeaderElectionDriver {
 
-    private final BiConsumerWithException<String, LeaderInformation, Exception>
-            publishLeaderInformationConsumer;
-    private final ThrowingConsumer<String, Exception> deleteLeaderInformationConsumer;
+    private final BiConsumer<String, LeaderInformation> publishLeaderInformationConsumer;
+    private final Consumer<String> deleteLeaderInformationConsumer;
     private boolean hasLeadership;
 
     private Optional<Listener> listener;
     private Optional<FatalErrorHandler> optionalFatalErrorHandler;
 
     private TestingMultipleComponentLeaderElectionDriver(
-            BiConsumerWithException<String, LeaderInformation, Exception>
-                    publishLeaderInformationConsumer,
-            ThrowingConsumer<String, Exception> deleteLeaderInformationConsumer) {
+            BiConsumer<String, LeaderInformation> publishLeaderInformationConsumer,
+            Consumer<String> deleteLeaderInformationConsumer) {
         this.publishLeaderInformationConsumer = publishLeaderInformationConsumer;
         this.deleteLeaderInformationConsumer = deleteLeaderInformationConsumer;
         hasLeadership = false;
@@ -85,13 +83,12 @@ public class TestingMultipleComponentLeaderElectionDriver
     }
 
     @Override
-    public void publishLeaderInformation(String componentId, LeaderInformation leaderInformation)
-            throws Exception {
+    public void publishLeaderInformation(String componentId, LeaderInformation leaderInformation) {
         publishLeaderInformationConsumer.accept(componentId, leaderInformation);
     }
 
     @Override
-    public void deleteLeaderInformation(String componentId) throws Exception {
+    public void deleteLeaderInformation(String componentId) {
         deleteLeaderInformationConsumer.accept(componentId);
     }
 
@@ -100,19 +97,18 @@ public class TestingMultipleComponentLeaderElectionDriver
     }
 
     public static final class Builder {
-        private BiConsumerWithException<String, LeaderInformation, Exception>
-                publishLeaderInformationConsumer = (ignoredA, ignoredB) -> {};
-        private ThrowingConsumer<String, Exception> deleteLeaderInformationConsumer = ignored -> {};
+        private BiConsumer<String, LeaderInformation> publishLeaderInformationConsumer =
+                (ignoredA, ignoredB) -> {};
+        private Consumer<String> deleteLeaderInformationConsumer = ignored -> {};
 
         public Builder setPublishLeaderInformationConsumer(
-                BiConsumerWithException<String, LeaderInformation, Exception>
-                        publishLeaderInformationConsumer) {
+                BiConsumer<String, LeaderInformation> publishLeaderInformationConsumer) {
             this.publishLeaderInformationConsumer = publishLeaderInformationConsumer;
             return this;
         }
 
         public Builder setDeleteLeaderInformationConsumer(
-                ThrowingConsumer<String, Exception> deleteLeaderInformationConsumer) {
+                Consumer<String> deleteLeaderInformationConsumer) {
             this.deleteLeaderInformationConsumer = deleteLeaderInformationConsumer;
             return this;
         }

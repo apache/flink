@@ -21,7 +21,6 @@ package org.apache.flink.runtime.leaderelection;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.util.ExecutorUtils;
-import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
@@ -57,8 +56,6 @@ public class DefaultMultipleComponentLeaderElectionService
 
     private final MultipleComponentLeaderElectionDriver multipleComponentLeaderElectionDriver;
 
-    private final FatalErrorHandler fatalErrorHandler;
-
     @GuardedBy("lock")
     private final ExecutorService leadershipOperationExecutor;
 
@@ -79,8 +76,6 @@ public class DefaultMultipleComponentLeaderElectionService
                     multipleComponentLeaderElectionDriverFactory,
             ExecutorService leadershipOperationExecutor)
             throws Exception {
-        this.fatalErrorHandler = Preconditions.checkNotNull(fatalErrorHandler);
-
         this.leadershipOperationExecutor = Preconditions.checkNotNull(leadershipOperationExecutor);
 
         leaderElectionEventHandlers = new HashMap<>();
@@ -124,17 +119,8 @@ public class DefaultMultipleComponentLeaderElectionService
 
     @Override
     public void publishLeaderInformation(String componentId, LeaderInformation leaderInformation) {
-        try {
-            multipleComponentLeaderElectionDriver.publishLeaderInformation(
-                    componentId, leaderInformation);
-        } catch (Exception e) {
-            fatalErrorHandler.onFatalError(
-                    new FlinkException(
-                            String.format(
-                                    "Could not write leader information %s for leader %s.",
-                                    leaderInformation, componentId),
-                            e));
-        }
+        multipleComponentLeaderElectionDriver.publishLeaderInformation(
+                componentId, leaderInformation);
     }
 
     @Override
@@ -157,7 +143,7 @@ public class DefaultMultipleComponentLeaderElectionService
     }
 
     @Override
-    public void unregisterLeaderElectionEventHandler(String componentId) throws Exception {
+    public void unregisterLeaderElectionEventHandler(String componentId) {
         final LeaderElectionEventHandler unregisteredLeaderElectionEventHandler;
         synchronized (lock) {
             unregisteredLeaderElectionEventHandler =

@@ -27,6 +27,7 @@ import org.apache.flink.kubernetes.kubeclient.resources.KubernetesException;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.leaderelection.LeaderElectionException;
+import org.apache.flink.runtime.leaderelection.LeaderElectionUtils;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderelection.LeaderInformationWithComponentId;
 import org.apache.flink.runtime.leaderelection.MultipleComponentLeaderElectionDriver;
@@ -138,25 +139,34 @@ public class KubernetesMultipleComponentLeaderElectionDriver
     }
 
     @Override
-    public void publishLeaderInformation(String componentId, LeaderInformation leaderInformation)
-            throws Exception {
+    public void publishLeaderInformation(String componentId, LeaderInformation leaderInformation) {
         Preconditions.checkState(running.get());
 
-        kubeClient
-                .checkAndUpdateConfigMap(
-                        configMapName,
-                        updateConfigMapWithLeaderInformation(componentId, leaderInformation))
-                .get();
-
-        LOG.debug(
-                "Successfully wrote leader information {} for leader {} into the config map {}.",
-                leaderInformation,
-                componentId,
-                configMapName);
+        try {
+            kubeClient
+                    .checkAndUpdateConfigMap(
+                            configMapName,
+                            updateConfigMapWithLeaderInformation(componentId, leaderInformation))
+                    .get();
+            LOG.debug(
+                    "Successfully wrote leader information {} for leader {} into the config map {}.",
+                    leaderInformation,
+                    componentId,
+                    configMapName);
+        } catch (Exception e) {
+            fatalErrorHandler.onFatalError(
+                    new LeaderElectionException(
+                            String.format(
+                                    "An error occurred when updating the ConfigMap %s for component %s to %s.",
+                                    configMapName,
+                                    componentId,
+                                    LeaderElectionUtils.convertToString(leaderInformation)),
+                            e));
+        }
     }
 
     @Override
-    public void deleteLeaderInformation(String componentId) throws Exception {
+    public void deleteLeaderInformation(String componentId) {
         publishLeaderInformation(componentId, LeaderInformation.empty());
     }
 
