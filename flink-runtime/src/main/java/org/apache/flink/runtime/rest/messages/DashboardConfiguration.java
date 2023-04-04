@@ -48,6 +48,8 @@ public class DashboardConfiguration implements ResponseBody {
 
     public static final String FIELD_NAME_FEATURE_WEB_CANCEL = "web-cancel";
 
+    public static final String FIELD_NAME_FEATURE_WEB_RESCALE = "web-rescale";
+
     public static final String FIELD_NAME_FEATURE_WEB_HISTORY = "web-history";
 
     @JsonProperty(FIELD_NAME_REFRESH_INTERVAL)
@@ -123,6 +125,9 @@ public class DashboardConfiguration implements ResponseBody {
         @JsonProperty(FIELD_NAME_FEATURE_WEB_CANCEL)
         private final boolean webCancelEnabled;
 
+        @JsonProperty(FIELD_NAME_FEATURE_WEB_RESCALE)
+        private final boolean webRescaleEnabled;
+
         @JsonProperty(FIELD_NAME_FEATURE_WEB_HISTORY)
         private final boolean isHistoryServer;
 
@@ -130,9 +135,11 @@ public class DashboardConfiguration implements ResponseBody {
         public Features(
                 @JsonProperty(FIELD_NAME_FEATURE_WEB_SUBMIT) boolean webSubmitEnabled,
                 @JsonProperty(FIELD_NAME_FEATURE_WEB_CANCEL) boolean webCancelEnabled,
+                @JsonProperty(FIELD_NAME_FEATURE_WEB_RESCALE) boolean webRescaleEnabled,
                 @JsonProperty(FIELD_NAME_FEATURE_WEB_HISTORY) boolean isHistoryServer) {
             this.webSubmitEnabled = webSubmitEnabled;
             this.webCancelEnabled = webCancelEnabled;
+            this.webRescaleEnabled = webRescaleEnabled;
             this.isHistoryServer = isHistoryServer;
         }
 
@@ -144,6 +151,11 @@ public class DashboardConfiguration implements ResponseBody {
         @JsonIgnore
         public boolean isWebCancelEnabled() {
             return webCancelEnabled;
+        }
+
+        @JsonIgnore
+        public boolean isWebRescaleEnabled() {
+            return webRescaleEnabled;
         }
 
         @JsonIgnore
@@ -204,6 +216,7 @@ public class DashboardConfiguration implements ResponseBody {
             ZonedDateTime zonedDateTime,
             boolean webSubmitEnabled,
             boolean webCancelEnabled,
+            boolean webRescaleEnabled,
             boolean isHistoryServer) {
 
         final String flinkVersion = EnvironmentInformation.getVersion();
@@ -226,6 +239,7 @@ public class DashboardConfiguration implements ResponseBody {
                 zonedDateTime.toOffsetDateTime().getOffset().getTotalSeconds() * 1000,
                 flinkVersion,
                 flinkRevision,
-                new Features(webSubmitEnabled, webCancelEnabled, isHistoryServer));
+                new Features(
+                        webSubmitEnabled, webCancelEnabled, webRescaleEnabled, isHistoryServer));
     }
 }

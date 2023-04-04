@@ -49,7 +49,8 @@ public class DashboardConfigHandler
                     messageHeaders,
             long refreshInterval,
             boolean webSubmitEnabled,
-            boolean webCancelEnabled) {
+            boolean webCancelEnabled,
+            boolean webRescaleEnabled) {
         super(leaderRetriever, timeout, responseHeaders, messageHeaders);
 
         dashboardConfiguration =
@@ -58,6 +59,7 @@ public class DashboardConfigHandler
                         ZonedDateTime.now(),
                         webSubmitEnabled,
                         webCancelEnabled,
+                        webRescaleEnabled,
                         false);
     }
 
