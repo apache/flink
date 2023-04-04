@@ -30,6 +30,7 @@
 <ng-container *ngIf="nodes.length > 0">
   <flink-job-overview-list
     (nodeClick)="onNodeClick($event)"
+    (rescale)="onRescale($event)"
     [nodes]="nodes"
     [selectedNode]="selectedNode"
   ></flink-job-overview-list>

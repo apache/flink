@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.handler;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.util.Preconditions;
@@ -40,13 +41,16 @@ public class RestHandlerConfiguration {
 
     private final boolean webCancelEnabled;
 
+    private final boolean webRescaleEnabled;
+
     public RestHandlerConfiguration(
             long refreshInterval,
             int maxCheckpointStatisticCacheEntries,
             Time timeout,
             File webUiDir,
             boolean webSubmitEnabled,
-            boolean webCancelEnabled) {
+            boolean webCancelEnabled,
+            boolean webRescaleEnabled) {
         Preconditions.checkArgument(
                 refreshInterval > 0L, "The refresh interval (ms) should be larger than 0.");
         this.refreshInterval = refreshInterval;
@@ -57,6 +61,7 @@ public class RestHandlerConfiguration {
         this.webUiDir = Preconditions.checkNotNull(webUiDir);
         this.webSubmitEnabled = webSubmitEnabled;
         this.webCancelEnabled = webCancelEnabled;
+        this.webRescaleEnabled = webRescaleEnabled;
     }
 
     public long getRefreshInterval() {
@@ -83,6 +88,10 @@ public class RestHandlerConfiguration {
         return webCancelEnabled;
     }
 
+    public boolean isWebRescaleEnabled() {
+        return webRescaleEnabled;
+    }
+
     public static RestHandlerConfiguration fromConfiguration(Configuration configuration) {
         final long refreshInterval = configuration.getLong(WebOptions.REFRESH_INTERVAL);
 
@@ -96,6 +105,11 @@ public class RestHandlerConfiguration {
 
         final boolean webSubmitEnabled = configuration.getBoolean(WebOptions.SUBMIT_ENABLE);
         final boolean webCancelEnabled = configuration.getBoolean(WebOptions.CANCEL_ENABLE);
+        final boolean webRescaleSupported =
+                ClusterOptions.isAdaptiveSchedulerEnabled(configuration)
+                        && !ClusterOptions.isReactiveModeEnabled(configuration);
+        final boolean webRescaleEnabled =
+                webRescaleSupported && configuration.getBoolean(WebOptions.RESCALE_ENABLE);
 
         return new RestHandlerConfiguration(
                 refreshInterval,
@@ -103,6 +117,7 @@ public class RestHandlerConfiguration {
                 timeout,
                 webUiDir,
                 webSubmitEnabled,
-                webCancelEnabled);
+                webCancelEnabled,
+                webRescaleEnabled);
     }
 }
