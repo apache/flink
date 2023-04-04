@@ -1249,7 +1249,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                                                 ((RestHandlerException) e).getHttpResponseStatus())
                                         .isSameAs(HttpResponseStatus.INTERNAL_SERVER_ERROR));
 
-        // verify that persits errors prevents the requirement from being applied
+        // verify that persist errors prevents the requirement from being applied
         assertThatFuture(dispatcherGateway.requestJobResourceRequirements(jobId))
                 .eventuallySucceeds()
                 .isNotEqualTo(attemptedNewRequirements);
