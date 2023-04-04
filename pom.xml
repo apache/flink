@@ -1728,12 +1728,12 @@ under the License.
 							<rules>
 								<bannedDependencies>
 									<excludes>
-										<exclude>org.yaml:snakeyaml:(,1.33]</exclude>
+										<exclude>org.yaml:snakeyaml:(,1.31]</exclude>
 									</excludes>
 									<includes>
 										<!-- Snakeyaml is pulled in by many modules without using it in production,
 											so there's no benefit in us investing time into bumping these. -->
-										<include>org.yaml:snakeyaml:(,1.33]:*:test</include>
+										<include>org.yaml:snakeyaml:(,1.31]:*:test</include>
 									</includes>
 									<message>Older snakeyaml versions are not allowed due to security vulnerabilities.</message>
 								</bannedDependencies>
