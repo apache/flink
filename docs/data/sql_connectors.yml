@@ -194,7 +194,7 @@ pulsar:
     name: Pulsar
     category: connector
     maven: flink-connector-pulsar
-    sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-pulsar/$version/flink-sql-connector-pulsar-$version.jar
+    sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-pulsar/3.0.0-1.16/flink-sql-connector-pulsar-3.0.0-1.16.jar
 
 rabbitmq:
     name: RabbitMQ
