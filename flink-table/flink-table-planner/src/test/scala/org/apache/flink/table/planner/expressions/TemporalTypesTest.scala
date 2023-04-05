@@ -550,7 +550,6 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi("DATE_FORMAT('2018-03-14 01:02:03', 'yyyy/MM/dd HH:mm:ss')", "2018/03/14 01:02:03")
     testSqlApi("DATE_FORMAT(TO_DATE('2023-04-05'), 'yyyy/MM/dd HH:mm:ss')", "2023/04/05 00:00:00")
     testSqlApi("DATE_FORMAT(TO_DATE('2023-04-05'), 'yyyy:MM:dd')", "2023:04:05")
-    testSqlApi("DATE_FORMAT(CURRENT_DATE, 'yyyy/MM/dd HH:mm:ss')", "2023/04/05 00:00:00")
     testAllApis(
       dateFormat("2018-03-14 01:02:03", "yyyy/MM/dd HH:mm:ss"),
       "DATE_FORMAT('2018-03-14 01:02:03', 'yyyy/MM/dd HH:mm:ss')",
