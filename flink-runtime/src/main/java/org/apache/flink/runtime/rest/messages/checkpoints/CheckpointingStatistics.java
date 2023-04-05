@@ -25,6 +25,8 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import javax.annotation.Nullable;
 
 import java.util.List;
@@ -198,6 +200,7 @@ public class CheckpointingStatistics implements ResponseBody {
     }
 
     /** Checkpoint summary. */
+    @Schema(name = "CheckpointStatisticsSummary")
     public static final class Summary {
 
         public static final String FIELD_NAME_CHECKPOINTED_SIZE = "checkpointed_size";
