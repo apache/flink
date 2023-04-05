@@ -18,13 +18,17 @@
 
 package org.apache.flink.table.planner.calcite;
 
+import org.apache.flink.api.java.tuple.Tuple2;
+
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rel.type.RelDataTypeFieldImpl;
+import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.validate.SqlNameMatcher;
 import org.apache.calcite.sql.validate.SqlValidatorImpl;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -94,5 +98,38 @@ public class FlinkSqlNameMatcher implements SqlNameMatcher {
     @Override
     public Set<String> createSet() {
         return baseMatcher.createSet();
+    }
+
+    /**
+     * Discover the target field using its unique identifier. The search will be conducted
+     * recursively based on the id.names, while simultaneously constructing a access path during
+     * traversal.
+     *
+     * @param rowType The top level field type.
+     * @param id The search id.
+     * @return The innermost definition of the field and its access path. If the target field is not
+     *     found, it will be null.
+     */
+    public Tuple2<List<Integer>, RelDataTypeField> field(RelDataType rowType, SqlIdentifier id) {
+        List<Integer> path = new ArrayList<>();
+        RelDataTypeField target = field(rowType, id, 0, path);
+
+        return Tuple2.of(path, target);
+    }
+
+    private RelDataTypeField field(
+            RelDataType rowType, SqlIdentifier id, int index, List<Integer> path) {
+        String name = id.names.get(index);
+        RelDataTypeField field = field(rowType, name);
+        if (field == null) {
+            return null;
+        }
+
+        path.add(field.getIndex());
+
+        if (index < id.names.size() - 1) {
+            return field(field.getType(), id, index + 1, path);
+        }
+        return field;
     }
 }

@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.DataTypes
-import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory}
 import org.apache.flink.table.planner.plan.utils.InputTypeBuilder.inputOf
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter
 

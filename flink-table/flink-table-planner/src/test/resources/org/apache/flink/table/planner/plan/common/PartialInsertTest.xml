@@ -16,6 +16,239 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testPartialInsertCompositeType[isBatch: false]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO complex_type_sink (a,b,c.c2,f,h.h2.h3) SELECT a,b,c.c2,f,h.h2.h3 FROM complex_type_src]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.complex_type_sink], targetColumns=[[0],[1],[2,1],[5],[7,1,0]], fields=[a, b, c, d, e, g, h, f])
++- LogicalProject(a=[$0], b=[$1], c=[ROW(null:BIGINT, $2.c2)], d=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", VARCHAR(2147483647) CHARACTER SET "UTF-16LE") MAP], e=[null:DOUBLE], g=[null:INTEGER], h=[ROW(null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE", ROW($7.h2.h3, null:TIMESTAMP(6)))], f=[$5])
+   +- LogicalTableScan(table=[[default_catalog, default_database, complex_type_src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.complex_type_sink], targetColumns=[[0],[1],[2,1],[5],[7,1,0]], fields=[a, b, c, d, e, g, h, f])
++- Calc(select=[a, b, ROW(null:BIGINT, c.c2) AS c, null:(VARCHAR(2147483647), VARCHAR(2147483647)) MAP AS d, null:DOUBLE AS e, null:INTEGER AS g, ROW(null:VARCHAR(2147483647), ROW(h.h2.h3, null:TIMESTAMP(6))) AS h, f])
+   +- TableSourceScan(table=[[default_catalog, default_database, complex_type_src, project=[a, b, c, h, f], metadata=[]]], fields=[a, b, c, h, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartialInsertCompositeType[isBatch: true]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO complex_type_sink (a,b,c.c2,f,h.h2.h3) SELECT a,b,c.c2,f,h.h2.h3 FROM complex_type_src]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.complex_type_sink], targetColumns=[[0],[1],[2,1],[5],[7,1,0]], fields=[a, b, c, d, e, g, h, f])
++- LogicalProject(a=[$0], b=[$1], c=[ROW(null:BIGINT, $2.c2)], d=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", VARCHAR(2147483647) CHARACTER SET "UTF-16LE") MAP], e=[null:DOUBLE], g=[null:INTEGER], h=[ROW(null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE", ROW($7.h2.h3, null:TIMESTAMP(6)))], f=[$5])
+   +- LogicalTableScan(table=[[default_catalog, default_database, complex_type_src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.complex_type_sink], targetColumns=[[0],[1],[2,1],[5],[7,1,0]], fields=[a, b, c, d, e, g, h, f])
++- Calc(select=[a, b, ROW(null:BIGINT, c.c2) AS c, null:(VARCHAR(2147483647), VARCHAR(2147483647)) MAP AS d, null:DOUBLE AS e, null:INTEGER AS g, ROW(null:VARCHAR(2147483647), ROW(h.h2.h3, null:TIMESTAMP(6))) AS h, f])
+   +- TableSourceScan(table=[[default_catalog, default_database, complex_type_src, project=[a, b, c, h, f], metadata=[]]], fields=[a, b, c, h, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartialInsertCompositeTypeWithOrderBy[isBatch: false]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO complex_type_sink (a,b,c.c2,f,h.h2.h3) SELECT a,b,c.c2,f,h.h2.h3 FROM complex_type_src ORDER BY a, b, h]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.complex_type_sink], targetColumns=[[0],[1],[2,1],[5],[7,1,0]], fields=[a, b, c, d, e, g, h, f])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], g=[$6], h=[$7], f=[$5])
+   +- LogicalSort(sort0=[$0], sort1=[$1], sort2=[$8], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], dir2=[ASC-nulls-first])
+      +- LogicalProject(a=[$0], b=[$1], EXPR$2=[ROW(null:BIGINT, $2.c2)], EXPR$3=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", VARCHAR(2147483647) CHARACTER SET "UTF-16LE") MAP], EXPR$4=[null:DOUBLE], f=[$5], EXPR$6=[null:INTEGER], EXPR$7=[ROW(null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE", ROW($7.h2.h3, null:TIMESTAMP(6)))], h=[$7])
+         +- LogicalTableScan(table=[[default_catalog, default_database, complex_type_src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.complex_type_sink], targetColumns=[[0],[1],[2,1],[5],[7,1,0]], fields=[a, b, c, d, e, g, h, f])
++- Calc(select=[a, b, ROW(null:BIGINT, c.c2) AS c, null:(VARCHAR(2147483647), VARCHAR(2147483647)) MAP AS d, null:DOUBLE AS e, null:INTEGER AS g, ROW(null:VARCHAR(2147483647), ROW(h.h2.h3, null:TIMESTAMP(6))) AS h, f])
+   +- Sort(orderBy=[a ASC, b ASC, h ASC])
+      +- Exchange(distribution=[single])
+         +- TableSourceScan(table=[[default_catalog, default_database, complex_type_src, project=[a, b, c, f, h], metadata=[]]], fields=[a, b, c, f, h])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartialInsertCompositeTypeWithOrderBy[isBatch: true]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO complex_type_sink (a,b,c.c2,f,h.h2.h3) SELECT a,b,c.c2,f,h.h2.h3 FROM complex_type_src ORDER BY a, b, h]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.complex_type_sink], targetColumns=[[0],[1],[2,1],[5],[7,1,0]], fields=[a, b, c, d, e, g, h, f])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], g=[$6], h=[$7], f=[$5])
+   +- LogicalSort(sort0=[$0], sort1=[$1], sort2=[$8], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], dir2=[ASC-nulls-first])
+      +- LogicalProject(a=[$0], b=[$1], EXPR$2=[ROW(null:BIGINT, $2.c2)], EXPR$3=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", VARCHAR(2147483647) CHARACTER SET "UTF-16LE") MAP], EXPR$4=[null:DOUBLE], f=[$5], EXPR$6=[null:INTEGER], EXPR$7=[ROW(null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE", ROW($7.h2.h3, null:TIMESTAMP(6)))], h=[$7])
+         +- LogicalTableScan(table=[[default_catalog, default_database, complex_type_src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.complex_type_sink], targetColumns=[[0],[1],[2,1],[5],[7,1,0]], fields=[a, b, c, d, e, g, h, f])
++- Calc(select=[a, b, ROW(null:BIGINT, c.c2) AS c, null:(VARCHAR(2147483647), VARCHAR(2147483647)) MAP AS d, null:DOUBLE AS e, null:INTEGER AS g, ROW(null:VARCHAR(2147483647), ROW(h.h2.h3, null:TIMESTAMP(6))) AS h, f])
+   +- Sort(orderBy=[a ASC, b ASC, h ASC])
+      +- Exchange(distribution=[single])
+         +- TableSourceScan(table=[[default_catalog, default_database, complex_type_src, project=[a, b, c, f, h], metadata=[]]], fields=[a, b, c, f, h])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartialInsertCompositeTypeWithUnion[isBatch: false]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO complex_type_sink (a,b,c.c2,f,h.h2.h3) SELECT a,b,'hello',f,123 FROM complex_type_src UNION SELECT a,b,'flink',f,456 FROM complex_type_src ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.complex_type_sink], targetColumns=[[0],[1],[2,1],[5],[7,1,0]], fields=[a, b, c, d, e, g, h, f])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], g=[$6], h=[$7], f=[$5])
+   +- LogicalUnion(all=[false])
+      :- LogicalProject(a=[$0], b=[$1], EXPR$2=[ROW(null:BIGINT, _UTF-16LE'hello')], EXPR$3=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", VARCHAR(2147483647) CHARACTER SET "UTF-16LE") MAP], EXPR$4=[null:DOUBLE], f=[$5], EXPR$6=[null:INTEGER], EXPR$7=[ROW(null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE", ROW(123, null:TIMESTAMP(6)))])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, complex_type_src]])
+      +- LogicalProject(a=[$0], b=[$1], EXPR$2=[ROW(null:BIGINT, _UTF-16LE'flink')], EXPR$3=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", VARCHAR(2147483647) CHARACTER SET "UTF-16LE") MAP], EXPR$4=[null:DOUBLE], f=[$5], EXPR$6=[null:INTEGER], EXPR$7=[ROW(null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE", ROW(456, null:TIMESTAMP(6)))])
+         +- LogicalTableScan(table=[[default_catalog, default_database, complex_type_src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.complex_type_sink], targetColumns=[[0],[1],[2,1],[5],[7,1,0]], fields=[a, b, c, d, e, g, h, f], upsertMaterialize=[true])
++- Calc(select=[a, b, EXPR$2 AS c, null:(VARCHAR(2147483647), VARCHAR(2147483647)) MAP AS d, null:DOUBLE AS e, null:INTEGER AS g, EXPR$7 AS h, f])
+   +- GroupAggregate(groupBy=[a, b, EXPR$2, EXPR$3, EXPR$4, f, EXPR$6, EXPR$7], select=[a, b, EXPR$2, EXPR$3, EXPR$4, f, EXPR$6, EXPR$7])
+      +- Exchange(distribution=[hash[a, b, EXPR$2, EXPR$3, EXPR$4, f, EXPR$6, EXPR$7]])
+         +- Union(all=[true], union=[a, b, EXPR$2, EXPR$3, EXPR$4, f, EXPR$6, EXPR$7])
+            :- Calc(select=[a, b, ROW(null:BIGINT, 'hello') AS EXPR$2, null:(VARCHAR(2147483647), VARCHAR(2147483647)) MAP AS EXPR$3, null:DOUBLE AS EXPR$4, f, null:INTEGER AS EXPR$6, ROW(null:VARCHAR(2147483647), ROW(123, null:TIMESTAMP(6))) AS EXPR$7])
+            :  +- TableSourceScan(table=[[default_catalog, default_database, complex_type_src, project=[a, b, f], metadata=[]]], fields=[a, b, f])
+            +- Calc(select=[a, b, ROW(null:BIGINT, 'flink') AS EXPR$2, null:(VARCHAR(2147483647), VARCHAR(2147483647)) MAP AS EXPR$3, null:DOUBLE AS EXPR$4, f, null:INTEGER AS EXPR$6, ROW(null:VARCHAR(2147483647), ROW(456, null:TIMESTAMP(6))) AS EXPR$7])
+               +- TableSourceScan(table=[[default_catalog, default_database, complex_type_src, project=[a, b, f], metadata=[]]], fields=[a, b, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartialInsertCompositeTypeWithUnion[isBatch: true]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO complex_type_sink (a,b,c.c2,f,h.h2.h3) SELECT a,b,'hello',f,123 FROM complex_type_src UNION SELECT a,b,'flink',f,456 FROM complex_type_src ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.complex_type_sink], targetColumns=[[0],[1],[2,1],[5],[7,1,0]], fields=[a, b, c, d, e, g, h, f])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], g=[$6], h=[$7], f=[$5])
+   +- LogicalUnion(all=[false])
+      :- LogicalProject(a=[$0], b=[$1], EXPR$2=[ROW(null:BIGINT, _UTF-16LE'hello')], EXPR$3=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", VARCHAR(2147483647) CHARACTER SET "UTF-16LE") MAP], EXPR$4=[null:DOUBLE], f=[$5], EXPR$6=[null:INTEGER], EXPR$7=[ROW(null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE", ROW(123, null:TIMESTAMP(6)))])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, complex_type_src]])
+      +- LogicalProject(a=[$0], b=[$1], EXPR$2=[ROW(null:BIGINT, _UTF-16LE'flink')], EXPR$3=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", VARCHAR(2147483647) CHARACTER SET "UTF-16LE") MAP], EXPR$4=[null:DOUBLE], f=[$5], EXPR$6=[null:INTEGER], EXPR$7=[ROW(null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE", ROW(456, null:TIMESTAMP(6)))])
+         +- LogicalTableScan(table=[[default_catalog, default_database, complex_type_src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.complex_type_sink], targetColumns=[[0],[1],[2,1],[5],[7,1,0]], fields=[a, b, c, d, e, g, h, f])
++- Calc(select=[a, b, EXPR$2 AS c, null:(VARCHAR(2147483647), VARCHAR(2147483647)) MAP AS d, null:DOUBLE AS e, null:INTEGER AS g, EXPR$7 AS h, f])
+   +- HashAggregate(isMerge=[true], groupBy=[a, b, EXPR$2, EXPR$3, EXPR$4, f, EXPR$6, EXPR$7], select=[a, b, EXPR$2, EXPR$3, EXPR$4, f, EXPR$6, EXPR$7])
+      +- Exchange(distribution=[hash[a, b, EXPR$2, EXPR$3, EXPR$4, f, EXPR$6, EXPR$7]])
+         +- LocalHashAggregate(groupBy=[a, b, EXPR$2, EXPR$3, EXPR$4, f, EXPR$6, EXPR$7], select=[a, b, EXPR$2, EXPR$3, EXPR$4, f, EXPR$6, EXPR$7])
+            +- Union(all=[true], union=[a, b, EXPR$2, EXPR$3, EXPR$4, f, EXPR$6, EXPR$7])
+               :- Calc(select=[a, b, ROW(null:BIGINT, 'hello') AS EXPR$2, null:(VARCHAR(2147483647), VARCHAR(2147483647)) MAP AS EXPR$3, null:DOUBLE AS EXPR$4, f, null:INTEGER AS EXPR$6, ROW(null:VARCHAR(2147483647), ROW(123, null:TIMESTAMP(6))) AS EXPR$7])
+               :  +- TableSourceScan(table=[[default_catalog, default_database, complex_type_src, project=[a, b, f], metadata=[]]], fields=[a, b, f])
+               +- Calc(select=[a, b, ROW(null:BIGINT, 'flink') AS EXPR$2, null:(VARCHAR(2147483647), VARCHAR(2147483647)) MAP AS EXPR$3, null:DOUBLE AS EXPR$4, f, null:INTEGER AS EXPR$6, ROW(null:VARCHAR(2147483647), ROW(456, null:TIMESTAMP(6))) AS EXPR$7])
+                  +- TableSourceScan(table=[[default_catalog, default_database, complex_type_src, project=[a, b, f], metadata=[]]], fields=[a, b, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartialInsertCompositeTypeWithUnionAll[isBatch: false]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO complex_type_sink (a,b,c.c2,f,h.h2.h3) SELECT a,b,'hello',f,123 FROM complex_type_src UNION ALL SELECT a,b,'flink',f,456 FROM complex_type_src ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.complex_type_sink], targetColumns=[[0],[1],[2,1],[5],[7,1,0]], fields=[a, b, c, d, e, g, h, f])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], g=[$6], h=[$7], f=[$5])
+   +- LogicalUnion(all=[true])
+      :- LogicalProject(a=[$0], b=[$1], EXPR$2=[ROW(null:BIGINT, _UTF-16LE'hello')], EXPR$3=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", VARCHAR(2147483647) CHARACTER SET "UTF-16LE") MAP], EXPR$4=[null:DOUBLE], f=[$5], EXPR$6=[null:INTEGER], EXPR$7=[ROW(null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE", ROW(123, null:TIMESTAMP(6)))])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, complex_type_src]])
+      +- LogicalProject(a=[$0], b=[$1], EXPR$2=[ROW(null:BIGINT, _UTF-16LE'flink')], EXPR$3=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", VARCHAR(2147483647) CHARACTER SET "UTF-16LE") MAP], EXPR$4=[null:DOUBLE], f=[$5], EXPR$6=[null:INTEGER], EXPR$7=[ROW(null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE", ROW(456, null:TIMESTAMP(6)))])
+         +- LogicalTableScan(table=[[default_catalog, default_database, complex_type_src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.complex_type_sink], targetColumns=[[0],[1],[2,1],[5],[7,1,0]], fields=[a, b, c, d, e, g, h, f])
++- Union(all=[true], union=[a, b, c, d, e, g, h, f])
+   :- Calc(select=[a, b, ROW(null:BIGINT, 'hello') AS c, null:(VARCHAR(2147483647), VARCHAR(2147483647)) MAP AS d, null:DOUBLE AS e, null:INTEGER AS g, ROW(null:VARCHAR(2147483647), ROW(123, null:TIMESTAMP(6))) AS h, f])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, complex_type_src, project=[a, b, f], metadata=[]]], fields=[a, b, f])
+   +- Calc(select=[a, b, ROW(null:BIGINT, 'flink') AS c, null:(VARCHAR(2147483647), VARCHAR(2147483647)) MAP AS d, null:DOUBLE AS e, null:INTEGER AS g, ROW(null:VARCHAR(2147483647), ROW(456, null:TIMESTAMP(6))) AS h, f])
+      +- TableSourceScan(table=[[default_catalog, default_database, complex_type_src, project=[a, b, f], metadata=[]]], fields=[a, b, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartialInsertCompositeTypeWithUnionAll[isBatch: true]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO complex_type_sink (a,b,c.c2,f,h.h2.h3) SELECT a,b,'hello',f,123 FROM complex_type_src UNION ALL SELECT a,b,'flink',f,456 FROM complex_type_src ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.complex_type_sink], targetColumns=[[0],[1],[2,1],[5],[7,1,0]], fields=[a, b, c, d, e, g, h, f])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], g=[$6], h=[$7], f=[$5])
+   +- LogicalUnion(all=[true])
+      :- LogicalProject(a=[$0], b=[$1], EXPR$2=[ROW(null:BIGINT, _UTF-16LE'hello')], EXPR$3=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", VARCHAR(2147483647) CHARACTER SET "UTF-16LE") MAP], EXPR$4=[null:DOUBLE], f=[$5], EXPR$6=[null:INTEGER], EXPR$7=[ROW(null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE", ROW(123, null:TIMESTAMP(6)))])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, complex_type_src]])
+      +- LogicalProject(a=[$0], b=[$1], EXPR$2=[ROW(null:BIGINT, _UTF-16LE'flink')], EXPR$3=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", VARCHAR(2147483647) CHARACTER SET "UTF-16LE") MAP], EXPR$4=[null:DOUBLE], f=[$5], EXPR$6=[null:INTEGER], EXPR$7=[ROW(null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE", ROW(456, null:TIMESTAMP(6)))])
+         +- LogicalTableScan(table=[[default_catalog, default_database, complex_type_src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.complex_type_sink], targetColumns=[[0],[1],[2,1],[5],[7,1,0]], fields=[a, b, c, d, e, g, h, f])
++- Union(all=[true], union=[a, b, c, d, e, g, h, f])
+   :- Calc(select=[a, b, ROW(null:BIGINT, 'hello') AS c, null:(VARCHAR(2147483647), VARCHAR(2147483647)) MAP AS d, null:DOUBLE AS e, null:INTEGER AS g, ROW(null:VARCHAR(2147483647), ROW(123, null:TIMESTAMP(6))) AS h, f])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, complex_type_src, project=[a, b, f], metadata=[]]], fields=[a, b, f])
+   +- Calc(select=[a, b, ROW(null:BIGINT, 'flink') AS c, null:(VARCHAR(2147483647), VARCHAR(2147483647)) MAP AS d, null:DOUBLE AS e, null:INTEGER AS g, ROW(null:VARCHAR(2147483647), ROW(456, null:TIMESTAMP(6))) AS h, f])
+      +- TableSourceScan(table=[[default_catalog, default_database, complex_type_src, project=[a, b, f], metadata=[]]], fields=[a, b, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartialInsertCompositeTypeWithValues[isBatch: false]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO complex_type_sink (a,b,c.c2,f,h.h2.h3) VALUES(1, row('b1', 2), 'c2', 3, 4)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.complex_type_sink], targetColumns=[[0],[1],[2,1],[5],[7,1,0]], fields=[a, b, c, d, e, g, h, f])
++- LogicalProject(a=[1:BIGINT], b=[CAST(ROW(_UTF-16LE'b1', 2)):RecordType:peek_no_expand(VARCHAR(2147483647) CHARACTER SET "UTF-16LE" b1, INTEGER b2)], c=[CAST(ROW(null:BIGINT, _UTF-16LE'c2')):RecordType:peek_no_expand(BIGINT c1, VARCHAR(2147483647) CHARACTER SET "UTF-16LE" c2)], d=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", VARCHAR(2147483647) CHARACTER SET "UTF-16LE") MAP], e=[null:DOUBLE], g=[null:INTEGER], h=[CAST(ROW(null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE", ROW(4, null:TIMESTAMP(6)))):RecordType:peek_no_expand(VARCHAR(2147483647) CHARACTER SET "UTF-16LE" h1, RecordType:peek_no_expand(INTEGER h3, TIMESTAMP(6) h4) h2)], f=[CAST(3:BIGINT):BIGINT])
+   +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.complex_type_sink], targetColumns=[[0],[1],[2,1],[5],[7,1,0]], fields=[a, b, c, d, e, g, h, f])
++- Calc(select=[1 AS a, CAST(ROW('b1', 2) AS RecordType:peek_no_expand(VARCHAR(2147483647) b1, INTEGER b2)) AS b, CAST(ROW(null:BIGINT, 'c2') AS RecordType:peek_no_expand(BIGINT c1, VARCHAR(2147483647) c2)) AS c, null:(VARCHAR(2147483647), VARCHAR(2147483647)) MAP AS d, null:DOUBLE AS e, null:INTEGER AS g, CAST(ROW(null:VARCHAR(2147483647), ROW(4, null:TIMESTAMP(6))) AS RecordType:peek_no_expand(VARCHAR(2147483647) h1, RecordType:peek_no_expand(INTEGER h3, TIMESTAMP(6) h4) h2)) AS h, CAST(3 AS BIGINT) AS f])
+   +- Values(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartialInsertCompositeTypeWithValues[isBatch: true]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO complex_type_sink (a,b,c.c2,f,h.h2.h3) VALUES(1, row('b1', 2), 'c2', 3, 4)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.complex_type_sink], targetColumns=[[0],[1],[2,1],[5],[7,1,0]], fields=[a, b, c, d, e, g, h, f])
++- LogicalProject(a=[1:BIGINT], b=[CAST(ROW(_UTF-16LE'b1', 2)):RecordType:peek_no_expand(VARCHAR(2147483647) CHARACTER SET "UTF-16LE" b1, INTEGER b2)], c=[CAST(ROW(null:BIGINT, _UTF-16LE'c2')):RecordType:peek_no_expand(BIGINT c1, VARCHAR(2147483647) CHARACTER SET "UTF-16LE" c2)], d=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", VARCHAR(2147483647) CHARACTER SET "UTF-16LE") MAP], e=[null:DOUBLE], g=[null:INTEGER], h=[CAST(ROW(null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE", ROW(4, null:TIMESTAMP(6)))):RecordType:peek_no_expand(VARCHAR(2147483647) CHARACTER SET "UTF-16LE" h1, RecordType:peek_no_expand(INTEGER h3, TIMESTAMP(6) h4) h2)], f=[CAST(3:BIGINT):BIGINT])
+   +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.complex_type_sink], targetColumns=[[0],[1],[2,1],[5],[7,1,0]], fields=[a, b, c, d, e, g, h, f])
++- Calc(select=[1 AS a, CAST(ROW('b1', 2) AS RecordType:peek_no_expand(VARCHAR(2147483647) b1, INTEGER b2)) AS b, CAST(ROW(null:BIGINT, 'c2') AS RecordType:peek_no_expand(BIGINT c1, VARCHAR(2147483647) c2)) AS c, null:(VARCHAR(2147483647), VARCHAR(2147483647)) MAP AS d, null:DOUBLE AS e, null:INTEGER AS g, CAST(ROW(null:VARCHAR(2147483647), ROW(4, null:TIMESTAMP(6))) AS RecordType:peek_no_expand(VARCHAR(2147483647) h1, RecordType:peek_no_expand(INTEGER h3, TIMESTAMP(6) h4) h2)) AS h, CAST(3 AS BIGINT) AS f])
+   +- Values(tuples=[[{ 0 }]], values=[ZERO])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testPartialInsertWithGroupBy[isBatch: false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==

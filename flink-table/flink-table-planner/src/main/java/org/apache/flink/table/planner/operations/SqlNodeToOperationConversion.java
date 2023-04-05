@@ -777,8 +777,6 @@ public class SqlNodeToOperationConversion {
                 (PlannerQueryOperation)
                         convertValidatedSqlNodeOrFail(
                                 flinkPlanner, catalogManager, insert.getSource());
-        // TODO calc target column list to index array, currently only simple SqlIdentifiers are
-        // available, this should be updated after FLINK-31301 fixed
         int[][] columnIndices =
                 getTargetColumnIndices(contextResolvedTable, insert.getTargetColumnList());
 
@@ -1409,11 +1407,46 @@ public class SqlNodeToOperationConversion {
     private int[][] getTargetColumnIndices(
             @Nonnull ContextResolvedTable contextResolvedTable,
             @Nullable SqlNodeList targetColumns) {
-        List<String> allColumns = contextResolvedTable.getResolvedSchema().getColumnNames();
+        ResolvedSchema schema = contextResolvedTable.getResolvedSchema();
         return Optional.ofNullable(targetColumns).orElse(SqlNodeList.EMPTY).stream()
-                .mapToInt(c -> allColumns.indexOf(((SqlIdentifier) c).getSimple()))
-                .mapToObj(idx -> new int[] {idx})
+                .map(id -> getPath(schema, (SqlIdentifier) id))
                 .toArray(int[][]::new);
+    }
+
+    private int[] getPath(ResolvedSchema schema, SqlIdentifier id) {
+        List<Integer> path = new ArrayList<>();
+        String name = id.names.get(0);
+        Column column =
+                schema.getColumns().stream()
+                        .filter(c -> c.getName().equals(name))
+                        .findFirst()
+                        .orElseThrow(() -> new ValidationException("Can not find column: " + id));
+        path.add(schema.getColumns().indexOf(column));
+        if (id.names.size() > 1) {
+            boolean success = find(column.getDataType(), id, 1, path);
+
+            if (!success) {
+                throw new ValidationException("Can not find column: " + id);
+            }
+        }
+
+        return path.stream().mapToInt(Integer::intValue).toArray();
+    }
+
+    private boolean find(DataType dataType, SqlIdentifier id, int index, List<Integer> path) {
+        boolean finished = (index == (id.names.size() - 1));
+        String name = id.names.get(index);
+        int position = DataType.getFieldNames(dataType).indexOf(name);
+        if (position < 0) {
+            return false;
+        }
+
+        path.add(position);
+        if (finished) {
+            return true;
+        } else {
+            return find(DataType.getFieldDataTypes(dataType).get(position), id, index + 1, path);
+        }
     }
 
     private String getQuotedSqlString(SqlNode sqlNode) {

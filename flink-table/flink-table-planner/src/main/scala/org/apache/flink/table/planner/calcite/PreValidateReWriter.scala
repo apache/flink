@@ -23,7 +23,10 @@ import org.apache.flink.sql.parser.dml.RichSqlInsert
 import org.apache.flink.sql.parser.dql.SqlRichExplain
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.planner.calcite.PreValidateReWriter.{appendPartitionAndNullsProjects, notSupported}
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.plan.schema.{CatalogSourceTable, FlinkPreparingTableBase, LegacyCatalogSourceTable}
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
+import org.apache.flink.util.Preconditions
 import org.apache.flink.util.Preconditions.checkArgument
 
 import org.apache.calcite.plan.RelOptTable
@@ -37,6 +40,8 @@ import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.sql.util.SqlBasicVisitor
 import org.apache.calcite.sql.validate.{SqlValidatorException, SqlValidatorTable, SqlValidatorUtil}
 import org.apache.calcite.util.Static.RESOURCE
+
+import javax.annotation.Nullable
 
 import java.util
 import java.util.Collections
@@ -86,6 +91,18 @@ object PreValidateReWriter {
   }
 
   /**
+   * This refers to a single target column specified in the 'insert into' clause.
+   * @param path
+   *   The access path for this column starts from its index in the Table Schema. If the column is
+   *   nested, it will have additional pointers following it.
+   * @param idxInTargetColumnList
+   *   The index of this column in the 'insert into (col1, col2)' clause.
+   * @param field
+   *   The [[RelDataTypeField]] of this column.
+   */
+  case class TargetColumn(path: util.List[Int], idxInTargetColumnList: Int, field: RelDataTypeField)
+
+  /**
    * Append the static partitions and unspecified columns to the data source projection list. The
    * columns are appended to the corresponding positions.
    *
@@ -132,6 +149,7 @@ object PreValidateReWriter {
     val targetRowType = createTargetRowType(typeFactory, table)
     // validate partition fields first.
     val assignedFields = new util.LinkedHashMap[Integer, SqlNode]
+    val partialSupplierFunction = new util.LinkedHashMap[Integer, util.List[SqlNode] => SqlNode]
     val relOptTable = table match {
       case t: RelOptTable => t
       case _ => null
@@ -159,22 +177,23 @@ object PreValidateReWriter {
     val targetPosition = new util.ArrayList[Int]()
 
     if (sqlInsert.getTargetColumnList != null) {
-      val targetFields = new util.HashSet[Integer]
+      val targetFieldsAccess = new util.HashSet[util.List[Int]]
       val targetColumns =
-        sqlInsert.getTargetColumnList.getList
-          .map(
-            id => {
-              val identifier = id.asInstanceOf[SqlIdentifier]
-              validateUnsupportedCompositeColumn(identifier)
-              val targetField = SqlValidatorUtil.getTargetField(
-                targetRowType,
-                typeFactory,
-                identifier,
-                calciteCatalogReader,
-                relOptTable)
-              validateField(targetFields.add, id.asInstanceOf[SqlIdentifier], targetField)
-              targetField
-            })
+        sqlInsert.getTargetColumnList.getList.zipWithIndex.map {
+          case (id, idx) =>
+            val identifier = id.asInstanceOf[SqlIdentifier]
+            val (path, field) = JavaScalaConversionUtil.toScala(
+              calciteCatalogReader
+                .nameMatcher()
+                .asInstanceOf[FlinkSqlNameMatcher]
+                .field(targetRowType, identifier))
+            val targetColumn = TargetColumn(path.map(x => x.toInt), idx, field)
+            validateField(
+              _ => targetFieldsAccess.add(targetColumn.path),
+              id.asInstanceOf[SqlIdentifier],
+              targetColumn.field)
+            targetColumn
+        }
 
       val partitionColumns =
         partitions.getList
@@ -189,29 +208,156 @@ object PreValidateReWriter {
 
       for (targetField <- targetRowType.getFieldList) {
         if (!partitionColumns.contains(targetField)) {
-          if (!targetColumns.contains(targetField)) {
+          val targetFieldIndex = targetField.getIndex
+          // target columns access from this index
+          val columns = targetColumns.filter(t => t.path(0) == targetFieldIndex)
+          // this targetField is not used
+          val id = new SqlIdentifier(targetField.getName, SqlParserPos.ZERO)
+          if (columns.isEmpty) {
             // padding null
-            val id = new SqlIdentifier(targetField.getName, SqlParserPos.ZERO)
-            if (!targetField.getType.isNullable) {
-              throw newValidationError(id, RESOURCE.columnNotNullable(targetField.getName))
-            }
+            checkNullability(targetField, id)
             validateField(idx => !assignedFields.contains(idx), id, targetField)
             assignedFields.put(
-              targetField.getIndex,
+              targetFieldIndex,
               maybeCast(
                 SqlLiteral.createNull(SqlParserPos.ZERO),
                 typeFactory.createUnknownType(),
                 targetField.getType,
                 typeFactory))
           } else {
-            // handle reorder
-            targetPosition.add(targetColumns.indexOf(targetField))
+            // nested type
+            if (targetField.getType.isStruct) {
+              // padding partial null for nested type
+              validateField(idx => !partialSupplierFunction.contains(idx), id, targetField)
+              partialSupplierFunction.put(
+                targetFieldIndex,
+                buildRowWithPartialNull(
+                  columns.toList,
+                  targetField,
+                  typeFactory,
+                  _: util.List[SqlNode]))
+            } else {
+              // not nested type
+              Preconditions.checkArgument(columns.size == 1)
+              // handle reorder
+              targetPosition.add(columns.get(0).idxInTargetColumnList)
+            }
           }
         }
       }
     }
 
-    rewriteSqlCall(validator, source, targetRowType, assignedFields, targetPosition)
+    rewriteSqlCall(
+      validator,
+      source,
+      targetRowType,
+      assignedFields,
+      partialSupplierFunction,
+      targetPosition)
+  }
+
+  private def checkNullability(field: RelDataTypeField, @Nullable id: SqlNode): Unit = {
+    // for the nested field, we can not get
+    val node = if (id == null) {
+      new SqlIdentifier(new util.ArrayList[String](), SqlParserPos.ZERO)
+    } else {
+      id
+    }
+    if (!field.getType.isNullable) {
+      throw newValidationError(node, RESOURCE.columnNotNullable(field.getName))
+    }
+    if (field.getType.isStruct) {
+      field.getType.getFieldList.foreach(f => checkNullability(f, node))
+    }
+  }
+
+  /**
+   * Build up a row with partial value from the sourceNodes for one sink target field. For example:
+   * If we hava a table with schema (r1 Row< a VARCHAR, b VARCHAR>, r2 Row< c BIGINT, d INT>).
+   *
+   * Then the following select list can be inferred based on the access path
+   *
+   * <li> access path ([0, 0], [1, 1]) with generate (ROW(r1.a, CAST(NULL as VARCHAR), ROW(CAST
+   * (NULL as BIGINT), r2.d)) as select list <li> access path ([0], [1, 1]) with generate (r1,
+   * ROW(CAST (NULL as BIGINT), r2.d)) as select list <li>...
+   *
+   * @param derivedTargetColumns
+   *   columns in the insert into clause derived from the targetField
+   * @param targetField
+   *   The target field in the sink table schema
+   * @param typeFactory
+   *   The type factory
+   * @param sourceNodes
+   *   The list of the select nodes.
+   * @return
+   *   The single row call built from the target columns,
+   */
+  private def buildRowWithPartialNull(
+      derivedTargetColumns: List[TargetColumn],
+      targetField: RelDataTypeField,
+      typeFactory: RelDataTypeFactory,
+      sourceNodes: util.List[SqlNode]): SqlNode = {
+    Preconditions.checkArgument(targetField.getType.isStruct)
+    // access path to target column mapping
+    val sep = "->"
+    val mapping = derivedTargetColumns.map(c => c.path.mkString(sep) -> c).toMap
+
+    def path_matching(accessPath: String): (Boolean, Boolean) = {
+      val matched = mapping.keySet.contains(accessPath)
+      val deeper = mapping.keySet.exists(k => k.startsWith(accessPath) && !k.equals(accessPath))
+      (matched, deeper)
+    }
+
+    def traverse(field: RelDataTypeField, path: util.List[Int]): SqlNode = {
+      path.add(field.getIndex)
+      val accessPath = path.mkString(sep)
+      if (field.getType.isStruct) {
+        val (matched, deeper) = path_matching(accessPath)
+        if (matched) {
+          // get sqlNode from sql select
+          val targetColumn = mapping(accessPath)
+          path.remove(path.size() - 1)
+          sourceNodes.get(targetColumn.idxInTargetColumnList)
+        } else if (deeper) {
+          val fields = field.getType.getFieldList.map(f => traverse(f, path))
+          path.remove(path.size() - 1)
+          FlinkSqlOperatorTable.ROW.createCall(SqlParserPos.ZERO, fields.toList)
+        } else {
+          checkNullability(field, null)
+          maybeCast(
+            SqlLiteral.createNull(SqlParserPos.ZERO),
+            typeFactory.createUnknownType(),
+            field.getType,
+            typeFactory)
+        }
+      } else {
+        val (matched, _: Boolean) = path_matching(accessPath)
+        path.remove(path.size - 1)
+        if (matched) {
+          // get sqlNode from sqlSelect
+          val targetColumn = mapping(accessPath)
+          sourceNodes.get(targetColumn.idxInTargetColumnList)
+        } else {
+          checkNullability(field, null)
+          maybeCast(
+            SqlLiteral.createNull(SqlParserPos.ZERO),
+            typeFactory.createUnknownType(),
+            field.getType,
+            typeFactory)
+        }
+      }
+    }
+
+    val path = new util.ArrayList[Int]()
+    val name = new util.ArrayList[String]()
+    path.add(targetField.getIndex)
+    val (matched, _: Boolean) = path_matching(path.mkString(sep))
+    if (matched) {
+      sourceNodes.get(mapping(path.mkString(sep)).idxInTargetColumnList)
+    } else {
+      val fields = targetField.getType.getFieldList.map(field => traverse(field, path))
+      FlinkSqlOperatorTable.ROW.createCall(SqlParserPos.ZERO, fields.toList)
+    }
   }
 
   private def rewriteSqlCall(
@@ -219,6 +365,7 @@ object PreValidateReWriter {
       call: SqlCall,
       targetRowType: RelDataType,
       assignedFields: util.LinkedHashMap[Integer, SqlNode],
+      partialSupplier: util.LinkedHashMap[Integer, util.List[SqlNode] => SqlNode],
       targetPosition: util.List[Int]): SqlCall = {
 
     def rewrite(node: SqlNode): SqlCall = {
@@ -228,6 +375,7 @@ object PreValidateReWriter {
         node.asInstanceOf[SqlCall],
         targetRowType,
         assignedFields,
+        partialSupplier,
         targetPosition)
     }
 
@@ -238,9 +386,10 @@ object PreValidateReWriter {
           call.asInstanceOf[SqlSelect],
           targetRowType,
           assignedFields,
+          partialSupplier,
           targetPosition)
       case SqlKind.VALUES =>
-        rewriteValues(call, targetRowType, assignedFields, targetPosition)
+        rewriteValues(call, targetRowType, assignedFields, partialSupplier, targetPosition)
       case kind if SqlKind.SET_QUERY.contains(kind) =>
         call.getOperandList.zipWithIndex.foreach {
           case (operand, index) => call.setOperand(index, rewrite(operand))
@@ -266,6 +415,7 @@ object PreValidateReWriter {
       select: SqlSelect,
       targetRowType: RelDataType,
       assignedFields: util.LinkedHashMap[Integer, SqlNode],
+      partialSupplier: util.LinkedHashMap[Integer, util.List[SqlNode] => SqlNode],
       targetPosition: util.List[Int]): SqlCall = {
     // Expands the select list first in case there is a star(*).
     // Validates the select first to register the where scope.
@@ -273,16 +423,19 @@ object PreValidateReWriter {
     val sourceList = validator.expandStar(select.getSelectList, select, false).getList
 
     val fixedNodes = new util.ArrayList[SqlNode]
-    val currentNodes =
+    val currentNodes = {
       if (targetPosition.isEmpty) {
         new util.ArrayList[SqlNode](sourceList)
       } else {
         reorder(new util.ArrayList[SqlNode](sourceList), targetPosition)
       }
+    }
     (0 until targetRowType.getFieldList.length).foreach {
       idx =>
         if (assignedFields.containsKey(idx)) {
           fixedNodes.add(assignedFields.get(idx))
+        } else if (partialSupplier.contains(idx)) {
+          fixedNodes.add(partialSupplier.get(idx).apply(sourceList))
         } else if (currentNodes.size() > 0) {
           fixedNodes.add(currentNodes.remove(0))
         }
@@ -300,6 +453,7 @@ object PreValidateReWriter {
       values: SqlCall,
       targetRowType: RelDataType,
       assignedFields: util.LinkedHashMap[Integer, SqlNode],
+      partialSupplier: util.LinkedHashMap[Integer, util.List[SqlNode] => SqlNode],
       targetPosition: util.List[Int]): SqlCall = {
     val fixedNodes = new util.ArrayList[SqlNode]
     (0 until values.getOperandList.size()).foreach {
@@ -321,6 +475,8 @@ object PreValidateReWriter {
           fieldIdx =>
             if (assignedFields.containsKey(fieldIdx)) {
               fieldNodes.add(assignedFields.get(fieldIdx))
+            } else if (partialSupplier.contains(fieldIdx)) {
+              fieldNodes.add(partialSupplier.get(fieldIdx).apply(valueAsList))
             } else if (currentNodes.size() > 0) {
               fieldNodes.add(currentNodes.remove(0))
             }

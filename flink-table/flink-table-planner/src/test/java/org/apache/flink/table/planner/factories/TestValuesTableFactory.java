@@ -1933,18 +1933,14 @@ public final class TestValuesTableFactory
                 assertThat(runtimeSink.equals("SinkFunction")).isTrue();
                 SinkFunction<RowData> sinkFunction;
                 if (primaryKeyIndices.length > 0) {
-                    // TODO FLINK-31301 currently partial-insert composite columns are not supported
-                    int[][] targetColumns = context.getTargetColumns().orElse(new int[0][]);
-                    checkArgument(
-                            Arrays.stream(targetColumns).allMatch(subArr -> subArr.length <= 1),
-                            "partial-insert composite columns are not supported yet!");
+                    int[][] targetColumns = context.getTargetColumns().orElse(new int[0][0]);
 
                     sinkFunction =
                             new KeyedUpsertingSinkFunction(
                                     tableName,
                                     converter,
                                     primaryKeyIndices,
-                                    Arrays.stream(targetColumns).mapToInt(a -> a[0]).toArray(),
+                                    targetColumns,
                                     expectedNum,
                                     tableSchema.getFieldCount());
                 } else {

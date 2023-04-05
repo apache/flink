@@ -52,7 +52,6 @@ import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.types.RowUtils;
-import org.apache.flink.util.StringUtils;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -70,6 +69,7 @@ import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.planner.factories.TestValuesTableFactory.RESOURCE_COUNTER;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -84,8 +84,9 @@ final class TestValuesRuntimeFunctions {
     // [table_name, [task_id, List[value]]]
     private static final Map<String, Map<Integer, List<String>>> globalRawResult = new HashMap<>();
     // [table_name, [task_id, Map[key, value]]]
-    private static final Map<String, Map<Integer, Map<String, String>>> globalUpsertResult =
+    private static final Map<String, Map<Integer, Map<String, Row>>> globalUpsertResult =
             new HashMap<>();
+
     // [table_name, [task_id, List[value]]]
     private static final Map<String, Map<Integer, List<String>>> globalRetractResult =
             new HashMap<>();
@@ -134,7 +135,12 @@ final class TestValuesRuntimeFunctions {
                 globalUpsertResult
                         .get(tableName)
                         .values()
-                        .forEach(map -> result.addAll(map.values()));
+                        .forEach(
+                                map ->
+                                        result.addAll(
+                                                map.values().stream()
+                                                        .map(Row::toString)
+                                                        .collect(Collectors.toList())));
             } else if (globalRetractResult.containsKey(tableName)) {
                 globalRetractResult.get(tableName).values().forEach(result::addAll);
             } else if (globalRawResult.containsKey(tableName)) {
@@ -365,19 +371,19 @@ final class TestValuesRuntimeFunctions {
         private static final long serialVersionUID = 1L;
         private final DataStructureConverter converter;
         private final int[] keyIndices;
-        private final int[] targetColumnIndices;
+        private final int[][] targetColumnIndices;
         private final int expectedSize;
         private final int totalColumns;
 
         // [key, value] map result
-        private transient Map<String, String> localUpsertResult;
+        private transient Map<String, Row> localUpsertResult;
         private transient int receivedNum;
 
         protected KeyedUpsertingSinkFunction(
                 String tableName,
                 DataStructureConverter converter,
                 int[] keyIndices,
-                int[] targetColumnIndices,
+                int[][] targetColumnIndices,
                 int expectedSize,
                 int totalColumns) {
             super(tableName);
@@ -428,10 +434,10 @@ final class TestValuesRuntimeFunctions {
                                         row,
                                         targetColumnIndices));
                     } else {
-                        localUpsertResult.put(key.toString(), row.toString());
+                        localUpsertResult.put(key.toString(), row);
                     }
                 } else {
-                    String oldValue = localUpsertResult.remove(key.toString());
+                    Row oldValue = localUpsertResult.remove(key.toString());
                     if (oldValue == null) {
                         throw new RuntimeException(
                                 "Tried to delete a value that wasn't inserted first. "
@@ -447,27 +453,36 @@ final class TestValuesRuntimeFunctions {
             }
         }
 
-        private String updateRowValue(String old, Row newRow, int[] targetColumnIndices) {
-            if (StringUtils.isNullOrWhitespaceOnly(old)) {
+        private Row updateRowValue(Row oldRow, Row newRow, int[][] targetColumnIndices) {
+            if (oldRow == null) {
                 // no old value, just return current
-                return newRow.toString();
+                return newRow;
             } else {
-                String[] oldCols =
-                        org.apache.commons.lang3.StringUtils.splitByWholeSeparatorPreserveAllTokens(
-                                old, ", ");
-                assert oldCols.length == totalColumns;
-                // exist old value, simply simulate an update
+                // exist old value, update according to the target column indices
                 for (int i = 0; i < targetColumnIndices.length; i++) {
-                    int idx = targetColumnIndices[i];
-                    if (idx == 0) {
-                        oldCols[idx] = String.format("+I[%s", newRow.getField(idx));
-                    } else if (idx == totalColumns - 1) {
-                        oldCols[idx] = String.format("%s]", newRow.getField(idx));
-                    } else {
-                        oldCols[idx] = (String) newRow.getField(idx);
-                    }
+                    int[] path = targetColumnIndices[i];
+                    Object nestedValue = getNestedRow(newRow, path, 0);
+                    updateRow(oldRow, nestedValue, path, 0);
                 }
-                return String.join(", ", oldCols);
+            }
+            return oldRow;
+        }
+
+        private Object getNestedRow(Row row, int[] path, int index) {
+            if (index == path.length - 1) {
+                return row.getField(path[index]);
+            } else {
+                Row nestedRow = (Row) row.getField(path[index]);
+                return getNestedRow(nestedRow, path, index + 1);
+            }
+        }
+
+        private void updateRow(Row row, Object value, int[] path, int index) {
+            if (index == path.length - 1) {
+                row.setField(path[index], value);
+            } else {
+                Row nestedRow = (Row) row.getField(path[index]);
+                updateRow(nestedRow, value, path, index + 1);
             }
         }
     }
