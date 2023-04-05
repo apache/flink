@@ -755,6 +755,25 @@ public class DateTimeUtils {
         }
     }
 
+    public static String formatDateString(Integer date, String toFormat) {
+
+        final StringBuilder buf = new StringBuilder(10);
+        formatDate(buf, date);
+        TimeZone timeZone = TimeZone.getTimeZone(ZoneId.of("UTC"));
+        SimpleDateFormat fromFormatter = FORMATTER_CACHE.get(DATE_FORMAT_STRING);
+        fromFormatter.setTimeZone(timeZone);
+        SimpleDateFormat toFormatter = FORMATTER_CACHE.get(toFormat);
+        toFormatter.setTimeZone(timeZone);
+        try {
+            return toFormatter.format(fromFormatter.parse(buf.toString()));
+        } catch (ParseException e) {
+            LOG.error(
+                    "Exception when formatting: '" + date.toString() + "' to: '" + toFormat + "'",
+                    e);
+            return null;
+        }
+    }
+
     public static String formatTimestampString(String dateStr, String toFormat, TimeZone tz) {
         // use yyyy-MM-dd HH:mm:ss as default
         return formatTimestampString(dateStr, TIMESTAMP_FORMAT_STRING, toFormat, tz);

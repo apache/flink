@@ -399,18 +399,19 @@ public final class Expressions {
     }
 
     /**
-     * Formats a timestamp as a string using a specified format. The format must be compatible with
-     * MySQL's date formatting syntax as used by the date_parse function.
+     * Formats a date, timestamp or string as a string using a specified format. The format must be
+     * compatible with MySQL's date formatting syntax as used by the date_parse function.
      *
      * <p>For example {@code dataFormat($("time"), "%Y, %d %M")} results in strings formatted as
      * "2017, 05 May".
      *
-     * @param timestamp The timestamp to format as string.
+     * @param dateExpr A date, timestamp or string. If a string, the data must be in a format that
+     *     can be cast to a timestamp
      * @param format The format of the string.
      * @return The formatted timestamp as string.
      */
-    public static ApiExpression dateFormat(Object timestamp, Object format) {
-        return apiCall(BuiltInFunctionDefinitions.DATE_FORMAT, timestamp, format);
+    public static ApiExpression dateFormat(Object dateExpr, Object format) {
+        return apiCall(BuiltInFunctionDefinitions.DATE_FORMAT, dateExpr, format);
     }
 
     /**

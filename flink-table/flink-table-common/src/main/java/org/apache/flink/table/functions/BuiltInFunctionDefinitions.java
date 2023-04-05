@@ -1631,6 +1631,9 @@ public final class BuiltInFunctionDefinitions {
                     .inputTypeStrategy(
                             or(
                                     sequence(
+                                            logical(LogicalTypeRoot.DATE),
+                                            logical(LogicalTypeFamily.CHARACTER_STRING)),
+                                    sequence(
                                             logical(LogicalTypeFamily.TIMESTAMP),
                                             logical(LogicalTypeFamily.CHARACTER_STRING)),
                                     sequence(

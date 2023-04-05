@@ -28,6 +28,7 @@ import org.apache.flink.table.types.logical.TimestampType;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.ARRAY;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BIGINT;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BOOLEAN;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.DATE;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.DECIMAL;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTEGER;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.MAP;
@@ -84,6 +85,10 @@ public class TypeCheckUtils {
 
     public static boolean isTimestamp(LogicalType type) {
         return type.getTypeRoot() == TIMESTAMP_WITHOUT_TIME_ZONE;
+    }
+
+    public static boolean isDate(LogicalType type) {
+        return type.getTypeRoot() == DATE;
     }
 
     public static boolean isTimestampWithLocalZone(LogicalType type) {

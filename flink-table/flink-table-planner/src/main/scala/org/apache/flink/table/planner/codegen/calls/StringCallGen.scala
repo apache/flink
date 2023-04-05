@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.codegen.GenerateUtils.{generateCallIfArgsN
 import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens._
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable._
 import org.apache.flink.table.runtime.functions.SqlFunctionUtils
-import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isCharacterString, isTimestamp, isTimestampWithLocalZone}
+import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isCharacterString, isDate, isTimestamp, isTimestampWithLocalZone}
 import org.apache.flink.table.types.logical._
 
 import org.apache.calcite.sql.SqlOperator
@@ -219,6 +219,12 @@ object StringCallGen {
             isTimestampWithLocalZone(operands.head.resultType) &&
             isCharacterString(operands(1).resultType) =>
         methodGen(BuiltInMethods.FORMAT_TIMESTAMP_DATA_WITH_TIME_ZONE)
+
+      case DATE_FORMAT
+          if operands.size == 2 &&
+            isDate(operands.head.resultType) &&
+            isCharacterString(operands(1).resultType) =>
+        methodGen(BuiltInMethods.FORMAT_DATE_STRING_FORMAT_STRING_STRING)
 
       case DATE_FORMAT
           if operands.size == 2 &&

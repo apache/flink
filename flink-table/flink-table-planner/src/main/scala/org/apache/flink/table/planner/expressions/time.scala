@@ -217,11 +217,11 @@ case class TemporalOverlaps(
   }
 }
 
-case class DateFormat(timestamp: PlannerExpression, format: PlannerExpression)
+case class DateFormat(dateExpr: PlannerExpression, format: PlannerExpression)
   extends PlannerExpression {
-  override private[flink] def children = timestamp :: format :: Nil
+  override private[flink] def children = dateExpr :: format :: Nil
 
-  override def toString: String = s"$timestamp.dateFormat($format)"
+  override def toString: String = s"$dateExpr.dateFormat($format)"
 
   override private[flink] def resultType = STRING_TYPE_INFO
 }

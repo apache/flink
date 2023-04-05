@@ -290,6 +290,13 @@ object BuiltInMethods {
     classOf[TimestampData],
     classOf[String])
 
+  val FORMAT_DATE_STRING_FORMAT_STRING_STRING =
+    Types.lookupMethod(
+      classOf[DateTimeUtils],
+      "formatDateString",
+      classOf[Integer],
+      classOf[String])
+
   val FORMAT_TIMESTAMP_DATA_WITH_TIME_ZONE = Types.lookupMethod(
     classOf[DateTimeUtils],
     "formatTimestamp",

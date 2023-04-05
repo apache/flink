@@ -545,15 +545,16 @@ trait ImplicitExpressionConversions {
    *
    * For example dataFormat('time, "%Y, %d %M") results in strings formatted as "2017, 05 May".
    *
-   * @param timestamp
-   *   The timestamp to format as string.
+   * @param dateExpr
+   *   A date, timestamp or string. If a string, the data must be in a format that can be cast to a
+   *   timestamp.
    * @param format
    *   The format of the string.
    * @return
    *   The formatted timestamp as string.
    */
-  def dateFormat(timestamp: Expression, format: Expression): Expression = {
-    Expressions.dateFormat(timestamp, format)
+  def dateFormat(dateExpr: Expression, format: Expression): Expression = {
+    Expressions.dateFormat(dateExpr, format)
   }
 
   /**
