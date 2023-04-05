@@ -1104,7 +1104,7 @@ paths:
         required: false
         style: form
         schema:
-          $ref: '#/components/schemas/Type'
+          $ref: '#/components/schemas/ThreadStates'
       - name: subtaskindex
         in: query
         description: Positive integer value that identifies a subtask.
@@ -3287,6 +3287,12 @@ components:
           type: string
         threadName:
           type: string
+    ThreadStates:
+      type: string
+      enum:
+      - FULL
+      - ON_CPU
+      - OFF_CPU
     TriggerId:
       pattern: "[0-9a-f]{32}"
       type: string
@@ -3295,12 +3301,6 @@ components:
       properties:
         request-id:
           $ref: '#/components/schemas/TriggerId'
-    Type:
-      type: string
-      enum:
-      - FULL
-      - ON_CPU
-      - OFF_CPU
     UploadStatus:
       type: string
       enum:
