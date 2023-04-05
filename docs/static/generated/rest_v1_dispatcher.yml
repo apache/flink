@@ -1681,6 +1681,17 @@ components:
         processed:
           type: integer
           format: int64
+    CheckpointAlignmentSummary:
+      type: object
+      properties:
+        buffered:
+          $ref: '#/components/schemas/StatsSummaryDto'
+        duration:
+          $ref: '#/components/schemas/StatsSummaryDto'
+        persisted:
+          $ref: '#/components/schemas/StatsSummaryDto'
+        processed:
+          $ref: '#/components/schemas/StatsSummaryDto'
     CheckpointConfigInfo:
       type: object
       properties:
@@ -1730,6 +1741,13 @@ components:
         sync:
           type: integer
           format: int64
+    CheckpointDurationSummary:
+      type: object
+      properties:
+        async:
+          $ref: '#/components/schemas/StatsSummaryDto'
+        sync:
+          $ref: '#/components/schemas/StatsSummaryDto'
     CheckpointInfo:
       type: object
       properties:
@@ -1792,6 +1810,21 @@ components:
           format: int64
       discriminator:
         propertyName: className
+    CheckpointStatisticsSummary:
+      type: object
+      properties:
+        alignment_buffered:
+          $ref: '#/components/schemas/StatsSummaryDto'
+        checkpointed_size:
+          $ref: '#/components/schemas/StatsSummaryDto'
+        end_to_end_duration:
+          $ref: '#/components/schemas/StatsSummaryDto'
+        persisted_data:
+          $ref: '#/components/schemas/StatsSummaryDto'
+        processed_data:
+          $ref: '#/components/schemas/StatsSummaryDto'
+        state_size:
+          $ref: '#/components/schemas/StatsSummaryDto'
     CheckpointStatsStatus:
       type: string
       enum:
@@ -1823,7 +1856,7 @@ components:
         latest:
           $ref: '#/components/schemas/LatestCheckpoints'
         summary:
-          $ref: '#/components/schemas/Summary'
+          $ref: '#/components/schemas/CheckpointStatisticsSummary'
     ClusterDataSetEntry:
       type: object
       properties:
@@ -2323,7 +2356,38 @@ components:
         vertices:
           type: array
           items:
-            $ref: '#/components/schemas/JobVertexDetailsInfo'
+            $ref: '#/components/schemas/JobDetailsVertexInfo'
+    JobDetailsVertexInfo:
+      type: object
+      properties:
+        duration:
+          type: integer
+          format: int64
+        end-time:
+          type: integer
+          format: int64
+        id:
+          $ref: '#/components/schemas/JobVertexID'
+        maxParallelism:
+          type: integer
+          format: int32
+        metrics:
+          $ref: '#/components/schemas/IOMetricsInfo'
+        name:
+          type: string
+        parallelism:
+          type: integer
+          format: int32
+        start-time:
+          type: integer
+          format: int64
+        status:
+          $ref: '#/components/schemas/ExecutionState'
+        tasks:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int32
     JobExceptionHistory:
       type: object
       properties:
@@ -2492,6 +2556,33 @@ components:
       properties:
         parallelism:
           $ref: '#/components/schemas/Parallelism'
+    JobVertexTaskManagerInfo:
+      type: object
+      properties:
+        aggregated:
+          $ref: '#/components/schemas/AggregatedTaskDetailsInfo'
+        duration:
+          type: integer
+          format: int64
+        end-time:
+          type: integer
+          format: int64
+        host:
+          type: string
+        metrics:
+          $ref: '#/components/schemas/IOMetricsInfo'
+        start-time:
+          type: integer
+          format: int64
+        status:
+          $ref: '#/components/schemas/ExecutionState'
+        status-counts:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int32
+        taskmanager-id:
+          type: string
     JobVertexTaskManagersInfo:
       type: object
       properties:
@@ -2505,7 +2596,7 @@ components:
         taskmanagers:
           type: array
           items:
-            $ref: '#/components/schemas/TaskManagersInfo'
+            $ref: '#/components/schemas/JobVertexTaskManagerInfo'
     LatestCheckpoints:
       type: object
       properties:
@@ -2909,21 +3000,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/SubtaskTimeInfo'
-    Summary:
-      type: object
-      properties:
-        alignment:
-          $ref: '#/components/schemas/CheckpointAlignment'
-        checkpoint_duration:
-          $ref: '#/components/schemas/CheckpointDuration'
-        checkpointed_size:
-          $ref: '#/components/schemas/StatsSummaryDto'
-        end_to_end_duration:
-          $ref: '#/components/schemas/StatsSummaryDto'
-        start_delay:
-          $ref: '#/components/schemas/StatsSummaryDto'
-        state_size:
-          $ref: '#/components/schemas/StatsSummaryDto'
     TaskCheckpointStatistics:
       type: object
       properties:
@@ -2999,7 +3075,22 @@ components:
           items:
             $ref: '#/components/schemas/SubtaskCheckpointStatistics'
         summary:
-          $ref: '#/components/schemas/Summary'
+          $ref: '#/components/schemas/TaskCheckpointStatisticsWithSubtaskDetailsSummary'
+    TaskCheckpointStatisticsWithSubtaskDetailsSummary:
+      type: object
+      properties:
+        alignment:
+          $ref: '#/components/schemas/CheckpointAlignmentSummary'
+        checkpoint_duration:
+          $ref: '#/components/schemas/CheckpointDurationSummary'
+        checkpointed_size:
+          $ref: '#/components/schemas/StatsSummaryDto'
+        end_to_end_duration:
+          $ref: '#/components/schemas/StatsSummaryDto'
+        start_delay:
+          $ref: '#/components/schemas/StatsSummaryDto'
+        state_size:
+          $ref: '#/components/schemas/StatsSummaryDto'
     TaskExecutorMemoryConfiguration:
       type: object
       properties:

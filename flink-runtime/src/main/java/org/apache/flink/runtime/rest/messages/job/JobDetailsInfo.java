@@ -38,6 +38,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonRaw
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
@@ -259,6 +261,7 @@ public class JobDetailsInfo implements ResponseBody {
     // ---------------------------------------------------
 
     /** Detailed information about a job vertex. */
+    @Schema(name = "JobDetailsVertexInfo")
     public static final class JobVertexDetailsInfo {
 
         public static final String FIELD_NAME_JOB_VERTEX_ID = "id";

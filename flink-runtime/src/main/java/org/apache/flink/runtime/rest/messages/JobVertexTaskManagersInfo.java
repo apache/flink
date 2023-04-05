@@ -30,6 +30,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
@@ -96,6 +98,7 @@ public class JobVertexTaskManagersInfo implements ResponseBody {
     // ---------------------------------------------------
 
     /** Detailed information about task managers. */
+    @Schema(name = "JobVertexTaskManagerInfo")
     public static class TaskManagersInfo {
         public static final String TASK_MANAGERS_FIELD_HOST = "host";
         public static final String TASK_MANAGERS_FIELD_STATUS = "status";
