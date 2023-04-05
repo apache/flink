@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.rest.messages;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.Arrays;
 
 /** Flame Graph type query parameter. */
@@ -48,6 +50,7 @@ public class FlameGraphTypeQueryParameter
     }
 
     /** Flame Graph type. */
+    @Schema(name = "ThreadStates")
     public enum Type {
         /** Type of the Flame Graph that includes threads in all possible states. */
         FULL,
