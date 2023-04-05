@@ -21,6 +21,10 @@ package org.apache.flink.docs.rest;
 import org.apache.flink.docs.rest.data.TestAdditionalFieldsMessageHeaders;
 import org.apache.flink.docs.rest.data.TestEmptyMessageHeaders;
 import org.apache.flink.docs.rest.data.TestExcludeMessageHeaders;
+import org.apache.flink.docs.rest.data.clash.inner.TestNameClashingMessageHeaders1;
+import org.apache.flink.docs.rest.data.clash.inner.TestNameClashingMessageHeaders2;
+import org.apache.flink.docs.rest.data.clash.top.pkg1.TestTopLevelNameClashingMessageHeaders1;
+import org.apache.flink.docs.rest.data.clash.top.pkg2.TestTopLevelNameClashingMessageHeaders2;
 import org.apache.flink.runtime.rest.util.DocumentingRestEndpoint;
 import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
 
@@ -117,5 +121,33 @@ class OpenApiSpecGeneratorTest {
                         x ->
                                 assertThat(x.getAdditionalProperties())
                                         .isInstanceOf(StringSchema.class));
+    }
+
+    @Test
+    void testModelNameClashByInnerClassesDetected() {
+        assertThatThrownBy(
+                        () ->
+                                OpenApiSpecGenerator.createDocumentation(
+                                        "title",
+                                        DocumentingRestEndpoint.forRestHandlerSpecifications(
+                                                new TestNameClashingMessageHeaders1(),
+                                                new TestNameClashingMessageHeaders2()),
+                                        RuntimeRestAPIVersion.V0))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("clash");
+    }
+
+    @Test
+    void testModelNameClashByTopLevelClassesDetected() {
+        assertThatThrownBy(
+                        () ->
+                                OpenApiSpecGenerator.createDocumentation(
+                                        "title",
+                                        DocumentingRestEndpoint.forRestHandlerSpecifications(
+                                                new TestTopLevelNameClashingMessageHeaders1(),
+                                                new TestTopLevelNameClashingMessageHeaders2()),
+                                        RuntimeRestAPIVersion.V0))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("clash");
     }
 }
