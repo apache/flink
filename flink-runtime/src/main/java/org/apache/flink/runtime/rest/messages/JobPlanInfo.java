@@ -87,7 +87,8 @@ public class JobPlanInfo implements ResponseBody {
     public static final class RawJson {
         private final String json;
 
-        private RawJson(String json) {
+        @JsonIgnore
+        public RawJson(String json) {
             this.json = json;
         }
 
