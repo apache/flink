@@ -20,6 +20,10 @@ package org.apache.flink.docs.rest;
 
 import org.apache.flink.docs.rest.data.TestEmptyMessageHeaders;
 import org.apache.flink.docs.rest.data.TestExcludeMessageHeaders;
+import org.apache.flink.docs.rest.data.clash.inner.TestNameClashingMessageHeaders1;
+import org.apache.flink.docs.rest.data.clash.inner.TestNameClashingMessageHeaders2;
+import org.apache.flink.docs.rest.data.clash.top.pkg1.TestTopLevelNameClashingMessageHeaders1;
+import org.apache.flink.docs.rest.data.clash.top.pkg2.TestTopLevelNameClashingMessageHeaders2;
 import org.apache.flink.runtime.rest.util.DocumentingRestEndpoint;
 import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
 import org.apache.flink.util.FileUtils;
@@ -27,6 +31,7 @@ import org.apache.flink.util.FileUtils;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
+import java.io.IOException;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
@@ -96,5 +101,37 @@ class OpenApiSpecGeneratorTest {
                                         file.toPath()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Duplicate OperationId");
+    }
+
+    @Test
+    void testModelNameClashByInnerClassesDetected() throws IOException {
+        File file = File.createTempFile("rest_v0_", ".html");
+        assertThatThrownBy(
+                        () ->
+                                OpenApiSpecGenerator.createDocumentationFile(
+                                        "title",
+                                        DocumentingRestEndpoint.forRestHandlerSpecifications(
+                                                new TestNameClashingMessageHeaders1(),
+                                                new TestNameClashingMessageHeaders2()),
+                                        RuntimeRestAPIVersion.V0,
+                                        file.toPath()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("clash");
+    }
+
+    @Test
+    void testModelNameClashByTopLevelClassesDetected() throws IOException {
+        File file = File.createTempFile("rest_v0_", ".html");
+        assertThatThrownBy(
+                        () ->
+                                OpenApiSpecGenerator.createDocumentationFile(
+                                        "title",
+                                        DocumentingRestEndpoint.forRestHandlerSpecifications(
+                                                new TestTopLevelNameClashingMessageHeaders1(),
+                                                new TestTopLevelNameClashingMessageHeaders2()),
+                                        RuntimeRestAPIVersion.V0,
+                                        file.toPath()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("clash");
     }
 }

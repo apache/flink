@@ -51,6 +51,7 @@ import io.swagger.v3.core.converter.AnnotatedType;
 import io.swagger.v3.core.converter.ModelConverterContext;
 import io.swagger.v3.core.converter.ModelConverterContextImpl;
 import io.swagger.v3.core.jackson.ModelResolver;
+import io.swagger.v3.core.jackson.TypeNameResolver;
 import io.swagger.v3.core.util.Yaml;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
@@ -103,7 +104,10 @@ public class OpenApiSpecGenerator {
                 JacksonMapperFactory.createObjectMapper()
                         .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
         modelConverterContext =
-                new ModelConverterContextImpl(Collections.singletonList(new ModelResolver(mapper)));
+                new ModelConverterContextImpl(
+                        Collections.singletonList(
+                                new ModelResolver(
+                                        mapper, new NameClashDetectingTypeNameResolver())));
     }
 
     @VisibleForTesting
@@ -467,5 +471,31 @@ public class OpenApiSpecGenerator {
                 return PathItem.HttpMethod.PUT;
         }
         throw new IllegalArgumentException("not supported");
+    }
+
+    /** A {@link TypeNameResolver} that detects name-clashes between top-level and inner classes. */
+    public static class NameClashDetectingTypeNameResolver extends TypeNameResolver {
+        private final Map<String, String> seenClassNamesToFQCN = new HashMap<>();
+
+        @Override
+        protected String getNameOfClass(Class<?> cls) {
+            final String modelName = super.getNameOfClass(cls);
+
+            final String fqcn = cls.getCanonicalName();
+            final String previousFqcn = seenClassNamesToFQCN.put(modelName, fqcn);
+
+            if (previousFqcn != null && !fqcn.equals(previousFqcn)) {
+                throw new IllegalStateException(
+                        String.format(
+                                "Detected name clash for model name '%s'.%n"
+                                        + "\tClasses:%n"
+                                        + "\t\t- %s%n"
+                                        + "\t\t- %s%n"
+                                        + "\tEither rename the classes or annotate them with '%s' and set a unique 'name'.",
+                                modelName, fqcn, previousFqcn, Schema.class.getCanonicalName()));
+            }
+
+            return modelName;
+        }
     }
 }
