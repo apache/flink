@@ -30,6 +30,7 @@ import java.util.UUID;
 public class TestingContender extends TestingLeaderBase implements LeaderContender {
     private static final Logger LOG = LoggerFactory.getLogger(TestingContender.class);
 
+    private final String contenderID;
     private final String address;
     private final LeaderElectionService leaderElectionService;
     private LeaderElectionService.LeaderElection leaderElection;
@@ -38,13 +39,21 @@ public class TestingContender extends TestingLeaderBase implements LeaderContend
 
     public TestingContender(
             final String address, final LeaderElectionService leaderElectionService) {
+        this("contenderID", address, leaderElectionService);
+    }
+
+    public TestingContender(
+            final String contenderID,
+            final String address,
+            final LeaderElectionService leaderElectionService) {
+        this.contenderID = contenderID;
         this.address = address;
         this.leaderElectionService = leaderElectionService;
     }
 
     public LeaderElectionService.LeaderElection startLeaderElection() throws Exception {
         leaderElectionService.startLeaderElectionBackend();
-        leaderElection = leaderElectionService.createLeaderElection("contenderID");
+        leaderElection = leaderElectionService.createLeaderElection(contenderID);
         leaderElection.register(this);
         leaderElection.startLeaderElection();
 
