@@ -74,7 +74,8 @@ class FileSystemBlobStoreTest {
 
         final JobID jobId = new JobID();
         final BlobKey blobKey = createPermanentBlobKeyFromFile(temporaryFile);
-        assertThat(getBlobDirectoryPath()).isEmptyDirectory();
+        // Blob store operations are creating the base directory on-the-fly
+        assertThat(getBlobDirectoryPath()).doesNotExist();
 
         final boolean successfullyWritten =
                 testInstance.put(temporaryFile.toFile(), jobId, blobKey);

@@ -44,12 +44,13 @@ mkdir tmp
 cd tmp
 
 integrate_connector_docs elasticsearch v3.0.0
-integrate_connector_docs aws v4.0
+integrate_connector_docs aws v4.1.0-docs
 integrate_connector_docs cassandra v3.0.0
 integrate_connector_docs pulsar main
 integrate_connector_docs jdbc v3.0.0
 integrate_connector_docs rabbitmq v3.0.0
 integrate_connector_docs gcp-pubsub v3.0.0
+integrate_connector_docs mongodb v1.0.0-docs
 
 cd ..
 rm -rf tmp

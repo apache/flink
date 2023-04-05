@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.jdbc;
 
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.sql.SQLException;
@@ -38,8 +39,7 @@ import static org.apache.flink.table.jdbc.utils.DriverUtils.isNullOrWhitespaceOn
 public class DriverUri {
     private static final String URL_PREFIX = "jdbc:";
     private static final String URL_START = URL_PREFIX + "flink:";
-    private final String host;
-    private final int port;
+    private final InetSocketAddress address;
     private final URI uri;
 
     private final Properties properties;
@@ -53,19 +53,14 @@ public class DriverUri {
 
     private DriverUri(URI uri, Properties driverProperties) throws SQLException {
         this.uri = checkNotNull(uri, "uri is null");
-        this.host = uri.getHost();
-        this.port = uri.getPort();
+        this.address = new InetSocketAddress(uri.getHost(), uri.getPort());
         this.properties = mergeDynamicProperties(uri, driverProperties);
 
         initCatalogAndSchema();
     }
 
-    public String getHost() {
-        return host;
-    }
-
-    public int getPort() {
-        return port;
+    public InetSocketAddress getAddress() {
+        return address;
     }
 
     public Properties getProperties() {

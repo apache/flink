@@ -44,6 +44,8 @@ import org.apache.flink.runtime.rest.SessionRestEndpointFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcSystemUtils;
+import org.apache.flink.runtime.security.token.ExceptionThrowingDelegationTokenProvider;
+import org.apache.flink.runtime.security.token.ExceptionThrowingDelegationTokenReceiver;
 import org.apache.flink.runtime.testutils.TestJvmProcess;
 import org.apache.flink.runtime.testutils.TestingClusterEntrypointProcess;
 import org.apache.flink.runtime.util.SignalHandler;
@@ -53,6 +55,7 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -89,6 +92,14 @@ public class ClusterEntrypointTest extends TestLogger {
     @Before
     public void before() {
         flinkConfig = new Configuration();
+        ExceptionThrowingDelegationTokenProvider.reset();
+        ExceptionThrowingDelegationTokenReceiver.reset();
+    }
+
+    @After
+    public void after() {
+        ExceptionThrowingDelegationTokenProvider.reset();
+        ExceptionThrowingDelegationTokenReceiver.reset();
     }
 
     @Test(expected = IllegalConfigurationException.class)
@@ -96,6 +107,28 @@ public class ClusterEntrypointTest extends TestLogger {
         flinkConfig.set(JobManagerOptions.SCHEDULER_MODE, SchedulerExecutionMode.REACTIVE);
         new TestingEntryPoint.Builder().setConfiguration(flinkConfig).build();
         fail("Entrypoint initialization is supposed to fail");
+    }
+
+    @Test
+    public void testClusterStartShouldObtainTokens() throws Exception {
+        ExceptionThrowingDelegationTokenProvider.addToken.set(true);
+        final HighAvailabilityServices testingHaService =
+                new TestingHighAvailabilityServicesBuilder().build();
+        final TestingEntryPoint testingEntryPoint =
+                new TestingEntryPoint.Builder()
+                        .setConfiguration(flinkConfig)
+                        .setHighAvailabilityServices(testingHaService)
+                        .build();
+
+        final CompletableFuture<ApplicationStatus> appStatusFuture =
+                startClusterEntrypoint(testingEntryPoint);
+
+        testingEntryPoint.closeAsync();
+        assertThat(
+                appStatusFuture.get(TIMEOUT_MS, TimeUnit.MILLISECONDS),
+                is(ApplicationStatus.UNKNOWN));
+        assertThat(
+                ExceptionThrowingDelegationTokenReceiver.onNewTokensObtainedCallCount.get(), is(1));
     }
 
     @Test

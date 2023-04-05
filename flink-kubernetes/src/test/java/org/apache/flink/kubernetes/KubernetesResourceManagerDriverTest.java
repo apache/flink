@@ -185,6 +185,18 @@ class KubernetesResourceManagerDriverTest
     }
 
     @Test
+    void testOnPodDeletedBeforeScheduled() throws Exception {
+        new Context() {
+            {
+                // If the pod is deleted during the pending phase, we cannot detect the pod is
+                // terminated because its status won't be updated, but should handle the deleted
+                // event
+                testOnPodTerminated((pod) -> getPodCallbackHandler().onDeleted(pod), false, false);
+            }
+        };
+    }
+
+    @Test
     void testOnError() throws Exception {
         new Context() {
             {
@@ -499,6 +511,14 @@ class KubernetesResourceManagerDriverTest
 
         void testOnPodTerminated(Consumer<List<KubernetesPod>> sendPodTerminatedEvent)
                 throws Exception {
+            testOnPodTerminated(sendPodTerminatedEvent, true, true);
+        }
+
+        void testOnPodTerminated(
+                Consumer<List<KubernetesPod>> sendPodTerminatedEvent,
+                boolean isPodScheduled,
+                boolean isPodTerminated)
+                throws Exception {
             final CompletableFuture<KubernetesWorkerNode> requestResourceFuture =
                     new CompletableFuture<>();
             final CompletableFuture<ResourceID> onWorkerTerminatedConsumer =
@@ -537,7 +557,8 @@ class KubernetesResourceManagerDriverTest
 
                         sendPodTerminatedEvent.accept(
                                 Collections.singletonList(
-                                        new TestingKubernetesPod(pod.getName(), true, true)));
+                                        new TestingKubernetesPod(
+                                                pod.getName(), isPodScheduled, isPodTerminated)));
 
                         // make sure finishing validation
                         validationFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);

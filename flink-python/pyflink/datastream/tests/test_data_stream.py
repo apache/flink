@@ -676,25 +676,26 @@ class DataStreamTests(object):
                 )
 
             def process_element1(self, value, ctx: 'KeyedCoProcessFunction.Context'):
-                yield value[1]
+                yield ctx.get_current_key(), value[1]
                 self.reducing_state.add(1)
                 yield tag, self.reducing_state.get()
 
             def process_element2(self, value, ctx: 'KeyedCoProcessFunction.Context'):
-                yield value[0]
+                yield ctx.get_current_key(), value[0]
                 self.reducing_state.add(1)
                 yield tag, self.reducing_state.get()
 
         ds3 = ds1.key_by(lambda e: e[0])\
             .connect(ds2.key_by(lambda e: e[1]))\
-            .process(MyKeyedCoProcessFunction(), output_type=Types.INT())
+            .process(MyKeyedCoProcessFunction(),
+                     output_type=Types.TUPLE([Types.STRING(), Types.INT()]))
         main_sink = DataStreamTestSinkFunction()
         ds3.add_sink(main_sink)
         side_sink = DataStreamTestSinkFunction()
         ds3.get_side_output(tag).add_sink(side_sink)
 
         self.env.execute("test_keyed_co_process_side_output")
-        main_expected = ['1', '2', '3', '4', '5', '6', '7', '8']
+        main_expected = ['(a,1)', '(b,2)', '(a,3)', '(b,4)', '(b,5)', '(a,6)', '(b,7)', '(a,8)']
         self.assert_equals_sorted(main_expected, main_sink.get_results())
         side_expected = ['1', '1', '2', '2', '3', '3', '4', '4']
         self.assert_equals_sorted(side_expected, side_sink.get_results())

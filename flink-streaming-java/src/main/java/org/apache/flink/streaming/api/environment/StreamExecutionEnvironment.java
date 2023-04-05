@@ -353,13 +353,13 @@ public class StreamExecutionEnvironment implements AutoCloseable {
 
     /**
      * Sets the maximum degree of parallelism defined for the program. The upper limit (inclusive)
-     * is Short.MAX_VALUE.
+     * is Short.MAX_VALUE + 1.
      *
      * <p>The maximum degree of parallelism specifies the upper limit for dynamic scaling. It also
      * defines the number of key groups used for partitioned state.
      *
      * @param maxParallelism Maximum degree of parallelism to be used for the program., with {@code
-     *     0 < maxParallelism <= 2^15 - 1}.
+     *     0 < maxParallelism <= 2^15}.
      */
     public StreamExecutionEnvironment setMaxParallelism(int maxParallelism) {
         Preconditions.checkArgument(
