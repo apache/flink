@@ -21,7 +21,9 @@ package org.apache.flink.table.jdbc;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.client.gateway.StatementResult;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.jdbc.utils.CloseableResultIterator;
 import org.apache.flink.table.jdbc.utils.DataConverter;
+import org.apache.flink.table.jdbc.utils.StatementResultIterator;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.DecimalType;
 
@@ -49,7 +51,7 @@ public class FlinkResultSet extends BaseResultSet {
     private final List<DataType> dataTypeList;
     private final List<String> columnNameList;
     private final Statement statement;
-    private final StatementResult result;
+    private final CloseableResultIterator<RowData> iterator;
     private final DataConverter dataConverter;
     private final FlinkResultSetMetaData resultSetMetaData;
     private RowData currentRow;
@@ -59,13 +61,24 @@ public class FlinkResultSet extends BaseResultSet {
 
     public FlinkResultSet(
             Statement statement, StatementResult result, DataConverter dataConverter) {
+        this(
+                statement,
+                new StatementResultIterator(result),
+                result.getResultSchema(),
+                dataConverter);
+    }
+
+    public FlinkResultSet(
+            Statement statement,
+            CloseableResultIterator<RowData> iterator,
+            ResolvedSchema schema,
+            DataConverter dataConverter) {
         this.statement = checkNotNull(statement, "Statement cannot be null");
-        this.result = checkNotNull(result, "Statement result cannot be null");
+        this.iterator = checkNotNull(iterator, "Statement result cannot be null");
         this.dataConverter = checkNotNull(dataConverter, "Data converter cannot be null");
         this.currentRow = null;
         this.wasNull = false;
 
-        final ResolvedSchema schema = result.getResultSchema();
         this.dataTypeList = schema.getColumnDataTypes();
         this.columnNameList = schema.getColumnNames();
         this.resultSetMetaData = new FlinkResultSetMetaData(columnNameList, dataTypeList);
@@ -75,9 +88,9 @@ public class FlinkResultSet extends BaseResultSet {
     public boolean next() throws SQLException {
         checkClosed();
 
-        if (result.hasNext()) {
+        if (iterator.hasNext()) {
             // TODO check the kind of currentRow
-            currentRow = result.next();
+            currentRow = iterator.next();
             wasNull = currentRow == null;
             return true;
         } else {
@@ -122,7 +135,11 @@ public class FlinkResultSet extends BaseResultSet {
         }
         closed = true;
 
-        result.close();
+        try {
+            iterator.close();
+        } catch (Exception e) {
+            throw new SQLException("Close result iterator fail", e);
+        }
     }
 
     @Override

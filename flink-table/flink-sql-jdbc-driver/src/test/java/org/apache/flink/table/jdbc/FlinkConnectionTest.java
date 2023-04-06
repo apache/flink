@@ -73,9 +73,8 @@ public class FlinkConnectionTest extends FlinkJdbcDriverTestBase {
     public void testClientInfo() throws Exception {
         Properties properties = new Properties();
         properties.setProperty("key3", "val3");
-        try (FlinkConnection connection =
-                new FlinkConnection(
-                        getDriverUri("jdbc:flink://%s:%s?key1=val1&key2=val2", properties))) {
+        DriverUri driverUri = getDriverUri("jdbc:flink://%s:%s?key1=val1&key2=val2", properties);
+        try (FlinkConnection connection = new FlinkConnection(driverUri)) {
             assertEquals("val1", connection.getClientInfo("key1"));
             assertEquals("val2", connection.getClientInfo("key2"));
             assertEquals("val3", connection.getClientInfo("key3"));
