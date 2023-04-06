@@ -439,7 +439,12 @@ public class TaskManagerRunner implements FatalErrorHandler {
             closeAsync(Result.FAILURE);
 
             FutureUtils.orTimeout(
-                    terminationFuture, FATAL_ERROR_SHUTDOWN_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+                    terminationFuture,
+                    FATAL_ERROR_SHUTDOWN_TIMEOUT_MS,
+                    TimeUnit.MILLISECONDS,
+                    String.format(
+                            "Waiting for TaskManager shutting down timed out after %s ms.",
+                            FATAL_ERROR_SHUTDOWN_TIMEOUT_MS));
         }
     }
 

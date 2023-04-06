@@ -187,7 +187,10 @@ public class CompletedOperationCache<K extends OperationKey, R extends Serializa
                         FutureUtils.orTimeout(
                                 asyncWaitForResultsToBeAccessed(),
                                 cacheDuration.getSeconds(),
-                                TimeUnit.SECONDS);
+                                TimeUnit.SECONDS,
+                                String.format(
+                                        "Waiting for results to be accessed timed out after %s seconds.",
+                                        cacheDuration.getSeconds()));
             }
 
             return terminationFuture;

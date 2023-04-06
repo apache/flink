@@ -259,7 +259,12 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
 
     private static CompletableFuture<Acknowledge> askTimeoutFuture() {
         final CompletableFuture<Acknowledge> future = new CompletableFuture<>();
-        FutureUtils.orTimeout(future, 500, TimeUnit.MILLISECONDS);
+        final long timeout = 500;
+        FutureUtils.orTimeout(
+                future,
+                timeout,
+                TimeUnit.MILLISECONDS,
+                String.format("Future timed out after %s ms.", timeout));
         return future;
     }
 
