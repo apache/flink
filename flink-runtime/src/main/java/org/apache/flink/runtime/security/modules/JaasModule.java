@@ -159,8 +159,6 @@ public class JaasModule implements SecurityModule {
         checkArgument(workingDir != null, "working directory should not be null.");
         final File jaasConfFile;
         try {
-            // TODO (davit): workingDir here is ´$LOCAL_DIRS´. This was temp solved providing by
-            //  disabling io.tmp.dirs attribute from flink-conf.yaml
             Path path = Paths.get(workingDir);
             if (Files.notExists(path)) {
                 // We intentionally favored Path.toRealPath over Files.readSymbolicLinks as the

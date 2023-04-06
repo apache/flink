@@ -1392,6 +1392,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
      */
     @VisibleForTesting
     Path getStagingDir(FileSystem defaultFileSystem) throws IOException {
+        /*
         final String configuredStagingDir =
                 flinkConfiguration.getString(YarnConfigOptions.STAGING_DIRECTORY);
         if (configuredStagingDir == null) {
@@ -1400,6 +1401,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         FileSystem stagingDirFs =
                 new Path(configuredStagingDir).getFileSystem(defaultFileSystem.getConf());
         return stagingDirFs.makeQualified(new Path(configuredStagingDir));
+        */
+        return stagingDir != null ? stagingDir : defaultFileSystem.getHomeDirectory();
     }
 
     private int getFileReplication() {
@@ -1969,9 +1972,17 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         // set Flink app class path
         env.put(ENV_FLINK_CLASSPATH, classPathStr);
         // Set FLINK_LIB_DIR to `lib` folder under working dir in container
-        env.put(ENV_FLINK_LIB_DIR, Path.CUR_DIR + "/" + ConfigConstants.DEFAULT_FLINK_LIB_DIR);
+        env.put(
+                ENV_FLINK_LIB_DIR,
+                System.getenv().getOrDefault(ConfigConstants.ENV_FLINK_HOME_DIR, Path.CUR_DIR)
+                        + "/"
+                        + ConfigConstants.DEFAULT_FLINK_LIB_DIR);
         // Set FLINK_OPT_DIR to `opt` folder under working dir in container
-        env.put(ENV_FLINK_OPT_DIR, Path.CUR_DIR + "/" + ConfigConstants.DEFAULT_FLINK_OPT_DIR);
+        env.put(
+                ENV_FLINK_OPT_DIR,
+                System.getenv().getOrDefault(ConfigConstants.ENV_FLINK_HOME_DIR, Path.CUR_DIR)
+                        + "/"
+                        + ConfigConstants.DEFAULT_FLINK_OPT_DIR);
         // set Flink on YARN internal configuration values
         env.put(YarnConfigKeys.FLINK_DIST_JAR, localFlinkJarStr);
         env.put(YarnConfigKeys.ENV_APP_ID, appIdStr);
