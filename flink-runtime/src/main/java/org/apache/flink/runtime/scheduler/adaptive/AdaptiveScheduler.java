@@ -832,13 +832,15 @@ public class AdaptiveScheduler
     @Override
     public ArchivedExecutionGraph getArchivedExecutionGraph(
             JobStatus jobStatus, @Nullable Throwable cause) {
-        return ArchivedExecutionGraph.createSparseArchivedExecutionGraph(
+        return ArchivedExecutionGraph.createSparseArchivedExecutionGraphWithJobVertices(
                 jobInformation.getJobID(),
                 jobInformation.getName(),
                 jobStatus,
                 cause,
                 jobInformation.getCheckpointingSettings(),
-                initializationTimestamp);
+                initializationTimestamp,
+                jobGraph.getVertices(),
+                initialParallelismStore);
     }
 
     @Override

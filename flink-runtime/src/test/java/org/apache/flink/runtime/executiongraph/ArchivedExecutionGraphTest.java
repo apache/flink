@@ -37,6 +37,8 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.runtime.scheduler.DefaultVertexParallelismInfo;
+import org.apache.flink.runtime.scheduler.DefaultVertexParallelismStore;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
@@ -48,10 +50,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 
@@ -185,6 +189,49 @@ public class ArchivedExecutionGraphTest {
         assertThat(archivedGraph.getCheckpointStatsSnapshot()).isNotNull();
         assertThat(archivedGraph.getCheckpointStorageName().get()).isEqualTo("Unknown");
         assertThat(archivedGraph.getStateBackendName().get()).isEqualTo("Unknown");
+    }
+
+    @Test
+    void testArchiveSparseWithVertices() {
+        final JobVertex jobVertex = new JobVertex("op");
+        jobVertex.setParallelism(1);
+
+        final int storedParallelism = 4;
+        final int storedMaxParallelism = 8;
+        final DefaultVertexParallelismStore initialParallelismStore =
+                new DefaultVertexParallelismStore();
+        initialParallelismStore.setParallelismInfo(
+                jobVertex.getID(),
+                new DefaultVertexParallelismInfo(
+                        storedParallelism, storedMaxParallelism, ignored -> Optional.empty()));
+
+        final ArchivedExecutionGraph archivedGraph =
+                ArchivedExecutionGraph.createSparseArchivedExecutionGraphWithJobVertices(
+                        new JobID(),
+                        "TestJob",
+                        JobStatus.INITIALIZING,
+                        null,
+                        null,
+                        System.currentTimeMillis(),
+                        Arrays.asList(jobVertex),
+                        initialParallelismStore);
+
+        // make sure both vertex retrieval APIs work and are equivalent
+        final ArchivedExecutionJobVertex archivedVertex =
+                archivedGraph.getJobVertex(jobVertex.getID());
+        assertThat(archivedVertex).isNotNull();
+        assertThat(archivedGraph.getVerticesTopologically()).containsExactly(archivedVertex);
+
+        // parallelism store is queried for (max)parallelism
+        assertThat(archivedVertex.getParallelism()).isEqualTo(storedParallelism);
+        assertThat(archivedVertex.getMaxParallelism()).isEqualTo(storedMaxParallelism);
+
+        assertThat(archivedVertex.getName()).isEqualTo(jobVertex.getName());
+
+        // everything related to subtasks returns sane defaults
+        assertThat(archivedVertex.getAggregatedUserAccumulatorsStringified()).hasSize(0);
+        assertThat(archivedVertex.getTaskVertices()).hasSize(0);
+        assertThat(archivedVertex.getAggregateState()).isSameAs(ExecutionState.CREATED);
     }
 
     @Test

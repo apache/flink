@@ -22,11 +22,16 @@ import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
+import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
@@ -362,8 +367,65 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
             @Nullable Throwable throwable,
             @Nullable JobCheckpointingSettings checkpointingSettings,
             long initializationTimestamp) {
-        Map<JobVertexID, ArchivedExecutionJobVertex> archivedTasks = Collections.emptyMap();
-        List<ArchivedExecutionJobVertex> archivedVerticesInCreationOrder = Collections.emptyList();
+        return createSparseArchivedExecutionGraph(
+                jobId,
+                jobName,
+                jobStatus,
+                Collections.emptyMap(),
+                Collections.emptyList(),
+                throwable,
+                checkpointingSettings,
+                initializationTimestamp);
+    }
+
+    public static ArchivedExecutionGraph createSparseArchivedExecutionGraphWithJobVertices(
+            JobID jobId,
+            String jobName,
+            JobStatus jobStatus,
+            @Nullable Throwable throwable,
+            @Nullable JobCheckpointingSettings checkpointingSettings,
+            long initializationTimestamp,
+            Iterable<JobVertex> jobVertices,
+            VertexParallelismStore initialParallelismStore) {
+        final Map<JobVertexID, ArchivedExecutionJobVertex> archivedJobVertices = new HashMap<>();
+        final List<ArchivedExecutionJobVertex> archivedVerticesInCreationOrder = new ArrayList<>();
+        for (JobVertex jobVertex : jobVertices) {
+            final VertexParallelismInformation parallelismInfo =
+                    initialParallelismStore.getParallelismInfo(jobVertex.getID());
+
+            ArchivedExecutionJobVertex archivedJobVertex =
+                    new ArchivedExecutionJobVertex(
+                            new ArchivedExecutionVertex[0],
+                            jobVertex.getID(),
+                            jobVertex.getName(),
+                            parallelismInfo.getParallelism(),
+                            parallelismInfo.getMaxParallelism(),
+                            ResourceProfile.fromResourceSpec(
+                                    jobVertex.getMinResources(), MemorySize.ZERO),
+                            new StringifiedAccumulatorResult[0]);
+            archivedVerticesInCreationOrder.add(archivedJobVertex);
+            archivedJobVertices.put(archivedJobVertex.getJobVertexId(), archivedJobVertex);
+        }
+        return createSparseArchivedExecutionGraph(
+                jobId,
+                jobName,
+                jobStatus,
+                archivedJobVertices,
+                archivedVerticesInCreationOrder,
+                throwable,
+                checkpointingSettings,
+                initializationTimestamp);
+    }
+
+    private static ArchivedExecutionGraph createSparseArchivedExecutionGraph(
+            JobID jobId,
+            String jobName,
+            JobStatus jobStatus,
+            Map<JobVertexID, ArchivedExecutionJobVertex> archivedTasks,
+            List<ArchivedExecutionJobVertex> archivedVerticesInCreationOrder,
+            @Nullable Throwable throwable,
+            @Nullable JobCheckpointingSettings checkpointingSettings,
+            long initializationTimestamp) {
         final Map<String, SerializedValue<OptionalFailure<Object>>> serializedUserAccumulators =
                 Collections.emptyMap();
         StringifiedAccumulatorResult[] archivedUserAccumulators =
