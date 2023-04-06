@@ -453,7 +453,6 @@ public class TestingJobMasterGatewayBuilder {
                 deliverCoordinationRequestFunction,
                 notifyNotEnoughResourcesConsumer,
                 notifyNewBlockedNodesFunction,
-                maxParallelismPerVertexSupplier,
                 requestJobResourceRequirementsSupplier,
                 updateJobResourceRequirementsFunction);
     }
