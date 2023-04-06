@@ -128,10 +128,10 @@ elastic:
     versions:
         - version: 6.x
           maven: flink-connector-elasticsearch6
-          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-elasticsearch6/1.16.0/flink-sql-connector-elasticsearch6-1.16.0.jar
+          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-elasticsearch6/3.0.0-1.16/flink-sql-connector-elasticsearch6-3.0.0-1.16.jar
         - version: 7.x and later versions
           maven: flink-connector-elasticsearch7
-          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-elasticsearch7/1.16.0/flink-sql-connector-elasticsearch7-1.16.0.jar
+          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-elasticsearch7/3.0.0-1.16/flink-sql-connector-elasticsearch7-3.0.0-1.16.jar
 
 hbase:
     name: HBase
