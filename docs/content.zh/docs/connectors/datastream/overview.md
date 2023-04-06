@@ -44,6 +44,7 @@ under the License.
  * [Amazon Kinesis Data Firehose]({{< ref "docs/connectors/datastream/firehose" >}}) (sink)
  * [DataGen]({{< ref "docs/connectors/datastream/datagen" >}}) (source)
  * [Elasticsearch]({{< ref "docs/connectors/datastream/elasticsearch" >}}) (sink)
+ * [Opensearch]({{< ref "docs/connectors/datastream/opensearch" >}}) (sink)
  * [FileSystem]({{< ref "docs/connectors/datastream/filesystem" >}}) (sink)
  * [RabbitMQ]({{< ref "docs/connectors/datastream/rabbitmq" >}}) (source/sink)
  * [Google PubSub]({{< ref "docs/connectors/datastream/pubsub" >}}) (source/sink)
