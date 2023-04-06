@@ -162,6 +162,9 @@ import static org.apache.calcite.util.Static.RESOURCE;
  *
  * <p>Lines 5352 ~ 5358, Flink enables TIMESTAMP and TIMESTAMP_LTZ for first orderBy column in
  * matchRecognize at {@link SqlValidatorImpl#validateMatchRecognize}.
+ *
+ * <p>Lines 4902 ~ 49220 Disable the validation for SqlUpdate RowType. We support the nested column
+ * and will validate it in the table environment.
  */
 public class SqlValidatorImpl implements SqlValidatorWithHints {
     // ~ Static fields/initializers ---------------------------------------------
@@ -4899,16 +4902,22 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
                         ? getTable(targetNamespace)
                         : relOptTable.unwrapOrThrow(SqlValidatorTable.class);
 
-        final RelDataType targetRowType =
-                createTargetRowType(table, call.getTargetColumnList(), true);
+        //        final RelDataType targetRowType =
+        //                createTargetRowType(table, call.getTargetColumnList(), true);
 
+        // only validate source select here.
+        // ignore row type which will be verified in table environment.
         final SqlSelect select = SqlNonNullableAccessors.getSourceSelect(call);
-        validateSelect(select, targetRowType);
 
-        final RelDataType sourceRowType = getValidatedNodeType(select);
-        checkTypeAssignment(scopes.get(select), table, sourceRowType, targetRowType, call);
+        validate(select);
 
-        checkConstraint(table, call, targetRowType);
+        //        validateSelect(select, targetRowType);
+        //
+        //        final RelDataType sourceRowType = getValidatedNodeType(select);
+        //        checkTypeAssignment(scopes.get(select), table, sourceRowType, targetRowType,
+        //    call);
+        //
+        //        checkConstraint(table, call, targetRowType);
 
         validateAccess(call.getTargetTable(), table, SqlAccessEnum.UPDATE);
     }

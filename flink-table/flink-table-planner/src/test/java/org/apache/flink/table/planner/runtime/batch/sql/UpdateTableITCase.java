@@ -168,6 +168,46 @@ public class UpdateTableITCase extends BatchTestBase {
                                 DynamicTableSink.class.getName()));
     }
 
+    @Test
+    public void testUpdateCompositeRow() throws Exception {
+        String dataId = TestUpdateDeleteTableFactory.registerRowData(createComplexRow());
+        tEnv().executeSql(
+                        String.format(
+                                "CREATE TABLE t ("
+                                        + " a INT PRIMARY KEY NOT ENFORCED,"
+                                        + " b ROW< b1 string, b2 ROW < b3 INT, b4 DOUBLE>>,"
+                                        + " c DOUBLE"
+                                        + ") WITH"
+                                        + " ('connector' = 'test-update-delete', "
+                                        + "'data-id' = '%s', "
+                                        + "'update-mode' = '%s')",
+                                dataId, updateMode));
+        tEnv().executeSql("UPDATE t SET b.b1 = 'ub1', b.b2 = ROW(-1, -1.0) where a >= 1").await();
+        List<String> rows = toSortedResults(tEnv().executeSql("SELECT * FROM t"));
+        assertThat(rows.toString())
+                .isEqualTo(
+                        "[+I[0, +I[b_0, +I[0, 0.0]], 0.0], +I[1, +I[ub1, +I[-1, -1.0]], 2.0], +I[2, +I[ub1, +I[-1, -1.0]], 4.0]]");
+
+        tEnv().executeSql(
+                        "UPDATE t SET b.b1 = 'ub2', b.b2.b4 = -2.0, c = -2.0 WHERE a > (SELECT count(1) FROM t WHERE "
+                                + "a > 1)")
+                .await();
+        rows = toSortedResults(tEnv().executeSql("SELECT * FROM t"));
+        assertThat(rows.toString())
+                .isEqualTo(
+                        "[+I[0, +I[b_0, +I[0, 0.0]], 0.0], +I[1, +I[ub1, +I[-1, -1.0]], 2.0], +I[2, +I[ub2, +I[-1, -2.0]], -2.0]]");
+    }
+
+    private List<RowData> createComplexRow() {
+        List<RowData> values = new ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            GenericRowData rb2 = GenericRowData.of(i, (double) i);
+            GenericRowData rb = GenericRowData.of(StringData.fromString("b_" + i), rb2);
+            values.add(GenericRowData.of(i, rb, i * 2.0));
+        }
+        return values;
+    }
+
     private String registerData() {
         List<RowData> values = createValue();
         return TestUpdateDeleteTableFactory.registerRowData(values);

@@ -1420,6 +1420,60 @@ void PartitionSpecCommaList(SqlNodeList list) :
 }
 
 /**
+ * Parses an UPDATE statement.
+ */
+SqlNode FlinkSqlUpdate() :
+{
+    SqlNode table;
+    SqlNodeList extendList = null;
+    SqlIdentifier alias = null;
+    SqlNode condition;
+    SqlNodeList sourceExpressionList;
+    SqlNodeList targetColumnList;
+    SqlIdentifier id;
+    SqlNode exp;
+    final Span s;
+}
+{
+    <UPDATE> { s = span(); }
+    table = TableRefWithHintsOpt() {
+        targetColumnList = new SqlNodeList(s.pos());
+        sourceExpressionList = new SqlNodeList(s.pos());
+    }
+    [
+        [ <EXTEND> ]
+        extendList = ExtendList() {
+            table = extend(table, extendList);
+        }
+    ]
+    [ [ <AS> ] alias = SimpleIdentifier() ]
+    <SET> id = CompoundIdentifier() {
+        targetColumnList.add(id);
+    }
+    <EQ> exp = Expression(ExprContext.ACCEPT_SUB_QUERY) {
+        // TODO:  support DEFAULT also
+        sourceExpressionList.add(exp);
+    }
+    (
+        <COMMA>
+        id = CompoundIdentifier()
+        {
+            targetColumnList.add(id);
+        }
+        <EQ> exp = Expression(ExprContext.ACCEPT_SUB_QUERY)
+        {
+            sourceExpressionList.add(exp);
+        }
+    )*
+    condition = WhereOpt()
+    {
+        return new SqlUpdate(s.addAll(targetColumnList)
+            .addAll(sourceExpressionList).addIf(condition).pos(), table,
+            targetColumnList, sourceExpressionList, condition, null, alias);
+    }
+}
+
+/**
 * Parses a create view or temporary view statement.
 *   CREATE [OR REPLACE] [TEMPORARY] VIEW [IF NOT EXISTS] view_name [ (field1, field2 ...) ]
 *   AS select_statement

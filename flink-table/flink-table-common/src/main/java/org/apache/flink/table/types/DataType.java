@@ -19,6 +19,7 @@
 package org.apache.flink.table.types;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.data.RowData;
@@ -178,6 +179,25 @@ public abstract class DataType implements AbstractDataType<DataType>, Serializab
             return dataType.getChildren();
         }
         return Collections.emptyList();
+    }
+
+    /** Returns the dataType and field name for the given path. */
+    public Tuple2<DataType, String> getDataType(int[] path) {
+        return getDataType(this, path, 0);
+    }
+
+    private Tuple2<DataType, String> getDataType(DataType type, int[] path, int index) {
+        boolean finished = (index == path.length - 1);
+        Preconditions.checkArgument(
+                type.getChildren().size() > path[index],
+                "The query path not match the data type structure");
+        DataType childType = getFieldDataTypes(type).get(path[index]);
+        String fieldName = getFieldNames(type).get(path[index]);
+        if (childType.getChildren().isEmpty() || finished) {
+            return Tuple2.of(childType, fieldName);
+        } else {
+            return getDataType(childType, path, index + 1);
+        }
     }
 
     /**

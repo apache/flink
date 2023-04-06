@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.plan.batch.sql;
 
 import org.apache.flink.table.api.ExplainDetail;
-import org.apache.flink.table.api.SqlParserException;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelUpdate;
 import org.apache.flink.table.planner.utils.BatchTableTestUtil;
@@ -155,22 +155,112 @@ public class RowLevelUpdateTest extends TableTestBase {
         util.verifyExplainInsert("UPDATE t SET b = 'v2' WHERE b = '123'", explainDetails);
     }
 
-    @Test(expected = SqlParserException.class)
+    @Test
     public void testUpdateWithCompositeType() {
         util.tableEnv()
                 .executeSql(
                         String.format(
-                                "CREATE TABLE t ("
+                                "CREATE TABLE complex_row_sink ("
                                         + "a int,"
                                         + "b ROW<b1 STRING, b2 INT>,"
-                                        + "c ROW<c1 BIGINT, c2 STRING>"
+                                        + "c ROW<c1 BIGINT, c2 ROW < c3 STRING, c4 INT>>,"
+                                        + "d ROW<d1 BIGINT, d2 ROW<d3 INT, d4 STRING>>"
                                         + ") WITH ("
                                         + "'connector' = 'test-update-delete', "
                                         + "'update-mode' = '%s'"
                                         + ") ",
                                 updateMode));
         util.verifyExplainInsert(
-                "UPDATE t SET b.b1 = 'v2', c.c1 = 1000 WHERE b = '123'", explainDetails);
+                "UPDATE complex_row_sink SET c.c2.c3 = '1000', b.b1 = 'v2', b.b2 = 1 WHERE b.b1 = '123'",
+                explainDetails);
+    }
+
+    @Test
+    public void testUpdateWithCompositeTypeOnlyUpdateColumnRequired() {
+        util.tableEnv()
+                .executeSql(
+                        String.format(
+                                "CREATE TABLE complex_row_sink ("
+                                        + "a int,"
+                                        + "b ROW<b1 STRING, b2 INT>,"
+                                        + "c ROW<c1 BIGINT, c2 ROW < c3 STRING, c4 INT>>,"
+                                        + "d ROW<d1 BIGINT, d2 ROW<d3 INT, d4 STRING>>"
+                                        + ") WITH ("
+                                        + "'connector' = 'test-update-delete', "
+                                        + "'only-require-updated-columns-for-update' = 'true',"
+                                        + "'update-mode' = '%s'"
+                                        + ") ",
+                                updateMode));
+
+        util.verifyExplainInsert(
+                "UPDATE complex_row_sink SET c.c2.c3 = '1000', b.b1 = 'v2', b.b2 = 1 WHERE b.b1 = '123'",
+                explainDetails);
+    }
+
+    @Test
+    public void testUpdateWithCompositeTypeWithMetadataColumn() {
+        util.tableEnv()
+                .executeSql(
+                        String.format(
+                                "CREATE TABLE complex_row_sink ("
+                                        + "a int,"
+                                        + "b ROW<b1 STRING, b2 INT>,"
+                                        + "c ROW<c1 BIGINT, c2 ROW < c3 STRING, c4 INT>>,"
+                                        + "d ROW<d1 BIGINT, d2 ROW<d3 INT, d4 STRING>>"
+                                        + ") WITH ("
+                                        + "'connector' = 'test-update-delete', "
+                                        + "'required-columns-for-update' = 'meta_f1;meta_k2;c;b', "
+                                        + "'update-mode' = '%s'"
+                                        + ") ",
+                                updateMode));
+
+        util.verifyExplainInsert(
+                "UPDATE complex_row_sink SET c.c2.c3 = '1000', b.b1 = 'v2', b.b2 = 1 WHERE b.b1 = '123'",
+                explainDetails);
+    }
+
+    @Test(expected = ValidationException.class)
+    public void testUpdateCompositeTypeValidateColumnNotFound() {
+        util.tableEnv()
+                .executeSql(
+                        String.format(
+                                "CREATE TABLE complex_row_sink ("
+                                        + "a int,"
+                                        + "b ROW<b1 STRING, b2 INT>,"
+                                        + "c ROW<c1 BIGINT, c2 ROW < c3 STRING, c4 INT>>,"
+                                        + "d ROW<d1 BIGINT, d2 ROW<d3 INT, d4 STRING>>"
+                                        + ") WITH ("
+                                        + "'connector' = 'test-update-delete', "
+                                        + "'required-columns-for-update' = 'meta_f1;meta_k2;c;b', "
+                                        + "'update-mode' = '%s'"
+                                        + ") ",
+                                updateMode));
+
+        util.verifyExplainInsert(
+                "UPDATE complex_row_sink SET c.c2.c5 = '1000', b.b1 = 'v2', b.b2 = 1 WHERE b.b1 = '123'",
+                explainDetails);
+    }
+
+    @Test(expected = ValidationException.class)
+    public void testUpdateCompositeTypeTypeMissMatch() {
+        util.tableEnv()
+                .executeSql(
+                        String.format(
+                                "CREATE TABLE complex_row_sink ("
+                                        + "a int,"
+                                        + "b ROW<b1 STRING, b2 INT>,"
+                                        + "c ROW<c1 BIGINT, c2 ROW < c3 STRING, c4 INT>>,"
+                                        + "d ROW<d1 BIGINT, d2 ROW<d3 INT, d4 STRING>>"
+                                        + ") WITH ("
+                                        + "'connector' = 'test-update-delete', "
+                                        + "'required-columns-for-update' = 'meta_f1;meta_k2;c;b', "
+                                        + "'update-mode' = '%s'"
+                                        + ") ",
+                                updateMode));
+
+        util.verifyExplainInsert(
+                "UPDATE complex_row_sink SET c.c1 = '1000', b.b1 = 'v2', b.b2 = 1 WHERE b.b1 = '123'",
+                explainDetails);
     }
 
     private void createTableForUpdate() {

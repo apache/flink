@@ -539,6 +539,7 @@
   # Return type of method implementation should be 'SqlNode'.
   # Example: SqlShowDatabases(), SqlShowTables().
   statementParserMethods: [
+    "FlinkSqlUpdate()"
     "RichSqlInsert()"
     "SqlBeginStatementSet()"
     "SqlEndStatementSet()"

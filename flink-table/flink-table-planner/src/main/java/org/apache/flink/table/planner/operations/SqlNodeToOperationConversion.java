@@ -1383,37 +1383,70 @@ public class SqlNodeToOperationConversion {
         // set it's update
         RowLevelModificationContextUtils.setModificationType(
                 SupportsRowLevelModificationScan.RowLevelModificationType.UPDATE);
-        RelRoot updateRelational = flinkPlanner.rel(sqlUpdate);
-        // get target sink table
-        LogicalTableModify tableModify = (LogicalTableModify) updateRelational.rel;
-        UnresolvedIdentifier unresolvedTableIdentifier =
-                UnresolvedIdentifier.of(tableModify.getTable().getQualifiedName());
-        ContextResolvedTable contextResolvedTable =
-                catalogManager.getTableOrError(
-                        catalogManager.qualifyIdentifier(unresolvedTableIdentifier));
-        // get query
-        PlannerQueryOperation queryOperation = new PlannerQueryOperation(tableModify);
+        List<String> targetTablePath = ((SqlIdentifier) sqlUpdate.getTargetTable()).names;
+        UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(targetTablePath);
+        ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+        ContextResolvedTable contextResolvedTable = catalogManager.getTableOrError(identifier);
 
-        // TODO calc target column list to index array, currently only simple SqlIdentifiers are
-        // available, this should be updated after FLINK-31344 fixed
+        PlannerQueryOperation query =
+                new PlannerQueryOperation(flinkPlanner.rel(sqlUpdate.getSourceSelect()).rel);
+
         int[][] columnIndices =
                 getTargetColumnIndices(contextResolvedTable, sqlUpdate.getTargetColumnList());
 
         return new SinkModifyOperation(
                 contextResolvedTable,
-                queryOperation,
+                query,
+                new HashMap<>(),
                 columnIndices,
+                false,
+                new HashMap<>(),
                 SinkModifyOperation.ModifyType.UPDATE);
     }
 
     private int[][] getTargetColumnIndices(
             @Nonnull ContextResolvedTable contextResolvedTable,
             @Nullable SqlNodeList targetColumns) {
-        List<String> allColumns = contextResolvedTable.getResolvedSchema().getColumnNames();
+        ResolvedSchema schema = contextResolvedTable.getResolvedSchema();
         return Optional.ofNullable(targetColumns).orElse(SqlNodeList.EMPTY).stream()
-                .mapToInt(c -> allColumns.indexOf(((SqlIdentifier) c).getSimple()))
-                .mapToObj(idx -> new int[] {idx})
+                .map(id -> getPath(schema, (SqlIdentifier) id))
                 .toArray(int[][]::new);
+    }
+
+    private int[] getPath(ResolvedSchema schema, SqlIdentifier id) {
+        List<Integer> path = new ArrayList<>();
+        String name = id.names.get(0);
+        Column column =
+                schema.getColumns().stream()
+                        .filter(c -> c.getName().equals(name))
+                        .findFirst()
+                        .orElseThrow(() -> new ValidationException("Can not find column: " + id));
+        path.add(schema.getColumns().indexOf(column));
+        if (id.names.size() > 1) {
+            boolean success = find(column.getDataType(), id, 1, path);
+
+            if (!success) {
+                throw new ValidationException("Can not find column: " + id);
+            }
+        }
+
+        return path.stream().mapToInt(Integer::intValue).toArray();
+    }
+
+    private boolean find(DataType dataType, SqlIdentifier id, int index, List<Integer> path) {
+        boolean finished = (index == (id.names.size() - 1));
+        String name = id.names.get(index);
+        int position = DataType.getFieldNames(dataType).indexOf(name);
+        if (position < 0) {
+            return false;
+        }
+
+        path.add(position);
+        if (finished) {
+            return true;
+        } else {
+            return find(DataType.getFieldDataTypes(dataType).get(position), id, index + 1, path);
+        }
     }
 
     private String getQuotedSqlString(SqlNode sqlNode) {

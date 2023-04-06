@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.types;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.data.ArrayData;
@@ -219,5 +220,30 @@ class DataTypeTest {
                         FIELD("count", INT().notNull().bridgedTo(int.class)));
         assertThat(DataType.getFields(ARRAY(INT()))).isEmpty();
         assertThat(DataType.getFields(INT())).isEmpty();
+    }
+
+    @Test
+    void testGetDataTypeByPath() {
+        DataType dataType =
+                ROW(
+                        FIELD("a", BOOLEAN()),
+                        FIELD("b", INT()),
+                        FIELD("c", ROW(FIELD("c1", STRING()), FIELD("c2", INT()))),
+                        FIELD("d", ROW(FIELD("d1", STRING()), FIELD("d2", INT()))));
+        Tuple2<DataType, String> res = dataType.getDataType(new int[] {0});
+        assertThat(res.f0).isEqualTo(BOOLEAN());
+        assertThat(res.f1).isEqualTo("a");
+
+        res = dataType.getDataType(new int[] {2, 1});
+        assertThat(res.f0).isEqualTo(INT());
+        assertThat(res.f1).isEqualTo("c2");
+
+        res = dataType.getDataType(new int[] {3});
+        assertThat(res.f0).isEqualTo(ROW(FIELD("d1", STRING()), FIELD("d2", INT())));
+        assertThat(res.f1).isEqualTo("d");
+
+        assertThatThrownBy(() -> dataType.getDataType(new int[] {3, 2}))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("The query path not match the data type structure");
     }
 }

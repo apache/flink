@@ -127,6 +127,10 @@ public class SinkModifyOperation implements ModifyOperation {
         return modifyType == ModifyType.DELETE;
     }
 
+    public ModifyType getModifyType() {
+        return modifyType;
+    }
+
     public Map<String, String> getDynamicOptions() {
         return dynamicOptions;
     }
