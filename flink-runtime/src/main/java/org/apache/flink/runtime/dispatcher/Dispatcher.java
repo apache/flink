@@ -49,6 +49,7 @@ import org.apache.flink.runtime.dispatcher.cleanup.ResourceCleaner;
 import org.apache.flink.runtime.dispatcher.cleanup.ResourceCleanerFactory;
 import org.apache.flink.runtime.entrypoint.ClusterEntryPointExceptionUtils;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.JobResultEntry;
@@ -1141,8 +1142,18 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                             "Another update to the job [%s] resource requirements is in progress.",
                             HttpResponseStatus.CONFLICT));
         }
-        return performOperationOnJobMasterGateway(
-                        jobId, JobMasterGateway::getMaxParallelismPerVertex)
+        return performOperationOnJobMasterGateway(jobId, gateway -> gateway.requestJob(webTimeout))
+                .thenApply(
+                        job -> {
+                            final Map<JobVertexID, Integer> maxParallelismPerJobVertex =
+                                    new HashMap<>();
+                            for (ArchivedExecutionJobVertex vertex :
+                                    job.getArchivedExecutionGraph().getVerticesTopologically()) {
+                                maxParallelismPerJobVertex.put(
+                                        vertex.getJobVertexId(), vertex.getMaxParallelism());
+                            }
+                            return maxParallelismPerJobVertex;
+                        })
                 .thenAccept(
                         maxParallelismPerJobVertex ->
                                 validateMaxParallelism(

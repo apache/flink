@@ -77,6 +77,7 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
+import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageCoordinatorView;
@@ -1259,8 +1260,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
     public void testJobResourceRequirementsCanBeOnlyUpdatedOnInitializedJobMasters()
             throws Exception {
         final JobManagerRunnerWithBlockingJobMasterFactory blockingJobMaster =
-                new JobManagerRunnerWithBlockingJobMasterFactory(
-                        this::withMaxParallelismPerVertexResponse);
+                new JobManagerRunnerWithBlockingJobMasterFactory(this::withRequestJobResponse);
         dispatcher = createAndStartDispatcher(heartbeatServices, haServices, blockingJobMaster);
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
@@ -1303,7 +1303,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         final JobManagerRunnerWithBlockingJobMasterFactory blockingJobMaster =
                 new JobManagerRunnerWithBlockingJobMasterFactory(
                         builder ->
-                                withMaxParallelismPerVertexResponse(builder)
+                                withRequestJobResponse(builder)
                                         .setUpdateJobResourceRequirementsFunction(
                                                 jobResourceRequirements ->
                                                         blockedUpdatesToJobMasterFuture));
@@ -1372,7 +1372,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         final JobManagerRunnerWithBlockingJobMasterFactory blockingJobMaster =
                 new JobManagerRunnerWithBlockingJobMasterFactory(
                         builder ->
-                                withMaxParallelismPerVertexResponse(builder)
+                                withRequestJobResponse(builder)
                                         .setUpdateJobResourceRequirementsFunction(
                                                 jobResourceRequirements ->
                                                         CompletableFuture.completedFuture(
@@ -1406,13 +1406,23 @@ public class DispatcherTest extends AbstractDispatcherTest {
         return builder.build();
     }
 
-    private TestingJobMasterGatewayBuilder withMaxParallelismPerVertexResponse(
+    private TestingJobMasterGatewayBuilder withRequestJobResponse(
             TestingJobMasterGatewayBuilder builder) {
-        return builder.setMaxParallelismPerVertexSupplier(
+        return builder.setRequestJobSupplier(
                 () ->
                         CompletableFuture.completedFuture(
-                                Collections.singletonMap(
-                                        jobGraph.getVertices().iterator().next().getID(), 128)));
+                                new ExecutionGraphInfo(
+                                        ArchivedExecutionGraph
+                                                .createSparseArchivedExecutionGraphWithJobVertices(
+                                                        jobGraph.getJobID(),
+                                                        jobGraph.getName(),
+                                                        JobStatus.RUNNING,
+                                                        null,
+                                                        null,
+                                                        System.currentTimeMillis(),
+                                                        jobGraph.getVertices(),
+                                                        SchedulerBase.computeVertexParallelismStore(
+                                                                jobGraph)))));
     }
 
     private static class JobManagerRunnerWithBlockingJobMasterFactory
