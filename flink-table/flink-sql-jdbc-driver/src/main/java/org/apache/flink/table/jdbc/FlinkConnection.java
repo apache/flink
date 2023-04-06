@@ -36,10 +36,12 @@ import java.util.UUID;
 
 /** Connection to flink sql gateway for jdbc driver. */
 public class FlinkConnection extends BaseConnection {
+    private final String url;
     private final Executor executor;
     private volatile boolean closed = false;
 
     public FlinkConnection(DriverUri driverUri) {
+        this.url = driverUri.getURL();
         // TODO Support default context from map to get gid of flink core for jdbc driver in
         // https://issues.apache.org/jira/browse/FLINK-31687.
         this.executor =
@@ -84,7 +86,7 @@ public class FlinkConnection extends BaseConnection {
 
     @Override
     public DatabaseMetaData getMetaData() throws SQLException {
-        throw new SQLFeatureNotSupportedException();
+        return new FlinkDatabaseMetaData(url, this, createStatement());
     }
 
     @Override
