@@ -101,6 +101,11 @@ state updates) of Flink coupled with bundled sinks:
         <td></td>
     </tr>
     <tr>
+        <td>Opensearch</td>
+        <td>at least once</td>
+        <td></td>
+    </tr>
+    <tr>
         <td>Kafka producer</td>
         <td>at least once / exactly once</td>
         <td>exactly once with transactional producers (v 0.11+)</td>
