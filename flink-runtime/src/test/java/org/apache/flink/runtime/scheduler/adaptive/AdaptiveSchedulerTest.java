@@ -196,6 +196,34 @@ public class AdaptiveSchedulerTest {
     }
 
     @Test
+    void testArchivedJobVerticesPresent() throws Exception {
+        final JobGraph jobGraph = createJobGraph();
+        jobGraph.setSnapshotSettings(
+                new JobCheckpointingSettings(
+                        CheckpointCoordinatorConfiguration.builder().build(), null));
+
+        final ArchivedExecutionGraph archivedExecutionGraph =
+                new AdaptiveSchedulerBuilder(jobGraph, mainThreadExecutor)
+                        .build(EXECUTOR_RESOURCE.getExecutor())
+                        .getArchivedExecutionGraph(JobStatus.INITIALIZING, null);
+
+        ArchivedExecutionJobVertex jobVertex =
+                archivedExecutionGraph.getJobVertex(JOB_VERTEX.getID());
+        assertThat(jobVertex)
+                .isNotNull()
+                .satisfies(
+                        archived -> {
+                            assertThat(archived.getParallelism())
+                                    .isEqualTo(JOB_VERTEX.getParallelism());
+                            // JOB_VERTEX.maxP == -1, but we want the actual maxP determined by the
+                            // scheduler
+                            assertThat(archived.getMaxParallelism()).isEqualTo(128);
+                        });
+
+        ArchivedExecutionGraphTest.assertContainsCheckpointSettings(archivedExecutionGraph);
+    }
+
+    @Test
     void testIsState() throws Exception {
         final AdaptiveScheduler scheduler =
                 new AdaptiveSchedulerBuilder(createJobGraph(), mainThreadExecutor)
