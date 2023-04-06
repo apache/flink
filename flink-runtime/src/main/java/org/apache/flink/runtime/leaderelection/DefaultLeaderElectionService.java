@@ -48,7 +48,7 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
 
     private final Object lock = new Object();
 
-    private final LeaderElectionDriverFactory leaderElectionDriverFactory;
+    private final MultipleComponentLeaderElectionDriverFactory leaderElectionDriverFactory;
 
     @GuardedBy("lock")
     private volatile String contenderID;
@@ -71,9 +71,10 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
 
     // @Nullable is commented-out to avoid having multiple warnings spread over this class
     // this.running=true ensures that leaderContender != null
-    private LeaderElectionDriver leaderElectionDriver;
+    private MultipleComponentLeaderElectionDriver leaderElectionDriver;
 
-    public DefaultLeaderElectionService(LeaderElectionDriverFactory leaderElectionDriverFactory) {
+    public DefaultLeaderElectionService(
+            MultipleComponentLeaderElectionDriverFactory leaderElectionDriverFactory) {
         this.leaderElectionDriverFactory = checkNotNull(leaderElectionDriverFactory);
 
         this.leaderContender = null;
@@ -91,11 +92,7 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
     public void startLeaderElectionBackend() throws Exception {
         synchronized (lock) {
             leaderElectionDriver =
-                    leaderElectionDriverFactory.createLeaderElectionDriver(
-                            // TODO: FLINK-26522 - leaderContenderDescription is only used within
-                            // the ZooKeeperLeaderElectionDriver for when the connection is lost
-                            // This can be removed later on by the contender ID
-                            this, new LeaderElectionFatalErrorHandler(), "unused");
+                    leaderElectionDriverFactory.create(this, new LeaderElectionFatalErrorHandler());
         }
     }
 
@@ -146,7 +143,8 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
     }
 
     @Override
-    protected void confirmLeadership(String contenderID, UUID leaderSessionID, String leaderAddress) {
+    protected void confirmLeadership(
+            String contenderID, UUID leaderSessionID, String leaderAddress) {
         LOG.debug("Confirm leader session ID {} for leader {}.", leaderSessionID, leaderAddress);
 
         checkNotNull(leaderSessionID);
@@ -205,7 +203,7 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
     @GuardedBy("lock")
     private void confirmLeaderInformation(UUID leaderSessionID, String leaderAddress) {
         confirmedLeaderInformation = LeaderInformation.known(leaderSessionID, leaderAddress);
-        leaderElectionDriver.writeLeaderInformation(confirmedLeaderInformation);
+        leaderElectionDriver.publishLeaderInformation(contenderID, confirmedLeaderInformation);
     }
 
     @Override
@@ -246,20 +244,26 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
     @GuardedBy("lock")
     private void handleLeadershipLoss() {
         LOG.debug(
-                "Revoke leadership of {} ({}@{}).",
-                leaderContender.getDescription(),
-                confirmedLeaderInformation.getLeaderSessionID(),
-                confirmedLeaderInformation.getLeaderAddress());
+                "Handling leadership loss {} without revoking any contender.",
+                LeaderElectionUtils.convertToString(confirmedLeaderInformation));
 
         issuedLeaderSessionID = null;
         confirmedLeaderInformation = LeaderInformation.empty();
 
-        leaderContender.revokeLeadership();
+        if (leaderContender != null) {
+            LOG.debug(
+                    "Revoking leadership of {} ({}).",
+                    leaderContender.getDescription(),
+                    LeaderElectionUtils.convertToString(confirmedLeaderInformation));
+            leaderContender.revokeLeadership();
 
-        LOG.debug("Clearing the leader information on {}.", leaderElectionDriver);
+            LOG.debug("Clearing the leader information on {}.", leaderElectionDriver);
 
-        // Clear the old leader information on the external storage
-        leaderElectionDriver.writeLeaderInformation(LeaderInformation.empty());
+            // Clear the old leader information on the external storage
+            leaderElectionDriver.deleteLeaderInformation(contenderID);
+        } else {
+            Preconditions.checkState(contenderID == null);
+        }
     }
 
     @Override
@@ -290,13 +294,15 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
                         LOG.debug(
                                 "Writing leader information by {} since the external storage is empty.",
                                 leaderContender.getDescription());
-                        leaderElectionDriver.writeLeaderInformation(confirmedLeaderInfo);
+                        leaderElectionDriver.publishLeaderInformation(
+                                contenderID, confirmedLeaderInfo);
                     } else if (!leaderInformation.equals(confirmedLeaderInfo)) {
                         // the data field does not correspond to the expected leader information
                         LOG.debug(
                                 "Correcting leader information by {}.",
                                 leaderContender.getDescription());
-                        leaderElectionDriver.writeLeaderInformation(confirmedLeaderInfo);
+                        leaderElectionDriver.publishLeaderInformation(
+                                contenderID, confirmedLeaderInfo);
                     }
                 }
             } else {

@@ -31,14 +31,12 @@ import org.apache.flink.runtime.highavailability.AbstractHaServices;
 import org.apache.flink.runtime.highavailability.FileSystemJobResultStore;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.leaderelection.DefaultMultipleComponentLeaderElectionService;
-import org.apache.flink.runtime.leaderelection.LeaderElectionDriverFactory;
-import org.apache.flink.runtime.leaderelection.MultipleComponentLeaderElectionService;
+import org.apache.flink.runtime.leaderelection.MultipleComponentLeaderElectionDriverFactory;
 import org.apache.flink.runtime.leaderretrieval.DefaultLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
-import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import javax.annotation.Nullable;
@@ -105,39 +103,16 @@ public class KubernetesMultipleComponentLeaderElectionHaServices extends Abstrac
     }
 
     @Override
-    protected LeaderElectionDriverFactory createLeaderElectionDriverFactory(String leaderName) {
-        final MultipleComponentLeaderElectionService multipleComponentLeaderElectionService =
-                getOrInitializeSingleLeaderElectionService();
-
-        return multipleComponentLeaderElectionService.createDriverFactory(leaderName);
-    }
-
-    private DefaultMultipleComponentLeaderElectionService
-            getOrInitializeSingleLeaderElectionService() {
-        synchronized (lock) {
-            if (multipleComponentLeaderElectionService == null) {
-                try {
-
-                    final KubernetesLeaderElectionConfiguration leaderElectionConfiguration =
-                            new KubernetesLeaderElectionConfiguration(
-                                    getClusterConfigMap(), lockIdentity, configuration);
-                    multipleComponentLeaderElectionService =
-                            new DefaultMultipleComponentLeaderElectionService(
-                                    fatalErrorHandler,
-                                    new KubernetesMultipleComponentLeaderElectionDriverFactory(
-                                            kubeClient,
-                                            leaderElectionConfiguration,
-                                            configMapSharedWatcher,
-                                            watchExecutorService,
-                                            fatalErrorHandler));
-                } catch (Exception e) {
-                    throw new FlinkRuntimeException(
-                            "Could not initialize the default single leader election service.", e);
-                }
-            }
-
-            return multipleComponentLeaderElectionService;
-        }
+    protected MultipleComponentLeaderElectionDriverFactory createLeaderElectionDriverFactory(
+            String leaderName) {
+        final KubernetesLeaderElectionConfiguration leaderElectionConfiguration =
+                new KubernetesLeaderElectionConfiguration(
+                        getClusterConfigMap(), lockIdentity, configuration);
+        return new KubernetesMultipleComponentLeaderElectionDriverFactory(
+                kubeClient,
+                leaderElectionConfiguration,
+                configMapSharedWatcher,
+                watchExecutorService);
     }
 
     @Override

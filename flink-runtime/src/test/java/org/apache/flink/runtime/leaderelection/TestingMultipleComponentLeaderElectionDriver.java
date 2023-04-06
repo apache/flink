@@ -62,6 +62,17 @@ public class TestingMultipleComponentLeaderElectionDriver
         }
     }
 
+    public void triggerExternalChangeOfLeaderInformation(
+            String contenderID, LeaderInformation leaderInformation) {
+        listener.ifPresent(
+                listener -> listener.notifyLeaderInformationChange(contenderID, leaderInformation));
+    }
+
+    public void triggerExternalFatalError(Throwable fatalError) {
+        this.optionalFatalErrorHandler.ifPresent(
+                fatalErrorHandler -> fatalErrorHandler.onFatalError(fatalError));
+    }
+
     public void setListener(Listener listener) {
         Preconditions.checkState(!this.listener.isPresent(), "Can only set a single listener.");
         this.listener = Optional.of(listener);
@@ -69,7 +80,7 @@ public class TestingMultipleComponentLeaderElectionDriver
 
     public void setFatalErrorHandler(@Nullable FatalErrorHandler fatalErrorHandler) {
         Preconditions.checkState(
-                this.optionalFatalErrorHandler.isPresent(),
+                !this.optionalFatalErrorHandler.isPresent(),
                 "Only a single fatalErrorHandler can be specified.");
         this.optionalFatalErrorHandler = Optional.ofNullable(fatalErrorHandler);
     }

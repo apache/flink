@@ -43,8 +43,7 @@ public class KubernetesMultipleComponentLeaderElectionDriverFactory
             FlinkKubeClient kubeClient,
             KubernetesLeaderElectionConfiguration kubernetesLeaderElectionConfiguration,
             KubernetesConfigMapSharedWatcher configMapSharedWatcher,
-            Executor watchExecutor,
-            FatalErrorHandler unusedFatalErrorHandler) {
+            Executor watchExecutor) {
         this.kubeClient = Preconditions.checkNotNull(kubeClient);
         this.kubernetesLeaderElectionConfiguration =
                 Preconditions.checkNotNull(kubernetesLeaderElectionConfiguration);

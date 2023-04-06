@@ -45,8 +45,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class ZooKeeperLeaderElectionConnectionHandlingTest {
 
-    private static final String PATH = "/path";
-
     @RegisterExtension
     private static final EachCallbackWrapper<ZooKeeperExtension> zooKeeperResource =
             new EachCallbackWrapper<>(new ZooKeeperExtension());
@@ -135,8 +133,8 @@ class ZooKeeperLeaderElectionConnectionHandlingTest {
                         configuration,
                         testingFatalErrorHandlerResource.getTestingFatalErrorHandler());
         CuratorFramework client = curatorFrameworkWrapper.asCuratorFramework();
-        LeaderElectionDriverFactory leaderElectionDriverFactory =
-                new ZooKeeperLeaderElectionDriverFactory(client, PATH);
+        final MultipleComponentLeaderElectionDriverFactory leaderElectionDriverFactory =
+                new ZooKeeperMultipleComponentLeaderElectionDriverFactory(client);
         DefaultLeaderElectionService leaderElectionService =
                 new DefaultLeaderElectionService(leaderElectionDriverFactory);
 

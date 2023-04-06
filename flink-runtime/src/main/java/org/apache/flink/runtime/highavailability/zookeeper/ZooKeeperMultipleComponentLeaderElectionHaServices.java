@@ -21,15 +21,13 @@ package org.apache.flink.runtime.highavailability.zookeeper;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobStoreService;
-import org.apache.flink.runtime.leaderelection.DefaultMultipleComponentLeaderElectionService;
-import org.apache.flink.runtime.leaderelection.LeaderElectionDriverFactory;
+import org.apache.flink.runtime.leaderelection.MultipleComponentLeaderElectionDriverFactory;
 import org.apache.flink.runtime.leaderelection.MultipleComponentLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.ZooKeeperMultipleComponentLeaderElectionDriverFactory;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
 
@@ -87,31 +85,10 @@ public class ZooKeeperMultipleComponentLeaderElectionHaServices
     }
 
     @Override
-    protected LeaderElectionDriverFactory createLeaderElectionDriverFactory(String leaderName) {
-        return getOrInitializeSingleLeaderElectionService().createDriverFactory(leaderName);
-    }
-
-    private MultipleComponentLeaderElectionService getOrInitializeSingleLeaderElectionService() {
-        synchronized (lock) {
-            if (multipleComponentLeaderElectionService == null) {
-                try {
-                    multipleComponentLeaderElectionService =
-                            new DefaultMultipleComponentLeaderElectionService(
-                                    fatalErrorHandler,
-                                    new ZooKeeperMultipleComponentLeaderElectionDriverFactory(
-                                            leaderNamespacedCuratorFramework));
-                } catch (Exception e) {
-                    throw new FlinkRuntimeException(
-                            String.format(
-                                    "Could not initialize the %s",
-                                    DefaultMultipleComponentLeaderElectionService.class
-                                            .getSimpleName()),
-                            e);
-                }
-            }
-
-            return multipleComponentLeaderElectionService;
-        }
+    protected MultipleComponentLeaderElectionDriverFactory createLeaderElectionDriverFactory(
+            String leaderName) {
+        return new ZooKeeperMultipleComponentLeaderElectionDriverFactory(
+                leaderNamespacedCuratorFramework);
     }
 
     @Override

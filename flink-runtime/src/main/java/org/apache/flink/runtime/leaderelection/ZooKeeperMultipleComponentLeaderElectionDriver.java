@@ -230,6 +230,8 @@ public class ZooKeeperMultipleComponentLeaderElectionDriver
                     tryReadingLeaderInformation(childData, leaderName);
 
             leaderElectionListener.notifyLeaderInformationChange(leaderName, leaderInformation);
+        } else {
+            System.out.println();
         }
     }
 

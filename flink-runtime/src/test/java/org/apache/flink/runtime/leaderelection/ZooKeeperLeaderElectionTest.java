@@ -21,6 +21,7 @@ package org.apache.flink.runtime.leaderelection;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.core.fs.AutoCloseableRegistry;
 import org.apache.flink.core.testutils.EachCallbackWrapper;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
@@ -90,6 +91,7 @@ import static org.mockito.Mockito.when;
  * ZooKeeper. For the complicated tests(e.g. multiple leaders), we will use {@link
  * DefaultLeaderElectionService} with {@link TestingContender}.
  */
+// TODO FLINK-26522: This test needs to be refactored (see FLINK-30342)
 class ZooKeeperLeaderElectionTest {
 
     @RegisterExtension
@@ -177,9 +179,11 @@ class ZooKeeperLeaderElectionTest {
 
         TestingListener listener = new TestingListener();
 
-        try {
+        final String contenderID = "test-contender";
+        try (AutoCloseableRegistry autoCloseableRegistry = new AutoCloseableRegistry()) {
             leaderRetrievalService =
-                    ZooKeeperUtils.createLeaderRetrievalService(createZooKeeperClient());
+                    ZooKeeperUtils.createLeaderRetrievalService(
+                            createZooKeeperClient(), contenderID, new Configuration());
 
             LOG.debug("Start leader retrieval service for the TestingListener.");
 
@@ -188,11 +192,13 @@ class ZooKeeperLeaderElectionTest {
             for (int i = 0; i < num; i++) {
                 leaderElectionService[i] =
                         ZooKeeperUtils.createLeaderElectionService(createZooKeeperClient());
-                contenders[i] = new TestingContender(createAddress(i), leaderElectionService[i]);
+                contenders[i] =
+                        new TestingContender(
+                                contenderID, createAddress(i), leaderElectionService[i]);
 
                 LOG.debug("Start leader election service for contender #{}.", i);
 
-                contenders[i].startLeaderElection();
+                autoCloseableRegistry.registerCloseable(contenders[i].startLeaderElection());
             }
 
             String pattern = LEADER_ADDRESS + "_" + "(\\d+)";
@@ -267,9 +273,11 @@ class ZooKeeperLeaderElectionTest {
 
         TestingListener listener = new TestingListener();
 
-        try {
+        final String contenderID = "test-contender";
+        try (AutoCloseableRegistry autoCloseableRegistry = new AutoCloseableRegistry()) {
             leaderRetrievalService =
-                    ZooKeeperUtils.createLeaderRetrievalService(createZooKeeperClient());
+                    ZooKeeperUtils.createLeaderRetrievalService(
+                            createZooKeeperClient(), contenderID, new Configuration());
 
             leaderRetrievalService.start(listener);
 
@@ -278,9 +286,11 @@ class ZooKeeperLeaderElectionTest {
                         ZooKeeperUtils.createLeaderElectionService(createZooKeeperClient());
                 contenders[i] =
                         new TestingContender(
-                                LEADER_ADDRESS + "_" + i + "_0", leaderElectionService[i]);
+                                contenderID,
+                                LEADER_ADDRESS + "_" + i + "_0",
+                                leaderElectionService[i]);
 
-                contenders[i].startLeaderElection();
+                autoCloseableRegistry.registerCloseable(contenders[i].startLeaderElection());
             }
 
             String pattern = LEADER_ADDRESS + "_" + "(\\d+)" + "_" + "(\\d+)";
@@ -307,10 +317,12 @@ class ZooKeeperLeaderElectionTest {
                             ZooKeeperUtils.createLeaderElectionService(createZooKeeperClient());
                     contenders[index] =
                             new TestingContender(
+                                    contenderID,
                                     LEADER_ADDRESS + "_" + index + "_" + (lastTry + 1),
                                     leaderElectionService[index]);
 
-                    contenders[index].startLeaderElection();
+                    autoCloseableRegistry.registerCloseable(
+                            contenders[index].startLeaderElection());
                 } else {
                     throw new Exception("Did not find the leader's index.");
                 }
@@ -772,12 +784,13 @@ class ZooKeeperLeaderElectionTest {
             CuratorFramework client, TestingLeaderElectionEventHandler electionEventHandler)
             throws Exception {
 
+        final ZooKeeperLeaderElectionDriverFactory factory =
+                new ZooKeeperLeaderElectionDriverFactory(client, "");
         final ZooKeeperLeaderElectionDriver leaderElectionDriver =
-                ZooKeeperUtils.createLeaderElectionDriverFactory(client)
-                        .createLeaderElectionDriver(
-                                electionEventHandler,
-                                electionEventHandler::handleError,
-                                LEADER_ADDRESS);
+                factory.createLeaderElectionDriver(
+                        electionEventHandler,
+                        electionEventHandler::handleError,
+                        "Leader contender description");
         electionEventHandler.init(leaderElectionDriver);
         return leaderElectionDriver;
     }

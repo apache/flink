@@ -38,8 +38,10 @@ import org.apache.flink.runtime.jobmaster.factories.TestingJobMasterServiceProce
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.leaderelection.DefaultLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
-import org.apache.flink.runtime.leaderelection.TestingLeaderElectionDriver;
+import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
+import org.apache.flink.runtime.leaderelection.TestingMultipleComponentLeaderElectionDriver;
+import org.apache.flink.runtime.leaderelection.TestingMultipleComponentLeaderElectionDriverFactory;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
@@ -66,6 +68,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
@@ -674,9 +677,21 @@ class JobMasterServiceLeadershipRunnerTest {
     @Test
     void testJobMasterServiceLeadershipRunnerCloseWhenElectionServiceGrantLeaderShip()
             throws Exception {
-        final TestingLeaderElectionDriver.TestingLeaderElectionDriverFactory
+        final AtomicReference<LeaderInformation> leaderInformationRef =
+                new AtomicReference<>(LeaderInformation.empty());
+        final TestingMultipleComponentLeaderElectionDriver testingLeaderElectionDriver =
+                TestingMultipleComponentLeaderElectionDriver.newBuilder()
+                        .setPublishLeaderInformationConsumer(
+                                (ignoredContenderID, leaderInformation) ->
+                                        leaderInformationRef.set(leaderInformation))
+                        .setDeleteLeaderInformationConsumer(
+                                ignoredContenderID ->
+                                        leaderInformationRef.set(LeaderInformation.empty()))
+                        .build();
+        final TestingMultipleComponentLeaderElectionDriverFactory
                 testingLeaderElectionDriverFactory =
-                        new TestingLeaderElectionDriver.TestingLeaderElectionDriverFactory();
+                        new TestingMultipleComponentLeaderElectionDriverFactory(
+                                testingLeaderElectionDriver);
 
         // we need to use DefaultLeaderElectionService here because JobMasterServiceLeadershipRunner
         // in connection with the DefaultLeaderElectionService generates the nested locking
@@ -753,19 +768,13 @@ class JobMasterServiceLeadershipRunnerTest {
                         .build()) {
             jobManagerRunner.start();
 
-            final TestingLeaderElectionDriver currentLeaderDriver =
-                    Preconditions.checkNotNull(
-                            testingLeaderElectionDriverFactory.getCurrentLeaderDriver());
             // grant leadership to create jobMasterServiceProcess
-            currentLeaderDriver.isLeader();
+            testingLeaderElectionDriver.grantLeadership();
 
-            while (currentLeaderDriver.getLeaderInformation().getLeaderSessionID() == null
+            while (leaderInformationRef.get().getLeaderSessionID() == null
                     || !jobManagerRunner
                             .getLeaderElection()
-                            .hasLeadership(
-                                    currentLeaderDriver
-                                            .getLeaderInformation()
-                                            .getLeaderSessionID())) {
+                            .hasLeadership(leaderInformationRef.get().getLeaderSessionID())) {
                 Thread.sleep(100);
             }
 
@@ -776,7 +785,7 @@ class JobMasterServiceLeadershipRunnerTest {
             closeAsyncCalledTrigger.await();
 
             final CheckedThread grantLeadershipThread =
-                    createCheckedThread(currentLeaderDriver::isLeader);
+                    createCheckedThread(testingLeaderElectionDriver::grantLeadership);
             grantLeadershipThread.start();
 
             // finalize ClassloaderLease release to trigger DefaultLeaderElectionService#stop
