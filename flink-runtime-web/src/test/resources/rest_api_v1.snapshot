@@ -967,7 +967,7 @@
           }
         },
         "plan" : {
-          "type" : "string"
+          "type" : "any"
         }
       }
     }
