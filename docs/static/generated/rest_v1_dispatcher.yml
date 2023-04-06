@@ -2301,7 +2301,7 @@ components:
           type: integer
           format: int64
         plan:
-          type: string
+          $ref: '#/components/schemas/RawJson'
         start-time:
           type: integer
           format: int64

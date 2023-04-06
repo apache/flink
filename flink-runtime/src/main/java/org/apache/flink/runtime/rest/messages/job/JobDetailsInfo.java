@@ -22,19 +22,18 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.rest.messages.JobPlanInfo;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
 import org.apache.flink.runtime.rest.messages.json.JobIDDeserializer;
 import org.apache.flink.runtime.rest.messages.json.JobIDSerializer;
 import org.apache.flink.runtime.rest.messages.json.JobVertexIDDeserializer;
 import org.apache.flink.runtime.rest.messages.json.JobVertexIDSerializer;
-import org.apache.flink.runtime.rest.messages.json.RawJsonDeserializer;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonRawValue;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
@@ -112,8 +111,7 @@ public class JobDetailsInfo implements ResponseBody {
     private final Map<ExecutionState, Integer> jobVerticesPerState;
 
     @JsonProperty(FIELD_NAME_JSON_PLAN)
-    @JsonRawValue
-    private final String jsonPlan;
+    private final JobPlanInfo.RawJson jsonPlan;
 
     @JsonCreator
     public JobDetailsInfo(
@@ -132,8 +130,7 @@ public class JobDetailsInfo implements ResponseBody {
                     Collection<JobVertexDetailsInfo> jobVertexInfos,
             @JsonProperty(FIELD_NAME_JOB_VERTICES_PER_STATE)
                     Map<ExecutionState, Integer> jobVerticesPerState,
-            @JsonProperty(FIELD_NAME_JSON_PLAN) @JsonDeserialize(using = RawJsonDeserializer.class)
-                    String jsonPlan) {
+            @JsonProperty(FIELD_NAME_JSON_PLAN) JobPlanInfo.RawJson jsonPlan) {
         this.jobId = Preconditions.checkNotNull(jobId);
         this.name = Preconditions.checkNotNull(name);
         this.isStoppable = isStoppable;
@@ -253,7 +250,7 @@ public class JobDetailsInfo implements ResponseBody {
 
     @JsonIgnore
     public String getJsonPlan() {
-        return jsonPlan;
+        return jsonPlan.toString();
     }
 
     // ---------------------------------------------------

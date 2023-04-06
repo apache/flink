@@ -335,7 +335,8 @@
       "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo",
       "properties" : {
         "plan" : {
-          "type" : "any"
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:RawJson"
         }
       }
     }
@@ -399,7 +400,8 @@
       "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo",
       "properties" : {
         "plan" : {
-          "type" : "any"
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:RawJson"
         }
       }
     }
@@ -967,7 +969,8 @@
           }
         },
         "plan" : {
-          "type" : "string"
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:RawJson"
         }
       }
     }
@@ -2227,7 +2230,8 @@
       "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo",
       "properties" : {
         "plan" : {
-          "type" : "any"
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:RawJson"
         }
       }
     }
