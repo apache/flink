@@ -1231,7 +1231,7 @@ public class AllWindowedStream<T, W extends Window> {
     }
 
     /**
-     * Applies an aggregation that that gives the minimum value of every window of the data stream
+     * Applies an aggregation that gives the minimum value of every window of the data stream
      * at the given position.
      *
      * @param positionToMin The position to minimize
@@ -1247,7 +1247,7 @@ public class AllWindowedStream<T, W extends Window> {
     }
 
     /**
-     * Applies an aggregation that that gives the minimum value of the pojo data stream at the given
+     * Applies an aggregation that gives the minimum value of the pojo data stream at the given
      * field expression for every window.
      *
      * <p>A field expression is either the name of a public field or a getter method with
@@ -1312,7 +1312,7 @@ public class AllWindowedStream<T, W extends Window> {
     }
 
     /**
-     * Applies an aggregation that that gives the minimum element of the pojo data stream by the
+     * Applies an aggregation that gives the minimum element of the pojo data stream by the
      * given field expression for every window. A field expression is either the name of a public
      * field or a getter method with parentheses of the {@link DataStream DataStreams} underlying
      * type. A dot can be used to drill down into objects, as in {@code "field1.getInnerField2()" }.
@@ -1348,7 +1348,7 @@ public class AllWindowedStream<T, W extends Window> {
     }
 
     /**
-     * Applies an aggregation that that gives the maximum value of the pojo data stream at the given
+     * Applies an aggregation that gives the maximum value of the pojo data stream at the given
      * field expression for every window. A field expression is either the name of a public field or
      * a getter method with parentheses of the {@link DataStream DataStreams} underlying type. A dot
      * can be used to drill down into objects, as in {@code "field1.getInnerField2()" }.
@@ -1411,7 +1411,7 @@ public class AllWindowedStream<T, W extends Window> {
     }
 
     /**
-     * Applies an aggregation that that gives the maximum element of the pojo data stream by the
+     * Applies an aggregation that gives the maximum element of the pojo data stream by the
      * given field expression for every window. A field expression is either the name of a public
      * field or a getter method with parentheses of the {@link DataStream}S underlying type. A dot
      * can be used to drill down into objects, as in {@code "field1.getInnerField2()" }.
