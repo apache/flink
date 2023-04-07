@@ -72,6 +72,35 @@ Calc(select=[c0 AS c])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testIntersectAllWithRow">
+    <Resource name="sql">
+      <![CDATA[SELECT ROW(c) FROM T1 INTERSECT ALL SELECT ROW(f) FROM T2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalIntersect(all=[true])
+:- LogicalProject(EXPR$0=[ROW($2)])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(EXPR$0=[ROW($2)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[EXPR$00 AS EXPR$0])
++- Correlate(invocation=[$REPLICATE_ROWS$1($0, $1)], correlate=[table($REPLICATE_ROWS$1($f0,EXPR$0))], select=[$f0,EXPR$0,EXPR$00], rowType=[RecordType(BIGINT $f0, RecordType:peek_no_expand(VARCHAR(2147483647) EXPR$0) EXPR$0, RecordType:peek_no_expand(VARCHAR(2147483647) EXPR$0) EXPR$00)], joinType=[INNER])
+   +- Calc(select=[IF((vcol_left_cnt > vcol_right_cnt), vcol_right_cnt, vcol_left_cnt) AS $f0, EXPR$0], where=[((vcol_left_cnt >= 1) AND (vcol_right_cnt >= 1))])
+      +- HashAggregate(isMerge=[true], groupBy=[EXPR$0], select=[EXPR$0, Final_COUNT(count$0) AS vcol_left_cnt, Final_COUNT(count$1) AS vcol_right_cnt])
+         +- Exchange(distribution=[hash[EXPR$0]])
+            +- LocalHashAggregate(groupBy=[EXPR$0], select=[EXPR$0, Partial_COUNT(vcol_left_marker) AS count$0, Partial_COUNT(vcol_right_marker) AS count$1])
+               +- Union(all=[true], union=[EXPR$0, vcol_left_marker, vcol_right_marker])
+                  :- Calc(select=[ROW(c) AS EXPR$0, true AS vcol_left_marker, null:BOOLEAN AS vcol_right_marker])
+                  :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                  +- Calc(select=[ROW(f) AS EXPR$0, null:BOOLEAN AS vcol_left_marker, true AS vcol_right_marker])
+                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testIntersectLeftIsEmpty">
     <Resource name="sql">
       <![CDATA[SELECT c FROM T1 WHERE 1=0 INTERSECT SELECT f FROM T2]]>
@@ -193,6 +222,35 @@ Calc(select=[c0 AS c])
                   :- Calc(select=[c, 1 AS vcol_marker])
                   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
                   +- Calc(select=[f, -1 AS vcol_marker])
+                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMinusAllWithRow">
+    <Resource name="sql">
+      <![CDATA[SELECT ROW(c) FROM T1 EXCEPT ALL SELECT ROW(f) FROM T2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalMinus(all=[true])
+:- LogicalProject(EXPR$0=[ROW($2)])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(EXPR$0=[ROW($2)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[EXPR$00 AS EXPR$0])
++- Correlate(invocation=[$REPLICATE_ROWS$1($0, $1)], correlate=[table($REPLICATE_ROWS$1(sum_vcol_marker,EXPR$0))], select=[sum_vcol_marker,EXPR$0,EXPR$00], rowType=[RecordType(BIGINT sum_vcol_marker, RecordType:peek_no_expand(VARCHAR(2147483647) EXPR$0) EXPR$0, RecordType:peek_no_expand(VARCHAR(2147483647) EXPR$0) EXPR$00)], joinType=[INNER])
+   +- Calc(select=[sum_vcol_marker, EXPR$0], where=[(sum_vcol_marker > 0)])
+      +- HashAggregate(isMerge=[true], groupBy=[EXPR$0], select=[EXPR$0, Final_SUM(sum$0) AS sum_vcol_marker])
+         +- Exchange(distribution=[hash[EXPR$0]])
+            +- LocalHashAggregate(groupBy=[EXPR$0], select=[EXPR$0, Partial_SUM(vcol_marker) AS sum$0])
+               +- Union(all=[true], union=[EXPR$0, vcol_marker])
+                  :- Calc(select=[ROW(c) AS EXPR$0, 1 AS vcol_marker])
+                  :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                  +- Calc(select=[ROW(f) AS EXPR$0, -1 AS vcol_marker])
                      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>

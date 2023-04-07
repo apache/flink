@@ -54,6 +54,11 @@ class SetOperatorsTest extends TableTestBase {
     util.verifyExecPlan("SELECT c FROM T1 INTERSECT ALL SELECT f FROM T2")
   }
 
+  @Test
+  def testIntersectAllWithRow(): Unit = {
+    util.verifyExecPlan("SELECT ROW(c) FROM T1 INTERSECT ALL SELECT ROW(f) FROM T2")
+  }
+
   @Test(expected = classOf[ValidationException])
   def testIntersectDifferentFieldTypes(): Unit = {
     // must fail. Intersect inputs have different field types.
@@ -63,6 +68,11 @@ class SetOperatorsTest extends TableTestBase {
   @Test
   def testMinusAll(): Unit = {
     util.verifyExecPlan("SELECT c FROM T1 EXCEPT ALL SELECT f FROM T2")
+  }
+
+  @Test
+  def testMinusAllWithRow(): Unit = {
+    util.verifyExecPlan("SELECT ROW(c) FROM T1 EXCEPT ALL SELECT ROW(f) FROM T2")
   }
 
   @Test(expected = classOf[ValidationException])
