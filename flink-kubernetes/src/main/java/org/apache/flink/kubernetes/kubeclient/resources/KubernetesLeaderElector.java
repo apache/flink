@@ -90,7 +90,8 @@ public class KubernetesLeaderElector {
                 "Create KubernetesLeaderElector {} with lock identity {}.",
                 leaderConfig.getConfigMapName(),
                 leaderConfig.getLockIdentity());
-        internalLeaderElector = new LeaderElector(kubernetesClient, leaderElectionConfig, executorService);
+        internalLeaderElector =
+                new LeaderElector(kubernetesClient, leaderElectionConfig, executorService);
     }
 
     public void run() {
