@@ -185,6 +185,8 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
                             globalCombinedWatermark.getTimestamp(),
                             watermarkAlignmentParams.getMaxAllowedWatermarkDrift());
         } catch (ArithmeticException e) {
+            // when the source is idle, globalCombinedWatermark.getTimestamp() is Long.MAX_VALUE,
+            // and maxAllowedWatermark arithmetic overflow
             maxAllowedWatermark = Watermark.MAX_WATERMARK.getTimestamp();
         }
 
