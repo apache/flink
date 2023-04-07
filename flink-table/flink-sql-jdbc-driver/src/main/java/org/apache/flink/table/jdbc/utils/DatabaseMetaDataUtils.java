@@ -50,7 +50,7 @@ public class DatabaseMetaDataUtils {
      *   <li>TABLE_CAT String => catalog name.
      * </ul>
      *
-     * The results are ordered by catalog name.
+     * <p>The results are ordered by catalog name.
      *
      * @param statement The statement for database meta data
      * @param result The result for catalogs
@@ -77,7 +77,7 @@ public class DatabaseMetaDataUtils {
      *   <li>TABLE_CATALOG String => catalog name (may be null)
      * </ul>
      *
-     * The results are ordered by TABLE_CATALOG and TABLE_SCHEM.
+     * <p>The results are ordered by TABLE_CATALOG and TABLE_SCHEM.
      *
      * @param statement The statement for database meta data
      * @param catalogs The catalog list
