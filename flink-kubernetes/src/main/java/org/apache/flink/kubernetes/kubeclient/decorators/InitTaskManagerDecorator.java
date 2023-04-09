@@ -28,13 +28,16 @@ import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
+import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -137,14 +140,9 @@ public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
                 .withImagePullPolicy(imagePullPolicy)
                 .withResources(resourceRequirements);
 
+        getContainerPorts(container).ifPresent(mainContainerBuilder::addToPorts);
         // Merge fields
-        mainContainerBuilder
-                .addToPorts(
-                        new ContainerPortBuilder()
-                                .withName(Constants.TASK_MANAGER_RPC_PORT_NAME)
-                                .withContainerPort(kubernetesTaskManagerParameters.getRPCPort())
-                                .build())
-                .addAllToEnv(getCustomizedEnvs());
+        mainContainerBuilder.addAllToEnv(getCustomizedEnvs());
         getFlinkLogDirEnv().ifPresent(mainContainerBuilder::addToEnv);
 
         return mainContainerBuilder.build();
@@ -160,5 +158,24 @@ public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
         return kubernetesTaskManagerParameters
                 .getFlinkLogDirInPod()
                 .map(logDir -> new EnvVar(Constants.ENV_FLINK_LOG_DIR, logDir, null));
+    }
+
+    private Optional<ContainerPort> getContainerPorts(Container container) {
+
+        ContainerPort defaultContainerPort =
+                new ContainerPortBuilder()
+                        .withName(Constants.TASK_MANAGER_RPC_PORT_NAME)
+                        .withContainerPort(kubernetesTaskManagerParameters.getRPCPort())
+                        .build();
+
+        Map<String, ContainerPort> containerPortMap =
+                container.getPorts().stream()
+                        .collect(Collectors.toMap(ContainerPort::getName, Function.identity()));
+
+        if (containerPortMap != null
+                && !containerPortMap.containsKey(defaultContainerPort.getName())) {
+            return Optional.of(defaultContainerPort);
+        }
+        return Optional.empty();
     }
 }
