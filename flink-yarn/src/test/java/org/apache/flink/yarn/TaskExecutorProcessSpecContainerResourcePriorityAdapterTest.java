@@ -140,7 +140,7 @@ class TaskExecutorProcessSpecContainerResourcePriorityAdapterTest {
     void testGetResourceFromSpec() {
         final TaskExecutorProcessSpecContainerResourcePriorityAdapter adapter = getAdapter();
         final Resource resource = getResource(adapter, TASK_EXECUTOR_PROCESS_SPEC_1);
-        assertThat(resource.getMemory())
+        assertThat(resource.getMemorySize())
                 .isEqualTo(TASK_EXECUTOR_PROCESS_SPEC_1.getTotalProcessMemorySize().getMebiBytes());
         assertThat(resource.getVirtualCores())
                 .isEqualTo(TASK_EXECUTOR_PROCESS_SPEC_1.getCpuCores().getValue().intValue());
@@ -253,7 +253,7 @@ class TaskExecutorProcessSpecContainerResourcePriorityAdapterTest {
             getAdapterWithExternalResources(String resourceName, String configKey) {
         final Resource maxResource =
                 Resource.newInstance(
-                        MAX_CONTAINER_RESOURCE.getMemory(),
+                        MAX_CONTAINER_RESOURCE.getMemorySize(),
                         MAX_CONTAINER_RESOURCE.getVirtualCores());
         ResourceInformationReflector.INSTANCE.setResourceInformation(
                 maxResource,
