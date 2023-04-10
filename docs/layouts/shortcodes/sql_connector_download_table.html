@@ -52,7 +52,7 @@
           </div> 
         </td>
         <td style="text-align: left">
-          <a href="{{- partial "docs/interpolate" .sql_url -}}">Download</a>
+          <a href="{{ replace .sql_url "$full_version" $full_version}}">Download</a>
         </td>
       </tr>
       {{ end }}
