@@ -133,7 +133,7 @@ public class CsvFileFormatFactory implements BulkReaderFormatFactory, BulkWriter
                                     .createRowConverter(projectedRowType, true);
             CsvReaderFormat<RowData> csvReaderFormat =
                     new CsvReaderFormat<>(
-                            () -> JacksonMapperFactory.createCsvMapper(),
+                            JacksonMapperFactory::createCsvMapper,
                             ignored -> schema,
                             JsonNode.class,
                             converter,
