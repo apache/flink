@@ -25,6 +25,7 @@ import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.tuple.Tuple2
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.migration.CustomEnum.CustomEnum
+import org.apache.flink.api.scala.migration.StatefulJobSavepointMigrationITCase.executionMode
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend
 import org.apache.flink.runtime.state.{FunctionInitializationContext, FunctionSnapshotContext, StateBackendLoader}
@@ -146,6 +147,12 @@ class StatefulJobSavepointMigrationITCase(snapshotSpec: SnapshotSpec)
     snapshotSpec.getStateBackendType match {
       case StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME =>
         env.setStateBackend(new EmbeddedRocksDBStateBackend())
+
+        if (executionMode == ExecutionMode.CREATE_SNAPSHOT) {
+          // disable changelog backend for now to ensure determinism in test data generation
+          // (see FLINK-31766)
+          env.enableChangelogStateBackend(false);
+        }
       case StateBackendLoader.MEMORY_STATE_BACKEND_NAME =>
         env.setStateBackend(new MemoryStateBackend())
       case StateBackendLoader.HASHMAP_STATE_BACKEND_NAME =>
