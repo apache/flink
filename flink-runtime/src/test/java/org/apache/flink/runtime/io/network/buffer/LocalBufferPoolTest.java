@@ -38,10 +38,8 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -255,9 +253,38 @@ class LocalBufferPoolTest {
     void testDecreasePoolSize() throws Exception {
         final int maxMemorySegments = 10;
         final int requiredMemorySegments = 4;
-        final int maxOverdraftBuffers = 2;
-        final int largePoolSize = 5;
-        final int smallPoolSize = 4;
+
+        // requested buffers is equal to small pool size.
+        testDecreasePoolSizeInternal(
+                maxMemorySegments, requiredMemorySegments, 7, 5, 2, 5, 0, 5, 0);
+        // requested buffers is less than small pool size.
+        testDecreasePoolSizeInternal(
+                maxMemorySegments, requiredMemorySegments, 6, 4, 2, 2, 0, 3, 1);
+        // exceed buffers is equal to maxOverdraftBuffers
+        testDecreasePoolSizeInternal(
+                maxMemorySegments, requiredMemorySegments, 7, 5, 2, 7, 2, 5, 0);
+        // exceed buffers is greater than maxOverdraftBuffers
+        testDecreasePoolSizeInternal(
+                maxMemorySegments, requiredMemorySegments, 9, 5, 3, 9, 4, 5, 0);
+        // exceed buffers is less than maxOverdraftBuffers
+        testDecreasePoolSizeInternal(
+                maxMemorySegments, requiredMemorySegments, 7, 5, 4, 7, 2, 5, 0);
+        // decrease pool size with overdraft buffer.
+        testDecreasePoolSizeInternal(
+                maxMemorySegments, requiredMemorySegments, 7, 5, 6, 9, 4, 5, 0);
+    }
+
+    void testDecreasePoolSizeInternal(
+            int maxMemorySegments,
+            int requiredMemorySegments,
+            int largePoolSize,
+            int smallPoolSize,
+            int maxOverdraftBuffers,
+            int numBuffersToRequest,
+            int numRequestedOverdraftBuffersAfterDecreasing,
+            int numRequestedOrdinaryBuffersAfterDecreasing,
+            int numAvailableBuffersAfterDecreasing)
+            throws Exception {
         LocalBufferPool bufferPool =
                 new LocalBufferPool(
                         networkBufferPool,
@@ -266,51 +293,33 @@ class LocalBufferPoolTest {
                         0,
                         Integer.MAX_VALUE,
                         maxOverdraftBuffers);
-        Queue<MemorySegment> buffers = new LinkedList<>();
+        List<MemorySegment> buffers = new ArrayList<>();
 
         // set a larger pool size.
         bufferPool.setNumBuffers(largePoolSize);
         assertThat(bufferPool.getNumBuffers()).isEqualTo(largePoolSize);
 
-        // request all buffer.
-        for (int i = 0; i < largePoolSize; i++) {
+        // request buffers.
+        for (int i = 0; i < numBuffersToRequest; i++) {
             buffers.add(bufferPool.requestMemorySegmentBlocking());
         }
-        assertThat(bufferPool.isAvailable()).isFalse();
-
-        // request 1 overdraft buffers.
-        buffers.add(bufferPool.requestMemorySegmentBlocking());
-        assertThat(bufferPool.getNumberOfRequestedOverdraftMemorySegments()).isOne();
-        assertThat(bufferPool.isAvailable()).isFalse();
 
         // set a small pool size.
         bufferPool.setNumBuffers(smallPoolSize);
         assertThat(bufferPool.getNumBuffers()).isEqualTo(smallPoolSize);
-        assertThat(bufferPool.getNumberOfAvailableMemorySegments()).isZero();
-        assertThat(bufferPool.getNumberOfRequestedOverdraftMemorySegments()).isOne();
-        assertThat(bufferPool.isAvailable()).isFalse();
-        buffers.add(bufferPool.requestMemorySegmentBlocking());
-        assertThat(bufferPool.getNumberOfRequestedOverdraftMemorySegments()).isEqualTo(2);
-        assertThat(bufferPool.isAvailable()).isFalse();
+        assertThat(bufferPool.getNumberOfRequestedOverdraftMemorySegments())
+                .isEqualTo(numRequestedOverdraftBuffersAfterDecreasing);
+        assertThat(
+                        bufferPool.bestEffortGetNumOfUsedBuffers()
+                                + bufferPool.getNumberOfAvailableMemorySegments()
+                                - bufferPool.getNumberOfRequestedOverdraftMemorySegments())
+                .isEqualTo(numRequestedOrdinaryBuffersAfterDecreasing);
+        assertThat(bufferPool.getNumberOfAvailableMemorySegments())
+                .isEqualTo(numAvailableBuffersAfterDecreasing);
+        assertThat(bufferPool.isAvailable()).isEqualTo(numAvailableBuffersAfterDecreasing > 0);
 
-        // return all overdraft buffers.
-        bufferPool.recycle(buffers.poll());
-        assertThat(bufferPool.getNumberOfRequestedOverdraftMemorySegments()).isOne();
-        assertThat(bufferPool.isAvailable()).isFalse();
-        bufferPool.recycle(buffers.poll());
-        assertThat(bufferPool.getNumberOfRequestedOverdraftMemorySegments()).isZero();
-        assertThat(bufferPool.isAvailable()).isFalse();
-
-        // return the excess buffer.
-        bufferPool.recycle(buffers.poll());
-        assertThat(bufferPool.isAvailable()).isFalse();
-        // return non-excess buffers.
-        bufferPool.recycle(buffers.poll());
-        assertThat(bufferPool.getNumberOfAvailableMemorySegments()).isOne();
-        assertThat(bufferPool.isAvailable()).isTrue();
-
-        while (!buffers.isEmpty()) {
-            bufferPool.recycle(buffers.poll());
+        for (MemorySegment buffer : buffers) {
+            bufferPool.recycle(buffer);
         }
         bufferPool.lazyDestroy();
     }
