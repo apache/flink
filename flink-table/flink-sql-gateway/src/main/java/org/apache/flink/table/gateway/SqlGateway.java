@@ -44,6 +44,7 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 
 /** Main entry point for the SQL Gateway. */
@@ -63,7 +64,7 @@ public class SqlGateway {
         this.latch = new CountDownLatch(1);
     }
 
-    public int start() throws Exception {
+    public Callable<Void> start() throws Exception {
         sessionManager.start();
 
         SqlGatewayService sqlGatewayService = new SqlGatewayServiceImpl(sessionManager);
@@ -78,7 +79,7 @@ public class SqlGateway {
             LOG.error("Failed to start the endpoints.", t);
             throw new SqlGatewayException("Failed to start the endpoints.", t);
         }
-        return 0;
+        return null;
     }
 
     public void stop() {
@@ -121,12 +122,9 @@ public class SqlGateway {
                 new SqlGateway(
                         defaultContext.getFlinkConfig(), SessionManager.create(defaultContext));
 
-        final Configuration flinkConfiguration = GlobalConfiguration.loadConfiguration();
-        flinkConfiguration.addAll(dynamicConfiguration);
-
         try {
             Runtime.getRuntime().addShutdownHook(new ShutdownThread(gateway));
-            SecurityUtils.install(new SecurityConfiguration(flinkConfiguration));
+            SecurityUtils.install(new SecurityConfiguration(defaultContext.getFlinkConfig()));
             SecurityUtils.getInstalledContext().runSecured(gateway::start);
             gateway.waitUntilStop();
         } catch (Throwable t) {
