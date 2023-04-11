@@ -77,6 +77,9 @@ public class AnalyzeTableUtil {
 
         if (operation.getPartitionSpecs().isPresent()) {
             List<CatalogPartitionSpec> targetPartitions = operation.getPartitionSpecs().get();
+            if (targetPartitions.isEmpty()) {
+                return TableResultImpl.TABLE_RESULT_OK;
+            }
             String statSql =
                     generateAnalyzeSqlForMultiParts(
                             operation.getTableIdentifier(), targetPartitions, columns);
