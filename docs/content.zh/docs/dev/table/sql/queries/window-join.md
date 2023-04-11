@@ -22,22 +22,22 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Window Join
+# 窗口关联
 {{< label Batch >}} {{< label Streaming >}}
 
-A window join adds the dimension of time into the join criteria themselves. In doing so, the window join joins the elements of two streams that share a common key and are in the same window. The semantic of window join is same to the [DataStream window join]({{< ref "docs/dev/datastream/operators/joining" >}}#window-join)
+窗口关联就是增加时间维度到关联条件中。在此过程中，窗口关联将两个流中在同一窗口且符合 join 条件的元素 join 起来。窗口关联的语义和 [DataStream window join]({{< ref "docs/dev/datastream/operators/joining" >}}#window-join) 相同。
 
-For streaming queries, unlike other joins on continuous tables, window join does not emit intermediate results but only emits final results at the end of the window. Moreover, window join purge all intermediate state when no longer needed.
+在流式查询中，与其他连续表上的关联不同，窗口关联不产生中间结果，只在窗口结束产生一个最终的结果。另外，窗口关联会清除不需要的中间状态。
 
-Usually, Window Join is used with [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}). Besides, Window Join could follow after other operations based on [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}), such as [Window Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}}), [Window TopN]({{< ref "docs/dev/table/sql/queries/window-topn">}}) and [Window Join]({{< ref "docs/dev/table/sql/queries/window-join">}}).
+通常，窗口关联和 [窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) 一起使用。而且，窗口关联可以在其他基于 [窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) 的操作后使用，例如 [窗口聚合]({{< ref "docs/dev/table/sql/queries/window-agg" >}})，[窗口 Top-N]({{< ref "docs/dev/table/sql/queries/window-topn">}}) 和 [窗口关联]({{< ref "docs/dev/table/sql/queries/window-join">}})。
 
-Currently, Window Join requires the join on condition contains window starts equality of input tables and window ends equality of input tables.
+目前，窗口关联需要在 join on 条件中包含两个输入表的 `window_start` 等值条件和 `window_end` 等值条件。
 
-Window Join supports INNER/LEFT/RIGHT/FULL OUTER/ANTI/SEMI JOIN.
+窗口关联支持 INNER/LEFT/RIGHT/FULL OUTER/ANTI/SEMI JOIN。
 
 ## INNER/LEFT/RIGHT/FULL OUTER 
 
-The following shows the syntax of the INNER/LEFT/RIGHT/FULL OUTER Window Join statement.
+下面展示了 INNER/LEFT/RIGHT/FULL OUTER 窗口关联的语法：
 
 ```sql
 SELECT ...
@@ -45,9 +45,9 @@ FROM L [LEFT|RIGHT|FULL OUTER] JOIN R -- L and R are relations applied windowing
 ON L.window_start = R.window_start AND L.window_end = R.window_end AND ...
 ```
 
-The syntax of INNER/LEFT/RIGHT/FULL OUTER WINDOW JOIN are very similar with each other, we only give an example for FULL OUTER JOIN here.
-When performing a window join, all elements with a common key and a common tumbling window are joined together. We only give an example for a Window Join which works on a Tumble Window TVF.
-By scoping the region of time for the join into fixed five-minute intervals, we chopped our datasets into two distinct windows of time: [12:00, 12:05) and [12:05, 12:10). The L2 and R2 rows could not join together because they fell into separate windows.
+INNER/LEFT/RIGHT/FULL OUTER 这几种窗口关联的语法非常相似，我们在这里只举一个 FULL OUTER JOIN 的例子。
+当执行窗口关联时，所有具有相同 key 和相同滚动窗口的数据会被关联在一起。这里给出一个基于 TUMBLE Window TVF 的窗口连接的例子。
+在下面的例子中，通过将 join 的时间区域限定为固定的 5 分钟，数据集被分成两个不同的时间窗口：[12:00,12:05) 和 [12:05,12:10)。L2 和 R2 不能 join 在一起是因为它们不在一个窗口中。
 
 ```sql
 Flink SQL> desc LeftTable;
@@ -107,11 +107,11 @@ Flink SQL> SELECT L.num as L_Num, L.id as L_Id, R.num as R_Num, R.id as R_Id,
 +-------+------+-------+------+------------------+------------------+
 ```
 
-*Note: in order to better understand the behavior of windowing, we simplify the displaying of timestamp values to not show the trailing zeros, e.g. `2020-04-15 08:05` should be displayed as `2020-04-15 08:05:00.000` in Flink SQL Client if the type is `TIMESTAMP(3)`.*
+*注意：为了更好地理解窗口行为，这里把 timestamp 值后面的 0 去掉了。例如：在 Flink SQL Client 中，如果类型是 `TIMESTAMP(3)`，`2020-04-15 08:05` 应该显示成 `2020-04-15 08:05:00.000`。*
 
 
 ## SEMI
-Semi Window Joins returns a row from one left record if there is at least one matching row on the right side within the common window.
+如果在同一个窗口中，左侧记录在右侧至少有一个匹配的记录时，半窗口连接（Semi Window Join）就会输出左侧的记录。
 
 ```sql
 Flink SQL> SELECT *
@@ -141,11 +141,11 @@ Flink SQL> SELECT *
 +------------------+-----+----+------------------+------------------+-------------------------+
 ```
 
-*Note: in order to better understand the behavior of windowing, we simplify the displaying of timestamp values to not show the trailing zeros, e.g. `2020-04-15 08:05` should be displayed as `2020-04-15 08:05:00.000` in Flink SQL Client if the type is `TIMESTAMP(3)`.*
+*注意：为了更好地理解窗口行为，这里把 timestamp 值后面的 0 去掉了。例如：在 Flink SQL Client 中，如果类型是 `TIMESTAMP(3)`，`2020-04-15 08:05` 应该显示成 `2020-04-15 08:05:00.000`。*
 
 
 ## ANTI
-Anti Window Joins are the obverse of the Inner Window Join: they contain all of the unjoined rows within each common window.
+反窗口连接（Anti Window Join）是内窗口连接（Inner Window Join）的相反操作：它包含了每个公共窗口内所有未关联上的行。
 
 ```sql
 Flink SQL> SELECT *
@@ -177,18 +177,18 @@ Flink SQL> SELECT *
 +------------------+-----+----+------------------+------------------+-------------------------+
 ```
 
-*Note: in order to better understand the behavior of windowing, we simplify the displaying of timestamp values to not show the trailing zeros, e.g. `2020-04-15 08:05` should be displayed as `2020-04-15 08:05:00.000` in Flink SQL Client if the type is `TIMESTAMP(3)`.*
+*注意：为了更好地理解窗口行为，这里把 timestamp 值后面的 0 去掉了。例如：在 Flink SQL Client 中，如果类型是 `TIMESTAMP(3)`，`2020-04-15 08:05` 应该显示成 `2020-04-15 08:05:00.000`。*
 
 
-## Limitation
+## 限制
 
-### Limitation on Join clause
-Currently, The window join requires the join on condition contains window starts equality of input tables and window ends equality of input tables. In the future, we can also simplify the join on clause to only include the window start equality if the windowing TVF is TUMBLE or HOP. 
+### Join 子句的限制
+目前，窗口关联需要在 join on 条件中包含两个输入表的 `window_start` 等值条件和 `window_end` 等值条件。未来，如果是滚动或滑动窗口，只需要在 join on 条件中包含窗口开始相等即可。
 
-### Limitation on windowing TVFs of inputs
-Currently, the windowing TVFs must be the same of left and right inputs. This can be extended in the future, for example, tumbling windows join sliding windows with the same window size.
+### 输入的窗口表值函数的限制
+目前，关联的左右两边必须使用相同的窗口表值函数。这个规则在未来可以扩展，比如：滚动和滑动窗口在窗口大小相同的情况下 join。
 
-### Limitation on Window Join which follows after Windowing TVFs directly
-Currently, if Window Join follows after [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}), the [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) has to be with Tumble Windows, Hop Windows or Cumulate Windows instead of Session windows.
+### 窗口表值函数之后直接使用窗口关联的限制
+目前窗口关联支持作用在滚动（TUMBLE）、滑动（HOP）和累积（CUMULATE）[窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) 之上，但是还不支持会话窗口（SESSION）。
 
 {{< top >}}

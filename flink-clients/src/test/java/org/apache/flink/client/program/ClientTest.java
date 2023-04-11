@@ -68,6 +68,7 @@ import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -278,9 +279,7 @@ class ClientTest {
         jobGraph.addJars(Collections.emptyList());
         jobGraph.setClasspaths(Collections.emptyList());
 
-        assertThat(clusterClient.submitJob(jobGraph))
-                .succeedsWithin(AkkaOptions.ASK_TIMEOUT_DURATION.defaultValue())
-                .isNotNull();
+        assertThatFuture(clusterClient.submitJob(jobGraph)).eventuallySucceeds().isNotNull();
     }
 
     /**

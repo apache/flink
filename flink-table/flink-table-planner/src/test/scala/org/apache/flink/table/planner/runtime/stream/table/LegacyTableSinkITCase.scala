@@ -138,7 +138,7 @@ class LegacyTableSinkITCase extends AbstractTestBase {
     val t = env
       .fromCollection(smallTupleData3)
       .toTable(tEnv, 'id, 'num, 'text)
-    tEnv.registerTable("src", t)
+    tEnv.createTemporaryView("src", t)
 
     val sink = new TestingAppendTableSink()
     tEnv

@@ -19,10 +19,12 @@
 package org.apache.flink.table.planner.delegation.hive;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
@@ -802,7 +804,7 @@ public class HiveParserCalcitePlanner {
             // 2. Get Table Metadata
             if (qb.getValuesTableToData().containsKey(tableAlias)) {
                 // a temp table has been created for VALUES, we need to convert it to LogicalValues
-                Tuple2<CatalogTable, List<List<String>>> tableValueTuple =
+                Tuple2<ResolvedCatalogTable, List<List<String>>> tableValueTuple =
                         qb.getValuesTableToData().get(tableAlias);
                 RelNode values =
                         genValues(
@@ -820,14 +822,15 @@ public class HiveParserCalcitePlanner {
                 Tuple2<String, CatalogTable> nameAndTableTuple =
                         qb.getMetaData().getSrcForAlias(tableAlias);
                 String tableName = nameAndTableTuple.f0;
-                CatalogTable catalogTable = nameAndTableTuple.f1;
-                TableSchema schema =
-                        HiveParserUtils.fromUnresolvedSchema(catalogTable.getUnresolvedSchema());
-                String[] fieldNames = schema.getFieldNames();
+                ResolvedCatalogTable resolvedCatalogTable =
+                        (ResolvedCatalogTable) nameAndTableTuple.f1;
+                ResolvedSchema resolvedSchema = resolvedCatalogTable.getResolvedSchema();
+                String[] fieldNames = resolvedSchema.getColumnNames().toArray(new String[0]);
                 ColumnInfo colInfo;
                 // 3.1 Add Column info
                 for (String fieldName : fieldNames) {
-                    Optional<DataType> dataType = schema.getFieldDataType(fieldName);
+                    Optional<DataType> dataType =
+                            resolvedSchema.getColumn(fieldName).map(Column::getDataType);
                     TypeInfo hiveType =
                             HiveTypeUtil.toHiveTypeInfo(
                                     dataType.orElseThrow(

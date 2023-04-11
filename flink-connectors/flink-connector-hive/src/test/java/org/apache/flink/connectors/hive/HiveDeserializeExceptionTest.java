@@ -22,9 +22,12 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connectors.hive.read.HiveCompactReaderFactory;
 import org.apache.flink.connectors.hive.write.HiveWriterFactory;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
@@ -38,6 +41,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Properties;
 
@@ -58,7 +62,7 @@ public class HiveDeserializeExceptionTest {
                         new JobConf(),
                         HiveIgnoreKeyTextOutputFormat.class,
                         new SerDeInfo(),
-                        TableSchema.builder().build(),
+                        ResolvedSchema.of(),
                         new String[0],
                         new Properties(),
                         HiveShimLoader.loadHiveShim(HiveShimLoader.getHiveVersion()),
@@ -69,22 +73,33 @@ public class HiveDeserializeExceptionTest {
                         new StorageDescriptor(),
                         new Properties(),
                         new JobConf(),
-                        new CatalogTableImpl(
-                                TableSchema.builder().build(), Collections.emptyMap(), null),
+                        new ResolvedCatalogTable(
+                                CatalogTable.of(
+                                        Schema.newBuilder().build(),
+                                        null,
+                                        new ArrayList<>(),
+                                        Collections.emptyMap()),
+                                ResolvedSchema.of()),
                         HiveShimLoader.getHiveVersion(),
                         RowType.of(DataTypes.INT().getLogicalType()),
                         false);
 
+        ResolvedSchema resolvedSchema = ResolvedSchema.of(Column.physical("i", DataTypes.INT()));
+        ResolvedCatalogTable resolvedCatalogTable =
+                new ResolvedCatalogTable(
+                        CatalogTable.of(
+                                Schema.newBuilder().fromResolvedSchema(resolvedSchema).build(),
+                                null,
+                                Collections.emptyList(),
+                                Collections.emptyMap()),
+                        resolvedSchema);
         HiveSourceBuilder builder =
                 new HiveSourceBuilder(
                         new JobConf(),
                         new Configuration(),
                         new ObjectPath("default", "foo"),
                         HiveShimLoader.getHiveVersion(),
-                        new CatalogTableImpl(
-                                TableSchema.builder().field("i", DataTypes.INT()).build(),
-                                Collections.emptyMap(),
-                                null));
+                        resolvedCatalogTable);
         builder.setPartitions(
                 Collections.singletonList(
                         new HiveTablePartition(new StorageDescriptor(), new Properties())));

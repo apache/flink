@@ -21,7 +21,7 @@ $ export FLINK_DIR=<your_workspace_dir>/flink/flink-dist/target/flink-${flink-ve
 $ export END_TO_END_DIR=<your_workspace_dir>/flink/flink-end-to-end-tests                                          # set end to end tests directory
 $ mkdir -p <your_workspace_dir>/dir_to_save_genarator
 $ mkdir -p <your_workspace_dir>/dir_to_save_data
-$ cd <your_workspace_dir>/flink/flink-end-to-end-tests/tpcds-tool
+$ cd <your_workspace_dir>/flink/flink-end-to-end-tests/flink-tpcds-test/tpcds-tool
 $ sh data_generator.sh <your_workspace_dir>/dir_to_save_genarator 1 <your_workspace_dir>/dir_to_save_data <your_workspace_dir>/flink/flink-end-to-end-tests/test-scripts
 ```
 The downloaded generator will be saved to `<your_workspace_dir>/dir_to_save_genarator`, the generated data will be saved to `<your_workspace_dir>/dir_to_save_data`.

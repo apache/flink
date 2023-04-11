@@ -18,6 +18,10 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.internal.TableResultImpl;
+import org.apache.flink.table.api.internal.TableResultInternal;
+import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationUtils;
 
@@ -50,5 +54,16 @@ public class DropCatalogOperation implements DropOperation {
 
         return OperationUtils.formatWithChildren(
                 "DROP CATALOG", params, Collections.emptyList(), Operation::asSummaryString);
+    }
+
+    @Override
+    public TableResultInternal execute(Context ctx) {
+        try {
+            ctx.getCatalogManager().unregisterCatalog(getCatalogName(), isIfExists());
+            return TableResultImpl.TABLE_RESULT_OK;
+        } catch (CatalogException e) {
+            throw new ValidationException(
+                    String.format("Could not execute %s", asSummaryString()), e);
+        }
     }
 }

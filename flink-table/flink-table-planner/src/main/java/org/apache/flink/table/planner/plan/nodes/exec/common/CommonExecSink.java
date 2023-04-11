@@ -155,7 +155,9 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             int[] inputUpsertKey) {
         final ResolvedSchema schema = tableSinkSpec.getContextResolvedTable().getResolvedSchema();
         final SinkRuntimeProvider runtimeProvider =
-                tableSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(isBounded));
+                tableSink.getSinkRuntimeProvider(
+                        new SinkRuntimeProviderContext(
+                                isBounded, tableSinkSpec.getTargetColumns()));
         final RowType physicalRowType = getPhysicalRowType(schema);
         final int[] primaryKeys = getPrimaryKeyIndices(physicalRowType, schema);
         final int sinkParallelism = deriveSinkParallelism(inputTransform, runtimeProvider);

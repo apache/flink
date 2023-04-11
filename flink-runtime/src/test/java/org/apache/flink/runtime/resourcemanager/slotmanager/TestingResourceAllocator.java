@@ -24,20 +24,24 @@ import javax.annotation.Nonnull;
 
 import java.util.Collection;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /** Testing implementation of the {@link ResourceAllocator}. */
 public class TestingResourceAllocator implements ResourceAllocator {
 
     @Nonnull private final Consumer<Collection<ResourceDeclaration>> declareResourceNeededConsumer;
+    @Nonnull private final Supplier<Boolean> isSupportedSupplier;
 
     public TestingResourceAllocator(
-            @Nonnull Consumer<Collection<ResourceDeclaration>> declareResourceNeededConsumer) {
+            @Nonnull Consumer<Collection<ResourceDeclaration>> declareResourceNeededConsumer,
+            @Nonnull Supplier<Boolean> isSupportedSupplier) {
         this.declareResourceNeededConsumer = declareResourceNeededConsumer;
+        this.isSupportedSupplier = isSupportedSupplier;
     }
 
     @Override
     public boolean isSupported() {
-        return true;
+        return isSupportedSupplier.get();
     }
 
     @Override

@@ -80,9 +80,9 @@ public final class KeyGroupRangeAssignment {
      * Computes the range of key-groups that are assigned to a given operator under the given
      * parallelism and maximum parallelism.
      *
-     * <p>IMPORTANT: maxParallelism must be <= Short.MAX_VALUE to avoid rounding problems in this
-     * method. If we ever want to go beyond this boundary, this method must perform arithmetic on
-     * long values.
+     * <p>IMPORTANT: maxParallelism must be <= Short.MAX_VALUE + 1 to avoid rounding problems in
+     * this method. If we ever want to go beyond this boundary, this method must perform arithmetic
+     * on long values.
      *
      * @param maxParallelism Maximal parallelism that the job was initially created with.
      * @param parallelism The current parallelism under which the job runs. Must be <=
@@ -109,12 +109,12 @@ public final class KeyGroupRangeAssignment {
      * Computes the index of the operator to which a key-group belongs under the given parallelism
      * and maximum parallelism.
      *
-     * <p>IMPORTANT: maxParallelism must be <= Short.MAX_VALUE to avoid rounding problems in this
-     * method. If we ever want to go beyond this boundary, this method must perform arithmetic on
-     * long values.
+     * <p>IMPORTANT: maxParallelism must be <= Short.MAX_VALUE + 1 to avoid rounding problems in
+     * this method. If we ever want to go beyond this boundary, this method must perform arithmetic
+     * on long values.
      *
      * @param maxParallelism Maximal parallelism that the job was initially created with. 0 <
-     *     parallelism <= maxParallelism <= Short.MAX_VALUE must hold.
+     *     parallelism <= maxParallelism <= Short.MAX_VALUE + 1 must hold.
      * @param parallelism The current parallelism under which the job runs. Must be <=
      *     maxParallelism.
      * @param keyGroupId Id of a key-group. 0 <= keyGroupID < maxParallelism.

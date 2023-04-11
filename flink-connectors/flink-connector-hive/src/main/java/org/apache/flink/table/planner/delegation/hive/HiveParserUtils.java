@@ -19,17 +19,12 @@
 package org.apache.flink.table.planner.delegation.hive;
 
 import org.apache.flink.connectors.hive.FlinkHiveException;
-import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.Schema;
-import org.apache.flink.table.api.TableColumn;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
-import org.apache.flink.table.expressions.SqlCallExpression;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.hive.HiveGenericUDAF;
 import org.apache.flink.table.module.hive.udf.generic.GenericUDFLegacyGroupingID;
@@ -1694,62 +1689,5 @@ public class HiveParserUtils {
     public static boolean isFromTimeStampToDecimal(RelDataType srcType, RelDataType targetType) {
         return srcType.getSqlTypeName().equals(SqlTypeName.TIMESTAMP)
                 && targetType.getSqlTypeName().equals(SqlTypeName.DECIMAL);
-    }
-
-    /**
-     * Helps to migrate the new {@link Schema} to old API methods. HiveCatalog use deprecated {@link
-     * TableSchema}, other catalogs may use the new {@link Schema}. Currently, we use it to unify to
-     * {@link TableSchema}. It should be dropped after dropping {@link TableSchema}.
-     */
-    public static TableSchema fromUnresolvedSchema(Schema schema) {
-        final TableSchema.Builder builder = TableSchema.builder();
-
-        final DataType unresolvedType = DataTypes.TIMESTAMP(3);
-        schema.getColumns().stream()
-                .map(
-                        column -> {
-                            if (column instanceof Schema.UnresolvedPhysicalColumn) {
-                                final Schema.UnresolvedPhysicalColumn c =
-                                        (Schema.UnresolvedPhysicalColumn) column;
-                                return TableColumn.physical(
-                                        c.getName(), (DataType) c.getDataType());
-                            } else if (column instanceof Schema.UnresolvedMetadataColumn) {
-                                final Schema.UnresolvedMetadataColumn c =
-                                        (Schema.UnresolvedMetadataColumn) column;
-                                return TableColumn.metadata(
-                                        c.getName(),
-                                        (DataType) c.getDataType(),
-                                        c.getMetadataKey(),
-                                        c.isVirtual());
-                            } else if (column instanceof Schema.UnresolvedComputedColumn) {
-                                final Schema.UnresolvedComputedColumn c =
-                                        (Schema.UnresolvedComputedColumn) column;
-                                return TableColumn.computed(
-                                        c.getName(),
-                                        unresolvedType,
-                                        ((SqlCallExpression) c.getExpression()).getSqlExpression());
-                            }
-                            throw new IllegalArgumentException(
-                                    "Unsupported column type: " + column);
-                        })
-                .forEach(builder::add);
-
-        schema.getWatermarkSpecs()
-                .forEach(
-                        spec ->
-                                builder.watermark(
-                                        spec.getColumnName(),
-                                        ((SqlCallExpression) spec.getWatermarkExpression())
-                                                .getSqlExpression(),
-                                        unresolvedType));
-
-        schema.getPrimaryKey()
-                .ifPresent(
-                        pk ->
-                                builder.primaryKey(
-                                        pk.getConstraintName(),
-                                        pk.getColumnNames().toArray(new String[0])));
-
-        return builder.build();
     }
 }

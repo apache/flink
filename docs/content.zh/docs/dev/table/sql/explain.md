@@ -526,7 +526,7 @@ No available advice...
 EXPLAIN [([ExplainDetail[, ExplainDetail]*]) | PLAN FOR] <query_statement_or_insert_statement_or_statement_set>
 
 statement_set:
-EXECUTE STATEMENT SET
+STATEMENT SET
 BEGIN
 insert_statement;
 ...

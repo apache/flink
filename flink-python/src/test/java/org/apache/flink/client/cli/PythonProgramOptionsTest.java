@@ -31,6 +31,7 @@ import static org.apache.flink.client.cli.CliFrontendParser.PYEXEC_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYFILES_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYMODULE_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYREQUIREMENTS_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.PYTHON_PATH;
 import static org.apache.flink.client.cli.CliFrontendParser.PY_OPTION;
 import static org.apache.flink.python.PythonOptions.PYTHON_EXECUTABLE;
 import static org.apache.flink.python.PythonOptions.PYTHON_REQUIREMENTS;
@@ -49,6 +50,7 @@ class PythonProgramOptionsTest {
         options.addOption(PYREQUIREMENTS_OPTION);
         options.addOption(PYARCHIVE_OPTION);
         options.addOption(PYEXEC_OPTION);
+        options.addOption(PYTHON_PATH);
     }
 
     @Test
@@ -60,6 +62,7 @@ class PythonProgramOptionsTest {
             "-pyreq", "a.txt#b_dir",
             "-pyarch", "c.zip#venv,d.zip",
             "-pyexec", "bin/python",
+            "-pypath", "bin/python/lib/:bin/python/lib64",
             "userarg1", "userarg2"
         };
 
@@ -72,6 +75,8 @@ class PythonProgramOptionsTest {
         assertThat(config.get(PYTHON_REQUIREMENTS)).isEqualTo("a.txt#b_dir");
         assertThat(config.get(PythonOptions.PYTHON_ARCHIVES)).isEqualTo("c.zip#venv,d.zip");
         assertThat(config.get(PYTHON_EXECUTABLE)).isEqualTo("bin/python");
+        assertThat(config.get(PythonOptions.PYTHON_PATH))
+                .isEqualTo("bin/python/lib/:bin/python/lib64");
         assertThat(programOptions.getProgramArgs())
                 .containsExactly(
                         "--python", "test.py", "--pyModule", "test", "userarg1", "userarg2");
@@ -80,13 +85,22 @@ class PythonProgramOptionsTest {
     @Test
     void testCreateProgramOptionsWithLongOptions() throws CliArgsException {
         String[] args = {
-            "--python", "xxx.py",
-            "--pyModule", "xxx",
-            "--pyFiles", "/absolute/a.py,relative/b.py,relative/c.py",
-            "--pyRequirements", "d.txt#e_dir",
-            "--pyExecutable", "/usr/bin/python",
-            "--pyArchives", "g.zip,h.zip#data,h.zip#data2",
-            "userarg1", "userarg2"
+            "--python",
+            "xxx.py",
+            "--pyModule",
+            "xxx",
+            "--pyFiles",
+            "/absolute/a.py,relative/b.py,relative/c.py",
+            "--pyRequirements",
+            "d.txt#e_dir",
+            "--pyExecutable",
+            "/usr/bin/python",
+            "--pyArchives",
+            "g.zip,h.zip#data,h.zip#data2",
+            "--pyPythonPath",
+            "bin/python/lib/:bin/python/lib64",
+            "userarg1",
+            "userarg2"
         };
         CommandLine line = CliFrontendParser.parse(options, args, false);
         PythonProgramOptions programOptions = (PythonProgramOptions) ProgramOptions.create(line);
@@ -98,6 +112,8 @@ class PythonProgramOptionsTest {
         assertThat(config.get(PythonOptions.PYTHON_ARCHIVES))
                 .isEqualTo("g.zip,h.zip#data,h.zip#data2");
         assertThat(config.get(PYTHON_EXECUTABLE)).isEqualTo("/usr/bin/python");
+        assertThat(config.get(PythonOptions.PYTHON_PATH))
+                .isEqualTo("bin/python/lib/:bin/python/lib64");
         assertThat(programOptions.getProgramArgs())
                 .containsExactly("--python", "xxx.py", "--pyModule", "xxx", "userarg1", "userarg2");
     }

@@ -40,8 +40,8 @@ import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
-import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
@@ -50,7 +50,6 @@ import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.DynamicTableFactory;
-import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.module.CoreModuleFactory;
 import org.apache.flink.table.module.hive.HiveModule;
 import org.apache.flink.table.planner.delegation.PlannerBase;
@@ -854,7 +853,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 
         doAnswer(
                         invocation -> {
-                            TableSourceFactory.Context context = invocation.getArgument(0);
+                            DynamicTableFactory.Context context = invocation.getArgument(0);
                             assertThat(
                                             context.getConfiguration()
                                                     .get(
@@ -865,7 +864,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
                                     new JobConf(hiveCatalog.getHiveConf()),
                                     context.getConfiguration(),
                                     context.getObjectIdentifier().toObjectPath(),
-                                    context.getTable(),
+                                    context.getCatalogTable(),
                                     inferParallelism);
                         })
                 .when(tableFactorySpy)
@@ -1097,7 +1096,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
                 JobConf jobConf,
                 ReadableConfig flinkConf,
                 ObjectPath tablePath,
-                CatalogTable catalogTable,
+                ResolvedCatalogTable catalogTable,
                 boolean inferParallelism) {
             super(jobConf, flinkConf, tablePath, catalogTable);
             this.inferParallelism = inferParallelism;

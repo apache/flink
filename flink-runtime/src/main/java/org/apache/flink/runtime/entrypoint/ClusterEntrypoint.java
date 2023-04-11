@@ -379,6 +379,15 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                     Executors.newFixedThreadPool(
                             ClusterEntrypointUtils.getPoolSize(configuration),
                             new ExecutorThreadFactory("cluster-io"));
+            delegationTokenManager =
+                    DefaultDelegationTokenManagerFactory.create(
+                            configuration,
+                            pluginManager,
+                            commonRpcService.getScheduledExecutor(),
+                            ioExecutor);
+            // Obtaining delegation tokens and propagating them to the local JVM receivers in a
+            // one-time fashion is required because BlobServer may connect to external file systems
+            delegationTokenManager.obtainDelegationTokens();
             haServices = createHaServices(configuration, ioExecutor, rpcSystem);
             blobServer =
                     BlobUtils.createBlobServer(
@@ -388,12 +397,6 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
             blobServer.start();
             configuration.setString(BlobServerOptions.PORT, String.valueOf(blobServer.getPort()));
             heartbeatServices = createHeartbeatServices(configuration);
-            delegationTokenManager =
-                    DefaultDelegationTokenManagerFactory.create(
-                            configuration,
-                            pluginManager,
-                            commonRpcService.getScheduledExecutor(),
-                            ioExecutor);
             metricRegistry = createMetricRegistry(configuration, pluginManager, rpcSystem);
 
             final RpcService metricQueryServiceRpcService =

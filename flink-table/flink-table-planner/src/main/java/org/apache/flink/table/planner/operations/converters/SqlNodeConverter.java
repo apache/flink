@@ -23,10 +23,22 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.planner.utils.Expander;
 
 import org.apache.calcite.rel.RelRoot;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.validate.SqlValidator;
 
-/** A converter to convert {@link SqlNode} instance into {@link Operation}. */
+import java.util.EnumSet;
+import java.util.Optional;
+
+/**
+ * A converter to convert {@link SqlNode} instance into {@link Operation}.
+ *
+ * <p>By default, a {@link SqlNodeConverter} only matches a specific SqlNode class to convert which
+ * is defined by the parameter type {@code S}. But a {@link SqlNodeConverter} can also match a set
+ * of SqlNodes with the {@link SqlKind} if it defines the {@link #supportedSqlKinds()}.
+ *
+ * @see SqlNodeConverters
+ */
 public interface SqlNodeConverter<S extends SqlNode> {
 
     /**
@@ -36,6 +48,20 @@ public interface SqlNodeConverter<S extends SqlNode> {
      * @param context the utilities and context information to convert
      */
     Operation convertSqlNode(S node, ConvertContext context);
+
+    /**
+     * Returns the {@link SqlKind SqlKinds} of {@link SqlNode SqlNodes} that the {@link
+     * SqlNodeConverter} supports to convert.
+     *
+     * <p>If a {@link SqlNodeConverter} returns a non-empty SqlKinds, The conversion framework will
+     * find the corresponding converter by matching the SqlKind of SqlNode instead of the class of
+     * SqlNode
+     *
+     * @see SqlQueryConverter
+     */
+    default Optional<EnumSet<SqlKind>> supportedSqlKinds() {
+        return Optional.empty();
+    }
 
     /** Context of {@link SqlNodeConverter}. */
     interface ConvertContext {

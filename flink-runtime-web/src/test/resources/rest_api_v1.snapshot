@@ -335,7 +335,8 @@
       "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo",
       "properties" : {
         "plan" : {
-          "type" : "any"
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:RawJson"
         }
       }
     }
@@ -399,7 +400,8 @@
       "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo",
       "properties" : {
         "plan" : {
-          "type" : "any"
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:RawJson"
         }
       }
     }
@@ -967,7 +969,8 @@
           }
         },
         "plan" : {
-          "type" : "string"
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:RawJson"
         }
       }
     }
@@ -2227,7 +2230,8 @@
       "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo",
       "properties" : {
         "plan" : {
-          "type" : "any"
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:RawJson"
         }
       }
     }
@@ -2299,6 +2303,48 @@
           "id" : "urn:jsonschema:java:lang:Object"
         }
       }
+    }
+  }, {
+    "url" : "/jobs/:jobid/resource-requirements",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:JobResourceRequirementsBody"
+    }
+  }, {
+    "url" : "/jobs/:jobid/resource-requirements",
+    "method" : "PUT",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:JobResourceRequirementsBody"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyResponseBody"
     }
   }, {
     "url" : "/jobs/:jobid/savepoints",
@@ -2782,14 +2828,14 @@
     },
     "response" : {
       "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:threadinfo:JobVertexFlameGraph",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:threadinfo:VertexFlameGraph",
       "properties" : {
         "endTimestamp" : {
           "type" : "integer"
         },
         "data" : {
           "type" : "object",
-          "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:threadinfo:JobVertexFlameGraph:Node",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:threadinfo:VertexFlameGraph:Node",
           "properties" : {
             "name" : {
               "type" : "string"
@@ -2801,7 +2847,7 @@
               "type" : "array",
               "items" : {
                 "type" : "object",
-                "$ref" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:threadinfo:JobVertexFlameGraph:Node"
+                "$ref" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:threadinfo:VertexFlameGraph:Node"
               }
             }
           }

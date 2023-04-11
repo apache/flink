@@ -79,7 +79,7 @@ class TableEnvironmentTest {
   @Test
   def testRegisterDataStream(): Unit = {
     val table = env.fromElements[(Int, Long, String, Boolean)]().toTable(tableEnv, 'a, 'b, 'c, 'd)
-    tableEnv.registerTable("MyTable", table)
+    tableEnv.createTemporaryView("MyTable", table)
     val scanTable = tableEnv.from("MyTable")
     val relNode = TableTestUtil.toRelNode(scanTable)
     val actual = RelOptUtil.toString(relNode)
@@ -96,7 +96,7 @@ class TableEnvironmentTest {
   @Test
   def testSimpleQuery(): Unit = {
     val table = env.fromElements[(Int, Long, String, Boolean)]().toTable(tableEnv, 'a, 'b, 'c, 'd)
-    tableEnv.registerTable("MyTable", table)
+    tableEnv.createTemporaryView("MyTable", table)
     val queryTable = tableEnv.sqlQuery("SELECT a, c, d FROM MyTable")
     val relNode = TableTestUtil.toRelNode(queryTable)
     val actual = RelOptUtil.toString(relNode, SqlExplainLevel.NO_ATTRIBUTES)
@@ -1358,7 +1358,7 @@ class TableEnvironmentTest {
       ResolvedSchema.of(Column.physical("database name", DataTypes.STRING())),
       tableResult2.getResolvedSchema)
     checkData(
-      util.Arrays.asList(Row.of("default_database"), Row.of("db1")).iterator(),
+      util.Arrays.asList(Row.of("db1"), Row.of("default_database")).iterator(),
       tableResult2.collect())
   }
 
@@ -2802,7 +2802,11 @@ class TableEnvironmentTest {
         table: CatalogBaseTable): CatalogBaseTable = {
       numTempTable += 1
       if (table.isInstanceOf[CatalogTable]) {
-        new CatalogTableImpl(table.getSchema, table.getOptions, tableComment)
+        CatalogTable.of(
+          table.getUnresolvedSchema,
+          tableComment,
+          Collections.emptyList(),
+          table.getOptions)
       } else {
         val view = table.asInstanceOf[CatalogView]
         CatalogView.of(

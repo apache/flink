@@ -39,6 +39,7 @@ import org.apache.flink.runtime.highavailability.ClientHighAvailabilityServicesF
 import org.apache.flink.runtime.highavailability.DefaultClientHighAvailabilityServicesFactory;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -50,6 +51,8 @@ import org.apache.flink.runtime.rest.FileUpload;
 import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationInfo;
 import org.apache.flink.runtime.rest.handler.async.TriggerResponse;
+import org.apache.flink.runtime.rest.handler.legacy.messages.ClusterOverviewWithVersion;
+import org.apache.flink.runtime.rest.messages.ClusterOverviewHeaders;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
@@ -79,6 +82,8 @@ import org.apache.flink.runtime.rest.messages.dataset.ClusterDataSetListHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.runtime.rest.messages.job.JobExecutionResultHeaders;
+import org.apache.flink.runtime.rest.messages.job.JobResourceRequirementsBody;
+import org.apache.flink.runtime.rest.messages.job.JobResourcesRequirementsUpdateHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobStatusInfoHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
@@ -800,6 +805,37 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                         });
 
         return resultFuture;
+    }
+
+    /**
+     * Update {@link JobResourceRequirements} of a given job.
+     *
+     * @param jobId jobId specifies the job for which to change the resource requirements
+     * @param jobResourceRequirements new resource requirements for the provided job
+     * @return Future which is completed upon successful operation.
+     */
+    public CompletableFuture<Acknowledge> updateJobResourceRequirements(
+            JobID jobId, JobResourceRequirements jobResourceRequirements) {
+        final JobMessageParameters params = new JobMessageParameters();
+        params.jobPathParameter.resolve(jobId);
+
+        return sendRequest(
+                        JobResourcesRequirementsUpdateHeaders.INSTANCE,
+                        params,
+                        new JobResourceRequirementsBody(jobResourceRequirements))
+                .thenApply(ignored -> Acknowledge.get());
+    }
+
+    /**
+     * Get an overview of the Flink cluster.
+     *
+     * @return Future with the {@link ClusterOverviewWithVersion cluster overview}.
+     */
+    public CompletableFuture<ClusterOverviewWithVersion> getClusterOverview() {
+        return sendRequest(
+                ClusterOverviewHeaders.getInstance(),
+                EmptyMessageParameters.getInstance(),
+                EmptyRequestBody.getInstance());
     }
 
     // ======================================

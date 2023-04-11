@@ -78,8 +78,8 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.connector.testframe.utils.ConnectorTestConstants.DEFAULT_COLLECT_DATA_TIMEOUT;
 import static org.apache.flink.connector.testframe.utils.MetricQuerier.getJobDetails;
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.terminateJob;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForJobStatus;
@@ -87,7 +87,6 @@ import static org.apache.flink.runtime.testutils.CommonTestUtils.waitUntilCondit
 import static org.apache.flink.streaming.api.CheckpointingMode.AT_LEAST_ONCE;
 import static org.apache.flink.streaming.api.CheckpointingMode.EXACTLY_ONCE;
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 /**
  * Base class for sink test suite.
@@ -616,7 +615,7 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
     }
 
     private void waitExpectedSizeData(CollectResultIterator<T> iterator, int targetNum) {
-        assertThat(
+        assertThatFuture(
                         CompletableFuture.supplyAsync(
                                 () -> {
                                     int count = 0;
@@ -631,6 +630,6 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
                                     }
                                     return true;
                                 }))
-                .succeedsWithin(DEFAULT_COLLECT_DATA_TIMEOUT);
+                .eventuallySucceeds();
     }
 }

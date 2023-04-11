@@ -20,12 +20,10 @@ package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.testutils.ScheduledTask;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
-import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.ManualClock;
@@ -55,9 +53,6 @@ import static org.junit.Assert.fail;
 
 /** Tests for the WaitingForResources state. */
 public class WaitingForResourcesTest extends TestLogger {
-    private static final ResourceCounter RESOURCE_COUNTER =
-            ResourceCounter.withResource(ResourceProfile.UNKNOWN, 1);
-
     private static final Duration STABILIZATION_TIMEOUT = Duration.ofSeconds(1);
 
     /** WaitingForResources is transitioning to Executing if there are enough resources. */
@@ -68,8 +63,7 @@ public class WaitingForResourcesTest extends TestLogger {
 
             ctx.setExpectCreatingExecutionGraph();
 
-            new WaitingForResources(
-                    ctx, log, RESOURCE_COUNTER, Duration.ZERO, STABILIZATION_TIMEOUT);
+            new WaitingForResources(ctx, log, Duration.ZERO, STABILIZATION_TIMEOUT);
 
             ctx.runScheduledTasks();
         }
@@ -80,11 +74,10 @@ public class WaitingForResourcesTest extends TestLogger {
         try (MockContext ctx = new MockContext()) {
             ctx.setHasDesiredResources(() -> false);
             WaitingForResources wfr =
-                    new WaitingForResources(
-                            ctx, log, RESOURCE_COUNTER, Duration.ZERO, STABILIZATION_TIMEOUT);
+                    new WaitingForResources(ctx, log, Duration.ZERO, STABILIZATION_TIMEOUT);
 
             // we expect no state transition.
-            wfr.notifyNewResourcesAvailable();
+            wfr.onNewResourcesAvailable();
         }
     }
 
@@ -93,11 +86,10 @@ public class WaitingForResourcesTest extends TestLogger {
         try (MockContext ctx = new MockContext()) {
             ctx.setHasDesiredResources(() -> false); // initially, not enough resources
             WaitingForResources wfr =
-                    new WaitingForResources(
-                            ctx, log, RESOURCE_COUNTER, Duration.ZERO, STABILIZATION_TIMEOUT);
+                    new WaitingForResources(ctx, log, Duration.ZERO, STABILIZATION_TIMEOUT);
             ctx.setHasDesiredResources(() -> true); // make resources available
             ctx.setExpectCreatingExecutionGraph();
-            wfr.notifyNewResourcesAvailable(); // .. and notify
+            wfr.onNewResourcesAvailable(); // .. and notify
         }
     }
 
@@ -108,16 +100,12 @@ public class WaitingForResourcesTest extends TestLogger {
             Duration noStabilizationTimeout = Duration.ofMillis(0);
             WaitingForResources wfr =
                     new WaitingForResources(
-                            ctx,
-                            log,
-                            RESOURCE_COUNTER,
-                            Duration.ofSeconds(1000),
-                            noStabilizationTimeout);
+                            ctx, log, Duration.ofSeconds(1000), noStabilizationTimeout);
 
             ctx.setHasDesiredResources(() -> false);
             ctx.setHasSufficientResources(() -> true);
             ctx.setExpectCreatingExecutionGraph();
-            wfr.notifyNewResourcesAvailable();
+            wfr.onNewResourcesAvailable();
         }
     }
 
@@ -129,15 +117,11 @@ public class WaitingForResourcesTest extends TestLogger {
 
             WaitingForResources wfr =
                     new WaitingForResources(
-                            ctx,
-                            log,
-                            RESOURCE_COUNTER,
-                            Duration.ofSeconds(1000),
-                            stabilizationTimeout);
+                            ctx, log, Duration.ofSeconds(1000), stabilizationTimeout);
 
             ctx.setHasDesiredResources(() -> false);
             ctx.setHasSufficientResources(() -> true);
-            wfr.notifyNewResourcesAvailable();
+            wfr.onNewResourcesAvailable();
             // we are not triggering the scheduled tasks, to simulate a long stabilization timeout
 
             assertThat(ctx.hasStateTransition(), is(false));
@@ -155,7 +139,6 @@ public class WaitingForResourcesTest extends TestLogger {
                     new WaitingForResources(
                             ctx,
                             log,
-                            RESOURCE_COUNTER,
                             initialResourceTimeout,
                             stabilizationTimeout,
                             ctx.getClock(),
@@ -165,7 +148,7 @@ public class WaitingForResourcesTest extends TestLogger {
             ctx.setHasSufficientResources(() -> true);
 
             // notify about sufficient resources
-            wfr.notifyNewResourcesAvailable();
+            wfr.onNewResourcesAvailable();
 
             ctx.setExpectCreatingExecutionGraph();
 
@@ -190,7 +173,6 @@ public class WaitingForResourcesTest extends TestLogger {
                     new WaitingForResources(
                             ctx,
                             log,
-                            RESOURCE_COUNTER,
                             initialResourceTimeout,
                             stabilizationTimeout,
                             ctx.getClock(),
@@ -201,17 +183,17 @@ public class WaitingForResourcesTest extends TestLogger {
             // notify about resources, trigger stabilization timeout
             ctx.setHasSufficientResources(() -> true);
             ctx.advanceTimeByMillis(40); // advance time, but don't trigger stabilizationTimeout
-            wfr.notifyNewResourcesAvailable();
+            wfr.onNewResourcesAvailable();
 
             // notify again, but insufficient (reset stabilization timeout)
             ctx.setHasSufficientResources(() -> false);
             ctx.advanceTimeByMillis(40);
-            wfr.notifyNewResourcesAvailable();
+            wfr.onNewResourcesAvailable();
 
             // notify again, but sufficient, trigger timeout
             ctx.setHasSufficientResources(() -> true);
             ctx.advanceTimeByMillis(40);
-            wfr.notifyNewResourcesAvailable();
+            wfr.onNewResourcesAvailable();
 
             // sanity check: no state transition has been triggered so far
             assertThat(ctx.hasStateTransition(), is(false));
@@ -232,12 +214,7 @@ public class WaitingForResourcesTest extends TestLogger {
         try (MockContext ctx = new MockContext()) {
             ctx.setHasDesiredResources(() -> false);
             WaitingForResources wfr =
-                    new WaitingForResources(
-                            ctx,
-                            log,
-                            RESOURCE_COUNTER,
-                            Duration.ofMillis(-1),
-                            STABILIZATION_TIMEOUT);
+                    new WaitingForResources(ctx, log, Duration.ofMillis(-1), STABILIZATION_TIMEOUT);
 
             ctx.runScheduledTasks();
             assertThat(ctx.hasStateTransition(), is(false));
@@ -249,8 +226,7 @@ public class WaitingForResourcesTest extends TestLogger {
         try (MockContext ctx = new MockContext()) {
             ctx.setHasDesiredResources(() -> false);
             WaitingForResources wfr =
-                    new WaitingForResources(
-                            ctx, log, RESOURCE_COUNTER, Duration.ZERO, STABILIZATION_TIMEOUT);
+                    new WaitingForResources(ctx, log, Duration.ZERO, STABILIZATION_TIMEOUT);
 
             ctx.setExpectCreatingExecutionGraph();
 
@@ -264,8 +240,7 @@ public class WaitingForResourcesTest extends TestLogger {
         try (MockContext ctx = new MockContext()) {
             ctx.setHasDesiredResources(() -> false);
             WaitingForResources wfr =
-                    new WaitingForResources(
-                            ctx, log, RESOURCE_COUNTER, Duration.ZERO, STABILIZATION_TIMEOUT);
+                    new WaitingForResources(ctx, log, Duration.ZERO, STABILIZATION_TIMEOUT);
 
             ctx.setExpectFinished(
                     archivedExecutionGraph -> {
@@ -287,8 +262,7 @@ public class WaitingForResourcesTest extends TestLogger {
         try (MockContext ctx = new MockContext()) {
             ctx.setHasDesiredResources(() -> false);
             WaitingForResources wfr =
-                    new WaitingForResources(
-                            ctx, log, RESOURCE_COUNTER, Duration.ZERO, STABILIZATION_TIMEOUT);
+                    new WaitingForResources(ctx, log, Duration.ZERO, STABILIZATION_TIMEOUT);
 
             ctx.setExpectFinished(
                     (archivedExecutionGraph -> {
@@ -303,8 +277,7 @@ public class WaitingForResourcesTest extends TestLogger {
         try (MockContext ctx = new MockContext()) {
             ctx.setHasDesiredResources(() -> false);
             WaitingForResources wfr =
-                    new WaitingForResources(
-                            ctx, log, RESOURCE_COUNTER, Duration.ZERO, STABILIZATION_TIMEOUT);
+                    new WaitingForResources(ctx, log, Duration.ZERO, STABILIZATION_TIMEOUT);
 
             ctx.setExpectFinished(
                     (archivedExecutionGraph -> {
@@ -480,7 +453,7 @@ public class WaitingForResourcesTest extends TestLogger {
         }
 
         @Override
-        public boolean hasDesiredResources(ResourceCounter desiredResources) {
+        public boolean hasDesiredResources() {
             return hasDesiredResourcesSupplier.get();
         }
 

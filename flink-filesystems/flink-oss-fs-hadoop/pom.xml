@@ -145,19 +145,6 @@ under the License.
 								</includes>
 							</artifactSet>
 							<relocations>
-								<relocation>
-									<pattern>org.apache.hadoop</pattern>
-									<shadedPattern>org.apache.flink.fs.shaded.hadoop3.org.apache.hadoop</shadedPattern>
-								</relocation>
-								<!-- relocate the OSS dependencies -->
-								<relocation>
-									<pattern>com.aliyun</pattern>
-									<shadedPattern>org.apache.flink.fs.osshadoop.shaded.com.aliyun</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>com.aliyuncs</pattern>
-									<shadedPattern>org.apache.flink.fs.osshadoop.shaded.com.aliyuncs</shadedPattern>
-								</relocation>
 								<!-- shade Flink's Hadoop FS adapter classes, forces plugin classloader for them -->
 								<relocation>
 									<pattern>org.apache.flink.runtime.fs.hdfs</pattern>

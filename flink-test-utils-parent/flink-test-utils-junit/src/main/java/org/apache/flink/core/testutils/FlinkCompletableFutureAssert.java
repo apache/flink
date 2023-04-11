@@ -32,6 +32,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Enhanced version of {@link org.assertj.core.api.CompletableFutureAssert}, that allows asserting
@@ -45,6 +47,9 @@ public class FlinkCompletableFutureAssert<T>
     private static final String SHOULD_HAVE_SUCCEEDED = "%nExpecting%n  <%s>%nto have succeeded.%n";
 
     private static final String SHOULD_HAVE_FAILED = "%nExpecting%n  <%s>%nto have failed.%n";
+
+    private static final String SHOULD_NOT_COMPLETED =
+            "%nExpecting%n  <%s>%nto have not completed normally or exceptionally within %s ms.%n";
 
     /** A strongly typed alternative to {@link org.assertj.core.api.WithThrowable}. */
     public static class WithThrowable {
@@ -113,6 +118,18 @@ public class FlinkCompletableFutureAssert<T>
         return eventuallyFails().withThrowableOfType(exceptionClass);
     }
 
+    /**
+     * Assert that {@link CompletableFuture} will not complete within a fixed duration.
+     *
+     * <p>This is a replacement for {@link FlinkMatchers#willNotComplete(Duration)} in assertj.
+     *
+     * @return {@code this} assertion object.
+     */
+    public FlinkCompletableFutureAssert<T> willNotCompleteWithin(Duration duration) {
+        assertWillNotCompleteWithin(info, actual, duration);
+        return myself;
+    }
+
     private T assertEventuallySucceeds(AssertionInfo info, Future<T> actual) {
         Objects.instance().assertNotNull(info, actual);
         try {
@@ -131,6 +148,27 @@ public class FlinkCompletableFutureAssert<T>
                     .failure(info, new BasicErrorMessageFactory(SHOULD_HAVE_FAILED, actual));
         } catch (InterruptedException | ExecutionException | CancellationException e) {
             return e;
+        }
+    }
+
+    private void assertWillNotCompleteWithin(
+            AssertionInfo info, Future<T> actual, Duration duration) {
+        Objects.instance().assertNotNull(info, actual);
+        try {
+            actual.get(duration.toMillis(), TimeUnit.MILLISECONDS);
+            throw Failures.instance()
+                    .failure(
+                            info,
+                            new BasicErrorMessageFactory(
+                                    SHOULD_NOT_COMPLETED, actual, duration.toMillis()));
+        } catch (TimeoutException ignored) {
+            // only timeout exception is expected.
+        } catch (Throwable e) {
+            throw Failures.instance()
+                    .failure(
+                            info,
+                            new BasicErrorMessageFactory(
+                                    SHOULD_NOT_COMPLETED, actual, duration.toMillis()));
         }
     }
 }

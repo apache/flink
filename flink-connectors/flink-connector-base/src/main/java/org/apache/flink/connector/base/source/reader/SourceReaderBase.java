@@ -19,6 +19,7 @@
 package org.apache.flink.connector.base.source.reader;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceOutput;
@@ -40,11 +41,13 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -102,10 +105,22 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
     /** Indicating whether the SourceReader will be assigned more splits or not. */
     private boolean noMoreSplitsAssignment;
 
+    @Nullable protected final RecordEvaluator<T> eofRecordEvaluator;
+
     public SourceReaderBase(
             FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
             SplitFetcherManager<E, SplitT> splitFetcherManager,
             RecordEmitter<E, T, SplitStateT> recordEmitter,
+            Configuration config,
+            SourceReaderContext context) {
+        this(elementsQueue, splitFetcherManager, recordEmitter, null, config, context);
+    }
+
+    public SourceReaderBase(
+            FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
+            SplitFetcherManager<E, SplitT> splitFetcherManager,
+            RecordEmitter<E, T, SplitStateT> recordEmitter,
+            @Nullable RecordEvaluator<T> eofRecordEvaluator,
             Configuration config,
             SourceReaderContext context) {
         this.elementsQueue = elementsQueue;
@@ -116,6 +131,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
         this.config = config;
         this.context = context;
         this.noMoreSplitsAssignment = false;
+        this.eofRecordEvaluator = eofRecordEvaluator;
 
         numRecordsInCounter = context.metricGroup().getIOMetricGroup().getNumRecordsInCounter();
     }
@@ -211,7 +227,21 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 
         currentSplitContext = splitStates.get(nextSplitId);
         checkState(currentSplitContext != null, "Have records for a split that was not registered");
-        currentSplitOutput = currentSplitContext.getOrCreateSplitOutput(output);
+
+        Function<T, Boolean> eofRecordHandler = null;
+        if (eofRecordEvaluator != null) {
+            eofRecordHandler =
+                    record -> {
+                        if (!eofRecordEvaluator.isEndOfStream(record)) {
+                            return false;
+                        }
+                        SplitT split =
+                                toSplitType(currentSplitContext.splitId, currentSplitContext.state);
+                        splitFetcherManager.removeSplits(Collections.singletonList(split));
+                        return true;
+                    };
+        }
+        currentSplitOutput = currentSplitContext.getOrCreateSplitOutput(output, eofRecordHandler);
         LOG.trace("Emitting records from fetch for split {}", nextSplitId);
         return true;
     }
@@ -328,14 +358,76 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
             this.splitId = splitId;
         }
 
-        SourceOutput<T> getOrCreateSplitOutput(ReaderOutput<T> mainOutput) {
+        SourceOutput<T> getOrCreateSplitOutput(
+                ReaderOutput<T> mainOutput, @Nullable Function<T, Boolean> eofRecordHandler) {
             if (sourceOutput == null) {
                 // The split output should have been created when AddSplitsEvent was processed in
                 // SourceOperator. Here we just use this method to get the previously created
                 // output.
                 sourceOutput = mainOutput.createOutputForSplit(splitId);
+                if (eofRecordHandler != null) {
+                    sourceOutput = new SourceOutputWrapper<>(sourceOutput, eofRecordHandler);
+                }
             }
             return sourceOutput;
+        }
+    }
+
+    /** This output will stop sending records after receiving the eof record. */
+    private static final class SourceOutputWrapper<T> implements SourceOutput<T> {
+        final SourceOutput<T> sourceOutput;
+        final Function<T, Boolean> eofRecordHandler;
+
+        private boolean isStreamEnd = false;
+
+        public SourceOutputWrapper(
+                SourceOutput<T> sourceOutput, Function<T, Boolean> eofRecordHandler) {
+            this.sourceOutput = sourceOutput;
+            this.eofRecordHandler = eofRecordHandler;
+        }
+
+        @Override
+        public void emitWatermark(Watermark watermark) {
+            sourceOutput.emitWatermark(watermark);
+        }
+
+        @Override
+        public void markIdle() {
+            sourceOutput.markIdle();
+        }
+
+        @Override
+        public void markActive() {
+            sourceOutput.markActive();
+        }
+
+        @Override
+        public void collect(T record) {
+            if (!isEndOfStreamReached(record)) {
+                sourceOutput.collect(record);
+            }
+        }
+
+        @Override
+        public void collect(T record, long timestamp) {
+            if (!isEndOfStreamReached(record)) {
+                sourceOutput.collect(record, timestamp);
+            }
+        }
+
+        /**
+         * Judge and handle the eof record.
+         *
+         * @return whether the record is the eof record.
+         */
+        private boolean isEndOfStreamReached(T record) {
+            if (isStreamEnd) {
+                return true;
+            }
+            if (eofRecordHandler.apply(record)) {
+                isStreamEnd = true;
+            }
+            return isStreamEnd;
         }
     }
 }

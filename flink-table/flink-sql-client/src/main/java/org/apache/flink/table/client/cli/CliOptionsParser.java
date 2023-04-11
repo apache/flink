@@ -44,6 +44,7 @@ import static org.apache.flink.client.cli.CliFrontendParser.PYCLIENTEXEC_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYEXEC_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYFILES_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYREQUIREMENTS_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.PYTHON_PATH;
 
 /** Parser for command line options. */
 public class CliOptionsParser {
@@ -183,6 +184,7 @@ public class CliOptionsParser {
         options.addOption(PYARCHIVE_OPTION);
         options.addOption(PYEXEC_OPTION);
         options.addOption(PYCLIENTEXEC_OPTION);
+        options.addOption(PYTHON_PATH);
         return options;
     }
 

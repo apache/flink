@@ -262,6 +262,7 @@ $ bin/flink run -s :savepointPath [:runArgs]
       <th class="text-center">1.14.x</th>
       <th class="text-center">1.15.x</th>
       <th class="text-center">1.16.x</th>
+      <th class="text-center">1.17.x</th>
       <th class="text-center" style="width: 50%">限制</th>
     </tr>
   </thead>
@@ -271,6 +272,7 @@ $ bin/flink run -s :savepointPath [:runArgs]
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
           <td class="text-center"></td>
           <td class="text-center"></td>
           <td class="text-center"></td>
@@ -306,6 +308,7 @@ $ bin/flink run -s :savepointPath [:runArgs]
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
           <td class="text-left">
          从 Flink 1.2.x 迁移到 Flink 1.3.x+ 时，不支持同时更改并行度。
             迁移到 Flink 1.3.x+ 后，
@@ -334,6 +337,7 @@ $ bin/flink run -s :savepointPath [:runArgs]
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
           <td class="text-left">M如果 Savepoint 包含 Scala 案例类，则从 Flink 1.3.0 迁移到 Flink 1.4.[0,1] 将失败。用户必须直接迁移到 1.4.2+。</td>
     </tr>
     <tr>
@@ -354,6 +358,7 @@ $ bin/flink run -s :savepointPath [:runArgs]
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
     </tr>
     <tr>
@@ -374,6 +379,7 @@ $ bin/flink run -s :savepointPath [:runArgs]
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
           <td class="text-left">在 1.6.x 到 1.6.2 和 1.7.0 版本中恢复使用 1.5.x 创建的广播状态存在一个已知问题：<a href="https://issues.apache.org/jira/browse/FLINK-11087">FLINK-11087</a>. 
             升级到 1.6.x 或 1.7.x 系列的用户需要
             直接迁移到次要版本分别高于 1.6.2 和 1.7.0。</td>
@@ -396,6 +402,7 @@ $ bin/flink run -s :savepointPath [:runArgs]
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
     </tr>
     <tr>
@@ -416,6 +423,7 @@ $ bin/flink run -s :savepointPath [:runArgs]
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
     </tr>
     <tr>
@@ -427,6 +435,7 @@ $ bin/flink run -s :savepointPath [:runArgs]
           <td class="text-center"></td>
           <td class="text-center"></td>
           <td class="text-center"></td>
+          <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
@@ -456,6 +465,7 @@ $ bin/flink run -s :savepointPath [:runArgs]
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center">O</td>
           <td class="text-left"></td>
     </tr>
     <tr>
@@ -469,6 +479,7 @@ $ bin/flink run -s :savepointPath [:runArgs]
           <td class="text-center"></td>
           <td class="text-center"></td>
           <td class="text-center"></td>
+          <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
@@ -496,6 +507,7 @@ $ bin/flink run -s :savepointPath [:runArgs]
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center">O</td>
           <td class="text-left"></td>
     </tr>
     <tr>
@@ -511,6 +523,7 @@ $ bin/flink run -s :savepointPath [:runArgs]
           <td class="text-center"></td>
           <td class="text-center"></td>
           <td class="text-center"></td>
+          <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
@@ -536,6 +549,7 @@ $ bin/flink run -s :savepointPath [:runArgs]
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center">O</td>
           <td class="text-left">Don't upgrade from 1.12.x to 1.13.x with an unaligned checkpoint. Please use a savepoint for migrating.</td>
         </tr>
     <tr>
@@ -553,6 +567,7 @@ $ bin/flink run -s :savepointPath [:runArgs]
           <td class="text-center"></td>
           <td class="text-center"></td>
           <td class="text-center"></td>
+          <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
@@ -576,6 +591,7 @@ $ bin/flink run -s :savepointPath [:runArgs]
           <td class="text-center"></td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center">O</td>
           <td class="text-left">
             For Table API: 1.15.0 and 1.15.1 generated non-deterministic UIDs for operators that 
             make it difficult/impossible to restore state or upgrade to next patch version. A new 
@@ -588,6 +604,28 @@ $ bin/flink run -s :savepointPath [:runArgs]
         </tr>
     <tr>
           <td class="text-center"><strong>1.16.x</strong></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-left"></td>
+        </tr>
+    <tr>
+          <td class="text-center"><strong>1.17.x</strong></td>
+          <td class="text-center"></td>
           <td class="text-center"></td>
           <td class="text-center"></td>
           <td class="text-center"></td>

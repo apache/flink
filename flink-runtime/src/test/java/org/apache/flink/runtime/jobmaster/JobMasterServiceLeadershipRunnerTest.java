@@ -58,16 +58,17 @@ import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnull;
 
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -118,8 +119,7 @@ class JobMasterServiceLeadershipRunnerTest {
             jobManagerRunner.closeAsync();
 
             assertJobNotFinished(resultFuture);
-            assertThat(jobManagerRunner.getJobMasterGateway())
-                    .failsWithin(5L, TimeUnit.MILLISECONDS);
+            assertThatFuture(jobManagerRunner.getJobMasterGateway()).eventuallyFails();
         }
     }
 
@@ -174,10 +174,10 @@ class JobMasterServiceLeadershipRunnerTest {
         // the new leadership should wait first for the suspension to happen
         assertThat(leaderFuture).isNotDone();
 
-        assertThat(leaderFuture)
+        assertThatFuture(leaderFuture)
                 .withFailMessage(
                         "Granted leadership even though the JobMaster has not been suspended.")
-                .failsWithin(1L, TimeUnit.MILLISECONDS);
+                .willNotCompleteWithin(Duration.ofMillis(1));
 
         terminationFuture.complete(null);
 
@@ -206,9 +206,8 @@ class JobMasterServiceLeadershipRunnerTest {
                 new FlinkException("The JobMasterService failed unexpectedly.");
         resultFuture.completeExceptionally(cause);
 
-        assertThat(jobManagerRunner.getResultFuture())
-                .failsWithin(5L, TimeUnit.MILLISECONDS)
-                .withThrowableOfType(ExecutionException.class)
+        assertThatFuture(jobManagerRunner.getResultFuture())
+                .eventuallyFailsWith(ExecutionException.class)
                 .withCause(cause);
     }
 
@@ -498,7 +497,7 @@ class JobMasterServiceLeadershipRunnerTest {
                 JobManagerRunnerResult.forSuccess(
                         createFailedExecutionGraphInfo(new FlinkException("test exception"))));
 
-        assertThat(jobManagerRunner.getResultFuture()).failsWithin(5L, TimeUnit.MILLISECONDS);
+        assertThatFuture(jobManagerRunner.getResultFuture()).eventuallyFails();
     }
 
     @Test
@@ -521,7 +520,7 @@ class JobMasterServiceLeadershipRunnerTest {
 
         leaderElectionService.notLeader();
 
-        assertThat(jobMasterGateway).failsWithin(5L, TimeUnit.MILLISECONDS);
+        assertThatFuture(jobMasterGateway).eventuallyFails();
     }
 
     @Test
@@ -545,7 +544,7 @@ class JobMasterServiceLeadershipRunnerTest {
 
         leaderAddressFuture.complete("foobar");
 
-        assertThat(leaderFuture).failsWithin(5L, TimeUnit.MILLISECONDS);
+        assertThatFuture(leaderFuture).willNotCompleteWithin(Duration.ofMillis(5));
     }
 
     @Test
@@ -619,9 +618,8 @@ class JobMasterServiceLeadershipRunnerTest {
         final FlinkException testException = new FlinkException("Test exception");
         terminationFuture.completeExceptionally(testException);
 
-        assertThat(jobManagerRunner.getResultFuture())
-                .failsWithin(5L, TimeUnit.MILLISECONDS)
-                .withThrowableOfType(ExecutionException.class)
+        assertThatFuture(jobManagerRunner.getResultFuture())
+                .eventuallyFailsWith(ExecutionException.class)
                 .satisfies(cause -> assertThat(cause).hasRootCause(testException));
     }
 
@@ -643,9 +641,8 @@ class JobMasterServiceLeadershipRunnerTest {
 
         leaderElectionService.isLeader(UUID.randomUUID());
 
-        assertThat(jobManagerRunner.getResultFuture())
-                .failsWithin(5L, TimeUnit.MILLISECONDS)
-                .withThrowableOfType(ExecutionException.class)
+        assertThatFuture(jobManagerRunner.getResultFuture())
+                .eventuallyFailsWith(ExecutionException.class)
                 .satisfies(cause -> assertThat(cause).hasRootCause(testException));
     }
 

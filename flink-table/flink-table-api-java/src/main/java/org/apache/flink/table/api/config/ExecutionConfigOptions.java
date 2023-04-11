@@ -542,6 +542,18 @@ public class ExecutionConfigOptions {
                                     + "In Flink 1.15.x the pattern was wrongly defined as '<id>_<type>_<version>_<transformation>' "
                                     + "which would prevent migrations in the future.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Duration> TABLE_EXEC_INTERVAL_JOIN_MIN_CLEAN_UP_INTERVAL =
+            key("table.exec.interval-join.min-cleanup-interval")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(0))
+                    .withDescription(
+                            "Specifies a minimum time interval for how long cleanup unmatched records in the interval join operator. "
+                                    + "Before Flink 1.18, the default value of this param was the half of interval duration. "
+                                    + "Note: Set this option greater than 0 will cause unmatched records in outer joins to be output later than watermark, "
+                                    + "leading to possible discarding of these records by downstream watermark-dependent operators, such as window operators. "
+                                    + "The default value is 0, which means it will clean up unmatched records immediately.");
+
     // ------------------------------------------------------------------------------------------
     // Enum option types
     // ------------------------------------------------------------------------------------------

@@ -1080,7 +1080,7 @@ class CalcITCase extends BatchTestBase {
         ((1, 1), "1"),
         ((2, 2), "2")
       ))
-    tEnv.registerTable("MyTable", table)
+    tEnv.createTemporaryView("MyTable", table)
 
     checkResult(
       "SELECT * FROM MyTable",
@@ -1102,7 +1102,7 @@ class CalcITCase extends BatchTestBase {
         (2L, "2")
       ),
       "a, b")
-    tEnv.registerTable("MyTable", table)
+    tEnv.createTemporaryView("MyTable", table)
 
     checkResult(
       "select * from (select MAP[a,b], a from MyTable)",
@@ -1133,7 +1133,7 @@ class CalcITCase extends BatchTestBase {
         (2L, "2")
       ),
       "a, b")
-    tEnv.registerTable("MyTable", table)
+    tEnv.createTemporaryView("MyTable", table)
     checkResult(
       "select * from (select ARRAY[a,cast(b as BIGINT)], a from MyTable)",
       Seq(
@@ -1159,7 +1159,7 @@ class CalcITCase extends BatchTestBase {
     registerFunction("splitUDF1", splitUDF1)
 
     val t1 = BatchTableEnvUtil.fromCollection(tEnv, data, "a, b, c")
-    tEnv.registerTable("T1", t1)
+    tEnv.createTemporaryView("T1", t1)
     // uses SQL escaping (be aware that even Scala multi-line strings parse backslash!)
     checkResult(
       s"""

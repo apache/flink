@@ -24,15 +24,16 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.functions.hive.util.TestHiveGenericUDF;
 import org.apache.flink.table.functions.hive.util.TestHiveSimpleUDF;
 import org.apache.flink.table.functions.hive.util.TestHiveUDTF;
@@ -80,8 +81,8 @@ public class HiveCatalogUdfITCase extends AbstractTestBase {
 
     private static HiveCatalog hiveCatalog;
 
-    private String sourceTableName = "csv_source";
-    private String sinkTableName = "csv_sink";
+    private final String sourceTableName = "csv_source";
+    private final String sinkTableName = "csv_sink";
 
     @BeforeClass
     public static void createCatalog() {
@@ -98,18 +99,23 @@ public class HiveCatalogUdfITCase extends AbstractTestBase {
 
     @Test
     public void testFlinkUdf() throws Exception {
-        final TableSchema schema =
-                TableSchema.builder()
-                        .field("name", DataTypes.STRING())
-                        .field("age", DataTypes.INT())
-                        .build();
+        final ResolvedSchema schema =
+                ResolvedSchema.of(
+                        Column.physical("name", DataTypes.STRING()),
+                        Column.physical("age", DataTypes.INT()));
 
         final Map<String, String> sourceOptions = new HashMap<>();
         sourceOptions.put("connector.type", "filesystem");
         sourceOptions.put("connector.path", getClass().getResource("/csv/test.csv").getPath());
         sourceOptions.put("format.type", "csv");
 
-        CatalogTable source = new CatalogTableImpl(schema, sourceOptions, "Comment.");
+        CatalogTable unresolved =
+                CatalogTable.of(
+                        Schema.newBuilder().fromResolvedSchema(schema).build(),
+                        "Comment.",
+                        new ArrayList<>(),
+                        sourceOptions);
+        ResolvedCatalogTable source = new ResolvedCatalogTable(unresolved, schema);
 
         hiveCatalog.createTable(
                 new ObjectPath(HiveCatalog.DEFAULT_DB, sourceTableName), source, false);
@@ -169,20 +175,25 @@ public class HiveCatalogUdfITCase extends AbstractTestBase {
         if (batch) {
             Path p = Paths.get(tempFolder.newFolder().getAbsolutePath(), "test.csv");
 
-            final TableSchema sinkSchema =
-                    TableSchema.builder()
-                            .field("name1", Types.STRING())
-                            .field("name2", Types.STRING())
-                            .field("sum1", Types.INT())
-                            .field("sum2", Types.LONG())
-                            .build();
+            final ResolvedSchema sinkSchema =
+                    ResolvedSchema.of(
+                            Column.physical("name1", DataTypes.STRING()),
+                            Column.physical("name2", DataTypes.STRING()),
+                            Column.physical("sum1", DataTypes.INT()),
+                            Column.physical("sum2", DataTypes.BIGINT()));
 
             final Map<String, String> sinkOptions = new HashMap<>();
             sinkOptions.put("connector.type", "filesystem");
             sinkOptions.put("connector.path", p.toAbsolutePath().toString());
             sinkOptions.put("format.type", "csv");
 
-            final CatalogTable sink = new CatalogTableImpl(sinkSchema, sinkOptions, "Comment.");
+            CatalogTable unresolved =
+                    CatalogTable.of(
+                            Schema.newBuilder().fromResolvedSchema(sinkSchema).build(),
+                            "Comment.",
+                            new ArrayList<>(),
+                            sinkOptions);
+            final ResolvedCatalogTable sink = new ResolvedCatalogTable(unresolved, sinkSchema);
 
             hiveCatalog.createTable(
                     new ObjectPath(HiveCatalog.DEFAULT_DB, sinkTableName), sink, false);

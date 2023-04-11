@@ -1121,7 +1121,7 @@ class DeclarativeSlotManagerTest {
     void testSpreadOutSlotAllocationStrategy() throws Exception {
         try (DeclarativeSlotManager slotManager =
                 createDeclarativeSlotManagerBuilder()
-                        .setSlotMatchingStrategy(LeastUtilizationSlotMatchingStrategy.INSTANCE)
+                        .setEvenlySpreadOutSlots(true)
                         .buildAndStartWithDirectExec()) {
 
             final List<CompletableFuture<JobID>> requestSlotFutures = new ArrayList<>();

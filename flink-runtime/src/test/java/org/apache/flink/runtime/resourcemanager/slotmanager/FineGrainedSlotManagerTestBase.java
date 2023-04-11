@@ -33,6 +33,7 @@ import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnect
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
+import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
@@ -79,12 +80,13 @@ abstract class FineGrainedSlotManagerTestBase {
             SlotManagerUtils.generateDefaultSlotResourceProfile(
                     DEFAULT_WORKER_RESOURCE_SPEC, DEFAULT_NUM_SLOTS_PER_WORKER);
 
-    protected abstract Optional<ResourceAllocationStrategy> getResourceAllocationStrategy();
+    protected abstract Optional<ResourceAllocationStrategy> getResourceAllocationStrategy(
+            SlotManagerConfiguration slotManagerConfiguration);
 
     static SlotStatus createAllocatedSlotStatus(
-            AllocationID allocationID, ResourceProfile resourceProfile) {
+            JobID jobId, AllocationID allocationID, ResourceProfile resourceProfile) {
         return new SlotStatus(
-                new SlotID(ResourceID.generate(), 0), resourceProfile, new JobID(), allocationID);
+                new SlotID(ResourceID.generate(), 0), resourceProfile, jobId, allocationID);
     }
 
     static int getTotalResourceCount(Collection<ResourceRequirement> resources) {
@@ -121,6 +123,11 @@ abstract class FineGrainedSlotManagerTestBase {
         return new TaskExecutorConnection(
                 ResourceID.generate(),
                 new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway());
+    }
+
+    static TaskExecutorConnection createTaskExecutorConnection(
+            TestingTaskExecutorGateway taskExecutorGateway) {
+        return new TaskExecutorConnection(ResourceID.generate(), taskExecutorGateway);
     }
 
     static <T> T assertFutureCompleteAndReturn(CompletableFuture<T> completableFuture)
@@ -203,16 +210,19 @@ abstract class FineGrainedSlotManagerTestBase {
         }
 
         protected final void runTest(RunnableWithException testMethod) throws Exception {
+            SlotManagerConfiguration configuration = slotManagerConfigurationBuilder.build();
             slotManager =
-                    new FineGrainedSlotManager(
-                            scheduledExecutor,
-                            slotManagerConfigurationBuilder.build(),
-                            slotManagerMetricGroup,
-                            resourceTracker,
-                            taskManagerTracker,
-                            slotStatusSyncer,
-                            getResourceAllocationStrategy()
-                                    .orElse(resourceAllocationStrategyBuilder.build()));
+                    FineGrainedSlotManagerBuilder.newBuilder(scheduledExecutor)
+                            .setSlotManagerConfiguration(configuration)
+                            .setSlotManagerMetricGroup(slotManagerMetricGroup)
+                            .setResourceTracker(resourceTracker)
+                            .setTaskManagerTracker(taskManagerTracker)
+                            .setSlotStatusSyncer(slotStatusSyncer)
+                            .setResourceAllocationStrategy(
+                                    getResourceAllocationStrategy(configuration)
+                                            .orElse(resourceAllocationStrategyBuilder.build()))
+                            .build();
+
             runInMainThreadAndWait(
                     () ->
                             slotManager.start(

@@ -273,7 +273,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     val t = streamEnv
       .fromCollection(getPersonData)
       .toTable(streamTableEnv, 'first, 'id, 'score, 'last)
-    streamTableEnv.registerTable("MyTable", t)
+    streamTableEnv.createTemporaryView("MyTable", t)
     val sink1Path = TestTableSourceSinks.createCsvTemporarySinkTable(
       streamTableEnv,
       new TableSchema(Array("first"), Array(STRING)),

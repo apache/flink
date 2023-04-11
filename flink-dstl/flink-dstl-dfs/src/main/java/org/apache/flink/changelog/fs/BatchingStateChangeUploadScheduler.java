@@ -223,6 +223,11 @@ class BatchingStateChangeUploadScheduler implements StateChangeUploadScheduler {
             scheduledBytesCounter = 0;
             scheduledFuture = null;
         }
+
+        if (tasks.size() == 0) {
+            return;
+        }
+
         try {
             Throwable error = getErrorSafe();
             if (error != null) {

@@ -37,6 +37,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
@@ -67,6 +68,7 @@ import javax.annotation.Nullable;
 
 import java.net.InetSocketAddress;
 import java.util.Collection;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -189,6 +191,13 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     private final Function<Collection<BlockedNode>, CompletableFuture<Acknowledge>>
             notifyNewBlockedNodesFunction;
 
+    private final Supplier<CompletableFuture<Map<JobVertexID, Integer>>>
+            maxParallelismPerVertexSupplier;
+    private final Supplier<CompletableFuture<JobResourceRequirements>>
+            requestJobResourceRequirementsSupplier;
+    private final Function<JobResourceRequirements, CompletableFuture<Acknowledge>>
+            updateJobResourceRequirementsFunction;
+
     public TestingJobMasterGateway(
             @Nonnull String address,
             @Nonnull String hostname,
@@ -292,7 +301,16 @@ public class TestingJobMasterGateway implements JobMasterGateway {
             @Nonnull Consumer<Collection<ResourceRequirement>> notifyNotEnoughResourcesConsumer,
             @Nonnull
                     Function<Collection<BlockedNode>, CompletableFuture<Acknowledge>>
-                            notifyNewBlockedNodesFunction) {
+                            notifyNewBlockedNodesFunction,
+            @Nonnull
+                    Supplier<CompletableFuture<Map<JobVertexID, Integer>>>
+                            maxParallelismPerVertexSupplier,
+            @Nonnull
+                    Supplier<CompletableFuture<JobResourceRequirements>>
+                            requestJobResourceRequirementsSupplier,
+            @Nonnull
+                    Function<JobResourceRequirements, CompletableFuture<Acknowledge>>
+                            updateJobResourceRequirementsFunction) {
         this.address = address;
         this.hostname = hostname;
         this.cancelFunction = cancelFunction;
@@ -322,6 +340,9 @@ public class TestingJobMasterGateway implements JobMasterGateway {
         this.deliverCoordinationRequestFunction = deliverCoordinationRequestFunction;
         this.notifyNotEnoughResourcesConsumer = notifyNotEnoughResourcesConsumer;
         this.notifyNewBlockedNodesFunction = notifyNewBlockedNodesFunction;
+        this.maxParallelismPerVertexSupplier = maxParallelismPerVertexSupplier;
+        this.requestJobResourceRequirementsSupplier = requestJobResourceRequirementsSupplier;
+        this.updateJobResourceRequirementsFunction = updateJobResourceRequirementsFunction;
     }
 
     @Override
@@ -545,5 +566,21 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     @Override
     public CompletableFuture<Acknowledge> notifyNewBlockedNodes(Collection<BlockedNode> newNodes) {
         return notifyNewBlockedNodesFunction.apply(newNodes);
+    }
+
+    @Override
+    public CompletableFuture<Map<JobVertexID, Integer>> getMaxParallelismPerVertex() {
+        return maxParallelismPerVertexSupplier.get();
+    }
+
+    @Override
+    public CompletableFuture<JobResourceRequirements> requestJobResourceRequirements() {
+        return requestJobResourceRequirementsSupplier.get();
+    }
+
+    @Override
+    public CompletableFuture<Acknowledge> updateJobResourceRequirements(
+            JobResourceRequirements jobResourceRequirements) {
+        return updateJobResourceRequirementsFunction.apply(jobResourceRequirements);
     }
 }

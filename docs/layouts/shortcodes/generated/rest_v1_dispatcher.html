@@ -509,7 +509,8 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
   "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo",
   "properties" : {
     "plan" : {
-      "type" : "any"
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:RawJson"
     }
   }
 }</code></pre>
@@ -1184,7 +1185,8 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       "type" : "integer"
     },
     "plan" : {
-      "type" : "string"
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:RawJson"
     },
     "start-time" : {
       "type" : "integer"
@@ -2949,7 +2951,8 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
   "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo",
   "properties" : {
     "plan" : {
-      "type" : "any"
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:RawJson"
     }
   }
 }</code></pre>
@@ -3081,6 +3084,132 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     }
   }
 }</code></pre>
+        </label>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="rest-api table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><h5><strong>/jobs/:jobid/resource-requirements</strong></h5></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">Request details on the job's resource requirements.</td>
+    </tr>
+    <tr>
+      <td colspan="2">Path parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>jobid</code> - 32-character hexadecimal string value that identifies a job.</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <label>
+          <details>
+          <summary>Request</summary>
+          <pre><code>{}</code></pre>
+        </label>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <label>
+          <details>
+          <summary>Response</summary>
+          <pre><code>{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:JobResourceRequirementsBody",
+  "additionalProperties" : {
+    "type" : "object",
+    "id" : "urn:jsonschema:org:apache:flink:runtime:jobgraph:JobVertexResourceRequirements",
+    "properties" : {
+      "parallelism" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:jobgraph:JobVertexResourceRequirements:Parallelism",
+        "properties" : {
+          "lowerBound" : {
+            "type" : "integer"
+          },
+          "upperBound" : {
+            "type" : "integer"
+          }
+        }
+      }
+    }
+  }
+}</code></pre>
+        </label>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="rest-api table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><h5><strong>/jobs/:jobid/resource-requirements</strong></h5></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>PUT</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">Request to update job's resource requirements.</td>
+    </tr>
+    <tr>
+      <td colspan="2">Path parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>jobid</code> - 32-character hexadecimal string value that identifies a job.</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <label>
+          <details>
+          <summary>Request</summary>
+          <pre><code>{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:JobResourceRequirementsBody",
+  "additionalProperties" : {
+    "type" : "object",
+    "id" : "urn:jsonschema:org:apache:flink:runtime:jobgraph:JobVertexResourceRequirements",
+    "properties" : {
+      "parallelism" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:jobgraph:JobVertexResourceRequirements:Parallelism",
+        "properties" : {
+          "lowerBound" : {
+            "type" : "integer"
+          },
+          "upperBound" : {
+            "type" : "integer"
+          }
+        }
+      }
+    }
+  }
+}</code></pre>
+        </label>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <label>
+          <details>
+          <summary>Response</summary>
+          <pre><code>{}</code></pre>
         </label>
       </td>
     </tr>

@@ -25,6 +25,8 @@ import org.apache.flink.table.connector.source.{DynamicTableSource, ScanTableSou
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkContextImpl, FlinkTypeFactory}
+import org.apache.flink.table.planner.plan.`trait`.RelWindowProperties
+import org.apache.flink.table.planner.plan.logical.TumblingWindowSpec
 import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, TableSourceTable}
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
@@ -37,7 +39,9 @@ import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.schema.{Schema, SchemaPlus, Table}
 import org.apache.calcite.schema.Schema.TableType
 import org.apache.calcite.sql.{SqlCall, SqlNode}
+import org.apache.calcite.util.ImmutableBitSet
 
+import java.time.Duration
 import java.util
 import java.util.Collections
 
@@ -57,6 +61,7 @@ object MetadataTestUtil {
     rootSchema.add("TemporalTable1", createTemporalTable1())
     rootSchema.add("TemporalTable2", createTemporalTable2())
     rootSchema.add("TemporalTable3", createTemporalTable3())
+    rootSchema.add("TemporalTable4", createTemporalTable4())
     rootSchema.add("TableSourceTable1", createTableSourceTable1())
     rootSchema.add("TableSourceTable2", createTableSourceTable2())
     rootSchema.add("TableSourceTable3", createTableSourceTable3())
@@ -263,6 +268,37 @@ object MetadataTestUtil {
 
     val tableStats = new TableStats(4000000000L, colStatsMap)
     getMetadataTable(fieldNames, fieldTypes, new FlinkStatistic(tableStats))
+  }
+
+  private def createTemporalTable4(): Table = {
+    val fieldNames = Array("window_start", "window_end", "window_time", "a", "b", "c")
+    val fieldTypes = Array[LogicalType](
+      new TimestampType(false, 3),
+      new TimestampType(false, 3),
+      new TimestampType(true, TimestampKind.ROWTIME, 3),
+      new IntType(),
+      new BigIntType(),
+      VarCharType.STRING_TYPE
+    )
+
+    val windowProperties = RelWindowProperties.create(
+      ImmutableBitSet.of(0),
+      ImmutableBitSet.of(1),
+      ImmutableBitSet.of(2),
+      new TumblingWindowSpec(Duration.ofMinutes(10L), null),
+      fieldTypes.apply(2))
+
+    val colStatsMap = Map[String, ColumnStats](
+      "a" -> new ColumnStats(3740000000L, 0L, 4d, 4, null, null),
+      "b" -> new ColumnStats(53252726L, 1474L, 8d, 8, 100000000L, -100000000L),
+      "c" -> new ColumnStats(null, 0L, 18.6, 64, null, null)
+    )
+
+    val tableStats = new TableStats(4000000000L, colStatsMap)
+    getMetadataTable(
+      fieldNames,
+      fieldTypes,
+      new FlinkStatistic(tableStats, relWindowProperties = windowProperties))
   }
 
   private val flinkContext = new FlinkContextImpl(

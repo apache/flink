@@ -19,19 +19,24 @@
 package org.apache.flink.table.catalog.hive;
 
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.TestSchemaResolver;
+import org.apache.flink.table.catalog.WatermarkSpec;
+import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.utils.ResolvedExpressionMock;
 import org.apache.flink.table.functions.TestGenericUDF;
 import org.apache.flink.table.functions.TestSimpleUDF;
-import org.apache.flink.table.types.DataType;
 
 import org.apache.hadoop.hive.metastore.api.Function;
 import org.apache.hadoop.hive.metastore.api.FunctionType;
@@ -41,6 +46,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 
@@ -48,6 +54,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for HiveCatalog on generic metadata. */
 class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase {
+
+    TestSchemaResolver resolver = new TestSchemaResolver();
 
     @BeforeAll
     static void init() {
@@ -61,26 +69,29 @@ class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase {
     void testGenericTableSchema() throws Exception {
         catalog.createDatabase(db1, createDb(), false);
 
-        TableSchema tableSchema =
-                TableSchema.builder()
-                        .fields(
-                                new String[] {"col1", "col2", "col3"},
-                                new DataType[] {
-                                    DataTypes.TIMESTAMP(3),
-                                    DataTypes.TIMESTAMP(6),
-                                    DataTypes.TIMESTAMP(9)
-                                })
-                        .watermark("col3", "col3", DataTypes.TIMESTAMP(9))
-                        .build();
+        ResolvedExpression waterMark =
+                new ResolvedExpressionMock(DataTypes.TIMESTAMP(9), () -> "col3");
+        final ResolvedSchema resolvedSchema =
+                new ResolvedSchema(
+                        Arrays.asList(
+                                Column.physical("col1", DataTypes.TIMESTAMP(3)),
+                                Column.physical("col2", DataTypes.TIMESTAMP(6)),
+                                Column.physical("col3", DataTypes.TIMESTAMP(9))),
+                        Collections.singletonList(WatermarkSpec.of("col3", waterMark)),
+                        null);
+        final Schema schema = Schema.newBuilder().fromResolvedSchema(resolvedSchema).build();
+
+        final CatalogTable origin =
+                CatalogTable.of(
+                        schema, TEST_COMMENT, Collections.emptyList(), getBatchTableProperties());
 
         ObjectPath tablePath = new ObjectPath(db1, "generic_table");
         try {
-            catalog.createTable(
-                    tablePath,
-                    new CatalogTableImpl(tableSchema, getBatchTableProperties(), TEST_COMMENT),
-                    false);
+            catalog.createTable(tablePath, new ResolvedCatalogTable(origin, resolvedSchema), false);
 
-            assertThat(catalog.getTable(tablePath).getSchema()).isEqualTo(tableSchema);
+            resolver.addExpression("col3", waterMark);
+            assertThat(catalog.getTable(tablePath).getUnresolvedSchema().resolve(resolver))
+                    .isEqualTo(resolvedSchema);
         } finally {
             catalog.dropTable(tablePath, true);
         }
@@ -121,22 +132,30 @@ class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase {
             ((HiveCatalog) catalog).client.createTable(hiveTable);
             CatalogBaseTable catalogBaseTable = catalog.getTable(tablePath);
             assertThat(HiveCatalog.isHiveTable(catalogBaseTable.getOptions())).isFalse();
-            TableSchema expectedSchema =
-                    TableSchema.builder()
-                            .fields(
-                                    new String[] {"ti", "si", "i", "bi", "f", "d", "de"},
-                                    new DataType[] {
-                                        DataTypes.TINYINT(),
-                                        DataTypes.SMALLINT(),
-                                        DataTypes.INT(),
-                                        DataTypes.BIGINT(),
-                                        DataTypes.FLOAT(),
-                                        DataTypes.DOUBLE(),
-                                        DataTypes.DECIMAL(10, 5)
-                                    })
-                            .field("cost", DataTypes.DOUBLE(), "`d` * `bi`")
-                            .build();
-            assertThat(catalogBaseTable.getSchema()).isEqualTo(expectedSchema);
+
+            ResolvedSchema resolvedSchema =
+                    new ResolvedSchema(
+                            Arrays.asList(
+                                    Column.physical("ti", DataTypes.TINYINT()),
+                                    Column.physical("si", DataTypes.SMALLINT()),
+                                    Column.physical("i", DataTypes.INT()),
+                                    Column.physical("bi", DataTypes.BIGINT()),
+                                    Column.physical("f", DataTypes.FLOAT()),
+                                    Column.physical("d", DataTypes.DOUBLE()),
+                                    Column.physical("de", DataTypes.DECIMAL(10, 5)),
+                                    Column.computed(
+                                            "cost",
+                                            new ResolvedExpressionMock(
+                                                    DataTypes.DOUBLE(), () -> "`d` * `bi`"))),
+                            new ArrayList<>(),
+                            null);
+
+            resolver.addExpression(
+                    "`d` * `bi`",
+                    new ResolvedExpressionMock(DataTypes.DOUBLE(), () -> "`d` * `bi`"));
+
+            assertThat(catalogBaseTable.getUnresolvedSchema().resolve(resolver))
+                    .isEqualTo(resolvedSchema);
 
             // table with character types
             tablePath = new ObjectPath(db1, "generic2");
@@ -172,21 +191,27 @@ class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase {
             hiveTable.getParameters().put("flink.generic.table.schema.6.data-type", "INT");
             ((HiveCatalog) catalog).client.createTable(hiveTable);
             catalogBaseTable = catalog.getTable(tablePath);
-            expectedSchema =
-                    TableSchema.builder()
-                            .fields(
-                                    new String[] {"c", "vc", "s", "b", "vb", "bs"},
-                                    new DataType[] {
-                                        DataTypes.CHAR(265),
-                                        DataTypes.VARCHAR(65536),
-                                        DataTypes.STRING(),
-                                        DataTypes.BINARY(1),
-                                        DataTypes.VARBINARY(255),
-                                        DataTypes.BYTES()
-                                    })
-                            .field("len", DataTypes.INT(), "CHAR_LENGTH(`s`)")
-                            .build();
-            assertThat(catalogBaseTable.getSchema()).isEqualTo(expectedSchema);
+
+            resolvedSchema =
+                    new ResolvedSchema(
+                            Arrays.asList(
+                                    Column.physical("c", DataTypes.CHAR(265)),
+                                    Column.physical("vc", DataTypes.VARCHAR(65536)),
+                                    Column.physical("s", DataTypes.STRING()),
+                                    Column.physical("b", DataTypes.BINARY(1)),
+                                    Column.physical("vb", DataTypes.VARBINARY(255)),
+                                    Column.physical("bs", DataTypes.BYTES()),
+                                    Column.computed(
+                                            "len",
+                                            new ResolvedExpressionMock(
+                                                    DataTypes.INT(), () -> "CHAR_LENGTH(`s`)"))),
+                            new ArrayList<>(),
+                            null);
+            resolver.addExpression(
+                    "CHAR_LENGTH(`s`)",
+                    new ResolvedExpressionMock(DataTypes.INT(), () -> "CHAR_LENGTH(`s`)"));
+            assertThat(catalogBaseTable.getUnresolvedSchema().resolve(resolver))
+                    .isEqualTo(resolvedSchema);
 
             // table with date/time types
             tablePath = new ObjectPath(db1, "generic3");
@@ -209,6 +234,7 @@ class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase {
                     .put(
                             "flink.generic.table.schema.3.data-type",
                             "TIMESTAMP(6) WITH LOCAL TIME ZONE");
+
             hiveTable.getParameters().put("flink.generic.table.schema.watermark.0.rowtime", "ts");
             hiveTable
                     .getParameters()
@@ -220,19 +246,24 @@ class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase {
                     .put("flink.generic.table.schema.watermark.0.strategy.expr", "ts");
             ((HiveCatalog) catalog).client.createTable(hiveTable);
             catalogBaseTable = catalog.getTable(tablePath);
-            expectedSchema =
-                    TableSchema.builder()
-                            .fields(
-                                    new String[] {"dt", "t", "ts", "tstz"},
-                                    new DataType[] {
-                                        DataTypes.DATE(),
-                                        DataTypes.TIME(),
-                                        DataTypes.TIMESTAMP(3),
-                                        DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE()
-                                    })
-                            .watermark("ts", "ts", DataTypes.TIMESTAMP(3))
-                            .build();
-            assertThat(catalogBaseTable.getSchema()).isEqualTo(expectedSchema);
+
+            resolvedSchema =
+                    new ResolvedSchema(
+                            Arrays.asList(
+                                    Column.physical("dt", DataTypes.DATE()),
+                                    Column.physical("t", DataTypes.TIME()),
+                                    Column.physical("ts", DataTypes.TIMESTAMP(3)),
+                                    Column.physical(
+                                            "tstz", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE())),
+                            Collections.singletonList(
+                                    WatermarkSpec.of(
+                                            "ts",
+                                            new ResolvedExpressionMock(
+                                                    DataTypes.INT(), () -> "ts"))),
+                            null);
+            resolver.addExpression("ts", new ResolvedExpressionMock(DataTypes.INT(), () -> "ts"));
+            assertThat(catalogBaseTable.getUnresolvedSchema().resolve(resolver))
+                    .isEqualTo(resolvedSchema);
 
             // table with complex/misc types
             tablePath = new ObjectPath(db1, "generic4");
@@ -263,6 +294,7 @@ class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase {
             hiveTable.getParameters().put("flink.generic.table.schema.4.data-type", "BOOLEAN");
             hiveTable.getParameters().put("flink.generic.table.schema.5.name", "ts");
             hiveTable.getParameters().put("flink.generic.table.schema.5.data-type", "TIMESTAMP(3)");
+
             hiveTable.getParameters().put("flink.generic.table.schema.watermark.0.rowtime", "ts");
             hiveTable
                     .getParameters()
@@ -276,23 +308,37 @@ class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase {
                             "`ts` - INTERVAL '5' SECOND");
             ((HiveCatalog) catalog).client.createTable(hiveTable);
             catalogBaseTable = catalog.getTable(tablePath);
-            expectedSchema =
-                    TableSchema.builder()
-                            .fields(
-                                    new String[] {"a", "m", "mul", "r", "b", "ts"},
-                                    new DataType[] {
-                                        DataTypes.ARRAY(DataTypes.INT()),
-                                        DataTypes.MAP(DataTypes.BIGINT(), DataTypes.TIMESTAMP()),
-                                        DataTypes.MULTISET(DataTypes.DOUBLE()),
-                                        DataTypes.ROW(
-                                                DataTypes.FIELD("f1", DataTypes.INT()),
-                                                DataTypes.FIELD("f2", DataTypes.STRING())),
-                                        DataTypes.BOOLEAN(),
-                                        DataTypes.TIMESTAMP(3)
-                                    })
-                            .watermark("ts", "`ts` - INTERVAL '5' SECOND", DataTypes.TIMESTAMP(3))
-                            .build();
-            assertThat(catalogBaseTable.getSchema()).isEqualTo(expectedSchema);
+
+            resolvedSchema =
+                    new ResolvedSchema(
+                            Arrays.asList(
+                                    Column.physical("a", DataTypes.ARRAY(DataTypes.INT())),
+                                    Column.physical(
+                                            "m",
+                                            DataTypes.MAP(
+                                                    DataTypes.BIGINT(), DataTypes.TIMESTAMP())),
+                                    Column.physical("mul", DataTypes.MULTISET(DataTypes.DOUBLE())),
+                                    Column.physical(
+                                            "r",
+                                            DataTypes.ROW(
+                                                    DataTypes.FIELD("f1", DataTypes.INT()),
+                                                    DataTypes.FIELD("f2", DataTypes.STRING()))),
+                                    Column.physical("b", DataTypes.BOOLEAN()),
+                                    Column.physical("ts", DataTypes.TIMESTAMP(3))),
+                            Collections.singletonList(
+                                    WatermarkSpec.of(
+                                            "ts",
+                                            new ResolvedExpressionMock(
+                                                    DataTypes.INT(),
+                                                    () -> "`ts` - INTERVAL '5' SECOND"))),
+                            null);
+            resolver.addExpression(
+                    "`ts` - INTERVAL '5' SECOND",
+                    new ResolvedExpressionMock(
+                            DataTypes.INT(), () -> "`ts` - INTERVAL '5' SECOND"));
+            assertThat(catalogBaseTable.getUnresolvedSchema().resolve(resolver))
+                    .isEqualTo(resolvedSchema);
+
         } finally {
             catalog.dropDatabase(db1, true, true);
         }
@@ -321,17 +367,34 @@ class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase {
     @Test
     void testGenericTableWithoutConnectorProp() throws Exception {
         catalog.createDatabase(db1, createDb(), false);
-        TableSchema tableSchema =
-                TableSchema.builder()
-                        .fields(
-                                new String[] {"s", "ts"},
-                                new DataType[] {DataTypes.STRING(), DataTypes.TIMESTAMP_LTZ(3)})
-                        .watermark("ts", "ts-INTERVAL '1' SECOND", DataTypes.TIMESTAMP_LTZ(3))
-                        .build();
-        CatalogTable catalogTable = new CatalogTableImpl(tableSchema, Collections.emptyMap(), null);
+        ResolvedSchema resolvedSchema =
+                new ResolvedSchema(
+                        Arrays.asList(
+                                Column.physical("s", DataTypes.STRING()),
+                                Column.physical("ts", DataTypes.TIMESTAMP_LTZ(3))),
+                        Collections.singletonList(
+                                WatermarkSpec.of(
+                                        "ts",
+                                        new ResolvedExpressionMock(
+                                                DataTypes.TIMESTAMP_LTZ(3),
+                                                () -> "ts-INTERVAL '1' SECOND"))),
+                        null);
+        CatalogTable catalogTable =
+                new ResolvedCatalogTable(
+                        CatalogTable.of(
+                                Schema.newBuilder().fromResolvedSchema(resolvedSchema).build(),
+                                null,
+                                new ArrayList<>(),
+                                Collections.emptyMap()),
+                        resolvedSchema);
         catalog.createTable(path1, catalogTable, false);
         CatalogTable retrievedTable = (CatalogTable) catalog.getTable(path1);
-        assertThat(retrievedTable.getSchema()).isEqualTo(tableSchema);
+        resolver.addExpression(
+                "ts-INTERVAL '1' SECOND",
+                new ResolvedExpressionMock(
+                        DataTypes.TIMESTAMP_LTZ(3), () -> "ts-INTERVAL '1' SECOND"));
+        assertThat(retrievedTable.getUnresolvedSchema().resolve(resolver))
+                .isEqualTo(resolvedSchema);
         assertThat(retrievedTable.getOptions()).isEmpty();
     }
 

@@ -18,9 +18,15 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.internal.TableResultImpl;
+import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.operations.OperationUtils;
 
 import java.util.List;
@@ -74,5 +80,29 @@ public class AddPartitionsOperation extends AlterTableOperation {
             }
         }
         return builder.toString();
+    }
+
+    @Override
+    public TableResultInternal execute(Context ctx) {
+        List<CatalogPartitionSpec> specs = getPartitionSpecs();
+        List<CatalogPartition> partitions = getCatalogPartitions();
+        ObjectPath tablePath = getTableIdentifier().toObjectPath();
+        try {
+            for (int i = 0; i < specs.size(); i++) {
+                ctx.getCatalogManager()
+                        .getCatalogOrThrowException(getTableIdentifier().getCatalogName())
+                        .createPartition(
+                                tablePath,
+                                specs.get(i),
+                                partitions.get(i),
+                                ignoreIfPartitionExists());
+            }
+            return TableResultImpl.TABLE_RESULT_OK;
+        } catch (TableNotExistException e) {
+            throw new ValidationException(
+                    String.format("Could not execute %s", asSummaryString()), e);
+        } catch (Exception e) {
+            throw new TableException(String.format("Could not execute %s", asSummaryString()), e);
+        }
     }
 }

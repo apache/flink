@@ -182,7 +182,8 @@ public class PipelineOptions {
                             "The program-wide maximum parallelism used for operators which haven't specified a"
                                     + " maximum parallelism. The maximum parallelism specifies the upper limit for dynamic scaling and"
                                     + " the number of key groups used for partitioned state."
-                                    + " Changing the value explicitly when recovery from original job will lead to state incompatibility.");
+                                    + " Changing the value explicitly when recovery from original job will lead to state incompatibility."
+                                    + " Must be less than or equal to 32768.");
 
     public static final ConfigOption<Boolean> OBJECT_REUSE =
             key("pipeline.object-reuse")
@@ -267,7 +268,7 @@ public class PipelineOptions {
                                     .linebreak()
                                     .add(
                                             TextElement.code(
-                                                    "name:file1,path:`file:///tmp/file1`;name:file2,path:`hdfs:///tmp/file2`"))
+                                                    "name:file1,path:'file:///tmp/file1';name:file2,path:'hdfs:///tmp/file2'"))
                                     .build());
 
     public static final ConfigOption<VertexDescriptionMode> VERTEX_DESCRIPTION_MODE =

@@ -27,7 +27,9 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.Optional;
+import java.util.Queue;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -73,14 +75,17 @@ public class HsSubpartitionConsumer
     @Nullable
     @Override
     public BufferAndBacklog getNextBuffer() {
+        Queue<Buffer> buffersToRecycle = new ArrayDeque<>();
         try {
             synchronized (lock) {
                 checkNotNull(diskDataView, "disk data view must be not null.");
                 checkNotNull(memoryDataView, "memory data view must be not null.");
 
-                Optional<BufferAndBacklog> bufferToConsume = tryReadFromDisk();
+                Optional<BufferAndBacklog> bufferToConsume = tryReadFromDisk(buffersToRecycle);
                 if (!bufferToConsume.isPresent()) {
-                    bufferToConsume = memoryDataView.consumeBuffer(lastConsumedBufferIndex + 1);
+                    bufferToConsume =
+                            memoryDataView.consumeBuffer(
+                                    lastConsumedBufferIndex + 1, buffersToRecycle);
                 }
                 updateConsumingStatus(bufferToConsume);
                 return bufferToConsume.map(this::handleBacklog).orElse(null);
@@ -89,6 +94,11 @@ public class HsSubpartitionConsumer
             // release subpartition reader outside of lock to avoid deadlock.
             releaseInternal(cause);
             return null;
+        } finally {
+            // recycle buffers outside of lock to avoid deadlock.
+            while (!buffersToRecycle.isEmpty()) {
+                buffersToRecycle.poll().recycleBuffer();
+            }
         }
     }
 
@@ -232,10 +242,11 @@ public class HsSubpartitionConsumer
     }
 
     @GuardedBy("lock")
-    private Optional<BufferAndBacklog> tryReadFromDisk() throws Throwable {
+    private Optional<BufferAndBacklog> tryReadFromDisk(Queue<Buffer> buffersToRecycle)
+            throws Throwable {
         final int nextBufferIndexToConsume = lastConsumedBufferIndex + 1;
         return checkNotNull(diskDataView)
-                .consumeBuffer(nextBufferIndexToConsume)
+                .consumeBuffer(nextBufferIndexToConsume, buffersToRecycle)
                 .map(
                         bufferAndBacklog -> {
                             if (bufferAndBacklog.getNextDataType() == Buffer.DataType.NONE) {
@@ -244,7 +255,8 @@ public class HsSubpartitionConsumer
                                         bufferAndBacklog.buffersInBacklog(),
                                         checkNotNull(memoryDataView)
                                                 .peekNextToConsumeDataType(
-                                                        nextBufferIndexToConsume + 1),
+                                                        nextBufferIndexToConsume + 1,
+                                                        buffersToRecycle),
                                         bufferAndBacklog.getSequenceNumber());
                             }
                             return bufferAndBacklog;

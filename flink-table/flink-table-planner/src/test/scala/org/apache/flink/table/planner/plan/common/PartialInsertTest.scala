@@ -58,6 +58,35 @@ class PartialInsertTest(isBatch: Boolean) extends TableTestBase {
                               |  'sink-insert-only' = 'false'
                               |)
                               |""".stripMargin)
+  util.tableEnv.executeSql(s"""
+                              |create table complex_type_src (
+                              |  `a` BIGINT,
+                              |  `b` ROW<b1 STRING, b2 INT>,
+                              |  `c` ROW<c1 BIGINT, c2 STRING>,
+                              |  `d` MAP<STRING, STRING>,
+                              |  `e` DOUBLE,
+                              |  `f` BIGINT,
+                              |  `g` INT
+                              |) with (
+                              |  'connector' = 'values'
+                              |)
+                              |""".stripMargin)
+  util.tableEnv.executeSql(s"""
+                              |create table complex_type_sink (
+                              |  `a` BIGINT,
+                              |  `b` ROW<b1 STRING, b2 INT>,
+                              |  `c` ROW<c1 BIGINT, c2 STRING>,
+                              |  `d` MAP<STRING, STRING>,
+                              |  `e` DOUBLE,
+                              |  `f` BIGINT METADATA,
+                              |  `g` INT,
+                              |  primary key (`a`) not enforced
+                              |) with (
+                              |  'connector' = 'values',
+                              |  'sink-insert-only' = 'false',
+                              |  'writable-metadata' = 'f:bigint'
+                              |)
+                              |""".stripMargin)
 
   util.tableEnv.executeSql(s"""create table metadata_sink (
                               |  `a` INT,
@@ -162,6 +191,21 @@ class PartialInsertTest(isBatch: Boolean) extends TableTestBase {
       "INSERT INTO metadata_sink (a,b,c,d,e,h) " +
         "SELECT a,b,c,d,e,123 FROM MyTable"
     )
+  }
+
+  @Test
+  def testPartialInsertWithGroupBy(): Unit = {
+    util.verifyExplainInsert(
+      "INSERT INTO partitioned_sink (e,a,d) " +
+        "SELECT e,a,d FROM MyTable GROUP BY a,b,c,d,e")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testPartialInsertCompositeType(): Unit = {
+    // TODO this should be updated after FLINK-31301 fixed
+    util.verifyExplainInsert(
+      "INSERT INTO complex_type_sink (a,b.b1,c.c2,f) " +
+        "SELECT a,b.b1,c.c2,f FROM complex_type_src")
   }
 }
 

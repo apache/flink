@@ -22,14 +22,14 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Deduplication
+# 去重
 {{< label Batch >}} {{< label Streaming >}}
 
-Deduplication removes rows that duplicate over a set of columns, keeping only the first one or the last one. In some cases, the upstream ETL jobs are not end-to-end exactly-once; this may result in duplicate records in the sink in case of failover. However, the duplicate records will affect the correctness of downstream analytical jobs - e.g. `SUM`, `COUNT` - so deduplication is needed before further analysis.
+去重是去掉重复的行，只保留第一或者最后一行。有时，上游的 ETL 生成的数据不是端到端精确一次的。在发生故障恢复后，可能会导致结果下游中出现重复记录。这些重复记录会影响下游的分析工作，比如：`SUM`、`COUNT`的结果会偏大，所以需要先去重再进行下一步的分析。
 
-Flink uses `ROW_NUMBER()` to remove duplicates, just like the way of Top-N query. In theory, deduplication is a special case of Top-N in which the N is one and order by the processing time or event time.
+Flink 使用 `ROW_NUMBER()` 去除重复数据，就像 Top-N 查询一样。其实，去重就是 Top-N 在 N 为 1 时的特例，并且去重必须要求按照[处理或者事件时间]({{< ref "docs/dev/table/concepts/time_attributes" >}})排序。
 
-The following shows the syntax of the Deduplication statement:
+下面的例子展示了去重语句的语法：
 
 ```sql
 SELECT [column_list]
@@ -41,18 +41,18 @@ FROM (
 WHERE rownum = 1
 ```
 
-**Parameter Specification:**
+**参数说明：**
 
-- `ROW_NUMBER()`: Assigns an unique, sequential number to each row, starting with one.
-- `PARTITION BY col1[, col2...]`: Specifies the partition columns, i.e. the deduplicate key.
-- `ORDER BY time_attr [asc|desc]`: Specifies the ordering column, it must be a [time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}). Currently Flink supports [processing time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}#processing-time) and [event time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}#event-time). Ordering by ASC means keeping the first row, ordering by DESC means keeping the last row.
-- `WHERE rownum = 1`: The `rownum = 1` is required for Flink to recognize this query is deduplication.
+- `ROW_NUMBER()`：为每一行分配一个唯一且连续的数字，从 1 开始。
+- `PARTITION BY col1[, col2...]`：指定分区键，即需要去重的键。
+- `ORDER BY time_attr [asc|desc]`：指定排序列，必须是 [时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})。目前 Flink 支持 [处理时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}}#processing-time) 和 [事件时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}}#event-time)。Order by ASC 保留第一行，DESC 保留最后一行。
+- `WHERE rownum = 1`：Flink 需要这个条件来识别去重语句。
 
 {{< hint info >}}
-Note: the above pattern must be followed exactly, otherwise the optimizer won’t be able to translate the query.
+注意：上述格式必须严格遵守，否则优化器无法识别。
 {{< /hint >}}
 
-The following examples show how to specify SQL queries with Deduplication on streaming tables.
+下面的例子展示了在流表上如何指定去重 SQL 查询：
 
 ```sql
 CREATE TABLE Orders (

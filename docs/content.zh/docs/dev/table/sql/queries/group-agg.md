@@ -22,20 +22,20 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Group Aggregation
+# 分组聚合
 {{< label Batch >}} {{< label Streaming >}}
 
-Like most data systems, Apache Flink supports aggregate functions; both built-in and user-defined. [User-defined functions]({{< ref "docs/dev/table/functions/udfs" >}}) must be registered in a catalog before use.
+像大多数数据系统一样，Apache Flink支持聚合函数；包括内置的和用户定义的。[用户自定义函数]({{< ref "docs/dev/table/functions/udfs" >}})在使用前必须在目录中注册。
 
-An aggregate function computes a single result from multiple input rows. For example, there are aggregates to compute the `COUNT`, `SUM`, `AVG` (average), `MAX` (maximum) and `MIN` (minimum) over a set of rows.
+聚合函数把多行输入数据计算为一行结果。例如，有一些聚合函数可以计算一组行的 "COUNT"、"SUM"、"AVG"（平均）、"MAX"（最大）和 "MIN"（最小）。
 
 ```sql
 SELECT COUNT(*) FROM Orders
 ```
 
-For streaming queries, it is important to understand that Flink runs continuous queries that never terminate. Instead, they update their result table according to the updates on its input tables. For the above query, Flink will output an updated count each time a new row is inserted into the `Orders` table.
+对于流式查询，重要的是要理解 Flink 运行的是连续查询，永远不会终止。而且它们会根据其输入表的更新来更新其结果表。对于上述查询，每当有新行插入 `Orders` 表时，Flink 都会实时计算并输出更新后的结果。
 
-Apache Flink supports the standard `GROUP BY` clause for aggregating data.
+Apache Flink 支持标准的 `GROUP BY` 子句来聚合数据。
 
 ```sql
 SELECT COUNT(*)
@@ -43,23 +43,23 @@ FROM Orders
 GROUP BY order_id
 ```
 
-For streaming queries, the required state for computing the query result might grow infinitely. State size depends on the number of groups and the number and type of aggregation functions. For example `MIN`/`MAX` are heavy on state size while `COUNT` is cheap. You can provide a query configuration with an appropriate state time-to-live (TTL) to prevent excessive state size. Note that this might affect the correctness of the query result. See [query configuration]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl) for details.
+对于流式查询，用于计算查询结果的状态可能无限膨胀。状态的大小取决于分组的数量以及聚合函数的数量和类型。例如：`MIN`/`MAX` 的状态是重量级的，`COUNT` 是轻量级的。可以提供一个合适的状态 time-to-live (TTL) 配置来防止状态过大。注意：这可能会影响查询结果的正确性。详情参见：[查询配置]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl)。
 
-Apache Flink provides a set of performance tuning ways for Group Aggregation, see more [Performance Tuning]({{< ref "docs/dev/table/tuning" >}}).
+Flink 对于分组聚合提供了一系列性能优化的方法。更多参见：[性能优化]({{< ref "docs/dev/table/tuning" >}})。
 
-## DISTINCT Aggregation
+## DISTINCT 聚合
 
-Distinct aggregates remove duplicate values before applying an aggregation function. The following example counts the number of distinct order_ids instead of the total number of rows in the Orders table.
+DISTINCT 聚合在聚合函数前去掉重复的数据。下面的示例计算 Orders 表中不同 order_ids 的数量，而不是总行数。
 
 ```sql
 SELECT COUNT(DISTINCT order_id) FROM Orders
 ```
 
-For streaming queries, the required state for computing the query result might grow infinitely. State size is mostly depends on the number of distinct rows and the time that a group is maintained, short lived group by windows are not a problem. You can provide a query configuration with an appropriate state time-to-live (TTL) to prevent excessive state size. Note that this might affect the correctness of the query result. See [query configuration]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl) for details.
+对于流式查询，用于计算查询结果的状态可能无限膨胀。状态的大小大多数情况下取决于去重行的数量和分组持续的时间，持续时间较短的 group 窗口不会产生状态过大的问题。可以提供一个合适的状态 time-to-live (TTL) 配置来防止状态过大。注意：这可能会影响查询结果的正确性。详情参见：[查询配置]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl)。
 
 ## GROUPING SETS
 
-Grouping sets allow for more complex grouping operations than those describable by a standard `GROUP BY`. Rows are grouped separately by each specified grouping set and aggregates are computed for each group just as for simple `GROUP BY` clauses.
+Grouping Sets 可以通过一个标准的 `GROUP BY` 语句来描述更复杂的分组操作。数据按每个指定的 Grouping Sets 分别分组，并像简单的 `group by` 子句一样为每个组进行聚合。
 
 ```sql
 SELECT supplier_id, rating, COUNT(*) AS total
@@ -72,7 +72,7 @@ AS Products(supplier_id, product_id, rating)
 GROUP BY GROUPING SETS ((supplier_id, rating), (supplier_id), ())
 ```
 
-Results:
+结果：
 
 ```
 +-------------+--------+-------+
@@ -88,17 +88,17 @@ Results:
 +-------------+--------+-------+
 ```
 
-Each sublist of `GROUPING SETS` may specify zero or more columns or expressions and is interpreted the same way as though it was used directly in the `GROUP BY` clause. An empty grouping set means that all rows are aggregated down to a single group, which is output even if no input rows were present.
+`GROUPING SETS` 的每个子列表可以是：空的，多列或表达式，它们的解释方式和直接使用 `GROUP BY` 子句是一样的。一个空的 Grouping Sets 表示所有行都聚合在一个分组下，即使没有数据，也会输出结果。
 
-References to the grouping columns or expressions are replaced by null values in result rows for grouping sets in which those columns do not appear.
+对于 Grouping Sets 中的空子列表，结果数据中的分组或表达式列会用`NULL`代替。例如，上例中的 `GROUPING SETS ((supplier_id), ())` 里的 `()` 就是空子列表，与其对应的结果数据中的 `supplier_id` 列使用 `NULL` 填充。
 
-For streaming queries, the required state for computing the query result might grow infinitely. State size depends on number of group sets and type of aggregation functions. You can provide a query configuration with an appropriate state time-to-live (TTL) to prevent excessive state size. Note that this might affect the correctness of the query result. See [query configuration]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl) for details.
+对于流式查询，用于计算查询结果的状态可能无限膨胀。状态的大小取决于 Grouping Sets 的数量以及聚合函数的类型。可以提供一个合适的状态 time-to-live (TTL)配置来防止状态过大.注意:这可能会影响查询结果的正确性.详情参见：[查询配置]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl)。
 
 ### ROLLUP
 
-`ROLLUP` is a shorthand notation for specifying a common type of grouping set. It represents the given list of expressions and all prefixes of the list, including the empty list.
+`ROLLUP` 是一种特定通用类型 Grouping Sets 的简写。代表着指定表达式和所有前缀的列表，包括空列表。
 
-For example, the following query is equivalent to the one above.
+例如：下面这个查询和上个例子是等效的。
 
 ```sql
 SELECT supplier_id, rating, COUNT(*)
@@ -113,9 +113,9 @@ GROUP BY ROLLUP (supplier_id, rating)
 
 ### CUBE
 
-`CUBE` is a shorthand notation for specifying a common type of grouping set. It represents the given list and all of its possible subsets - the power set.
+`CUBE` 是一种特定通用类型 Grouping Sets 的简写。代表着指定列表以及所有可能的子集和幂集。
 
-For example, the following two queries are equivalent.
+例如：下面两个查询是等效的。
 
 ```sql
 SELECT supplier_id, rating, product_id, COUNT(*)
@@ -148,7 +148,7 @@ GROUP BY GROUPING SET (
 
 ## HAVING
 
-`HAVING` eliminates group rows that do not satisfy the condition. `HAVING` is different from `WHERE`: `WHERE` filters individual rows before the `GROUP BY` while `HAVING` filters group rows created by `GROUP BY`. Each column referenced in condition must unambiguously reference a grouping column unless it appears within an aggregate function.
+`HAVING` 会删除 group 后不符合条件的行。 `HAVING` 和 `WHERE` 的不同点：`WHERE` 在 `GROUP BY` 之前过滤单独的数据行。`HAVING` 过滤 `GROUP BY` 生成的数据行。 `HAVING` 条件中的每一列引用必须是明确的 grouping 列，除非它出现在聚合函数中。
 
 ```sql
 SELECT SUM(amount)
@@ -157,6 +157,6 @@ GROUP BY users
 HAVING SUM(amount) > 50
 ```
 
-The presence of `HAVING` turns a query into a grouped query even if there is no `GROUP BY` clause. It is the same as what happens when the query contains aggregate functions but no `GROUP BY` clause. The query considers all selected rows to form a single group, and the `SELECT` list and `HAVING` clause can only reference table columns from within aggregate functions. Such a query will emit a single row if the `HAVING` condition is true, zero rows if it is not true.
+即使没有 `GROUP BY` 子句，`HAVING` 的存在也会使查询变成一个分组查询。这与查询包含聚合函数但没有 `GROUP BY` 子句时的情况相同。查询认为所有被选中的行形成一个单一的组，并且 `SELECT` 列表和 `HAVING` 子句只能从聚合函数中引用列。如果 `HAVING` 条件为真，这样的查询将发出一条记录，如果不为真，则发出零条记录。
 
 {{< top >}}

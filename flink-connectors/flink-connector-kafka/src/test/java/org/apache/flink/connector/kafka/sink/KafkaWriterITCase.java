@@ -17,20 +17,18 @@
 
 package org.apache.flink.connector.kafka.sink;
 
-import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.api.common.serialization.SerializationSchema;
-import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.base.DeliveryGuarantee;
+import org.apache.flink.connector.base.sink.writer.TestSinkInitContext;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.metrics.testutils.MetricListener;
-import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.metrics.groups.InternalSinkWriterMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.util.TestLoggerExtension;
@@ -41,6 +39,7 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.common.errors.ProducerFencedException;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -75,6 +74,7 @@ import static org.apache.flink.connector.kafka.testutils.KafkaUtil.createKafkaCo
 import static org.apache.flink.connector.kafka.testutils.KafkaUtil.drainAllRecordsFromTopic;
 import static org.apache.flink.util.DockerImageVersions.KAFKA;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatCode;
 
 /** Tests for the standalone KafkaWriter. */
 @ExtendWith(TestLoggerExtension.class)
@@ -197,36 +197,135 @@ public class KafkaWriterITCase {
     }
 
     @Test
-    void testNumRecordsOutErrorsCounterMetric() throws Exception {
+    void testFlushAsyncErrorPropagationAndErrorCounter() throws Exception {
         Properties properties = getKafkaClientConfiguration();
-        final InternalSinkWriterMetricGroup metricGroup =
-                InternalSinkWriterMetricGroup.mock(metricListener.getMetricGroup());
 
-        try (final KafkaWriter<Integer> writer =
+        SinkInitContext sinkInitContext =
+                new SinkInitContext(
+                        InternalSinkWriterMetricGroup.mock(metricListener.getMetricGroup()),
+                        timeService,
+                        null);
+        final KafkaWriter<Integer> writer =
                 createWriterWithConfiguration(
-                        properties, DeliveryGuarantee.EXACTLY_ONCE, metricGroup)) {
-            final Counter numRecordsOutErrors = metricGroup.getNumRecordsOutErrorsCounter();
-            assertThat(numRecordsOutErrors.getCount()).isEqualTo(0L);
+                        properties, DeliveryGuarantee.EXACTLY_ONCE, sinkInitContext);
+        final Counter numRecordsOutErrors =
+                sinkInitContext.metricGroup.getNumRecordsOutErrorsCounter();
+        assertThat(numRecordsOutErrors.getCount()).isEqualTo(0L);
 
-            writer.write(1, SINK_WRITER_CONTEXT);
-            assertThat(numRecordsOutErrors.getCount()).isEqualTo(0L);
+        triggerProducerException(writer, properties);
 
-            final String transactionalId = writer.getCurrentProducer().getTransactionalId();
+        // test flush
+        assertThatCode(() -> writer.flush(false))
+                .hasRootCauseExactlyInstanceOf(ProducerFencedException.class);
+        assertThat(numRecordsOutErrors.getCount()).isEqualTo(1L);
 
-            try (FlinkKafkaInternalProducer<byte[], byte[]> producer =
-                    new FlinkKafkaInternalProducer<>(properties, transactionalId)) {
+        assertThatCode(() -> writer.write(1, SINK_WRITER_CONTEXT))
+                .as("the exception is not thrown again")
+                .doesNotThrowAnyException();
+        assertThat(numRecordsOutErrors.getCount()).isEqualTo(1L);
+    }
 
-                producer.initTransactions();
-                producer.beginTransaction();
-                producer.send(new ProducerRecord<byte[], byte[]>(topic, "2".getBytes()));
-                producer.commitTransaction();
-            }
+    @Test
+    void testWriteAsyncErrorPropagationAndErrorCounter() throws Exception {
+        Properties properties = getKafkaClientConfiguration();
 
-            writer.write(3, SINK_WRITER_CONTEXT);
-            writer.flush(false);
-            writer.prepareCommit();
-            assertThat(numRecordsOutErrors.getCount()).isEqualTo(1L);
+        SinkInitContext sinkInitContext =
+                new SinkInitContext(
+                        InternalSinkWriterMetricGroup.mock(metricListener.getMetricGroup()),
+                        timeService,
+                        null);
+        final KafkaWriter<Integer> writer =
+                createWriterWithConfiguration(
+                        properties, DeliveryGuarantee.EXACTLY_ONCE, sinkInitContext);
+        final Counter numRecordsOutErrors =
+                sinkInitContext.metricGroup.getNumRecordsOutErrorsCounter();
+        assertThat(numRecordsOutErrors.getCount()).isEqualTo(0L);
+
+        triggerProducerException(writer, properties);
+        // to ensure that the exceptional send request has completed
+        writer.getCurrentProducer().flush();
+
+        assertThatCode(() -> writer.write(1, SINK_WRITER_CONTEXT))
+                .hasRootCauseExactlyInstanceOf(ProducerFencedException.class);
+        assertThat(numRecordsOutErrors.getCount()).isEqualTo(1L);
+
+        assertThatCode(() -> writer.write(1, SINK_WRITER_CONTEXT))
+                .as("the exception is not thrown again")
+                .doesNotThrowAnyException();
+        assertThat(numRecordsOutErrors.getCount()).isEqualTo(1L);
+    }
+
+    @Test
+    void testMailboxAsyncErrorPropagationAndErrorCounter() throws Exception {
+        Properties properties = getKafkaClientConfiguration();
+
+        SinkInitContext sinkInitContext =
+                new SinkInitContext(
+                        InternalSinkWriterMetricGroup.mock(metricListener.getMetricGroup()),
+                        timeService,
+                        null);
+        final KafkaWriter<Integer> writer =
+                createWriterWithConfiguration(
+                        properties, DeliveryGuarantee.EXACTLY_ONCE, sinkInitContext);
+        final Counter numRecordsOutErrors =
+                sinkInitContext.metricGroup.getNumRecordsOutErrorsCounter();
+        assertThat(numRecordsOutErrors.getCount()).isEqualTo(0L);
+
+        triggerProducerException(writer, properties);
+        // to ensure that the exceptional send request has completed
+        writer.getCurrentProducer().flush();
+
+        while (sinkInitContext.getMailboxExecutor().tryYield()) {
+            // execute all mails
         }
+        assertThat(numRecordsOutErrors.getCount()).isEqualTo(1L);
+
+        assertThatCode(() -> writer.write(1, SINK_WRITER_CONTEXT))
+                .as("the exception is not thrown again")
+                .doesNotThrowAnyException();
+        assertThat(numRecordsOutErrors.getCount()).isEqualTo(1L);
+    }
+
+    @Test
+    void testCloseAsyncErrorPropagationAndErrorCounter() throws Exception {
+        Properties properties = getKafkaClientConfiguration();
+
+        SinkInitContext sinkInitContext =
+                new SinkInitContext(
+                        InternalSinkWriterMetricGroup.mock(metricListener.getMetricGroup()),
+                        timeService,
+                        null);
+        final KafkaWriter<Integer> writer =
+                createWriterWithConfiguration(
+                        properties, DeliveryGuarantee.EXACTLY_ONCE, sinkInitContext);
+        final Counter numRecordsOutErrors =
+                sinkInitContext.metricGroup.getNumRecordsOutErrorsCounter();
+        assertThat(numRecordsOutErrors.getCount()).isEqualTo(0L);
+
+        triggerProducerException(writer, properties);
+        // to ensure that the exceptional send request has completed
+        writer.getCurrentProducer().flush();
+
+        // test flush
+        assertThatCode(writer::close)
+                .as("flush should throw the exception from the WriterCallback")
+                .hasRootCauseExactlyInstanceOf(ProducerFencedException.class);
+        assertThat(numRecordsOutErrors.getCount()).isEqualTo(1L);
+    }
+
+    private void triggerProducerException(KafkaWriter<Integer> writer, Properties properties)
+            throws IOException {
+        final String transactionalId = writer.getCurrentProducer().getTransactionalId();
+
+        try (FlinkKafkaInternalProducer<byte[], byte[]> producer =
+                new FlinkKafkaInternalProducer<>(properties, transactionalId)) {
+            producer.initTransactions();
+            producer.beginTransaction();
+            producer.send(new ProducerRecord<byte[], byte[]>(topic, "1".getBytes()));
+            producer.commitTransaction();
+        }
+
+        writer.write(1, SINK_WRITER_CONTEXT);
     }
 
     @Test
@@ -423,6 +522,18 @@ public class KafkaWriterITCase {
                 ImmutableList.of());
     }
 
+    private KafkaWriter<Integer> createWriterWithConfiguration(
+            Properties config, DeliveryGuarantee guarantee, SinkInitContext sinkInitContext) {
+        return new KafkaWriter<>(
+                guarantee,
+                config,
+                "test-prefix",
+                sinkInitContext,
+                new DummyRecordSerializer(),
+                new DummySchemaContext(),
+                ImmutableList.of());
+    }
+
     private static Properties getKafkaClientConfiguration() {
         final Properties standardProps = new Properties();
         standardProps.put("bootstrap.servers", KAFKA_CONTAINER.getBootstrapServers());
@@ -434,7 +545,7 @@ public class KafkaWriterITCase {
         return standardProps;
     }
 
-    private static class SinkInitContext implements Sink.InitContext {
+    private static class SinkInitContext extends TestSinkInitContext {
 
         private final SinkWriterMetricGroup metricGroup;
         private final ProcessingTimeService timeService;
@@ -452,11 +563,6 @@ public class KafkaWriterITCase {
         @Override
         public UserCodeClassLoader getUserCodeClassLoader() {
             throw new UnsupportedOperationException("Not implemented.");
-        }
-
-        @Override
-        public MailboxExecutor getMailboxExecutor() {
-            return new SyncMailboxExecutor();
         }
 
         @Override

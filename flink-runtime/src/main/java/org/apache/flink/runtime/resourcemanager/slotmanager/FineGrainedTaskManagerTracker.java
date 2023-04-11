@@ -186,6 +186,16 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
                 .orElse(Collections.emptyMap());
     }
 
+    @Override
+    public Collection<TaskManagerInfo> getTaskManagersWithAllocatedSlotsForJob(JobID jobId) {
+        return taskManagerRegistrations.values().stream()
+                .filter(
+                        taskManager ->
+                                taskManager.getAllocatedSlots().values().stream()
+                                        .anyMatch(slot -> jobId.equals(slot.getJobId())))
+                .collect(Collectors.toList());
+    }
+
     // ---------------------------------------------------------------------------------------------
     // Core state transitions
     // ---------------------------------------------------------------------------------------------

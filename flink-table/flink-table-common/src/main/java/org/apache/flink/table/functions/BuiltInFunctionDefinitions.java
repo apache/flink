@@ -219,6 +219,48 @@ public final class BuiltInFunctionDefinitions {
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.ArrayDistinctFunction")
                     .build();
+
+    public static final BuiltInFunctionDefinition ARRAY_POSITION =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ARRAY_POSITION")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    Arrays.asList("haystack", "needle"),
+                                    Arrays.asList(
+                                            logical(LogicalTypeRoot.ARRAY), ARRAY_ELEMENT_ARG)))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.INT())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.ArrayPositionFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition ARRAY_REMOVE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ARRAY_REMOVE")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    Arrays.asList("haystack", "needle"),
+                                    Arrays.asList(
+                                            logical(LogicalTypeRoot.ARRAY), ARRAY_ELEMENT_ARG)))
+                    .outputTypeStrategy(nullableIfArgs(ConstantArgumentCount.of(0), argument(0)))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.ArrayRemoveFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition ARRAY_REVERSE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ARRAY_REVERSE")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    Collections.singletonList("haystack"),
+                                    Collections.singletonList(logical(LogicalTypeRoot.ARRAY))))
+                    .outputTypeStrategy(nullableIfArgs(argument(0)))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.ArrayReverseFunction")
+                    .build();
+
     public static final BuiltInFunctionDefinition INTERNAL_REPLICATE_ROWS =
             BuiltInFunctionDefinition.newBuilder()
                     .name("$REPLICATE_ROWS$1")

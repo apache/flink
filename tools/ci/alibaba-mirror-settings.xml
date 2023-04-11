@@ -30,10 +30,5 @@ under the License.
       <url>http://172.17.0.1:8888/repository/confluent/</url>
       <mirrorOf>confluent</mirrorOf>
     </mirror>
-	  <mirror>
-		  <id>conjars-https</id>
-		  <url>https://conjars.org/repo/</url>
-		  <mirrorOf>conjars</mirrorOf>
-	  </mirror>
   </mirrors>
 </settings>

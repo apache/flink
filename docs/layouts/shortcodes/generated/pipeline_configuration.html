@@ -30,7 +30,7 @@
             <td><h5>pipeline.cached-files</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>List&lt;String&gt;</td>
-            <td>Files to be registered at the distributed cache under the given name. The files will be accessible from any user-defined function in the (distributed) runtime under a local path. Files may be local files (which will be distributed via BlobServer), or files in a distributed file system. The runtime will copy the files temporarily to a local cache, if needed.<br /><br />Example:<br /><code class="highlighter-rouge">name:file1,path:`file:///tmp/file1`;name:file2,path:`hdfs:///tmp/file2`</code></td>
+            <td>Files to be registered at the distributed cache under the given name. The files will be accessible from any user-defined function in the (distributed) runtime under a local path. Files may be local files (which will be distributed via BlobServer), or files in a distributed file system. The runtime will copy the files temporarily to a local cache, if needed.<br /><br />Example:<br /><code class="highlighter-rouge">name:file1,path:'file:///tmp/file1';name:file2,path:'hdfs:///tmp/file2'</code></td>
         </tr>
         <tr>
             <td><h5>pipeline.classpaths</h5></td>
@@ -90,7 +90,7 @@
             <td><h5>pipeline.max-parallelism</h5></td>
             <td style="word-wrap: break-word;">-1</td>
             <td>Integer</td>
-            <td>The program-wide maximum parallelism used for operators which haven't specified a maximum parallelism. The maximum parallelism specifies the upper limit for dynamic scaling and the number of key groups used for partitioned state. Changing the value explicitly when recovery from original job will lead to state incompatibility.</td>
+            <td>The program-wide maximum parallelism used for operators which haven't specified a maximum parallelism. The maximum parallelism specifies the upper limit for dynamic scaling and the number of key groups used for partitioned state. Changing the value explicitly when recovery from original job will lead to state incompatibility. Must be less than or equal to 32768.</td>
         </tr>
         <tr>
             <td><h5>pipeline.name</h5></td>

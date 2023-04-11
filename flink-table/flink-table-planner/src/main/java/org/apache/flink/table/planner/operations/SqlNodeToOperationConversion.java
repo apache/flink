@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.operations;
 
 import org.apache.flink.sql.parser.ddl.SqlAddJar;
 import org.apache.flink.sql.parser.ddl.SqlAddPartitions;
-import org.apache.flink.sql.parser.ddl.SqlAddReplaceColumns;
 import org.apache.flink.sql.parser.ddl.SqlAlterDatabase;
 import org.apache.flink.sql.parser.ddl.SqlAlterFunction;
 import org.apache.flink.sql.parser.ddl.SqlAlterTable;
@@ -34,19 +33,12 @@ import org.apache.flink.sql.parser.ddl.SqlAlterTableRename;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableRenameColumn;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableReset;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableSchema;
-import org.apache.flink.sql.parser.ddl.SqlAlterView;
-import org.apache.flink.sql.parser.ddl.SqlAlterViewAs;
-import org.apache.flink.sql.parser.ddl.SqlAlterViewProperties;
-import org.apache.flink.sql.parser.ddl.SqlAlterViewRename;
 import org.apache.flink.sql.parser.ddl.SqlAnalyzeTable;
-import org.apache.flink.sql.parser.ddl.SqlChangeColumn;
 import org.apache.flink.sql.parser.ddl.SqlCompilePlan;
-import org.apache.flink.sql.parser.ddl.SqlCreateCatalog;
 import org.apache.flink.sql.parser.ddl.SqlCreateDatabase;
 import org.apache.flink.sql.parser.ddl.SqlCreateFunction;
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.ddl.SqlCreateTableAs;
-import org.apache.flink.sql.parser.ddl.SqlCreateView;
 import org.apache.flink.sql.parser.ddl.SqlDropCatalog;
 import org.apache.flink.sql.parser.ddl.SqlDropDatabase;
 import org.apache.flink.sql.parser.ddl.SqlDropFunction;
@@ -89,7 +81,6 @@ import org.apache.flink.sql.parser.dql.SqlShowTables;
 import org.apache.flink.sql.parser.dql.SqlShowViews;
 import org.apache.flink.sql.parser.dql.SqlUnloadModule;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
@@ -172,16 +163,11 @@ import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterPartitionPropertiesOperation;
 import org.apache.flink.table.operations.ddl.AlterTableChangeOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
-import org.apache.flink.table.operations.ddl.AlterViewAsOperation;
-import org.apache.flink.table.operations.ddl.AlterViewPropertiesOperation;
-import org.apache.flink.table.operations.ddl.AlterViewRenameOperation;
 import org.apache.flink.table.operations.ddl.AnalyzeTableOperation;
 import org.apache.flink.table.operations.ddl.CompilePlanOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogFunctionOperation;
-import org.apache.flink.table.operations.ddl.CreateCatalogOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
-import org.apache.flink.table.operations.ddl.CreateViewOperation;
 import org.apache.flink.table.operations.ddl.DropCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropCatalogOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
@@ -192,7 +178,6 @@ import org.apache.flink.table.operations.ddl.DropViewOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.operations.converters.SqlNodeConverters;
-import org.apache.flink.table.planner.utils.Expander;
 import org.apache.flink.table.planner.utils.OperationConverterUtils;
 import org.apache.flink.table.planner.utils.RowLevelModificationContextUtils;
 import org.apache.flink.table.resource.ResourceType;
@@ -216,6 +201,9 @@ import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.util.NlsString;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.math.BigDecimal;
 import java.sql.Date;
@@ -344,12 +332,8 @@ public class SqlNodeToOperationConversion {
             return Optional.of(converter.convertShowTables((SqlShowTables) validated));
         } else if (validated instanceof SqlShowColumns) {
             return Optional.of(converter.convertShowColumns((SqlShowColumns) validated));
-        } else if (validated instanceof SqlCreateView) {
-            return Optional.of(converter.convertCreateView((SqlCreateView) validated));
         } else if (validated instanceof SqlDropView) {
             return Optional.of(converter.convertDropView((SqlDropView) validated));
-        } else if (validated instanceof SqlAlterView) {
-            return Optional.of(converter.convertAlterView((SqlAlterView) validated));
         } else if (validated instanceof SqlShowViews) {
             return Optional.of(converter.convertShowViews((SqlShowViews) validated));
         } else if (validated instanceof SqlCreateFunction) {
@@ -401,8 +385,6 @@ public class SqlNodeToOperationConversion {
         } else if (validated instanceof SqlCompileAndExecutePlan) {
             return Optional.of(
                     converter.convertCompileAndExecutePlan((SqlCompileAndExecutePlan) validated));
-        } else if (validated.getKind().belongsTo(SqlKind.QUERY)) {
-            return Optional.of(converter.convertSqlQuery(validated));
         } else if (validated instanceof SqlAnalyzeTable) {
             return Optional.of(converter.convertAnalyzeTable((SqlAnalyzeTable) validated));
         } else if (validated instanceof SqlStopJob) {
@@ -441,64 +423,6 @@ public class SqlNodeToOperationConversion {
 
         return new DropTableOperation(
                 identifier, sqlDropTable.getIfExists(), sqlDropTable.isTemporary());
-    }
-
-    /** convert ALTER VIEW statement. */
-    private Operation convertAlterView(SqlAlterView alterView) {
-        UnresolvedIdentifier unresolvedIdentifier =
-                UnresolvedIdentifier.of(alterView.fullViewName());
-        ObjectIdentifier viewIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
-        Optional<ContextResolvedTable> optionalCatalogTable =
-                catalogManager.getTable(viewIdentifier);
-        if (!optionalCatalogTable.isPresent() || optionalCatalogTable.get().isTemporary()) {
-            throw new ValidationException(
-                    String.format(
-                            "View %s doesn't exist or is a temporary view.",
-                            viewIdentifier.toString()));
-        }
-        CatalogBaseTable baseTable = optionalCatalogTable.get().getResolvedTable();
-        if (baseTable instanceof CatalogTable) {
-            throw new ValidationException("ALTER VIEW for a table is not allowed");
-        }
-        if (alterView instanceof SqlAlterViewRename) {
-            UnresolvedIdentifier newUnresolvedIdentifier =
-                    UnresolvedIdentifier.of(((SqlAlterViewRename) alterView).fullNewViewName());
-            ObjectIdentifier newTableIdentifier =
-                    catalogManager.qualifyIdentifier(newUnresolvedIdentifier);
-            return new AlterViewRenameOperation(viewIdentifier, newTableIdentifier);
-        } else if (alterView instanceof SqlAlterViewProperties) {
-            SqlAlterViewProperties alterViewProperties = (SqlAlterViewProperties) alterView;
-            CatalogView oldView = (CatalogView) baseTable;
-            Map<String, String> newProperties = new HashMap<>(oldView.getOptions());
-            newProperties.putAll(
-                    OperationConverterUtils.extractProperties(
-                            alterViewProperties.getPropertyList()));
-            CatalogView newView =
-                    CatalogView.of(
-                            oldView.getUnresolvedSchema(),
-                            oldView.getComment(),
-                            oldView.getOriginalQuery(),
-                            oldView.getExpandedQuery(),
-                            newProperties);
-            return new AlterViewPropertiesOperation(viewIdentifier, newView);
-        } else if (alterView instanceof SqlAlterViewAs) {
-            SqlAlterViewAs alterViewAs = (SqlAlterViewAs) alterView;
-            final SqlNode newQuery = alterViewAs.getNewQuery();
-
-            CatalogView oldView = (CatalogView) baseTable;
-            CatalogView newView =
-                    convertViewQuery(
-                            newQuery,
-                            Collections.emptyList(),
-                            oldView.getOptions(),
-                            oldView.getComment());
-            return new AlterViewAsOperation(viewIdentifier, newView);
-        } else {
-            throw new ValidationException(
-                    String.format(
-                            "[%s] needs to implement",
-                            alterView.toSqlString(CalciteSqlDialect.DEFAULT)));
-        }
     }
 
     /** convert ALTER TABLE statement. */
@@ -549,18 +473,6 @@ public class SqlNodeToOperationConversion {
         } else if (sqlAlterTable instanceof SqlAlterTableDropWatermark) {
             return alterSchemaConverter.convertAlterSchema(
                     (SqlAlterTableDropWatermark) sqlAlterTable, resolvedCatalogTable);
-        } else if (sqlAlterTable instanceof SqlAddReplaceColumns) {
-            return OperationConverterUtils.convertAddReplaceColumns(
-                    tableIdentifier,
-                    (SqlAddReplaceColumns) sqlAlterTable,
-                    (CatalogTable) baseTable,
-                    flinkPlanner.getOrCreateSqlValidator());
-        } else if (sqlAlterTable instanceof SqlChangeColumn) {
-            return OperationConverterUtils.convertChangeColumn(
-                    tableIdentifier,
-                    (SqlChangeColumn) sqlAlterTable,
-                    resolvedCatalogTable,
-                    flinkPlanner.getOrCreateSqlValidator());
         } else if (sqlAlterTable instanceof SqlAlterTableRenameColumn) {
             return alterSchemaConverter.convertAlterSchema(
                     (SqlAlterTableRenameColumn) sqlAlterTable, resolvedCatalogTable);
@@ -707,6 +619,7 @@ public class SqlNodeToOperationConversion {
                     contextResolvedTable,
                     child,
                     partitionSpec.getPartitionSpec(),
+                    null, // targetColumns
                     false,
                     compactOptions);
         }
@@ -864,11 +777,16 @@ public class SqlNodeToOperationConversion {
                 (PlannerQueryOperation)
                         convertValidatedSqlNodeOrFail(
                                 flinkPlanner, catalogManager, insert.getSource());
+        // TODO calc target column list to index array, currently only simple SqlIdentifiers are
+        // available, this should be updated after FLINK-31301 fixed
+        int[][] columnIndices =
+                getTargetColumnIndices(contextResolvedTable, insert.getTargetColumnList());
 
         return new SinkModifyOperation(
                 contextResolvedTable,
                 query,
                 insert.getStaticPartitionKVs(),
+                columnIndices,
                 insert.isOverwrite(),
                 dynamicOptions);
     }
@@ -886,24 +804,6 @@ public class SqlNodeToOperationConversion {
     /** Convert use catalog statement. */
     private Operation convertUseCatalog(SqlUseCatalog useCatalog) {
         return new UseCatalogOperation(useCatalog.catalogName());
-    }
-
-    /** Convert CREATE CATALOG statement. */
-    private Operation convertCreateCatalog(SqlCreateCatalog sqlCreateCatalog) {
-        String catalogName = sqlCreateCatalog.catalogName();
-
-        // set with properties
-        Map<String, String> properties = new HashMap<>();
-        sqlCreateCatalog
-                .getPropertyList()
-                .getList()
-                .forEach(
-                        p ->
-                                properties.put(
-                                        ((SqlTableOption) p).getKeyString(),
-                                        ((SqlTableOption) p).getValueString()));
-
-        return new CreateCatalogOperation(catalogName, properties);
     }
 
     /** Convert DROP CATALOG statement. */
@@ -1115,83 +1015,6 @@ public class SqlNodeToOperationConversion {
             return new ShowPartitionsOperation(tableIdentifier, partitionSpec);
         }
         return new ShowPartitionsOperation(tableIdentifier, null);
-    }
-
-    /** Convert CREATE VIEW statement. */
-    private Operation convertCreateView(SqlCreateView sqlCreateView) {
-        final SqlNode query = sqlCreateView.getQuery();
-        final SqlNodeList fieldList = sqlCreateView.getFieldList();
-
-        UnresolvedIdentifier unresolvedIdentifier =
-                UnresolvedIdentifier.of(sqlCreateView.fullViewName());
-        ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
-
-        String comment =
-                sqlCreateView
-                        .getComment()
-                        .map(c -> c.getValueAs(NlsString.class).getValue())
-                        .orElse(null);
-        CatalogView catalogView =
-                convertViewQuery(
-                        query,
-                        fieldList.getList(),
-                        OperationConverterUtils.extractProperties(
-                                sqlCreateView.getProperties().orElse(null)),
-                        comment);
-        return new CreateViewOperation(
-                identifier,
-                catalogView,
-                sqlCreateView.isIfNotExists(),
-                sqlCreateView.isTemporary());
-    }
-
-    /** Convert the query part of a VIEW statement. */
-    private CatalogView convertViewQuery(
-            SqlNode query, List<SqlNode> fieldNames, Map<String, String> props, String comment) {
-        // Put the sql string unparse (getQuotedSqlString()) in front of
-        // the node conversion (toQueryOperation()),
-        // because before Calcite 1.22.0, during sql-to-rel conversion, the SqlWindow
-        // bounds state would be mutated as default when they are null (not specified).
-
-        // This bug is fixed in CALCITE-3877 of Calcite 1.23.0.
-        String originalQuery = getQuotedSqlString(query);
-        SqlNode validateQuery = flinkPlanner.validate(query);
-        // The LATERAL operator was eliminated during sql validation, thus the unparsed SQL
-        // does not contain LATERAL which is problematic,
-        // the issue was resolved in CALCITE-4077
-        // (always treat the table function as implicitly LATERAL).
-        String expandedQuery =
-                Expander.create(flinkPlanner)
-                        .expanded(originalQuery)
-                        .substitute(this::getQuotedSqlString);
-
-        PlannerQueryOperation operation = toQueryOperation(flinkPlanner, validateQuery);
-        ResolvedSchema schema = operation.getResolvedSchema();
-
-        // the view column list in CREATE VIEW is optional, if it's not empty, we should update
-        // the column name with the names in view column list.
-        if (!fieldNames.isEmpty()) {
-            // alias column names:
-            List<String> inputFieldNames = schema.getColumnNames();
-            List<String> aliasFieldNames =
-                    fieldNames.stream().map(SqlNode::toString).collect(Collectors.toList());
-
-            if (inputFieldNames.size() != aliasFieldNames.size()) {
-                throw new ValidationException(
-                        String.format(
-                                "VIEW definition and input fields not match:\n\tDef fields: %s.\n\tInput fields: %s.",
-                                aliasFieldNames, inputFieldNames));
-            }
-
-            schema = ResolvedSchema.physical(aliasFieldNames, schema.getColumnDataTypes());
-        }
-
-        return CatalogView.of(
-                Schema.newBuilder().fromResolvedSchema(schema).build(),
-                comment,
-                originalQuery,
-                expandedQuery,
-                props);
     }
 
     /** Convert DROP VIEW statement. */
@@ -1550,7 +1373,10 @@ public class SqlNodeToOperationConversion {
         // delete push down is not applicable, use row-level delete
         PlannerQueryOperation queryOperation = new PlannerQueryOperation(tableModify);
         return new SinkModifyOperation(
-                contextResolvedTable, queryOperation, SinkModifyOperation.ModifyType.DELETE);
+                contextResolvedTable,
+                queryOperation,
+                null, // targetColumns
+                SinkModifyOperation.ModifyType.DELETE);
     }
 
     private Operation convertUpdate(SqlUpdate sqlUpdate) {
@@ -1567,8 +1393,27 @@ public class SqlNodeToOperationConversion {
                         catalogManager.qualifyIdentifier(unresolvedTableIdentifier));
         // get query
         PlannerQueryOperation queryOperation = new PlannerQueryOperation(tableModify);
+
+        // TODO calc target column list to index array, currently only simple SqlIdentifiers are
+        // available, this should be updated after FLINK-31344 fixed
+        int[][] columnIndices =
+                getTargetColumnIndices(contextResolvedTable, sqlUpdate.getTargetColumnList());
+
         return new SinkModifyOperation(
-                contextResolvedTable, queryOperation, SinkModifyOperation.ModifyType.UPDATE);
+                contextResolvedTable,
+                queryOperation,
+                columnIndices,
+                SinkModifyOperation.ModifyType.UPDATE);
+    }
+
+    private int[][] getTargetColumnIndices(
+            @Nonnull ContextResolvedTable contextResolvedTable,
+            @Nullable SqlNodeList targetColumns) {
+        List<String> allColumns = contextResolvedTable.getResolvedSchema().getColumnNames();
+        return Optional.ofNullable(targetColumns).orElse(SqlNodeList.EMPTY).stream()
+                .mapToInt(c -> allColumns.indexOf(((SqlIdentifier) c).getSimple()))
+                .mapToObj(idx -> new int[] {idx})
+                .toArray(int[][]::new);
     }
 
     private String getQuotedSqlString(SqlNode sqlNode) {

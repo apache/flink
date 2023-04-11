@@ -20,10 +20,12 @@ package org.apache.flink.runtime.testutils;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.BiFunctionWithException;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
@@ -58,6 +60,9 @@ public class TestingJobGraphStore implements JobGraphStore {
 
     private final ThrowingConsumer<JobGraph, ? extends Exception> putJobGraphConsumer;
 
+    private final BiConsumerWithException<JobGraph, JobResourceRequirements, ? extends Exception>
+            putJobResourceRequirementsConsumer;
+
     private final BiFunction<JobID, Executor, CompletableFuture<Void>> globalCleanupFunction;
 
     private final BiFunction<JobID, Executor, CompletableFuture<Void>> localCleanupFunction;
@@ -72,6 +77,8 @@ public class TestingJobGraphStore implements JobGraphStore {
             BiFunctionWithException<JobID, Map<JobID, JobGraph>, JobGraph, ? extends Exception>
                     recoverJobGraphFunction,
             ThrowingConsumer<JobGraph, ? extends Exception> putJobGraphConsumer,
+            BiConsumerWithException<JobGraph, JobResourceRequirements, ? extends Exception>
+                    putJobResourceRequirementsConsumer,
             BiFunction<JobID, Executor, CompletableFuture<Void>> globalCleanupFunction,
             BiFunction<JobID, Executor, CompletableFuture<Void>> localCleanupFunction,
             Collection<JobGraph> initialJobGraphs) {
@@ -80,6 +87,7 @@ public class TestingJobGraphStore implements JobGraphStore {
         this.jobIdsFunction = jobIdsFunction;
         this.recoverJobGraphFunction = recoverJobGraphFunction;
         this.putJobGraphConsumer = putJobGraphConsumer;
+        this.putJobResourceRequirementsConsumer = putJobResourceRequirementsConsumer;
         this.globalCleanupFunction = globalCleanupFunction;
         this.localCleanupFunction = localCleanupFunction;
 
@@ -111,6 +119,15 @@ public class TestingJobGraphStore implements JobGraphStore {
         verifyIsStarted();
         putJobGraphConsumer.accept(jobGraph);
         storedJobs.put(jobGraph.getJobID(), jobGraph);
+    }
+
+    @Override
+    public void putJobResourceRequirements(
+            JobID jobId, JobResourceRequirements jobResourceRequirements) throws Exception {
+        verifyIsStarted();
+        final JobGraph jobGraph =
+                Preconditions.checkNotNull(storedJobs.get(jobId), "Job [%s] not found.", jobId);
+        putJobResourceRequirementsConsumer.accept(jobGraph, jobResourceRequirements);
     }
 
     @Override
@@ -159,6 +176,9 @@ public class TestingJobGraphStore implements JobGraphStore {
 
         private ThrowingConsumer<JobGraph, ? extends Exception> putJobGraphConsumer = ignored -> {};
 
+        private BiConsumerWithException<JobGraph, JobResourceRequirements, ? extends Exception>
+                putJobResourceRequirementsConsumer = (graph, requirements) -> {};
+
         private BiFunction<JobID, Executor, CompletableFuture<Void>> globalCleanupFunction =
                 (ignoredJobId, ignoredExecutor) -> FutureUtils.completedVoidFuture();
 
@@ -202,6 +222,13 @@ public class TestingJobGraphStore implements JobGraphStore {
             return this;
         }
 
+        public Builder setPutJobResourceRequirementsConsumer(
+                BiConsumerWithException<JobGraph, JobResourceRequirements, ? extends Exception>
+                        putJobResourceRequirementsConsumer) {
+            this.putJobResourceRequirementsConsumer = putJobResourceRequirementsConsumer;
+            return this;
+        }
+
         public Builder setGlobalCleanupFunction(
                 BiFunction<JobID, Executor, CompletableFuture<Void>> globalCleanupFunction) {
             this.globalCleanupFunction = globalCleanupFunction;
@@ -232,6 +259,7 @@ public class TestingJobGraphStore implements JobGraphStore {
                             jobIdsFunction,
                             recoverJobGraphFunction,
                             putJobGraphConsumer,
+                            putJobResourceRequirementsConsumer,
                             globalCleanupFunction,
                             localCleanupFunction,
                             initialJobGraphs);
