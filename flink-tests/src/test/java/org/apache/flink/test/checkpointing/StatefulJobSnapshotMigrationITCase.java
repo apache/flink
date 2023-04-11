@@ -136,6 +136,12 @@ public class StatefulJobSnapshotMigrationITCase extends SnapshotMigrationTestBas
         switch (snapshotSpec.getStateBackendType()) {
             case StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME:
                 env.setStateBackend(new EmbeddedRocksDBStateBackend());
+
+                if (executionMode == ExecutionMode.CREATE_SNAPSHOT) {
+                    // disable changelog backend for now to ensure determinism in test data
+                    // generation (see FLINK-31766)
+                    env.enableChangelogStateBackend(false);
+                }
                 break;
             case StateBackendLoader.MEMORY_STATE_BACKEND_NAME:
                 env.setStateBackend(new MemoryStateBackend());
@@ -150,7 +156,6 @@ public class StatefulJobSnapshotMigrationITCase extends SnapshotMigrationTestBas
         env.enableCheckpointing(500);
         env.setParallelism(parallelism);
         env.setMaxParallelism(parallelism);
-        env.enableChangelogStateBackend(false);
 
         SourceFunction<Tuple2<Long, Long>> nonParallelSource;
         SourceFunction<Tuple2<Long, Long>> parallelSource;
