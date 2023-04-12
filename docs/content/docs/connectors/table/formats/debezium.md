@@ -450,5 +450,5 @@ See more details in [Debezium Documentation for PostgreSQL REPLICA IDENTITY](htt
 Data Type Mapping
 ----------------
 
-Currently, the Debezium format uses JSON and Avro format for serialization and deserialization. Please refer to [JSON Format documentation]({{< ref "docs/connectors/table/formats/json" >}}#data-type-mapping) and [Confluent Avro Format documentation]({< ref "docs/connectors/table/formats/avro-confluent" >}}#data-type-mapping) for more details about the data type mapping.
+Currently, the Debezium format uses JSON and Avro format for serialization and deserialization. Please refer to [JSON Format documentation]({{< ref "docs/connectors/table/formats/json" >}}#data-type-mapping) and [Confluent Avro Format documentation]({{< ref "docs/connectors/table/formats/avro-confluent" >}}#data-type-mapping) for more details about the data type mapping.
 
