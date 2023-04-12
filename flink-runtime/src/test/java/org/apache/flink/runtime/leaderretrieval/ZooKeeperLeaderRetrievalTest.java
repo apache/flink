@@ -26,7 +26,10 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperMultipleComponentLeaderElectionHaServices;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderelection.TestingContender;
+import org.apache.flink.runtime.leaderelection.TestingLeaderElectionListener;
+import org.apache.flink.runtime.leaderelection.ZooKeeperMultipleComponentLeaderElectionDriver;
 import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
@@ -49,6 +52,7 @@ import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.UnknownHostException;
 import java.time.Duration;
+import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -116,7 +120,6 @@ class ZooKeeperLeaderRetrievalTest {
         long sleepingTime = 1000;
 
         LeaderElectionService leaderElectionService = null;
-        LeaderElectionService faultyLeaderElectionService;
 
         Thread thread;
 
@@ -150,13 +153,21 @@ class ZooKeeperLeaderRetrievalTest {
                                 AddressResolution.NO_ADDRESS_RESOLUTION,
                                 config);
 
-                faultyLeaderElectionService =
-                        highAvailabilityServices.getJobManagerLeaderElectionService(
-                                HighAvailabilityServices.DEFAULT_JOB_ID);
-                TestingContender wrongLeaderAddressContender =
-                        new TestingContender(wrongAddress, faultyLeaderElectionService);
+                // create driver to simulate a separate Flink process having leadership that writes
+                // its leader information to the ZooKeeper backend and gets lost afterward
+                final ZooKeeperMultipleComponentLeaderElectionDriver externalProcessDriver =
+                        new ZooKeeperMultipleComponentLeaderElectionDriver(
+                                ZooKeeperUtils.useNamespaceAndEnsurePath(
+                                        zooKeeperExtension.getZooKeeperClient(
+                                                testingFatalErrorHandlerResource
+                                                        .getTestingFatalErrorHandler()),
+                                        ZooKeeperUtils.generateLeaderLatchPath("")),
+                                new TestingLeaderElectionListener());
+                externalProcessDriver.isLeader();
 
-                faultyLeaderElectionService.start(wrongLeaderAddressContender);
+                externalProcessDriver.publishLeaderInformation(
+                        HighAvailabilityServices.DEFAULT_JOB_ID.toString(),
+                        LeaderInformation.known(UUID.randomUUID(), wrongAddress));
 
                 FindConnectingAddress findConnectingAddress =
                         new FindConnectingAddress(
@@ -177,7 +188,8 @@ class ZooKeeperLeaderRetrievalTest {
 
                 Thread.sleep(sleepingTime);
 
-                faultyLeaderElectionService.stop();
+                externalProcessDriver.notLeader();
+                externalProcessDriver.close();
 
                 leaderElectionService.start(correctLeaderAddressContender);
 
