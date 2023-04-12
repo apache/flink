@@ -100,8 +100,7 @@ public class TestingLeaderElectionDriver implements LeaderElectionDriver {
         @Override
         public LeaderElectionDriver createLeaderElectionDriver(
                 LeaderElectionEventHandler leaderEventHandler,
-                FatalErrorHandler fatalErrorHandler,
-                String leaderContenderDescription) {
+                FatalErrorHandler fatalErrorHandler) {
             currentLeaderDriver =
                     new TestingLeaderElectionDriver(leaderEventHandler, fatalErrorHandler);
             return currentLeaderDriver;

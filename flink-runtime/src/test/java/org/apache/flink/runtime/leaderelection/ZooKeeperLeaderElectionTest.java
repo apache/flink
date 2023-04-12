@@ -775,9 +775,7 @@ class ZooKeeperLeaderElectionTest {
         final ZooKeeperLeaderElectionDriver leaderElectionDriver =
                 ZooKeeperUtils.createLeaderElectionDriverFactory(client)
                         .createLeaderElectionDriver(
-                                electionEventHandler,
-                                electionEventHandler::handleError,
-                                LEADER_ADDRESS);
+                                electionEventHandler, electionEventHandler::handleError);
         electionEventHandler.init(leaderElectionDriver);
         return leaderElectionDriver;
     }

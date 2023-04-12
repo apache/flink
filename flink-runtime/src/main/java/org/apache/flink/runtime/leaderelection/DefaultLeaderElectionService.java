@@ -91,9 +91,7 @@ public class DefaultLeaderElectionService
             leaderContender = contender;
             leaderElectionDriver =
                     leaderElectionDriverFactory.createLeaderElectionDriver(
-                            this,
-                            new LeaderElectionFatalErrorHandler(),
-                            leaderContender.getDescription());
+                            this, new LeaderElectionFatalErrorHandler());
             LOG.info("Starting DefaultLeaderElectionService with {}.", leaderElectionDriver);
         }
     }

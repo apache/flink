@@ -29,14 +29,11 @@ public interface LeaderElectionDriverFactory {
      * Kubernetes.
      *
      * @param leaderEventHandler handler for the leader election driver to process leader events.
-     * @param leaderContenderDescription leader contender description.
      * @param fatalErrorHandler fatal error handler
      * @throws Exception when create a specific {@link LeaderElectionDriver} implementation and
      *     start the necessary services.
      */
     LeaderElectionDriver createLeaderElectionDriver(
-            LeaderElectionEventHandler leaderEventHandler,
-            FatalErrorHandler fatalErrorHandler,
-            String leaderContenderDescription)
+            LeaderElectionEventHandler leaderEventHandler, FatalErrorHandler fatalErrorHandler)
             throws Exception;
 }
