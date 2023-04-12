@@ -72,8 +72,6 @@ public class ZooKeeperLeaderElectionDriver implements LeaderElectionDriver, Lead
 
     private final FatalErrorHandler fatalErrorHandler;
 
-    private final String leaderContenderDescription;
-
     private volatile boolean running;
 
     /**
@@ -83,21 +81,18 @@ public class ZooKeeperLeaderElectionDriver implements LeaderElectionDriver, Lead
      * @param path ZooKeeper node path for the leader election
      * @param leaderElectionEventHandler Event handler for processing leader change events
      * @param fatalErrorHandler Fatal error handler
-     * @param leaderContenderDescription Leader contender description
      */
     public ZooKeeperLeaderElectionDriver(
             CuratorFramework client,
             String path,
             LeaderElectionEventHandler leaderElectionEventHandler,
-            FatalErrorHandler fatalErrorHandler,
-            String leaderContenderDescription)
+            FatalErrorHandler fatalErrorHandler)
             throws Exception {
         checkNotNull(path);
         this.client = checkNotNull(client);
         this.connectionInformationPath = ZooKeeperUtils.generateConnectionInformationPath(path);
         this.leaderElectionEventHandler = checkNotNull(leaderElectionEventHandler);
         this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
-        this.leaderContenderDescription = checkNotNull(leaderContenderDescription);
 
         leaderLatchPath = ZooKeeperUtils.generateLeaderLatchPath(path);
         leaderLatch = new LeaderLatch(client, leaderLatchPath);
@@ -225,9 +220,7 @@ public class ZooKeeperLeaderElectionDriver implements LeaderElectionDriver, Lead
             case LOST:
                 // Maybe we have to throw an exception here to terminate the JobManager
                 LOG.warn(
-                        "Connection to ZooKeeper lost. The contender "
-                                + leaderContenderDescription
-                                + " no longer participates in the leader election.");
+                        "Connection to ZooKeeper lost. The contender no longer participates in the leader election.");
                 break;
         }
     }

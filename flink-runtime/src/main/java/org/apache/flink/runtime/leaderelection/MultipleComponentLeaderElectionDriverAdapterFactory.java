@@ -35,9 +35,7 @@ final class MultipleComponentLeaderElectionDriverAdapterFactory
 
     @Override
     public LeaderElectionDriver createLeaderElectionDriver(
-            LeaderElectionEventHandler leaderEventHandler,
-            FatalErrorHandler fatalErrorHandler,
-            String leaderContenderDescription)
+            LeaderElectionEventHandler leaderEventHandler, FatalErrorHandler fatalErrorHandler)
             throws Exception {
         return new MultipleComponentLeaderElectionDriverAdapter(
                 leaderName, singleLeaderElectionService, leaderEventHandler);

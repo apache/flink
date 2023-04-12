@@ -156,7 +156,7 @@ class KubernetesHighAvailabilityTestBase {
                             watchCallbackExecutorService,
                             leaderConfig);
             return factory.createLeaderElectionDriver(
-                    electionEventHandler, electionEventHandler::handleError, LEADER_ADDRESS);
+                    electionEventHandler, electionEventHandler::handleError);
         }
 
         private LeaderRetrievalDriver createLeaderRetrievalDriver() {

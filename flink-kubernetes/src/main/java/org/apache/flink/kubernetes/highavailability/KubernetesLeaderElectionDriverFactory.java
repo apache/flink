@@ -52,9 +52,7 @@ public class KubernetesLeaderElectionDriverFactory implements LeaderElectionDriv
 
     @Override
     public KubernetesLeaderElectionDriver createLeaderElectionDriver(
-            LeaderElectionEventHandler leaderEventHandler,
-            FatalErrorHandler fatalErrorHandler,
-            String leaderContenderDescription) {
+            LeaderElectionEventHandler leaderEventHandler, FatalErrorHandler fatalErrorHandler) {
         return new KubernetesLeaderElectionDriver(
                 kubeClient,
                 configMapSharedWatcher,

@@ -40,11 +40,9 @@ public class ZooKeeperLeaderElectionDriverFactory implements LeaderElectionDrive
 
     @Override
     public ZooKeeperLeaderElectionDriver createLeaderElectionDriver(
-            LeaderElectionEventHandler leaderEventHandler,
-            FatalErrorHandler fatalErrorHandler,
-            String leaderContenderDescription)
+            LeaderElectionEventHandler leaderEventHandler, FatalErrorHandler fatalErrorHandler)
             throws Exception {
         return new ZooKeeperLeaderElectionDriver(
-                client, path, leaderEventHandler, fatalErrorHandler, leaderContenderDescription);
+                client, path, leaderEventHandler, fatalErrorHandler);
     }
 }
