@@ -26,6 +26,7 @@ import org.apache.flink.streaming.runtime.watermarkstatus.HeapPriorityQueue.Heap
 import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A {@code StatusWatermarkValve} embodies the logic of how {@link Watermark} and {@link
@@ -207,8 +208,10 @@ public class StatusWatermarkValve {
      * @param inputChannelStatus the input channel status to be marked
      */
     private void markWatermarkAligned(InputChannelStatus inputChannelStatus) {
-        inputChannelStatus.isWatermarkAligned = true;
-        inputChannelStatus.addTo(alignedChannelStatuses);
+        if (!inputChannelStatus.isWatermarkAligned) {
+            inputChannelStatus.isWatermarkAligned = true;
+            inputChannelStatus.addTo(alignedChannelStatuses);
+        }
     }
 
     /**
@@ -218,8 +221,10 @@ public class StatusWatermarkValve {
      * @param inputChannelStatus the input channel status to be marked
      */
     private void markWatermarkUnaligned(InputChannelStatus inputChannelStatus) {
-        inputChannelStatus.isWatermarkAligned = false;
-        inputChannelStatus.removeFrom(alignedChannelStatuses);
+        if (inputChannelStatus.isWatermarkAligned) {
+            inputChannelStatus.isWatermarkAligned = false;
+            inputChannelStatus.removeFrom(alignedChannelStatuses);
+        }
     }
 
     /**
@@ -297,15 +302,14 @@ public class StatusWatermarkValve {
         }
 
         private void removeFrom(HeapPriorityQueue<InputChannelStatus> queue) {
+            checkState(heapIndex != HeapPriorityQueueElement.NOT_CONTAINED);
             queue.remove(this);
             setInternalIndex(HeapPriorityQueueElement.NOT_CONTAINED);
         }
 
         private void addTo(HeapPriorityQueue<InputChannelStatus> queue) {
-            // Check the heap index to avoid the same object being added repeatedly
-            if (heapIndex == HeapPriorityQueueElement.NOT_CONTAINED) {
-                queue.add(this);
-            }
+            checkState(heapIndex == HeapPriorityQueueElement.NOT_CONTAINED);
+            queue.add(this);
         }
     }
 
