@@ -20,6 +20,7 @@ package org.apache.flink.runtime.leaderretrieval;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.core.testutils.EachCallbackWrapper;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperMultipleComponentLeaderElectionHaServices;
@@ -28,14 +29,13 @@ import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingContender;
 import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.runtime.rpc.RpcSystem;
-import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerExtension;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
+import org.apache.flink.runtime.zookeeper.ZooKeeperExtension;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 
-import org.apache.curator.test.TestingServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -62,11 +62,15 @@ class ZooKeeperLeaderRetrievalTest {
     private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
             TestingUtils.defaultExecutorExtension();
 
+    private final ZooKeeperExtension zooKeeperExtension = new ZooKeeperExtension();
+
+    @RegisterExtension
+    private final EachCallbackWrapper<ZooKeeperExtension> eachWrapper =
+            new EachCallbackWrapper<>(zooKeeperExtension);
+
     @RegisterExtension
     private final TestingFatalErrorHandlerExtension testingFatalErrorHandlerResource =
             new TestingFatalErrorHandlerExtension();
-
-    private TestingServer testingServer;
 
     private Configuration config;
 
@@ -74,12 +78,10 @@ class ZooKeeperLeaderRetrievalTest {
 
     @BeforeEach
     void before() throws Exception {
-        testingServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer();
-
         config = new Configuration();
         config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
         config.setString(
-                HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, testingServer.getConnectString());
+                HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperExtension.getConnectString());
 
         highAvailabilityServices =
                 new ZooKeeperMultipleComponentLeaderElectionHaServices(
@@ -98,12 +100,6 @@ class ZooKeeperLeaderRetrievalTest {
             highAvailabilityServices.closeAndCleanupAllData();
 
             highAvailabilityServices = null;
-        }
-
-        if (testingServer != null) {
-            testingServer.close();
-
-            testingServer = null;
         }
     }
 
