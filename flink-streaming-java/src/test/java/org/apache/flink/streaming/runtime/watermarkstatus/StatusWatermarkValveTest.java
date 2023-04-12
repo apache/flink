@@ -405,6 +405,30 @@ class StatusWatermarkValveTest {
         assertThat(valveOutput.popLastSeenOutput()).isNull();
     }
 
+    @Test
+    void testUnalignedActiveChannelBecomesIdle() throws Exception {
+        StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
+        StatusWatermarkValve valve = new StatusWatermarkValve(2);
+
+        valve.inputWatermark(new Watermark(7), 0, valveOutput);
+        valve.inputWatermark(new Watermark(10), 1, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(new Watermark(7));
+
+        // make channel 0 idle, it becomes unaligned
+        valve.inputWatermarkStatus(WatermarkStatus.IDLE, 0, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isEqualTo(new Watermark(10));
+
+        // make channel 0 active, but it is still unaligned because it's watermark < last output
+        // watermark
+        valve.inputWatermarkStatus(WatermarkStatus.ACTIVE, 0, valveOutput);
+        valve.inputWatermark(new Watermark(9), 0, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+
+        // make channel 0 idle again
+        valve.inputWatermarkStatus(WatermarkStatus.IDLE, 0, valveOutput);
+        assertThat(valveOutput.popLastSeenOutput()).isNull();
+    }
+
     private static class StatusWatermarkOutput implements PushingAsyncDataInput.DataOutput {
 
         private BlockingQueue<StreamElement> allOutputs = new LinkedBlockingQueue<>();
