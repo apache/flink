@@ -72,9 +72,9 @@ public class SqlClientOptions {
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<String> DISPLAY_DEFAULT_COLOR_SCHEMA =
-            ConfigOptions.key("sql-client.display.default-color-schema")
+            ConfigOptions.key("sql-client.display.color-schema")
                     .stringType()
                     .defaultValue(SyntaxHighlightStyle.BuiltInStyle.DEFAULT.name())
                     .withDescription(
-                            "SQL highlight color scheme to be used at SQL client start. Possible values: 'default', 'dark', 'light', 'chester', 'vs2010', 'solarized', 'obsidian', 'geshi'");
+                            "SQL highlight color schema to be used at SQL client. Possible values: 'default', 'dark', 'light', 'chester', 'vs2010', 'solarized', 'obsidian', 'geshi'");
 }

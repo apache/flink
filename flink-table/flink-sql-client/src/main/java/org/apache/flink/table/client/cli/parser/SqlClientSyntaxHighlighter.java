@@ -34,7 +34,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
@@ -46,20 +45,20 @@ import java.util.stream.Collectors;
 /** Sql Client syntax highlighter. */
 public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
     private static final Logger LOG = LoggerFactory.getLogger(SqlClientSyntaxHighlighter.class);
-    private static Set<String> keywordSet;
+    private static Set<String> keywords;
 
     static {
         try (InputStream is =
                 SqlClientSyntaxHighlighter.class.getResourceAsStream("/keywords.properties")) {
             Properties props = new Properties();
             props.load(is);
-            keywordSet =
+            keywords =
                     Collections.unmodifiableSet(
                             Arrays.stream(props.get("default").toString().split(";"))
                                     .collect(Collectors.toSet()));
         } catch (IOException e) {
             LOG.error("Exception: ", e);
-            keywordSet = Collections.emptySet();
+            keywords = Collections.emptySet();
         }
     }
 
@@ -142,7 +141,7 @@ public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
             SyntaxHighlightStyle style) {
         final String wordStr = word.toString();
         if (currentState == State.DEFAULT) {
-            if (keywordSet.contains(wordStr.toUpperCase(Locale.ROOT))) {
+            if (keywords.contains(wordStr.toUpperCase(Locale.ROOT))) {
                 highlightedOutput.style(style.getKeywordStyle());
             } else {
                 highlightedOutput.style(style.getDefaultStyle());
@@ -175,43 +174,35 @@ public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
      * </pre>
      */
     private enum State {
-        QUOTED(1, "'", "'", dialect -> true, (asb, style) -> asb.style(style.getQuotedStyle())),
+        QUOTED("'", "'", dialect -> true, (asb, style) -> asb.style(style.getQuotedStyle())),
         SQL_QUOTED_IDENTIFIER(
-                2,
                 "`",
                 "`",
                 (dialect) -> dialect == SqlDialect.DEFAULT || dialect == null,
                 (asb, style) -> asb.style(style.getSqlIdentifierStyle())),
         HIVE_SQL_QUOTED_IDENTIFIER(
-                2,
                 "\"",
                 "\"",
                 (dialect) -> dialect == SqlDialect.HIVE,
                 (asb, style) -> asb.style(style.getSqlIdentifierStyle())),
         ONE_LINE_COMMENTED(
-                3, "--", "\n", dialect -> true, (asb, style) -> asb.style(style.getCommentStyle())),
-        HINTED(4, "/*+", "*/", dialect -> true, (asb, style) -> asb.style(style.getHintStyle())),
+                "--", "\n", dialect -> true, (asb, style) -> asb.style(style.getCommentStyle())),
+        HINTED("/*+", "*/", dialect -> true, (asb, style) -> asb.style(style.getHintStyle())),
         MULTILINE_COMMENTED(
-                5, "/*", "*/", dialect -> true, (asb, style) -> asb.style(style.getCommentStyle())),
-        DEFAULT(
-                Integer.MAX_VALUE,
-                null,
-                null,
-                dialect -> true,
-                (asb, style) -> asb.style(style.getDefaultStyle()));
+                "/*", "*/", dialect -> true, (asb, style) -> asb.style(style.getCommentStyle())),
+
+        // DEFAULT state should be the last one in this list since it is kind a fallback.
+        DEFAULT(null, null, dialect -> true, (asb, style) -> asb.style(style.getDefaultStyle()));
 
         private final String start;
         private final String end;
         private final Function<SqlDialect, Boolean> condition;
-
-        private final int order;
 
         private final BiConsumer<AttributedStringBuilder, SyntaxHighlightStyle> styleSetter;
 
         private static final List<State> STATE_LIST_WITHOUT_DEFAULT =
                 Arrays.stream(State.values())
                         .filter(t -> t != DEFAULT)
-                        .sorted(Comparator.comparingInt(o -> o.order))
                         .collect(Collectors.toList());
         private static final Set<Character> STATE_START_SYMBOLS =
                 Arrays.stream(State.values())
@@ -220,14 +211,12 @@ public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
                         .collect(Collectors.toSet());
 
         State(
-                int order,
                 String start,
                 String end,
                 Function<SqlDialect, Boolean> condition,
                 BiConsumer<AttributedStringBuilder, SyntaxHighlightStyle> styleSetter) {
             this.start = start;
             this.end = end;
-            this.order = order;
             this.condition = condition;
             this.styleSetter = styleSetter;
         }
