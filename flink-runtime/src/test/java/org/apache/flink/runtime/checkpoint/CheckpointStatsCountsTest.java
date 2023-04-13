@@ -99,7 +99,7 @@ public class CheckpointStatsCountsTest {
                 counts.getNumberOfInProgressCheckpoints() >= 0);
     }
 
-    /** Tests that that taking snapshots of the state are independent from the parent. */
+    /** Tests that taking snapshots of the state are independent of the parent. */
     @Test
     public void testCreateSnapshot() {
         CheckpointStatsCounts counts = new CheckpointStatsCounts();
