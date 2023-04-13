@@ -18,11 +18,13 @@
 
 package org.apache.flink.table.client.cli.parser;
 
+import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.client.config.SqlClientOptions;
 import org.apache.flink.table.client.gateway.Executor;
 
+import org.apache.calcite.sql.parser.SqlAbstractParserImpl;
 import org.jline.reader.LineReader;
 import org.jline.reader.impl.DefaultHighlighter;
 import org.jline.utils.AttributedString;
@@ -30,13 +32,12 @@ import org.jline.utils.AttributedStringBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.StringReader;
+import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
-import java.util.Properties;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -48,16 +49,19 @@ public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
     private static Set<String> keywords;
 
     static {
-        try (InputStream is =
-                SqlClientSyntaxHighlighter.class.getResourceAsStream("/keywords.properties")) {
-            Properties props = new Properties();
-            props.load(is);
+        try {
+            Field reservedWords =
+                    SqlAbstractParserImpl.MetadataImpl.class.getDeclaredField("reservedWords");
+            reservedWords.setAccessible(true);
             keywords =
-                    Collections.unmodifiableSet(
-                            Arrays.stream(props.get("default").toString().split(";"))
-                                    .collect(Collectors.toSet()));
-        } catch (IOException e) {
-            LOG.error("Exception: ", e);
+                    (Set<String>)
+                            reservedWords.get(
+                                    FlinkSqlParserImpl.FACTORY
+                                            .getParser(new StringReader(""))
+                                            .getMetadata());
+        } catch (Throwable t) {
+            // ignore
+            LOG.warn("Can not get reserved keywords.", t);
             keywords = Collections.emptySet();
         }
     }
@@ -112,7 +116,7 @@ public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
                     i += currentParseState.start.length() - 1;
                 }
             } else {
-                if (currentParseState.isEndOfState(buffer, i)) {
+                if (currentParseState.isEndMarkerOfState(buffer, i)) {
                     highlightedOutput
                             .append(word)
                             .append(currentParseState.end)
@@ -235,8 +239,18 @@ public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
             return DEFAULT;
         }
 
-        boolean isEndOfState(String input, int pos) {
-            if (this == DEFAULT) {
+        /**
+         * Returns whether at current {@code pos} of {@code input} there is {@code end} marker of
+         * the state. In case {@code end} marker is null it returns false.
+         *
+         * @param input a string to look at
+         * @param pos a position to check if anything matches to {@code end} starting from this
+         *     position
+         * @return whether end marker of the current state is reached of false case of end marker of
+         *     current state is null.
+         */
+        boolean isEndMarkerOfState(String input, int pos) {
+            if (end == null) {
                 return false;
             }
             return end.length() > 0 && input.regionMatches(pos, end, 0, end.length());
