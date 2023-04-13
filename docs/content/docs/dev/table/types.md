@@ -1206,7 +1206,7 @@ A row type is similar to the `STRUCT` type known from other non-standard-complia
 ROW<n0 t0, n1 t1, ...>
 ROW<n0 t0 'd0', n1 t1 'd1', ...>
 
-ROW(n0 t0, n1 t1, ...>
+ROW(n0 t0, n1 t1, ...)
 ROW(n0 t0 'd0', n1 t1 'd1', ...)
 ```
 {{< /tab >}}
