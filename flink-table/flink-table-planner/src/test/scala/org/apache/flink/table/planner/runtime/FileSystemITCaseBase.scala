@@ -19,6 +19,8 @@ package org.apache.flink.table.planner.runtime
 
 import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.connector.file.table.PartitionCommitPolicy
+import org.apache.flink.core.fs.{FileSystem, Path => FPath}
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.runtime.FileSystemITCaseBase._
@@ -28,6 +30,7 @@ import org.apache.flink.testutils.junit.utils.TempDirUtils
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.TestTemplate
 import org.junit.jupiter.api.io.TempDir
 
@@ -159,6 +162,20 @@ trait FileSystemITCaseBase {
          |  ${formatProperties().mkString(",\n")}
          |)
        """.stripMargin
+    )
+
+    tableEnv.executeSql(
+      s"""
+         |create table table_custom_partition_commit_policy (
+         |  x varchar, y int
+         |) PARTITIONED BY (x) with (
+         |  'connector' = 'filesystem',
+         |  'path' = '$getScheme://$resultPath',
+         |  ${formatProperties().mkString(",\n")},
+         |  'sink.partition-commit.policy.kind' = 'custom',
+         |  'sink.partition-commit.policy.class' = '${classOf[TestPolicy].getName}'
+         |)
+ """.stripMargin
     )
   }
 
@@ -514,6 +531,15 @@ trait FileSystemITCaseBase {
         row(19, 3, "x19")
       ))
   }
+
+  @TestTemplate
+  def testCustomPartitionCommitPolicy(): Unit = {
+    tableEnv
+      .executeSql("insert into table_custom_partition_commit_policy values ('p1', 1), ('p1', 2)")
+      .await()
+    val file = new File(s"$resultPath/x=p1/_custom_commit")
+    assertTrue(file.exists())
+  }
 }
 
 object FileSystemITCaseBase {
@@ -578,4 +604,14 @@ object FileSystemITCaseBase {
     row("x4", 4, 1, 1, 2),
     row("x5", 5, 1, 1, 2)
   )
+
+  class TestPolicy extends PartitionCommitPolicy {
+
+    /** Commit a partition. */
+    override def commit(context: PartitionCommitPolicy.Context): Unit = {
+      val fs = context.partitionPath().getFileSystem
+      fs.create(new FPath(context.partitionPath, "_custom_commit"), FileSystem.WriteMode.OVERWRITE)
+        .close()
+    }
+  }
 }
