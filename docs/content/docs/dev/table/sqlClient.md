@@ -854,7 +854,7 @@ For more details about stopping jobs, please refer to [Job Statements]({{< ref "
 ### SQL Syntax highlighting
 
 SQL Client can highlight SQL syntax with several color schemes.
-With `sql-client.display.default-color-schema` it could be set a color scheme.
+With `sql-client.display.color-schema` it could be set a color scheme.
 Available color schemes: `chester`, `dracula`, `solarized`, `vs2010`, `obsidian`, `geshi`, `default` (no highlighting).
 In case of wrong name the fallback is to `default`.
 
