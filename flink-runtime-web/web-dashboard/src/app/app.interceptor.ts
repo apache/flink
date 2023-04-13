@@ -24,7 +24,7 @@ import {
   HttpResponseBase,
   HttpStatusCode
 } from '@angular/common/http';
-import { Injectable, Injector } from '@angular/core';
+import { Injectable } from '@angular/core';
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 
@@ -33,7 +33,10 @@ import { NzNotificationService, NzNotificationDataOptions } from 'ng-zorro-antd/
 
 @Injectable()
 export class AppInterceptor implements HttpInterceptor {
-  constructor(private readonly injector: Injector) {}
+  constructor(
+    private readonly statusService: StatusService,
+    private readonly notificationService: NzNotificationService
+  ) {}
 
   intercept(req: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
     // Error response from below url should be ignored
@@ -62,10 +65,8 @@ export class AppInterceptor implements HttpInterceptor {
           ignoreErrorUrlEndsList.every(url => !res.url.endsWith(url)) &&
           ignoreErrorMessage.every(message => errorMessage !== message)
         ) {
-          this.injector.get<StatusService>(StatusService).listOfErrorMessage.push(errorMessage);
-          this.injector
-            .get<NzNotificationService>(NzNotificationService)
-            .info('Server Response Message:', errorMessage.replaceAll(' at ', '\n at '), option);
+          this.statusService.listOfErrorMessage.push(errorMessage);
+          this.notificationService.info('Server Response Message:', errorMessage.replaceAll(' at ', '\n at '), option);
         }
         return throwError(res);
       })
