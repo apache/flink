@@ -32,6 +32,7 @@ import { StatusService } from '@flink-runtime-web/services';
 import { NZ_CONFIG, NzConfig } from 'ng-zorro-antd/core/config';
 import { en_US, NZ_I18N } from 'ng-zorro-antd/i18n';
 import { NZ_ICONS } from 'ng-zorro-antd/icon';
+import { NzNotificationModule } from 'ng-zorro-antd/notification';
 
 import { environment } from './environments/environment';
 
@@ -81,6 +82,7 @@ bootstrapApplication(AppComponent, {
     },
     importProvidersFrom(HttpClientModule),
     importProvidersFrom(BrowserAnimationsModule),
+    importProvidersFrom(NzNotificationModule),
     importProvidersFrom(
       RouterModule.forRoot([...APP_ROUTES], {
         useHash: true
