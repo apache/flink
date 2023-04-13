@@ -987,10 +987,12 @@ valueconstruction:
   - sql: |
       -- implicit constructor with parenthesis
       (value1 [, value2]*)
+      -- explicit ROW constructor 
+      ROW(value1 [, value2]*)
     table: row(ANY1, ANY2, ...)
     description: |
       返回从值列表 (value1, value2, ...) 创建的行。隐式行构造函数支持任意表达式作为字段，但至少需要两个字段。
-      显式行构造函数可以处理任意数量的字段，但目前还不能很好地支持所有类型的字段表达式。
+      显式行构造函数可以处理任意数量的字段。
   - sql: ARRAY ‘[’ value1 [, value2 ]* ‘]’
     table: array(ANY1, ANY2, ...)
     description: 返回从值列表 (value1, value2, ...) 创建的数组。
