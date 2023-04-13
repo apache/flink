@@ -35,7 +35,7 @@ under the License.
         {{ range $category }}
             <tr>
                 <td>
-                    {{ .sql | default "不适用" }}
+                    {{ .sql | $.Page.RenderString | default "不适用" }}
                 </td>
                 <td>
                     {{ .table | default "不适用" }}
