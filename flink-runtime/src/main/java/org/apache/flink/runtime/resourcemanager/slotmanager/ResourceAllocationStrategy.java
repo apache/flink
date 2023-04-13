@@ -46,4 +46,17 @@ public interface ResourceAllocationStrategy {
             Map<JobID, Collection<ResourceRequirement>> missingResources,
             TaskManagerResourceInfoProvider taskManagerResourceInfoProvider,
             BlockedTaskManagerChecker blockedTaskManagerChecker);
+
+    /**
+     * Try to make a release decision to release unused PendingTaskManagers and TaskManagers. This
+     * is more light weighted than {@link #tryFulfillRequirements}, only consider empty registered /
+     * pending workers and assume all requirements are fulfilled by registered / pending workers.
+     *
+     * @param taskManagerResourceInfoProvider provide the registered/pending resources of the
+     *     current cluster
+     * @return a {@link ResourceReleaseResult} based on the current status, which contains the
+     *     actions to take
+     */
+    ResourceReleaseResult tryReleaseUnusedResources(
+            TaskManagerResourceInfoProvider taskManagerResourceInfoProvider);
 }

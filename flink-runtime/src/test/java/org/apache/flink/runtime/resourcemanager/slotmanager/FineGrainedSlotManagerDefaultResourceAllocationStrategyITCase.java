@@ -18,9 +18,12 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
+import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
@@ -52,7 +55,8 @@ class FineGrainedSlotManagerDefaultResourceAllocationStrategyITCase
                 new DefaultResourceAllocationStrategy(
                         DEFAULT_TOTAL_RESOURCE_PROFILE,
                         DEFAULT_NUM_SLOTS_PER_WORKER,
-                        slotManagerConfiguration.isEvenlySpreadOutSlots()));
+                        slotManagerConfiguration.isEvenlySpreadOutSlots(),
+                        slotManagerConfiguration.getTaskManagerTimeout()));
     }
 
     /**
@@ -151,6 +155,100 @@ class FineGrainedSlotManagerDefaultResourceAllocationStrategyITCase
                                     .isEmpty();
                             assertThat(getResourceTracker().getMissingResources())
                                     .containsKey(resourceRequirements.getJobId());
+                        });
+            }
+        };
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Task manager timeout
+    // ---------------------------------------------------------------------------------------------
+
+    /**
+     * Tests that formerly used task managers can timeout after all of their slots have been freed.
+     */
+    @Test
+    void testTimeoutForUnusedTaskManager() throws Exception {
+        final Time taskManagerTimeout = Time.milliseconds(50L);
+
+        final CompletableFuture<InstanceID> releaseResourceFuture = new CompletableFuture<>();
+        final AllocationID allocationId = new AllocationID();
+        final TaskExecutorConnection taskExecutionConnection = createTaskExecutorConnection();
+        final InstanceID instanceId = taskExecutionConnection.getInstanceID();
+        new Context() {
+            {
+                resourceAllocatorBuilder.setDeclareResourceNeededConsumer(
+                        (resourceDeclarations) -> {
+                            assertThat(resourceDeclarations).hasSize(1);
+                            ResourceDeclaration resourceDeclaration =
+                                    resourceDeclarations.iterator().next();
+                            assertThat(resourceDeclaration.getNumNeeded()).isEqualTo(0);
+                            assertThat(resourceDeclaration.getUnwantedWorkers()).hasSize(1);
+                            releaseResourceFuture.complete(
+                                    resourceDeclaration.getUnwantedWorkers().iterator().next());
+                        });
+                slotManagerConfigurationBuilder.setTaskManagerTimeout(taskManagerTimeout);
+                runTest(
+                        () -> {
+                            final CompletableFuture<SlotManager.RegistrationResult>
+                                    registerTaskManagerFuture = new CompletableFuture<>();
+                            runInMainThread(
+                                    () ->
+                                            registerTaskManagerFuture.complete(
+                                                    getSlotManager()
+                                                            .registerTaskManager(
+                                                                    taskExecutionConnection,
+                                                                    new SlotReport(
+                                                                            createAllocatedSlotStatus(
+                                                                                    new JobID(),
+                                                                                    allocationId,
+                                                                                    DEFAULT_SLOT_RESOURCE_PROFILE)),
+                                                                    DEFAULT_TOTAL_RESOURCE_PROFILE,
+                                                                    DEFAULT_SLOT_RESOURCE_PROFILE)));
+                            assertThat(assertFutureCompleteAndReturn(registerTaskManagerFuture))
+                                    .isEqualTo(SlotManager.RegistrationResult.SUCCESS);
+                            assertThat(getSlotManager().getTaskManagerIdleSince(instanceId))
+                                    .isEqualTo(Long.MAX_VALUE);
+
+                            final CompletableFuture<Long> idleSinceFuture =
+                                    new CompletableFuture<>();
+                            runInMainThread(
+                                    () -> {
+                                        getSlotManager()
+                                                .freeSlot(
+                                                        new SlotID(
+                                                                taskExecutionConnection
+                                                                        .getResourceID(),
+                                                                0),
+                                                        allocationId);
+                                        idleSinceFuture.complete(
+                                                getSlotManager()
+                                                        .getTaskManagerIdleSince(instanceId));
+                                    });
+
+                            assertThat(assertFutureCompleteAndReturn(idleSinceFuture))
+                                    .isNotEqualTo(Long.MAX_VALUE);
+                            assertThat(assertFutureCompleteAndReturn(releaseResourceFuture))
+                                    .isEqualTo(instanceId);
+                            // A task manager timeout does not remove the slots from the
+                            // SlotManager. The receiver of the callback can then decide what to do
+                            // with the TaskManager.
+                            assertThat(getSlotManager().getNumberRegisteredSlots())
+                                    .isEqualTo(DEFAULT_NUM_SLOTS_PER_WORKER);
+
+                            final CompletableFuture<Boolean> unregisterTaskManagerFuture =
+                                    new CompletableFuture<>();
+                            runInMainThread(
+                                    () ->
+                                            unregisterTaskManagerFuture.complete(
+                                                    getSlotManager()
+                                                            .unregisterTaskManager(
+                                                                    taskExecutionConnection
+                                                                            .getInstanceID(),
+                                                                    TEST_EXCEPTION)));
+                            assertThat(assertFutureCompleteAndReturn(unregisterTaskManagerFuture))
+                                    .isTrue();
+                            assertThat(getSlotManager().getNumberRegisteredSlots()).isEqualTo(0);
                         });
             }
         };
