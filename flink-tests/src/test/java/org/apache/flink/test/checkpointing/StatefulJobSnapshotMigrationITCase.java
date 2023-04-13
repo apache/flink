@@ -65,7 +65,7 @@ public class StatefulJobSnapshotMigrationITCase extends SnapshotMigrationTestBas
     private static final int NUM_SOURCE_ELEMENTS = 4;
 
     // TODO increase this to newer version to create and test snapshot migration for newer versions
-    private static final FlinkVersion currentVersion = FlinkVersion.v1_16;
+    private static final FlinkVersion currentVersion = FlinkVersion.v1_17;
 
     // TODO change this to CREATE_SNAPSHOT to (re)create binary snapshots
     // TODO Note: You should generate the snapshot based on the release branch instead of the
