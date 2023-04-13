@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.blocklist.BlockedTaskManagerChecker;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.slots.ResourceRequirement;
@@ -69,10 +70,13 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
     private final ResourceMatchingStrategy pendingResourceMatchingStrategy =
             AnyMatchingResourceMatchingStrategy.INSTANCE;
 
+    private final Time taskManagerTimeout;
+
     public DefaultResourceAllocationStrategy(
             ResourceProfile totalResourceProfile,
             int numSlotsPerWorker,
-            boolean evenlySpreadOutSlots) {
+            boolean evenlySpreadOutSlots,
+            Time taskManagerTimeout) {
         this.totalResourceProfile = totalResourceProfile;
         this.numSlotsPerWorker = numSlotsPerWorker;
         this.defaultSlotResourceProfile =
@@ -82,6 +86,7 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
                 evenlySpreadOutSlots
                         ? LeastUtilizationResourceMatchingStrategy.INSTANCE
                         : AnyMatchingResourceMatchingStrategy.INSTANCE;
+        this.taskManagerTimeout = taskManagerTimeout;
     }
 
     @Override
@@ -111,6 +116,34 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
             }
         }
         return resultBuilder.build();
+    }
+
+    @Override
+    public ResourceReleaseResult tryReleaseUnusedResources(
+            TaskManagerResourceInfoProvider taskManagerResourceInfoProvider) {
+        ResourceReleaseResult.Builder builder = ResourceReleaseResult.builder();
+
+        // useless pending task manager.
+        taskManagerResourceInfoProvider.getPendingTaskManagers().stream()
+                .filter(
+                        pendingTaskManager ->
+                                taskManagerResourceInfoProvider
+                                        .getPendingAllocationsOfPendingTaskManager(
+                                                pendingTaskManager.getPendingTaskManagerId())
+                                        .isEmpty())
+                .forEach(builder::addPendingTaskManagerToRelease);
+
+        // idle task manager timeout.
+        long currentTime = System.currentTimeMillis();
+        taskManagerResourceInfoProvider.getRegisteredTaskManagers().stream()
+                .filter(
+                        taskManager ->
+                                taskManager.isIdle()
+                                        && currentTime - taskManager.getIdleSince()
+                                                >= taskManagerTimeout.toMilliseconds())
+                .forEach(builder::addTaskManagerToRelease);
+
+        return builder.build();
     }
 
     private static List<InternalResourceInfo> getAvailableResources(

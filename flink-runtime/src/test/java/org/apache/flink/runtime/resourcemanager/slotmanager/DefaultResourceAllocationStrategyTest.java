@@ -20,6 +20,7 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.resources.ExternalResource;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.util.ResourceCounter;
@@ -41,11 +42,17 @@ class DefaultResourceAllocationStrategyTest {
     private static final int NUM_OF_SLOTS = 5;
     private static final DefaultResourceAllocationStrategy ANY_MATCHING_STRATEGY =
             new DefaultResourceAllocationStrategy(
-                    DEFAULT_SLOT_RESOURCE.multiply(NUM_OF_SLOTS), NUM_OF_SLOTS, false);
+                    DEFAULT_SLOT_RESOURCE.multiply(NUM_OF_SLOTS),
+                    NUM_OF_SLOTS,
+                    false,
+                    Time.milliseconds(0));
 
     private static final DefaultResourceAllocationStrategy EVENLY_STRATEGY =
             new DefaultResourceAllocationStrategy(
-                    DEFAULT_SLOT_RESOURCE.multiply(NUM_OF_SLOTS), NUM_OF_SLOTS, true);
+                    DEFAULT_SLOT_RESOURCE.multiply(NUM_OF_SLOTS),
+                    NUM_OF_SLOTS,
+                    true,
+                    Time.milliseconds(0));
 
     @Test
     void testFulfillRequirementWithRegisteredResources() {
@@ -316,5 +323,67 @@ class DefaultResourceAllocationStrategyTest {
         assertThat(result.getUnfulfillableJobs()).isEmpty();
         assertThat(result.getAllocationsOnRegisteredResources()).isEmpty();
         assertThat(result.getPendingTaskManagersToAllocate()).hasSize(2);
+    }
+
+    @Test
+    void testIdleTaskManagerShouldBeReleased() {
+        final TestingTaskManagerInfo registeredTaskManager =
+                new TestingTaskManagerInfo(
+                        DEFAULT_SLOT_RESOURCE.multiply(NUM_OF_SLOTS),
+                        DEFAULT_SLOT_RESOURCE.multiply(NUM_OF_SLOTS),
+                        DEFAULT_SLOT_RESOURCE);
+        final TaskManagerResourceInfoProvider taskManagerResourceInfoProvider =
+                TestingTaskManagerResourceInfoProvider.newBuilder()
+                        .setRegisteredTaskManagersSupplier(
+                                () -> Collections.singleton(registeredTaskManager))
+                        .build();
+
+        ResourceReleaseResult result =
+                ANY_MATCHING_STRATEGY.tryReleaseUnusedResources(taskManagerResourceInfoProvider);
+
+        assertThat(result.getTaskManagersToRelease()).isEmpty();
+
+        registeredTaskManager.setIdleSince(System.currentTimeMillis() - 10);
+
+        result = ANY_MATCHING_STRATEGY.tryReleaseUnusedResources(taskManagerResourceInfoProvider);
+        assertThat(result.getTaskManagersToRelease()).containsExactly(registeredTaskManager);
+    }
+
+    @Test
+    void testIdlePendingTaskManagerShouldBeReleased() {
+        final PendingTaskManager pendingTaskManager =
+                new PendingTaskManager(DEFAULT_SLOT_RESOURCE, 1);
+        final TaskManagerResourceInfoProvider taskManagerResourceInfoProvider =
+                TestingTaskManagerResourceInfoProvider.newBuilder()
+                        .setPendingTaskManagersSupplier(
+                                () -> Collections.singleton(pendingTaskManager))
+                        .build();
+
+        ResourceReleaseResult result =
+                ANY_MATCHING_STRATEGY.tryReleaseUnusedResources(taskManagerResourceInfoProvider);
+
+        assertThat(result.getPendingTaskManagersToRelease()).containsExactly(pendingTaskManager);
+    }
+
+    @Test
+    void testUsedPendingTaskManagerShouldNotBeReleased() {
+        final PendingTaskManager pendingTaskManager =
+                new PendingTaskManager(DEFAULT_SLOT_RESOURCE, 1);
+        final TaskManagerResourceInfoProvider taskManagerResourceInfoProvider =
+                TestingTaskManagerResourceInfoProvider.newBuilder()
+                        .setPendingTaskManagersSupplier(
+                                () -> Collections.singleton(pendingTaskManager))
+                        .setGetPendingAllocationsOfPendingTaskManagerFunction(
+                                pendingTaskManagerId ->
+                                        Collections.singletonMap(
+                                                new JobID(),
+                                                ResourceCounter.withResource(
+                                                        DEFAULT_SLOT_RESOURCE, 1)))
+                        .build();
+
+        ResourceReleaseResult result =
+                ANY_MATCHING_STRATEGY.tryReleaseUnusedResources(taskManagerResourceInfoProvider);
+
+        assertThat(result.getPendingTaskManagersToRelease()).isEmpty();
     }
 }
