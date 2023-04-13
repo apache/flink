@@ -35,6 +35,7 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerUtils.getEffectiveResourceProfile;
 
@@ -72,11 +73,15 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
 
     private final Time taskManagerTimeout;
 
+    /** Defines the number of redundant task managers. */
+    private final int redundantTaskManagerNum;
+
     public DefaultResourceAllocationStrategy(
             ResourceProfile totalResourceProfile,
             int numSlotsPerWorker,
             boolean evenlySpreadOutSlots,
-            Time taskManagerTimeout) {
+            Time taskManagerTimeout,
+            int redundantTaskManagerNum) {
         this.totalResourceProfile = totalResourceProfile;
         this.numSlotsPerWorker = numSlotsPerWorker;
         this.defaultSlotResourceProfile =
@@ -87,6 +92,7 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
                         ? LeastUtilizationResourceMatchingStrategy.INSTANCE
                         : AnyMatchingResourceMatchingStrategy.INSTANCE;
         this.taskManagerTimeout = taskManagerTimeout;
+        this.redundantTaskManagerNum = redundantTaskManagerNum;
     }
 
     @Override
@@ -115,30 +121,96 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
                         jobId, unfulfilledJobRequirements, pendingResources, resultBuilder);
             }
         }
+
+        // Unlike tryFulfillRequirementsForJobWithPendingResources, which updates pendingResources
+        // to the latest state after a new PendingTaskManager is created,
+        // tryFulFillRedundantResources will not update pendingResources even after new
+        // PendingTaskManagers are created.
+        // This is because the pendingResources are no longer needed afterwards.
+        tryFulFillRedundantResources(
+                totalResourceProfile.multiply(redundantTaskManagerNum),
+                registeredResources,
+                pendingResources,
+                resultBuilder);
+
         return resultBuilder.build();
     }
 
     @Override
     public ResourceReleaseResult tryReleaseUnusedResources(
             TaskManagerResourceInfoProvider taskManagerResourceInfoProvider) {
+        ResourceProfile requiredRedundantResources =
+                totalResourceProfile.multiply(redundantTaskManagerNum);
         ResourceReleaseResult.Builder builder = ResourceReleaseResult.builder();
 
-        // useless pending task manager.
-        taskManagerResourceInfoProvider.getPendingTaskManagers().stream()
-                .filter(
-                        pendingTaskManager ->
-                                pendingTaskManager.getPendingSlotAllocationRecords().isEmpty())
-                .forEach(builder::addPendingTaskManagerToRelease);
-
-        // idle task manager timeout.
+        List<TaskManagerInfo> taskManagersIdleTimeout = new ArrayList<>();
+        List<TaskManagerInfo> taskManagersNonTimeout = new ArrayList<>();
         long currentTime = System.currentTimeMillis();
-        taskManagerResourceInfoProvider.getRegisteredTaskManagers().stream()
-                .filter(
-                        taskManager ->
-                                taskManager.isIdle()
-                                        && currentTime - taskManager.getIdleSince()
-                                                >= taskManagerTimeout.toMilliseconds())
-                .forEach(builder::addTaskManagerToRelease);
+        taskManagerResourceInfoProvider
+                .getRegisteredTaskManagers()
+                .forEach(
+                        taskManagerInfo -> {
+                            if (taskManagerInfo.isIdle()
+                                    && currentTime - taskManagerInfo.getIdleSince()
+                                            >= taskManagerTimeout.toMilliseconds()) {
+                                taskManagersIdleTimeout.add(taskManagerInfo);
+                            } else {
+                                taskManagersNonTimeout.add(taskManagerInfo);
+                            }
+                        });
+
+        List<PendingTaskManager> pendingTaskManagersNonUse = new ArrayList<>();
+        List<PendingTaskManager> pendingTaskManagersInuse = new ArrayList<>();
+        taskManagerResourceInfoProvider
+                .getPendingTaskManagers()
+                .forEach(
+                        pendingTaskManager -> {
+                            if (pendingTaskManager.getPendingSlotAllocationRecords().isEmpty()) {
+                                pendingTaskManagersNonUse.add(pendingTaskManager);
+                            } else {
+                                pendingTaskManagersInuse.add(pendingTaskManager);
+                            }
+                        });
+
+        if (taskManagersIdleTimeout.isEmpty() && pendingTaskManagersNonUse.isEmpty()) {
+            // short-cut for nothing to release
+            return builder.build();
+        }
+
+        ResourceProfile resourcesToKeep = ResourceProfile.ZERO;
+        boolean redundantFulfilled = false;
+
+        // check whether available resources of used (pending) task manager is enough.
+        ResourceProfile availableResourcesOfNonIdle =
+                getAvailableResourceOfTaskManagers(taskManagersNonTimeout);
+        resourcesToKeep = resourcesToKeep.merge(availableResourcesOfNonIdle);
+        if (canFulfillRequirement(requiredRedundantResources, resourcesToKeep)) {
+            redundantFulfilled = true;
+        } else {
+            ResourceProfile availableResourcesOfNonIdlePendingTaskManager =
+                    getAvailableResourceOfPendingTaskManagers(pendingTaskManagersInuse);
+            resourcesToKeep = resourcesToKeep.merge(availableResourcesOfNonIdlePendingTaskManager);
+        }
+
+        // try reserve or release unused (pending) task managers
+        for (TaskManagerInfo taskManagerInfo : taskManagersIdleTimeout) {
+            if (redundantFulfilled
+                    || canFulfillRequirement(requiredRedundantResources, resourcesToKeep)) {
+                redundantFulfilled = true;
+                builder.addTaskManagerToRelease(taskManagerInfo);
+            } else {
+                resourcesToKeep = resourcesToKeep.merge(taskManagerInfo.getAvailableResource());
+            }
+        }
+        for (PendingTaskManager pendingTaskManager : pendingTaskManagersNonUse) {
+            if (redundantFulfilled
+                    || canFulfillRequirement(requiredRedundantResources, resourcesToKeep)) {
+                redundantFulfilled = true;
+                builder.addPendingTaskManagerToRelease(pendingTaskManager);
+            } else {
+                resourcesToKeep = resourcesToKeep.merge(pendingTaskManager.getUnusedResource());
+            }
+        }
 
         return builder.build();
     }
@@ -264,6 +336,39 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
                 }
             }
         }
+    }
+
+    private void tryFulFillRedundantResources(
+            ResourceProfile requiredRedundantResource,
+            List<InternalResourceInfo> availableRegisteredResources,
+            List<InternalResourceInfo> availablePendingResources,
+            ResourceAllocationResult.Builder resultBuilder) {
+        ResourceProfile totalAvailableResources =
+                Stream.concat(
+                                availableRegisteredResources.stream(),
+                                availablePendingResources.stream())
+                        .map(internalResourceInfo -> internalResourceInfo.availableProfile)
+                        .reduce(ResourceProfile.ZERO, ResourceProfile::merge);
+
+        while (!canFulfillRequirement(requiredRedundantResource, totalAvailableResources)) {
+            PendingTaskManager pendingTaskManager =
+                    new PendingTaskManager(totalResourceProfile, numSlotsPerWorker);
+            resultBuilder.addPendingTaskManagerAllocate(pendingTaskManager);
+            totalAvailableResources = totalAvailableResources.merge(totalResourceProfile);
+        }
+    }
+
+    private ResourceProfile getAvailableResourceOfTaskManagers(List<TaskManagerInfo> taskManagers) {
+        return taskManagers.stream()
+                .map(TaskManagerInfo::getAvailableResource)
+                .reduce(ResourceProfile.ZERO, ResourceProfile::merge);
+    }
+
+    private ResourceProfile getAvailableResourceOfPendingTaskManagers(
+            List<PendingTaskManager> pendingTaskManagers) {
+        return pendingTaskManagers.stream()
+                .map(PendingTaskManager::getUnusedResource)
+                .reduce(ResourceProfile.ZERO, ResourceProfile::merge);
     }
 
     private static class InternalResourceInfo {
