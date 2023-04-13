@@ -309,7 +309,7 @@ You can see information on the running job via the [Flink console](http://localh
 Explore the results from inside MySQL.
 
 ```bash
-$ docker-compose exec mysql mysql -Dsql-demo -usql-demo -pdemo-sql
+$ docker-compose exec mysql mysql -D sql-demo -usql-demo -pdemo-sql
 
 mysql> use sql-demo;
 Database changed
