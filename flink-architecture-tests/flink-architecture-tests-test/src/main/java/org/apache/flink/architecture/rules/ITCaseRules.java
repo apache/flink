@@ -19,6 +19,7 @@
 package org.apache.flink.architecture.rules;
 
 import org.apache.flink.architecture.common.Predicates;
+import org.apache.flink.connector.testframe.environment.MiniClusterTestEnvironment;
 import org.apache.flink.runtime.testutils.InternalMiniClusterExtension;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.test.util.AbstractTestBase;
@@ -169,8 +170,12 @@ public class ITCaseRules {
                         .and(
                                 containAnyFieldsInClassHierarchyThat(
                                         areStaticFinalOfTypeWithAnnotation(
-                                                MiniClusterExtension.class,
-                                                RegisterExtension.class))),
+                                                        MiniClusterExtension.class,
+                                                        RegisterExtension.class)
+                                                .or(
+                                                        areStaticFinalOfTypeWithAnnotation(
+                                                                MiniClusterTestEnvironment.class,
+                                                                RegisterExtension.class)))),
                 inFlinkRuntimePackages()
                         .and(
                                 isAnnotatedWithExtendWithUsingExtension(
