@@ -39,32 +39,38 @@ public class StringDataConverter implements DataConverter {
 
     @Override
     public byte getByte(RowData rowData, int pos) {
-        return Byte.parseByte(getString(rowData, pos));
+        String strVal = getString(rowData, pos);
+        return strVal == null ? 0 : Byte.parseByte(strVal);
     }
 
     @Override
     public short getShort(RowData rowData, int pos) {
-        return Short.parseShort(getString(rowData, pos));
+        String strVal = getString(rowData, pos);
+        return strVal == null ? 0 : Short.parseShort(strVal);
     }
 
     @Override
     public int getInt(RowData rowData, int pos) {
-        return Integer.parseInt(getString(rowData, pos));
+        String strVal = getString(rowData, pos);
+        return strVal == null ? 0 : Integer.parseInt(strVal);
     }
 
     @Override
     public long getLong(RowData rowData, int pos) {
-        return Long.parseLong(getString(rowData, pos));
+        String strVal = getString(rowData, pos);
+        return strVal == null ? 0 : Long.parseLong(strVal);
     }
 
     @Override
     public float getFloat(RowData rowData, int pos) {
-        return Float.parseFloat(getString(rowData, pos));
+        String strVal = getString(rowData, pos);
+        return strVal == null ? 0 : Float.parseFloat(strVal);
     }
 
     @Override
     public double getDouble(RowData rowData, int pos) {
-        return Double.parseDouble(getString(rowData, pos));
+        String strVal = getString(rowData, pos);
+        return strVal == null ? 0 : Double.parseDouble(strVal);
     }
 
     @Override
@@ -75,12 +81,14 @@ public class StringDataConverter implements DataConverter {
 
     @Override
     public BigDecimal getDecimal(RowData rowData, int pos, int precision, int scale) {
-        return new BigDecimal(getString(rowData, pos)).setScale(scale);
+        String strVal = getString(rowData, pos);
+        return strVal == null ? null : new BigDecimal(getString(rowData, pos)).setScale(scale);
     }
 
     @Override
     public byte[] getBinary(RowData rowData, int pos) {
-        return getString(rowData, pos).getBytes();
+        StringData stringData = rowData.getString(pos);
+        return stringData == null ? null : stringData.toBytes();
     }
 
     @Override

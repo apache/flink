@@ -39,9 +39,12 @@ import java.sql.ResultSet;
 import java.sql.SQLDataException;
 import java.sql.SQLException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -126,6 +129,37 @@ public class FlinkResultSetTest {
                                 SCHEMA, data, true, ResultKind.SUCCESS, JobID.generate()),
                         StringDataConverter.CONVERTER)) {
             validateResultData(resultSet);
+        }
+    }
+
+    @Test
+    public void testStringResultSetNullData() throws Exception {
+        CloseableIterator<RowData> data =
+                CloseableIterator.adapterForIterator(
+                        Collections.singletonList(
+                                        (RowData)
+                                                GenericRowData.of(
+                                                        null, null, null, null, null, null, null,
+                                                        null, null, null))
+                                .iterator());
+        try (ResultSet resultSet =
+                new FlinkResultSet(
+                        new TestingStatement(),
+                        new StatementResult(
+                                SCHEMA, data, true, ResultKind.SUCCESS, JobID.generate()),
+                        StringDataConverter.CONVERTER)) {
+            assertTrue(resultSet.next());
+            assertFalse(resultSet.getBoolean(1));
+            assertEquals((byte) 0, resultSet.getByte(2));
+            assertEquals((short) 0, resultSet.getShort(3));
+            assertEquals(0, resultSet.getInt(4));
+            assertEquals(0L, resultSet.getLong(5));
+            assertEquals((float) 0.0, resultSet.getFloat(6));
+            assertEquals(0.0, resultSet.getDouble(7));
+            assertNull(resultSet.getBigDecimal(8));
+            assertNull(resultSet.getString(9));
+            assertNull(resultSet.getBytes(10));
+            assertFalse(resultSet.next());
         }
     }
 
