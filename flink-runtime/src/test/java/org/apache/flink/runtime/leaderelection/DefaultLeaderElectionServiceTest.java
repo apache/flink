@@ -138,6 +138,26 @@ class DefaultLeaderElectionServiceTest {
     }
 
     @Test
+    void testStopWhileHavingLeadership() throws Exception {
+        final TestingLeaderElectionDriver.TestingLeaderElectionDriverFactory driverFactory =
+                new TestingLeaderElectionDriver.TestingLeaderElectionDriverFactory();
+
+        try (final DefaultLeaderElectionService testInstance =
+                new DefaultLeaderElectionService(driverFactory)) {
+            testInstance.startLeaderElectionBackend();
+
+            final TestingLeaderElectionDriver driver = driverFactory.getCurrentLeaderDriver();
+            assertThat(driver).isNotNull();
+
+            driver.isLeader();
+
+            testInstance.start(TestingGenericLeaderContender.newBuilder().build());
+
+            testInstance.stop();
+        }
+    }
+
+    @Test
     void testContenderRegistrationWithoutDriverBeingInstantiatedFails() throws Exception {
         try (final DefaultLeaderElectionService leaderElectionService =
                 new DefaultLeaderElectionService(

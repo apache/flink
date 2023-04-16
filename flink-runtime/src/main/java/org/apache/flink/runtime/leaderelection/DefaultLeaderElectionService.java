@@ -164,7 +164,9 @@ public class DefaultLeaderElectionService
                     leaderElectionDriver);
 
             if (issuedLeaderSessionID != null) {
-                notifyLeaderContenderOfLeadership();
+                // notifying the LeaderContender shouldn't happen in the contender's main thread
+                runInLeaderEventThread(
+                        () -> notifyLeaderContenderOfLeadership(issuedLeaderSessionID));
             }
         }
     }
@@ -181,9 +183,9 @@ public class DefaultLeaderElectionService
             }
 
             if (issuedLeaderSessionID != null) {
-                notifyLeaderContenderOfLeadershipLoss();
+                runLeadershipLossNotificationInLeaderEventThread(issuedLeaderSessionID);
                 LOG.debug(
-                        "DefaultLeaderElectionService is stopping while not having the leadership acquired anymore but the revoke event wasn't processed, yet. No cleanup necessary.");
+                        "DefaultLeaderElectionService is stopping while having the leadership acquired. The revoke event is forwarded to the LeaderContender.");
 
                 if (leaderElectionDriver.hasLeadership()) {
                     leaderElectionDriver.writeLeaderInformation(LeaderInformation.empty());
@@ -299,7 +301,7 @@ public class DefaultLeaderElectionService
             issuedLeaderSessionID = newLeaderSessionId;
 
             if (leaderContender != null) {
-                notifyLeaderContenderOfLeadership();
+                notifyLeaderContenderOfLeadership(issuedLeaderSessionID);
             } else {
                 LOG.debug(
                         "The grant leadership notification is not forwarded because the DefaultLeaderElectionService ({}) has no contender registered.",
@@ -309,7 +311,15 @@ public class DefaultLeaderElectionService
     }
 
     @GuardedBy("lock")
-    private void notifyLeaderContenderOfLeadership() {
+    private void notifyLeaderContenderOfLeadership(UUID sessionID) {
+        if (!sessionID.equals(issuedLeaderSessionID)) {
+            LOG.debug(
+                    "An out-dated leadership-acquired event with session ID {} was triggered. The current leader session ID is {}. The event will be ignored.",
+                    sessionID,
+                    issuedLeaderSessionID);
+            return;
+        }
+
         Preconditions.checkState(
                 confirmedLeaderInformation.isEmpty(),
                 "The leadership should have been granted while not having the leadership acquired.");
@@ -333,33 +343,52 @@ public class DefaultLeaderElectionService
             // Preconditions.checkState(issuedLeaderSessionID != null,"The leadership should have
             // been revoked while having the leadership acquired.");
 
-            final UUID previousSessionID = issuedLeaderSessionID;
-            issuedLeaderSessionID = null;
-
             if (leaderContender != null) {
-                notifyLeaderContenderOfLeadershipLoss();
+                notifyLeaderContenderOfLeadershipLoss(issuedLeaderSessionID);
             } else {
                 LOG.debug(
                         "The revoke leadership for session {} notification is not forwarded because the DefaultLeaderElectionService({}) has no contender registered.",
-                        previousSessionID,
+                        issuedLeaderSessionID,
                         leaderElectionDriver);
             }
+
+            issuedLeaderSessionID = null;
         }
     }
 
+    // sessionID is @Nullable due to FLINK-31814
     @GuardedBy("lock")
-    private void notifyLeaderContenderOfLeadershipLoss() {
-        Preconditions.checkState(
-                !confirmedLeaderInformation.isEmpty(),
-                "Revocation of leadership should only happen if the service had leadership acquired.");
+    private void notifyLeaderContenderOfLeadershipLoss(@Nullable UUID sessionID) {
+        if (sessionID == null || !sessionID.equals(issuedLeaderSessionID)) {
+            LOG.debug(
+                    "An out-dated leadership-loss event with session ID {} was triggered. The current leader session ID is {}. The event will be ignored.",
+                    sessionID,
+                    issuedLeaderSessionID);
+            return;
+        }
 
-        LOG.debug(
-                "Revoking leadership to contender {} for {}.",
-                leaderContender.getDescription(),
-                LeaderElectionUtils.convertToString(confirmedLeaderInformation));
+        if (confirmedLeaderInformation.isEmpty()) {
+            LOG.debug(
+                    "Revoking leadership to contender {} while a previous leadership grant wasn't confirmed, yet.",
+                    leaderContender.getDescription());
+        } else {
+            LOG.debug(
+                    "Revoking leadership to contender {} for {}.",
+                    leaderContender.getDescription(),
+                    LeaderElectionUtils.convertToString(confirmedLeaderInformation));
+        }
 
         confirmedLeaderInformation = LeaderInformation.empty();
         leaderContender.revokeLeadership();
+    }
+
+    private void runLeadershipLossNotificationInLeaderEventThread(UUID sessionID) {
+        runInLeaderEventThread(
+                () -> {
+                    synchronized (lock) {
+                        notifyLeaderContenderOfLeadershipLoss(sessionID);
+                    }
+                });
     }
 
     @Override
