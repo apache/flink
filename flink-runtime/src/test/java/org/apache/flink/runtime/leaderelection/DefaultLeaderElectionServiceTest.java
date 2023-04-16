@@ -385,7 +385,7 @@ class DefaultLeaderElectionServiceTest {
     }
 
     @Test
-    void testOldConfirmLeaderInformation() throws Exception {
+    void testOldConfirmLeaderInformationWhileHavingNewLeadership() throws Exception {
         new Context() {
             {
                 runTestWithSynchronousEventHandling(
@@ -399,6 +399,29 @@ class DefaultLeaderElectionServiceTest {
                             leaderElectionService.confirmLeadership(UUID.randomUUID(), TEST_URL);
                             assertThat(leaderElectionService.getLeaderSessionID())
                                     .isEqualTo(currentLeaderSessionId);
+                        });
+            }
+        };
+    }
+
+    @Test
+    void testOldConfirmationWhileHavingLeadershipLost() throws Exception {
+        new Context() {
+            {
+                runTestWithSynchronousEventHandling(
+                        () -> {
+                            testingLeaderElectionDriver.isLeader();
+                            final UUID currentLeaderSessionId =
+                                    leaderElectionService.getLeaderSessionID();
+                            assertThat(currentLeaderSessionId).isNotNull();
+
+                            testingLeaderElectionDriver.notLeader();
+
+                            // Old confirm call should be ignored.
+                            leaderElectionService.confirmLeadership(
+                                    currentLeaderSessionId, TEST_URL);
+
+                            assertThat(leaderElectionService.getLeaderSessionID()).isNull();
                         });
             }
         };
