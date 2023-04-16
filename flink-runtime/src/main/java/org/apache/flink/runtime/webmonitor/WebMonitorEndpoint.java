@@ -27,7 +27,6 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.blob.TransientBlobService;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
-import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.RestServerEndpoint;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
@@ -203,8 +202,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 
     private final MetricFetcher metricFetcher;
 
-    private final LeaderElectionService leaderElectionService;
-    private LeaderElection leaderElection;
+    private final LeaderElection leaderElection;
 
     private final FatalErrorHandler fatalErrorHandler;
 
@@ -222,7 +220,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
             TransientBlobService transientBlobService,
             ScheduledExecutorService executor,
             MetricFetcher metricFetcher,
-            LeaderElectionService leaderElectionService,
+            LeaderElection leaderElection,
             ExecutionGraphCache executionGraphCache,
             FatalErrorHandler fatalErrorHandler)
             throws IOException, ConfigurationException {
@@ -241,7 +239,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 
         this.metricFetcher = metricFetcher;
 
-        this.leaderElectionService = Preconditions.checkNotNull(leaderElectionService);
+        this.leaderElection = Preconditions.checkNotNull(leaderElection);
         this.fatalErrorHandler = Preconditions.checkNotNull(fatalErrorHandler);
     }
 
@@ -1040,7 +1038,6 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 
     @Override
     public void startInternal() throws Exception {
-        leaderElection = leaderElectionService.createLeaderElection();
         leaderElection.startLeaderElection(this);
 
         startExecutionGraphCacheCleanupTask();

@@ -21,8 +21,8 @@ package org.apache.flink.runtime.highavailability.nonha.standalone;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.nonha.AbstractNonHaServices;
-import org.apache.flink.runtime.leaderelection.LeaderElectionService;
-import org.apache.flink.runtime.leaderelection.StandaloneLeaderElectionService;
+import org.apache.flink.runtime.leaderelection.LeaderElection;
+import org.apache.flink.runtime.leaderelection.StandaloneLeaderElection;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
 
@@ -87,20 +87,20 @@ public class StandaloneHaServices extends AbstractNonHaServices {
     }
 
     @Override
-    public LeaderElectionService getResourceManagerLeaderElectionService() {
+    public LeaderElection getResourceManagerLeaderElection() {
         synchronized (lock) {
             checkNotShutdown();
 
-            return new StandaloneLeaderElectionService();
+            return new StandaloneLeaderElection(DEFAULT_LEADER_ID);
         }
     }
 
     @Override
-    public LeaderElectionService getDispatcherLeaderElectionService() {
+    public LeaderElection getDispatcherLeaderElection() {
         synchronized (lock) {
             checkNotShutdown();
 
-            return new StandaloneLeaderElectionService();
+            return new StandaloneLeaderElection(DEFAULT_LEADER_ID);
         }
     }
 
@@ -125,11 +125,11 @@ public class StandaloneHaServices extends AbstractNonHaServices {
     }
 
     @Override
-    public LeaderElectionService getJobManagerLeaderElectionService(JobID jobID) {
+    public LeaderElection getJobManagerLeaderElection(JobID jobID) {
         synchronized (lock) {
             checkNotShutdown();
 
-            return new StandaloneLeaderElectionService();
+            return new StandaloneLeaderElection(DEFAULT_LEADER_ID);
         }
     }
 
@@ -144,11 +144,11 @@ public class StandaloneHaServices extends AbstractNonHaServices {
     }
 
     @Override
-    public LeaderElectionService getClusterRestEndpointLeaderElectionService() {
+    public LeaderElection getClusterRestEndpointLeaderElection() {
         synchronized (lock) {
             checkNotShutdown();
 
-            return new StandaloneLeaderElectionService();
+            return new StandaloneLeaderElection(DEFAULT_LEADER_ID);
         }
     }
 }

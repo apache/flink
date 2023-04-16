@@ -25,7 +25,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
+import org.apache.flink.runtime.leaderelection.TestingLeaderElection;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
@@ -128,12 +128,11 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
     }
 
     private void createAndStartResourceManager() throws Exception {
-        final TestingLeaderElectionService leaderElectionService =
-                new TestingLeaderElectionService();
+        final TestingLeaderElection leaderElection = new TestingLeaderElection();
         rmService =
                 TestingResourceManagerService.newBuilder()
                         .setRpcService(rpcService)
-                        .setRmLeaderElectionService(leaderElectionService)
+                        .setRmLeaderElection(leaderElection)
                         .build();
 
         rmService.start();

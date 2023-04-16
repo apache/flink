@@ -122,21 +122,6 @@ public class TestingLeaderElection implements LeaderElection {
         return confirmationFuture;
     }
 
-    /**
-     * Returns the confirmed leader information future.
-     *
-     * @return the future for the {@link #confirmLeadership(UUID, String)} call that corresponds to
-     *     the most-recent {@link #isLeader(UUID)} call or {@code null} if no leadership was
-     *     acquired, yet.
-     * @deprecated This is out-dated API that shall be removed with {@link
-     *     TestingLeaderElectionService} (see FLINK-31797).
-     */
-    @Deprecated
-    @Nullable
-    CompletableFuture<LeaderInformation> getConfirmedLeaderInformation() {
-        return confirmationFuture;
-    }
-
     /** Revokes the leadership. */
     public synchronized void notLeader() {
         Preconditions.checkState(

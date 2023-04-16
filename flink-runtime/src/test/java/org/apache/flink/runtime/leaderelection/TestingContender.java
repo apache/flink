@@ -31,22 +31,17 @@ public class TestingContender extends TestingLeaderBase implements LeaderContend
     private static final Logger LOG = LoggerFactory.getLogger(TestingContender.class);
 
     private final String address;
-    private final LeaderElectionService leaderElectionService;
-    private LeaderElection leaderElection;
+    private final LeaderElection leaderElection;
 
     private UUID leaderSessionID = null;
 
-    public TestingContender(
-            final String address, final LeaderElectionService leaderElectionService) {
+    public TestingContender(final String address, final LeaderElection leaderElection) {
         this.address = address;
-        this.leaderElectionService = leaderElectionService;
+        this.leaderElection = leaderElection;
     }
 
-    public LeaderElection startLeaderElection() throws Exception {
-        leaderElection = leaderElectionService.createLeaderElection();
+    public void startLeaderElection() throws Exception {
         leaderElection.startLeaderElection(this);
-
-        return leaderElection;
     }
 
     @Override

@@ -81,12 +81,10 @@ public class LeaderElectionTest {
 
     @TestTemplate
     void testHasLeadership() throws Exception {
-        final LeaderElectionService leaderElectionService =
-                serviceClass.createLeaderElectionService();
         final ManualLeaderContender manualLeaderContender = new ManualLeaderContender();
 
         try {
-            final LeaderElection leaderElection = leaderElectionService.createLeaderElection();
+            final LeaderElection leaderElection = serviceClass.createLeaderElection();
             leaderElection.startLeaderElection(manualLeaderContender);
 
             final UUID leaderSessionId = manualLeaderContender.waitForLeaderSessionId();
@@ -154,7 +152,7 @@ public class LeaderElectionTest {
 
         void teardown() throws Exception;
 
-        LeaderElectionService createLeaderElectionService() throws Exception;
+        LeaderElection createLeaderElection() throws Exception;
     }
 
     private static final class ZooKeeperServiceClass implements ServiceClass {
@@ -163,8 +161,10 @@ public class LeaderElectionTest {
 
         private CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper;
 
+        private DefaultLeaderElectionService leaderElectionService;
+
         @Override
-        public void setup(FatalErrorHandler fatalErrorHandler) {
+        public void setup(FatalErrorHandler fatalErrorHandler) throws Exception {
             try {
                 testingServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer();
             } catch (Exception e) {
@@ -179,10 +179,18 @@ public class LeaderElectionTest {
 
             curatorFrameworkWrapper =
                     ZooKeeperUtils.startCuratorFramework(configuration, fatalErrorHandler);
+
+            leaderElectionService =
+                    ZooKeeperUtils.createLeaderElectionService(
+                            curatorFrameworkWrapper.asCuratorFramework());
         }
 
         @Override
         public void teardown() throws Exception {
+            if (leaderElectionService != null) {
+                leaderElectionService.close();
+            }
+
             if (curatorFrameworkWrapper != null) {
                 curatorFrameworkWrapper.close();
                 curatorFrameworkWrapper = null;
@@ -195,9 +203,8 @@ public class LeaderElectionTest {
         }
 
         @Override
-        public LeaderElectionService createLeaderElectionService() throws Exception {
-            return ZooKeeperUtils.createLeaderElectionService(
-                    curatorFrameworkWrapper.asCuratorFramework());
+        public LeaderElection createLeaderElection() {
+            return leaderElectionService.createLeaderElection();
         }
     }
 
@@ -218,7 +225,7 @@ public class LeaderElectionTest {
         }
 
         @Override
-        public LeaderElectionService createLeaderElectionService() {
+        public LeaderElection createLeaderElection() {
             return embeddedLeaderService.createLeaderElectionService();
         }
     }
@@ -236,8 +243,8 @@ public class LeaderElectionTest {
         }
 
         @Override
-        public LeaderElectionService createLeaderElectionService() {
-            return new StandaloneLeaderElectionService();
+        public LeaderElection createLeaderElection() {
+            return new StandaloneLeaderElection(UUID.randomUUID());
         }
     }
 }

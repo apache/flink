@@ -47,7 +47,7 @@ import org.apache.flink.runtime.jobmanager.TestingJobPersistenceComponentFactory
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerRunner;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
-import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
+import org.apache.flink.runtime.leaderelection.TestingLeaderElection;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcServiceExtension;
 import org.apache.flink.runtime.testutils.TestingJobGraphStore;
@@ -55,8 +55,6 @@ import org.apache.flink.runtime.util.BlobServerExtension;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
-
-import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -66,11 +64,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Integration tests for the {@link DefaultDispatcherRunner}. */
@@ -94,7 +93,7 @@ class DefaultDispatcherRunnerITCase {
 
     private JobGraph jobGraph;
 
-    private TestingLeaderElectionService dispatcherLeaderElectionService;
+    private TestingLeaderElection dispatcherLeaderElection;
 
     private TestingFatalErrorHandler fatalErrorHandler;
 
@@ -112,7 +111,7 @@ class DefaultDispatcherRunnerITCase {
                 DefaultDispatcherRunnerFactory.createSessionRunner(
                         SessionDispatcherFactory.INSTANCE);
         jobGraph = createJobGraph();
-        dispatcherLeaderElectionService = new TestingLeaderElectionService();
+        dispatcherLeaderElection = new TestingLeaderElection();
         fatalErrorHandler = new TestingFatalErrorHandler();
         jobGraphStore = TestingJobGraphStore.newBuilder().build();
         jobResultStore = new EmbeddedJobResultStore();
@@ -142,7 +141,7 @@ class DefaultDispatcherRunnerITCase {
 
             firstDispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
 
-            dispatcherLeaderElectionService.notLeader();
+            dispatcherLeaderElection.notLeader();
 
             final UUID secondLeaderSessionId = UUID.randomUUID();
             final DispatcherGateway secondDispatcherGateway =
@@ -156,7 +155,7 @@ class DefaultDispatcherRunnerITCase {
 
     private DispatcherGateway electLeaderAndRetrieveGateway(UUID firstLeaderSessionId)
             throws InterruptedException, java.util.concurrent.ExecutionException {
-        return dispatcherLeaderElectionService
+        return dispatcherLeaderElection
                 .isLeader(firstLeaderSessionId)
                 .thenCompose(
                         leaderInformation ->
@@ -189,33 +188,32 @@ class DefaultDispatcherRunnerITCase {
         try (final DispatcherRunner dispatcherRunner = createDispatcherRunner()) {
 
             // initial run
-            dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
+            dispatcherLeaderElection.isLeader(UUID.randomUUID()).get();
             try (final TestingJobManagerRunner testingJobManagerRunner =
                     jobManagerRunnerFactory.takeCreatedJobManagerRunner()) {
 
-                dispatcherLeaderElectionService.notLeader();
+                dispatcherLeaderElection.notLeader();
 
                 LOG.info("Re-grant leadership first time.");
-                dispatcherLeaderElectionService.isLeader(UUID.randomUUID());
+                dispatcherLeaderElection.isLeader(UUID.randomUUID());
 
                 // give the Dispatcher some time to recover jobs
                 Thread.sleep(1L);
 
-                dispatcherLeaderElectionService.notLeader();
+                dispatcherLeaderElection.notLeader();
 
                 LOG.info("Re-grant leadership second time.");
                 final UUID leaderSessionId = UUID.randomUUID();
                 final CompletableFuture<LeaderInformation> confirmedLeaderInformation =
-                        dispatcherLeaderElectionService.isLeader(leaderSessionId);
+                        dispatcherLeaderElection.isLeader(leaderSessionId);
                 assertThat(confirmedLeaderInformation).isNotDone();
 
                 LOG.info("Complete the termination of the first job manager runner.");
                 testingJobManagerRunner.completeTerminationFuture();
 
-                assertThat(
-                                confirmedLeaderInformation
-                                        .get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS)
-                                        .getLeaderSessionID())
+                final LeaderInformation actualConfirmedLeaderInformation =
+                        confirmedLeaderInformation.join();
+                assertThat(actualConfirmedLeaderInformation.getLeaderSessionID())
                         .isEqualTo(leaderSessionId);
 
                 // Wait for job to recover...
@@ -224,12 +222,15 @@ class DefaultDispatcherRunnerITCase {
                                 .getCustomExtension()
                                 .getTestingRpcService()
                                 .connect(
-                                        dispatcherLeaderElectionService.getAddress(),
-                                        DispatcherId.fromUuid(leaderSessionId),
+                                        actualConfirmedLeaderInformation.getLeaderAddress(),
+                                        DispatcherId.fromUuid(
+                                                actualConfirmedLeaderInformation
+                                                        .getLeaderSessionID()),
                                         DispatcherGateway.class)
                                 .get();
-                assertThat(Iterables.getOnlyElement(leaderGateway.listJobs(TIMEOUT).get()))
-                        .isEqualTo(jobGraph.getJobID());
+                assertThatFuture(leaderGateway.listJobs(TIMEOUT))
+                        .eventuallySucceeds()
+                        .isEqualTo(Collections.singleton(jobGraph.getJobID()));
             }
         }
     }
@@ -274,7 +275,7 @@ class DefaultDispatcherRunnerITCase {
 
     private DispatcherRunner createDispatcherRunner() throws Exception {
         return dispatcherRunnerFactory.createDispatcherRunner(
-                dispatcherLeaderElectionService,
+                dispatcherLeaderElection,
                 fatalErrorHandler,
                 new TestingJobPersistenceComponentFactory(jobGraphStore, jobResultStore),
                 EXECUTOR_RESOURCE.getExecutor(),

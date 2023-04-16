@@ -27,7 +27,6 @@ import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherRestEndpoint;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
-import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
@@ -76,7 +75,7 @@ public class DocumentingDispatcherRestEndpoint extends DispatcherRestEndpoint
                 NoOpTransientBlobService.INSTANCE,
                 Executors.newScheduledThreadPool(1),
                 VoidMetricFetcher.INSTANCE,
-                NoOpElectionService.INSTANCE,
+                NoOpLeaderElection.INSTANCE,
                 NoOpExecutionGraphCache.INSTANCE,
                 NoOpFatalErrorHandler.INSTANCE);
     }
@@ -85,15 +84,6 @@ public class DocumentingDispatcherRestEndpoint extends DispatcherRestEndpoint
     public List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(
             final CompletableFuture<String> localAddressFuture) {
         return super.initializeHandlers(localAddressFuture);
-    }
-
-    private enum NoOpElectionService implements LeaderElectionService {
-        INSTANCE;
-
-        @Override
-        public LeaderElection createLeaderElection() {
-            return NoOpLeaderElection.INSTANCE;
-        }
     }
 
     private enum NoOpLeaderElection implements LeaderElection {

@@ -22,7 +22,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.TransientBlobService;
-import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
@@ -60,7 +60,7 @@ public class DispatcherRestEndpoint extends WebMonitorEndpoint<DispatcherGateway
             TransientBlobService transientBlobService,
             ScheduledExecutorService executor,
             MetricFetcher metricFetcher,
-            LeaderElectionService leaderElectionService,
+            LeaderElection leaderElection,
             ExecutionGraphCache executionGraphCache,
             FatalErrorHandler fatalErrorHandler)
             throws IOException, ConfigurationException {
@@ -73,7 +73,7 @@ public class DispatcherRestEndpoint extends WebMonitorEndpoint<DispatcherGateway
                 transientBlobService,
                 executor,
                 metricFetcher,
-                leaderElectionService,
+                leaderElection,
                 executionGraphCache,
                 fatalErrorHandler);
 

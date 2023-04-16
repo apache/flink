@@ -36,7 +36,7 @@ import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerCo
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServicesBuilder;
 import org.apache.flink.runtime.jobmanager.JobPersistenceComponentFactory;
-import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerFactory;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
 import org.apache.flink.runtime.resourcemanager.TestingResourceManagerFactory;
@@ -449,7 +449,7 @@ public class ClusterEntrypointTest extends TestLogger {
 
         @Override
         public DispatcherRunner createDispatcherRunner(
-                LeaderElectionService leaderElectionService,
+                LeaderElection leaderElection,
                 FatalErrorHandler fatalErrorHandler,
                 JobPersistenceComponentFactory jobPersistenceComponentFactory,
                 Executor ioExecutor,

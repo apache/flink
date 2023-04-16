@@ -27,7 +27,7 @@ import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.JobMasterRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
-import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
+import org.apache.flink.runtime.leaderelection.TestingLeaderElection;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
@@ -90,8 +90,7 @@ public class ResourceManagerJobMasterTest extends TestLogger {
     }
 
     private void createAndStartResourceManagerService() throws Exception {
-        final TestingLeaderElectionService leaderElectionService =
-                new TestingLeaderElectionService();
+        final TestingLeaderElection leaderElection = new TestingLeaderElection();
         resourceManagerService =
                 TestingResourceManagerService.newBuilder()
                         .setRpcService(rpcService)
@@ -104,7 +103,7 @@ public class ResourceManagerJobMasterTest extends TestLogger {
                                                 String.format("Unknown job id %s", jobId));
                                     }
                                 })
-                        .setRmLeaderElectionService(leaderElectionService)
+                        .setRmLeaderElection(leaderElection)
                         .build();
 
         resourceManagerService.start();

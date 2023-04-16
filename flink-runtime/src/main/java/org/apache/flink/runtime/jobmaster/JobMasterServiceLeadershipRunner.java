@@ -28,7 +28,6 @@ import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobmaster.factories.JobMasterServiceProcessFactory;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
-import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -82,8 +81,7 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
 
     private final JobMasterServiceProcessFactory jobMasterServiceProcessFactory;
 
-    private final LeaderElectionService leaderElectionService;
-    private LeaderElection leaderElection;
+    private final LeaderElection leaderElection;
 
     private final JobResultStore jobResultStore;
 
@@ -114,12 +112,12 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
 
     public JobMasterServiceLeadershipRunner(
             JobMasterServiceProcessFactory jobMasterServiceProcessFactory,
-            LeaderElectionService leaderElectionService,
+            LeaderElection leaderElection,
             JobResultStore jobResultStore,
             LibraryCacheManager.ClassLoaderLease classLoaderLease,
             FatalErrorHandler fatalErrorHandler) {
         this.jobMasterServiceProcessFactory = jobMasterServiceProcessFactory;
-        this.leaderElectionService = leaderElectionService;
+        this.leaderElection = leaderElection;
         this.jobResultStore = jobResultStore;
         this.classLoaderLease = classLoaderLease;
         this.fatalErrorHandler = fatalErrorHandler;
@@ -167,7 +165,6 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
     @Override
     public void start() throws Exception {
         LOG.debug("Start leadership runner for job {}.", getJobID());
-        leaderElection = leaderElectionService.createLeaderElection();
         leaderElection.startLeaderElection(this);
     }
 

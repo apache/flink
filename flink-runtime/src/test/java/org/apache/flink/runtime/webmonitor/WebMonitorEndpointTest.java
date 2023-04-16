@@ -23,7 +23,7 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.NoOpTransientBlobService;
-import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
+import org.apache.flink.runtime.leaderelection.StandaloneLeaderElection;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.VoidMetricFetcher;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
@@ -32,6 +32,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -62,7 +63,7 @@ public class WebMonitorEndpointTest extends TestLogger {
                         NoOpTransientBlobService.INSTANCE,
                         executor,
                         VoidMetricFetcher.INSTANCE,
-                        new TestingLeaderElectionService(),
+                        new StandaloneLeaderElection(UUID.randomUUID()),
                         executionGraphCache,
                         new TestingFatalErrorHandler())) {
 
