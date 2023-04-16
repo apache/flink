@@ -36,7 +36,7 @@ import org.apache.flink.runtime.jobmaster.SlotPoolServiceSchedulerFactory;
 import org.apache.flink.runtime.jobmaster.factories.DefaultJobMasterServiceFactory;
 import org.apache.flink.runtime.jobmaster.factories.DefaultJobMasterServiceProcessFactory;
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
-import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.Preconditions;
@@ -70,8 +70,8 @@ public enum JobMasterServiceLeadershipRunnerFactory implements JobManagerRunnerF
 
         final JobResultStore jobResultStore = highAvailabilityServices.getJobResultStore();
 
-        final LeaderElectionService jobManagerLeaderElectionService =
-                highAvailabilityServices.getJobManagerLeaderElectionService(jobGraph.getJobID());
+        final LeaderElection jobManagerLeaderElection =
+                highAvailabilityServices.getJobManagerLeaderElection(jobGraph.getJobID());
 
         final SlotPoolServiceSchedulerFactory slotPoolServiceSchedulerFactory =
                 DefaultSlotPoolServiceSchedulerFactory.fromConfiguration(
@@ -122,7 +122,7 @@ public enum JobMasterServiceLeadershipRunnerFactory implements JobManagerRunnerF
 
         return new JobMasterServiceLeadershipRunner(
                 jobMasterServiceProcessFactory,
-                jobManagerLeaderElectionService,
+                jobManagerLeaderElection,
                 jobResultStore,
                 classLoaderLease,
                 fatalErrorHandler);

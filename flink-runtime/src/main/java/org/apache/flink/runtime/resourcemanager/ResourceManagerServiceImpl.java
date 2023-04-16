@@ -27,7 +27,6 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
-import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -57,8 +56,7 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
     private final ResourceManagerFactory<?> resourceManagerFactory;
     private final ResourceManagerProcessContext rmProcessContext;
 
-    private final LeaderElectionService leaderElectionService;
-    private LeaderElection leaderElection;
+    private final LeaderElection leaderElection;
 
     private final FatalErrorHandler fatalErrorHandler;
     private final Executor ioExecutor;
@@ -89,10 +87,8 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
         this.resourceManagerFactory = checkNotNull(resourceManagerFactory);
         this.rmProcessContext = checkNotNull(rmProcessContext);
 
-        this.leaderElectionService =
-                rmProcessContext
-                        .getHighAvailabilityServices()
-                        .getResourceManagerLeaderElectionService();
+        this.leaderElection =
+                rmProcessContext.getHighAvailabilityServices().getResourceManagerLeaderElection();
         this.fatalErrorHandler = rmProcessContext.getFatalErrorHandler();
         this.ioExecutor = rmProcessContext.getIoExecutor();
 
@@ -121,7 +117,6 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
 
         LOG.info("Starting resource manager service.");
 
-        leaderElection = leaderElectionService.createLeaderElection();
         leaderElection.startLeaderElection(this);
     }
 

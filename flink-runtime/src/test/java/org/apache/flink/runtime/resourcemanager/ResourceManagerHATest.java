@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
-import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
+import org.apache.flink.runtime.leaderelection.TestingLeaderElection;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -36,12 +36,11 @@ public class ResourceManagerHATest extends TestLogger {
 
     @Test
     public void testGrantAndRevokeLeadership() throws Exception {
-        final TestingLeaderElectionService leaderElectionService =
-                new TestingLeaderElectionService();
+        final TestingLeaderElection leaderElection = new TestingLeaderElection();
 
         final TestingResourceManagerService resourceManagerService =
                 TestingResourceManagerService.newBuilder()
-                        .setRmLeaderElectionService(leaderElectionService)
+                        .setRmLeaderElection(leaderElection)
                         .build();
 
         try {

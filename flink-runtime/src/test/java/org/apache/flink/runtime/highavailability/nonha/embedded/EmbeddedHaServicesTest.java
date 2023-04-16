@@ -21,7 +21,6 @@ package org.apache.flink.runtime.highavailability.nonha.embedded;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
-import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
@@ -73,21 +72,14 @@ public class EmbeddedHaServicesTest extends TestLogger {
         LeaderContender leaderContender2 = mock(LeaderContender.class);
         LeaderContender leaderContenderDifferentJobId = mock(LeaderContender.class);
 
-        LeaderElectionService leaderElectionService1 =
-                embeddedHaServices.getJobManagerLeaderElectionService(jobId1);
-        LeaderElectionService leaderElectionService2 =
-                embeddedHaServices.getJobManagerLeaderElectionService(jobId1);
-        LeaderElectionService leaderElectionServiceDifferentJobId =
-                embeddedHaServices.getJobManagerLeaderElectionService(jobId2);
-
-        LeaderElection leaderElection1 = leaderElectionService1.createLeaderElection();
+        LeaderElection leaderElection1 = embeddedHaServices.getJobManagerLeaderElection(jobId1);
         leaderElection1.startLeaderElection(leaderContender1);
 
-        LeaderElection leaderElection2 = leaderElectionService2.createLeaderElection();
+        LeaderElection leaderElection2 = embeddedHaServices.getJobManagerLeaderElection(jobId1);
         leaderElection2.startLeaderElection(leaderContender2);
 
         LeaderElection leaderElectionDifferentJobId =
-                leaderElectionServiceDifferentJobId.createLeaderElection();
+                embeddedHaServices.getJobManagerLeaderElection(jobId2);
         leaderElectionDifferentJobId.startLeaderElection(leaderContenderDifferentJobId);
 
         ArgumentCaptor<UUID> leaderIdArgumentCaptor1 = ArgumentCaptor.forClass(UUID.class);
@@ -108,15 +100,10 @@ public class EmbeddedHaServicesTest extends TestLogger {
         LeaderContender leaderContender1 = mock(LeaderContender.class);
         LeaderContender leaderContender2 = mock(LeaderContender.class);
 
-        LeaderElectionService leaderElectionService1 =
-                embeddedHaServices.getResourceManagerLeaderElectionService();
-        LeaderElectionService leaderElectionService2 =
-                embeddedHaServices.getResourceManagerLeaderElectionService();
-
-        LeaderElection leaderElection1 = leaderElectionService1.createLeaderElection();
+        LeaderElection leaderElection1 = embeddedHaServices.getResourceManagerLeaderElection();
         leaderElection1.startLeaderElection(leaderContender1);
 
-        LeaderElection leaderElection2 = leaderElectionService2.createLeaderElection();
+        LeaderElection leaderElection2 = embeddedHaServices.getResourceManagerLeaderElection();
         leaderElection2.startLeaderElection(leaderContender2);
 
         ArgumentCaptor<UUID> leaderIdArgumentCaptor1 = ArgumentCaptor.forClass(UUID.class);
@@ -134,24 +121,21 @@ public class EmbeddedHaServicesTest extends TestLogger {
     public void testJobManagerLeaderRetrieval() throws Exception {
         JobID jobId = new JobID();
 
-        LeaderElectionService leaderElectionService =
-                embeddedHaServices.getJobManagerLeaderElectionService(jobId);
+        LeaderElection leaderElection = embeddedHaServices.getJobManagerLeaderElection(jobId);
         LeaderRetrievalService leaderRetrievalService =
                 embeddedHaServices.getJobManagerLeaderRetriever(jobId);
 
-        runLeaderRetrievalTest(leaderElectionService, leaderRetrievalService);
+        runLeaderRetrievalTest(leaderElection, leaderRetrievalService);
     }
 
     private void runLeaderRetrievalTest(
-            LeaderElectionService leaderElectionService,
-            LeaderRetrievalService leaderRetrievalService)
+            LeaderElection leaderElection, LeaderRetrievalService leaderRetrievalService)
             throws Exception {
         LeaderRetrievalUtils.LeaderConnectionInfoListener leaderRetrievalListener =
                 new LeaderRetrievalUtils.LeaderConnectionInfoListener();
         TestingLeaderContender leaderContender = new TestingLeaderContender();
 
         leaderRetrievalService.start(leaderRetrievalListener);
-        LeaderElection leaderElection = leaderElectionService.createLeaderElection();
         leaderElection.startLeaderElection(leaderContender);
 
         final UUID leaderId = leaderContender.getLeaderSessionFuture().get();
@@ -168,12 +152,11 @@ public class EmbeddedHaServicesTest extends TestLogger {
     /** Tests the ResourceManager leader retrieval for a given job. */
     @Test
     public void testResourceManagerLeaderRetrieval() throws Exception {
-        LeaderElectionService leaderElectionService =
-                embeddedHaServices.getResourceManagerLeaderElectionService();
+        LeaderElection leaderElection = embeddedHaServices.getResourceManagerLeaderElection();
         LeaderRetrievalService leaderRetrievalService =
                 embeddedHaServices.getResourceManagerLeaderRetriever();
 
-        runLeaderRetrievalTest(leaderElectionService, leaderRetrievalService);
+        runLeaderRetrievalTest(leaderElection, leaderRetrievalService);
     }
 
     /**
@@ -182,11 +165,9 @@ public class EmbeddedHaServicesTest extends TestLogger {
      */
     @Test
     public void testConcurrentLeadershipOperations() throws Exception {
-        final LeaderElectionService dispatcherLeaderElectionService =
-                embeddedHaServices.getDispatcherLeaderElectionService();
+        final LeaderElection leaderElection = embeddedHaServices.getDispatcherLeaderElection();
         final TestingLeaderContender leaderContender = new TestingLeaderContender();
 
-        LeaderElection leaderElection = dispatcherLeaderElectionService.createLeaderElection();
         leaderElection.startLeaderElection(leaderContender);
 
         final UUID oldLeaderSessionId = leaderContender.getLeaderSessionFuture().get();

@@ -172,7 +172,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
                             blobServer,
                             executor,
                             metricFetcher,
-                            highAvailabilityServices.getClusterRestEndpointLeaderElectionService(),
+                            highAvailabilityServices.getClusterRestEndpointLeaderElection(),
                             fatalErrorHandler);
 
             log.debug("Starting Dispatcher REST endpoint.");
@@ -225,7 +225,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
             log.debug("Starting Dispatcher.");
             dispatcherRunner =
                     dispatcherRunnerFactory.createDispatcherRunner(
-                            highAvailabilityServices.getDispatcherLeaderElectionService(),
+                            highAvailabilityServices.getDispatcherLeaderElection(),
                             fatalErrorHandler,
                             new HaServicesJobPersistenceComponentFactory(highAvailabilityServices),
                             ioExecutor,

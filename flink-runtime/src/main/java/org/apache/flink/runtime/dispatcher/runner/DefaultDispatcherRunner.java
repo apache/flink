@@ -21,7 +21,6 @@ package org.apache.flink.runtime.dispatcher.runner;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
-import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -43,8 +42,7 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
 
     private final Object lock = new Object();
 
-    private final LeaderElectionService leaderElectionService;
-    private LeaderElection leaderElection;
+    private final LeaderElection leaderElection;
 
     private final FatalErrorHandler fatalErrorHandler;
 
@@ -61,10 +59,10 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
     private CompletableFuture<Void> previousDispatcherLeaderProcessTerminationFuture;
 
     private DefaultDispatcherRunner(
-            LeaderElectionService leaderElectionService,
+            LeaderElection leaderElection,
             FatalErrorHandler fatalErrorHandler,
             DispatcherLeaderProcessFactory dispatcherLeaderProcessFactory) {
-        this.leaderElectionService = leaderElectionService;
+        this.leaderElection = leaderElection;
         this.fatalErrorHandler = fatalErrorHandler;
         this.dispatcherLeaderProcessFactory = dispatcherLeaderProcessFactory;
         this.terminationFuture = new CompletableFuture<>();
@@ -77,7 +75,6 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
     }
 
     void start() throws Exception {
-        leaderElection = leaderElectionService.createLeaderElection();
         leaderElection.startLeaderElection(this);
     }
 
@@ -233,13 +230,13 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
     }
 
     public static DispatcherRunner create(
-            LeaderElectionService leaderElectionService,
+            LeaderElection leaderElection,
             FatalErrorHandler fatalErrorHandler,
             DispatcherLeaderProcessFactory dispatcherLeaderProcessFactory)
             throws Exception {
         final DefaultDispatcherRunner dispatcherRunner =
                 new DefaultDispatcherRunner(
-                        leaderElectionService, fatalErrorHandler, dispatcherLeaderProcessFactory);
+                        leaderElection, fatalErrorHandler, dispatcherLeaderProcessFactory);
         dispatcherRunner.start();
         return dispatcherRunner;
     }
