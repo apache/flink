@@ -109,6 +109,34 @@ class DefaultLeaderElectionServiceTest {
         };
     }
 
+    /**
+     * Test to cover the issue described in FLINK-31814. This test could be removed after
+     * FLINK-31814 is resolved.
+     */
+    @Test
+    void testOnRevokeCallWhileClosingService() throws Exception {
+        final TestingLeaderElectionDriver.TestingLeaderElectionDriverFactory driverFactory =
+                new TestingLeaderElectionDriver.TestingLeaderElectionDriverFactory(
+                        LeaderElectionEventHandler::onRevokeLeadership);
+
+        try (final DefaultLeaderElectionService testInstance =
+                new DefaultLeaderElectionService(driverFactory)) {
+            testInstance.startLeaderElectionBackend();
+
+            final TestingLeaderElectionDriver driver = driverFactory.getCurrentLeaderDriver();
+            assertThat(driver).isNotNull();
+
+            driver.isLeader();
+
+            final TestingContender contender = new TestingContender("unused-address", testInstance);
+            testInstance.start(contender);
+
+            contender.waitForLeader();
+
+            testInstance.stop();
+        }
+    }
+
     @Test
     void testContenderRegistrationWithoutDriverBeingInstantiatedFails() throws Exception {
         try (final DefaultLeaderElectionService leaderElectionService =
