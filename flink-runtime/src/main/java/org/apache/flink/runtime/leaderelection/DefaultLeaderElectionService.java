@@ -65,7 +65,7 @@ public class DefaultLeaderElectionService
      * in a supporting IDE.
      */
     @GuardedBy("lock")
-    private volatile LeaderContender leaderContender;
+    private LeaderContender leaderContender;
 
     /**
      * Saves the session ID which was issued by the {@link LeaderElectionDriver} if and only if the
@@ -76,14 +76,14 @@ public class DefaultLeaderElectionService
      */
     @GuardedBy("lock")
     @Nullable
-    private volatile UUID issuedLeaderSessionID;
+    private UUID issuedLeaderSessionID;
 
     /**
      * Saves the leader information for a registered {@link LeaderContender} after this contender
      * confirmed the leadership.
      */
     @GuardedBy("lock")
-    private volatile LeaderInformation confirmedLeaderInformation;
+    private LeaderInformation confirmedLeaderInformation;
 
     /**
      * {@code leaderElectionDriver} being {@code null} indicates that the connection to the
