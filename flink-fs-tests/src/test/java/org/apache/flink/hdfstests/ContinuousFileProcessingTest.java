@@ -404,7 +404,7 @@ public class ContinuousFileProcessingTest {
             tester.close();
         }
 
-        // the lines received must be the elements in the files +1 for for the longMax watermark
+        // the lines received must be the elements in the files +1 for the longMax watermark
         // we are in event time, which emits no watermarks, so the last watermark will mark the
         // of the input stream.
 
