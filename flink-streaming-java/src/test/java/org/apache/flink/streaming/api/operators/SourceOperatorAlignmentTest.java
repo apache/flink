@@ -169,8 +169,8 @@ public class SourceOperatorAlignmentTest {
             assertThat(operator.emitNext(actualOutput), is(DataInputStatus.NOTHING_AVAILABLE));
             context.getTimeService().advance(1);
             assertLatestReportedWatermarkEvent(context, Long.MAX_VALUE);
-            // receive Long.MAX_VALUE as WatermarkAlignmentEvent
-            // because reported Long.MAX_VALUE watermark + maxAllowedWatermarkDrift will overflow
+            // If all source subtasks of the watermark group are idle,
+            // then the coordinator will report Long.MAX_VALUE
             operator.handleOperatorEvent(new WatermarkAlignmentEvent(Long.MAX_VALUE));
 
             // it is easier to create a new split than add records the old one. The old one is
