@@ -99,6 +99,105 @@ GROUP BY TUMBLE(time_ltz, INTERVAL '10' MINUTE);
 
 ```
 
+#### Advanced watermark features
+
+In previous versions, many advanced features of watermark (such as watermark alignment) were easy to use through the datastream api, but not so easy to use in sql, so we have extended these features in version 1.18 to enable users to use them in sql as well.
+
+{{< hint warning >}}
+**Note:** Only source connectors that implement the `SupportsWatermarkPushDown` interface (e.g. kafka, pulsar) can use these advanced features. If a source does not implement the `SupportsWatermarkPushDown` interface, but the task is configured with these parameters, the task can run normally, but these parameters will not take effect.
+
+These features all can be configured with dynamic table options or the 'OPTIONS' hint, If the user has configured these feature both in the dynamic table options and in the 'OPTIONS' hint, the options in the 'OPTIONS' hint are preferred. If the user uses 'OPTIONS' hint for the same source table in multiple places, the first hint will be used.
+{{< /hint >}}
+
+##### I. Configure watermark emit strategy
+There are two strategies to emit watermark in flink:
+
+- on-periodic: Emit watermark periodically.
+- on-event: Emit watermark per events.
+
+In the DataStream API, the user can choose to emit strategy through the WatermarkGenerator interface ([Writing WatermarkGenerators]({{< ref "docs/dev/datastream/event-time/generating_watermarks" >}}#writing-watermarkgenerators)). For sql tasks, watermark is emitted periodically by default, with a default period of 200ms, which can be changed by the parameter `pipeline.auto-watermark-interval`. If you need to emit watermark per events, you can configure it in the source table as follows:
+
+```sql
+-- configure in table options
+CREATE TABLE user_actions (
+  ...
+  user_action_time TIMESTAMP(3),
+  WATERMARK FOR user_action_time AS user_action_time - INTERVAL '5' SECOND
+) WITH (
+  'scan.watermark.emit.strategy'='on-event',
+  ...
+)
+```
+
+Of course, you can also use the `OPTIONS` hint:
+```sql
+-- use 'OPTIONS' hint
+select ... from source_table /*+ OPTIONS('scan.watermark.emit.strategy'='on-periodic') */
+```
+
+##### II. Configure the idle-timeout of source table
+
+If a split/partition/shard in the source table does not send event data for some time, it means that `WatermarkGenerator` will not get any new data to generate watermark either, we call such data sources as idle inputs or idle sources. In this case, a problem occurs if some other partition is still sending event data, because the downstream operator's watermark is calculated by taking the minimum value of all upstream parallel data sources' watermarks, and since the idle split/partition/shard is not generating a new watermark, the downstream operator's watermark will not change. However, if the idle timeout is configured, the split/partition/shard will be marked as idle if no event data is sent in the timeout, and the downstream will ignore this idle source when calculating new watermark.
+
+A global idle timeout can be defined in sql with the `table.exec.source.idle-timeout` parameter, which will take effect for each source table. However, if you want to set a different idle timeout for each source table, you can configure in the source table by parameter `scan.watermark.idle-timeout` like this:
+
+```sql
+-- configure in table options
+CREATE TABLE user_actions (
+  ...
+  user_action_time TIMESTAMP(3),
+  WATERMARK FOR user_action_time AS user_action_time - INTERVAL '5' SECOND
+) WITH (
+  'scan.watermark.idle-timeout'='1min',
+  ...
+).
+```
+
+Or you can use the `OPTIONS` hint:
+```sql
+-- use 'OPTIONS' hint
+select ... from source_table /*+ OPTIONS('scan.watermark.idle-timeout'='1min') */
+```
+
+If the user has configured source idle-timeout both with parameter `table.exec.source.idle-timeout` and parameter `scan.watermark.idle-timeout`, the parameter `scan.watermark.idle-timeout` is preferred.
+
+##### III. watermark alignment
+Affected by various factors such as data distribution or machine load, the consumption rate may be different between different splits/partitions/shards of the same data source or different data sources. If there are some stateful operators downstream, these operators may need to cache more data in the state for those that consume faster and wait for those that consume slower, the state may become very large; Inconsistent consumption rates may also cause more serious data disorder, which may affect the computational accuracy of the window. These scenarios can be avoided by using the watermark alignment feature to ensure that the watermark of fast splits/partitions/shards does not increase too fast compared to other splits/partitions/shards. Noted that the watermark alignment feature affects the performance of the task depending on how much the data consumption differs between different sources.
+
+The watermark alignment can be configured in the source table as follows
+
+```sql
+-- configure in table options
+CREATE TABLE user_actions (
+...
+user_action_time TIMESTAMP(3),
+  WATERMARK FOR user_action_time AS user_action_time - INTERVAL '5' SECOND
+) WITH (
+'scan.watermark.alignment.group'='alignment-group-1',
+'scan.watermark.alignment.max-drift'='1min',
+'scan.watermark.alignment.update-interval'='1s',
+...
+).
+```
+
+Of course, you can also still use the `OPTIONS` hint.
+
+```sql
+-- use 'OPTIONS' hint
+select ... from source_table /*+ OPTIONS('scan.watermark.alignment.group'='alignment-group-1', 'scan.watermark.alignment.max-drift'='1min', 'scan. watermark.alignment.update-interval'='1s') */
+```
+
+There are three parameters :
+
+- `scan.watermark.alignment.group` configures the alignment group name, data sources in the same group will be aligned
+- `scan.watermark.alignment.max-drift` configures the maximum range of deviations from the alignment time allowed for splits/partitions/shards
+- `scan.watermark.alignment.update-interval` configure how often the alignment time is calculated, not required, default is 1s
+
+{{< hint warning >}}
+**Note:** connectors have to implement watermark alignment of source split in order to use the watermark alignment feature since 1.17 according [FLIP-217](https://cwiki.apache.org/confluence/display/FLINK/FLIP-217%3A+Support+watermark+alignment+of+source+splits). If source connector does not implement FLIP-217, the task will run with an error, user could set `pipeline.watermark-alignment.allow-unaligned-source-splits: true` to disable watermark alignment of source split, and watermark alignment will be working properly only when your number of splits equals to the parallelism of the source operator.
+{{< /hint >}}
+
+
 ### During DataStream-to-Table Conversion
 
 When converting a `DataStream` to a table, an event time attribute can be defined with the `.rowtime` property during schema definition. [Timestamps and watermarks]({{< ref "docs/concepts/time" >}}) must have already been assigned in the `DataStream` being converted. During the conversion, Flink always derives rowtime attribute as TIMESTAMP WITHOUT TIME ZONE, because DataStream doesn't have time zone notion, and treats all event time values as in UTC.

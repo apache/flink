@@ -272,6 +272,101 @@ GROUP BY TUMBLE(time_ltz, INTERVAL '10' MINUTE);
 
 ```
 
+#### 在SQL中使用watermark进阶功能
+之前的版本中，Watermark的很多进阶功能（比如watermark对齐）通过datastream api很容易使用，但想在sql中使用却不太容易，所以我们在1.18版本对这些功能进行了扩展，使用户也能够在sql中用到这些功能。
+
+{{< hint warning >}}
+**Note:** 只有实现了`SupportsWatermarkPushDown`接口的源连接器(source connector)（比如kafka、pulsar）才可以使用这些进阶功能。如果一个源连接器(source connector)没有实现`SupportsWatermarkPushDown`接口，但是任务配置了这些参数，任务可以正常运行，但是这些参数也不会生效。
+这些进阶的功能都可以使用dynamic table options或`OPTIONS` hint进行配置，如果用户同时使用dynamic table options或`OPTIONS` hint进行配置，那么`OPTIONS` hint配置的值会优先生效。如果用户在sql的多个地方使用了`OPTIONS` hint，那么SQL中出现的第一个hint会优先生效
+{{< /hint >}}
+
+##### I. 配置Watermark发射方式
+Flink中watermark有两种发射方式：
+
+- on-periodic: 周期性发射
+- on-event: 每条事件数据发射一次watermark
+
+在DataStream API，用户可以通过WatermarkGenerator接口来决定选择哪种方式([自定义 WatermarkGenerator]({{< ref "docs/dev/datastream/event-time/generating_watermarks" >}}#自定义-watermarkgenerator))，而对于sql任务，watermark默认是周期性发射的方式，默认周期是200ms，这个周期可以通过参数`pipeline.auto-watermark-interval`来进行修改。如果需要每条事件数据都发射一次watermark，可以在source表中进行如下配置：
+
+```sql
+-- configure in table options
+CREATE TABLE user_actions (
+  ...
+  user_action_time TIMESTAMP(3),
+  WATERMARK FOR user_action_time AS user_action_time - INTERVAL '5' SECOND
+) WITH (
+  'scan.watermark.emit.strategy'='on-event',
+  ...
+);
+```
+
+当然，也可以使用`OPTIONS` hint来配置：
+```sql
+-- use 'OPTIONS' hint
+select ... from source_table /*+ OPTIONS('scan.watermark.emit.strategy'='on-periodic') */
+```
+
+##### II. 配置数据源(Source)的空闲超时时间
+
+如果数据源中的某一个分区/分片在一段时间内未发送事件数据，则意味着`WatermarkGenerator`也不会获得任何新数据去生成watermark，我们称这类数据源为空闲输入或空闲源。在这种情况下，如果其他某些分区仍然在发送事件数据就会出现问题，因为下游算子watermark的计算方式是取所有上游并行数据源watermark的最小值，由于空闲的分片/分区没有计算新的watermark，任务的watermark将不会发生变化，如果配置了数据源的空闲超时时间，一个分区/分片在超时时间没有发送事件数据就会被标记为空闲，下游计算新的watermark的时候将会忽略这个空闲sourse，从而让watermark继续推进。
+
+在sql中可以通过`table.exec.source.idle-timeout`参数来定义一个全局的超时时间，每个数据源都会生效。但如果你想为每个数据源设置不同的空闲超时时间，可以直接在源表中进行设置：
+
+```sql
+-- configure in table options
+CREATE TABLE user_actions (
+  ...
+  user_action_time TIMESTAMP(3),
+  WATERMARK FOR user_action_time AS user_action_time - INTERVAL '5' SECOND
+) WITH (
+  'scan.watermark.idle-timeout'='1min',
+  ...
+);
+```
+
+或者也可以使用`OPTIONS` hint：
+```sql
+-- use 'OPTIONS' hint
+select ... from source_table /*+ OPTIONS('scan.watermark.idle-timeout'='1min') */
+```
+如果用户同时使用`table.exec.source.idle-timeout`参数和`scan.watermark.idle-timeout`参数配置了数据源的空闲超时时间，`scan.watermark.idle-timeout`参数会优先生效。
+
+##### III. Watermark对齐
+受到数据分布或者机器负载等各种因素的影响，同一个数据源的不同分区/分片之间可能出现消费速度不一样的情况，不同数据源之间的消费速度也可能不一样，假如下游有一些有状态的算子，这些算子可能需要在状态中缓存更多那些消费更快的数据，等待那些消费慢的数据，状态可能会变得很大；消费速率不一致也可能造成更严重的数据乱序情况，可能会影响窗口的计算准确度。这些场景都可以使用watermark对齐功能，确保源表的某个分片/分块/分区的watermark不会比其他分片/分块/分区增加太快，从而避免上述问题，需要注意的是watermark对齐功能会影响任务的性能，这取决于不同源表之间数据消费差别有多大。
+
+在sql任务中可以在源表中配置watermark对齐：
+
+```sql
+-- configure in table options
+CREATE TABLE user_actions (
+...
+user_action_time TIMESTAMP(3),
+  WATERMARK FOR user_action_time AS user_action_time - INTERVAL '5' SECOND
+) WITH (
+'scan.watermark.alignment.group'='alignment-group-1',
+'scan.watermark.alignment.max-drift'='1min',
+'scan.watermark.alignment.update-interval'='1s',
+...
+);
+```
+
+当然，你也依然可以用`OPTIONS` hint:
+
+```sql
+-- use 'OPTIONS' hint
+select ... from source_table /*+ OPTIONS('scan.watermark.alignment.group'='alignment-group-1', 'scan.watermark.alignment.max-drift'='1min', 'scan.watermark.alignment.update-interval'='1s') */
+```
+
+这里有三个参数：
+
+- `scan.watermark.alignment.group`配置对齐组名称，在同一个组的数据源将会对齐
+- `scan.watermark.alignment.max-drift`配置分片/分块/分区允许偏离对齐时间的最大范围
+- `scan.watermark.alignment.update-interval`配置计算对齐时间的频率，非必需，默认是1s
+
+{{< hint warning >}}
+**Note:** 如果源连接器(source connector)未实现[FLIP-217](https://cwiki.apache.org/confluence/display/FLINK/FLIP-217%3A+Support+watermark+alignment+of+source+splits)，并且使用了watermark对齐的功能，那么任务运行会抛出异常，用户可以设置`pipeline.watermark-alignment.allow-unaligned-source-splits`为`true`来禁用源分片的WaterMark对齐功能，此时，只有当分片数量等于源并行度的时候，watermark对齐功能才能正常工作。
+{{< /hint >}}
+
 ### 在 DataStream 到 Table 转换时定义
 
 事件时间属性可以用 `.rowtime` 后缀在定义 `DataStream` schema 的时候来定义。[时间戳和 watermark]({{< ref "docs/concepts/time" >}}) 在这之前一定是在 `DataStream` 上已经定义好了。 
