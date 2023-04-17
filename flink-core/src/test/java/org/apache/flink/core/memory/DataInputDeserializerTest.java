@@ -57,11 +57,11 @@ public class DataInputDeserializerTest {
 
     @Test
     public void testReadWithLenZero() throws IOException {
-        byte[] bytes = new byte[] {};
+        byte[] bytes = new byte[0];
         DataInputDeserializer dis = new DataInputDeserializer(bytes, 0, bytes.length);
         Assert.assertEquals(0, dis.available());
 
-        byte[] bytesForRead = new byte[] {};
-        Assert.assertEquals(0, dis.read(bytes, 0, 0)); // do not throw when read with len 0
+        byte[] bytesForRead = new byte[0];
+        Assert.assertEquals(0, dis.read(bytesForRead, 0, 0)); // do not throw when read with len 0
     }
 }
