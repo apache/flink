@@ -543,7 +543,9 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
             totalLength += addFilesInDir(file.getPath(), files, false);
         } else {
             files.add(file);
-            testForUnsplittable(file);
+            if (!unsplittable) {
+                unsplittable = testForUnsplittable(file);
+            }
             totalLength += file.getLen();
         }
 
@@ -602,7 +604,9 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
             if (pathFile.isDir()) {
                 totalLength += addFilesInDir(path, files, true);
             } else {
-                testForUnsplittable(pathFile);
+                if (!unsplittable) {
+                    unsplittable = testForUnsplittable(pathFile);
+                }
 
                 files.add(pathFile);
                 totalLength += pathFile.getLen();
@@ -619,16 +623,12 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
                 for (BlockLocation block : blocks) {
                     hosts.addAll(Arrays.asList(block.getHosts()));
                 }
-                long len = file.getLen();
-                if (testForUnsplittable(file)) {
-                    len = READ_WHOLE_SPLIT_FLAG;
-                }
                 FileInputSplit fis =
                         new FileInputSplit(
                                 splitNum++,
                                 file.getPath(),
                                 0,
-                                len,
+                                READ_WHOLE_SPLIT_FLAG,
                                 hosts.toArray(new String[hosts.size()]));
                 inputSplits.add(fis);
             }
@@ -753,11 +753,13 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
                 if (acceptFile(dir)) {
                     files.add(dir);
                     length += dir.getLen();
-                    testForUnsplittable(dir);
+                    if (!unsplittable) {
+                        unsplittable = testForUnsplittable(dir);
+                    }
                 } else {
                     if (logExcludedFiles && LOG.isDebugEnabled()) {
                         LOG.debug(
-                                "Directory "
+                                "File "
                                         + dir.getPath().toString()
                                         + " did not pass the file-filter and is excluded.");
                     }
@@ -768,11 +770,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
     }
 
     protected boolean testForUnsplittable(FileStatus pathFile) {
-        if (getInflaterInputStreamFactory(pathFile.getPath()) != null) {
-            unsplittable = true;
-            return true;
-        }
-        return false;
+        return getInflaterInputStreamFactory(pathFile.getPath()) != null;
     }
 
     private InflaterInputStreamFactory<?> getInflaterInputStreamFactory(Path path) {
