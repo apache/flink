@@ -623,12 +623,18 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
                 for (BlockLocation block : blocks) {
                     hosts.addAll(Arrays.asList(block.getHosts()));
                 }
+                long len;
+                if (testForUnsplittable(file)) {
+                    len = READ_WHOLE_SPLIT_FLAG;
+                } else {
+                    len = file.getLen();
+                }
                 FileInputSplit fis =
                         new FileInputSplit(
                                 splitNum++,
                                 file.getPath(),
                                 0,
-                                READ_WHOLE_SPLIT_FLAG,
+                                len,
                                 hosts.toArray(new String[hosts.size()]));
                 inputSplits.add(fis);
             }
