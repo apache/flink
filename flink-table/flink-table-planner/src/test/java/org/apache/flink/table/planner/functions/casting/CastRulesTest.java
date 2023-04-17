@@ -1356,6 +1356,64 @@ class CastRulesTest {
                                                                 new BigDecimal(3), 10, 2)
                                                     })
                                         })),
+                CastTestSpecBuilder.testCastTo(ARRAY(ROW(INT().notNull())))
+                        .fromCase(
+                                ARRAY(ROW(INT().notNull())),
+                                new GenericArrayData(
+                                        new GenericRowData[] {
+                                            GenericRowData.of(1), GenericRowData.of(2)
+                                        }),
+                                new GenericArrayData(
+                                        new GenericRowData[] {
+                                            GenericRowData.of(1), GenericRowData.of(2)
+                                        })),
+                CastTestSpecBuilder.testCastTo(ARRAY(ROW(ROW(INT().notNull()))))
+                        .fromCase(
+                                ARRAY(ROW(ROW(INT().notNull()))),
+                                new GenericArrayData(
+                                        new GenericRowData[] {
+                                            GenericRowData.of(
+                                                    GenericRowData.of(1), GenericRowData.of(2)),
+                                            GenericRowData.of(
+                                                    GenericRowData.of(3), GenericRowData.of(4))
+                                        }),
+                                new GenericArrayData(
+                                        new GenericRowData[] {
+                                            GenericRowData.of(
+                                                    GenericRowData.of(1), GenericRowData.of(2)),
+                                            GenericRowData.of(
+                                                    GenericRowData.of(3), GenericRowData.of(4))
+                                        })),
+                CastTestSpecBuilder.testCastTo(ARRAY(MAP(INT().notNull(), STRING().notNull())))
+                        .fromCase(
+                                ARRAY(MAP(INT().notNull(), INT().notNull())),
+                                new GenericArrayData(
+                                        new Object[] {mapData(entry(1, 2)), mapData(entry(3, 4))}),
+                                new GenericArrayData(
+                                        new Object[] {
+                                            mapData(entry(1, fromString("2"))),
+                                            mapData(entry(3, fromString("4")))
+                                        })),
+                CastTestSpecBuilder.testCastTo(ARRAY(MAP(INT().notNull(), STRING().notNull())))
+                        .fromCase(
+                                ARRAY(MAP(INT().notNull(), INT().notNull())),
+                                new GenericArrayData(
+                                        new Object[] {mapData(entry(1, 2)), mapData(entry(3, 4))}),
+                                new GenericArrayData(
+                                        new Object[] {
+                                            mapData(entry(1, fromString("2"))),
+                                            mapData(entry(3, fromString("4")))
+                                        })),
+                CastTestSpecBuilder.testCastTo(ARRAY(MULTISET(STRING().notNull())))
+                        .fromCase(
+                                ARRAY(MULTISET(INT())),
+                                new GenericArrayData(
+                                        new Object[] {mapData(entry(1, 2)), mapData(entry(2, 3))}),
+                                new GenericArrayData(
+                                        new Object[] {
+                                            mapData(entry(fromString("1"), 2)),
+                                            mapData(entry(fromString("2"), 3))
+                                        })),
                 CastTestSpecBuilder.testCastTo(MAP(DOUBLE().notNull(), DOUBLE().notNull()))
                         .fromCase(
                                 MAP(INT().nullable(), INT().nullable()),
@@ -1376,6 +1434,14 @@ class CastRulesTest {
                                 MAP(TIMESTAMP().nullable(), DOUBLE().nullable()),
                                 mapData(entry(TIMESTAMP, 123.456)),
                                 mapData(entry(TIMESTAMP_STRING, fromString("123.456")))),
+                CastTestSpecBuilder.testCastTo(MAP(STRING().nullable(), ROW(DOUBLE().nullable())))
+                        .fromCase(
+                                MAP(STRING().nullable(), ROW(STRING().nullable())),
+                                mapData(
+                                        entry(
+                                                fromString("str"),
+                                                GenericRowData.of(fromString("123.456")))),
+                                mapData(entry(fromString("str"), GenericRowData.of(123.456)))),
                 CastTestSpecBuilder.testCastTo(MAP(STRING().notNull(), STRING().nullable()))
                         .fail(
                                 MAP(INT().nullable(), DOUBLE().nullable()),
@@ -1401,6 +1467,23 @@ class CastRulesTest {
                                 MULTISET(INT().nullable()),
                                 mapData(entry(null, 1)),
                                 mapData(entry(null, 1))),
+                CastTestSpecBuilder.testCastTo(MULTISET(ROW(ARRAY(INT().nullable()))))
+                        .fromCase(
+                                MULTISET(ROW(ARRAY(STRING().nullable()))),
+                                mapData(
+                                        entry(
+                                                GenericRowData.of(
+                                                        new GenericArrayData(
+                                                                new Object[] {
+                                                                    fromString("1"), null
+                                                                })),
+                                                2)),
+                                mapData(
+                                        entry(
+                                                GenericRowData.of(
+                                                        new GenericArrayData(
+                                                                new Object[] {1, null})),
+                                                2))),
                 CastTestSpecBuilder.testCastTo(MULTISET(STRING().notNull()))
                         .fail(
                                 MULTISET(INT().nullable()),
