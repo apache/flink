@@ -25,6 +25,7 @@ import javax.annotation.Nonnull;
 
 import java.util.Collection;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 class DefaultLocationPreferenceSlotSelectionStrategy
         extends LocationPreferenceSlotSelectionStrategy {
@@ -44,7 +45,7 @@ class DefaultLocationPreferenceSlotSelectionStrategy
 
     @Override
     protected double calculateCandidateScore(
-            int localWeigh, int hostLocalWeigh, double taskExecutorUtilization) {
+            int localWeigh, int hostLocalWeigh, Supplier<Double> taskExecutorUtilizationSupplier) {
         return localWeigh * 10 + hostLocalWeigh;
     }
 }
