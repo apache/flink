@@ -20,7 +20,10 @@ package org.apache.flink.runtime.leaderelection;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +33,10 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -67,7 +74,20 @@ public class DefaultLeaderElectionService
     // this.running=true ensures that leaderContender != null
     private LeaderElectionDriver leaderElectionDriver;
 
+    private final ExecutorService leadershipOperationExecutor;
+
     public DefaultLeaderElectionService(LeaderElectionDriverFactory leaderElectionDriverFactory) {
+        this(
+                leaderElectionDriverFactory,
+                Executors.newSingleThreadExecutor(
+                        new ExecutorThreadFactory(
+                                "DefaultLeaderElectionService-leadershipOperationExecutor")));
+    }
+
+    @VisibleForTesting
+    DefaultLeaderElectionService(
+            LeaderElectionDriverFactory leaderElectionDriverFactory,
+            ExecutorService leadershipOperationExecutor) {
         this.leaderElectionDriverFactory = checkNotNull(leaderElectionDriverFactory);
 
         this.leaderContender = null;
@@ -79,6 +99,8 @@ public class DefaultLeaderElectionService
         this.confirmedLeaderInformation = LeaderInformation.empty();
 
         this.running = false;
+
+        this.leadershipOperationExecutor = leadershipOperationExecutor;
     }
 
     @Override
@@ -118,6 +140,10 @@ public class DefaultLeaderElectionService
         }
 
         leaderElectionDriver.close();
+
+        // graceful shutdown needs to happen outside the lock to enable any outstanding
+        // grant/revoke events to be processed without the lock being acquired by the service
+        ExecutorUtils.gracefulShutdown(10L, TimeUnit.SECONDS, leadershipOperationExecutor);
     }
 
     @Override
@@ -184,6 +210,10 @@ public class DefaultLeaderElectionService
 
     @Override
     public void onGrantLeadership(UUID newLeaderSessionId) {
+        runInLeaderEventThread(() -> onGrantLeadershipInternal(newLeaderSessionId));
+    }
+
+    private void onGrantLeadershipInternal(UUID newLeaderSessionId) {
         synchronized (lock) {
             if (running) {
                 issuedLeaderSessionID = newLeaderSessionId;
@@ -205,6 +235,10 @@ public class DefaultLeaderElectionService
 
     @Override
     public void onRevokeLeadership() {
+        runInLeaderEventThread(this::onRevokeLeadershipInternal);
+    }
+
+    private void onRevokeLeadershipInternal() {
         synchronized (lock) {
             if (running) {
                 handleLeadershipLoss();
@@ -233,6 +267,10 @@ public class DefaultLeaderElectionService
 
     @Override
     public void onLeaderInformationChange(LeaderInformation leaderInformation) {
+        runInLeaderEventThread(() -> onLeaderInformationChangeInternal(leaderInformation));
+    }
+
+    private void onLeaderInformationChangeInternal(LeaderInformation leaderInformation) {
         synchronized (lock) {
             if (running) {
                 LOG.trace(
@@ -257,9 +295,25 @@ public class DefaultLeaderElectionService
                 }
             } else {
                 LOG.debug(
-                        "Ignoring change notification since the {} has " + "already been closed.",
+                        "Ignoring change notification since the {} has already been closed.",
                         leaderElectionDriver);
             }
+        }
+    }
+
+    private void runInLeaderEventThread(Runnable callback) {
+        if (running) {
+            FutureUtils.handleUncaughtException(
+                    CompletableFuture.runAsync(callback, leadershipOperationExecutor),
+                    (thread, error) -> forwardErrorToLeaderContender(error));
+        }
+    }
+
+    private void forwardErrorToLeaderContender(Throwable t) {
+        if (t instanceof LeaderElectionException) {
+            leaderContender.handleError((LeaderElectionException) t);
+        } else {
+            leaderContender.handleError(new LeaderElectionException(t));
         }
     }
 
@@ -273,11 +327,7 @@ public class DefaultLeaderElectionService
                     return;
                 }
 
-                if (throwable instanceof LeaderElectionException) {
-                    leaderContender.handleError((LeaderElectionException) throwable);
-                } else {
-                    leaderContender.handleError(new LeaderElectionException(throwable));
-                }
+                forwardErrorToLeaderContender(throwable);
             }
         }
     }
