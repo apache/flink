@@ -369,16 +369,13 @@ class DefaultResourceAllocationStrategyTest {
     void testUsedPendingTaskManagerShouldNotBeReleased() {
         final PendingTaskManager pendingTaskManager =
                 new PendingTaskManager(DEFAULT_SLOT_RESOURCE, 1);
+        pendingTaskManager.replaceAllPendingAllocations(
+                Collections.singletonMap(
+                        new JobID(), ResourceCounter.withResource(DEFAULT_SLOT_RESOURCE, 1)));
         final TaskManagerResourceInfoProvider taskManagerResourceInfoProvider =
                 TestingTaskManagerResourceInfoProvider.newBuilder()
                         .setPendingTaskManagersSupplier(
                                 () -> Collections.singleton(pendingTaskManager))
-                        .setGetPendingAllocationsOfPendingTaskManagerFunction(
-                                pendingTaskManagerId ->
-                                        Collections.singletonMap(
-                                                new JobID(),
-                                                ResourceCounter.withResource(
-                                                        DEFAULT_SLOT_RESOURCE, 1)))
                         .build();
 
         ResourceReleaseResult result =
