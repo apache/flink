@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.jdbc;
 
-import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.types.DataType;
 
 import java.math.BigDecimal;
 import java.sql.Array;
@@ -31,22 +31,21 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /** Implementation of {@link ResultSetMetaData} for flink jdbc driver. */
 public class FlinkResultSetMetaData implements ResultSetMetaData {
     private final List<ColumnInfo> columnList;
 
-    public FlinkResultSetMetaData(ResolvedSchema schema) {
-        this.columnList =
-                schema.getColumns().stream()
-                        .map(
-                                c ->
-                                        ColumnInfo.fromLogicalType(
-                                                c.getName(), c.getDataType().getLogicalType()))
-                        .collect(Collectors.toList());
+    public FlinkResultSetMetaData(List<String> columnNameList, List<DataType> columnTypeList) {
+        this.columnList = new ArrayList<>(columnNameList.size());
+        for (int i = 0; i < columnNameList.size(); i++) {
+            this.columnList.add(
+                    ColumnInfo.fromLogicalType(
+                            columnNameList.get(i), columnTypeList.get(i).getLogicalType()));
+        }
     }
 
     @Override
