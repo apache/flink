@@ -39,12 +39,12 @@ public class DynamicTemporaryAWSCredentialsProviderTest {
 
     @BeforeEach
     void beforeEach() {
-        S3DelegationTokenReceiver.credentials = null;
+        AbstractS3DelegationTokenReceiver.credentials = null;
     }
 
     @AfterEach
     void afterEach() {
-        S3DelegationTokenReceiver.credentials = null;
+        AbstractS3DelegationTokenReceiver.credentials = null;
     }
 
     @Test
@@ -61,7 +61,13 @@ public class DynamicTemporaryAWSCredentialsProviderTest {
                 new DynamicTemporaryAWSCredentialsProvider();
         Credentials credentials =
                 new Credentials(ACCESS_KEY_ID, SECRET_ACCESS_KEY, SESSION_TOKEN, null);
-        S3DelegationTokenReceiver receiver = new S3DelegationTokenReceiver();
+        AbstractS3DelegationTokenReceiver receiver =
+                new AbstractS3DelegationTokenReceiver() {
+                    @Override
+                    public String serviceName() {
+                        return "s3";
+                    }
+                };
 
         receiver.onNewTokensObtained(InstantiationUtil.serializeObject(credentials));
         BasicSessionCredentials returnedCredentials =

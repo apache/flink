@@ -32,7 +32,9 @@ import java.time.Clock;
 import java.time.ZoneId;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.time.Instant.ofEpochMilli;
@@ -160,6 +162,28 @@ public class DefaultDelegationTokenManagerTest {
         assertTrue(providers.containsKey("test"));
         assertEquals(1, receivers.size());
         assertTrue(receivers.containsKey("test"));
+    }
+
+    @Test
+    public void checkSamePrefixedProvidersShouldNotGiveErrorsWhenNoSamePrefix() {
+        Map<String, DelegationTokenProvider> providers = new HashMap<>();
+        providers.put("s3-hadoop", new TestDelegationTokenProvider());
+        Set<String> warnings = new HashSet<>();
+        DefaultDelegationTokenManager.checkSamePrefixedProviders(providers, warnings);
+        assertTrue(warnings.isEmpty());
+    }
+
+    @Test
+    public void checkSamePrefixedProvidersShouldGiveErrorsWhenSamePrefix() {
+        Map<String, DelegationTokenProvider> providers = new HashMap<>();
+        providers.put("s3-hadoop", new TestDelegationTokenProvider());
+        providers.put("s3-presto", new TestDelegationTokenProvider());
+        Set<String> warnings = new HashSet<>();
+        DefaultDelegationTokenManager.checkSamePrefixedProviders(providers, warnings);
+        assertEquals(1, warnings.size());
+        assertEquals(
+                "Multiple providers loaded with the same prefix: s3. This might lead to unintended consequences, please consider using only one of them.",
+                warnings.iterator().next());
     }
 
     @Test

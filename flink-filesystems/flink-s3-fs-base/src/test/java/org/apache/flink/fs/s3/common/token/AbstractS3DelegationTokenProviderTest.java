@@ -20,30 +20,41 @@ package org.apache.flink.fs.s3.common.token;
 
 import org.apache.flink.configuration.Configuration;
 
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.core.security.token.DelegationTokenProvider.CONFIG_PREFIX;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Tests for {@link S3DelegationTokenProvider}. */
-public class S3DelegationTokenProviderTest {
+/** Tests for {@link AbstractS3DelegationTokenProvider}. */
+public class AbstractS3DelegationTokenProviderTest {
 
     private static final String REGION = "testRegion";
     private static final String ACCESS_KEY_ID = "testAccessKeyId";
     private static final String SECRET_ACCESS_KEY = "testSecretAccessKey";
 
+    private AbstractS3DelegationTokenProvider provider;
+
+    @BeforeEach
+    public void beforeEach() {
+        provider =
+                new AbstractS3DelegationTokenProvider() {
+                    @Override
+                    public String serviceName() {
+                        return "s3";
+                    }
+                };
+    }
+
     @Test
     public void delegationTokensRequiredShouldReturnFalseWithoutCredentials() {
-        S3DelegationTokenProvider provider = new S3DelegationTokenProvider();
         provider.init(new Configuration());
-
         assertFalse(provider.delegationTokensRequired());
     }
 
     @Test
     public void delegationTokensRequiredShouldReturnTrueWithCredentials() {
-        S3DelegationTokenProvider provider = new S3DelegationTokenProvider();
         Configuration configuration = new Configuration();
         configuration.setString(CONFIG_PREFIX + ".s3.region", REGION);
         configuration.setString(CONFIG_PREFIX + ".s3.access-key", ACCESS_KEY_ID);
