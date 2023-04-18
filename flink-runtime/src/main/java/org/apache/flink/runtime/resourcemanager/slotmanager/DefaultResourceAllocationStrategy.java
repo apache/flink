@@ -127,10 +127,7 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
         taskManagerResourceInfoProvider.getPendingTaskManagers().stream()
                 .filter(
                         pendingTaskManager ->
-                                taskManagerResourceInfoProvider
-                                        .getPendingAllocationsOfPendingTaskManager(
-                                                pendingTaskManager.getPendingTaskManagerId())
-                                        .isEmpty())
+                                pendingTaskManager.getPendingSlotAllocationRecords().isEmpty())
                 .forEach(builder::addPendingTaskManagerToRelease);
 
         // idle task manager timeout.

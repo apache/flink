@@ -355,7 +355,7 @@ public class FineGrainedSlotManager implements SlotManager {
             reportSlotStatus(taskExecutorConnection.getInstanceID(), initialSlotReport);
             return RegistrationResult.IGNORED;
         } else {
-            Optional<PendingTaskManagerId> matchedPendingTaskManagerOptional =
+            Optional<PendingTaskManager> matchedPendingTaskManagerOptional =
                     initialSlotReport.hasAllocatedSlot()
                             ? Optional.empty()
                             : findMatchingPendingTaskManager(
@@ -381,10 +381,11 @@ public class FineGrainedSlotManager implements SlotManager {
             }
 
             if (matchedPendingTaskManagerOptional.isPresent()) {
-                PendingTaskManagerId pendingTaskManager = matchedPendingTaskManagerOptional.get();
+                PendingTaskManager pendingTaskManager = matchedPendingTaskManagerOptional.get();
                 allocateSlotsForRegisteredPendingTaskManager(
                         pendingTaskManager, taskExecutorConnection.getInstanceID());
-                taskManagerTracker.removePendingTaskManager(pendingTaskManager);
+                taskManagerTracker.removePendingTaskManager(
+                        pendingTaskManager.getPendingTaskManagerId());
                 return RegistrationResult.SUCCESS;
             }
 
@@ -465,10 +466,9 @@ public class FineGrainedSlotManager implements SlotManager {
     }
 
     private void allocateSlotsForRegisteredPendingTaskManager(
-            PendingTaskManagerId pendingTaskManagerId, InstanceID instanceId) {
+            PendingTaskManager pendingTaskManager, InstanceID instanceId) {
         Map<JobID, Map<InstanceID, ResourceCounter>> allocations =
-                taskManagerTracker.getPendingAllocationsOfPendingTaskManager(pendingTaskManagerId)
-                        .entrySet().stream()
+                pendingTaskManager.getPendingSlotAllocationRecords().entrySet().stream()
                         .collect(
                                 Collectors.toMap(
                                         Map.Entry::getKey,
@@ -476,29 +476,25 @@ public class FineGrainedSlotManager implements SlotManager {
         allocateSlotsAccordingTo(allocations);
     }
 
-    private Optional<PendingTaskManagerId> findMatchingPendingTaskManager(
+    private Optional<PendingTaskManager> findMatchingPendingTaskManager(
             ResourceProfile totalResourceProfile, ResourceProfile defaultSlotResourceProfile) {
         Collection<PendingTaskManager> matchedPendingTaskManagers =
                 taskManagerTracker.getPendingTaskManagersByTotalAndDefaultSlotResourceProfile(
                         totalResourceProfile, defaultSlotResourceProfile);
 
-        Optional<PendingTaskManagerId> matchedPendingTaskManagerIdsWithAllocatedSlots =
+        Optional<PendingTaskManager> matchedPendingTaskManagerIdsWithAllocatedSlots =
                 matchedPendingTaskManagers.stream()
-                        .map(PendingTaskManager::getPendingTaskManagerId)
                         .filter(
-                                (pendingTaskManagerId) ->
-                                        !taskManagerTracker
-                                                .getPendingAllocationsOfPendingTaskManager(
-                                                        pendingTaskManagerId)
+                                (pendingTaskManager) ->
+                                        !pendingTaskManager
+                                                .getPendingSlotAllocationRecords()
                                                 .isEmpty())
                         .findAny();
 
         if (matchedPendingTaskManagerIdsWithAllocatedSlots.isPresent()) {
             return matchedPendingTaskManagerIdsWithAllocatedSlots;
         } else {
-            return matchedPendingTaskManagers.stream()
-                    .map(PendingTaskManager::getPendingTaskManagerId)
-                    .findAny();
+            return matchedPendingTaskManagers.stream().findAny();
         }
     }
 
