@@ -27,6 +27,7 @@ import org.apache.flink.runtime.jobmaster.slotpool.LocationPreferenceSlotSelecti
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProviderImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotSelectionStrategy;
 import org.apache.flink.runtime.scheduler.DefaultScheduler;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
@@ -62,13 +63,17 @@ public class SchedulerEndToEndBenchmarkBase extends SchedulerBenchmarkBase {
         jobGraph = createJobGraph(jobVertices, jobConfiguration);
 
         slotPool = new DeclarativeSlotPoolBridgeBuilder().buildAndStart(mainThreadExecutor);
-        physicalSlotProvider = createPhysicalSlotProvider(slotPool);
+        SlotSelectionStrategy slotSelectionStrategy =
+                jobConfiguration.isEvenlySpreadOutSlots()
+                        ? LocationPreferenceSlotSelectionStrategy.createEvenlySpreadOut()
+                        : LocationPreferenceSlotSelectionStrategy.createDefault();
+        physicalSlotProvider = createPhysicalSlotProvider(slotSelectionStrategy, slotPool);
     }
 
-    private static PhysicalSlotProvider createPhysicalSlotProvider(SlotPool slotPool) {
+    private static PhysicalSlotProvider createPhysicalSlotProvider(
+            SlotSelectionStrategy slotSelectionStrategy, SlotPool slotPool) {
 
-        return new PhysicalSlotProviderImpl(
-                LocationPreferenceSlotSelectionStrategy.createDefault(), slotPool);
+        return new PhysicalSlotProviderImpl(slotSelectionStrategy, slotPool);
     }
 
     static DefaultScheduler createScheduler(

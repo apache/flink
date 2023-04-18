@@ -33,46 +33,85 @@ public enum JobConfiguration {
             ResultPartitionType.PIPELINED,
             JobType.STREAMING,
             ExecutionMode.PIPELINED,
-            4000),
+            4000,
+            false),
 
     BATCH(
             DistributionPattern.ALL_TO_ALL,
             ResultPartitionType.BLOCKING,
             JobType.BATCH,
             ExecutionMode.BATCH,
-            4000),
+            4000,
+            false),
 
     STREAMING_TEST(
             DistributionPattern.ALL_TO_ALL,
             ResultPartitionType.PIPELINED,
             JobType.STREAMING,
             ExecutionMode.PIPELINED,
-            10),
+            10,
+            false),
 
     BATCH_TEST(
             DistributionPattern.ALL_TO_ALL,
             ResultPartitionType.BLOCKING,
             JobType.BATCH,
             ExecutionMode.BATCH,
-            10);
+            10,
+            false),
+
+    STREAMING_EVENLY(
+            DistributionPattern.ALL_TO_ALL,
+            ResultPartitionType.PIPELINED,
+            JobType.STREAMING,
+            ExecutionMode.PIPELINED,
+            4000,
+            true),
+
+    BATCH_EVENLY(
+            DistributionPattern.ALL_TO_ALL,
+            ResultPartitionType.BLOCKING,
+            JobType.BATCH,
+            ExecutionMode.BATCH,
+            4000,
+            true),
+
+    STREAMING_EVENLY_TEST(
+            DistributionPattern.ALL_TO_ALL,
+            ResultPartitionType.PIPELINED,
+            JobType.STREAMING,
+            ExecutionMode.PIPELINED,
+            10,
+            true),
+
+    BATCH_EVENLY_TEST(
+            DistributionPattern.ALL_TO_ALL,
+            ResultPartitionType.BLOCKING,
+            JobType.BATCH,
+            ExecutionMode.BATCH,
+            10,
+            true);
 
     private final int parallelism;
     private final DistributionPattern distributionPattern;
     private final ResultPartitionType resultPartitionType;
     private final JobType jobType;
     private final ExecutionMode executionMode;
+    private final boolean evenlySpreadOutSlots;
 
     JobConfiguration(
             DistributionPattern distributionPattern,
             ResultPartitionType resultPartitionType,
             JobType jobType,
             ExecutionMode executionMode,
-            int parallelism) {
+            int parallelism,
+            boolean evenlySpreadOutSlots) {
         this.distributionPattern = distributionPattern;
         this.resultPartitionType = resultPartitionType;
         this.jobType = jobType;
         this.executionMode = executionMode;
         this.parallelism = parallelism;
+        this.evenlySpreadOutSlots = evenlySpreadOutSlots;
     }
 
     public int getParallelism() {
@@ -93,5 +132,9 @@ public enum JobConfiguration {
 
     public ExecutionMode getExecutionMode() {
         return executionMode;
+    }
+
+    public boolean isEvenlySpreadOutSlots() {
+        return evenlySpreadOutSlots;
     }
 }
