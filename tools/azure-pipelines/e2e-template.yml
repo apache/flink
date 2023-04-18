@@ -44,6 +44,10 @@ jobs:
           echo "##vso[task.setvariable variable=skip;]0"
         fi
       displayName: Check if Docs only PR
+    # free up disk space before running anything caching related. Caching has proven to fail in the past, due to lacking disk space.
+    - script: ./tools/azure-pipelines/free_disk_space.sh
+      target: host
+      displayName: Free up disk space
     # the cache task does not create directories on a cache miss, and can later fail when trying to tar the directory if the test haven't created it
     # this may for example happen if a given directory is only used by a subset of tests, which are run in a different 'group'
     - bash: |
@@ -95,9 +99,6 @@ jobs:
         echo "Setting up Maven"
         source ./tools/ci/maven-utils.sh
         setup_maven
-
-        echo "Free up disk space"
-        ./tools/azure-pipelines/free_disk_space.sh
 
         echo "Installing required software"
         sudo apt-get install -y bc libapr1
