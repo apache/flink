@@ -75,6 +75,8 @@ class RestHandlerConfigurationTest {
         config.setBoolean(WebOptions.RESCALE_ENABLE, webRescaleEnabled);
         if (adaptiveScheduler) {
             config.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
+        } else {
+            config.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Default);
         }
         if (reactiveMode) {
             config.set(JobManagerOptions.SCHEDULER_MODE, SchedulerExecutionMode.REACTIVE);
