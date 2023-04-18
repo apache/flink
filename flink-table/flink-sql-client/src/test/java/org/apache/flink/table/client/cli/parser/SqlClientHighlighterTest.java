@@ -36,7 +36,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Test for {@link SqlClientSyntaxHighlighter}. */
 class SqlClientHighlighterTest {
     @ParameterizedTest
-    @ValueSource(strings = {"select", "join", "match_recognize", "Select", "wHeRe", "FroM"})
+    @ValueSource(
+            strings = {
+                "select",
+                "join",
+                "match_recognize",
+                "Select",
+                "wHeRe",
+                "FroM",
+                "view",
+                "temporary"
+            })
     void keywordsTest(String keyword) {
         applyTestFor(AttributedStringTestSpecBuilder::appendKeyword, keyword, null);
         applyTestFor(AttributedStringTestSpecBuilder::appendKeyword, keyword, SqlDialect.HIVE);

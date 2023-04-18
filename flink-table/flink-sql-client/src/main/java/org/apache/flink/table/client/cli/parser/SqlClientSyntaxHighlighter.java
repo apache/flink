@@ -18,13 +18,12 @@
 
 package org.apache.flink.table.client.cli.parser;
 
-import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
+import org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.client.config.SqlClientOptions;
 import org.apache.flink.table.client.gateway.Executor;
 
-import org.apache.calcite.sql.parser.SqlAbstractParserImpl;
 import org.jline.reader.LineReader;
 import org.jline.reader.impl.DefaultHighlighter;
 import org.jline.utils.AttributedString;
@@ -32,8 +31,6 @@ import org.jline.utils.AttributedStringBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.StringReader;
-import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -46,25 +43,11 @@ import java.util.stream.Collectors;
 /** Sql Client syntax highlighter. */
 public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
     private static final Logger LOG = LoggerFactory.getLogger(SqlClientSyntaxHighlighter.class);
-    private static Set<String> keywords;
-
-    static {
-        try {
-            Field reservedWords =
-                    SqlAbstractParserImpl.MetadataImpl.class.getDeclaredField("reservedWords");
-            reservedWords.setAccessible(true);
-            keywords =
-                    (Set<String>)
-                            reservedWords.get(
-                                    FlinkSqlParserImpl.FACTORY
-                                            .getParser(new StringReader(""))
-                                            .getMetadata());
-        } catch (Throwable t) {
-            // ignore
-            LOG.warn("Can not get reserved keywords.", t);
-            keywords = Collections.emptySet();
-        }
-    }
+    private static final Set<String> KEYWORDS =
+            Collections.unmodifiableSet(
+                    Arrays.stream(FlinkSqlParserImplConstants.tokenImage)
+                            .map(t -> t.replaceAll("\"", ""))
+                            .collect(Collectors.toSet()));
 
     private final Executor executor;
 
@@ -145,7 +128,7 @@ public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
             SyntaxHighlightStyle style) {
         final String wordStr = word.toString();
         if (currentState == State.DEFAULT) {
-            if (keywords.contains(wordStr.toUpperCase(Locale.ROOT))) {
+            if (KEYWORDS.contains(wordStr.toUpperCase(Locale.ROOT))) {
                 highlightedOutput.style(style.getKeywordStyle());
             } else {
                 highlightedOutput.style(style.getDefaultStyle());

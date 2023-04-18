@@ -54,10 +54,10 @@ public class SyntaxHighlightStyle {
         VS2010(BOLD_BLUE, WHITE, ITALIC_GREEN, BOLD_GREEN, RED, MAGENTA),
         OBSIDIAN(BOLD_GREEN, WHITE, ITALIC_BRIGHT, BOLD_BRIGHT, RED, MAGENTA),
         GESHI(
-                AttributedStyle.BOLD.foreground(99, 33, 33),
+                AttributedStyle.BOLD.foreground(0x99, 0x33, 0x33),
                 WHITE,
                 AttributedStyle.DEFAULT.italic().foreground(0x80, 0x80, 0x80),
-                AttributedStyle.DEFAULT.italic().foreground(0x80, 0x80, 0x80).bold(),
+                AttributedStyle.DEFAULT.bold().foreground(0x80, 0x80, 0x80),
                 AttributedStyle.DEFAULT.foreground(0x66, 0xCC, 0x66),
                 AttributedStyle.DEFAULT.foreground(0x0, 0x0, 0x99));
         private final SyntaxHighlightStyle style;
