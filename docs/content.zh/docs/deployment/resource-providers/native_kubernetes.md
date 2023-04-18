@@ -340,7 +340,7 @@ Please refer to the official Kubernetes documentation on [RBAC Authorization](ht
 
 Flink allows users to define the JobManager and TaskManager pods via template files. This allows to support advanced features
 that are not supported by Flink [Kubernetes config options]({{< ref "docs/deployment/config" >}}#kubernetes) directly.
-Use [`kubernetes.pod-template-file.default`]({{< ref "docs/deployment/config" >}}#kubernetes-pod-template-file)
+Use [`kubernetes.pod-template-file.default`]({{< ref "docs/deployment/config" >}}#kubernetes-pod-template-file-default)
 to specify a local file that contains the pod definition. It will be used to initialize the JobManager and TaskManager.
 The main container should be defined with name `flink-main-container`.
 Please refer to the [pod template example](#example-of-pod-template) for more information.
@@ -481,7 +481,7 @@ All the fields defined in the pod template that are not listed in the tables wil
         <tr>
             <td>image</td>
             <td>Defined by the user</td>
-            <td><a href="{{< ref "docs/deployment/config" >}}#kubernetes-container-image">kubernetes.container.image.ref</a></td>
+            <td><a href="{{< ref "docs/deployment/config" >}}#kubernetes-container-image-ref">kubernetes.container.image.ref</a></td>
             <td>The container image will be resolved with respect to the defined precedence order for user defined values.</td>
         </tr>
         <tr>
