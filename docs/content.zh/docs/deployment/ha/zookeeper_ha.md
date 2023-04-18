@@ -34,7 +34,7 @@ Flink 利用 **[ZooKeeper](http://zookeeper.apache.org)** 在所有运行的 Job
 
 为了启用高可用集群（HA-cluster），你必须设置以下配置项:
 
-- [high-availability]({{< ref "docs/deployment/config" >}}#high-availability-1) (必要的):
+- [high-availability.type]({{< ref "docs/deployment/config" >}}#high-availability-type) (必要的):
   `high-availability.type` 配置项必须设置为 `zookeeper`。
 
   <pre>high-availability.type: zookeeper</pre>

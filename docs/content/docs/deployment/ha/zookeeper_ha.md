@@ -37,7 +37,7 @@ Flink includes scripts to [bootstrap a simple ZooKeeper](#bootstrap-zookeeper) i
 
 In order to start an HA-cluster you have to configure the following configuration keys:
 
-- [high-availability]({{< ref "docs/deployment/config" >}}#high-availability-1) (required): 
+- [high-availability.type]({{< ref "docs/deployment/config" >}}#high-availability-type) (required): 
 The `high-availability.type` option has to be set to `zookeeper`.
 
   <pre>high-availability.type: zookeeper</pre>
