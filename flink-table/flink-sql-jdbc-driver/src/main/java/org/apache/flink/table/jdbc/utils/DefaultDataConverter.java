@@ -19,7 +19,6 @@
 package org.apache.flink.table.jdbc.utils;
 
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.StringData;
 
 import java.math.BigDecimal;
 import java.sql.Array;
@@ -34,58 +33,59 @@ public class DefaultDataConverter implements DataConverter {
 
     @Override
     public boolean getBoolean(RowData rowData, int pos) {
-        return rowData.getBoolean(pos);
+        return !rowData.isNullAt(pos) && rowData.getBoolean(pos);
     }
 
     @Override
     public byte getByte(RowData rowData, int pos) {
-        return rowData.getByte(pos);
+        return rowData.isNullAt(pos) ? 0 : rowData.getByte(pos);
     }
 
     @Override
     public short getShort(RowData rowData, int pos) {
-        return rowData.getShort(pos);
+        return rowData.isNullAt(pos) ? 0 : rowData.getShort(pos);
     }
 
     @Override
     public int getInt(RowData rowData, int pos) {
-        return rowData.getInt(pos);
+        return rowData.isNullAt(pos) ? 0 : rowData.getInt(pos);
     }
 
     @Override
     public long getLong(RowData rowData, int pos) {
-        return rowData.getLong(pos);
+        return rowData.isNullAt(pos) ? 0 : rowData.getLong(pos);
     }
 
     @Override
     public float getFloat(RowData rowData, int pos) {
-        return rowData.getFloat(pos);
+        return rowData.isNullAt(pos) ? 0 : rowData.getFloat(pos);
     }
 
     @Override
     public double getDouble(RowData rowData, int pos) {
-        return rowData.getDouble(pos);
+        return rowData.isNullAt(pos) ? 0 : rowData.getDouble(pos);
     }
 
     @Override
     public String getString(RowData rowData, int pos) {
-        StringData stringData = rowData.getString(pos);
-        return stringData == null ? null : stringData.toString();
+        return rowData.isNullAt(pos) ? null : rowData.getString(pos).toString();
     }
 
     @Override
     public BigDecimal getDecimal(RowData rowData, int pos, int precision, int scale) {
-        return rowData.getDecimal(pos, precision, scale).toBigDecimal();
+        return rowData.isNullAt(pos)
+                ? null
+                : rowData.getDecimal(pos, precision, scale).toBigDecimal();
     }
 
     @Override
     public Timestamp getTimestamp(RowData rowData, int pos, int precision) {
-        return rowData.getTimestamp(pos, precision).toTimestamp();
+        return rowData.isNullAt(pos) ? null : rowData.getTimestamp(pos, precision).toTimestamp();
     }
 
     @Override
     public byte[] getBinary(RowData rowData, int pos) {
-        return rowData.getBinary(pos);
+        return rowData.isNullAt(pos) ? null : rowData.getBinary(pos);
     }
 
     @Override

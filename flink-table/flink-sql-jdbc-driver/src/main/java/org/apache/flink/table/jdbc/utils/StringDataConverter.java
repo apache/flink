@@ -19,7 +19,6 @@
 package org.apache.flink.table.jdbc.utils;
 
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.StringData;
 
 import java.math.BigDecimal;
 import java.sql.Array;
@@ -39,56 +38,49 @@ public class StringDataConverter implements DataConverter {
 
     @Override
     public byte getByte(RowData rowData, int pos) {
-        String strVal = getString(rowData, pos);
-        return strVal == null ? 0 : Byte.parseByte(strVal);
+        return rowData.isNullAt(pos) ? 0 : Byte.parseByte(getString(rowData, pos));
     }
 
     @Override
     public short getShort(RowData rowData, int pos) {
-        String strVal = getString(rowData, pos);
-        return strVal == null ? 0 : Short.parseShort(strVal);
+        return rowData.isNullAt(pos) ? 0 : Short.parseShort(getString(rowData, pos));
     }
 
     @Override
     public int getInt(RowData rowData, int pos) {
-        String strVal = getString(rowData, pos);
-        return strVal == null ? 0 : Integer.parseInt(strVal);
+        return rowData.isNullAt(pos) ? 0 : Integer.parseInt(getString(rowData, pos));
     }
 
     @Override
     public long getLong(RowData rowData, int pos) {
-        String strVal = getString(rowData, pos);
-        return strVal == null ? 0 : Long.parseLong(strVal);
+        return rowData.isNullAt(pos) ? 0 : Long.parseLong(getString(rowData, pos));
     }
 
     @Override
     public float getFloat(RowData rowData, int pos) {
-        String strVal = getString(rowData, pos);
-        return strVal == null ? 0 : Float.parseFloat(strVal);
+        return rowData.isNullAt(pos) ? 0 : Float.parseFloat(getString(rowData, pos));
     }
 
     @Override
     public double getDouble(RowData rowData, int pos) {
-        String strVal = getString(rowData, pos);
-        return strVal == null ? 0 : Double.parseDouble(strVal);
+        return rowData.isNullAt(pos) ? 0 : Double.parseDouble(getString(rowData, pos));
     }
 
     @Override
     public String getString(RowData rowData, int pos) {
-        StringData stringData = rowData.getString(pos);
-        return stringData == null ? null : stringData.toString();
+        return rowData.isNullAt(pos) ? null : rowData.getString(pos).toString();
     }
 
     @Override
     public BigDecimal getDecimal(RowData rowData, int pos, int precision, int scale) {
-        String strVal = getString(rowData, pos);
-        return strVal == null ? null : new BigDecimal(getString(rowData, pos)).setScale(scale);
+        return rowData.isNullAt(pos)
+                ? null
+                : new BigDecimal(getString(rowData, pos)).setScale(scale);
     }
 
     @Override
     public byte[] getBinary(RowData rowData, int pos) {
-        StringData stringData = rowData.getString(pos);
-        return stringData == null ? null : stringData.toBytes();
+        return rowData.isNullAt(pos) ? null : rowData.getString(pos).toBytes();
     }
 
     @Override
