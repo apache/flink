@@ -58,17 +58,20 @@ abstract class SlotSelectionStrategyTestBase {
 
     protected final SlotInfoWithUtilization slotInfo1 =
             SlotInfoWithUtilization.from(
-                    new SimpleSlotContext(aid1, tml1, 1, taskManagerGateway, resourceProfile), 0);
+                    new SimpleSlotContext(aid1, tml1, 1, taskManagerGateway, resourceProfile),
+                    ignored -> 0.0d);
     protected final SlotInfoWithUtilization slotInfo2 =
             SlotInfoWithUtilization.from(
                     new SimpleSlotContext(aid2, tml2, 2, taskManagerGateway, biggerResourceProfile),
-                    0);
+                    ignored -> 0.0d);
     protected final SlotInfoWithUtilization slotInfo3 =
             SlotInfoWithUtilization.from(
-                    new SimpleSlotContext(aid3, tml3, 3, taskManagerGateway, resourceProfile), 0);
+                    new SimpleSlotContext(aid3, tml3, 3, taskManagerGateway, resourceProfile),
+                    ignored -> 0.0d);
     protected final SlotInfoWithUtilization slotInfo4 =
             SlotInfoWithUtilization.from(
-                    new SimpleSlotContext(aid4, tml4, 4, taskManagerGateway, resourceProfile), 0);
+                    new SimpleSlotContext(aid4, tml4, 4, taskManagerGateway, resourceProfile),
+                    ignored -> 0.0d);
 
     protected final Set<SlotInfoWithUtilization> candidates =
             Collections.unmodifiableSet(createCandidates());

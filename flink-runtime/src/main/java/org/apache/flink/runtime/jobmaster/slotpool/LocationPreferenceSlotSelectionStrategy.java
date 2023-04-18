@@ -30,6 +30,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 /**
  * This class implements a {@link SlotSelectionStrategy} that is based on location preference hints.
@@ -95,7 +96,7 @@ public abstract class LocationPreferenceSlotSelectionStrategy implements SlotSel
 
                 double candidateScore =
                         calculateCandidateScore(
-                                localWeigh, hostLocalWeigh, candidate.getTaskExecutorUtilization());
+                                localWeigh, hostLocalWeigh, candidate::getTaskExecutorUtilization);
                 if (candidateScore > bestCandidateScore) {
                     bestCandidateScore = candidateScore;
                     bestCandidate = candidate;
@@ -119,7 +120,7 @@ public abstract class LocationPreferenceSlotSelectionStrategy implements SlotSel
             @Nonnull ResourceProfile resourceProfile);
 
     protected abstract double calculateCandidateScore(
-            int localWeigh, int hostLocalWeigh, double taskExecutorUtilization);
+            int localWeigh, int hostLocalWeigh, Supplier<Double> taskExecutorUtilizationSupplier);
 
     // -------------------------------------------------------------------------------------------
     // Factory methods

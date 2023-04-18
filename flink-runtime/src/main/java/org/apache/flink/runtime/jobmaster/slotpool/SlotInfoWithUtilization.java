@@ -19,9 +19,12 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+
+import java.util.function.Function;
 
 /**
  * Container for {@link SlotInfo} and the task executors utilization (freeSlots /
@@ -29,15 +32,17 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
  */
 public final class SlotInfoWithUtilization implements SlotInfo {
     private final SlotInfo slotInfoDelegate;
-    private final double taskExecutorUtilization;
+    private final Function<ResourceID, Double> taskExecutorUtilizationLookup;
 
-    private SlotInfoWithUtilization(SlotInfo slotInfo, double taskExecutorUtilization) {
+    private SlotInfoWithUtilization(
+            SlotInfo slotInfo, Function<ResourceID, Double> taskExecutorUtilizationLookup) {
         this.slotInfoDelegate = slotInfo;
-        this.taskExecutorUtilization = taskExecutorUtilization;
+        this.taskExecutorUtilizationLookup = taskExecutorUtilizationLookup;
     }
 
-    double getTaskExecutorUtilization() {
-        return taskExecutorUtilization;
+    public double getTaskExecutorUtilization() {
+        return taskExecutorUtilizationLookup.apply(
+                slotInfoDelegate.getTaskManagerLocation().getResourceID());
     }
 
     @Override
@@ -65,7 +70,8 @@ public final class SlotInfoWithUtilization implements SlotInfo {
         return slotInfoDelegate.willBeOccupiedIndefinitely();
     }
 
-    public static SlotInfoWithUtilization from(SlotInfo slotInfo, double taskExecutorUtilization) {
-        return new SlotInfoWithUtilization(slotInfo, taskExecutorUtilization);
+    public static SlotInfoWithUtilization from(
+            SlotInfo slotInfo, Function<ResourceID, Double> taskExecutorUtilizationLookup) {
+        return new SlotInfoWithUtilization(slotInfo, taskExecutorUtilizationLookup);
     }
 }

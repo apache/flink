@@ -576,7 +576,7 @@ class JobMasterTest {
             final Collection<SlotInfoWithUtilization> allSlotInfos =
                     registeredSlots.values().stream()
                             .flatMap(Collection::stream)
-                            .map(slot -> SlotInfoWithUtilization.from(slot, 0))
+                            .map(slot -> SlotInfoWithUtilization.from(slot, ignored -> 0.0d))
                             .collect(Collectors.toList());
 
             return Collections.unmodifiableCollection(allSlotInfos);

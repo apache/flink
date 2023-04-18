@@ -195,21 +195,22 @@ public class DefaultAllocatedSlotPool implements AllocatedSlotPool {
             final AllocatedSlot allocatedSlot =
                     Preconditions.checkNotNull(registeredSlots.get(freeSlot.getKey()));
 
-            final ResourceID owner = allocatedSlot.getTaskManagerId();
-            final int numberOfSlotsOnOwner = slotsPerTaskExecutor.get(owner).size();
-            final int numberOfFreeSlotsOnOwner = freeSlots.getFreeSlotsNumberOfTaskExecutor(owner);
-            final double taskExecutorUtilization =
-                    (double) (numberOfSlotsOnOwner - numberOfFreeSlotsOnOwner)
-                            / numberOfSlotsOnOwner;
-
             final SlotInfoWithUtilization slotInfoWithUtilization =
-                    SlotInfoWithUtilization.from(allocatedSlot, taskExecutorUtilization);
+                    SlotInfoWithUtilization.from(allocatedSlot, this::getTaskExecutorUtilization);
 
             freeSlotInfos.add(
                     DefaultFreeSlotInfo.create(slotInfoWithUtilization, freeSlot.getValue()));
         }
 
         return freeSlotInfos;
+    }
+
+    public double getTaskExecutorUtilization(ResourceID resourceId) {
+        Set<AllocationID> slots = slotsPerTaskExecutor.get(resourceId);
+        Preconditions.checkNotNull(slots, "There is no slots on %s", resourceId);
+
+        return (double) (slots.size() - freeSlots.getFreeSlotsNumberOfTaskExecutor(resourceId))
+                / slots.size();
     }
 
     @Override
