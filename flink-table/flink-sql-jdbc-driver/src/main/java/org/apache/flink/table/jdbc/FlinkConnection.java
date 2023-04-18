@@ -56,7 +56,7 @@ public class FlinkConnection extends BaseConnection {
 
     @Override
     public Statement createStatement() throws SQLException {
-        throw new SQLFeatureNotSupportedException();
+        return new FlinkStatement(this);
     }
 
     @VisibleForTesting

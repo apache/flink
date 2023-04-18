@@ -51,6 +51,7 @@ public class FlinkResultSet extends BaseResultSet {
     private final Statement statement;
     private final StatementResult result;
     private final DataConverter dataConverter;
+    private final FlinkResultSetMetaData resultSetMetaData;
     private RowData currentRow;
     private boolean wasNull;
 
@@ -67,6 +68,7 @@ public class FlinkResultSet extends BaseResultSet {
         final ResolvedSchema schema = result.getResultSchema();
         this.dataTypeList = schema.getColumnDataTypes();
         this.columnNameList = schema.getColumnNames();
+        this.resultSetMetaData = new FlinkResultSetMetaData(columnNameList, dataTypeList);
     }
 
     @Override
@@ -338,8 +340,7 @@ public class FlinkResultSet extends BaseResultSet {
 
     @Override
     public ResultSetMetaData getMetaData() throws SQLException {
-        // TODO support result set meta data
-        throw new SQLFeatureNotSupportedException("FlinkResultSet#getMetaData is not supported");
+        return resultSetMetaData;
     }
 
     @Override
