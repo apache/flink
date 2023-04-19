@@ -100,6 +100,11 @@ public class SafetyNetWrapperFileSystem extends FileSystem implements WrappingPr
     }
 
     @Override
+    public FileStatus[] globStatus(Path f) throws IOException {
+        return unsafeFileSystem.globStatus(f);
+    }
+
+    @Override
     public boolean exists(Path f) throws IOException {
         return unsafeFileSystem.exists(f);
     }
@@ -151,6 +156,11 @@ public class SafetyNetWrapperFileSystem extends FileSystem implements WrappingPr
     @Override
     public boolean isDistributedFS() {
         return unsafeFileSystem.isDistributedFS();
+    }
+
+    @Override
+    public boolean isGlobStatusSupported() {
+        return unsafeFileSystem.isGlobStatusSupported();
     }
 
     @Override

@@ -143,6 +143,13 @@ public class PluginFileSystemFactory implements FileSystemFactory {
         }
 
         @Override
+        public FileStatus[] globStatus(final Path f) throws IOException {
+            try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(loader)) {
+                return inner.globStatus(f);
+            }
+        }
+
+        @Override
         public boolean exists(final Path f) throws IOException {
             try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(loader)) {
                 return inner.exists(f);
@@ -175,6 +182,13 @@ public class PluginFileSystemFactory implements FileSystemFactory {
         public boolean isDistributedFS() {
             try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(loader)) {
                 return inner.isDistributedFS();
+            }
+        }
+
+        @Override
+        public boolean isGlobStatusSupported() {
+            try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(loader)) {
+                return inner.isGlobStatusSupported();
             }
         }
 
