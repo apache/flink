@@ -20,6 +20,7 @@ package org.apache.flink.architecture.rules;
 
 import org.apache.flink.architecture.common.Predicates;
 import org.apache.flink.connector.testframe.environment.MiniClusterTestEnvironment;
+import org.apache.flink.connector.testframe.junit.annotations.TestEnv;
 import org.apache.flink.runtime.testutils.InternalMiniClusterExtension;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.test.util.AbstractTestBase;
@@ -41,6 +42,8 @@ import static com.tngtech.archunit.core.domain.JavaModifier.ABSTRACT;
 import static com.tngtech.archunit.library.freeze.FreezingArchRule.freeze;
 import static org.apache.flink.architecture.common.Conditions.fulfill;
 import static org.apache.flink.architecture.common.GivenJavaClasses.javaClassesThat;
+import static org.apache.flink.architecture.common.JavaFieldPredicates.annotatedWith;
+import static org.apache.flink.architecture.common.Predicates.areFieldOfType;
 import static org.apache.flink.architecture.common.Predicates.arePublicFinalOfTypeWithAnnotation;
 import static org.apache.flink.architecture.common.Predicates.arePublicStaticFinalOfTypeWithAnnotation;
 import static org.apache.flink.architecture.common.Predicates.areStaticFinalOfTypeWithAnnotation;
@@ -173,9 +176,12 @@ public class ITCaseRules {
                                                         MiniClusterExtension.class,
                                                         RegisterExtension.class)
                                                 .or(
-                                                        areStaticFinalOfTypeWithAnnotation(
-                                                                MiniClusterTestEnvironment.class,
-                                                                RegisterExtension.class)))),
+                                                        areFieldOfType(
+                                                                        MiniClusterTestEnvironment
+                                                                                .class)
+                                                                .and(
+                                                                        annotatedWith(
+                                                                                TestEnv.class))))),
                 inFlinkRuntimePackages()
                         .and(
                                 isAnnotatedWithExtendWithUsingExtension(
