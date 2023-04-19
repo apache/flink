@@ -842,7 +842,6 @@ public class CheckpointCoordinatorTestingUtils {
                     timer,
                     failureManager,
                     checkpointPlanCalculator,
-                    new ExecutionAttemptMappingProvider(executionGraph.getAllExecutionVertices()),
                     SystemClock.getInstance(),
                     checkpointStatsTracker,
                     vertexFinishedStateCheckerFactory);

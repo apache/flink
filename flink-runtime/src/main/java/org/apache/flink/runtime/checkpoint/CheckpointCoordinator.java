@@ -222,8 +222,6 @@ public class CheckpointCoordinator {
 
     private final CheckpointPlanCalculator checkpointPlanCalculator;
 
-    private final ExecutionAttemptMappingProvider attemptMappingProvider;
-
     private boolean baseLocationsForCheckpointInitialized = false;
 
     private boolean forceFullSnapshot;
@@ -242,7 +240,6 @@ public class CheckpointCoordinator {
             ScheduledExecutor timer,
             CheckpointFailureManager failureManager,
             CheckpointPlanCalculator checkpointPlanCalculator,
-            ExecutionAttemptMappingProvider attemptMappingProvider,
             CheckpointStatsTracker statsTracker) {
 
         this(
@@ -257,7 +254,6 @@ public class CheckpointCoordinator {
                 timer,
                 failureManager,
                 checkpointPlanCalculator,
-                attemptMappingProvider,
                 SystemClock.getInstance(),
                 statsTracker,
                 VertexFinishedStateChecker::new);
@@ -276,7 +272,6 @@ public class CheckpointCoordinator {
             ScheduledExecutor timer,
             CheckpointFailureManager failureManager,
             CheckpointPlanCalculator checkpointPlanCalculator,
-            ExecutionAttemptMappingProvider attemptMappingProvider,
             Clock clock,
             CheckpointStatsTracker statsTracker,
             BiFunction<
@@ -314,7 +309,6 @@ public class CheckpointCoordinator {
         this.checkpointsCleaner = checkNotNull(checkpointsCleaner);
         this.failureManager = checkNotNull(failureManager);
         this.checkpointPlanCalculator = checkNotNull(checkpointPlanCalculator);
-        this.attemptMappingProvider = checkNotNull(attemptMappingProvider);
         this.clock = checkNotNull(clock);
         this.isExactlyOnceMode = chkConfig.isExactlyOnce();
         this.unalignedCheckpointsEnabled = chkConfig.isUnalignedCheckpointsEnabled();
@@ -2070,11 +2064,8 @@ public class CheckpointCoordinator {
         }
     }
 
-    public void reportStats(long id, ExecutionAttemptID attemptId, CheckpointMetrics metrics)
-            throws CheckpointException {
-        attemptMappingProvider
-                .getVertex(attemptId)
-                .ifPresent(ev -> statsTracker.reportIncompleteStats(id, ev, metrics));
+    public void reportStats(long id, ExecutionAttemptID attemptId, CheckpointMetrics metrics) {
+        statsTracker.reportIncompleteStats(id, attemptId, metrics);
     }
 
     // ------------------------------------------------------------------------

@@ -22,7 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 import javax.annotation.Nullable;
@@ -258,16 +258,16 @@ public class CheckpointStatsTracker {
     }
 
     public void reportIncompleteStats(
-            long checkpointId, ExecutionVertex vertex, CheckpointMetrics metrics) {
+            long checkpointId, ExecutionAttemptID attemptId, CheckpointMetrics metrics) {
         statsReadWriteLock.lock();
         try {
             AbstractCheckpointStats stats = history.getCheckpointById(checkpointId);
             if (stats instanceof PendingCheckpointStats) {
                 ((PendingCheckpointStats) stats)
                         .reportSubtaskStats(
-                                vertex.getJobvertexId(),
+                                attemptId.getJobVertexId(),
                                 new SubtaskStateStats(
-                                        vertex.getParallelSubtaskIndex(),
+                                        attemptId.getSubtaskIndex(),
                                         System.currentTimeMillis(),
                                         metrics.getBytesPersistedOfThisCheckpoint(),
                                         metrics.getTotalBytesPersisted(),

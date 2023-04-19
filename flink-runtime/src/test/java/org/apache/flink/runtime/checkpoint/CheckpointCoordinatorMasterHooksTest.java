@@ -500,7 +500,6 @@ class CheckpointCoordinatorMasterHooksTest {
                         new ExecutionGraphCheckpointPlanCalculatorContext(graph),
                         graph.getVerticesTopologically(),
                         false),
-                new ExecutionAttemptMappingProvider(graph.getAllExecutionVertices()),
                 new CheckpointStatsTracker(1, new DummyMetricGroup()));
     }
 
