@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.planner.utils.TestDataTypeTableSource
 import org.apache.flink.types.Row
 
-import org.junit.Test
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 import java.sql.Timestamp
 import java.time.{Instant, ZoneId}
@@ -33,6 +33,7 @@ import scala.collection.mutable
 
 class TimestampITCase extends BatchTestBase {
 
+  @BeforeEach
   override def before(): Unit = {
     super.before()
 

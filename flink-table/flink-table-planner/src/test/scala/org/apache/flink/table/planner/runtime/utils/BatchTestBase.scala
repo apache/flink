@@ -51,8 +51,8 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.runtime.CalciteContextException
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.calcite.sql.parser.SqlParseException
-import org.junit.{After, Assert, Before}
-import org.junit.Assert._
+import org.assertj.core.api.Assertions.fail
+import org.junit.jupiter.api.{AfterEach, BeforeEach}
 
 class BatchTestBase extends BatchAbstractTestBase {
 
@@ -73,12 +73,12 @@ class BatchTestBase extends BatchAbstractTestBase {
       + " column ([0-9]+) to line ([0-9]+), column ([0-9]+): (.*)")
 
   @throws(classOf[Exception])
-  @Before
+  @BeforeEach
   def before(): Unit = {
     BatchTestBase.configForMiniCluster(tableConfig)
   }
 
-  @After
+  @AfterEach
   def after(): Unit = {
     TestValuesTableFactory.clearAllData()
   }
@@ -146,12 +146,12 @@ class BatchTestBase extends BatchAbstractTestBase {
     checkFunc(result).foreach {
       results =>
         val plan = explainLogical(table)
-        Assert.fail(s"""
-                       |Results do not match for query:
-                       |  $sqlQuery
-                       |$results
-                       |Plan:
-                       |  $plan
+        fail(s"""
+                |Results do not match for query:
+                |  $sqlQuery
+                |$results
+                |Plan:
+                |  $plan
        """.stripMargin)
     }
   }
@@ -162,11 +162,11 @@ class BatchTestBase extends BatchAbstractTestBase {
     checkFunc(result).foreach {
       results =>
         val plan = explainLogical(table)
-        Assert.fail(s"""
-                       |Results do not match:
-                       |$results
-                       |Plan:
-                       |  $plan
+        fail(s"""
+                |Results do not match:
+                |$results
+                |Plan:
+                |  $plan
        """.stripMargin)
     }
   }
@@ -295,9 +295,9 @@ class BatchTestBase extends BatchAbstractTestBase {
 
     checkEmpty(result).foreach {
       results =>
-        Assert.fail(s"""
-                       |Results do not match for query:
-                       |$results
+        fail(s"""
+                |Results do not match for query:
+                |$results
        """.stripMargin)
     }
   }
@@ -478,7 +478,9 @@ object BatchTestBase {
   }
 
   def binaryRow(types: Array[LogicalType], fields: Any*): BinaryRowData = {
-    assertEquals("Filed count inconsistent with type information", fields.length, types.length)
+    if (fields.length != types.length) {
+      fail("Filed count inconsistent with type information")
+    }
     val row = new BinaryRowData(fields.length)
     val writer = new BinaryRowWriter(row)
     writer.reset()
@@ -528,10 +530,14 @@ object BatchTestBase {
       s"and received ${resultStrings.length}\n " +
       s"expected: ${expectedStrings.mkString}\n " +
       s"received: ${resultStrings.mkString}"
-    assertEquals(msg, expectedStrings.length, resultStrings.length)
+    if (expectedStrings.length != resultStrings.length) {
+      fail(msg)
+    }
     expectedStrings.zip(resultStrings).foreach {
       case (e, r) =>
-        assertEquals(msg, e, r)
+        if (e != r) {
+          fail(msg)
+        }
     }
   }
 
