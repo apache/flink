@@ -38,18 +38,14 @@ import java.util.Optional;
 
 /** Delegation token provider for S3 filesystems. */
 @Internal
-public class S3DelegationTokenProvider implements DelegationTokenProvider {
+public abstract class AbstractS3DelegationTokenProvider implements DelegationTokenProvider {
 
-    private static final Logger LOG = LoggerFactory.getLogger(S3DelegationTokenProvider.class);
+    private static final Logger LOG =
+            LoggerFactory.getLogger(AbstractS3DelegationTokenProvider.class);
 
     private String region;
     private String accessKey;
     private String secretKey;
-
-    @Override
-    public String serviceName() {
-        return "s3";
-    }
 
     @Override
     public void init(Configuration configuration) {

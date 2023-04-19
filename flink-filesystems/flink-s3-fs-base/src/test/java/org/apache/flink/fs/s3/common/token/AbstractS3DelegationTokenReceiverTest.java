@@ -20,29 +20,29 @@ package org.apache.flink.fs.s3.common.token;
 
 import org.apache.flink.configuration.Configuration;
 
-import org.junit.Test;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.core.security.token.DelegationTokenProvider.CONFIG_PREFIX;
-import static org.apache.flink.fs.s3.common.token.S3DelegationTokenReceiver.PROVIDER_CONFIG_NAME;
+import static org.apache.flink.fs.s3.common.token.AbstractS3DelegationTokenReceiver.PROVIDER_CONFIG_NAME;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-/** Tests for {@link S3DelegationTokenReceiver}. */
-public class S3DelegationTokenReceiverTest {
+/** Tests for {@link AbstractS3DelegationTokenReceiver}. */
+public class AbstractS3DelegationTokenReceiverTest {
 
     private static final String PROVIDER_CLASS_NAME = "TestProvider";
     private static final String REGION = "testRegion";
 
     @BeforeEach
     void beforeEach() {
-        S3DelegationTokenReceiver.region = null;
+        AbstractS3DelegationTokenReceiver.region = null;
     }
 
     @AfterEach
     void afterEach() {
-        S3DelegationTokenReceiver.region = null;
+        AbstractS3DelegationTokenReceiver.region = null;
     }
 
     @Test
@@ -50,7 +50,7 @@ public class S3DelegationTokenReceiverTest {
         org.apache.hadoop.conf.Configuration hadoopConfiguration =
                 new org.apache.hadoop.conf.Configuration();
         hadoopConfiguration.set(PROVIDER_CONFIG_NAME, "");
-        S3DelegationTokenReceiver.updateHadoopConfig(hadoopConfiguration);
+        AbstractS3DelegationTokenReceiver.updateHadoopConfig(hadoopConfiguration);
         assertEquals(
                 DynamicTemporaryAWSCredentialsProvider.NAME,
                 hadoopConfiguration.get(PROVIDER_CONFIG_NAME));
@@ -61,7 +61,7 @@ public class S3DelegationTokenReceiverTest {
         org.apache.hadoop.conf.Configuration hadoopConfiguration =
                 new org.apache.hadoop.conf.Configuration();
         hadoopConfiguration.set(PROVIDER_CONFIG_NAME, PROVIDER_CLASS_NAME);
-        S3DelegationTokenReceiver.updateHadoopConfig(hadoopConfiguration);
+        AbstractS3DelegationTokenReceiver.updateHadoopConfig(hadoopConfiguration);
         String[] providers = hadoopConfiguration.get(PROVIDER_CONFIG_NAME).split(",");
         assertEquals(2, providers.length);
         assertEquals(DynamicTemporaryAWSCredentialsProvider.NAME, providers[0]);
@@ -73,7 +73,7 @@ public class S3DelegationTokenReceiverTest {
         org.apache.hadoop.conf.Configuration hadoopConfiguration =
                 new org.apache.hadoop.conf.Configuration();
         hadoopConfiguration.set(PROVIDER_CONFIG_NAME, DynamicTemporaryAWSCredentialsProvider.NAME);
-        S3DelegationTokenReceiver.updateHadoopConfig(hadoopConfiguration);
+        AbstractS3DelegationTokenReceiver.updateHadoopConfig(hadoopConfiguration);
         assertEquals(
                 DynamicTemporaryAWSCredentialsProvider.NAME,
                 hadoopConfiguration.get(PROVIDER_CONFIG_NAME));
@@ -81,25 +81,34 @@ public class S3DelegationTokenReceiverTest {
 
     @Test
     public void updateHadoopConfigShouldNotUpdateRegionWhenNotConfigured() {
-        S3DelegationTokenReceiver receiver = new S3DelegationTokenReceiver();
+        AbstractS3DelegationTokenReceiver receiver = createReceiver();
         receiver.init(new Configuration());
 
         org.apache.hadoop.conf.Configuration hadoopConfiguration =
                 new org.apache.hadoop.conf.Configuration();
-        S3DelegationTokenReceiver.updateHadoopConfig(hadoopConfiguration);
+        AbstractS3DelegationTokenReceiver.updateHadoopConfig(hadoopConfiguration);
         assertNull(hadoopConfiguration.get("fs.s3a.endpoint.region"));
     }
 
     @Test
     public void updateHadoopConfigShouldUpdateRegionWhenConfigured() {
-        S3DelegationTokenReceiver receiver = new S3DelegationTokenReceiver();
+        AbstractS3DelegationTokenReceiver receiver = createReceiver();
         Configuration configuration = new Configuration();
         configuration.setString(CONFIG_PREFIX + ".s3.region", REGION);
         receiver.init(configuration);
 
         org.apache.hadoop.conf.Configuration hadoopConfiguration =
                 new org.apache.hadoop.conf.Configuration();
-        S3DelegationTokenReceiver.updateHadoopConfig(hadoopConfiguration);
+        AbstractS3DelegationTokenReceiver.updateHadoopConfig(hadoopConfiguration);
         assertEquals(REGION, hadoopConfiguration.get("fs.s3a.endpoint.region"));
+    }
+
+    private AbstractS3DelegationTokenReceiver createReceiver() {
+        return new AbstractS3DelegationTokenReceiver() {
+            @Override
+            public String serviceName() {
+                return "s3";
+            }
+        };
     }
 }

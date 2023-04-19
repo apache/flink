@@ -47,7 +47,7 @@ public class DynamicTemporaryAWSCredentialsProvider implements AWSCredentialsPro
 
     @Override
     public AWSCredentials getCredentials() throws SdkBaseException {
-        Credentials credentials = S3DelegationTokenReceiver.getCredentials();
+        Credentials credentials = AbstractS3DelegationTokenReceiver.getCredentials();
         if (credentials == null) {
             throw new NoAwsCredentialsException(COMPONENT);
         }

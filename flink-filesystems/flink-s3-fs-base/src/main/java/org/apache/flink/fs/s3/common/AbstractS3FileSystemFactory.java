@@ -25,7 +25,7 @@ import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemFactory;
-import org.apache.flink.fs.s3.common.token.S3DelegationTokenReceiver;
+import org.apache.flink.fs.s3.common.token.AbstractS3DelegationTokenReceiver;
 import org.apache.flink.fs.s3.common.writer.S3AccessHelper;
 import org.apache.flink.runtime.util.HadoopConfigLoader;
 import org.apache.flink.util.Preconditions;
@@ -124,7 +124,7 @@ public abstract class AbstractS3FileSystemFactory implements FileSystemFactory {
             // create the Hadoop FileSystem
             org.apache.hadoop.conf.Configuration hadoopConfig =
                     hadoopConfigLoader.getOrLoadHadoopConfig();
-            S3DelegationTokenReceiver.updateHadoopConfig(hadoopConfig);
+            AbstractS3DelegationTokenReceiver.updateHadoopConfig(hadoopConfig);
             org.apache.hadoop.fs.FileSystem fs = createHadoopFileSystem();
             fs.initialize(getInitURI(fsUri, hadoopConfig), hadoopConfig);
 

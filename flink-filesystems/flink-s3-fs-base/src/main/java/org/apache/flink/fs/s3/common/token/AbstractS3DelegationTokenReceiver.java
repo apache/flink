@@ -34,11 +34,12 @@ import javax.annotation.Nullable;
 
 /** Delegation token receiver for S3 filesystems. */
 @Internal
-public class S3DelegationTokenReceiver implements DelegationTokenReceiver {
+public abstract class AbstractS3DelegationTokenReceiver implements DelegationTokenReceiver {
 
     public static final String PROVIDER_CONFIG_NAME = "fs.s3a.aws.credentials.provider";
 
-    private static final Logger LOG = LoggerFactory.getLogger(S3DelegationTokenReceiver.class);
+    private static final Logger LOG =
+            LoggerFactory.getLogger(AbstractS3DelegationTokenReceiver.class);
 
     @VisibleForTesting @Nullable static volatile Credentials credentials;
 
@@ -70,11 +71,6 @@ public class S3DelegationTokenReceiver implements DelegationTokenReceiver {
     }
 
     @Override
-    public String serviceName() {
-        return "s3";
-    }
-
-    @Override
     public void init(Configuration configuration) {
         region =
                 configuration.getString(
@@ -92,7 +88,7 @@ public class S3DelegationTokenReceiver implements DelegationTokenReceiver {
         LOG.info("Updating session credentials");
         credentials =
                 InstantiationUtil.deserializeObject(
-                        tokens, S3DelegationTokenReceiver.class.getClassLoader());
+                        tokens, AbstractS3DelegationTokenReceiver.class.getClassLoader());
         LOG.info(
                 "Session credentials updated successfully with access key: {} expiration: {}",
                 credentials.getAccessKeyId(),

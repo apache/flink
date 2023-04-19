@@ -116,6 +116,11 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
         checkProviderAndReceiverConsistency(
                 delegationTokenProviders,
                 delegationTokenReceiverRepository.delegationTokenReceivers);
+        Set<String> warnings = new HashSet<>();
+        checkSamePrefixedProviders(delegationTokenProviders, warnings);
+        for (String warning : warnings) {
+            LOG.warn(warning);
+        }
     }
 
     private Map<String, DelegationTokenProvider> loadProviders() {
@@ -132,8 +137,9 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                                     provider.serviceName());
                             checkState(
                                     !providers.containsKey(provider.serviceName()),
-                                    "Delegation token provider with service name {} has multiple implementations",
-                                    provider.serviceName());
+                                    "Delegation token provider with service name "
+                                            + provider.serviceName()
+                                            + " has multiple implementations");
                             providers.put(provider.serviceName(), provider);
                         } else {
                             LOG.info(
@@ -201,6 +207,22 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
             }
         }
         LOG.info("Provider and receiver instances are consistent");
+    }
+
+    @VisibleForTesting
+    static void checkSamePrefixedProviders(
+            Map<String, DelegationTokenProvider> providers, Set<String> warnings) {
+        Set<String> providerPrefixes = new HashSet<>();
+        for (String name : providers.keySet()) {
+            String[] split = name.split("-");
+            if (!providerPrefixes.add(split[0])) {
+                String msg =
+                        String.format(
+                                "Multiple providers loaded with the same prefix: %s. This might lead to unintended consequences, please consider using only one of them.",
+                                split[0]);
+                warnings.add(msg);
+            }
+        }
     }
 
     /**
