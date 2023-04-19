@@ -19,7 +19,8 @@ package org.apache.flink.table.planner.runtime.batch.sql
 
 import org.apache.flink.table.catalog.{CatalogPartitionImpl, CatalogPartitionSpec, ObjectPath}
 import org.apache.flink.table.planner.factories.{TestValuesCatalog, TestValuesTableFactory}
-import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.TEMPORARY_FOLDER
+import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase
+import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.createTempFolder
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.utils.TestingTableEnvironment
@@ -188,10 +189,10 @@ class PartitionableSourceITCase(val sourceFetchPartitions: Boolean, val useCatal
          |   }
          |}
          |""".stripMargin
-    val tmpDir = TEMPORARY_FOLDER.newFolder()
+    val tmpJarDir = createTempFolder()
     val udfJarFile =
       UserClassLoaderJarTestUtils.createJarFile(
-        tmpDir,
+        tmpJarDir,
         "flink-test-udf.jar",
         "TrimUDF",
         udfJavaCode)
