@@ -13,4 +13,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-org.apache.flink.fs.s3.common.token.S3DelegationTokenReceiver
+org.apache.flink.fs.s3hadoop.token.S3HadoopDelegationTokenReceiver

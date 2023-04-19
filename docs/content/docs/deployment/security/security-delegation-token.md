@@ -213,23 +213,30 @@ loaded and then will be overwritten by the loading mechanism in Flink.
 
 There are certain limitations to bear in mind when talking about DTs.
 
-Firstly, not all DTs actually expose their renewal period. This is a service configuration that is 
+* Not all DTs actually expose their renewal period. This is a service configuration that is 
 not generally exposed to clients. For this reason, certain DT providers cannot provide a renewal period, 
 thus requiring that the service's configuration is in some way synchronized with another service
-that does provide that information.
-
+that does provide that information.  
 The HDFS service, which is generally available when DTs are needed in the first place, provides
 this information, so in general it's a good idea for all services using DTs to use the same
 configuration as HDFS for the renewal period.
 
-Secondly, Flink is not parsing the user application code, so it doesn't know which delegation
+* Flink is not parsing the user application code, so it doesn't know which delegation
 tokens will be needed. This means that Flink will try to get as many delegation tokens as is possible
 based on the configuration available. That means that if an HBase token provider is enabled but the app
 doesn't actually use HBase, a DT will still be generated. The user would have to explicitly
 disable the mentioned provider in that case.
 
-Thirdly, it is challenging to create DTs "on demand". Flink obtains/distributes tokens upfront
-and re-obtains/re-distributes them periodically.
-
+* It is challenging to create DTs "on demand". Flink obtains/distributes tokens upfront
+and re-obtains/re-distributes them periodically.  
 The advantage, though, is that user code does not need to worry about DTs, since Flink will handle
 them transparently when the proper configuration is available.
+
+* There are external file system plugins which are authenticating to the same service. One good example
+is `s3-hadoop` and `s3-presto`. They both authenticate to S3. They're having different service names
+but obtaining tokens for the same service which might cause unintended consequences. Since they're
+obtaining tokens for the same service they store these tokens at the same place. It's easy to see that
+if they're used together with the same credentials then there will be no issues since the tokens are
+going to be overwritten by each other in a single-threaded way (which belongs to a single user).
+However, if the plugins are configured with different user credentials then the token which will be
+used for data processing can belong to any of the users which is non-deterministic.
