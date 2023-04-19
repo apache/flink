@@ -29,7 +29,7 @@ import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.util.concurrent.atomic.AtomicReference;
 
-/* Statement in flink jdbc driver. */
+/** Statement for flink jdbc driver. */
 public class FlinkStatement extends BaseStatement {
     private final Connection connection;
     private final Executor executor;
