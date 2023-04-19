@@ -22,31 +22,49 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
-import org.junit.ClassRule;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
-/** Batch test base to use {@link ClassRule}. */
-public class BatchAbstractTestBase extends TestLogger {
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Path;
+
+/** Batch test base to use {@link RegisterExtension}. */
+public class BatchAbstractTestBase {
 
     public static final int DEFAULT_PARALLELISM = 3;
 
-    @ClassRule
-    public static MiniClusterWithClientResource miniClusterResource =
-            new MiniClusterWithClientResource(
+    @RegisterExtension
+    public static MiniClusterExtension miniClusterResource =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(getConfiguration())
                             .setNumberTaskManagers(1)
                             .setNumberSlotsPerTaskManager(DEFAULT_PARALLELISM)
                             .build());
 
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+    @TempDir public static Path tmpDir;
 
     private static Configuration getConfiguration() {
         Configuration config = new Configuration();
         config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("100m"));
         return config;
+    }
+
+    public static File createTempFolder() throws IOException {
+        return TempDirUtils.newFolder(BatchAbstractTestBase.tmpDir);
+    }
+
+    public static File createTempFile() throws IOException {
+        Path tmpDirPath = createTempFolder().toPath();
+        return TempDirUtils.newFile(tmpDirPath);
+    }
+
+    public static File createFileInTempFolder(String fileName) throws IOException {
+        Path tmpDirPath = createTempFolder().toPath();
+        return TempDirUtils.newFile(tmpDirPath, fileName);
     }
 }

@@ -894,7 +894,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 
     private void testCaseInsensitive(String format) throws Exception {
         TableEnvironment tEnv = createTableEnvWithHiveCatalog(hiveCatalog);
-        String folderURI = TEMPORARY_FOLDER.newFolder().toURI().toString();
+        String folderURI = createTempFolder().toURI().toString();
 
         // Flink to write sensitive fields to parquet file
         tEnv.executeSql(
