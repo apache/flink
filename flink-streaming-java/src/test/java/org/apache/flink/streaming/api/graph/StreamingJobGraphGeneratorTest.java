@@ -259,8 +259,8 @@ class StreamingJobGraphGeneratorTest {
     @Test
     void testTransformationSetParallelism() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        /* The default parallelism of the environment (that is inherited by the source)
-        and the parallelism of the map operator needs to be different for this test */
+        // The default parallelism of the environment (that is inherited by the source)
+        // and the parallelism of the map operator needs to be different for this test
         env.setParallelism(4);
         env.fromSequence(1L, 3L).map(i -> i).setParallelism(10).print().setParallelism(20);
         StreamGraph streamGraph = env.getStreamGraph();
@@ -281,6 +281,27 @@ class StreamingJobGraphGeneratorTest {
         assertThat(vertices.get(0).isParallelismConfigured()).isFalse();
         assertThat(vertices.get(1).isParallelismConfigured()).isTrue();
         assertThat(vertices.get(2).isParallelismConfigured()).isTrue();
+    }
+
+    @Test
+    void testTransformationSetMaxParallelism() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        // The max parallelism of the environment (that is inherited by the source)
+        // and the parallelism of the map operator needs to be different for this test
+        env.setMaxParallelism(4);
+
+        DataStreamSource<Long> source =
+                env.fromSequence(1L, 3L); // no explicit max parallelism set, grab from environment.
+        SingleOutputStreamOperator<Long> map = source.map(i -> i).setMaxParallelism(10);
+        DataStreamSink<Long> sink = map.print().setMaxParallelism(20);
+
+        StreamGraph streamGraph = env.getStreamGraph();
+
+        // check the streamGraph max parallelism is configured correctly
+        assertThat(streamGraph.getStreamNode(source.getId()).getMaxParallelism()).isEqualTo(4);
+        assertThat(streamGraph.getStreamNode(map.getId()).getMaxParallelism()).isEqualTo(10);
+        assertThat(streamGraph.getStreamNode(sink.getTransformation().getId()).getMaxParallelism())
+                .isEqualTo(20);
     }
 
     @Test
