@@ -35,7 +35,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.Serializable;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Utils for testing serializers. */
 public class SerializerTestUtil {
@@ -48,7 +48,7 @@ public class SerializerTestUtil {
         byte[] serializedConfig;
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
-                    new DataOutputViewStreamWrapper(out), configSnapshot, serializer);
+                    new DataOutputViewStreamWrapper(out), configSnapshot);
             serializedConfig = out.toByteArray();
         }
 
@@ -57,8 +57,7 @@ public class SerializerTestUtil {
             restoredConfig =
                     TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
                             new DataInputViewStreamWrapper(in),
-                            Thread.currentThread().getContextClassLoader(),
-                            serializerGetter.getSerializer());
+                            Thread.currentThread().getContextClassLoader());
         }
 
         TypeSerializerSchemaCompatibility<T> strategy =
@@ -71,7 +70,7 @@ public class SerializerTestUtil {
         } else {
             throw new AssertionError("Unable to restore serializer with " + strategy);
         }
-        assertEquals(serializer.getClass(), restoredSerializer.getClass());
+        assertThat(restoredSerializer.getClass()).isEqualTo(serializer.getClass());
 
         return restoredSerializer;
     }

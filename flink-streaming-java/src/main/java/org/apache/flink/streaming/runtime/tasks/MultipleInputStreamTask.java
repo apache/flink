@@ -22,6 +22,8 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.SavepointType;
+import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -175,7 +177,8 @@ public class MultipleInputStreamTask<OUT>
                         operatorChain,
                         getEnvironment().getTaskStateManager().getInputRescalingDescriptor(),
                         gatePartitioners,
-                        getEnvironment().getTaskInfo());
+                        getEnvironment().getTaskInfo(),
+                        getCanEmitBatchOfRecords());
     }
 
     protected Optional<CheckpointBarrierHandler> getCheckpointBarrierHandler() {
@@ -196,11 +199,24 @@ public class MultipleInputStreamTask<OUT>
         // EndOfPartitionEvent, we would not complement barriers for the
         // unfinished network inputs, and the checkpoint would be triggered
         // after received all the EndOfPartitionEvent.
-        if (options.getCheckpointType().isSynchronous()) {
+        if (isSynchronous(options.getCheckpointType())) {
             return triggerStopWithSavepointAsync(metadata, options);
         } else {
             return triggerSourcesCheckpointAsync(metadata, options);
         }
+    }
+
+    // This is needed for StreamMultipleInputProcessor#processInput to preserve the existing
+    // behavior of choosing an input every time a record is emitted. This behavior is good for
+    // fairness between input consumption. But it can reduce throughput due to added control
+    // flow cost on the per-record code path.
+    @Override
+    public CanEmitBatchOfRecordsChecker getCanEmitBatchOfRecords() {
+        return () -> false;
+    }
+
+    private boolean isSynchronous(SnapshotType snapshotType) {
+        return snapshotType.isSavepoint() && ((SavepointType) snapshotType).isSynchronous();
     }
 
     private CompletableFuture<Boolean> triggerSourcesCheckpointAsync(
@@ -241,7 +257,7 @@ public class MultipleInputStreamTask<OUT>
 
         CompletableFuture<Void> sourcesStopped = new CompletableFuture<>();
         final StopMode stopMode =
-                checkpointOptions.getCheckpointType().shouldDrain()
+                ((SavepointType) checkpointOptions.getCheckpointType()).shouldDrain()
                         ? StopMode.DRAIN
                         : StopMode.NO_DRAIN;
         mainMailboxExecutor.execute(

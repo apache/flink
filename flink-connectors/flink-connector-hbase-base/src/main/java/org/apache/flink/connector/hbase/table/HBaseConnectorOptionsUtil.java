@@ -20,7 +20,6 @@ package org.apache.flink.connector.hbase.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.connector.hbase.options.HBaseLookupOptions;
 import org.apache.flink.connector.hbase.options.HBaseWriteOptions;
 import org.apache.flink.connector.hbase.util.HBaseConfigurationUtil;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
@@ -32,7 +31,6 @@ import org.apache.hadoop.hbase.HConstants;
 import java.util.Map;
 import java.util.Properties;
 
-import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.LOOKUP_CACHE_MAX_ROWS;
 import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.SINK_BUFFER_FLUSH_INTERVAL;
 import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.SINK_BUFFER_FLUSH_MAX_ROWS;
 import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.SINK_BUFFER_FLUSH_MAX_SIZE;
@@ -95,32 +93,18 @@ public class HBaseConnectorOptionsUtil {
         return builder.build();
     }
 
-    public static HBaseLookupOptions getHBaseLookupOptions(ReadableConfig tableOptions) {
-        HBaseLookupOptions.Builder builder = HBaseLookupOptions.builder();
-        builder.setLookupAsync(tableOptions.get(HBaseConnectorOptions.LOOKUP_ASYNC));
-        builder.setMaxRetryTimes(tableOptions.get(HBaseConnectorOptions.LOOKUP_MAX_RETRIES));
-        builder.setCacheExpireMs(
-                tableOptions.get(HBaseConnectorOptions.LOOKUP_CACHE_TTL).toMillis());
-        builder.setCacheMaxSize(tableOptions.get(LOOKUP_CACHE_MAX_ROWS));
-        return builder.build();
-    }
-
-    /**
-     * config HBase Configuration.
-     *
-     * @param options properties option
-     */
-    public static Configuration getHBaseConfiguration(Map<String, String> options) {
-        org.apache.flink.configuration.Configuration tableOptions =
-                org.apache.flink.configuration.Configuration.fromMap(options);
+    /** config HBase Configuration. */
+    public static Configuration getHBaseConfiguration(ReadableConfig tableOptions) {
         // create default configuration from current runtime env (`hbase-site.xml` in classpath)
         // first,
         Configuration hbaseClientConf = HBaseConfigurationUtil.getHBaseConfiguration();
-        hbaseClientConf.set(HConstants.ZOOKEEPER_QUORUM, tableOptions.getString(ZOOKEEPER_QUORUM));
+        hbaseClientConf.set(HConstants.ZOOKEEPER_QUORUM, tableOptions.get(ZOOKEEPER_QUORUM));
         hbaseClientConf.set(
-                HConstants.ZOOKEEPER_ZNODE_PARENT, tableOptions.getString(ZOOKEEPER_ZNODE_PARENT));
+                HConstants.ZOOKEEPER_ZNODE_PARENT, tableOptions.get(ZOOKEEPER_ZNODE_PARENT));
         // add HBase properties
-        final Properties properties = getHBaseClientProperties(options);
+        final Properties properties =
+                getHBaseClientProperties(
+                        ((org.apache.flink.configuration.Configuration) tableOptions).toMap());
         properties.forEach((k, v) -> hbaseClientConf.set(k.toString(), v.toString()));
         return hbaseClientConf;
     }

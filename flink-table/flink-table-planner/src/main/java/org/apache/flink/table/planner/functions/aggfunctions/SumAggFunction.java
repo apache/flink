@@ -23,6 +23,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
+import org.apache.flink.table.functions.DeclarativeAggregateFunction;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
@@ -65,10 +66,7 @@ public abstract class SumAggFunction extends DeclarativeAggregateFunction {
             /* sum = */ ifThenElse(
                     isNull(operand(0)),
                     sum,
-                    ifThenElse(
-                            isNull(operand(0)),
-                            sum,
-                            ifThenElse(isNull(sum), operand(0), adjustedPlus(sum, operand(0)))))
+                    ifThenElse(isNull(sum), operand(0), adjustedPlus(sum, operand(0))))
         };
     }
 

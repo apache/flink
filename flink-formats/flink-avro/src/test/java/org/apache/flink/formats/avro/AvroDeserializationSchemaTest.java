@@ -24,53 +24,52 @@ import org.apache.flink.formats.avro.generated.UnionLogicalType;
 import org.apache.flink.formats.avro.utils.TestDataGenerator;
 
 import org.apache.avro.generic.GenericRecord;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.Random;
 
 import static org.apache.flink.formats.avro.utils.AvroTestUtils.writeRecord;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link AvroDeserializationSchema}. */
-public class AvroDeserializationSchemaTest {
+class AvroDeserializationSchemaTest {
 
     private static final Address address = TestDataGenerator.generateRandomAddress(new Random());
 
     @Test
-    public void testNullRecord() throws Exception {
+    void testNullRecord() throws Exception {
         DeserializationSchema<Address> deserializer =
                 AvroDeserializationSchema.forSpecific(Address.class);
 
         Address deserializedAddress = deserializer.deserialize(null);
-        assertNull(deserializedAddress);
+        assertThat(deserializedAddress).isNull();
     }
 
     @Test
-    public void testGenericRecord() throws Exception {
+    void testGenericRecord() throws Exception {
         DeserializationSchema<GenericRecord> deserializationSchema =
                 AvroDeserializationSchema.forGeneric(address.getSchema());
 
         byte[] encodedAddress = writeRecord(address, Address.getClassSchema());
         GenericRecord genericRecord = deserializationSchema.deserialize(encodedAddress);
-        assertEquals(address.getCity(), genericRecord.get("city").toString());
-        assertEquals(address.getNum(), genericRecord.get("num"));
-        assertEquals(address.getState(), genericRecord.get("state").toString());
+        assertThat(genericRecord.get("city").toString()).isEqualTo(address.getCity());
+        assertThat(genericRecord.get("num")).isEqualTo(address.getNum());
+        assertThat(genericRecord.get("state").toString()).isEqualTo(address.getState());
     }
 
     @Test
-    public void testSpecificRecord() throws Exception {
+    void testSpecificRecord() throws Exception {
         DeserializationSchema<Address> deserializer =
                 AvroDeserializationSchema.forSpecific(Address.class);
 
         byte[] encodedAddress = writeRecord(address);
         Address deserializedAddress = deserializer.deserialize(encodedAddress);
-        assertEquals(address, deserializedAddress);
+        assertThat(deserializedAddress).isEqualTo(address);
     }
 
     @Test
-    public void testSpecificRecordWithUnionLogicalType() throws Exception {
+    void testSpecificRecordWithUnionLogicalType() throws Exception {
         Random rnd = new Random();
         UnionLogicalType data = new UnionLogicalType(Instant.ofEpochMilli(rnd.nextLong()));
         DeserializationSchema<UnionLogicalType> deserializer =
@@ -78,6 +77,6 @@ public class AvroDeserializationSchemaTest {
 
         byte[] encodedData = writeRecord(data);
         UnionLogicalType deserializedData = deserializer.deserialize(encodedData);
-        assertEquals(data, deserializedData);
+        assertThat(deserializedData).isEqualTo(data);
     }
 }

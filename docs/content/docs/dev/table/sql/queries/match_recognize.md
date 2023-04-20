@@ -98,7 +98,7 @@ project.
 ```
 
 Alternatively, you can also add the dependency to the cluster classpath (see the
-[dependency section]({{< ref "docs/dev/datastream/project-configuration" >}}) for more information).
+[dependency section]({{< ref "docs/dev/configuration/overview" >}}) for more information).
 
 If you want to use the `MATCH_RECOGNIZE` clause in the
 [SQL Client]({{< ref "docs/dev/table/sqlClient" >}}), you don't have to do anything as all the
@@ -481,7 +481,7 @@ FROM Ticker
         AFTER MATCH SKIP PAST LAST ROW
         PATTERN (A B* C) WITHIN INTERVAL '1' HOUR
         DEFINE
-            B AS B.price > A.price - 10
+            B AS B.price > A.price - 10,
             C AS C.price < A.price - 10
     )
 ```
@@ -723,9 +723,7 @@ variable. This can be expressed with two corresponding functions:
   <tbody>
   <tr>
     <td>
-```text
-LAST(variable.field, n)
-```
+        <code>LAST(variable.field, n)</code>
     </td>
     <td>
       <p>Returns the value of the field from the event that was mapped to the <i>n</i>-th
@@ -734,9 +732,7 @@ LAST(variable.field, n)
   </tr>
   <tr>
     <td>
-```text
-FIRST(variable.field, n)
-```
+        <code>FIRST(variable.field, n)</code>
     </td>
     <td>
       <p>Returns the value of the field from the event that was mapped to the <i>n</i>-th element

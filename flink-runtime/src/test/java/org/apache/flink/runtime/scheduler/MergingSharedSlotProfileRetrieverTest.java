@@ -40,6 +40,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -62,7 +63,7 @@ public class MergingSharedSlotProfileRetrieverTest extends TestLogger {
         SharedSlotProfileRetriever sharedSlotProfileRetriever =
                 new MergingSharedSlotProfileRetrieverFactory(
                                 EMPTY_PREFERRED_LOCATIONS_RETRIEVER,
-                                executionVertexID -> new AllocationID(),
+                                executionVertexID -> Optional.of(new AllocationID()),
                                 () -> Collections.emptySet())
                         .createFromBulk(Collections.emptySet());
 
@@ -203,8 +204,9 @@ public class MergingSharedSlotProfileRetrieverTest extends TestLogger {
                 new MergingSharedSlotProfileRetrieverFactory(
                                 preferredLocationsRetriever,
                                 executionVertexID ->
-                                        prevAllocationIDs.get(
-                                                executions.indexOf(executionVertexID)),
+                                        Optional.ofNullable(
+                                                prevAllocationIDs.get(
+                                                        executions.indexOf(executionVertexID))),
                                 () -> new HashSet<>(reservedAllocationIds))
                         .createFromBulk(new HashSet<>(executions));
 

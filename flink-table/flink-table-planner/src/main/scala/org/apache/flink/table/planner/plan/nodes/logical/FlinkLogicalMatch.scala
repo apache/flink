@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.logical
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory.{isRowtimeIndicatorType, isTimestampLtzIndicatorType}
@@ -24,10 +23,11 @@ import org.apache.flink.table.planner.plan.utils.MatchUtil
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.{RelCollation, RelNode}
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 import org.apache.calcite.rel.core.Match
 import org.apache.calcite.rel.logical.LogicalMatch
-import org.apache.calcite.rel.{RelCollation, RelNode}
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.util.{ImmutableBitSet, Litmus}
 
@@ -70,12 +70,12 @@ class FlinkLogicalMatch(
   with FlinkLogicalRel {
 
   override def isValid(litmus: Litmus, context: RelNode.Context): Boolean = {
-    val inputContainsRowTimeLtz = input.getRowType.getFieldList.exists { field =>
-      isRowtimeIndicatorType(field.getType) && isTimestampLtzIndicatorType(field.getType)
+    val inputContainsRowTimeLtz = input.getRowType.getFieldList.exists {
+      field => isRowtimeIndicatorType(field.getType) && isTimestampLtzIndicatorType(field.getType)
     }
     if (inputContainsRowTimeLtz) {
-      val containMatchRowTimeWithoutArgs = getMeasures.values().exists(
-        MatchUtil.isFinalOnMatchRowTimeWithoutArgs)
+      val containMatchRowTimeWithoutArgs =
+        getMeasures.values().exists(MatchUtil.isFinalOnMatchRowTimeWithoutArgs)
       if (containMatchRowTimeWithoutArgs) {
         litmus.fail(
           "MATCH_ROWTIME(rowtimeField) should be used when input stream contains " +
@@ -89,7 +89,6 @@ class FlinkLogicalMatch(
       litmus.succeed()
     }
   }
-
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new FlinkLogicalMatch(
@@ -111,12 +110,7 @@ class FlinkLogicalMatch(
   }
 }
 
-private class FlinkLogicalMatchConverter
-  extends ConverterRule(
-    classOf[LogicalMatch],
-    Convention.NONE,
-    FlinkConventions.LOGICAL,
-    "FlinkLogicalMatchConverter") {
+private class FlinkLogicalMatchConverter(config: Config) extends ConverterRule(config) {
 
   override def convert(rel: RelNode): RelNode = {
     val logicalMatch = rel.asInstanceOf[LogicalMatch]
@@ -143,5 +137,10 @@ private class FlinkLogicalMatchConverter
 }
 
 object FlinkLogicalMatch {
-  val CONVERTER: ConverterRule = new FlinkLogicalMatchConverter()
+  val CONVERTER: ConverterRule = new FlinkLogicalMatchConverter(
+    Config.INSTANCE.withConversion(
+      classOf[LogicalMatch],
+      Convention.NONE,
+      FlinkConventions.LOGICAL,
+      "FlinkLogicalMatchConverter"))
 }

@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.leaderelection;
 
+import java.util.UUID;
+
 /**
  * Interface which should be implemented to respond to leader changes in {@link
  * LeaderElectionDriver}.
@@ -30,10 +32,17 @@ package org.apache.flink.runtime.leaderelection;
  */
 public interface LeaderElectionEventHandler {
 
-    /** Called by specific {@link LeaderElectionDriver} when the leadership is granted. */
-    void onGrantLeadership();
+    /**
+     * Called by specific {@link LeaderElectionDriver} when the leadership is granted.
+     *
+     * @param newLeaderSessionId the valid leader session id
+     */
+    void onGrantLeadership(UUID newLeaderSessionId);
 
-    /** Called by specific {@link LeaderElectionDriver} when the leadership is revoked. */
+    /**
+     * Called by specific {@link LeaderElectionDriver} when the leadership is revoked. Updating the
+     * LeaderElection data at this point doesn't have any effect anymore.
+     */
     void onRevokeLeadership();
 
     /**

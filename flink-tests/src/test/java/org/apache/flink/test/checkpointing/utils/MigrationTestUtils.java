@@ -110,7 +110,7 @@ public class MigrationTestUtils {
 
         private static final long serialVersionUID = 1L;
 
-        static final String SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR =
+        public static final String SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR =
                 CheckingNonParallelSourceWithListState.class + "_RESTORE_CHECK";
 
         private volatile boolean isRunning = true;
@@ -251,7 +251,7 @@ public class MigrationTestUtils {
 
         private static final long serialVersionUID = 1L;
 
-        static final String SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR =
+        public static final String SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR =
                 CheckingParallelSourceWithUnionListState.class + "_RESTORE_CHECK";
 
         private volatile boolean isRunning = true;

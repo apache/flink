@@ -24,6 +24,7 @@ import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
@@ -124,7 +125,7 @@ public class EmbeddedLeaderService {
 
     @GuardedBy("lock")
     private void shutdownInternally(Exception exceptionForHandlers) {
-        assert Thread.holdsLock(lock);
+        Preconditions.checkState(Thread.holdsLock(lock));
 
         if (!shutdown) {
             // clear all leader status
@@ -210,6 +211,9 @@ public class EmbeddedLeaderService {
                 }
 
                 // stop the service
+                if (service.isLeader) {
+                    service.contender.revokeLeadership();
+                }
                 service.contender = null;
                 service.running = false;
                 service.isLeader = false;
@@ -289,7 +293,7 @@ public class EmbeddedLeaderService {
     @GuardedBy("lock")
     private CompletableFuture<Void> updateLeader() {
         // this must be called under the lock
-        assert Thread.holdsLock(lock);
+        Preconditions.checkState(Thread.holdsLock(lock));
 
         if (currentLeaderConfirmed == null && currentLeaderProposed == null) {
             // we need a new leader

@@ -23,70 +23,73 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileChannel.MapMode;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.Arrays;
+import java.util.UUID;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link BufferReaderWriterUtil}. */
-public class BufferReaderWriterUtilTest {
-
-    @ClassRule public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
+@ExtendWith(TestLoggerExtension.class)
+class BufferReaderWriterUtilTest {
 
     // ------------------------------------------------------------------------
     // Byte Buffer
     // ------------------------------------------------------------------------
 
     @Test
-    public void writeReadByteBuffer() {
+    void writeReadByteBuffer() {
         final ByteBuffer memory = ByteBuffer.allocateDirect(1200);
         final Buffer buffer = createTestBuffer();
+        BufferReaderWriterUtil.configureByteBuffer(memory);
 
         BufferReaderWriterUtil.writeBuffer(buffer, memory);
         final int pos = memory.position();
         memory.flip();
         Buffer result = BufferReaderWriterUtil.sliceNextBuffer(memory);
 
-        assertEquals(pos, memory.position());
+        assertThat(memory.position()).isEqualTo(pos);
         validateTestBuffer(result);
     }
 
     @Test
-    public void writeByteBufferNotEnoughSpace() {
+    void writeByteBufferNotEnoughSpace() {
         final ByteBuffer memory = ByteBuffer.allocateDirect(10);
         final Buffer buffer = createTestBuffer();
 
         final boolean written = BufferReaderWriterUtil.writeBuffer(buffer, memory);
 
-        assertFalse(written);
-        assertEquals(0, memory.position());
-        assertEquals(memory.capacity(), memory.limit());
+        assertThat(written).isFalse();
+        assertThat(memory.position()).isZero();
+        assertThat(memory.limit()).isEqualTo(memory.capacity());
     }
 
     @Test
-    public void readFromEmptyByteBuffer() {
+    void readFromEmptyByteBuffer() {
         final ByteBuffer memory = ByteBuffer.allocateDirect(100);
         memory.position(memory.limit());
 
         final Buffer result = BufferReaderWriterUtil.sliceNextBuffer(memory);
 
-        assertNull(result);
+        assertThat(result).isNull();
     }
 
     @Test
-    public void testReadFromByteBufferNotEnoughData() {
+    void testReadFromByteBufferNotEnoughData() {
         final ByteBuffer memory = ByteBuffer.allocateDirect(1200);
         final Buffer buffer = createTestBuffer();
         BufferReaderWriterUtil.writeBuffer(buffer, memory);
@@ -94,12 +97,8 @@ public class BufferReaderWriterUtilTest {
         memory.flip().limit(memory.limit() - 1);
         ByteBuffer tooSmall = memory.slice();
 
-        try {
-            BufferReaderWriterUtil.sliceNextBuffer(tooSmall);
-            fail();
-        } catch (Exception e) {
-            // expected
-        }
+        assertThatThrownBy(() -> BufferReaderWriterUtil.sliceNextBuffer(tooSmall))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     // ------------------------------------------------------------------------
@@ -107,8 +106,8 @@ public class BufferReaderWriterUtilTest {
     // ------------------------------------------------------------------------
 
     @Test
-    public void writeReadFileChannel() throws Exception {
-        final FileChannel fc = tmpFileChannel();
+    void writeReadFileChannel(@TempDir Path tempPath) throws Exception {
+        final FileChannel fc = tmpFileChannel(tempPath);
         final Buffer buffer = createTestBuffer();
         final MemorySegment readBuffer =
                 MemorySegmentFactory.allocateUnpooledOffHeapMemory(buffer.getSize(), null);
@@ -128,8 +127,8 @@ public class BufferReaderWriterUtilTest {
     }
 
     @Test
-    public void readPrematureEndOfFile1() throws Exception {
-        final FileChannel fc = tmpFileChannel();
+    void readPrematureEndOfFile1(@TempDir Path tempPath) throws Exception {
+        final FileChannel fc = tmpFileChannel(tempPath);
         final Buffer buffer = createTestBuffer();
         final MemorySegment readBuffer =
                 MemorySegmentFactory.allocateUnpooledOffHeapMemory(buffer.getSize(), null);
@@ -139,21 +138,19 @@ public class BufferReaderWriterUtilTest {
         fc.truncate(fc.position() - 1);
         fc.position(0);
 
-        try {
-            BufferReaderWriterUtil.readFromByteChannel(
-                    fc,
-                    BufferReaderWriterUtil.allocatedHeaderBuffer(),
-                    readBuffer,
-                    FreeingBufferRecycler.INSTANCE);
-            fail();
-        } catch (IOException e) {
-            // expected
-        }
+        assertThatThrownBy(
+                        () ->
+                                BufferReaderWriterUtil.readFromByteChannel(
+                                        fc,
+                                        BufferReaderWriterUtil.allocatedHeaderBuffer(),
+                                        readBuffer,
+                                        FreeingBufferRecycler.INSTANCE))
+                .isInstanceOf(IOException.class);
     }
 
     @Test
-    public void readPrematureEndOfFile2() throws Exception {
-        final FileChannel fc = tmpFileChannel();
+    void readPrematureEndOfFile2(@TempDir Path tempPath) throws Exception {
+        final FileChannel fc = tmpFileChannel(tempPath);
         final Buffer buffer = createTestBuffer();
         final MemorySegment readBuffer =
                 MemorySegmentFactory.allocateUnpooledOffHeapMemory(buffer.getSize(), null);
@@ -163,31 +160,43 @@ public class BufferReaderWriterUtilTest {
         fc.truncate(2); // less than a header size
         fc.position(0);
 
-        try {
-            BufferReaderWriterUtil.readFromByteChannel(
-                    fc,
-                    BufferReaderWriterUtil.allocatedHeaderBuffer(),
-                    readBuffer,
-                    FreeingBufferRecycler.INSTANCE);
-            fail();
-        } catch (IOException e) {
-            // expected
-        }
+        assertThatThrownBy(
+                        () ->
+                                BufferReaderWriterUtil.readFromByteChannel(
+                                        fc,
+                                        BufferReaderWriterUtil.allocatedHeaderBuffer(),
+                                        readBuffer,
+                                        FreeingBufferRecycler.INSTANCE))
+                .isInstanceOf(IOException.class);
     }
 
     @Test
-    public void testBulkWritingLargeNumberOfBuffers() throws Exception {
+    void testBulkWritingLargeNumberOfBuffers(@TempDir Path tempPath) throws Exception {
         int bufferSize = 1024;
         int numBuffers = 1025;
-        try (FileChannel fileChannel = tmpFileChannel()) {
+        try (FileChannel fileChannel = tmpFileChannel(tempPath)) {
             ByteBuffer[] data = new ByteBuffer[numBuffers];
             for (int i = 0; i < numBuffers; ++i) {
                 data[i] = ByteBuffer.allocateDirect(bufferSize);
             }
             int bytesExpected = bufferSize * numBuffers;
             BufferReaderWriterUtil.writeBuffers(fileChannel, bytesExpected, data);
-            assertEquals(bytesExpected, fileChannel.size());
+            assertThat(fileChannel.size()).isEqualTo(bytesExpected);
         }
+    }
+
+    @Test
+    void testPositionToNextBuffer(@TempDir Path tempPath) throws Exception {
+        final FileChannel fc = tmpFileChannel(tempPath);
+        ByteBuffer[] byteBuffersWithHeader = createByteBuffersWithHeader(2);
+        long totalBytes =
+                Arrays.stream(byteBuffersWithHeader).mapToLong(ByteBuffer::remaining).sum();
+        BufferReaderWriterUtil.writeBuffers(fc, totalBytes, byteBuffersWithHeader);
+        // reset the channel's position to read.
+        fc.position(0);
+        BufferReaderWriterUtil.positionToNextBuffer(fc, byteBuffersWithHeader[0]);
+        long expectedPosition = totalBytes / 2;
+        assertThat(fc.position()).isEqualTo(expectedPosition);
     }
 
     // ------------------------------------------------------------------------
@@ -195,8 +204,8 @@ public class BufferReaderWriterUtilTest {
     // ------------------------------------------------------------------------
 
     @Test
-    public void writeFileReadMemoryBuffer() throws Exception {
-        final FileChannel fc = tmpFileChannel();
+    void writeFileReadMemoryBuffer(@TempDir Path tempPath) throws Exception {
+        final FileChannel fc = tmpFileChannel(tempPath);
         final Buffer buffer = createTestBuffer();
         BufferReaderWriterUtil.writeToByteChannel(
                 fc, buffer, BufferReaderWriterUtil.allocatedWriteBufferArray());
@@ -215,12 +224,27 @@ public class BufferReaderWriterUtilTest {
     //  Util
     // ------------------------------------------------------------------------
 
-    private static FileChannel tmpFileChannel() throws IOException {
+    private static FileChannel tmpFileChannel(Path tempPath) throws IOException {
         return FileChannel.open(
-                TMP_FOLDER.newFile().toPath(),
+                Files.createFile(tempPath.resolve(UUID.randomUUID().toString())),
                 StandardOpenOption.CREATE,
                 StandardOpenOption.READ,
                 StandardOpenOption.WRITE);
+    }
+
+    /**
+     * Create an array of ByteBuffer, the odd-numbered position in the array is header buffer, and
+     * the even-numbered position is the corresponding data buffer.
+     */
+    private static ByteBuffer[] createByteBuffersWithHeader(int numBuffers) {
+        ByteBuffer[] buffers = new ByteBuffer[numBuffers * 2];
+        for (int i = 0; i < numBuffers; i++) {
+            buffers[2 * i] = BufferReaderWriterUtil.allocatedHeaderBuffer();
+            Buffer buffer = createTestBuffer();
+            BufferReaderWriterUtil.setByteChannelBufferHeader(buffer, buffers[2 * i]);
+            buffers[2 * i + 1] = buffer.getNioBufferReadable();
+        }
+        return buffers;
     }
 
     private static Buffer createTestBuffer() {

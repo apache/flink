@@ -15,14 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.{TableException, _}
 import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils._
+import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.types.Row
 
 import org.junit.Assert._
@@ -44,7 +43,7 @@ class LimitITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mod
       ("fruit", 5, 22))
 
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'num)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql = "SELECT * FROM T LIMIT 4"
 
@@ -52,11 +51,7 @@ class LimitITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mod
     tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
 
-    val expected = Seq(
-      "book,1,12",
-      "book,2,19",
-      "book,4,11",
-      "fruit,4,33")
+    val expected = Seq("book,1,12", "book,2,19", "book,4,11", "fruit,4,33")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
@@ -71,7 +66,7 @@ class LimitITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mod
       ("fruit", 5, 22))
 
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'num)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql = "SELECT * FROM T LIMIT 4 OFFSET 2"
 
@@ -79,11 +74,7 @@ class LimitITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mod
     tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
 
-    val expected = Seq(
-      "book,4,11",
-      "fruit,4,33",
-      "fruit,3,44",
-      "fruit,5,22")
+    val expected = Seq("book,4,11", "fruit,4,33", "fruit,3,44", "fruit,5,22")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
@@ -99,7 +90,7 @@ class LimitITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mod
       ("fruit", 5, 22))
 
     val t = env.fromCollection(data).toTable(tEnv, 'category, 'shopId, 'num)
-    tEnv.registerTable("T", t)
+    tEnv.createTemporaryView("T", t)
 
     val sql = "SELECT * FROM T OFFSET 2"
     thrown.expect(classOf[TableException])

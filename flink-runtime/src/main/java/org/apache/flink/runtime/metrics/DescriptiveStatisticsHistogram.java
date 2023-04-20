@@ -28,8 +28,7 @@ import java.io.Serializable;
  * The {@link DescriptiveStatisticsHistogram} use a DescriptiveStatistics {@link
  * DescriptiveStatistics} as a Flink {@link Histogram}.
  */
-public class DescriptiveStatisticsHistogram
-        implements org.apache.flink.metrics.Histogram, Serializable {
+public class DescriptiveStatisticsHistogram implements Histogram, Serializable {
     private static final long serialVersionUID = 1L;
 
     private final CircularDoubleArray descriptiveStatistics;

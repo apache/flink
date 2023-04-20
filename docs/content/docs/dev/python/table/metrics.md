@@ -60,7 +60,6 @@ class MyUDF(ScalarFunction):
     def eval(self, i):
         self.counter.inc(i)
         return i
-
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -137,7 +136,6 @@ class MyUDF(ScalarFunction):
         self.meter = None
 
     def open(self, function_context):
-        super().open(function_context)
         # an average rate of events per second over 120s, default is 60s.
         self.meter = function_context.get_metric_group().meter("my_meter", time_span_in_seconds=120)
 
@@ -162,17 +160,15 @@ group's sub-groups. In this case, the value group will be returned, and a user v
 {{< tabs "a3040b2d-bf2d-4ce4-be2f-2896f48334c8" >}}
 {{< tab "Python" >}}
 ```python
-
-function_context
-    .get_metric_group()
-    .add_group("my_metrics")
+function_context \
+    .get_metric_group() \
+    .add_group("my_metrics") \
     .counter("my_counter")
 
-function_context
-    .get_metric_group()
-    .add_group("my_metrics_key", "my_metrics_value")
+function_context \
+    .get_metric_group() \
+    .add_group("my_metrics_key", "my_metrics_value") \
     .counter("my_counter")
-
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -195,9 +191,9 @@ specifying the value parameter.
 {{< tabs "d27cbda0-da5f-4a77-a02e-2e54e3156e31" >}}
 {{< tab "Python" >}}
 ```python
-function_context
-    .get_metric_group()
-    .add_group("my_metrics_key", "my_metrics_value")
+function_context \
+    .get_metric_group() \
+    .add_group("my_metrics_key", "my_metrics_value") \
     .counter("my_counter")
 ```
 {{< /tab >}}

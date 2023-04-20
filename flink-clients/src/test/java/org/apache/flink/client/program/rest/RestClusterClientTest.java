@@ -21,25 +21,29 @@ package org.apache.flink.client.program.rest;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.client.deployment.StandaloneClusterId;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
+import org.apache.flink.runtime.io.network.partition.DataSetMetaInfo;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
+import org.apache.flink.runtime.messages.webmonitor.JobStatusInfo;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
@@ -67,12 +71,19 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
 import org.apache.flink.runtime.rest.messages.TriggerId;
 import org.apache.flink.runtime.rest.messages.TriggerIdPathParameter;
-import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
-import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
+import org.apache.flink.runtime.rest.messages.dataset.ClusterDataSetDeleteStatusHeaders;
+import org.apache.flink.runtime.rest.messages.dataset.ClusterDataSetDeleteStatusMessageParameters;
+import org.apache.flink.runtime.rest.messages.dataset.ClusterDataSetDeleteTriggerHeaders;
+import org.apache.flink.runtime.rest.messages.dataset.ClusterDataSetDeleteTriggerMessageParameters;
+import org.apache.flink.runtime.rest.messages.dataset.ClusterDataSetIdPathParameter;
+import org.apache.flink.runtime.rest.messages.dataset.ClusterDataSetListHeaders;
+import org.apache.flink.runtime.rest.messages.dataset.ClusterDataSetListResponseBody;
 import org.apache.flink.runtime.rest.messages.job.JobExecutionResultHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobExecutionResultResponseBody;
+import org.apache.flink.runtime.rest.messages.job.JobStatusInfoHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitResponseBody;
@@ -89,6 +100,7 @@ import org.apache.flink.runtime.rest.util.TestRestServerEndpoint;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -96,53 +108,53 @@ import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.SerializedValue;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import org.apache.commons.cli.CommandLine;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.io.TempDir;
 
 import javax.annotation.Nonnull;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URL;
+import java.nio.file.Files;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * Tests for the {@link RestClusterClient}.
@@ -150,7 +162,7 @@ import static org.junit.Assert.fail;
  * <p>These tests verify that the client uses the appropriate headers for each request, properly
  * constructs the request bodies/parameters and processes the responses correctly.
  */
-public class RestClusterClientTest extends TestLogger {
+class RestClusterClientTest {
 
     private final DispatcherGateway mockRestfulGateway =
             TestingDispatcherGateway.newBuilder().build();
@@ -176,8 +188,8 @@ public class RestClusterClientTest extends TestLogger {
         restConfig = config;
     }
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeEach
+    void setUp() {
         mockGatewayRetriever = () -> CompletableFuture.completedFuture(mockRestfulGateway);
 
         executor =
@@ -188,8 +200,8 @@ public class RestClusterClientTest extends TestLogger {
         jobId = jobGraph.getJobID();
     }
 
-    @After
-    public void tearDown() {
+    @AfterEach
+    void tearDown() {
         if (executor != null) {
             executor.shutdown();
         }
@@ -243,7 +255,7 @@ public class RestClusterClientTest extends TestLogger {
     }
 
     @Test
-    public void testJobSubmitCancel() throws Exception {
+    void testJobSubmitCancel() throws Exception {
         TestJobSubmitHandler submitHandler = new TestJobSubmitHandler();
         TestJobCancellationHandler terminationHandler = new TestJobCancellationHandler();
 
@@ -252,13 +264,13 @@ public class RestClusterClientTest extends TestLogger {
 
             try (RestClusterClient<?> restClusterClient =
                     createRestClusterClient(restServerEndpoint.getServerAddress().getPort())) {
-                Assert.assertFalse(submitHandler.jobSubmitted);
+                assertThat(submitHandler.jobSubmitted).isFalse();
                 restClusterClient.submitJob(jobGraph).get();
-                Assert.assertTrue(submitHandler.jobSubmitted);
+                assertThat(submitHandler.jobSubmitted).isTrue();
 
-                Assert.assertFalse(terminationHandler.jobCanceled);
+                assertThat(terminationHandler.jobCanceled).isFalse();
                 restClusterClient.cancel(jobId).get();
-                Assert.assertTrue(terminationHandler.jobCanceled);
+                assertThat(terminationHandler.jobCanceled).isTrue();
             }
         }
     }
@@ -302,7 +314,7 @@ public class RestClusterClientTest extends TestLogger {
     }
 
     @Test
-    public void testDisposeSavepoint() throws Exception {
+    void testDisposeSavepoint() throws Exception {
         final String savepointPath = "foobar";
         final String exceptionMessage = "Test exception.";
         final FlinkException testException = new FlinkException(exceptionMessage);
@@ -332,7 +344,7 @@ public class RestClusterClientTest extends TestLogger {
                 {
                     final CompletableFuture<Acknowledge> disposeSavepointFuture =
                             restClusterClient.disposeSavepoint(savepointPath);
-                    assertThat(disposeSavepointFuture.get(), is(Acknowledge.get()));
+                    assertThat(disposeSavepointFuture.get()).isEqualTo(Acknowledge.get());
                 }
 
                 {
@@ -343,10 +355,8 @@ public class RestClusterClientTest extends TestLogger {
                         disposeSavepointFuture.get();
                         fail("Expected an exception");
                     } catch (ExecutionException ee) {
-                        assertThat(
-                                ExceptionUtils.findThrowableWithMessage(ee, exceptionMessage)
-                                        .isPresent(),
-                                is(true));
+                        assertThat(ExceptionUtils.findThrowableWithMessage(ee, exceptionMessage))
+                                .isPresent();
                     }
                 }
 
@@ -355,10 +365,8 @@ public class RestClusterClientTest extends TestLogger {
                         restClusterClient.disposeSavepoint(savepointPath).get();
                         fail("Expected an exception.");
                     } catch (ExecutionException ee) {
-                        assertThat(
-                                ExceptionUtils.findThrowable(ee, RestClientException.class)
-                                        .isPresent(),
-                                is(true));
+                        assertThat(ExceptionUtils.findThrowable(ee, RestClientException.class))
+                                .isPresent();
                     }
                 }
             } finally {
@@ -388,7 +396,7 @@ public class RestClusterClientTest extends TestLogger {
             protected CompletableFuture<TriggerResponse> handleRequest(
                     @Nonnull HandlerRequest<SavepointDisposalRequest> request,
                     @Nonnull DispatcherGateway gateway) {
-                assertThat(request.getRequestBody().getSavepointPath(), is(savepointPath));
+                assertThat(request.getRequestBody().getSavepointPath()).isEqualTo(savepointPath);
                 return CompletableFuture.completedFuture(new TriggerResponse(triggerId));
             }
         }
@@ -442,7 +450,201 @@ public class RestClusterClientTest extends TestLogger {
     }
 
     @Test
-    public void testListJobs() throws Exception {
+    public void testListCompletedClusterDatasetIds() {
+        Set<AbstractID> expectedCompletedClusterDatasetIds = new HashSet<>();
+        expectedCompletedClusterDatasetIds.add(new AbstractID());
+        expectedCompletedClusterDatasetIds.add(new AbstractID());
+
+        try (TestRestServerEndpoint restServerEndpoint =
+                createRestServerEndpoint(
+                        new TestListCompletedClusterDatasetHandler(
+                                expectedCompletedClusterDatasetIds))) {
+            try (RestClusterClient<?> restClusterClient =
+                    createRestClusterClient(restServerEndpoint.getServerAddress().getPort())) {
+                final Set<AbstractID> returnedIds =
+                        restClusterClient.listCompletedClusterDatasetIds().get();
+                assertThat(returnedIds).isEqualTo(expectedCompletedClusterDatasetIds);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private class TestListCompletedClusterDatasetHandler
+            extends TestHandler<
+                    EmptyRequestBody, ClusterDataSetListResponseBody, EmptyMessageParameters> {
+
+        private final Set<AbstractID> intermediateDataSetIds;
+
+        private TestListCompletedClusterDatasetHandler(Set<AbstractID> intermediateDataSetIds) {
+            super(ClusterDataSetListHeaders.INSTANCE);
+            this.intermediateDataSetIds = intermediateDataSetIds;
+        }
+
+        @Override
+        protected CompletableFuture<ClusterDataSetListResponseBody> handleRequest(
+                @Nonnull HandlerRequest<EmptyRequestBody> request,
+                @Nonnull DispatcherGateway gateway)
+                throws RestHandlerException {
+
+            Map<IntermediateDataSetID, DataSetMetaInfo> datasets = new HashMap<>();
+            intermediateDataSetIds.forEach(
+                    id ->
+                            datasets.put(
+                                    new IntermediateDataSetID(id),
+                                    DataSetMetaInfo.withNumRegisteredPartitions(1, 1)));
+            return CompletableFuture.completedFuture(ClusterDataSetListResponseBody.from(datasets));
+        }
+    }
+
+    @Test
+    public void testInvalidateClusterDataset() throws Exception {
+        final IntermediateDataSetID intermediateDataSetID = new IntermediateDataSetID();
+        final String exceptionMessage = "Test exception.";
+        final FlinkException testException = new FlinkException(exceptionMessage);
+
+        final TestClusterDatasetDeleteHandlers testClusterDatasetDeleteHandlers =
+                new TestClusterDatasetDeleteHandlers(intermediateDataSetID);
+        final TestClusterDatasetDeleteHandlers.TestClusterDatasetDeleteTriggerHandler
+                testClusterDatasetDeleteTriggerHandler =
+                        testClusterDatasetDeleteHandlers
+                        .new TestClusterDatasetDeleteTriggerHandler();
+        final TestClusterDatasetDeleteHandlers.TestClusterDatasetDeleteStatusHandler
+                testClusterDatasetDeleteStatusHandler =
+                        testClusterDatasetDeleteHandlers
+                        .new TestClusterDatasetDeleteStatusHandler(
+                                OptionalFailure.of(AsynchronousOperationInfo.complete()),
+                                OptionalFailure.of(
+                                        AsynchronousOperationInfo.completeExceptional(
+                                                new SerializedThrowable(testException))),
+                                OptionalFailure.ofFailure(testException));
+
+        try (TestRestServerEndpoint restServerEndpoint =
+                createRestServerEndpoint(
+                        testClusterDatasetDeleteStatusHandler,
+                        testClusterDatasetDeleteTriggerHandler)) {
+            RestClusterClient<?> restClusterClient =
+                    createRestClusterClient(restServerEndpoint.getServerAddress().getPort());
+
+            try {
+                {
+                    final CompletableFuture<Void> invalidateCacheFuture =
+                            restClusterClient.invalidateClusterDataset(intermediateDataSetID);
+                    assertThat(invalidateCacheFuture.get()).isNull();
+                }
+
+                {
+                    final CompletableFuture<Void> invalidateCacheFuture =
+                            restClusterClient.invalidateClusterDataset(intermediateDataSetID);
+
+                    try {
+                        invalidateCacheFuture.get();
+                        fail("Expected an exception");
+                    } catch (ExecutionException ee) {
+                        assertThat(
+                                        ExceptionUtils.findThrowableWithMessage(
+                                                        ee, exceptionMessage)
+                                                .isPresent())
+                                .isTrue();
+                    }
+                }
+
+                {
+                    try {
+                        restClusterClient.invalidateClusterDataset(intermediateDataSetID).get();
+                        fail("Expected an exception.");
+                    } catch (ExecutionException ee) {
+                        assertThat(
+                                        ExceptionUtils.findThrowable(ee, RestClientException.class)
+                                                .isPresent())
+                                .isTrue();
+                    }
+                }
+            } finally {
+                restClusterClient.close();
+            }
+        }
+    }
+
+    private class TestClusterDatasetDeleteHandlers {
+
+        private final TriggerId triggerId = new TriggerId();
+
+        private final IntermediateDataSetID intermediateDataSetID;
+
+        private TestClusterDatasetDeleteHandlers(IntermediateDataSetID intermediateDatasetId) {
+            this.intermediateDataSetID = Preconditions.checkNotNull(intermediateDatasetId);
+        }
+
+        private class TestClusterDatasetDeleteTriggerHandler
+                extends TestHandler<
+                        EmptyRequestBody,
+                        TriggerResponse,
+                        ClusterDataSetDeleteTriggerMessageParameters> {
+            private TestClusterDatasetDeleteTriggerHandler() {
+                super(ClusterDataSetDeleteTriggerHeaders.INSTANCE);
+            }
+
+            @Override
+            protected CompletableFuture<TriggerResponse> handleRequest(
+                    HandlerRequest<EmptyRequestBody> request, DispatcherGateway gateway)
+                    throws RestHandlerException {
+                assertThat(request.getPathParameter(ClusterDataSetIdPathParameter.class))
+                        .isEqualTo(intermediateDataSetID);
+                return CompletableFuture.completedFuture(new TriggerResponse(triggerId));
+            }
+        }
+
+        private class TestClusterDatasetDeleteStatusHandler
+                extends TestHandler<
+                        EmptyRequestBody,
+                        AsynchronousOperationResult<AsynchronousOperationInfo>,
+                        ClusterDataSetDeleteStatusMessageParameters> {
+
+            private final Queue<OptionalFailure<AsynchronousOperationInfo>> responses;
+
+            private TestClusterDatasetDeleteStatusHandler(
+                    OptionalFailure<AsynchronousOperationInfo>... responses) {
+                super(ClusterDataSetDeleteStatusHeaders.INSTANCE);
+                this.responses = new ArrayDeque<>(Arrays.asList(responses));
+            }
+
+            @Override
+            protected CompletableFuture<AsynchronousOperationResult<AsynchronousOperationInfo>>
+                    handleRequest(
+                            @Nonnull HandlerRequest<EmptyRequestBody> request,
+                            @Nonnull DispatcherGateway gateway)
+                            throws RestHandlerException {
+                final TriggerId actualTriggerId =
+                        request.getPathParameter(TriggerIdPathParameter.class);
+
+                if (actualTriggerId.equals(triggerId)) {
+                    final OptionalFailure<AsynchronousOperationInfo> nextResponse =
+                            responses.poll();
+
+                    if (nextResponse != null) {
+                        if (nextResponse.isFailure()) {
+                            throw new RestHandlerException(
+                                    "Failure",
+                                    HttpResponseStatus.BAD_REQUEST,
+                                    nextResponse.getFailureCause());
+                        } else {
+                            return CompletableFuture.completedFuture(
+                                    AsynchronousOperationResult.completed(
+                                            nextResponse.getUnchecked()));
+                        }
+                    } else {
+                        throw new AssertionError();
+                    }
+                } else {
+                    throw new AssertionError();
+                }
+            }
+        }
+    }
+
+    @Test
+    void testListJobs() throws Exception {
         try (TestRestServerEndpoint restServerEndpoint =
                 createRestServerEndpoint(new TestListJobsHandler())) {
             RestClusterClient<?> restClusterClient =
@@ -455,10 +657,7 @@ public class RestClusterClientTest extends TestLogger {
                 Iterator<JobStatusMessage> jobDetailsIterator = jobDetails.iterator();
                 JobStatusMessage job1 = jobDetailsIterator.next();
                 JobStatusMessage job2 = jobDetailsIterator.next();
-                Assert.assertNotEquals(
-                        "The job status should not be equal.",
-                        job1.getJobState(),
-                        job2.getJobState());
+                assertThat(job1.getJobState()).isNotEqualByComparingTo(job2.getJobState());
             } finally {
                 restClusterClient.close();
             }
@@ -466,7 +665,7 @@ public class RestClusterClientTest extends TestLogger {
     }
 
     @Test
-    public void testGetAccumulators() throws Exception {
+    void testGetAccumulators() throws Exception {
         TestAccumulatorHandler accumulatorHandler = new TestAccumulatorHandler();
 
         try (TestRestServerEndpoint restServerEndpoint =
@@ -476,18 +675,14 @@ public class RestClusterClientTest extends TestLogger {
                     createRestClusterClient(restServerEndpoint.getServerAddress().getPort())) {
                 JobID id = new JobID();
                 Map<String, Object> accumulators = restClusterClient.getAccumulators(id).get();
-                assertNotNull(accumulators);
-                assertEquals(1, accumulators.size());
-
-                assertTrue(accumulators.containsKey("testKey"));
-                assertEquals("testValue", accumulators.get("testKey").toString());
+                assertThat(accumulators).hasSize(1).containsEntry("testKey", "testValue");
             }
         }
     }
 
     /** Tests that command line options override the configuration settings. */
     @Test
-    public void testRESTManualConfigurationOverride() throws Exception {
+    void testRESTManualConfigurationOverride() throws Exception {
         final String configuredHostname = "localhost";
         final int configuredPort = 1234;
         final Configuration configuration = new Configuration();
@@ -521,13 +716,12 @@ public class RestClusterClientTest extends TestLogger {
                                 .getClusterClient();
 
         URL webMonitorBaseUrl = clusterClient.getWebMonitorBaseUrl().get();
-        assertThat(webMonitorBaseUrl.getHost(), equalTo(manualHostname));
-        assertThat(webMonitorBaseUrl.getPort(), equalTo(manualPort));
+        assertThat(webMonitorBaseUrl).hasHost(manualHostname).hasPort(manualPort);
     }
 
     /** Tests that the send operation is being retried. */
     @Test
-    public void testRetriableSendOperationIfConnectionErrorOrServiceUnavailable() throws Exception {
+    void testRetriableSendOperationIfConnectionErrorOrServiceUnavailable() throws Exception {
         final PingRestHandler pingRestHandler =
                 new PingRestHandler(
                         FutureUtils.completedExceptionally(
@@ -594,7 +788,7 @@ public class RestClusterClientTest extends TestLogger {
     }
 
     @Test
-    public void testJobSubmissionRespectsConfiguredRetryPolicy() throws Exception {
+    void testJobSubmissionRespectsConfiguredRetryPolicy() throws Exception {
         final int maxRetryAttempts = 3;
         final AtomicInteger failedRequest = new AtomicInteger(0);
         failHttpRequest =
@@ -613,19 +807,19 @@ public class RestClusterClientTest extends TestLogger {
                     Objects.requireNonNull(restServerEndpoint.getServerAddress());
             try (RestClusterClient<?> restClusterClient =
                     createRestClusterClient(serverAddress.getPort(), clientConfig)) {
-                final ExecutionException exception =
-                        assertThrows(
-                                ExecutionException.class,
-                                () -> restClusterClient.submitJob(jobGraph).get());
-                assertThat(
-                        exception, FlinkMatchers.containsCause(FutureUtils.RetryException.class));
-                assertEquals(maxRetryAttempts + 1, failedRequest.get());
+                assertThatThrownBy(() -> restClusterClient.submitJob(jobGraph).get())
+                        .isInstanceOf(ExecutionException.class)
+                        .cause()
+                        .cause()
+                        .isInstanceOf(FutureUtils.RetryException.class);
+
+                assertThat(failedRequest).hasValue(maxRetryAttempts + 1);
             }
         }
     }
 
     @Test
-    public void testSubmitJobAndWaitForExecutionResult() throws Exception {
+    void testSubmitJobAndWaitForExecutionResult() throws Exception {
         final TestJobExecutionResultHandler testJobExecutionResultHandler =
                 new TestJobExecutionResultHandler(
                         new RestHandlerException(
@@ -693,13 +887,13 @@ public class RestClusterClientTest extends TestLogger {
                                 .thenCompose(restClusterClient::requestJobResult)
                                 .get()
                                 .toJobExecutionResult(ClassLoader.getSystemClassLoader());
-                assertTrue(firstExecutionResultPollFailed.get());
-                assertTrue(firstSubmitRequestFailed.get());
-                assertThat(jobExecutionResult.getJobID(), equalTo(jobId));
-                assertThat(jobExecutionResult.getNetRuntime(), equalTo(Long.MAX_VALUE));
-                assertThat(
-                        jobExecutionResult.getAllAccumulatorResults(),
-                        equalTo(Collections.singletonMap("testName", 1.0)));
+                assertThat(firstExecutionResultPollFailed).isTrue();
+                assertThat(firstSubmitRequestFailed).isTrue();
+                assertThat(jobExecutionResult.getJobID()).isEqualTo(jobId);
+                assertThat(jobExecutionResult.getNetRuntime()).isEqualTo(Long.MAX_VALUE);
+                assertThat(jobExecutionResult.getAllAccumulatorResults())
+                        .hasSize(1)
+                        .containsEntry("testName", 1.0);
 
                 try {
                     restClusterClient
@@ -711,15 +905,55 @@ public class RestClusterClientTest extends TestLogger {
                 } catch (final Exception e) {
                     final Optional<RuntimeException> cause =
                             ExceptionUtils.findThrowable(e, RuntimeException.class);
-                    assertThat(cause.isPresent(), is(true));
-                    assertThat(cause.get().getMessage(), equalTo("expected"));
+                    assertThat(cause).isPresent();
+                    assertThat(cause.get().getMessage()).isEqualTo("expected");
                 }
             }
         }
     }
 
     @Test
-    public void testJobSubmissionFailureCauseForwardedToClient() throws Exception {
+    @Timeout(value = 120_000, unit = TimeUnit.MILLISECONDS)
+    void testJobSubmissionWithoutUserArtifact() throws Exception {
+        try (final TestRestServerEndpoint restServerEndpoint =
+                createRestServerEndpoint(new TestJobSubmitHandler())) {
+            try (RestClusterClient<?> restClusterClient =
+                    createRestClusterClient(restServerEndpoint.getServerAddress().getPort())) {
+
+                restClusterClient.submitJob(jobGraph).get();
+            }
+        }
+    }
+
+    @Test
+    @Timeout(value = 120_000, unit = TimeUnit.MILLISECONDS)
+    void testJobSubmissionWithUserArtifact(@TempDir java.nio.file.Path temporaryPath)
+            throws Exception {
+        try (final TestRestServerEndpoint restServerEndpoint =
+                createRestServerEndpoint(new TestJobSubmitHandler())) {
+            try (RestClusterClient<?> restClusterClient =
+                    createRestClusterClient(restServerEndpoint.getServerAddress().getPort())) {
+
+                File file = temporaryPath.resolve("hello.txt").toFile();
+                Files.write(file.toPath(), "hello world".getBytes(ConfigConstants.DEFAULT_CHARSET));
+
+                // Add file path with scheme
+                jobGraph.addUserArtifact(
+                        "file",
+                        new DistributedCache.DistributedCacheEntry(file.toURI().toString(), false));
+
+                // Add file path without scheme
+                jobGraph.addUserArtifact(
+                        "file2",
+                        new DistributedCache.DistributedCacheEntry(file.toURI().getPath(), false));
+
+                restClusterClient.submitJob(jobGraph).get();
+            }
+        }
+    }
+
+    @Test
+    void testJobSubmissionFailureCauseForwardedToClient() throws Exception {
         try (final TestRestServerEndpoint restServerEndpoint =
                 createRestServerEndpoint(new SubmissionFailingHandler())) {
             try (RestClusterClient<?> restClusterClient =
@@ -730,9 +964,10 @@ public class RestClusterClientTest extends TestLogger {
                         .get()
                         .toJobExecutionResult(ClassLoader.getSystemClassLoader());
             } catch (final Exception e) {
-                assertTrue(
-                        ExceptionUtils.findThrowableWithMessage(e, "RestHandlerException: expected")
-                                .isPresent());
+                assertThat(
+                                ExceptionUtils.findThrowableWithMessage(
+                                        e, "RestHandlerException: expected"))
+                        .isPresent();
                 return;
             }
             fail("Should failed with exception");
@@ -760,7 +995,7 @@ public class RestClusterClientTest extends TestLogger {
      * Tests that the send operation is not being retried when receiving a NOT_FOUND return code.
      */
     @Test
-    public void testSendIsNotRetriableIfHttpNotFound() throws Exception {
+    void testSendIsNotRetriableIfHttpNotFound() throws Exception {
         final String exceptionMessage = "test exception";
         final PingRestHandler pingRestHandler =
                 new PingRestHandler(
@@ -777,9 +1012,8 @@ public class RestClusterClientTest extends TestLogger {
                 restClusterClient.sendRequest(PingRestHandlerHeaders.INSTANCE).get();
                 fail("The rest request should have failed.");
             } catch (Exception e) {
-                assertThat(
-                        ExceptionUtils.findThrowableWithMessage(e, exceptionMessage).isPresent(),
-                        is(true));
+                assertThat(ExceptionUtils.findThrowableWithMessage(e, exceptionMessage))
+                        .isPresent();
             } finally {
                 restClusterClient.close();
             }
@@ -812,7 +1046,8 @@ public class RestClusterClientTest extends TestLogger {
     }
 
     private static final class PingRestHandlerHeaders
-            implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
+            implements RuntimeMessageHeaders<
+                    EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
 
         static final PingRestHandlerHeaders INSTANCE = new PingRestHandlerHeaders();
 
@@ -853,7 +1088,7 @@ public class RestClusterClientTest extends TestLogger {
     }
 
     @Test
-    public void testSendCoordinationRequest() throws Exception {
+    void testSendCoordinationRequest() throws Exception {
         final TestClientCoordinationHandler handler = new TestClientCoordinationHandler();
 
         try (TestRestServerEndpoint restServerEndpoint = createRestServerEndpoint(handler)) {
@@ -867,7 +1102,7 @@ public class RestClusterClientTest extends TestLogger {
                         restClusterClient.sendCoordinationRequest(jobId, new OperatorID(), request);
                 TestCoordinationResponse response = (TestCoordinationResponse) future.get();
 
-                assertEquals(payload, response.payload);
+                assertThat(response.payload).isEqualTo(payload);
             } finally {
                 restClusterClient.close();
             }
@@ -879,12 +1114,12 @@ public class RestClusterClientTest extends TestLogger {
      * either receives a different job status or the cluster is not reachable.
      */
     @Test
-    public void testNotShowSuspendedJobStatus() throws Exception {
-        final List<JobDetailsInfo> jobDetails = new ArrayList<>();
-        jobDetails.add(buildJobDetail(JobStatus.SUSPENDED));
-        jobDetails.add(buildJobDetail(JobStatus.RUNNING));
+    void testNotShowSuspendedJobStatus() throws Exception {
+        final List<JobStatusInfo> jobStatusInfo = new ArrayList<>();
+        jobStatusInfo.add(new JobStatusInfo(JobStatus.SUSPENDED));
+        jobStatusInfo.add(new JobStatusInfo(JobStatus.RUNNING));
         final TestJobStatusHandler jobStatusHandler =
-                new TestJobStatusHandler(jobDetails.iterator());
+                new TestJobStatusHandler(jobStatusInfo.iterator());
 
         try (TestRestServerEndpoint restServerEndpoint =
                 createRestServerEndpoint(jobStatusHandler)) {
@@ -892,28 +1127,11 @@ public class RestClusterClientTest extends TestLogger {
                     createRestClusterClient(restServerEndpoint.getServerAddress().getPort());
             try {
                 final CompletableFuture<JobStatus> future = restClusterClient.getJobStatus(jobId);
-                assertEquals(JobStatus.RUNNING, future.get());
+                assertThat(future.get()).isEqualTo(JobStatus.RUNNING);
             } finally {
                 restClusterClient.close();
             }
         }
-    }
-
-    private JobDetailsInfo buildJobDetail(JobStatus jobStatus) {
-        return new JobDetailsInfo(
-                jobId,
-                "testJob",
-                true,
-                jobStatus,
-                1L,
-                2L,
-                1L,
-                8888L,
-                1984L,
-                new HashMap<>(),
-                new ArrayList<>(),
-                new HashMap<>(),
-                "{\"id\":\"1234\"}");
     }
 
     private class TestClientCoordinationHandler
@@ -1051,25 +1269,25 @@ public class RestClusterClientTest extends TestLogger {
     }
 
     private class TestJobStatusHandler
-            extends TestHandler<EmptyRequestBody, JobDetailsInfo, JobMessageParameters> {
+            extends TestHandler<EmptyRequestBody, JobStatusInfo, JobMessageParameters> {
 
-        private final Iterator<JobDetailsInfo> jobDetailsInfo;
+        private final Iterator<JobStatusInfo> jobStatusInfo;
 
-        private TestJobStatusHandler(@Nonnull Iterator<JobDetailsInfo> jobDetailsInfo) {
-            super(JobDetailsHeaders.getInstance());
-            checkState(jobDetailsInfo.hasNext(), "Job details are empty");
-            this.jobDetailsInfo = checkNotNull(jobDetailsInfo);
+        private TestJobStatusHandler(@Nonnull Iterator<JobStatusInfo> jobStatusInfo) {
+            super(JobStatusInfoHeaders.getInstance());
+            checkState(jobStatusInfo.hasNext(), "Job status are empty");
+            this.jobStatusInfo = checkNotNull(jobStatusInfo);
         }
 
         @Override
-        protected CompletableFuture<JobDetailsInfo> handleRequest(
+        protected CompletableFuture<JobStatusInfo> handleRequest(
                 @Nonnull HandlerRequest<EmptyRequestBody> request,
                 @Nonnull DispatcherGateway gateway)
                 throws RestHandlerException {
-            if (!jobDetailsInfo.hasNext()) {
-                throw new IllegalStateException("More job details were requested than configured");
+            if (!jobStatusInfo.hasNext()) {
+                throw new IllegalStateException("More job status were requested than configured");
             }
-            return CompletableFuture.completedFuture(jobDetailsInfo.next());
+            return CompletableFuture.completedFuture(jobStatusInfo.next());
         }
     }
 

@@ -42,11 +42,8 @@ import java.sql.Timestamp;
 import java.time.LocalDateTime;
 
 import static org.apache.flink.table.utils.RawValueDataAsserter.equivalent;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Test for {@link RowData}s. */
 public class RowDataTest {
@@ -213,32 +210,32 @@ public class RowDataTest {
     }
 
     private void testGetters(RowData row) {
-        assertEquals(18, row.getArity());
+        assertThat(row.getArity()).isEqualTo(18);
 
         // test header
-        assertEquals(RowKind.INSERT, row.getRowKind());
+        assertThat(row.getRowKind()).isEqualTo(RowKind.INSERT);
         row.setRowKind(RowKind.DELETE);
-        assertEquals(RowKind.DELETE, row.getRowKind());
+        assertThat(row.getRowKind()).isEqualTo(RowKind.DELETE);
 
         // test get
-        assertTrue(row.getBoolean(0));
-        assertEquals(1, row.getByte(1));
-        assertEquals(2, row.getShort(2));
-        assertEquals(3, row.getInt(3));
-        assertEquals(4, row.getLong(4));
-        assertEquals(5, (int) row.getFloat(5));
-        assertEquals(6, (int) row.getDouble(6));
-        assertEquals(str, row.getString(8));
-        assertThat(row.getRawValue(9), equivalent(generic, genericSerializer));
-        assertEquals(decimal1, row.getDecimal(10, 5, 0));
-        assertEquals(decimal2, row.getDecimal(11, 20, 0));
-        assertEquals(array, row.getArray(12));
-        assertEquals(map, row.getMap(13));
-        assertEquals(15, row.getRow(14, 2).getInt(0));
-        assertEquals(16, row.getRow(14, 2).getInt(1));
-        assertArrayEquals(bytes, row.getBinary(15));
-        assertEquals(timestamp1, row.getTimestamp(16, 3));
-        assertEquals(timestamp2, row.getTimestamp(17, 9));
+        assertThat(row.getBoolean(0)).isTrue();
+        assertThat(row.getByte(1)).isEqualTo((byte) 1);
+        assertThat(row.getShort(2)).isEqualTo((short) 2);
+        assertThat(row.getInt(3)).isEqualTo(3);
+        assertThat(row.getLong(4)).isEqualTo(4L);
+        assertThat(row.getFloat(5)).isEqualTo(5f);
+        assertThat(row.getDouble(6)).isEqualTo(6d);
+        assertThat(row.getString(8)).isEqualTo(str);
+        assertThat(row.getRawValue(9)).satisfies(matching(equivalent(generic, genericSerializer)));
+        assertThat(row.getDecimal(10, 5, 0)).isEqualTo(decimal1);
+        assertThat(row.getDecimal(11, 20, 0)).isEqualTo(decimal2);
+        assertThat(row.getArray(12)).isEqualTo(array);
+        assertThat(row.getMap(13)).isEqualTo(map);
+        assertThat(row.getRow(14, 2).getInt(0)).isEqualTo(15);
+        assertThat(row.getRow(14, 2).getInt(1)).isEqualTo(16);
+        assertThat(row.getBinary(15)).isEqualTo(bytes);
+        assertThat(row.getTimestamp(16, 3)).isEqualTo(timestamp1);
+        assertThat(row.getTimestamp(17, 9)).isEqualTo(timestamp2);
     }
 
     private void testSetters(RowData row) {
@@ -252,38 +249,39 @@ public class RowDataTest {
         TypedSetters setter = (TypedSetters) row;
         // test set
         setter.setBoolean(0, false);
-        assertFalse(row.getBoolean(0));
+        assertThat(row.getBoolean(0)).isFalse();
         setter.setByte(1, (byte) 2);
-        assertEquals(2, row.getByte(1));
+        assertThat(row.getByte(1)).isEqualTo((byte) 2);
         setter.setShort(2, (short) 3);
-        assertEquals(3, row.getShort(2));
+        assertThat(row.getShort(2)).isEqualTo((short) 3);
         setter.setInt(3, 4);
-        assertEquals(4, row.getInt(3));
+        assertThat(row.getInt(3)).isEqualTo(4);
         setter.setLong(4, 5);
-        assertEquals(5, row.getLong(4));
+        assertThat(row.getLong(4)).isEqualTo(5L);
         setter.setFloat(5, 6);
-        assertEquals(6, (int) row.getFloat(5));
+        assertThat(row.getFloat(5)).isEqualTo(6f);
         setter.setDouble(6, 7);
-        assertEquals(7, (int) row.getDouble(6));
+        assertThat(row.getDouble(6)).isEqualTo(7d);
         setter.setDecimal(10, DecimalData.fromUnscaledLong(11, 5, 0), 5);
-        assertEquals(DecimalData.fromUnscaledLong(11, 5, 0), row.getDecimal(10, 5, 0));
+        assertThat(row.getDecimal(10, 5, 0)).isEqualTo(DecimalData.fromUnscaledLong(11, 5, 0));
         setter.setDecimal(11, DecimalData.fromBigDecimal(new BigDecimal(12), 20, 0), 20);
-        assertEquals(
-                DecimalData.fromBigDecimal(new BigDecimal(12), 20, 0), row.getDecimal(11, 20, 0));
+        assertThat(row.getDecimal(11, 20, 0))
+                .isEqualTo(DecimalData.fromBigDecimal(new BigDecimal(12), 20, 0));
 
         setter.setTimestamp(16, TimestampData.fromEpochMillis(456L), 3);
-        assertEquals(TimestampData.fromEpochMillis(456L), row.getTimestamp(16, 3));
+        assertThat(row.getTimestamp(16, 3)).isEqualTo(TimestampData.fromEpochMillis(456L));
         setter.setTimestamp(
                 17,
                 TimestampData.fromTimestamp(Timestamp.valueOf("1970-01-01 00:00:00.123456789")),
                 9);
-        assertEquals(
-                TimestampData.fromTimestamp(Timestamp.valueOf("1970-01-01 00:00:00.123456789")),
-                row.getTimestamp(17, 9));
+        assertThat(row.getTimestamp(17, 9))
+                .isEqualTo(
+                        TimestampData.fromTimestamp(
+                                Timestamp.valueOf("1970-01-01 00:00:00.123456789")));
 
         // test null
-        assertFalse(row.isNullAt(0));
+        assertThat(row.isNullAt(0)).isFalse();
         setter.setNullAt(0);
-        assertTrue(row.isNullAt(0));
+        assertThat(row.isNullAt(0)).isTrue();
     }
 }

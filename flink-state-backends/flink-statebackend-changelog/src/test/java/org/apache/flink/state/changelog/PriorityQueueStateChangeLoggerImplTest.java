@@ -18,14 +18,8 @@
 package org.apache.flink.state.changelog;
 
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.RegisteredPriorityQueueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.heap.InternalKeyContextImpl;
-
-import java.io.IOException;
-import java.util.Optional;
-
-import static org.apache.flink.state.changelog.StateChangeOperation.REMOVE_FIRST_ELEMENT;
 
 /** {@link PriorityQueueStateChangeLoggerImpl} test. */
 public class PriorityQueueStateChangeLoggerImplTest extends StateChangeLoggerTestBase<Void> {
@@ -38,22 +32,6 @@ public class PriorityQueueStateChangeLoggerImplTest extends StateChangeLoggerTes
                 new RegisteredPriorityQueueStateBackendMetaInfo<>("test", valueSerializer);
         return new PriorityQueueStateChangeLoggerImpl<>(
                 valueSerializer, keyContext, writer, metaInfo, Short.MIN_VALUE);
-    }
-
-    @Override
-    protected Optional<Tuple2<Integer, StateChangeOperation>> log(
-            StateChangeOperation op,
-            String element,
-            StateChangeLogger<String, Void> logger,
-            InternalKeyContextImpl<String> keyContext)
-            throws IOException {
-        if (op == REMOVE_FIRST_ELEMENT) {
-            keyContext.setCurrentKey(element);
-            ((PriorityQueueStateChangeLogger<String>) logger).stateElementPolled();
-            return Optional.of(Tuple2.of(keyContext.getCurrentKeyGroupIndex(), op));
-        } else {
-            return super.log(op, element, logger, keyContext);
-        }
     }
 
     @Override

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
@@ -25,15 +24,15 @@ import org.apache.flink.types.Row
 import org.junit.Test
 
 /**
-  * Tests all SQL expressions that are currently supported according to the documentation.
-  * This tests should be kept in sync with the documentation to reduce confusion due to the
-  * large amount of SQL functions.
-  *
-  * The tests do not test every parameter combination of a function.
-  * They are rather a function existence test and simple functional test.
-  *
-  * The tests are split up and ordered like the sections in the documentation.
-  */
+ * Tests all SQL expressions that are currently supported according to the documentation. This tests
+ * should be kept in sync with the documentation to reduce confusion due to the large amount of SQL
+ * functions.
+ *
+ * The tests do not test every parameter combination of a function. They are rather a function
+ * existence test and simple functional test.
+ *
+ * The tests are split up and ordered like the sections in the documentation.
+ */
 class SqlExpressionTest extends ExpressionTestBase {
 
   @Test
@@ -64,9 +63,9 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("'TEST' NOT LIKE '%EST'", "FALSE")
     testSqlApi("'%EST' NOT LIKE '.%EST' ESCAPE '.'", "FALSE")
     testSqlApi("'TEST' SIMILAR TO '.EST'", "TRUE")
-    //testSqlApi("'TEST' SIMILAR TO ':.EST' ESCAPE ':'", "TRUE") // TODO
+    // testSqlApi("'TEST' SIMILAR TO ':.EST' ESCAPE ':'", "TRUE") // TODO
     testSqlApi("'TEST' NOT SIMILAR TO '.EST'", "FALSE")
-    //testSqlApi("'TEST' NOT SIMILAR TO ':.EST' ESCAPE ':'", "FALSE") // TODO
+    // testSqlApi("'TEST' NOT SIMILAR TO ':.EST' ESCAPE ':'", "FALSE") // TODO
     testSqlApi("'TEST' IN ('west', 'TEST', 'rest')", "TRUE")
     testSqlApi("'TEST' IN ('west', 'rest')", "FALSE")
     testSqlApi("'TEST' NOT IN ('west', 'TEST', 'rest')", "FALSE")
@@ -98,6 +97,7 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("5/5", "1")
     testSqlApi("5%2", "1");
     testSqlApi("POWER(5, 5)", "3125.0")
+    testSqlApi("POWER(-1, 0.5)", "NaN")
     testSqlApi("ABS(-5)", "5")
     testSqlApi("MOD(-26, 5)", "-1")
     testSqlApi("SQRT(4)", "2.0")
@@ -120,7 +120,7 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("TANH(2.5)", "0.9866142981514303")
     testSqlApi("DEGREES(0.5)", "28.64788975654116")
     testSqlApi("RADIANS(0.5)", "0.008726646259971648")
-    testSqlApi("SIGN(-1.1)", "-1.0")  // calcite: SIGN(Decimal(p,s)) => Decimal(p,s)
+    testSqlApi("SIGN(-1.1)", "-1.0") // calcite: SIGN(Decimal(p,s)) => Decimal(p,s)
     testSqlApi("ROUND(-12.345, 2)", "-12.35")
     testSqlApi("PI()", "3.141592653589793")
     testSqlApi("E()", "2.718281828459045")
@@ -131,7 +131,7 @@ class SqlExpressionTest extends ExpressionTestBase {
   @Test
   def testDivideFunctions(): Unit = {
 
-    //slash
+    // slash
 
     // Decimal(2,1) / Decimal(2,1) => Decimal(8,6)
     testSqlApi("1.0/8.0", "0.125000")
@@ -148,19 +148,30 @@ class SqlExpressionTest extends ExpressionTestBase {
     // invalid division
     val divisorZeroException = "Division by zero"
     testExpectedSqlException(
-      "1/cast(0.00 as decimal)", divisorZeroException, classOf[ArithmeticException])
+      "1/cast(0.00 as decimal)",
+      divisorZeroException,
+      classOf[ArithmeticException])
     testExpectedSqlException(
-      "1/cast(0.00 as double)", divisorZeroException, classOf[ArithmeticException])
+      "1/cast(0.00 as double)",
+      divisorZeroException,
+      classOf[ArithmeticException])
     testExpectedSqlException(
-      "1/cast(0.00 as float)", divisorZeroException, classOf[ArithmeticException])
+      "1/cast(0.00 as float)",
+      divisorZeroException,
+      classOf[ArithmeticException])
     testExpectedSqlException(
-      "1/cast(0 as tinyint)", divisorZeroException, classOf[ArithmeticException])
+      "1/cast(0 as tinyint)",
+      divisorZeroException,
+      classOf[ArithmeticException])
     testExpectedSqlException(
-      "1/cast(0 as smallint)", divisorZeroException, classOf[ArithmeticException])
+      "1/cast(0 as smallint)",
+      divisorZeroException,
+      classOf[ArithmeticException])
+    testExpectedSqlException("1/0", divisorZeroException, classOf[ArithmeticException])
     testExpectedSqlException(
-      "1/0", divisorZeroException, classOf[ArithmeticException])
-    testExpectedSqlException(
-      "1/cast(0 as bigint)", divisorZeroException, classOf[ArithmeticException])
+      "1/cast(0 as bigint)",
+      divisorZeroException,
+      classOf[ArithmeticException])
   }
 
   @Test
@@ -230,9 +241,6 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("FLOOR(TIME '12:44:31' TO MINUTE)", "12:44:00")
     testSqlApi("CEIL(TIME '12:44:31' TO MINUTE)", "12:45:00")
     testSqlApi("QUARTER(DATE '2016-04-12')", "2")
-    testSqlApi(
-      "(TIME '2:55:00', INTERVAL '1' HOUR) OVERLAPS (TIME '3:30:00', INTERVAL '2' HOUR)",
-      "TRUE")
   }
 
   @Test
@@ -259,28 +267,47 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("SHA2('', 256)", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
 
     testSqlApi("SHA256('test')", "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08")
-    testSqlApi("SHA2('test', 256)",
+    testSqlApi(
+      "SHA2('test', 256)",
       "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08")
 
-    testSqlApi("SHA384('')", "38b060a751ac96384cd9327eb1b1e36a21fdb71114be07434c0cc" +
-      "7bf63f6e1da274edebfe76f65fbd51ad2f14898b95b")
-    testSqlApi("SHA2('', 384)", "38b060a751ac96384cd9327eb1b1e36a21fdb71114be07434c0" +
-      "cc7bf63f6e1da274edebfe76f65fbd51ad2f14898b95b")
+    testSqlApi(
+      "SHA384('')",
+      "38b060a751ac96384cd9327eb1b1e36a21fdb71114be07434c0cc" +
+        "7bf63f6e1da274edebfe76f65fbd51ad2f14898b95b")
+    testSqlApi(
+      "SHA2('', 384)",
+      "38b060a751ac96384cd9327eb1b1e36a21fdb71114be07434c0" +
+        "cc7bf63f6e1da274edebfe76f65fbd51ad2f14898b95b")
 
-    testSqlApi("SHA384('test')", "768412320f7b0aa5812fce428dc4706b3cae50e02a64caa16a782249bfe8efc" +
-      "4b7ef1ccb126255d196047dfedf17a0a9")
-    testSqlApi("SHA2('test', 384)", "768412320f7b0aa5812fce428dc4706b3cae50e02a64caa16a782249bfe8" +
-      "efc4b7ef1ccb126255d196047dfedf17a0a9")
+    testSqlApi(
+      "SHA384('test')",
+      "768412320f7b0aa5812fce428dc4706b3cae50e02a64caa16a782249bfe8efc" +
+        "4b7ef1ccb126255d196047dfedf17a0a9")
+    testSqlApi(
+      "SHA2('test', 384)",
+      "768412320f7b0aa5812fce428dc4706b3cae50e02a64caa16a782249bfe8" +
+        "efc4b7ef1ccb126255d196047dfedf17a0a9")
 
-    testSqlApi("SHA512('')", "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d" +
-      "0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e")
-    testSqlApi("SHA2('',512)", "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce4" +
-      "7d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e")
+    testSqlApi(
+      "SHA512('')",
+      "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d" +
+        "0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e")
+    testSqlApi(
+      "SHA2('',512)",
+      "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce4" +
+        "7d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e")
 
-    testSqlApi("SHA512('test')", "ee26b0dd4af7e749aa1a8ee3c10ae9923f618980772e473f8819a5d4940e0db" +
-      "27ac185f8a0e1d5f84f88bc887fd67b143732c304cc5fa9ad8e6f57f50028a8ff")
-    testSqlApi("SHA2('test',512)", "ee26b0dd4af7e749aa1a8ee3c10ae9923f618980772e473f8819a5d4940e0" +
-      "db27ac185f8a0e1d5f84f88bc887fd67b143732c304cc5fa9ad8e6f57f50028a8ff")
+    testSqlApi(
+      "SHA512('test')",
+      "ee26b0dd4af7e749aa1a8ee3c10ae9923f618980772e473f8819a5d4940e0db" +
+        "27ac185f8a0e1d5f84f88bc887fd67b143732c304cc5fa9ad8e6f57f50028a8ff"
+    )
+    testSqlApi(
+      "SHA2('test',512)",
+      "ee26b0dd4af7e749aa1a8ee3c10ae9923f618980772e473f8819a5d4940e0" +
+        "db27ac185f8a0e1d5f84f88bc887fd67b143732c304cc5fa9ad8e6f57f50028a8ff"
+    )
 
     testSqlApi("MD5(CAST(NULL AS VARCHAR))", "NULL")
     testSqlApi("SHA1(CAST(NULL AS VARCHAR))", "NULL")

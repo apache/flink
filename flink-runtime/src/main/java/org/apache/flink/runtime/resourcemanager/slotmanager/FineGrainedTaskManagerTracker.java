@@ -22,6 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.Preconditions;
@@ -36,6 +37,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /** Implementation of {@link TaskManagerTracker} supporting fine-grained resource management. */
 public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
@@ -46,6 +48,9 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
 
     /** All currently registered task managers. */
     private final Map<InstanceID, FineGrainedTaskManagerRegistration> taskManagerRegistrations;
+
+    /** All unwanted task managers. */
+    private final Map<InstanceID, WorkerResourceSpec> unWantedTaskManagers;
 
     private final Map<PendingTaskManagerId, PendingTaskManager> pendingTaskManagers;
 
@@ -65,6 +70,7 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
     public FineGrainedTaskManagerTracker() {
         slots = new HashMap<>();
         taskManagerRegistrations = new HashMap<>();
+        unWantedTaskManagers = new HashMap<>();
         pendingTaskManagers = new HashMap<>();
         pendingSlotAllocationRecords = new HashMap<>();
         totalAndDefaultSlotProfilesToPendingTaskManagers = new HashMap<>();
@@ -77,6 +83,14 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
         LOG.trace("Record the pending allocations {}.", pendingSlotAllocations);
         pendingSlotAllocationRecords.clear();
         pendingSlotAllocationRecords.putAll(pendingSlotAllocations);
+        removeUnusedPendingTaskManagers();
+    }
+
+    @Override
+    public void clearPendingAllocationsOfJob(JobID jobId) {
+        LOG.info("Clear all pending allocations for job {}.", jobId);
+        pendingSlotAllocationRecords.values().forEach(allocation -> allocation.remove(jobId));
+        removeUnusedPendingTaskManagers();
     }
 
     @Override
@@ -103,6 +117,7 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
     @Override
     public void removeTaskManager(InstanceID instanceId) {
         Preconditions.checkNotNull(instanceId);
+        unWantedTaskManagers.remove(instanceId);
         final FineGrainedTaskManagerRegistration taskManager =
                 Preconditions.checkNotNull(taskManagerRegistrations.remove(instanceId));
         totalRegisteredResource = totalRegisteredResource.subtract(taskManager.getTotalResource());
@@ -110,6 +125,28 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
         for (AllocationID allocationId : taskManager.getAllocatedSlots().keySet()) {
             slots.remove(allocationId);
         }
+    }
+
+    @Override
+    public void addUnWantedTaskManager(InstanceID instanceId) {
+        final FineGrainedTaskManagerRegistration taskManager =
+                taskManagerRegistrations.get(instanceId);
+        if (taskManager != null) {
+            unWantedTaskManagers.put(
+                    instanceId,
+                    WorkerResourceSpec.fromTotalResourceProfile(
+                            taskManager.getTotalResource(),
+                            SlotManagerUtils.calculateDefaultNumSlots(
+                                    taskManager.getTotalResource(),
+                                    taskManager.getDefaultSlotResourceProfile())));
+        } else {
+            LOG.debug("Unwanted task manager {} does not exists.", instanceId);
+        }
+    }
+
+    @Override
+    public Map<InstanceID, WorkerResourceSpec> getUnWantedTaskManager() {
+        return unWantedTaskManagers;
     }
 
     @Override
@@ -147,6 +184,16 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
                 });
         return Optional.ofNullable(pendingSlotAllocationRecords.remove(pendingTaskManagerId))
                 .orElse(Collections.emptyMap());
+    }
+
+    @Override
+    public Collection<TaskManagerInfo> getTaskManagersWithAllocatedSlotsForJob(JobID jobId) {
+        return taskManagerRegistrations.values().stream()
+                .filter(
+                        taskManager ->
+                                taskManager.getAllocatedSlots().values().stream()
+                                        .anyMatch(slot -> jobId.equals(slot.getJobId())))
+                .collect(Collectors.toList());
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -230,6 +277,16 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
                         SlotState.PENDING);
         taskManager.notifyAllocation(allocationId, slot);
         slots.put(allocationId, slot);
+    }
+
+    private void removeUnusedPendingTaskManagers() {
+        Set<PendingTaskManagerId> unusedPendingTaskManager =
+                pendingTaskManagers.keySet().stream()
+                        .filter(id -> !pendingSlotAllocationRecords.containsKey(id))
+                        .collect(Collectors.toSet());
+        for (PendingTaskManagerId pendingTaskManagerId : unusedPendingTaskManager) {
+            removePendingTaskManager(pendingTaskManagerId);
+        }
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -348,5 +405,6 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
         pendingTaskManagers.clear();
         totalPendingResource = ResourceProfile.ZERO;
         pendingSlotAllocationRecords.clear();
+        unWantedTaskManagers.clear();
     }
 }

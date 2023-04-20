@@ -17,17 +17,17 @@
 
 package org.apache.flink.api.java.io;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link PrintingOutputFormat}. */
-public class PrintingOutputFormatTest {
+class PrintingOutputFormatTest {
 
     private final PrintStream originalSystemOut = System.out;
     private final PrintStream originalSystemErr = System.err;
@@ -37,14 +37,14 @@ public class PrintingOutputFormatTest {
 
     private final String line = System.lineSeparator();
 
-    @Before
-    public void setUp() {
+    @BeforeEach
+    void setUp() {
         System.setOut(new PrintStream(arrayOutputStream));
         System.setErr(new PrintStream(arrayErrorStream));
     }
 
-    @After
-    public void tearDown() {
+    @AfterEach
+    void tearDown() {
         if (System.out != originalSystemOut) {
             System.out.close();
         }
@@ -56,62 +56,62 @@ public class PrintingOutputFormatTest {
     }
 
     @Test
-    public void testPrintOutputFormatStdOut() throws Exception {
+    void testPrintOutputFormatStdOut() {
         PrintingOutputFormat<String> printSink = new PrintingOutputFormat<>();
         printSink.open(0, 1);
 
         printSink.writeRecord("hello world!");
 
-        assertEquals("Print to System.out", printSink.toString());
-        assertEquals("hello world!" + line, arrayOutputStream.toString());
+        assertThat(printSink).hasToString("Print to System.out");
+        assertThat(arrayOutputStream).hasToString("hello world!" + line);
         printSink.close();
     }
 
     @Test
-    public void testPrintOutputFormatStdErr() throws Exception {
+    void testPrintOutputFormatStdErr() {
         PrintingOutputFormat<String> printSink = new PrintingOutputFormat<>(true);
         printSink.open(0, 1);
 
         printSink.writeRecord("hello world!");
 
-        assertEquals("Print to System.err", printSink.toString());
-        assertEquals("hello world!" + line, arrayErrorStream.toString());
+        assertThat(printSink).hasToString("Print to System.err");
+        assertThat(arrayErrorStream).hasToString("hello world!" + line);
         printSink.close();
     }
 
     @Test
-    public void testPrintOutputFormatWithPrefix() throws Exception {
+    void testPrintOutputFormatWithPrefix() {
         PrintingOutputFormat<String> printSink = new PrintingOutputFormat<>();
         printSink.open(1, 2);
 
         printSink.writeRecord("hello world!");
 
-        assertEquals("Print to System.out", printSink.toString());
-        assertEquals("2> hello world!" + line, arrayOutputStream.toString());
+        assertThat(printSink).hasToString("Print to System.out");
+        assertThat(arrayOutputStream).hasToString("2> hello world!" + line);
         printSink.close();
     }
 
     @Test
-    public void testPrintOutputFormatWithIdentifierAndPrefix() throws Exception {
+    void testPrintOutputFormatWithIdentifierAndPrefix() {
         PrintingOutputFormat<String> printSink = new PrintingOutputFormat<>("mySink", false);
         printSink.open(1, 2);
 
         printSink.writeRecord("hello world!");
 
-        assertEquals("Print to System.out", printSink.toString());
-        assertEquals("mySink:2> hello world!" + line, arrayOutputStream.toString());
+        assertThat(printSink).hasToString("Print to System.out");
+        assertThat(arrayOutputStream).hasToString("mySink:2> hello world!" + line);
         printSink.close();
     }
 
     @Test
-    public void testPrintOutputFormatWithIdentifierButNoPrefix() throws Exception {
+    void testPrintOutputFormatWithIdentifierButNoPrefix() {
         PrintingOutputFormat<String> printSink = new PrintingOutputFormat<>("mySink", false);
         printSink.open(0, 1);
 
         printSink.writeRecord("hello world!");
 
-        assertEquals("Print to System.out", printSink.toString());
-        assertEquals("mySink> hello world!" + line, arrayOutputStream.toString());
+        assertThat(printSink).hasToString("Print to System.out");
+        assertThat(arrayOutputStream).hasToString("mySink> hello world!" + line);
         printSink.close();
     }
 }

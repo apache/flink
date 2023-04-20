@@ -3,9 +3,9 @@ title: "概览"
 weight: 1
 type: docs
 aliases:
-  - /dev/table/sql/queries.html
-  - /dev/table/queries/
-  - /dev/table/sql.html
+  - /zh/dev/table/sql/queries.html
+  - /zh/dev/table/queries/
+  - /zh/dev/table/sql.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -29,24 +29,24 @@ under the License.
 # 查询
 
 
-`SELECT` statements and `VALUES` statements are specified with the `sqlQuery()` method of the `TableEnvironment`.
-The method returns the result of the SELECT statement (or the VALUES statements) as a `Table`.
-A `Table` can be used in [subsequent SQL and Table API queries]({{< ref "docs/dev/table/common" >}}#mixing-table-api-and-sql), be [converted into a DataStream]({{< ref "docs/dev/table/common" >}}#integration-with-datastream), or [written to a TableSink]({{< ref "docs/dev/table/common" >}}#emit-a-table).
-SQL and Table API queries can be seamlessly mixed and are holistically optimized and translated into a single program.
+`TableEnvironment` 的 `sqlQuery()` 方法可以执行 `SELECT` 和 `VALUES` 语句。
+这个方法把 `SELECT` 语句(或 `VALUES` 语句)的结果作为一个 `Table` 返回。
+`Table`可以用在[后续 SQL 和 Table API 查询]({{< ref "docs/dev/table/common" >}}#mixing-table-api-and-sql)中，可以[转换为 DataStream]({{< ref "docs/dev/table/common" >}}#integration-with-datastream)， 或者 [写入到TableSink]({{< ref "docs/dev/table/common" >}}#emit-a-table)。
+SQL 和 Table API 查询可以无缝混合，并进行整体优化并转换为单个程序。
 
-In order to access a table in a SQL query, it must be [registered in the TableEnvironment]({{< ref "docs/dev/table/common" >}}#register-tables-in-the-catalog).
-A table can be registered from a [TableSource]({{< ref "docs/dev/table/common" >}}#register-a-tablesource), [Table]({{< ref "docs/dev/table/common" >}}#register-a-table), [CREATE TABLE statement](#create-table), [DataStream]({{< ref "docs/dev/table/common" >}}#register-a-datastream).
-Alternatively, users can also [register catalogs in a TableEnvironment]({{< ref "docs/dev/table/catalogs" >}}) to specify the location of the data sources.
+为了在SQL查询中访问表，它必须[注册在 TableEnvironment]({{< ref "docs/dev/table/common" >}}#register-tables-in-the-catalog)。
+表使用下列方式注册：[TableSource]({{< ref "docs/dev/table/common" >}}#register-a-tablesource)， [Table]({{< ref "docs/dev/table/common" >}}#register-a-table)，[CREATE TABLE 语句](#create-table)，[DataStream]({{< ref "docs/dev/table/common" >}}#register-a-datastream)。
+也可以通过[在 TableEnvironment 中注册 Catalog]({{< ref "docs/dev/table/catalogs" >}}) 来指定数据源的位置。
 
-For convenience, `Table.toString()` automatically registers the table under a unique name in its `TableEnvironment` and returns the name.
-So, `Table` objects can be directly inlined into SQL queries as shown in the examples below.
+为了方便起见，`Table.toString()` 自动在 `TableEnvironment` 中注册一个名称唯一的表，并返回表名。
+所以`Table`对象可以直接内嵌入 SQL 中查询使用，如下示例所示。
 
-**Note:** Queries that include unsupported SQL features cause a `TableException`.
-The supported features of SQL on batch and streaming tables are listed in the following sections.
+**注意:** 查询如果包含不支持的 SQL 特性，会抛出`TableException`异常。
+下面的章节中列出了批处理和流处理上支持的 SQL 特性。
 
-## Specifying a Query
+## 指定查询
 
-The following examples show how to specify a SQL queries on registered and inlined tables.
+下面的示例演示如何在一个注册的表和内联(inlined)的表上指定SQL查询。
 
 {{< tabs "f5adf0e8-aae8-4eb4-84a7-ceb156d173e9" >}}
 {{< tab "Java" >}}
@@ -164,17 +164,17 @@ table_env \
 
 {{< top >}}
 
-## Execute a Query
+## 执行查询
 
 
-A SELECT statement or a VALUES statement can be executed to collect the content to local through the `TableEnvironment.executeSql()` method. The method returns the result of the SELECT statement (or the VALUES statement) as a `TableResult`. Similar to a SELECT statement, a `Table` object can be executed using the `Table.execute()` method to collect the content of the query to the local client.
-`TableResult.collect()` method returns a closeable row iterator. The select job will not be finished unless all result data has been collected. We should actively close the job to avoid resource leak through the `CloseableIterator#close()` method. 
-We can also print the select result to client console through the `TableResult.print()` method. The result data in `TableResult` can be accessed only once. Thus, `collect()` and `print()` must not be called after each other.
+通过 `TableEnvironment.executeSql()` 方法可以执行 `SELECT` 或 `VALUES` 语句，并把结果收集到本地。它将`SELECT`语句（或`VALUES`语句）的结果作为 `TableResult` 返回。和 `SELECT` 语句相似，`Table.execute()` 方法可以执行`Table`对象，并把结果收集到本地客户端。
+`TableResult.collect()` 方法返回一个可关闭的行迭代器（row iterator）。除非所有结果数据都被收集完成了，否则`SELECT`作业不会停止，所以应该主动使用 `CloseableIterator#close()` 方法关闭作业，以防止资源泄露。`TableResult.print()` 可以打印 `SELECT` 的结果到客户端的控制台中。 `TableResult` 上的结果数据只能被访问一次。因此 `collect()` 和 `print()` 只能二选一。
 
-`TableResult.collect()` and `TableResult.print()` have slightly different behaviors under different checkpointing settings (to enable checkpointing for a streaming job, see [checkpointing config]({{< ref "docs/deployment/config" >}}#checkpointing)).
-* For batch jobs or streaming jobs without checkpointing, `TableResult.collect()` and `TableResult.print()` have neither exactly-once nor at-least-once guarantee. Query results are immediately accessible by the clients once they're produced, but exceptions will be thrown when the job fails and restarts.
-* For streaming jobs with exactly-once checkpointing, `TableResult.collect()` and `TableResult.print()` guarantee an end-to-end exactly-once record delivery. A result will be accessible by clients only after its corresponding checkpoint completes.
-* For streaming jobs with at-least-once checkpointing, `TableResult.collect()` and `TableResult.print()` guarantee an end-to-end at-least-once record delivery. Query results are immediately accessible by the clients once they're produced, but it is possible for the same result to be delivered multiple times.
+`TableResult.collect()` 和 `TableResult.print()`在不同的 checkpointing 设置下有一些差异。(流式作业开启 checkpointing，参见 [checkpointing 设置]({{< ref "docs/deployment/config" >}}#checkpointing))。
+
+*   对于没有开启 checkpoint 的批作业或流作业，`TableResult.collect()` 和 `TableResult.print()` 既不保证精确一次（exactly-once）也不保证至少一次（at-least-once）。查询结果一旦产生，客户端可以立即访问，但是，作业失败或重启将抛出异常。
+*   对于 checkpoint 设置为精确一次（exactly-once）的流式作业， `TableResult.collect()` 和 `TableResult.print()` 保证端到端的数据只传递一次。相应的checkpoint完成后，客户端才能访问结果。
+*   对于 checkpoint 设置为至少一次（at-least-once）的流式作业， `TableResult.collect()` 和 `TableResult.print()` 保证端到端的数据至少传递一次，查询结果一旦产生，客户端可以立即访问，但是可能会有同一条数据出现多次的情况。
 
 {{< tabs "88a003e1-16ea-43cc-9d42-d43ef1351e53" >}}
 {{< tab "Java" >}}
@@ -205,10 +205,10 @@ tableResult2.print();
 val env = StreamExecutionEnvironment.getExecutionEnvironment()
 val tableEnv = StreamTableEnvironment.create(env, settings)
 // enable checkpointing
-tableEnv.getConfig.getConfiguration.set(
-  ExecutionCheckpointingOptions.CHECKPOINTING_MODE, CheckpointingMode.EXACTLY_ONCE)
-tableEnv.getConfig.getConfiguration.set(
-  ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(10))
+tableEnv.getConfig
+  .set(ExecutionCheckpointingOptions.CHECKPOINTING_MODE, CheckpointingMode.EXACTLY_ONCE)
+tableEnv.getConfig
+  .set(ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(10))
 
 tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
 
@@ -232,8 +232,8 @@ tableResult2.print()
 env = StreamExecutionEnvironment.get_execution_environment()
 table_env = StreamTableEnvironment.create(env, settings)
 # enable checkpointing
-table_env.get_config().get_configuration().set_string("execution.checkpointing.mode", "EXACTLY_ONCE")
-table_env.get_config().get_configuration().set_string("execution.checkpointing.interval", "10s")
+table_env.get_config().set("execution.checkpointing.mode", "EXACTLY_ONCE")
+table_env.get_config().set("execution.checkpointing.interval", "10s")
 
 table_env.execute_sql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
 
@@ -252,13 +252,13 @@ table_result2.print()
 {{< top >}}
 
 
-## Syntax
+## 语法
 
-Flink parses SQL using [Apache Calcite](https://calcite.apache.org/docs/reference.html), which supports standard ANSI SQL.
+Flink使用支持标准 ANSI SQL 的 [Apache Calcite](https://calcite.apache.org/docs/reference.html) 解析 SQL。
 
-The following BNF-grammar describes the superset of supported SQL features in batch and streaming queries. The [Operations](#operations) section shows examples for the supported features and indicates which features are only supported for batch or streaming queries.
+下面的 BNF-grammar 描述了批处理和流处理查询中所支持 SQL 特性的超集。[操作](#操作)展示了支持的功能以及示例，并指示了哪些功能仅支持批处理或流处理查询。
 
-{{< expand Grammar >}}
+{{< details Grammar >}}
 ```sql
 query:
     values
@@ -400,15 +400,15 @@ patternQuantifier:
   | '{' { [ minRepeat ], [ maxRepeat ] } '}' ['?']
   | '{' repeat '}'
 ```
-{{< /expand >}}
+{{< /details >}}
 
-Flink SQL uses a lexical policy for identifier (table, attribute, function names) similar to Java:
+Flink SQL使用的标识符词法规则(table，attribute，function names)和Java相似。
 
-- The case of identifiers is preserved whether or not they are quoted.
-- After which, identifiers are matched case-sensitively.
-- Unlike Java, back-ticks allow identifiers to contain non-alphanumeric characters (e.g. <code>"SELECT a AS `my field` FROM t"</code>).
+*   大写或小写的标识符都是保留的，就算没有被引用。
+*   标识符的匹配区分大小写。
+*   和Java不同，反引号(`\`)允许标识符包含非字母数字（no-alphanumeric）字符(例如：<code>"SELECT a AS \`my field\` FROM t"</code>)。
 
-String literals must be enclosed in single quotes (e.g., `SELECT 'Hello World'`). Duplicate a single quote for escaping (e.g., `SELECT 'It''s me'`).
+字符串必须被单引号括起来（例如： `SELECT 'Hello World'`）。两个单引号用于转义（例如:`SELECT 'It''s me'`）。
 
 ```text
 Flink SQL> SELECT 'Hello World', 'It''s me';
@@ -420,29 +420,29 @@ Flink SQL> SELECT 'Hello World', 'It''s me';
 1 row in set
 ```
 
-Unicode characters are supported in string literals. If explicit unicode code points are required, use the following syntax:
+字符串支持Unicode字符。 下面是显式使用Unicode编码的语法：
 
-- Use the backslash (`\`) as escaping character (default): `SELECT U&'\263A'`
-- Use a custom escaping character: `SELECT U&'#263A' UESCAPE '#'`
+- 使用反斜杠(`\`)作为转义字符 (默认)：`SELECT U&'\263A'`
+- 使用自定义的转义字符：`SELECT U&'#263A' UESCAPE '#'`
 
 {{< top >}}
 
-## Operations
+## 操作
 
-- [WITH clause]({{< ref "docs/dev/table/sql/queries/with" >}})
+- [WITH 子句]({{< ref "docs/dev/table/sql/queries/with" >}})
 - [SELECT & WHERE]({{< ref "docs/dev/table/sql/queries/select" >}})
 - [SELECT DISTINCT]({{< ref "docs/dev/table/sql/queries/select-distinct" >}})
-- [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}})
-- [Window Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}})
-- [Group Aggregation]({{< ref "docs/dev/table/sql/queries/group-agg" >}})
-- [Over Aggregation]({{< ref "docs/dev/table/sql/queries/over-agg" >}})
+- [窗口函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}})
+- [窗口聚合]({{< ref "docs/dev/table/sql/queries/window-agg" >}})
+- [分组聚合]({{< ref "docs/dev/table/sql/queries/group-agg" >}})
+- [Over聚合]({{< ref "docs/dev/table/sql/queries/over-agg" >}})
 - [Joins]({{< ref "docs/dev/table/sql/queries/joins" >}})
-- [Set Operations]({{< ref "docs/dev/table/sql/queries/set-ops" >}})
-- [ORDER BY clause]({{< ref "docs/dev/table/sql/queries/orderby" >}})
-- [LIMIT clause]({{< ref "docs/dev/table/sql/queries/limit" >}})
+- [集合操作]({{< ref "docs/dev/table/sql/queries/set-ops" >}})
+- [ORDER BY 语句]({{< ref "docs/dev/table/sql/queries/orderby" >}})
+- [LIMIT 语句]({{< ref "docs/dev/table/sql/queries/limit" >}})
 - [Top-N]({{< ref "docs/dev/table/sql/queries/topn" >}})
-- [Window Top-N]({{< ref "docs/dev/table/sql/queries/window-topn" >}})
-- [Deduplication]({{< ref "docs/dev/table/sql/queries/deduplication" >}})
-- [Pattern Recognition]({{< ref "docs/dev/table/sql/queries/match_recognize" >}})
+- [窗口 Top-N]({{< ref "docs/dev/table/sql/queries/window-topn" >}})
+- [去重]({{< ref "docs/dev/table/sql/queries/deduplication" >}})
+- [模式识别]({{< ref "docs/dev/table/sql/queries/match_recognize" >}})
 
 {{< top >}}

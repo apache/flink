@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.optimize.program
 
 import org.apache.flink.table.planner.calcite.RelTimeIndicatorConverter
@@ -24,10 +23,11 @@ import org.apache.flink.util.Preconditions
 import org.apache.calcite.rel.RelNode
 
 /**
-  * A FlinkOptimizeProgram that deals with time.
-  *
-  * @tparam OC OptimizeContext
-  */
+ * A FlinkOptimizeProgram that deals with time.
+ *
+ * @tparam OC
+ *   OptimizeContext
+ */
 class FlinkRelTimeIndicatorProgram[OC <: FlinkOptimizeContext] extends FlinkOptimizeProgram[OC] {
 
   override def optimize(input: RelNode, context: OC): RelNode = {

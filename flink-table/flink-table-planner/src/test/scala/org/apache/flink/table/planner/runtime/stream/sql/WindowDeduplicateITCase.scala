@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies
@@ -24,18 +23,17 @@ import org.apache.flink.streaming.api.CheckpointingMode
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.ConcatDistinctAggFunction
-import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.{FailingCollectionSource, StreamingWithStateTestBase, TestData, TestingAppendSink}
+import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.types.Row
 
+import org.junit.{Before, Test}
 import org.junit.Assert.assertEquals
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Before, Test}
 
 @RunWith(classOf[Parameterized])
-class WindowDeduplicateITCase(mode: StateBackendMode)
-  extends StreamingWithStateTestBase(mode) {
+class WindowDeduplicateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
   @Before
   override def before(): Unit = {
@@ -47,24 +45,23 @@ class WindowDeduplicateITCase(mode: StateBackendMode)
     FailingCollectionSource.reset()
 
     val dataId = TestValuesTableFactory.registerData(TestData.windowDataWithTimestamp)
-    tEnv.executeSql(
-      s"""
-        |CREATE TABLE T1 (
-        | `ts` STRING,
-        | `int` INT,
-        | `double` DOUBLE,
-        | `float` FLOAT,
-        | `bigdec` DECIMAL(10, 2),
-        | `string` STRING,
-        | `name` STRING,
-        | `rowtime` AS TO_TIMESTAMP(`ts`),
-        | WATERMARK for `rowtime` AS `rowtime` - INTERVAL '1' SECOND
-        |) WITH (
-        | 'connector' = 'values',
-        | 'data-id' = '$dataId',
-        | 'failing-source' = 'true'
-        |)
-        |""".stripMargin)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE T1 (
+                       | `ts` STRING,
+                       | `int` INT,
+                       | `double` DOUBLE,
+                       | `float` FLOAT,
+                       | `bigdec` DECIMAL(10, 2),
+                       | `string` STRING,
+                       | `name` STRING,
+                       | `rowtime` AS TO_TIMESTAMP(`ts`),
+                       | WATERMARK for `rowtime` AS `rowtime` - INTERVAL '1' SECOND
+                       |) WITH (
+                       | 'connector' = 'values',
+                       | 'data-id' = '$dataId',
+                       | 'failing-source' = 'true'
+                       |)
+                       |""".stripMargin)
     tEnv.createFunction("concat_distinct_agg", classOf[ConcatDistinctAggFunction])
   }
 
@@ -111,7 +108,8 @@ class WindowDeduplicateITCase(mode: StateBackendMode)
         "2020-10-10T00:00:32,7,7.0,7.0,7.77,null,null,2020-10-10 00:00:32.000," +
           "2020-10-10T00:00:30,2020-10-10T00:00:35,2020-10-10T00:00:34.999",
         "2020-10-10T00:00:34,1,3.0,3.0,3.33,Comment#3,b,2020-10-10 00:00:34.000," +
-          "2020-10-10T00:00:30,2020-10-10T00:00:35,2020-10-10T00:00:34.999")
+          "2020-10-10T00:00:30,2020-10-10T00:00:35,2020-10-10T00:00:34.999"
+      )
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 
@@ -195,7 +193,8 @@ class WindowDeduplicateITCase(mode: StateBackendMode)
         "3,Hello,b,2020-10-10T00:00:05,2020-10-10T00:00:10,2020-10-10T00:00:09.999",
         "4,Hi,b,2020-10-10T00:00:15,2020-10-10T00:00:20,2020-10-10T00:00:19.999",
         "7,null,null,2020-10-10T00:00:30,2020-10-10T00:00:35,2020-10-10T00:00:34.999",
-        "1,Comment#3,b,2020-10-10T00:00:30,2020-10-10T00:00:35,2020-10-10T00:00:34.999")
+        "1,Comment#3,b,2020-10-10T00:00:30,2020-10-10T00:00:35,2020-10-10T00:00:34.999"
+      )
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 
@@ -262,7 +261,8 @@ class WindowDeduplicateITCase(mode: StateBackendMode)
         "2020-10-10T00:00:34,1,3.0,3.0,3.33,Comment#3,b,2020-10-10 00:00:34.000," +
           "2020-10-10T00:00:30,2020-10-10T00:00:40,2020-10-10T00:00:39.999",
         "2020-10-10T00:00:34,1,3.0,3.0,3.33,Comment#3,b,2020-10-10 00:00:34.000," +
-          "2020-10-10T00:00:30,2020-10-10T00:00:45,2020-10-10T00:00:44.999")
+          "2020-10-10T00:00:30,2020-10-10T00:00:45,2020-10-10T00:00:44.999"
+      )
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 }

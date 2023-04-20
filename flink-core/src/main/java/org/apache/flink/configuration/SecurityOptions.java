@@ -18,9 +18,12 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
+import org.apache.flink.core.security.token.DelegationTokenProvider;
 
+import java.time.Duration;
 import java.util.List;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
@@ -32,6 +35,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** The set of configuration options relating to security. */
 public class SecurityOptions {
+
+    public static final String DELEGATION_TOKEN_PROVIDER_PREFIX =
+            DelegationTokenProvider.CONFIG_PREFIX + ".<serviceName>";
 
     // ------------------------------------------------------------------------
     //  Custom Security Service Loader
@@ -109,6 +115,8 @@ public class SecurityOptions {
                                     + " (for example, `Client,KafkaClient` to use the credentials for ZooKeeper authentication and for"
                                     + " Kafka authentication)");
 
+    /** @deprecated Use {@link #DELEGATION_TOKENS_ENABLED}. */
+    @Deprecated
     @Documentation.Section(Documentation.Sections.SECURITY_AUTH_KERBEROS)
     public static final ConfigOption<Boolean> KERBEROS_FETCH_DELEGATION_TOKEN =
             key("security.kerberos.fetch.delegation-token")
@@ -122,6 +130,111 @@ public class SecurityOptions {
                                     + "As a consequence, it will not fetch delegation tokens for HDFS and HBase. "
                                     + "You may need to disable this option, if you rely on submission mechanisms, e.g. Apache Oozie, "
                                     + "to handle delegation tokens.");
+
+    @Documentation.Section(Documentation.Sections.SECURITY_AUTH_KERBEROS)
+    public static final ConfigOption<Duration> KERBEROS_RELOGIN_PERIOD =
+            key("security.kerberos.relogin.period")
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(1))
+                    .withDescription(
+                            "The time period when keytab login happens automatically in order to always have a valid TGT.");
+
+    /** @deprecated Use {@link #DELEGATION_TOKENS_RENEWAL_RETRY_BACKOFF}. */
+    @Deprecated
+    @Documentation.Section(Documentation.Sections.SECURITY_AUTH_KERBEROS)
+    public static final ConfigOption<Duration> KERBEROS_TOKENS_RENEWAL_RETRY_BACKOFF =
+            key("security.kerberos.tokens.renewal.retry.backoff")
+                    .durationType()
+                    .defaultValue(Duration.ofHours(1))
+                    .withDescription(
+                            "The time period how long to wait before retrying to obtain new delegation tokens after a failure.");
+
+    /** @deprecated Use {@link #DELEGATION_TOKENS_RENEWAL_TIME_RATIO}. */
+    @Deprecated
+    @Documentation.Section(Documentation.Sections.SECURITY_AUTH_KERBEROS)
+    public static final ConfigOption<Double> KERBEROS_TOKENS_RENEWAL_TIME_RATIO =
+            key("security.kerberos.tokens.renewal.time-ratio")
+                    .doubleType()
+                    .defaultValue(0.75)
+                    .withDescription(
+                            "Ratio of the tokens's expiration time when new credentials should be re-obtained.");
+
+    @Documentation.Section(Documentation.Sections.SECURITY_AUTH_KERBEROS)
+    public static final ConfigOption<List<String>> KERBEROS_HADOOP_FILESYSTEMS_TO_ACCESS =
+            key("security.kerberos.access.hadoopFileSystems")
+                    .stringType()
+                    .asList()
+                    .noDefaultValue()
+                    .withDeprecatedKeys("yarn.security.kerberos.additionalFileSystems")
+                    .withDescription(
+                            "A semicolon-separated list of Kerberos-secured Hadoop filesystems Flink is going to access. For example, "
+                                    + "security.kerberos.access.hadoopFileSystems=hdfs://namenode2:9002;hdfs://namenode3:9003. "
+                                    + "The JobManager needs to have access to these filesystems to retrieve the security tokens.");
+
+    // ------------------------------------------------------------------------
+    //  Delegation Token Options
+    // ------------------------------------------------------------------------
+
+    @Documentation.Section(value = Documentation.Sections.SECURITY_DELEGATION_TOKEN, position = 1)
+    public static final ConfigOption<Boolean> DELEGATION_TOKENS_ENABLED =
+            key("security.delegation.tokens.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDeprecatedKeys(KERBEROS_FETCH_DELEGATION_TOKEN.key())
+                    .withDescription(
+                            "Indicates whether to start delegation tokens system for external services.");
+
+    @Documentation.Section(value = Documentation.Sections.SECURITY_DELEGATION_TOKEN, position = 2)
+    public static final ConfigOption<Duration> DELEGATION_TOKENS_RENEWAL_RETRY_BACKOFF =
+            key("security.delegation.tokens.renewal.retry.backoff")
+                    .durationType()
+                    .defaultValue(Duration.ofHours(1))
+                    .withDeprecatedKeys(KERBEROS_TOKENS_RENEWAL_RETRY_BACKOFF.key())
+                    .withDescription(
+                            "The time period how long to wait before retrying to obtain new delegation tokens after a failure.");
+
+    @Documentation.Section(value = Documentation.Sections.SECURITY_DELEGATION_TOKEN, position = 3)
+    public static final ConfigOption<Double> DELEGATION_TOKENS_RENEWAL_TIME_RATIO =
+            key("security.delegation.tokens.renewal.time-ratio")
+                    .doubleType()
+                    .defaultValue(0.75)
+                    .withDeprecatedKeys(KERBEROS_TOKENS_RENEWAL_TIME_RATIO.key())
+                    .withDescription(
+                            "Ratio of the tokens's expiration time when new credentials should be re-obtained.");
+
+    @Documentation.SuffixOption(DELEGATION_TOKEN_PROVIDER_PREFIX)
+    @Documentation.Section(value = Documentation.Sections.SECURITY_DELEGATION_TOKEN, position = 4)
+    public static final ConfigOption<Boolean> DELEGATION_TOKEN_PROVIDER_ENABLED =
+            key("enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Controls whether to obtain credentials for services when security is "
+                                    + "enabled. By default, credentials for all supported services "
+                                    + "are retrieved when those services are configured, but it's "
+                                    + "possible to disable that behavior if it somehow conflicts "
+                                    + "with the application being run.");
+
+    /**
+     * Returns a view over the given configuration via which options can be set/retrieved for the
+     * given provider.
+     *
+     * <pre>
+     *     Configuration config = ...
+     *     SecurityOptions.forProvider(config, "my_provider")
+     *         .set(SecurityOptions.DELEGATION_TOKEN_PROVIDER_ENABLED, false)
+     *         ...
+     * </pre>
+     *
+     * @param configuration backing configuration
+     * @param providerName provider name
+     * @return view over configuration
+     */
+    @Experimental
+    public static Configuration forProvider(Configuration configuration, String providerName) {
+        return new DelegatingConfiguration(
+                configuration, DelegationTokenProvider.CONFIG_PREFIX + "." + providerName + ".");
+    }
 
     // ------------------------------------------------------------------------
     //  ZooKeeper Security Options

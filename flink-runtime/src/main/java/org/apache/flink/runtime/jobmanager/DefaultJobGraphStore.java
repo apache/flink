@@ -20,11 +20,13 @@ package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.persistence.ResourceVersion;
 import org.apache.flink.runtime.persistence.StateHandleStore;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +39,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -238,42 +244,97 @@ public class DefaultJobGraphStore<R extends ResourceVersion<R>>
     }
 
     @Override
-    public void removeJobGraph(JobID jobId) throws Exception {
-        checkNotNull(jobId, "Job ID");
-        String name = jobGraphStoreUtil.jobIDToName(jobId);
-
-        LOG.debug("Removing job graph {} from {}.", jobId, jobGraphStateHandleStore);
-
+    public void putJobResourceRequirements(
+            JobID jobId, JobResourceRequirements jobResourceRequirements) throws Exception {
         synchronized (lock) {
-            verifyIsRunning();
-            if (addedJobGraphs.contains(jobId)) {
-                if (jobGraphStateHandleStore.releaseAndTryRemove(name)) {
-                    addedJobGraphs.remove(jobId);
-                } else {
-                    throw new FlinkException(
-                            String.format(
-                                    "Could not remove job graph with job id %s from %s.",
-                                    jobId, jobGraphStateHandleStore));
-                }
+            @Nullable final JobGraph jobGraph = recoverJobGraph(jobId);
+            if (jobGraph == null) {
+                throw new NoSuchElementException(
+                        String.format(
+                                "JobGraph for job [%s] was not found in JobGraphStore and is needed for attaching JobResourceRequirements.",
+                                jobId));
             }
+            JobResourceRequirements.writeToJobGraph(jobGraph, jobResourceRequirements);
+            putJobGraph(jobGraph);
         }
-
-        LOG.info("Removed job graph {} from {}.", jobId, jobGraphStateHandleStore);
     }
 
     @Override
-    public void releaseJobGraph(JobID jobId) throws Exception {
+    public CompletableFuture<Void> globalCleanupAsync(JobID jobId, Executor executor) {
         checkNotNull(jobId, "Job ID");
 
-        LOG.debug("Releasing job graph {} from {}.", jobId, jobGraphStateHandleStore);
+        return runAsyncWithLockAssertRunning(
+                () -> {
+                    LOG.debug("Removing job graph {} from {}.", jobId, jobGraphStateHandleStore);
 
-        synchronized (lock) {
-            verifyIsRunning();
-            jobGraphStateHandleStore.release(jobGraphStoreUtil.jobIDToName(jobId));
-            addedJobGraphs.remove(jobId);
+                    final String name = jobGraphStoreUtil.jobIDToName(jobId);
+                    releaseAndRemoveOrThrowCompletionException(jobId, name);
+
+                    addedJobGraphs.remove(jobId);
+
+                    LOG.info("Removed job graph {} from {}.", jobId, jobGraphStateHandleStore);
+                },
+                executor);
+    }
+
+    @GuardedBy("lock")
+    private void releaseAndRemoveOrThrowCompletionException(JobID jobId, String jobName) {
+        boolean success;
+        try {
+            success = jobGraphStateHandleStore.releaseAndTryRemove(jobName);
+        } catch (Exception e) {
+            throw new CompletionException(e);
         }
 
-        LOG.info("Released job graph {} from {}.", jobId, jobGraphStateHandleStore);
+        if (!success) {
+            throw new CompletionException(
+                    new FlinkException(
+                            String.format(
+                                    "Could not remove job graph with job id %s from %s.",
+                                    jobId, jobGraphStateHandleStore)));
+        }
+    }
+
+    /**
+     * Releases the locks on the specified {@link JobGraph}.
+     *
+     * <p>Releasing the locks allows that another instance can delete the job from the {@link
+     * JobGraphStore}.
+     *
+     * @param jobId specifying the job to release the locks for
+     * @param executor the executor being used for the asynchronous execution of the local cleanup.
+     * @returns The cleanup result future.
+     */
+    @Override
+    public CompletableFuture<Void> localCleanupAsync(JobID jobId, Executor executor) {
+        checkNotNull(jobId, "Job ID");
+
+        return runAsyncWithLockAssertRunning(
+                () -> {
+                    LOG.debug("Releasing job graph {} from {}.", jobId, jobGraphStateHandleStore);
+
+                    jobGraphStateHandleStore.release(jobGraphStoreUtil.jobIDToName(jobId));
+                    addedJobGraphs.remove(jobId);
+
+                    LOG.info("Released job graph {} from {}.", jobId, jobGraphStateHandleStore);
+                },
+                executor);
+    }
+
+    private CompletableFuture<Void> runAsyncWithLockAssertRunning(
+            ThrowingRunnable<Exception> runnable, Executor executor) {
+        return CompletableFuture.runAsync(
+                () -> {
+                    synchronized (lock) {
+                        verifyIsRunning();
+                        try {
+                            runnable.run();
+                        } catch (Exception e) {
+                            throw new CompletionException(e);
+                        }
+                    }
+                },
+                executor);
     }
 
     @Override

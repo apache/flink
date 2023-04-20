@@ -40,7 +40,8 @@ import java.io.IOException;
  * actions.
  */
 interface BarrierHandlerState {
-    BarrierHandlerState alignmentTimeout(Controller controller, CheckpointBarrier checkpointBarrier)
+    BarrierHandlerState alignedCheckpointTimeout(
+            Controller controller, CheckpointBarrier checkpointBarrier)
             throws IOException, CheckpointException;
 
     BarrierHandlerState announcementReceived(

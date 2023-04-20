@@ -19,20 +19,21 @@
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
 import org.apache.flink.table.planner.plan.utils.RankProcessStrategy;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test RankProcessStrategy json ser/de. */
 public class RankProcessStrategySerdeTest {
 
     @Test
     public void testRankRange() throws JsonProcessingException {
-        ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = JacksonMapperFactory.createObjectMapper();
         RankProcessStrategy[] strategies =
                 new RankProcessStrategy[] {
                     RankProcessStrategy.UNDEFINED_STRATEGY,
@@ -44,7 +45,7 @@ public class RankProcessStrategySerdeTest {
             RankProcessStrategy result =
                     mapper.readValue(
                             mapper.writeValueAsString(strategy), RankProcessStrategy.class);
-            assertEquals(strategy.toString(), result.toString());
+            assertThat(result.toString()).isEqualTo(strategy.toString());
         }
     }
 }

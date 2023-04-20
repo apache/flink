@@ -56,8 +56,8 @@ public class SubtaskExecutionAttemptAccumulatorsInfo implements ResponseBody {
             @JsonProperty(FIELD_NAME_USER_ACCUMULATORS)
                     Collection<UserAccumulator> userAccumulatorList) {
 
-        this.subtaskIndex = Preconditions.checkNotNull(subtaskIndex);
-        this.attemptNum = Preconditions.checkNotNull(attemptNum);
+        this.subtaskIndex = subtaskIndex;
+        this.attemptNum = attemptNum;
         this.id = Preconditions.checkNotNull(id);
         this.userAccumulatorList = Preconditions.checkNotNull(userAccumulatorList);
     }

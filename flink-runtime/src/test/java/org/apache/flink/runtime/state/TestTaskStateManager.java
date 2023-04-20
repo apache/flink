@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
@@ -29,20 +30,26 @@ import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.changelog.ChangelogStateHandle;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorageLoader;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorageView;
 import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
+import org.apache.flink.util.ExceptionUtils;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Implementation of {@link TaskStateManager} for tests. */
@@ -69,7 +76,7 @@ public class TestTaskStateManager implements TaskStateManager {
     public TestTaskStateManager(LocalRecoveryConfig localRecoveryConfig) {
         this(
                 new JobID(),
-                new ExecutionAttemptID(),
+                createExecutionAttemptId(),
                 new TestCheckpointResponder(),
                 localRecoveryConfig,
                 new InMemoryStateChangelogStorage(),
@@ -83,7 +90,7 @@ public class TestTaskStateManager implements TaskStateManager {
             ExecutionAttemptID executionAttemptID,
             CheckpointResponder checkpointResponder,
             LocalRecoveryConfig localRecoveryConfig,
-            StateChangelogStorage<?> changelogStorage,
+            @Nullable StateChangelogStorage<?> changelogStorage,
             Map<Long, TaskStateSnapshot> jobManagerTaskStateSnapshotsByCheckpointId,
             long reportedCheckpointId,
             OneShotLatch waitForReportLatch) {
@@ -91,7 +98,7 @@ public class TestTaskStateManager implements TaskStateManager {
         this.executionAttemptID = checkNotNull(executionAttemptID);
         this.checkpointResponder = checkNotNull(checkpointResponder);
         this.localRecoveryDirectoryProvider = checkNotNull(localRecoveryConfig);
-        this.stateChangelogStorage = checkNotNull(changelogStorage);
+        this.stateChangelogStorage = changelogStorage;
         this.jobManagerTaskStateSnapshotsByCheckpointId =
                 checkNotNull(jobManagerTaskStateSnapshotsByCheckpointId);
         this.taskManagerTaskStateSnapshotsByCheckpointId = new HashMap<>();
@@ -220,6 +227,21 @@ public class TestTaskStateManager implements TaskStateManager {
     @Override
     public StateChangelogStorage<?> getStateChangelogStorage() {
         return stateChangelogStorage;
+    }
+
+    @org.jetbrains.annotations.Nullable
+    @Override
+    public StateChangelogStorageView<?> getStateChangelogStorageView(
+            Configuration configuration, ChangelogStateHandle changelogStateHandle) {
+        StateChangelogStorageView<?> storageView = null;
+        try {
+            storageView =
+                    StateChangelogStorageLoader.loadFromStateHandle(
+                            configuration, changelogStateHandle);
+        } catch (IOException e) {
+            ExceptionUtils.rethrow(e);
+        }
+        return storageView;
     }
 
     @Override

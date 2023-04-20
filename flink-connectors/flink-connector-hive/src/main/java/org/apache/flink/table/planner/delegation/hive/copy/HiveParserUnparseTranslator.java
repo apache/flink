@@ -117,7 +117,8 @@ public class HiveParserUnparseTranslator {
         translations.put(tokenStartIndex, translation);
     }
 
-    public void addTableNameTranslation(HiveParserASTNode tableName, String currentDatabaseName) {
+    public void addTableNameTranslation(
+            HiveParserASTNode tableName, String currentCatalog, String currentDatabaseName) {
         if (!enabled) {
             return;
         }
@@ -126,16 +127,21 @@ public class HiveParserUnparseTranslator {
             return;
         }
         assert (tableName.getToken().getType() == HiveASTParser.TOK_TABNAME);
-        assert (tableName.getChildCount() <= 2);
+        assert (tableName.getChildCount() <= 3);
 
-        if (tableName.getChildCount() == 2) {
-            addIdentifierTranslation((HiveParserASTNode) tableName.getChild(0));
-            addIdentifierTranslation((HiveParserASTNode) tableName.getChild(1));
+        if (tableName.getChildCount() > 1) {
+            for (int i = 0; i < tableName.getChildCount(); i++) {
+                // add identifier translation for catalog, database, table
+                addIdentifierTranslation((HiveParserASTNode) tableName.getChild(i));
+            }
         } else {
             // transform the table reference to an absolute reference (i.e., "db.table")
             StringBuilder replacementText = new StringBuilder();
-            replacementText.append(HiveUtils.unparseIdentifier(currentDatabaseName, conf));
-            replacementText.append('.');
+            replacementText.append(
+                    String.format(
+                            "%s.%s.",
+                            HiveUtils.unparseIdentifier(currentCatalog, conf),
+                            HiveUtils.unparseIdentifier(currentDatabaseName, conf)));
 
             HiveParserASTNode identifier = (HiveParserASTNode) tableName.getChild(0);
             String identifierText =

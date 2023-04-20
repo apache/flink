@@ -29,7 +29,7 @@ import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.{fromLo
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 
-abstract sealed class Aggregation extends PlannerExpression {
+sealed abstract class Aggregation extends PlannerExpression {
 
   override def toString = s"Aggregate"
 
@@ -37,19 +37,15 @@ abstract sealed class Aggregation extends PlannerExpression {
 
 /**
  * Wrapper for call expressions resolved already in the API with the new type inference stack.
- * Separate from [[ApiResolvedExpression]] because others' expressions validation logic
- * check for the [[Aggregation]] trait.
+ * Separate from [[ApiResolvedExpression]] because others' expressions validation logic check for
+ * the [[Aggregation]] trait.
  */
-case class ApiResolvedAggregateCallExpression(
-    resolvedCall: CallExpression)
-  extends Aggregation {
+case class ApiResolvedAggregateCallExpression(resolvedCall: CallExpression) extends Aggregation {
 
   private[flink] val children = Nil
 
   override private[flink] def resultType: TypeInformation[_] = TypeConversions
-    .fromDataTypeToLegacyInfo(
-      resolvedCall
-        .getOutputDataType)
+    .fromDataTypeToLegacyInfo(resolvedCall.getOutputDataType)
 }
 
 case class DistinctAgg(child: PlannerExpression) extends Aggregation {
@@ -64,19 +60,18 @@ case class DistinctAgg(child: PlannerExpression) extends Aggregation {
       case agg: Aggregation =>
         child.validateInput()
       case _ =>
-        ValidationFailure(s"Distinct modifier cannot be applied to $child! " +
-          s"It can only be applied to an aggregation expression, for example, " +
-          s"'a.count.distinct which is equivalent with COUNT(DISTINCT a).")
+        ValidationFailure(
+          s"Distinct modifier cannot be applied to $child! " +
+            s"It can only be applied to an aggregation expression, for example, " +
+            s"'a.count.distinct which is equivalent with COUNT(DISTINCT a).")
     }
   }
 
   override private[flink] def children = Seq(child)
 }
 
-/**
-  * Returns a multiset aggregates.
-  */
-case class Collect(child: PlannerExpression) extends Aggregation  {
+/** Returns a multiset aggregates. */
+case class Collect(child: PlannerExpression) extends Aggregation {
 
   override private[flink] def children: Seq[PlannerExpression] = Seq(child)
 
@@ -86,9 +81,7 @@ case class Collect(child: PlannerExpression) extends Aggregation  {
   override def toString: String = s"collect($child)"
 }
 
-/**
-  * Expression for calling a user-defined (table)aggregate function.
-  */
+/** Expression for calling a user-defined (table)aggregate function. */
 case class AggFunctionCall(
     aggregateFunction: ImperativeAggregateFunction[_, _],
     resultTypeInfo: TypeInformation[_],
@@ -103,19 +96,17 @@ case class AggFunctionCall(
   override def validateInput(): ValidationResult = {
     val signature = children.map(_.resultType)
     // look for a signature that matches the input types
-    val foundSignature = getAccumulateMethodSignature(
-      aggregateFunction,
-      signature.map(fromTypeInfoToLogicalType))
+    val foundSignature =
+      getAccumulateMethodSignature(aggregateFunction, signature.map(fromTypeInfoToLogicalType))
     if (foundSignature.isEmpty) {
-      ValidationFailure(s"Given parameters do not match any signature. \n" +
-                          s"Actual: ${
-                            signatureToString(signature.map(fromLegacyInfoToDataType))} \n" +
-                          s"Expected: ${
-                            getMethodSignatures(aggregateFunction, "accumulate")
-                              .map(_.drop(1))
-                              .map(signatureToString)
-                              .sorted  // make sure order to verify error messages in tests
-                              .mkString(", ")}")
+      ValidationFailure(
+        s"Given parameters do not match any signature. \n" +
+          s"Actual: ${signatureToString(signature.map(fromLegacyInfoToDataType))} \n" +
+          s"Expected: ${getMethodSignatures(aggregateFunction, "accumulate")
+              .map(_.drop(1))
+              .map(signatureToString)
+              .sorted // make sure order to verify error messages in tests
+              .mkString(", ")}")
     } else {
       ValidationSuccess
     }

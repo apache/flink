@@ -19,11 +19,16 @@
 package org.apache.flink.runtime.dispatcher.runner;
 
 import org.apache.flink.runtime.dispatcher.DispatcherId;
+import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.ThrowingJobGraphWriter;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.Preconditions;
 
-import java.util.Collections;
+import javax.annotation.Nullable;
+
 import java.util.UUID;
 
 /** {@link DispatcherLeaderProcess} implementation for the per-job mode. */
@@ -31,16 +36,23 @@ public class JobDispatcherLeaderProcess extends AbstractDispatcherLeaderProcess 
 
     private final DispatcherGatewayServiceFactory dispatcherGatewayServiceFactory;
 
-    private final JobGraph jobGraph;
+    @Nullable private final JobGraph jobGraph;
+    @Nullable private final JobResult recoveredDirtyJobResult;
+
+    private final JobResultStore jobResultStore;
 
     JobDispatcherLeaderProcess(
             UUID leaderSessionId,
             DispatcherGatewayServiceFactory dispatcherGatewayServiceFactory,
-            JobGraph jobGraph,
+            @Nullable JobGraph jobGraph,
+            @Nullable JobResult recoveredDirtyJobResult,
+            JobResultStore jobResultStore,
             FatalErrorHandler fatalErrorHandler) {
         super(leaderSessionId, fatalErrorHandler);
-        this.jobGraph = jobGraph;
         this.dispatcherGatewayServiceFactory = dispatcherGatewayServiceFactory;
+        this.jobGraph = jobGraph;
+        this.recoveredDirtyJobResult = recoveredDirtyJobResult;
+        this.jobResultStore = Preconditions.checkNotNull(jobResultStore);
     }
 
     @Override
@@ -48,8 +60,10 @@ public class JobDispatcherLeaderProcess extends AbstractDispatcherLeaderProcess 
         final DispatcherGatewayService dispatcherService =
                 dispatcherGatewayServiceFactory.create(
                         DispatcherId.fromUuid(getLeaderSessionId()),
-                        Collections.singleton(jobGraph),
-                        ThrowingJobGraphWriter.INSTANCE);
+                        CollectionUtil.ofNullable(jobGraph),
+                        CollectionUtil.ofNullable(recoveredDirtyJobResult),
+                        ThrowingJobGraphWriter.INSTANCE,
+                        jobResultStore);
 
         completeDispatcherSetup(dispatcherService);
     }

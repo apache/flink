@@ -22,7 +22,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.io.network.NettyShuffleServiceFactory;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -108,9 +107,9 @@ public class ShuffleMasterTest extends TestLogger {
         configuration.setString(
                 ShuffleServiceOptions.SHUFFLE_SERVICE_FACTORY_CLASS,
                 TestShuffleServiceFactory.class.getName());
-        configuration.setString(RestOptions.BIND_PORT, "0");
         configuration.setBoolean(STOP_TRACKING_PARTITION_KEY, stopTrackingPartition);
         return new MiniClusterConfiguration.Builder()
+                .withRandomPorts()
                 .setNumTaskManagers(1)
                 .setNumSlotsPerTaskManager(1)
                 .setConfiguration(configuration)

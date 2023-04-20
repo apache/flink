@@ -36,14 +36,13 @@ import org.apache.flink.contrib.streaming.state.RocksDBResourceContainer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.KeyedStateFunction;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
-import org.apache.flink.runtime.state.LocalRecoveryDirectoryProviderImpl;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
@@ -91,7 +90,7 @@ public class StateBackendBenchmarkUtils {
     private static CheckpointableKeyedStateBackend<Long> createBatchExecutionStateBackend() {
         return new BatchExecutionStateBackend()
                 .createKeyedStateBackend(
-                        null,
+                        MockEnvironment.builder().build(),
                         new JobID(),
                         "Test",
                         new LongSerializer(),
@@ -122,10 +121,7 @@ public class StateBackendBenchmarkUtils {
                         2,
                         new KeyGroupRange(0, 1),
                         executionConfig,
-                        new LocalRecoveryConfig(
-                                false,
-                                new LocalRecoveryDirectoryProviderImpl(
-                                        recoveryBaseDir, new JobID(), new JobVertexID(), 0)),
+                        new LocalRecoveryConfig(null),
                         EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB,
                         TtlTimeProvider.DEFAULT,
                         LatencyTrackingStateConfig.disabled(),
@@ -161,10 +157,7 @@ public class StateBackendBenchmarkUtils {
                         LatencyTrackingStateConfig.disabled(),
                         Collections.emptyList(),
                         AbstractStateBackend.getCompressionDecorator(executionConfig),
-                        new LocalRecoveryConfig(
-                                false,
-                                new LocalRecoveryDirectoryProviderImpl(
-                                        recoveryBaseDir, new JobID(), new JobVertexID(), 0)),
+                        new LocalRecoveryConfig(null),
                         priorityQueueSetFactory,
                         false,
                         new CloseableRegistry());

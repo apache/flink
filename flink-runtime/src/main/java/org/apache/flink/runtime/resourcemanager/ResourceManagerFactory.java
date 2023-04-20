@@ -29,6 +29,7 @@ import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.util.ConfigurationException;
 
 import org.slf4j.Logger;
@@ -54,6 +55,7 @@ public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
             RpcService rpcService,
             HighAvailabilityServices highAvailabilityServices,
             HeartbeatServices heartbeatServices,
+            DelegationTokenManager delegationTokenManager,
             FatalErrorHandler fatalErrorHandler,
             ClusterInformation clusterInformation,
             @Nullable String webInterfaceUrl,
@@ -61,11 +63,6 @@ public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
             String hostname,
             Executor ioExecutor)
             throws ConfigurationException {
-
-        final ResourceManagerMetricGroup resourceManagerMetricGroup =
-                ResourceManagerMetricGroup.create(metricRegistry, hostname);
-        final SlotManagerMetricGroup slotManagerMetricGroup =
-                SlotManagerMetricGroup.create(metricRegistry, hostname);
 
         final Configuration runtimeServicesAndRmConfig =
                 getEffectiveConfigurationForResourceManagerAndRuntimeServices(configuration);
@@ -83,11 +80,12 @@ public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
                 rpcService,
                 highAvailabilityServices,
                 heartbeatServices,
+                delegationTokenManager,
                 fatalErrorHandler,
                 clusterInformation,
                 webInterfaceUrl,
-                resourceManagerMetricGroup,
-                slotManagerMetricGroup,
+                metricRegistry,
+                hostname,
                 ioExecutor);
     }
 
@@ -99,7 +97,8 @@ public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
                         context.getRmRuntimeServicesConfig(),
                         context.getRpcService(),
                         context.getHighAvailabilityServices(),
-                        context.getSlotManagerMetricGroup());
+                        SlotManagerMetricGroup.create(
+                                context.getMetricRegistry(), context.getHostname()));
 
         return createResourceManager(
                 context.getRmConfig(),
@@ -107,12 +106,19 @@ public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
                 context.getRpcService(),
                 leaderSessionId,
                 context.getHeartbeatServices(),
+                context.getDelegationTokenManager(),
                 context.getFatalErrorHandler(),
                 context.getClusterInformation(),
                 context.getWebInterfaceUrl(),
-                context.getResourceManagerMetricGroup(),
+                ResourceManagerMetricGroup.create(
+                        context.getMetricRegistry(), context.getHostname()),
                 resourceManagerRuntimeServices,
                 context.getIoExecutor());
+    }
+
+    /** This indicates whether the process should be terminated after losing leadership. */
+    protected boolean supportMultiLeaderSession() {
+        return true;
     }
 
     /**
@@ -140,6 +146,7 @@ public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
             RpcService rpcService,
             UUID leaderSessionId,
             HeartbeatServices heartbeatServices,
+            DelegationTokenManager delegationTokenManager,
             FatalErrorHandler fatalErrorHandler,
             ClusterInformation clusterInformation,
             @Nullable String webInterfaceUrl,

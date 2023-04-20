@@ -28,7 +28,7 @@ under the License.
 
 	<groupId>org.apache.flink</groupId>
 	<artifactId>flink-parent</artifactId>
-	<version>1.15-SNAPSHOT</version>
+	<version>1.18-SNAPSHOT</version>
 
 	<name>Flink : </name>
 	<packaging>pom</packaging>
@@ -48,6 +48,19 @@ under the License.
 		<connection>git@github.com:apache/flink.git</connection>
 		<developerConnection>scm:git:https://gitbox.apache.org/repos/asf/flink.git</developerConnection>
 	</scm>
+
+	<repositories>
+		<repository>
+			<id>repository.jboss.org</id>
+			<url>https://repository.jboss.org/nexus/content/groups/public/</url>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+			<releases>
+				<enabled>false</enabled>
+			</releases>
+		</repository>
+	</repositories>
 
 	<modules>
 		<module>flink-annotations</module>
@@ -88,29 +101,34 @@ under the License.
 		<module>flink-walkthroughs</module>
 		<module>flink-kubernetes</module>
 		<module>flink-external-resources</module>
-		<module>tools/ci/java-ci-tools</module>
+		<module>tools/ci/flink-ci-tools</module>
 	</modules>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-		<hadoop.version>2.8.5</hadoop.version>
+		<flink.hadoop.version>2.10.2</flink.hadoop.version>
+		<flink.XmxMax>3072m</flink.XmxMax>
+		<!-- XmxMax / forkCountITCase -->
+		<flink.XmxITCase>1536m</flink.XmxITCase>
+		<!-- XmxMax / forkCountUnitTest -->
+		<flink.XmxUnitTest>768m</flink.XmxUnitTest>
 		<!-- Need to use a user property here because the surefire
 			 forkCount is not exposed as a property. With this we can set
 			 it on the "mvn" commandline in travis. -->
-		<flink.forkCount>1C</flink.forkCount>
-		<!-- Allow overriding the fork behaviour for the expensive tests in flink-tests
-			 to avoid process kills due to container limits on TravisCI -->
-		<flink.forkCountTestPackage>${flink.forkCount}</flink.forkCountTestPackage>
+		<!-- Number of forkCounts for ITCase and UnitTest should take into account allocated memory
+			 to the jvm (-Xmx) and the available memory on the machine running the test -->
+		<flink.forkCountITCase>2</flink.forkCountITCase>
+		<flink.forkCountUnitTest>4</flink.forkCountUnitTest>
 		<flink.reuseForks>true</flink.reuseForks>
-		<flink.shaded.version>14.0</flink.shaded.version>
-		<flink.shaded.jackson.version>2.12.4</flink.shaded.jackson.version>
-		<guava.version>18.0</guava.version>
+		<flink.surefire.baseArgLine>-XX:+UseG1GC -Xms256m</flink.surefire.baseArgLine>
+		<flink.shaded.version>16.1</flink.shaded.version>
+		<flink.shaded.jackson.version>2.13.4</flink.shaded.jackson.version>
 		<target.java.version>1.8</target.java.version>
-		<slf4j.version>1.7.32</slf4j.version>
+		<slf4j.version>1.7.36</slf4j.version>
 		<log4j.version>2.17.1</log4j.version>
 		<!-- Overwrite default values from parent pom.
-			 Intellij is (sometimes?) using those values to choose target language level
+			 IntelliJ IDEA is (sometimes?) using those values to choose target language level
 			 and thus is changing back to java 1.6 on each maven re-import -->
 		<maven.compiler.source>${target.java.version}</maven.compiler.source>
 		<maven.compiler.target>${target.java.version}</maven.compiler.target>
@@ -120,25 +138,27 @@ under the License.
 		<scala.version>2.12.7</scala.version>
 		<scala.binary.version>2.12</scala.binary.version>
 		<chill.version>0.7.6</chill.version>
-		<zookeeper.version>3.4.14</zookeeper.version>
-		<!-- Only the curator2 TestingServer works with ZK 3.4 -->
-		<curator.version>2.12.0</curator.version>
-		<prometheus.version>0.8.1</prometheus.version>
-		<avro.version>1.10.0</avro.version>
+		<!-- keep FlinkTestcontainersConfigurator.configureZookeeperContainer in sync -->
+		<zookeeper.version>3.7.1</zookeeper.version>
+		<curator.version>5.2.0</curator.version>
+		<avro.version>1.11.1</avro.version>
+		<!-- Version for transitive Jackson dependencies that are not used within Flink itself.-->
+		<jackson-bom.version>2.13.4.20221013</jackson-bom.version>
 		<javax.activation.api.version>1.2.0</javax.activation.api.version>
 		<jaxb.api.version>2.3.1</jaxb.api.version>
 		<junit4.version>4.13.2</junit4.version>
-		<junit5.version>5.8.1</junit5.version>
-		<mockito.version>2.21.0</mockito.version>
+		<junit5.version>5.9.1</junit5.version>
+		<archunit.version>1.0.0</archunit.version>
+		<mockito.version>3.4.6</mockito.version>
 		<powermock.version>2.0.9</powermock.version>
 		<hamcrest.version>1.3</hamcrest.version>
-		<assertj.version>3.21.0</assertj.version>
-		<py4j.version>0.10.9.3</py4j.version>
-		<beam.version>2.27.0</beam.version>
-		<protoc.version>3.17.3</protoc.version>
-		<arrow.version>0.16.0</arrow.version>
+		<assertj.version>3.23.1</assertj.version>
+		<py4j.version>0.10.9.7</py4j.version>
+		<beam.version>2.43.0</beam.version>
+		<protoc.version>3.21.7</protoc.version>
 		<okhttp.version>3.14.9</okhttp.version>
-		<testcontainers.version>1.16.2</testcontainers.version>
+		<!-- keep net.java.dev.jna:jna version in sync -->
+		<testcontainers.version>1.17.6</testcontainers.version>
 		<lz4.version>1.8.0</lz4.version>
 		<japicmp.skip>false</japicmp.skip>
 		<flink.convergence.phase>validate</flink.convergence.phase>
@@ -148,19 +168,33 @@ under the License.
 			Starting Hadoop 3, org.apache.kerby will be used instead of MiniKDC. We may have
 			to revisit the impact at that time.
 		-->
-		<minikdc.version>3.2.0</minikdc.version>
-		<generated.docs.dir>./docs/layouts/shortcodes/generated</generated.docs.dir>
-		<hive.version>2.3.4</hive.version>
-		<hive-2.2.0-orc-version>1.4.3</hive-2.2.0-orc-version>
+		<minikdc.version>3.2.4</minikdc.version>
+		<hive.version>2.3.9</hive.version>
 		<orc.version>1.5.6</orc.version>
-		<!--
-			Hive 2.3.4 relies on Hadoop 2.7.2 and later versions.
-			For Hadoop 2.7, the minor Hadoop version supported for flink-shaded-hadoop-2-uber is 2.7.5
-		-->
-		<hivemetastore.hadoop.version>2.7.5</hivemetastore.hadoop.version>
-		<japicmp.referenceVersion>1.14.0</japicmp.referenceVersion>
+		<japicmp.referenceVersion>1.17.0</japicmp.referenceVersion>
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
-		<spotless.version>2.4.2</spotless.version>
+		<spotless.version>2.27.1</spotless.version>
+		<spotless.scalafmt.version>3.4.3</spotless.scalafmt.version>
+		<spotless.delimiter>package</spotless.delimiter>
+		<spotless.license.header>
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+		</spotless.license.header>
 
 		<!-- Can be set to any value to reproduce a specific build. -->
 		<test.randomization.seed/>
@@ -172,7 +206,6 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-force-shading</artifactId>
-			<version>${flink.shaded.version}</version>
 		</dependency>
 
 		<!-- Root dependencies for all projects -->
@@ -210,7 +243,23 @@ under the License.
 
 		<dependency>
 			<groupId>org.mockito</groupId>
+			<artifactId>mockito-inline</artifactId>
+			<version>${mockito.version}</version>
+			<type>jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.mockito</groupId>
 			<artifactId>mockito-core</artifactId>
+			<version>${mockito.version}</version>
+			<type>jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-junit-jupiter</artifactId>
 			<version>${mockito.version}</version>
 			<type>jar</type>
 			<scope>test</scope>
@@ -296,8 +345,14 @@ under the License.
 
 			<dependency>
 				<groupId>org.apache.flink</groupId>
-				<artifactId>flink-shaded-asm-7</artifactId>
-				<version>7.1-${flink.shaded.version}</version>
+				<artifactId>flink-shaded-force-shading</artifactId>
+				<version>${flink.shaded.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.flink</groupId>
+				<artifactId>flink-shaded-asm-9</artifactId>
+				<version>9.3-${flink.shaded.version}</version>
 			</dependency>
 
 			<dependency>
@@ -321,20 +376,20 @@ under the License.
 			<dependency>
 				<groupId>org.apache.flink</groupId>
 				<artifactId>flink-shaded-netty</artifactId>
-				<version>4.1.65.Final-${flink.shaded.version}</version>
+				<version>4.1.82.Final-${flink.shaded.version}</version>
 			</dependency>
 
 			<dependency>
 				<groupId>org.apache.flink</groupId>
 				<artifactId>flink-shaded-netty-tcnative-dynamic</artifactId>
-				<version>2.0.39.Final-${flink.shaded.version}</version>
+				<version>2.0.54.Final-${flink.shaded.version}</version>
 				<scope>test</scope>
 			</dependency>
 
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-common</artifactId>
-				<version>${hadoop.version}</version>
+				<version>${flink.hadoop.version}</version>
 				<exclusions>
 					<exclusion>
 						<groupId>jdk.tools</groupId>
@@ -354,7 +409,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-hdfs</artifactId>
-				<version>${hadoop.version}</version>
+				<version>${flink.hadoop.version}</version>
 				<exclusions>
 					<exclusion>
 						<groupId>jdk.tools</groupId>
@@ -367,6 +422,14 @@ under the License.
 					<exclusion>
 						<groupId>org.slf4j</groupId>
 						<artifactId>slf4j-log4j12</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>ch.qos.reload4j</groupId>
+						<artifactId>reload4j</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>org.slf4j</groupId>
+						<artifactId>slf4j-reload4j</artifactId>
 					</exclusion>
 				</exclusions>
 			</dependency>
@@ -374,7 +437,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-mapreduce-client-core</artifactId>
-				<version>${hadoop.version}</version>
+				<version>${flink.hadoop.version}</version>
 				<exclusions>
 					<exclusion>
 						<groupId>jdk.tools</groupId>
@@ -388,13 +451,21 @@ under the License.
 						<groupId>org.slf4j</groupId>
 						<artifactId>slf4j-log4j12</artifactId>
 					</exclusion>
+					<exclusion>
+						<groupId>ch.qos.reload4j</groupId>
+						<artifactId>reload4j</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>org.slf4j</groupId>
+						<artifactId>slf4j-reload4j</artifactId>
+					</exclusion>
 				</exclusions>
 			</dependency>
 
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-yarn-common</artifactId>
-				<version>${hadoop.version}</version>
+				<version>${flink.hadoop.version}</version>
 				<exclusions>
 					<exclusion>
 						<groupId>jdk.tools</groupId>
@@ -414,7 +485,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-yarn-client</artifactId>
-				<version>${hadoop.version}</version>
+				<version>${flink.hadoop.version}</version>
 				<exclusions>
 					<exclusion>
 						<groupId>jdk.tools</groupId>
@@ -478,13 +549,26 @@ under the License.
 			<dependency>
 				<groupId>org.apache.commons</groupId>
 				<artifactId>commons-lang3</artifactId>
-				<version>3.3.2</version>
+				<version>3.12.0</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.commons</groupId>
+				<artifactId>commons-text</artifactId>
+				<version>1.10.0</version>
 			</dependency>
 
 			<dependency>
 				<groupId>org.xerial.snappy</groupId>
 				<artifactId>snappy-java</artifactId>
 				<version>1.1.8.3</version>
+				<exclusions>
+					<exclusion>
+						<!-- Causes unnecessary dependency convergence errors; see MENFORCER-437 -->
+						<groupId>org.osgi</groupId>
+						<artifactId>org.osgi.core</artifactId>
+					</exclusion>
+				</exclusions>
 			</dependency>
 
 			<dependency>
@@ -496,7 +580,7 @@ under the License.
 			<dependency>
 				<groupId>com.github.oshi</groupId>
 				<artifactId>oshi-core</artifactId>
-				<version>3.4.0</version>
+				<version>6.1.5</version>
 			</dependency>
 
 			<!-- We no longer align the avro version with the version bundled in Hadoop.
@@ -518,14 +602,14 @@ under the License.
 				<!-- mockito/powermock mismatch -->
 				<groupId>net.bytebuddy</groupId>
 				<artifactId>byte-buddy</artifactId>
-				<version>1.8.15</version>
+				<version>1.10.14</version>
 			</dependency>
 
 			<dependency>
 				<!-- mockito/powermock mismatch -->
 				<groupId>net.bytebuddy</groupId>
 				<artifactId>byte-buddy-agent</artifactId>
-				<version>1.8.15</version>
+				<version>1.10.14</version>
 			</dependency>
 
 			<!-- For dependency convergence -->
@@ -547,9 +631,9 @@ under the License.
 				<artifactId>jackson-bom</artifactId>
 				<type>pom</type>
 				<scope>import</scope>
-				<version>2.13.0</version>
+				<version>${jackson-bom.version}</version>
 			</dependency>
-			
+
 			<dependency>
 				<groupId>com.squareup.okhttp3</groupId>
 				<artifactId>okhttp</artifactId>
@@ -651,6 +735,13 @@ under the License.
 				<groupId>org.apache.commons</groupId>
 				<artifactId>commons-compress</artifactId>
 				<version>1.21</version>
+				<exclusions>
+					<exclusion>
+						<!-- Causes unnecessary dependency convergence errors; see MENFORCER-437 -->
+						<groupId>org.osgi</groupId>
+						<artifactId>org.osgi.core</artifactId>
+					</exclusion>
+				</exclusions>
 			</dependency>
 
 			<!-- Managed dependency required for HBase in flink-connector-hbase -->
@@ -699,12 +790,6 @@ under the License.
 			</dependency>
 
 			<dependency>
-				<groupId>org.scala-lang.modules</groupId>
-				<artifactId>scala-parser-combinators_${scala.binary.version}</artifactId>
-				<version>1.1.1</version>
-			</dependency>
-
-			<dependency>
 				<groupId>org.scalatest</groupId>
 				<artifactId>scalatest_${scala.binary.version}</artifactId>
 				<version>3.0.0</version>
@@ -724,10 +809,10 @@ under the License.
 						<groupId>org.slf4j</groupId>
 						<artifactId>slf4j-log4j12</artifactId>
 					</exclusion>
-					<!-- Netty is only needed for ZK servers, not clients -->
 					<exclusion>
+						<!-- Netty is an optional dependency, that we currently do not make use of. -->
 						<groupId>io.netty</groupId>
-						<artifactId>netty</artifactId>
+						<artifactId>*</artifactId>
 					</exclusion>
 					<!-- jline is optional for ZK console shell -->
 					<exclusion>
@@ -785,6 +870,21 @@ under the License.
 				<scope>test</scope>
 			</dependency>
 
+
+			<dependency>
+				<groupId>org.apache.flink</groupId>
+				<artifactId>flink-architecture-tests-base</artifactId>
+				<version>${project.version}</version>
+				<scope>test</scope>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.flink</groupId>
+				<artifactId>flink-architecture-tests-test</artifactId>
+				<version>${project.version}</version>
+				<scope>test</scope>
+			</dependency>
+
 			<dependency>
 				<!-- log4j2 has an optional dependency on disruptor which may affect other dependencies (like hive)
 					pin the version here to make this behavior explicit -->
@@ -796,7 +896,14 @@ under the License.
 				<!-- Bumped for security purposes and making it work with Jackson dependencies (2.10.1) -->
 				<groupId>org.yaml</groupId>
 				<artifactId>snakeyaml</artifactId>
-				<version>1.27</version>
+				<version>1.33</version>
+			</dependency>
+			<dependency>
+				<groupId>io.netty</groupId>
+				<artifactId>netty-bom</artifactId>
+				<version>4.1.70.Final</version>
+				<type>pom</type>
+				<scope>import</scope>
 			</dependency>
 			<dependency>
 				<groupId>org.testcontainers</groupId>
@@ -805,6 +912,21 @@ under the License.
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
+
+			<dependency>
+				<groupId>com.tngtech.archunit</groupId>
+				<artifactId>archunit</artifactId>
+				<version>${archunit.version}</version>
+				<scope>test</scope>
+			</dependency>
+
+			<dependency>
+				<groupId>com.tngtech.archunit</groupId>
+				<artifactId>archunit-junit5</artifactId>
+				<version>${archunit.version}</version>
+				<scope>test</scope>
+			</dependency>
+
 		</dependencies>
 	</dependencyManagement>
 
@@ -885,37 +1007,6 @@ under the License.
 						</plugin>
 						<plugin>
 							<groupId>org.apache.maven.plugins</groupId>
-							<artifactId>maven-shade-plugin</artifactId>
-							<version>3.2.4</version>
-						</plugin>
-						<plugin>
-							<groupId>com.github.siom79.japicmp</groupId>
-							<artifactId>japicmp-maven-plugin</artifactId>
-							<dependencies>
-								<dependency>
-									<groupId>javax.xml.bind</groupId>
-									<artifactId>jaxb-api</artifactId>
-									<version>2.3.0</version>
-								</dependency>
-								<dependency>
-									<groupId>com.sun.xml.bind</groupId>
-									<artifactId>jaxb-impl</artifactId>
-									<version>2.3.1</version>
-								</dependency>
-								<dependency>
-									<groupId>com.sun.xml.bind</groupId>
-									<artifactId>jaxb-core</artifactId>
-									<version>2.3.0</version>
-								</dependency>
-								<dependency>
-									<groupId>javax.activation</groupId>
-									<artifactId>activation</artifactId>
-									<version>1.1.1</version>
-								</dependency>
-							</dependencies>
-						</plugin>
-						<plugin>
-							<groupId>org.apache.maven.plugins</groupId>
 							<artifactId>maven-surefire-plugin</artifactId>
 							<configuration>
 								<excludedGroups>org.apache.flink.testutils.junit.FailsOnJava11</excludedGroups>
@@ -927,31 +1018,8 @@ under the License.
 							<configuration>
 								<additionalJOptions>
 									<additionalJOption>--add-exports=java.base/sun.net.util=ALL-UNNAMED</additionalJOption>
+									<additionalJOption>--add-exports=java.rmi/sun.rmi.registry=ALL-UNNAMED</additionalJOption>
 								</additionalJOptions>
-							</configuration>
-						</plugin>
-					</plugins>
-				</pluginManagement>
-			</build>
-		</profile>
-
-		<profile>
-			<id>java17</id>
-			<activation>
-				<jdk>[17,)</jdk>
-			</activation>
-
-			<build>
-				<pluginManagement>
-					<plugins>
-						<plugin>
-							<groupId>com.diffplug.spotless</groupId>
-							<artifactId>spotless-maven-plugin</artifactId>
-							<configuration>
-								<!-- Current google format does not run on Java 17.
-									 Don't upgrade it in this profile because it formats code differently.
-									 Re-evaluate once support for Java 8 is dropped. -->
-								<skip>true</skip>
 							</configuration>
 						</plugin>
 					</plugins>
@@ -1035,13 +1103,6 @@ under the License.
 							</configuration>
 						</plugin>
 						<plugin>
-							<groupId>org.scalastyle</groupId>
-							<artifactId>scalastyle-maven-plugin</artifactId>
-							<configuration>
-								<skip>true</skip>
-							</configuration>
-						</plugin>
-						<plugin>
 							<groupId>org.apache.maven.plugins</groupId>
 							<artifactId>maven-enforcer-plugin</artifactId>
 							<configuration>
@@ -1056,8 +1117,15 @@ under the License.
 							</configuration>
 						</plugin>
 						<plugin>
-							<groupId>com.github.siom79.japicmp</groupId>
+							<groupId>io.github.zentol.japicmp</groupId>
 							<artifactId>japicmp-maven-plugin</artifactId>
+							<configuration>
+								<skip>true</skip>
+							</configuration>
+						</plugin>
+						<plugin>
+							<groupId>org.cyclonedx</groupId>
+							<artifactId>cyclonedx-maven-plugin</artifactId>
 							<configuration>
 								<skip>true</skip>
 							</configuration>
@@ -1166,13 +1234,6 @@ under the License.
 		</profile>
 
 		<profile>
-            <!-- Kept for backwards compatiblity, the doc buildbot expects
-                 this profile to exist.-->
-			<id>aggregate-scaladoc</id>
-		</profile>
-
-
-		<profile>
 			<!-- used for SNAPSHOT and regular releases -->
 			<id>docs-and-source</id>
 			<activation>
@@ -1185,12 +1246,12 @@ under the License.
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-source-plugin</artifactId>
-						<version>2.2.1</version><!--$NO-MVN-MAN-VER$-->
+						<version>3.2.1</version>
 						<executions>
 							<execution>
 								<id>attach-sources</id>
 								<goals>
-									<goal>jar</goal>
+									<goal>jar-no-fork</goal>
 								</goals>
 							</execution>
 						</executions>
@@ -1328,19 +1389,26 @@ under the License.
 			</plugin>
 
 			<plugin>
+				<!-- activate API compatibility checks -->
+				<groupId>io.github.zentol.japicmp</groupId>
+				<artifactId>japicmp-maven-plugin</artifactId>
+			</plugin>
+
+			<plugin>
 				<groupId>org.apache.rat</groupId>
 				<artifactId>apache-rat-plugin</artifactId>
-				<version>0.12</version><!--$NO-MVN-MAN-VER$-->
+				<version>0.13</version>
 				<inherited>false</inherited>
 				<executions>
 					<execution>
-						<phase>verify</phase>
+						<phase>validate</phase>
 						<goals>
 							<goal>check</goal>
 						</goals>
 					</execution>
 				</executions>
 				<configuration>
+					<consoleOutput>true</consoleOutput>
 					<excludeSubProjects>false</excludeSubProjects>
 					<numUnapprovedLicenses>0</numUnapprovedLicenses>
 					<licenses>
@@ -1433,24 +1501,25 @@ under the License.
                         <exclude>flink-formats/flink-avro/src/test/resources/flink_11-kryo_registrations</exclude>
 						<exclude>flink-scala/src/test/resources/flink_11-kryo_registrations</exclude>
 						<exclude>flink-core/src/test/resources/kryo-serializer-config-snapshot-v1</exclude>
+						<exclude>flink-core/src/test/resources/abstractID-with-toString-field</exclude>
+						<exclude>flink-core/src/test/resources/abstractID-with-toString-field-set</exclude>
 						<exclude>flink-formats/flink-avro/src/test/resources/avro/*.avsc</exclude>
 						<exclude>out/test/flink-avro/avro/user.avsc</exclude>
-						<exclude>flink-table/flink-sql-client/src/test/resources/*.out</exclude>
+						<exclude>flink-table/flink-sql-client/src/test/resources/**/*.out</exclude>
 						<exclude>flink-table/flink-table-planner/src/test/resources/**/*.out</exclude>
 						<exclude>flink-table/flink-table-planner/src/test/resources/json/*.json</exclude>
 						<exclude>flink-yarn/src/test/resources/krb5.keytab</exclude>
 						<exclude>flink-end-to-end-tests/test-scripts/test-data/**</exclude>
-						<exclude>flink-end-to-end-tests/test-scripts/docker-hadoop-secure-cluster/config/keystore.jks</exclude>
+						<exclude>flink-end-to-end-tests/test-scripts/docker-hadoop-secure-cluster/hadoop/config/keystore.jks</exclude>
 						<exclude>flink-connectors/flink-connector-kafka/src/test/resources/**</exclude>
 						<exclude>flink-connectors/flink-connector-hive/src/test/resources/**</exclude>
+						<exclude>flink-connectors/flink-file-sink-common/src/test/resources/recoverable-serializer-migration/**</exclude>
 						<exclude>flink-end-to-end-tests/flink-tpcds-test/tpcds-tool/answer_set/*</exclude>
 						<exclude>flink-end-to-end-tests/flink-tpcds-test/tpcds-tool/query/*</exclude>
-						<exclude>flink-connectors/flink-connector-aws-base/src/test/resources/profile</exclude>
-						<exclude>flink-connectors/flink-connector-kinesis/src/test/resources/profile</exclude>
-						<exclude>flink-connectors/flink-connector-aws-kinesis-data-streams/src/test/resources/profile</exclude>
 						<exclude>flink-table/flink-table-code-splitter/src/test/resources/**</exclude>
-						<exclude>flink-connectors/flink-connector-pulsar/src/test/resources/**</exclude>
-						<exclude>flink-architecture-tests/violations/**</exclude>
+
+						<!-- ArchUnit violation stores  -->
+						<exclude>**/archunit-violations/**</exclude>
 
 						<!-- snapshots -->
 						<exclude>**/src/test/resources/serializer-snapshot-*</exclude>
@@ -1458,7 +1527,9 @@ under the License.
 						<exclude>**/src/test/resources/**/test-data</exclude>
 						<exclude>**/src/test/resources/*-snapshot</exclude>
 						<exclude>**/src/test/resources/*.snapshot</exclude>
-						<exclude>**/src/test/resources/*-savepoint</exclude>
+						<exclude>**/src/test/resources/*-savepoint/**</exclude>
+						<exclude>**/src/test/resources/*-savepoint-native/**</exclude>
+						<exclude>**/src/test/resources/*-checkpoint/**</exclude>
 						<exclude>flink-core/src/test/resources/serialized-kryo-serializer-1.3</exclude>
 						<exclude>flink-core/src/test/resources/type-without-avro-serialized-using-kryo</exclude>
 						<exclude>flink-formats/flink-avro/src/test/resources/flink-1.4-serializer-java-serialized</exclude>
@@ -1473,6 +1544,7 @@ under the License.
 						<exclude>flink-formats/flink-parquet/src/test/java/org/apache/flink/formats/parquet/generated/*.java</exclude>
 						<exclude>flink-formats/flink-parquet/src/test/resources/avro/**</exclude>
 						<exclude>flink-formats/flink-parquet/src/test/resources/protobuf/**</exclude>
+						<exclude>flink-table/flink-sql-gateway/src/test/resources/*.txt</exclude>
 						<!-- netty test file, still Apache License 2.0 but with a different header -->
 						<exclude>flink-runtime/src/test/java/org/apache/flink/runtime/io/network/buffer/AbstractByteBufTest.java</exclude>
 						<!-- Configuration Files. -->
@@ -1487,9 +1559,10 @@ under the License.
 						<!-- Generated content -->
 						<exclude>out/**</exclude>
 						<exclude>**/target/**</exclude>
-						<exclude>**/scalastyle-output.xml</exclude>
 						<exclude>build-target/**</exclude>
 						<exclude>docs/layouts/shortcodes/generated/**</exclude>
+						<exclude>docs/themes/connectors/layouts/shortcodes/generated/**</exclude>
+						<exclude>docs/static/generated/**</exclude>
 						<!-- Tools: watchdog -->
 						<exclude>tools/artifacts/**</exclude>
 						<exclude>tools/flink*/**</exclude>
@@ -1504,15 +1577,12 @@ under the License.
 						<!-- Generated code via Avro -->
 						<exclude>flink-end-to-end-tests/flink-confluent-schema-registry/src/main/java/example/avro/**</exclude>
 						<exclude>flink-end-to-end-tests/flink-datastream-allround-test/src/main/java/org/apache/flink/streaming/tests/avro/**</exclude>
-						<!-- Files generated by jepsen tests -->
-						<exclude>flink-jepsen/store/**</exclude>
-						<exclude>flink-jepsen/docker/id_rsa*</exclude>
-						<exclude>flink-jepsen/docker/nodes</exclude>
 
 						<!-- flink-python -->
 						<exclude>flink-python/lib/**</exclude>
 						<exclude>flink-python/dev/download/**</exclude>
 						<exclude>flink-python/docs/_build/**</exclude>
+						<exclude>flink-python/docs/_static/switcher.json</exclude>
 
 						<!-- AWS SDK config that does not support license headers -->
 						<exclude>**/awssdk/global/handlers/execution.interceptors</exclude>
@@ -1540,14 +1610,18 @@ under the License.
 				<configuration>
 					<!-- enables TCP/IP communication between surefire and forked JVM-->
 					<forkNode implementation="org.apache.maven.plugin.surefire.extensions.SurefireForkNodeFactory"/>
-					<forkCount>${flink.forkCount}</forkCount>
 					<reuseForks>${flink.reuseForks}</reuseForks>
 					<trimStackTrace>false</trimStackTrace>
-					<systemPropertyVariables>
+					<systemPropertyVariables combine.children="append">
 						<forkNumber>0${surefire.forkNumber}</forkNumber>
-						<hadoop.version>${hadoop.version}</hadoop.version>
+						<!-- $$ ensures that surefire resolves this to the current forkNumber,
+						 	instead of maven during initialization -->
+						<mvn.forkNumber>$${surefire.forkNumber}</mvn.forkNumber>
+						<hadoop.version>${flink.hadoop.version}</hadoop.version>
 						<checkpointing.randomization>true</checkpointing.randomization>
 						<buffer-debloat.randomization>true</buffer-debloat.randomization>
+						<user.country>US</user.country>
+						<user.language>en</user.language>
 						<!-- force the use of the Changelog State Backend in tests on mini-cluster
 							on: enable CheckpointingOptions.ENABLE_STATE_CHANGE_LOG on cluster level
 							random: enable it randomly, unless explicitly set
@@ -1557,8 +1631,17 @@ under the License.
 						<project.basedir>${project.basedir}</project.basedir>
 						<!--suppress MavenModelInspection -->
 						<test.randomization.seed>${test.randomization.seed}</test.randomization.seed>
+						<junit.jupiter.extensions.autodetection.enabled>true</junit.jupiter.extensions.autodetection.enabled>
+						<!-- Enabled the parallel test execution feature. -->
+						<!-- Tests and test classes can be enabled for concurrent execution using @Execution(ExecutionMode.CONCURRENT). -->
+						<junit.jupiter.execution.parallel.enabled>true</junit.jupiter.execution.parallel.enabled>
+						<!-- Tests are by default executed by a single thread; parallel execution is opt-in. -->
+						<junit.jupiter.execution.parallel.mode.default>same_thread</junit.jupiter.execution.parallel.mode.default>
+						<!-- Tests suites are by default executed by a single thread; parallel execution is opt-in. -->
+						<junit.jupiter.execution.parallel.mode.classes.default>same_thread</junit.jupiter.execution.parallel.mode.classes.default>
+						<!-- automatically adjust parallelism based on available cpu/processor cores-->
+						<junit.jupiter.execution.parallel.config.strategy>dynamic</junit.jupiter.execution.parallel.config.strategy>
 					</systemPropertyVariables>
-					<argLine>-Xms256m -Xmx2048m -Dmvn.forkNumber=${surefire.forkNumber} -XX:+UseG1GC -Duser.country=US -Duser.language=en</argLine>
 				</configuration>
 				<executions>
 					<!--execute all the unit tests-->
@@ -1572,6 +1655,8 @@ under the License.
 							<includes>
 								<include>${test.unit.pattern}</include>
 							</includes>
+							<forkCount>${flink.forkCountUnitTest}</forkCount>
+							<argLine>${flink.surefire.baseArgLine} -Xmx${flink.XmxUnitTest}</argLine>
 						</configuration>
 					</execution>
 					<!--execute all the integration tests-->
@@ -1591,6 +1676,8 @@ under the License.
 								     e.g., 'org.apache.flink.api.scala.typeutils.Foo$Bar$Foobar'. -->
 								<exclude>**/*$*</exclude>
 							</excludes>
+							<forkCount>${flink.forkCountITCase}</forkCount>
+							<argLine>${flink.surefire.baseArgLine} -Xmx${flink.XmxITCase}</argLine>
 							<reuseForks>false</reuseForks>
 						</configuration>
 					</execution>
@@ -1641,12 +1728,12 @@ under the License.
 							<rules>
 								<bannedDependencies>
 									<excludes>
-										<exclude>org.yaml:snakeyaml:(,1.26]</exclude>
+										<exclude>org.yaml:snakeyaml:(,1.31]</exclude>
 									</excludes>
 									<includes>
 										<!-- Snakeyaml is pulled in by many modules without using it in production,
 											so there's no benefit in us investing time into bumping these. -->
-										<include>org.yaml:snakeyaml:(,1.26]:*:test</include>
+										<include>org.yaml:snakeyaml:(,1.31]:*:test</include>
 									</includes>
 									<message>Older snakeyaml versions are not allowed due to security vulnerabilities.</message>
 								</bannedDependencies>
@@ -1680,8 +1767,10 @@ under the License.
 									<excludes>
 										<exclude>log4j:log4j</exclude>
 										<exclude>org.slf4j:slf4j-log4j12</exclude>
+										<exclude>ch.qos.reload4j:reload4j</exclude>
+										<exclude>org.slf4j:slf4j-reload4j</exclude>
 									</excludes>
-									<message>Log4j 1 dependencies are not allowed because they conflict with Log4j 2. If the dependency absolutely requires the Log4j 1 API, use 'org.apache.logging.log4j:log4j-1.2-api'.</message>
+									<message>Log4j 1 and Reload4J dependencies are not allowed because they conflict with Log4j 2. If the dependency absolutely requires the Log4j 1 API, use 'org.apache.logging.log4j:log4j-1.2-api'.</message>
 								</bannedDependencies>
 							</rules>
 						</configuration>
@@ -1699,6 +1788,28 @@ under the License.
 									</excludes>
 									<message>
 										Direct dependencies on flink-rpc-akka are not allowed. Depend on flink-rpc-akka-loader instead, and use RpcSystem#load or the TestingRpcService.
+									</message>
+								</bannedDependencies>
+							</rules>
+						</configuration>
+					</execution>
+					<execution>
+						<id>forbid-direct-table-planner-dependencies</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<bannedDependencies>
+									<excludes>
+										<exclude>org.apache.flink:flink-table-planner_${scala.binary.version}</exclude>
+									</excludes>
+									<includes>
+										<include>org.apache.flink:flink-table-planner_${scala.binary.version}:*:*:test</include>
+									</includes>
+									<message>
+										Direct dependencies on flink-table-planner are not allowed.
+										You should depend on either Table API modules or flink-table-planner-loader.
 									</message>
 								</bannedDependencies>
 							</rules>
@@ -1778,7 +1889,6 @@ under the License.
 							<shadeTestJar>false</shadeTestJar>
 							<shadedArtifactAttached>false</shadedArtifactAttached>
 							<createDependencyReducedPom>true</createDependencyReducedPom>
-							<dependencyReducedPomLocation>${project.basedir}/target/dependency-reduced-pom.xml</dependencyReducedPomLocation>
 							<!-- Filters MUST be appended; merging filters does not work properly, see MSHADE-305 -->
 							<filters combine.children="append">
 								<!-- drop entries into META-INF and NOTICE files for the dummy artifact -->
@@ -1803,8 +1913,6 @@ under the License.
 									i.e. poms which do not contain properties which are derived from this root pom.
 									In particular, the Scala version properties are defined in the root pom and without
 									shading, the root pom would have to be Scala suffixed and thereby all other modules.
-									Removing this exclusion will also cause compilation errors in at least
-									1 module (flink-connector-elasticsearch5), for unknown reasons.
 									-->
 									<include>org.apache.flink:flink-shaded-force-shading</include>
 								</includes>
@@ -1836,6 +1944,20 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
+
+			<plugin>
+				<groupId>org.cyclonedx</groupId>
+				<artifactId>cyclonedx-maven-plugin</artifactId>
+				<version>2.7.7</version>
+				<executions>
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>makeBom</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
 		</plugins>
 
 		<pluginManagement>
@@ -1858,8 +1980,24 @@ under the License.
 
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-clean-plugin</artifactId>
+					<version>3.1.0</version>
+					<configuration>
+						<filesets>
+							<fileset>
+								<directory>${project.basedir}</directory>
+								<includes>
+									<include>dependency-reduced-pom.xml</include>
+								</includes>
+							</fileset>
+						</filesets>
+					</configuration>
+				</plugin>
+
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-checkstyle-plugin</artifactId>
-					<version>2.17</version>
+					<version>3.1.2</version>
 					<dependencies>
 						<dependency>
 							<groupId>com.puppycrawl.tools</groupId>
@@ -1933,7 +2071,7 @@ under the License.
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-enforcer-plugin</artifactId>
-					<version>3.0.0-M1</version>
+					<version>3.1.0</version>
 				</plugin>
 
 				<plugin>
@@ -1984,7 +2122,7 @@ under the License.
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-shade-plugin</artifactId>
-					<version>3.1.1</version>
+					<version>3.4.1</version>
 				</plugin>
 
 				<plugin>
@@ -1997,32 +2135,6 @@ under the License.
 							<phase>none</phase>
 						</execution>
 					</executions>
-				</plugin>
-
-				<!-- configure scala style -->
-				<plugin>
-					<groupId>org.scalastyle</groupId>
-					<artifactId>scalastyle-maven-plugin</artifactId>
-					<version>1.0.0</version>
-					<executions>
-						<execution>
-							<phase>validate</phase>
-							<goals>
-								<goal>check</goal>
-							</goals>
-						</execution>
-					</executions>
-					<configuration>
-						<verbose>false</verbose>
-						<failOnViolation>true</failOnViolation>
-						<includeTestSourceDirectory>true</includeTestSourceDirectory>
-						<failOnWarning>false</failOnWarning>
-						<sourceDirectory>${basedir}/src/main/scala</sourceDirectory>
-						<testSourceDirectory>${basedir}/src/test/scala</testSourceDirectory>
-						<outputFile>${project.basedir}/target/scalastyle-output.xml</outputFile>
-						<inputEncoding>UTF-8</inputEncoding>
-						<outputEncoding>UTF-8</outputEncoding>
-					</configuration>
 				</plugin>
 
 				<!-- set scala maven plugin version -->
@@ -2043,9 +2155,9 @@ under the License.
 
 				<!-- Configuration for the binary compatibility checker -->
 				<plugin>
-					<groupId>com.github.siom79.japicmp</groupId>
+					<groupId>io.github.zentol.japicmp</groupId>
 					<artifactId>japicmp-maven-plugin</artifactId>
-					<version>0.11.0</version>
+					<version>0.17.1.1_m325</version>
 					<configuration>
 						<oldVersion>
 							<dependency>
@@ -2069,20 +2181,11 @@ under the License.
 								<!--<include>@org.apache.flink.annotation.PublicEvolving</include>-->
 							</includes>
 							<excludes>
+								<exclude>@org.apache.flink.annotation.Experimental</exclude>
 								<exclude>@org.apache.flink.annotation.PublicEvolving</exclude>
 								<exclude>@org.apache.flink.annotation.Internal</exclude>
-								<exclude>org.apache.flink.streaming.api.datastream.DataStream#DataStream(org.apache.flink.streaming.api.environment.StreamExecutionEnvironment,org.apache.flink.streaming.api.transformations.StreamTransformation)</exclude>
-								<exclude>org.apache.flink.streaming.api.environment.LegacyLocalStreamEnvironment</exclude>
-								<exclude>org.apache.flink.streaming.api.functions.sink.RichSinkFunction#invoke(java.lang.Object)</exclude>
-								<exclude>org.apache.flink.streaming.api.functions.sink.SinkFunction</exclude>
-								<exclude>org.apache.flink.api.java.hadoop.mapred.HadoopInputFormat</exclude>
-								<exclude>org.apache.flink.api.java.hadoop.mapred.HadoopOutputFormat</exclude>
-								<exclude>org.apache.flink.api.java.hadoop.mapreduce.HadoopInputFormat</exclude>
-								<exclude>org.apache.flink.api.java.hadoop.mapreduce.HadoopOutputFormat</exclude>
-								<exclude>org.apache.flink.api.scala.hadoop.mapred.HadoopInputFormat</exclude>
-								<exclude>org.apache.flink.api.scala.hadoop.mapred.HadoopOutputFormat</exclude>
-								<exclude>org.apache.flink.api.scala.hadoop.mapreduce.HadoopInputFormat</exclude>
-								<exclude>org.apache.flink.api.scala.hadoop.mapreduce.HadoopOutputFormat</exclude>
+								<!-- MARKER: start exclusions; these will be wiped by tools/releasing/update_japicmp_configuration.sh -->
+								<!-- MARKER: end exclusions -->
 							</excludes>
 							<accessModifier>public</accessModifier>
 							<breakBuildOnModifications>false</breakBuildOnModifications>
@@ -2094,6 +2197,9 @@ under the License.
 							<skipPomModules>true</skipPomModules>
 							<!-- Don't break build on newly added maven modules -->
 							<ignoreNonResolvableArtifacts>true</ignoreNonResolvableArtifacts>
+							<packagingSupporteds>
+								<packagingSupported>jar</packagingSupported>
+							</packagingSupporteds>
 						</parameter>
 						<projectBuildDir>${rootDir}/${japicmp.outputDir}/${project.artifactId}</projectBuildDir>
 						<dependencies>

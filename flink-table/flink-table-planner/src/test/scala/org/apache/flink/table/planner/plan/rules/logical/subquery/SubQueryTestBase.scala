@@ -18,14 +18,13 @@
 package org.apache.flink.table.planner.plan.rules.logical.subquery
 
 import org.apache.flink.table.planner.calcite.CalciteConfig
+import org.apache.flink.table.planner.hint.FlinkHintStrategies
 import org.apache.flink.table.planner.plan.optimize.program.FlinkBatchProgram
 import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableConfigUtils, TableTestBase}
 
 import org.apache.calcite.sql2rel.SqlToRelConverter
 
-/**
-  * Tests for [[org.apache.flink.table.planner.plan.rules.logical.FlinkSubQueryRemoveRule]].
-  */
+/** Tests for [[org.apache.flink.table.planner.plan.rules.logical.FlinkSubQueryRemoveRule]]. */
 class SubQueryTestBase extends TableTestBase {
   protected val util: BatchTableTestUtil = batchTestUtil()
 
@@ -33,10 +32,12 @@ class SubQueryTestBase extends TableTestBase {
   var calciteConfig = TableConfigUtils.getCalciteConfig(util.tableEnv.getConfig)
   val builder = CalciteConfig.createBuilder(calciteConfig)
   builder.replaceSqlToRelConverterConfig(
-    SqlToRelConverter.config()
+    SqlToRelConverter
+      .config()
       .withTrimUnusedFields(false)
       .withExpand(false)
-      .withInSubQueryThreshold(3))
+      .withInSubQueryThreshold(3)
+      .withHintStrategyTable(FlinkHintStrategies.createHintStrategyTable()))
 
   util.tableEnv.getConfig.setPlannerConfig(builder.build())
 }

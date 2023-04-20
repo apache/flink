@@ -19,20 +19,18 @@
 package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
+import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import java.io.Serializable;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Interface for rpc services. An rpc service is used to start and connect to a {@link RpcEndpoint}.
  * Connecting to a rpc server will return a {@link RpcGateway} which can be used to call remote
  * procedures.
  */
-public interface RpcService {
+public interface RpcService extends AutoCloseableAsync {
 
     /**
      * Return the hostname or host address under which the rpc service can be reached. If the rpc
@@ -49,6 +47,19 @@ public interface RpcService {
      * @return Port of the rpc service or -1 if local rpc service
      */
     int getPort();
+
+    /**
+     * Returns a self gateway of the specified type which can be used to issue asynchronous calls
+     * against the RpcEndpoint.
+     *
+     * <p>IMPORTANT: The self gateway type must be implemented by the RpcEndpoint. Otherwise the
+     * method will fail.
+     *
+     * @param <C> type of the self gateway to create
+     * @param selfGatewayType class of the self gateway type
+     * @return Self gateway of the specified type which can be used to issue asynchronous rpcs
+     */
+    <C extends RpcGateway> C getSelfGateway(Class<C> selfGatewayType, RpcServer rpcServer);
 
     /**
      * Connect to a remote rpc server under the provided address. Returns a rpc gateway which can be
@@ -89,39 +100,11 @@ public interface RpcService {
     <C extends RpcEndpoint & RpcGateway> RpcServer startServer(C rpcEndpoint);
 
     /**
-     * Fence the given RpcServer with the given fencing token.
-     *
-     * <p>Fencing the RpcServer means that we fix the fencing token to the provided value. All RPCs
-     * will then be enriched with this fencing token. This expects that the receiving RPC endpoint
-     * extends {@link FencedRpcEndpoint}.
-     *
-     * @param rpcServer to fence with the given fencing token
-     * @param fencingToken to fence the RpcServer with
-     * @param <F> type of the fencing token
-     * @return Fenced RpcServer
-     */
-    <F extends Serializable> RpcServer fenceRpcServer(RpcServer rpcServer, F fencingToken);
-
-    /**
      * Stop the underlying rpc server of the provided self gateway.
      *
      * @param selfGateway Self gateway describing the underlying rpc server
      */
     void stopServer(RpcServer selfGateway);
-
-    /**
-     * Trigger the asynchronous stopping of the {@link RpcService}.
-     *
-     * @return Future which is completed once the {@link RpcService} has been fully stopped.
-     */
-    CompletableFuture<Void> stopService();
-
-    /**
-     * Returns a future indicating when the RPC service has been shut down.
-     *
-     * @return Termination future
-     */
-    CompletableFuture<Void> getTerminationFuture();
 
     /**
      * Gets a scheduled executor from the RPC service. This executor can be used to schedule tasks
@@ -135,41 +118,4 @@ public interface RpcService {
      * @return The RPC service provided scheduled executor
      */
     ScheduledExecutor getScheduledExecutor();
-
-    /**
-     * Execute the runnable in the execution context of this RPC Service, as returned by {@link
-     * #getScheduledExecutor()} ()}, after a scheduled delay.
-     *
-     * @param runnable Runnable to be executed
-     * @param delay The delay after which the runnable will be executed
-     */
-    ScheduledFuture<?> scheduleRunnable(Runnable runnable, long delay, TimeUnit unit);
-
-    /**
-     * Execute the given runnable in the executor of the RPC service. This method can be used to run
-     * code outside of the main thread of a {@link RpcEndpoint}.
-     *
-     * <p><b>IMPORTANT:</b> This executor does not isolate the method invocations against any
-     * concurrent invocations and is therefore not suitable to run completion methods of futures
-     * that modify state of an {@link RpcEndpoint}. For such operations, one needs to use the {@link
-     * RpcEndpoint#getMainThreadExecutor() MainThreadExecutionContext} of that {@code RpcEndpoint}.
-     *
-     * @param runnable to execute
-     */
-    void execute(Runnable runnable);
-
-    /**
-     * Execute the given callable and return its result as a {@link CompletableFuture}. This method
-     * can be used to run code outside of the main thread of a {@link RpcEndpoint}.
-     *
-     * <p><b>IMPORTANT:</b> This executor does not isolate the method invocations against any
-     * concurrent invocations and is therefore not suitable to run completion methods of futures
-     * that modify state of an {@link RpcEndpoint}. For such operations, one needs to use the {@link
-     * RpcEndpoint#getMainThreadExecutor() MainThreadExecutionContext} of that {@code RpcEndpoint}.
-     *
-     * @param callable to execute
-     * @param <T> is the return value type
-     * @return Future containing the callable's future result
-     */
-    <T> CompletableFuture<T> execute(Callable<T> callable);
 }

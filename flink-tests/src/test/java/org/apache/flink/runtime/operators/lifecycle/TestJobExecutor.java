@@ -21,6 +21,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.lifecycle.command.TestCommand;
 import org.apache.flink.runtime.operators.lifecycle.command.TestCommandDispatcher;
@@ -76,20 +77,20 @@ public class TestJobExecutor {
     public static TestJobExecutor execute(
             TestJobWithDescription testJob, MiniClusterWithClientResource miniClusterResource)
             throws Exception {
-        LOG.debug("submitGraph: {}", testJob.jobGraph);
+        LOG.info("submitGraph: {}", testJob.jobGraph);
         JobID job = miniClusterResource.getClusterClient().submitJob(testJob.jobGraph).get();
         waitForAllTaskRunning(miniClusterResource.getMiniCluster(), job, false);
         return new TestJobExecutor(testJob, job, miniClusterResource);
     }
 
     public TestJobExecutor waitForAllRunning() throws Exception {
-        LOG.debug("waitForAllRunning in {}", jobID);
+        LOG.info("waitForAllRunning in {}", jobID);
         waitForAllTaskRunning(miniClusterResource.getMiniCluster(), jobID, true);
         return this;
     }
 
     public TestJobExecutor waitForEvent(Class<? extends TestEvent> eventClass) throws Exception {
-        LOG.debug("waitForEvent: {}", eventClass.getSimpleName());
+        LOG.info("waitForEvent: {}", eventClass.getSimpleName());
         testJob.eventQueue.withHandler(
                 e -> eventClass.isAssignableFrom(e.getClass()) ? STOP : CONTINUE);
         return this;
@@ -97,21 +98,26 @@ public class TestJobExecutor {
 
     public TestJobExecutor stopWithSavepoint(TemporaryFolder folder, boolean withDrain)
             throws Exception {
-        LOG.debug("stopWithSavepoint: {} (withDrain: {})", folder, withDrain);
+        LOG.info("stopWithSavepoint: {} (withDrain: {})", folder, withDrain);
         ClusterClient<?> client = miniClusterResource.getClusterClient();
-        client.stopWithSavepoint(jobID, withDrain, folder.newFolder().toString()).get();
+        client.stopWithSavepoint(
+                        jobID,
+                        withDrain,
+                        folder.newFolder().toString(),
+                        SavepointFormatType.CANONICAL)
+                .get();
         return this;
     }
 
     public TestJobExecutor sendOperatorCommand(
             String operatorID, TestCommand command, TestCommandScope scope) {
-        LOG.debug("send command: {} to {}/{}", command, operatorID, scope);
+        LOG.info("send command: {} to {}/{}", command, operatorID, scope);
         testJob.commandQueue.dispatch(command, scope, operatorID);
         return this;
     }
 
     public void triggerFailover(String operatorID) throws Exception {
-        LOG.debug("sendCommand: {}", FAIL);
+        LOG.info("sendCommand: {}", FAIL);
         BlockingQueue<TestEvent> queue = new LinkedBlockingQueue<>();
         Consumer<TestEvent> listener = queue::add;
         testJob.eventQueue.addListener(listener);
@@ -158,32 +164,33 @@ public class TestJobExecutor {
     }
 
     private void handleFailoverTimeout(TimeoutException e) throws Exception {
+        JobStatus jobStatus = miniClusterResource.getClusterClient().getJobStatus(jobID).get();
         String message =
                 String.format(
                         "Unable to failover the job: %s; job status: %s",
-                        e.getMessage(),
-                        miniClusterResource.getClusterClient().getJobStatus(jobID).get());
-        Optional<SerializedThrowable> throwable =
-                miniClusterResource
-                        .getClusterClient()
-                        .requestJobResult(jobID)
-                        .get()
-                        .getSerializedThrowable();
-        if (throwable.isPresent()) {
-            throw new RuntimeException(message, throwable.get());
-        } else {
-            throw new RuntimeException(message);
+                        e.getMessage(), jobStatus);
+        if (jobStatus.isGloballyTerminalState()) {
+            Optional<SerializedThrowable> throwable =
+                    miniClusterResource
+                            .getClusterClient()
+                            .requestJobResult(jobID)
+                            .get()
+                            .getSerializedThrowable();
+            if (throwable.isPresent()) {
+                throw new RuntimeException(message, throwable.get());
+            }
         }
+        throw new RuntimeException(message);
     }
 
     public TestJobExecutor sendBroadcastCommand(TestCommand command, TestCommandScope scope) {
-        LOG.debug("sendCommand: {}", command);
+        LOG.info("sendCommand: {}", command);
         testJob.commandQueue.broadcast(command, scope);
         return this;
     }
 
     public TestJobExecutor waitForTermination() throws Exception {
-        LOG.debug("waitForTermination");
+        LOG.info("waitForTermination");
         while (!miniClusterResource
                 .getClusterClient()
                 .getJobStatus(jobID)
@@ -195,7 +202,7 @@ public class TestJobExecutor {
     }
 
     public TestJobExecutor assertFinishedSuccessfully() throws Exception {
-        LOG.debug("assertFinishedSuccessfully");
+        LOG.info("assertFinishedSuccessfully");
         JobStatus jobStatus = miniClusterResource.getClusterClient().getJobStatus(jobID).get();
         if (!jobStatus.equals(FINISHED)) {
             String message = String.format("Job didn't finish successfully, status: %s", jobStatus);
@@ -216,7 +223,7 @@ public class TestJobExecutor {
 
     public TestJobExecutor waitForSubtasksToFinish(JobVertexID id, TestCommandScope scope)
             throws Exception {
-        LOG.debug("waitForSubtasksToFinish vertex {}, all subtasks: {}", id, scope);
+        LOG.info("waitForSubtasksToFinish vertex {}, all subtasks: {}", id, scope);
         CommonTestUtils.waitForSubtasksToFinish(
                 miniClusterResource.getMiniCluster(), jobID, id, scope == ALL_SUBTASKS);
         return this;

@@ -387,7 +387,7 @@ class MemoryStateBackend(StateBackend):
     changes.
 
     ```
-    state.backend: hashmap
+    state.backend.type: hashmap
     state.checkpoint-storage: jobmanager
     ```
 

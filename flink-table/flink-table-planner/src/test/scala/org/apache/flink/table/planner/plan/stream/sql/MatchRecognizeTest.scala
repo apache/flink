@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.table.api.ValidationException
@@ -133,7 +132,7 @@ class MatchRecognizeTest extends TableTestBase {
          |) AS T
          |""".stripMargin
     val table = util.tableEnv.sqlQuery(sqlQuery)
-    util.tableEnv.registerTable("T", table)
+    util.tableEnv.createTemporaryView("T", table)
     val sqlQuery1 =
       s"""
          |SELECT *
@@ -163,7 +162,7 @@ class MatchRecognizeTest extends TableTestBase {
          |) AS T
          |""".stripMargin
     val table = util.tableEnv.sqlQuery(sqlQuery)
-    util.tableEnv.registerTable("T", table)
+    util.tableEnv.createTemporaryView("T", table)
     val sqlQuery1 =
       """
         |SELECT

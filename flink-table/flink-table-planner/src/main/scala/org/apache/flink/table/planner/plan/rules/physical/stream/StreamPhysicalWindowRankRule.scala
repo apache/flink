@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
@@ -27,18 +26,12 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalW
 import org.apache.flink.table.planner.plan.utils.{RankUtil, WindowUtil}
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
-import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 
-/**
- * Rule to convert a [[FlinkLogicalRank]] into a [[StreamPhysicalWindowRank]].
- */
-class StreamPhysicalWindowRankRule
-  extends ConverterRule(
-    classOf[FlinkLogicalRank],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.STREAM_PHYSICAL,
-    "StreamPhysicalWindowRankRule") {
+/** Rule to convert a [[FlinkLogicalRank]] into a [[StreamPhysicalWindowRank]]. */
+class StreamPhysicalWindowRankRule(config: Config) extends ConverterRule(config) {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val rank: FlinkLogicalRank = call.rel(0)
@@ -47,7 +40,7 @@ class StreamPhysicalWindowRankRule
     val windowProperties = fmq.getRelWindowProperties(rank.getInput)
     val partitionKey = rank.partitionKey
     WindowUtil.groupingContainsWindowStartEnd(partitionKey, windowProperties) &&
-      !RankUtil.canConvertToDeduplicate(rank)
+    !RankUtil.canConvertToDeduplicate(rank)
   }
 
   override def convert(rel: RelNode): RelNode = {
@@ -63,7 +56,8 @@ class StreamPhysicalWindowRankRule
       FlinkRelDistribution.SINGLETON
     }
 
-    val requiredTraitSet = rank.getCluster.getPlanner.emptyTraitSet()
+    val requiredTraitSet = rank.getCluster.getPlanner
+      .emptyTraitSet()
       .replace(requiredDistribution)
       .replace(FlinkConventions.STREAM_PHYSICAL)
     val providedTraitSet = rank.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
@@ -91,6 +85,11 @@ class StreamPhysicalWindowRankRule
 }
 
 object StreamPhysicalWindowRankRule {
-  val INSTANCE = new StreamPhysicalWindowRankRule
+  val INSTANCE = new StreamPhysicalWindowRankRule(
+    Config.INSTANCE.withConversion(
+      classOf[FlinkLogicalRank],
+      FlinkConventions.LOGICAL,
+      FlinkConventions.STREAM_PHYSICAL,
+      "StreamPhysicalWindowRankRule"))
 
 }

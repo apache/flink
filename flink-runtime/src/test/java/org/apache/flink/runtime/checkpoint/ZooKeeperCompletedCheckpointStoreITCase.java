@@ -20,7 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistryImpl;
@@ -32,7 +32,8 @@ import org.apache.flink.util.clock.ManualClock;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.data.Stat;
 
 import org.junit.AfterClass;
@@ -40,7 +41,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.Serializable;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -91,7 +91,8 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
                 checkpointStoreUtil,
                 DefaultCompletedCheckpointStoreUtils.retrieveCompletedCheckpoints(
                         checkpointsInZooKeeper, checkpointStoreUtil),
-                SharedStateRegistry.DEFAULT_FACTORY.create(Executors.directExecutor(), emptyList()),
+                SharedStateRegistry.DEFAULT_FACTORY.create(
+                        Executors.directExecutor(), emptyList(), RestoreMode.DEFAULT),
                 executor);
     }
 
@@ -218,10 +219,21 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
         final String checkpointPath =
                 CHECKPOINT_PATH
                         + checkpointStoreUtil.checkpointIDToName(checkpoint.getCheckpointID());
-        Stat stat = client.checkExists().forPath(checkpointPath);
+        final List<String> checkpointPathChildren = client.getChildren().forPath(checkpointPath);
+        assertEquals(
+                "The checkpoint node should not be marked for deletion.",
+                1,
+                checkpointPathChildren.size());
 
-        assertNotNull("The checkpoint node should exist.", stat);
-        assertEquals("The checkpoint node should not be locked.", 0, stat.getNumChildren());
+        final String locksNodeName = Iterables.getOnlyElement(checkpointPathChildren);
+        final String locksNodePath =
+                ZooKeeperUtils.generateZookeeperPath(checkpointPath, locksNodeName);
+
+        final Stat locksStat = client.checkExists().forPath(locksNodePath);
+        assertEquals(
+                "There shouldn't be any lock node available for the checkpoint",
+                0,
+                locksStat.getNumChildren());
 
         // Recover again
         sharedStateRegistry.close();
@@ -371,8 +383,7 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
         CommonTestUtils.waitUntilCondition(
                 () ->
                         checkpointsCleaner.getNumberOfCheckpointsToClean()
-                                == nbCheckpointsSubmittedForCleaning,
-                Deadline.fromNow(Duration.ofSeconds(3)));
+                                == nbCheckpointsSubmittedForCleaning);
         assertEquals(
                 nbCheckpointsSubmittedForCleaning,
                 checkpointsCleaner.getNumberOfCheckpointsToClean());
@@ -389,8 +400,7 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
         CommonTestUtils.waitUntilCondition(
                 () ->
                         checkpointsCleaner.getNumberOfCheckpointsToClean()
-                                < nbCheckpointsSubmittedForCleaning,
-                Deadline.fromNow(Duration.ofSeconds(3)));
+                                < nbCheckpointsSubmittedForCleaning);
         // some checkpoints were cleaned
         assertTrue(
                 checkpointsCleaner.getNumberOfCheckpointsToClean()

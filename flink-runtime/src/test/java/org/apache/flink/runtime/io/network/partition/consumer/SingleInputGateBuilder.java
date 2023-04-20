@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.executiongraph.IndexRange;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -55,7 +56,7 @@ public class SingleInputGateBuilder {
 
     private ResultPartitionType partitionType = ResultPartitionType.PIPELINED;
 
-    private int consumedSubpartitionIndex = 0;
+    private IndexRange subpartitionIndexRange = new IndexRange(0, 0);
 
     private int gateIndex = 0;
 
@@ -91,8 +92,8 @@ public class SingleInputGateBuilder {
         return this;
     }
 
-    public SingleInputGateBuilder setConsumedSubpartitionIndex(int consumedSubpartitionIndex) {
-        this.consumedSubpartitionIndex = consumedSubpartitionIndex;
+    public SingleInputGateBuilder setSubpartitionIndexRange(IndexRange subpartitionIndexRange) {
+        this.subpartitionIndexRange = subpartitionIndexRange;
         return this;
     }
 
@@ -110,7 +111,9 @@ public class SingleInputGateBuilder {
         NettyShuffleEnvironmentConfiguration config = environment.getConfiguration();
         this.bufferPoolFactory =
                 SingleInputGateFactory.createBufferPoolFactory(
-                        environment.getNetworkBufferPool(), config.floatingNetworkBuffersPerGate());
+                        environment.getNetworkBufferPool(),
+                        1,
+                        config.floatingNetworkBuffersPerGate());
         this.segmentProvider = environment.getNetworkBufferPool();
         return this;
     }
@@ -161,7 +164,7 @@ public class SingleInputGateBuilder {
                         gateIndex,
                         intermediateDataSetID,
                         partitionType,
-                        consumedSubpartitionIndex,
+                        subpartitionIndexRange,
                         numberOfChannels,
                         partitionProducerStateProvider,
                         bufferPoolFactory,
@@ -188,6 +191,7 @@ public class SingleInputGateBuilder {
     private BufferDebloater maybeCreateBufferDebloater(int gateIndex) {
         if (bufferDebloatConfiguration.isEnabled()) {
             return new BufferDebloater(
+                    "Unknown task name in test",
                     gateIndex,
                     bufferDebloatConfiguration.getTargetTotalBufferSize().toMillis(),
                     bufferDebloatConfiguration.getMaxBufferSize(),

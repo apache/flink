@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.util.ExceptionUtils;
@@ -41,17 +42,21 @@ import static org.apache.flink.util.concurrent.FutureUtils.assertNoException;
  * A buffer pool used to manage a number of {@link Buffer} instances from the {@link
  * NetworkBufferPool}.
  *
- * <p>Buffer requests are mediated to the network buffer pool to ensure dead-lock free operation of
+ * <p>Buffer requests are mediated to the network buffer pool to ensure deadlock free operation of
  * the network stack by limiting the number of buffers per local buffer pool. It also implements the
  * default mechanism for buffer recycling, which ensures that every buffer is ultimately returned to
  * the network buffer pool.
  *
  * <p>The size of this pool can be dynamically changed at runtime ({@link #setNumBuffers(int)}. It
  * will then lazily return the required number of buffers to the {@link NetworkBufferPool} to match
- * its new size.
+ * its new size. New buffers can be requested only when {@code numberOfRequestedMemorySegments +
+ * numberOfRequestedOverdraftMemorySegments < currentPoolSize + maxOverdraftBuffersPerGate}. In
+ * order to meet this requirement, when the size of this pool changes,
+ * numberOfRequestedMemorySegments and numberOfRequestedOverdraftMemorySegments can be converted to
+ * each other.
  *
- * <p>Availability is defined as returning a segment on a subsequent {@link #requestBuffer()}/
- * {@link #requestBufferBuilder()} and heaving a non-blocking {@link
+ * <p>Availability is defined as returning a non-overdraft segment on a subsequent {@link
+ * #requestBuffer()}/ {@link #requestBufferBuilder()} and heaving a non-blocking {@link
  * #requestBufferBuilderBlocking(int)}. In particular,
  *
  * <ul>
@@ -84,8 +89,7 @@ class LocalBufferPool implements BufferPool {
      * org.apache.flink.runtime.io.network.partition.consumer.BufferManager#bufferQueue} via the
      * {@link #registeredListeners} callback.
      */
-    private final ArrayDeque<MemorySegment> availableMemorySegments =
-            new ArrayDeque<MemorySegment>();
+    private final ArrayDeque<MemorySegment> availableMemorySegments = new ArrayDeque<>();
 
     /**
      * Buffer availability listeners, which need to be notified when a Buffer becomes available.
@@ -118,14 +122,23 @@ class LocalBufferPool implements BufferPool {
     @GuardedBy("availableMemorySegments")
     private int unavailableSubpartitionsCount = 0;
 
+    private int maxOverdraftBuffersPerGate;
+
+    @GuardedBy("availableMemorySegments")
+    private int numberOfRequestedOverdraftMemorySegments;
+
     @GuardedBy("availableMemorySegments")
     private boolean isDestroyed;
 
     @GuardedBy("availableMemorySegments")
     private final AvailabilityHelper availabilityHelper = new AvailabilityHelper();
 
+    /**
+     * Indicates whether this {@link LocalBufferPool} has requested to be notified on the next time
+     * that global pool becoming available, so it can then request buffer from the global pool.
+     */
     @GuardedBy("availableMemorySegments")
-    private boolean requestingWhenAvailable;
+    private boolean requestingNotificationOfGlobalPoolAvailable;
 
     /**
      * Local buffer pool based on the given <tt>networkBufferPool</tt> with a minimal number of
@@ -134,14 +147,14 @@ class LocalBufferPool implements BufferPool {
      * @param networkBufferPool global network buffer pool to get buffers from
      * @param numberOfRequiredMemorySegments minimum number of network buffers
      */
-    LocalBufferPool(NetworkBufferPool networkBufferPool, int numberOfRequiredMemorySegments)
-            throws IOException {
+    LocalBufferPool(NetworkBufferPool networkBufferPool, int numberOfRequiredMemorySegments) {
         this(
                 networkBufferPool,
                 numberOfRequiredMemorySegments,
                 Integer.MAX_VALUE,
                 0,
-                Integer.MAX_VALUE);
+                Integer.MAX_VALUE,
+                0);
     }
 
     /**
@@ -155,14 +168,14 @@ class LocalBufferPool implements BufferPool {
     LocalBufferPool(
             NetworkBufferPool networkBufferPool,
             int numberOfRequiredMemorySegments,
-            int maxNumberOfMemorySegments)
-            throws Exception {
+            int maxNumberOfMemorySegments) {
         this(
                 networkBufferPool,
                 numberOfRequiredMemorySegments,
                 maxNumberOfMemorySegments,
                 0,
-                Integer.MAX_VALUE);
+                Integer.MAX_VALUE,
+                0);
     }
 
     /**
@@ -174,14 +187,15 @@ class LocalBufferPool implements BufferPool {
      * @param maxNumberOfMemorySegments maximum number of network buffers to allocate
      * @param numberOfSubpartitions number of subpartitions
      * @param maxBuffersPerChannel maximum number of buffers to use for each channel
+     * @param maxOverdraftBuffersPerGate maximum number of overdraft buffers to use for each gate
      */
     LocalBufferPool(
             NetworkBufferPool networkBufferPool,
             int numberOfRequiredMemorySegments,
             int maxNumberOfMemorySegments,
             int numberOfSubpartitions,
-            int maxBuffersPerChannel)
-            throws IOException {
+            int maxBuffersPerChannel,
+            int maxOverdraftBuffersPerGate) {
         checkArgument(
                 numberOfRequiredMemorySegments > 0,
                 "Required number of memory segments (%s) should be larger than 0.",
@@ -208,6 +222,10 @@ class LocalBufferPool implements BufferPool {
                     maxBuffersPerChannel > 0,
                     "Maximum number of buffers for each channel (%s) should be larger than 0.",
                     maxBuffersPerChannel);
+            checkArgument(
+                    maxOverdraftBuffersPerGate >= 0,
+                    "Maximum number of overdraft buffers for each gate (%s) should not be less than 0.",
+                    maxOverdraftBuffersPerGate);
         }
 
         this.subpartitionBuffersCount = new int[numberOfSubpartitions];
@@ -216,15 +234,12 @@ class LocalBufferPool implements BufferPool {
             subpartitionBufferRecyclers[i] = new SubpartitionBufferRecycler(i, this);
         }
         this.maxBuffersPerChannel = maxBuffersPerChannel;
+        this.maxOverdraftBuffersPerGate = maxOverdraftBuffersPerGate;
 
-        // Lock is only taken, because #checkAvailability asserts it. It's a small penalty for
-        // thread safety.
+        // Lock is only taken, because #checkAndUpdateAvailability asserts it. It's a small penalty
+        // for thread safety.
         synchronized (this.availableMemorySegments) {
-            if (checkAvailability()) {
-                availabilityHelper.resetAvailable();
-            }
-
-            checkConsistentAvailability();
+            checkAndUpdateAvailability();
         }
     }
 
@@ -269,6 +284,26 @@ class LocalBufferPool implements BufferPool {
         return maxNumberOfMemorySegments;
     }
 
+    /**
+     * @return the same value as {@link #getMaxNumberOfMemorySegments()} for bounded pools. For
+     *     unbounded pools it returns an approximation based upon {@link
+     *     #getNumberOfRequiredMemorySegments()}
+     */
+    public int getNumberOfRequestedMemorySegments() {
+        if (maxNumberOfMemorySegments < NetworkBufferPool.UNBOUNDED_POOL_SIZE) {
+            return maxNumberOfMemorySegments;
+        } else {
+            return getNumberOfRequiredMemorySegments() * 2;
+        }
+    }
+
+    @VisibleForTesting
+    public int getNumberOfRequestedOverdraftMemorySegments() {
+        synchronized (availableMemorySegments) {
+            return numberOfRequestedOverdraftMemorySegments;
+        }
+    }
+
     @Override
     public int getNumberOfAvailableMemorySegments() {
         synchronized (availableMemorySegments) {
@@ -283,9 +318,15 @@ class LocalBufferPool implements BufferPool {
         }
     }
 
+    // suppress the FieldAccessNotGuarded warning as this method is unsafe by design.
+    @SuppressWarnings("FieldAccessNotGuarded")
     @Override
     public int bestEffortGetNumOfUsedBuffers() {
-        return Math.max(0, numberOfRequestedMemorySegments - availableMemorySegments.size());
+        return Math.max(
+                0,
+                numberOfRequestedMemorySegments
+                        + numberOfRequestedOverdraftMemorySegments
+                        - availableMemorySegments.size());
     }
 
     @Override
@@ -355,17 +396,17 @@ class LocalBufferPool implements BufferPool {
 
     @Nullable
     private MemorySegment requestMemorySegment(int targetChannel) {
-        MemorySegment segment;
+        MemorySegment segment = null;
         synchronized (availableMemorySegments) {
             checkDestroyed();
 
-            // target channel over quota; do not return a segment
-            if (targetChannel != UNKNOWN_CHANNEL
-                    && subpartitionBuffersCount[targetChannel] >= maxBuffersPerChannel) {
-                return null;
+            if (!availableMemorySegments.isEmpty()) {
+                segment = availableMemorySegments.poll();
+            } else if (isRequestedSizeReached()) {
+                // Only when the buffer request reaches the upper limit(i.e. current pool size),
+                // requests an overdraft buffer.
+                segment = requestOverdraftMemorySegmentFromGlobal();
             }
-
-            segment = availableMemorySegments.poll();
 
             if (segment == null) {
                 return null;
@@ -377,15 +418,12 @@ class LocalBufferPool implements BufferPool {
                 }
             }
 
-            if (!checkAvailability()) {
-                availabilityHelper.resetUnavailable();
-            }
-
-            checkConsistentAvailability();
+            checkAndUpdateAvailability();
         }
         return segment;
     }
 
+    @GuardedBy("availableMemorySegments")
     private void checkDestroyed() {
         if (isDestroyed) {
             throw new CancelTaskException("Buffer pool has already been destroyed.");
@@ -397,6 +435,7 @@ class LocalBufferPool implements BufferPool {
         return requestMemorySegment(UNKNOWN_CHANNEL);
     }
 
+    @GuardedBy("availableMemorySegments")
     private boolean requestMemorySegmentFromGlobal() {
         assert Thread.holdsLock(availableMemorySegments);
 
@@ -417,27 +456,46 @@ class LocalBufferPool implements BufferPool {
         return false;
     }
 
+    @GuardedBy("availableMemorySegments")
+    private MemorySegment requestOverdraftMemorySegmentFromGlobal() {
+        assert Thread.holdsLock(availableMemorySegments);
+
+        if (numberOfRequestedOverdraftMemorySegments >= maxOverdraftBuffersPerGate) {
+            return null;
+        }
+
+        checkState(
+                !isDestroyed,
+                "Destroyed buffer pools should never acquire segments - this will lead to buffer leaks.");
+
+        MemorySegment segment = networkBufferPool.requestPooledMemorySegment();
+        if (segment != null) {
+            numberOfRequestedOverdraftMemorySegments++;
+        }
+        return segment;
+    }
+
     /**
      * Tries to obtain a buffer from global pool as soon as one pool is available. Note that
      * multiple {@link LocalBufferPool}s might wait on the future of the global pool, hence this
      * method double-check if a new buffer is really needed at the time it becomes available.
      */
+    @GuardedBy("availableMemorySegments")
     private void requestMemorySegmentFromGlobalWhenAvailable() {
         assert Thread.holdsLock(availableMemorySegments);
 
-        if (requestingWhenAvailable) {
-            return;
-        }
-        requestingWhenAvailable = true;
-
+        checkState(
+                !requestingNotificationOfGlobalPoolAvailable,
+                "local buffer pool is already in the state of requesting memory segment from global when it is available.");
+        requestingNotificationOfGlobalPoolAvailable = true;
         assertNoException(
                 networkBufferPool.getAvailableFuture().thenRun(this::onGlobalPoolAvailable));
     }
 
     private void onGlobalPoolAvailable() {
-        CompletableFuture<?> toNotify = null;
+        CompletableFuture<?> toNotify;
         synchronized (availableMemorySegments) {
-            requestingWhenAvailable = false;
+            requestingNotificationOfGlobalPoolAvailable = false;
             if (isDestroyed || availabilityHelper.isApproximatelyAvailable()) {
                 // there is currently no benefit to obtain buffer from global; give other pools
                 // precedent
@@ -449,36 +507,65 @@ class LocalBufferPool implements BufferPool {
             // #requestMemorySegmentFromGlobalWhenAvailable again if no segment could be fetched
             // because of
             // concurrent requests from different LocalBufferPools.
-            if (checkAvailability()) {
-                toNotify = availabilityHelper.getUnavailableToResetAvailable();
-            }
+            toNotify = checkAndUpdateAvailability();
         }
         mayNotifyAvailable(toNotify);
     }
 
+    @GuardedBy("availableMemorySegments")
     private boolean shouldBeAvailable() {
         assert Thread.holdsLock(availableMemorySegments);
 
-        return !availableMemorySegments.isEmpty() && unavailableSubpartitionsCount == 0;
+        return !availableMemorySegments.isEmpty()
+                && unavailableSubpartitionsCount == 0
+                && numberOfRequestedOverdraftMemorySegments == 0;
     }
 
-    private boolean checkAvailability() {
+    @GuardedBy("availableMemorySegments")
+    private CompletableFuture<?> checkAndUpdateAvailability() {
+        assert Thread.holdsLock(availableMemorySegments);
+
+        CompletableFuture<?> toNotify = null;
+
+        AvailabilityStatus availabilityStatus = checkAvailability();
+        if (availabilityStatus.isAvailable()) {
+            toNotify = availabilityHelper.getUnavailableToResetAvailable();
+        } else {
+            availabilityHelper.resetUnavailable();
+        }
+        if (availabilityStatus.isNeedRequestingNotificationOfGlobalPoolAvailable()) {
+            requestMemorySegmentFromGlobalWhenAvailable();
+        }
+
+        checkConsistentAvailability();
+        return toNotify;
+    }
+
+    @GuardedBy("availableMemorySegments")
+    private AvailabilityStatus checkAvailability() {
         assert Thread.holdsLock(availableMemorySegments);
 
         if (!availableMemorySegments.isEmpty()) {
-            return unavailableSubpartitionsCount == 0;
+            return AvailabilityStatus.from(shouldBeAvailable(), false);
         }
-        if (!isRequestedSizeReached()) {
-            if (requestMemorySegmentFromGlobal()) {
-                return unavailableSubpartitionsCount == 0;
-            } else {
-                requestMemorySegmentFromGlobalWhenAvailable();
-                return shouldBeAvailable();
-            }
+        if (isRequestedSizeReached()) {
+            return AvailabilityStatus.UNAVAILABLE_NEED_NOT_REQUESTING_NOTIFICATION;
         }
-        return false;
+        boolean needRequestingNotificationOfGlobalPoolAvailable = false;
+        // There aren't availableMemorySegments, and we continue to request new memory segment from
+        // global pool.
+        if (!requestMemorySegmentFromGlobal()) {
+            // If we can not get a buffer from global pool, we should request from it when it
+            // becomes available. It should be noted that if we are already in this status, do not
+            // need to repeat the request.
+            needRequestingNotificationOfGlobalPoolAvailable =
+                    !requestingNotificationOfGlobalPoolAvailable;
+        }
+        return AvailabilityStatus.from(
+                shouldBeAvailable(), needRequestingNotificationOfGlobalPoolAvailable);
     }
 
+    @GuardedBy("availableMemorySegments")
     private void checkConsistentAvailability() {
         assert Thread.holdsLock(availableMemorySegments);
 
@@ -511,10 +598,7 @@ class LocalBufferPool implements BufferPool {
                     listener = registeredListeners.poll();
                     if (listener == null) {
                         availableMemorySegments.add(segment);
-                        // only need to check unavailableSubpartitionsCount here because
-                        // availableMemorySegments is not empty
-                        if (!availabilityHelper.isApproximatelyAvailable()
-                                && unavailableSubpartitionsCount == 0) {
+                        if (!availabilityHelper.isApproximatelyAvailable() && shouldBeAvailable()) {
                             toNotify = availabilityHelper.getUnavailableToResetAvailable();
                         }
                         break;
@@ -532,7 +616,7 @@ class LocalBufferPool implements BufferPool {
             BufferListener listener, MemorySegment segment) {
         // We do not know which locks have been acquired before the recycle() or are needed in the
         // notification and which other threads also access them.
-        // -> call notifyBufferAvailable() outside of the synchronized block to avoid a deadlock
+        // -> call notifyBufferAvailable() outside the synchronized block to avoid a deadlock
         // (FLINK-9676)
         return listener.notifyBufferAvailable(new NetworkBuffer(segment, this));
     }
@@ -581,7 +665,7 @@ class LocalBufferPool implements BufferPool {
 
     @Override
     public void setNumBuffers(int numBuffers) {
-        CompletableFuture<?> toNotify = null;
+        CompletableFuture<?> toNotify;
         synchronized (availableMemorySegments) {
             checkArgument(
                     numBuffers >= numberOfRequiredMemorySegments,
@@ -591,26 +675,41 @@ class LocalBufferPool implements BufferPool {
 
             currentPoolSize = Math.min(numBuffers, maxNumberOfMemorySegments);
 
+            // If pool size increases, try to convert overdraft buffer to ordinary buffer.
+            while (numberOfRequestedOverdraftMemorySegments > 0
+                    && numberOfRequestedMemorySegments < currentPoolSize) {
+                numberOfRequestedOverdraftMemorySegments--;
+                numberOfRequestedMemorySegments++;
+            }
+
+            // If pool size decreases, try to convert ordinary buffer to overdraft buffer.
+            while (numberOfRequestedMemorySegments > currentPoolSize) {
+                numberOfRequestedMemorySegments--;
+                numberOfRequestedOverdraftMemorySegments++;
+            }
+
             returnExcessMemorySegments();
 
             if (isDestroyed) {
                 // FLINK-19964: when two local buffer pools are released concurrently, one of them
                 // gets buffers assigned
-                // make sure that checkAvailability is not called as it would pro-actively acquire
-                // one buffer from NetworkBufferPool
+                // make sure that checkAndUpdateAvailability is not called as it would proactively
+                // acquire one buffer from NetworkBufferPool.
                 return;
             }
 
-            if (checkAvailability()) {
-                toNotify = availabilityHelper.getUnavailableToResetAvailable();
-            } else {
-                availabilityHelper.resetUnavailable();
-            }
-
-            checkConsistentAvailability();
+            toNotify = checkAndUpdateAvailability();
         }
 
         mayNotifyAvailable(toNotify);
+    }
+
+    public void setMaxOverdraftBuffersPerGate(int maxOverdraftBuffersPerGate) {
+        this.maxOverdraftBuffersPerGate = maxOverdraftBuffersPerGate;
+    }
+
+    public int getMaxOverdraftBuffersPerGate() {
+        return maxOverdraftBuffersPerGate;
     }
 
     @Override
@@ -648,13 +747,20 @@ class LocalBufferPool implements BufferPool {
         }
     }
 
+    @GuardedBy("availableMemorySegments")
     private void returnMemorySegment(MemorySegment segment) {
         assert Thread.holdsLock(availableMemorySegments);
 
-        numberOfRequestedMemorySegments--;
+        // When using the overdraft buffer, return the overdraft buffer first.
+        if (numberOfRequestedOverdraftMemorySegments > 0) {
+            numberOfRequestedOverdraftMemorySegments--;
+        } else {
+            numberOfRequestedMemorySegments--;
+        }
         networkBufferPool.recyclePooledMemorySegment(segment);
     }
 
+    @GuardedBy("availableMemorySegments")
     private void returnExcessMemorySegments() {
         assert Thread.holdsLock(availableMemorySegments);
 
@@ -668,18 +774,21 @@ class LocalBufferPool implements BufferPool {
         }
     }
 
+    @GuardedBy("availableMemorySegments")
     private boolean hasExcessBuffers() {
-        return numberOfRequestedMemorySegments > currentPoolSize;
+        return numberOfRequestedOverdraftMemorySegments > 0
+                || numberOfRequestedMemorySegments > currentPoolSize;
     }
 
+    @GuardedBy("availableMemorySegments")
     private boolean isRequestedSizeReached() {
         return numberOfRequestedMemorySegments >= currentPoolSize;
     }
 
     private static class SubpartitionBufferRecycler implements BufferRecycler {
 
-        private int channel;
-        private LocalBufferPool bufferPool;
+        private final int channel;
+        private final LocalBufferPool bufferPool;
 
         SubpartitionBufferRecycler(int channel, LocalBufferPool bufferPool) {
             this.channel = channel;
@@ -689,6 +798,53 @@ class LocalBufferPool implements BufferPool {
         @Override
         public void recycle(MemorySegment memorySegment) {
             bufferPool.recycle(memorySegment, channel);
+        }
+    }
+
+    /**
+     * This class represents the buffer pool's current ground-truth availability and whether to
+     * request buffer from global pool when it is available.
+     */
+    private enum AvailabilityStatus {
+        AVAILABLE(true, false),
+        UNAVAILABLE_NEED_REQUESTING_NOTIFICATION(false, true),
+        UNAVAILABLE_NEED_NOT_REQUESTING_NOTIFICATION(false, false);
+
+        /** Indicates whether the {@link LocalBufferPool} is currently available. */
+        private final boolean available;
+
+        /**
+         * Indicates whether to requesting notification of global pool when it becomes available.
+         */
+        private final boolean needRequestingNotificationOfGlobalPoolAvailable;
+
+        AvailabilityStatus(
+                boolean available, boolean needRequestingNotificationOfGlobalPoolAvailable) {
+            this.available = available;
+            this.needRequestingNotificationOfGlobalPoolAvailable =
+                    needRequestingNotificationOfGlobalPoolAvailable;
+        }
+
+        public boolean isAvailable() {
+            return available;
+        }
+
+        public boolean isNeedRequestingNotificationOfGlobalPoolAvailable() {
+            return needRequestingNotificationOfGlobalPoolAvailable;
+        }
+
+        public static AvailabilityStatus from(
+                boolean available, boolean needRequestingNotificationOfGlobalPoolAvailable) {
+            if (available) {
+                checkState(
+                        !needRequestingNotificationOfGlobalPoolAvailable,
+                        "available local buffer pool should not request from global.");
+                return AVAILABLE;
+            } else if (needRequestingNotificationOfGlobalPoolAvailable) {
+                return UNAVAILABLE_NEED_REQUESTING_NOTIFICATION;
+            } else {
+                return UNAVAILABLE_NEED_NOT_REQUESTING_NOTIFICATION;
+            }
         }
     }
 }

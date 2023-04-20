@@ -34,13 +34,10 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.RexFieldVariable;
 import org.apache.flink.table.planner.expressions.RexNodeExpression;
 import org.apache.flink.table.planner.expressions.converter.CallExpressionConvertRule.ConvertContext;
-import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimeType;
 
 import org.apache.calcite.avatica.util.ByteString;
-import org.apache.calcite.avatica.util.TimeUnit;
-import org.apache.calcite.avatica.util.TimeUnitRange;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
@@ -64,19 +61,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.planner.typeutils.SymbolUtil.commonToCalcite;
+import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext;
 import static org.apache.flink.table.planner.utils.TimestampStringUtils.fromLocalDateTime;
 import static org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType;
 
 /** Visit expression to generator {@link RexNode}. */
 public class ExpressionConverter implements ExpressionVisitor<RexNode> {
-
-    private static final List<CallExpressionConvertRule> FUNCTION_CONVERT_CHAIN =
-            Arrays.asList(
-                    new LegacyScalarFunctionConvertRule(),
-                    new FunctionDefinitionConvertRule(),
-                    new OverConvertRule(),
-                    new DirectConvertRule(),
-                    new CustomizedConvertRule());
 
     private final RelBuilder relBuilder;
     private final FlinkTypeFactory typeFactory;
@@ -86,14 +77,22 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
         this.relBuilder = relBuilder;
         this.typeFactory = (FlinkTypeFactory) relBuilder.getRexBuilder().getTypeFactory();
         this.dataTypeFactory =
-                ShortcutUtils.unwrapContext(relBuilder.getCluster())
-                        .getCatalogManager()
-                        .getDataTypeFactory();
+                unwrapContext(relBuilder.getCluster()).getCatalogManager().getDataTypeFactory();
+    }
+
+    private List<CallExpressionConvertRule> getFunctionConvertChain(boolean isBatchMode) {
+        return Arrays.asList(
+                new LegacyScalarFunctionConvertRule(),
+                new FunctionDefinitionConvertRule(),
+                new OverConvertRule(),
+                DirectConvertRule.instance(isBatchMode),
+                new CustomizedConvertRule());
     }
 
     @Override
     public RexNode visit(CallExpression call) {
-        for (CallExpressionConvertRule rule : FUNCTION_CONVERT_CHAIN) {
+        boolean isBatchMode = unwrapContext(relBuilder).isBatchMode();
+        for (CallExpressionConvertRule rule : getFunctionConvertChain(isBatchMode)) {
             Optional<RexNode> converted = rule.convert(call, newFunctionContext());
             if (converted.isPresent()) {
                 return converted.get();
@@ -175,9 +174,9 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
             default:
                 value = extractValue(valueLiteral, Object.class);
                 if (value instanceof TimePointUnit) {
-                    value = timePointUnitToTimeUnit((TimePointUnit) value);
+                    value = commonToCalcite((TimePointUnit) value);
                 } else if (value instanceof TimeIntervalUnit) {
-                    value = intervalUnitToUnitRange((TimeIntervalUnit) value);
+                    value = commonToCalcite((TimeIntervalUnit) value);
                 }
                 break;
         }
@@ -262,70 +261,6 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
                 return dataTypeFactory;
             }
         };
-    }
-
-    private static TimeUnit timePointUnitToTimeUnit(TimePointUnit unit) {
-        switch (unit) {
-            case YEAR:
-                return TimeUnit.YEAR;
-            case MONTH:
-                return TimeUnit.MONTH;
-            case DAY:
-                return TimeUnit.DAY;
-            case HOUR:
-                return TimeUnit.HOUR;
-            case MINUTE:
-                return TimeUnit.MINUTE;
-            case SECOND:
-                return TimeUnit.SECOND;
-            case QUARTER:
-                return TimeUnit.QUARTER;
-            case WEEK:
-                return TimeUnit.WEEK;
-            case MILLISECOND:
-                return TimeUnit.MILLISECOND;
-            case MICROSECOND:
-                return TimeUnit.MICROSECOND;
-            default:
-                throw new UnsupportedOperationException("TimePointUnit is: " + unit);
-        }
-    }
-
-    private static TimeUnitRange intervalUnitToUnitRange(TimeIntervalUnit intervalUnit) {
-        switch (intervalUnit) {
-            case YEAR:
-                return TimeUnitRange.YEAR;
-            case YEAR_TO_MONTH:
-                return TimeUnitRange.YEAR_TO_MONTH;
-            case QUARTER:
-                return TimeUnitRange.QUARTER;
-            case MONTH:
-                return TimeUnitRange.MONTH;
-            case WEEK:
-                return TimeUnitRange.WEEK;
-            case DAY:
-                return TimeUnitRange.DAY;
-            case DAY_TO_HOUR:
-                return TimeUnitRange.DAY_TO_HOUR;
-            case DAY_TO_MINUTE:
-                return TimeUnitRange.DAY_TO_MINUTE;
-            case DAY_TO_SECOND:
-                return TimeUnitRange.DAY_TO_SECOND;
-            case HOUR:
-                return TimeUnitRange.HOUR;
-            case SECOND:
-                return TimeUnitRange.SECOND;
-            case HOUR_TO_MINUTE:
-                return TimeUnitRange.HOUR_TO_MINUTE;
-            case HOUR_TO_SECOND:
-                return TimeUnitRange.HOUR_TO_SECOND;
-            case MINUTE:
-                return TimeUnitRange.MINUTE;
-            case MINUTE_TO_SECOND:
-                return TimeUnitRange.MINUTE_TO_SECOND;
-            default:
-                throw new UnsupportedOperationException("TimeIntervalUnit is: " + intervalUnit);
-        }
     }
 
     /**

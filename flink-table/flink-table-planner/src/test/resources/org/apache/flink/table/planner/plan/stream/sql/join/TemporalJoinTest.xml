@@ -39,17 +39,16 @@ LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate, CAST(rowtime0 AS TIMESTAMP(3)) AS rowtime0])
-+- TemporalJoin(joinType=[LeftOuterJoin], where=[((currency = currency0) AND (amount > 10) AND __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0])
++- TemporalJoin(joinType=[LeftOuterJoin], where=[((currency = currency0) AND (amount > 10) AND (rate < 100) AND __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0])
    :- Exchange(distribution=[hash[currency]])
    :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
    :     +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime])
    :        +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
    +- Exchange(distribution=[hash[currency]])
-      +- Calc(select=[currency, rate, rowtime], where=[(rate < 100)])
-         +- Deduplicate(keep=[LastRow], key=[currency], order=[ROWTIME])
-            +- Exchange(distribution=[hash[currency]])
-               +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-                  +- TableSourceScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])
+      +- Deduplicate(keep=[LastRow], key=[currency], order=[ROWTIME])
+         +- Exchange(distribution=[hash[currency]])
+            +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+               +- TableSourceScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -162,7 +161,7 @@ LogicalSink(table=[default_catalog.default_database.rowtime_default_sink], field
                +- LogicalTableScan(table=[[default_catalog, default_database, versioned_currency_with_multi_key]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.rowtime_default_sink], fields=[order_id, currency, amount, order_time, rate, currency_time], changelogMode=[NONE])
+Sink(table=[default_catalog.default_database.rowtime_default_sink], fields=[order_id, currency, amount, order_time, rate, currency_time], upsertMaterialize=[true], changelogMode=[NONE])
 +- Calc(select=[order_id, currency, amount, order_time, rate, CAST(currency_time AS TIMESTAMP(3)) AS currency_time], changelogMode=[I,UB,UA,D])
    +- TemporalJoin(joinType=[InnerJoin], where=[AND(=(currency_no, currency_no0), =(currency, currency0), __TEMPORAL_JOIN_CONDITION(order_time, currency_time, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0, currency_no0), __TEMPORAL_JOIN_LEFT_KEY(currency_no, currency), __TEMPORAL_JOIN_RIGHT_KEY(currency_no0, currency0)))], select=[order_id, currency, currency_no, amount, order_time, currency0, currency_no0, rate, currency_time], changelogMode=[I,UB,UA,D])
       :- Exchange(distribution=[hash[currency_no, currency]], changelogMode=[I,UB,UA,D])
@@ -208,15 +207,14 @@ LogicalProject(currency=[$1], currency0=[$4], rate1=[$6])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[currency, currency0, rate1])
-+- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[currency, rowtime, currency0, rate1, rowtime0])
++- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND (amount > 10) AND (rate < 100) AND __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, currency0, rate, rate1, rowtime0])
    :- Exchange(distribution=[hash[currency]])
-   :  +- Calc(select=[currency, rowtime], where=[(amount > 10)])
-   :     +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-   :        +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
+   :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
    +- Exchange(distribution=[hash[currency]])
-      +- Calc(select=[currency, rate1, rowtime], where=[(rate < 100)])
-         +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-            +- Calc(select=[currency, rate, (rate + 1) AS rate1, PROCTIME() AS proctime, rowtime])
+      +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+         +- Calc(select=[currency, rate, (rate + 1) AS rate1, rowtime])
+            +- DropUpdateBefore
                +- TableSourceScan(table=[[default_catalog, default_database, RatesBinlogWithComputedColumn]], fields=[currency, rate, rowtime])
 ]]>
     </Resource>
@@ -316,17 +314,16 @@ LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate, CAST(rowtime0 AS TIMESTAMP(3)) AS rowtime0])
-+- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0])
++- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND ((rate + 1) = 100) AND __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0])
    :- Exchange(distribution=[hash[currency]])
    :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
    :     +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime])
    :        +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
    +- Exchange(distribution=[hash[currency]])
-      +- Calc(select=[currency, rate, rowtime], where=[((rate + 1) = 100)])
-         +- Deduplicate(keep=[LastRow], key=[currency], order=[ROWTIME])
-            +- Exchange(distribution=[hash[currency]])
-               +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-                  +- TableSourceScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])
+      +- Deduplicate(keep=[LastRow], key=[currency], order=[ROWTIME])
+         +- Exchange(distribution=[hash[currency]])
+            +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+               +- TableSourceScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -353,17 +350,16 @@ LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate, CAST(rowtime0 AS TIMESTAMP(3)) AS rowtime0])
-+- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0])
++- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND ('RMB-100' = CONCAT('RMB-', CAST(rate AS VARCHAR(2147483647)))) AND __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0])
    :- Exchange(distribution=[hash[currency]])
    :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
    :     +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime])
    :        +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
    +- Exchange(distribution=[hash[currency]])
-      +- Calc(select=[currency, rate, rowtime], where=[('RMB-100' = CONCAT('RMB-', CAST(rate AS VARCHAR(2147483647))))])
-         +- Deduplicate(keep=[LastRow], key=[currency], order=[ROWTIME])
-            +- Exchange(distribution=[hash[currency]])
-               +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-                  +- TableSourceScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])
+      +- Deduplicate(keep=[LastRow], key=[currency], order=[ROWTIME])
+         +- Exchange(distribution=[hash[currency]])
+            +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+               +- TableSourceScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -390,18 +386,16 @@ LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate, CAST(rowtime0 AS TIMESTAMP(3)) AS rowtime0])
-+- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0])
++- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND (amount > 10) AND (rate < 100) AND __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0])
    :- Exchange(distribution=[hash[currency]])
-   :  +- Calc(select=[amount, currency, rowtime, proctime], where=[(amount > 10)])
-   :     +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-   :        +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime])
-   :           +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
+   :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+   :     +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
    +- Exchange(distribution=[hash[currency]])
-      +- Calc(select=[currency, rate, rowtime], where=[(rate < 100)])
-         +- Deduplicate(keep=[LastRow], key=[currency], order=[ROWTIME])
-            +- Exchange(distribution=[hash[currency]])
-               +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-                  +- TableSourceScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])
+      +- Deduplicate(keep=[LastRow], key=[currency], order=[ROWTIME])
+         +- Exchange(distribution=[hash[currency]])
+            +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+               +- TableSourceScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -501,7 +495,7 @@ Calc(select=[currency, currency0, rate1])
    :           +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
    +- Exchange(distribution=[hash[currency]])
       +- Calc(select=[currency, (rate + 1) AS rate1], where=[(rate < 100)])
-         +- TableSourceScan(table=[[default_catalog, default_database, RatesBinlogWithoutWatermark, filter=[]]], fields=[currency, rate, rowtime])
+         +- TableSourceScan(table=[[default_catalog, default_database, RatesBinlogWithoutWatermark, project=[currency, rate], metadata=[], filter=[]]], fields=[currency, rate])
 ]]>
     </Resource>
   </TestCase>
@@ -535,7 +529,7 @@ Calc(select=[currency, currency0, rate1])
    +- Exchange(distribution=[hash[currency]])
       +- Calc(select=[currency, rate1], where=[(rate < 100)])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-            +- Calc(select=[currency, rate, (rate + 1) AS rate1, PROCTIME() AS proctime, rowtime])
+            +- Calc(select=[currency, rate, (rate + 1) AS rate1, rowtime])
                +- TableSourceScan(table=[[default_catalog, default_database, RatesBinlogWithComputedColumn]], fields=[currency, rate, rowtime])
 ]]>
     </Resource>
@@ -756,6 +750,44 @@ Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS procti
             +- Exchange(distribution=[hash[currency]])
                +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
                   +- TableSourceScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTemporalJoinUpsertSourceWithPostFilter">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5], valid=[$6], rowtime0=[$7])
++- LogicalFilter(condition=[=($6, _UTF-16LE'true')])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 2}])
+      :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+      :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+      +- LogicalFilter(condition=[=($cor0.currency, $0)])
+         +- LogicalSnapshot(period=[$cor0.rowtime])
+            +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$3])
+               +- LogicalTableScan(table=[[default_catalog, default_database, UpsertRates]])
+
+== Optimized Physical Plan ==
+Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate, CAST(_UTF-16LE'true':VARCHAR(2147483647) CHARACTER SET "UTF-16LE" AS VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS valid, CAST(rowtime0 AS TIMESTAMP(3)) AS rowtime0], where=[=(valid, _UTF-16LE'true':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")], changelogMode=[I])
++- TemporalJoin(joinType=[InnerJoin], where=[AND(=(currency, currency0), __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate, valid, rowtime0], changelogMode=[I])
+   :- Exchange(distribution=[hash[currency]], changelogMode=[I])
+   :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I])
+   :     +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime], changelogMode=[I])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime], changelogMode=[I])
+   +- Exchange(distribution=[hash[currency]], changelogMode=[I,UA,D])
+      +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I,UA,D])
+         +- TableSourceScan(table=[[default_catalog, default_database, UpsertRates]], fields=[currency, rate, valid, rowtime], changelogMode=[I,UA,D])
+
+== Optimized Execution Plan ==
+Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate, CAST('true' AS VARCHAR(2147483647)) AS valid, CAST(rowtime0 AS TIMESTAMP(3)) AS rowtime0], where=[(valid = 'true')])
++- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate, valid, rowtime0])
+   :- Exchange(distribution=[hash[currency]])
+   :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+   :     +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
+   +- Exchange(distribution=[hash[currency]])
+      +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+         +- TableSourceScan(table=[[default_catalog, default_database, UpsertRates]], fields=[currency, rate, valid, rowtime])
 ]]>
     </Resource>
   </TestCase>

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.batch.table.validation
 
 import org.apache.flink.api.scala._
@@ -27,18 +26,16 @@ import org.junit.Test
 class CorrelateValidationTest extends TableTestBase {
 
   /**
-    * Due to the improper translation of TableFunction left outer join (see CALCITE-2004), the
-    * join predicate can only be empty or literal true (the restriction should be removed in
-    * FLINK-7865).
-    */
-  @Test (expected = classOf[ValidationException])
+   * Due to the improper translation of TableFunction left outer join (see CALCITE-2004), the join
+   * predicate can only be empty or literal true (the restriction should be removed in FLINK-7865).
+   */
+  @Test(expected = classOf[ValidationException])
   def testLeftOuterJoinWithPredicates(): Unit = {
     val util = batchTestUtil()
     val table = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val func = new TableFunc1
-   util.addFunction("func1", func)
     val result = table
-      .leftOuterJoinLateral(func('c) as 's, 'c === 's)
+      .leftOuterJoinLateral(func('c).as('s), 'c === 's)
       .select('c, 's)
     util.verifyExecPlan(result)
   }

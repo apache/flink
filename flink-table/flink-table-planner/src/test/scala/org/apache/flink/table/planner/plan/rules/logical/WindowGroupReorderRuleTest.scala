@@ -24,9 +24,7 @@ import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.{Before, Test}
 
-/**
-  * Test for [[WindowGroupReorderRule]].
-  */
+/** Test for [[WindowGroupReorderRule]]. */
 class WindowGroupReorderRuleTest extends TableTestBase {
   private val util = batchTestUtil()
 

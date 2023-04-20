@@ -30,12 +30,12 @@ import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestExecutorFactory;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
@@ -43,11 +43,11 @@ import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
-import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
@@ -62,6 +62,7 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.TestStreamStateHandle;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
@@ -91,6 +92,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
@@ -145,6 +147,7 @@ public class InterruptSensitiveRestoreTest {
             case KEYED_RAW:
                 cfg.setStateKeySerializer(IntSerializer.INSTANCE);
                 cfg.setStreamOperator(new StreamSource<>(new TestSource(mode)));
+                cfg.serializeAllConfigs();
                 break;
             default:
                 throw new IllegalArgumentException();
@@ -266,13 +269,12 @@ public class InterruptSensitiveRestoreTest {
         return new Task(
                 jobInformation,
                 taskInformation,
-                new ExecutionAttemptID(),
+                createExecutionAttemptId(taskInformation.getJobVertexId()),
                 new AllocationID(),
-                0,
-                0,
                 Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
                 Collections.<InputGateDeploymentDescriptor>emptyList(),
                 mock(MemoryManager.class),
+                new SharedResources(),
                 mock(IOManager.class),
                 shuffleEnvironment,
                 new KvStateService(new KvStateRegistry(), null, null),
@@ -291,15 +293,15 @@ public class InterruptSensitiveRestoreTest {
                         VoidPermanentBlobService.INSTANCE),
                 new TestingTaskManagerRuntimeInfo(),
                 UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
-                new NoOpResultPartitionConsumableNotifier(),
                 mock(PartitionProducerStateChecker.class),
-                mock(Executor.class));
+                mock(Executor.class),
+                new ChannelStateWriteRequestExecutorFactory(jobInformation.getJobId()));
     }
 
     // ------------------------------------------------------------------------
 
     @SuppressWarnings("serial")
-    private static class InterruptLockingStateHandle implements StreamStateHandle {
+    private static class InterruptLockingStateHandle implements TestStreamStateHandle {
 
         private static final long serialVersionUID = 1L;
 

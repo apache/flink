@@ -109,9 +109,7 @@ public abstract class PushWatermarkIntoTableSourceScanRuleBase extends RelOptRul
             abilitySpec = sourceWatermarkSpec;
         } else {
             final Duration idleTimeout =
-                    tableConfig
-                            .getConfiguration()
-                            .get(ExecutionConfigOptions.TABLE_EXEC_SOURCE_IDLE_TIMEOUT);
+                    tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_SOURCE_IDLE_TIMEOUT);
             final long idleTimeoutMillis;
             if (!idleTimeout.isZero() && !idleTimeout.isNegative()) {
                 idleTimeoutMillis = idleTimeout.toMillis();

@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.table.api.internal.TableResultImpl;
+import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
@@ -27,8 +29,11 @@ public class AlterTableSchemaOperation extends AlterTableOperation {
     // the CatalogTable with the updated schema
     private final CatalogTable catalogTable;
 
-    public AlterTableSchemaOperation(ObjectIdentifier tableIdentifier, CatalogTable catalogTable) {
-        super(tableIdentifier);
+    public AlterTableSchemaOperation(
+            ObjectIdentifier tableIdentifier,
+            CatalogTable catalogTable,
+            boolean ignoreIfNotExists) {
+        super(tableIdentifier, ignoreIfNotExists);
         this.catalogTable = catalogTable;
     }
 
@@ -39,7 +44,16 @@ public class AlterTableSchemaOperation extends AlterTableOperation {
     @Override
     public String asSummaryString() {
         return String.format(
-                "ALTER TABLE %s SET SCHEMA %s",
-                tableIdentifier.asSummaryString(), catalogTable.getSchema().toString());
+                "ALTER TABLE %s%s SET SCHEMA %s",
+                ignoreIfTableNotExists ? "IF EXISTS " : "",
+                tableIdentifier.asSummaryString(),
+                catalogTable.getUnresolvedSchema().toString());
+    }
+
+    @Override
+    public TableResultInternal execute(Context ctx) {
+        ctx.getCatalogManager()
+                .alterTable(getCatalogTable(), getTableIdentifier(), ignoreIfTableNotExists());
+        return TableResultImpl.TABLE_RESULT_OK;
     }
 }

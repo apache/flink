@@ -15,23 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.expressions._
 import org.apache.flink.table.planner.plan.logical.{SliceAttachedWindowingStrategy, WindowAttachedWindowingStrategy, WindowingStrategy}
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGlobalWindowAggregate
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGlobalWindowAggregate
 import org.apache.flink.table.planner.plan.rules.physical.stream.TwoStageOptimizedWindowAggregateRule
+import org.apache.flink.table.planner.plan.utils.{AggregateUtil, RelExplainUtil, WindowUtil}
 import org.apache.flink.table.planner.plan.utils.WindowUtil.checkEmitConfiguration
-import org.apache.flink.table.planner.plan.utils.{AggregateUtil, FlinkRelOptUtil, RelExplainUtil, WindowUtil}
+import org.apache.flink.table.planner.utils.ShortcutUtils.{unwrapTableConfig, unwrapTypeFactory}
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rel.core.AggregateCall
-import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.calcite.util.Litmus
 
 import java.util
@@ -45,41 +44,50 @@ import scala.collection.JavaConverters._
  * [[TwoStageOptimizedWindowAggregateRule]] optimization.
  *
  * <p>The windowing of global window aggregate must be [[SliceAttachedWindowingStrategy]] or
- * [[WindowAttachedWindowingStrategy]] because windowing or slicing has been applied by
- * local window aggregate. There is no time attribute and no window start columns on
- * the output of local window aggregate, but slice end.
+ * [[WindowAttachedWindowingStrategy]] because windowing or slicing has been applied by local window
+ * aggregate. There is no time attribute and no window start columns on the output of local window
+ * aggregate, but slice end.
  *
- * @see [[TwoStageOptimizedWindowAggregateRule]]
- * @see [[StreamPhysicalWindowAggregate]]
+ * @see
+ *   [[TwoStageOptimizedWindowAggregateRule]]
+ * @see
+ *   [[StreamPhysicalWindowAggregate]]
  */
 class StreamPhysicalGlobalWindowAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
     val inputRowTypeOfLocalAgg: RelDataType,
-    val grouping: Array[Int],
-    val aggCalls: Seq[AggregateCall],
+    grouping: Array[Int],
+    aggCalls: Seq[AggregateCall],
     val windowing: WindowingStrategy,
-    val namedWindowProperties: Seq[NamedWindowProperty])
-  extends SingleRel(cluster, traitSet, inputRel)
+    namedWindowProperties: Seq[NamedWindowProperty])
+  extends StreamPhysicalWindowAggregateBase(
+    cluster,
+    traitSet,
+    inputRel,
+    grouping,
+    aggCalls,
+    namedWindowProperties)
   with StreamPhysicalRel {
 
   private lazy val aggInfoList = AggregateUtil.deriveStreamWindowAggregateInfoList(
+    unwrapTypeFactory(inputRel),
     FlinkTypeFactory.toLogicalRowType(inputRowTypeOfLocalAgg),
     aggCalls,
     windowing.getWindow,
     isStateBackendDataViews = true)
-
 
   override def isValid(litmus: Litmus, context: RelNode.Context): Boolean = {
     windowing match {
       case _: WindowAttachedWindowingStrategy | _: SliceAttachedWindowingStrategy =>
       // pass
       case _ =>
-        return litmus.fail("StreamPhysicalGlobalWindowAggregate should only accepts " +
-          "WindowAttachedWindowingStrategy and SliceAttachedWindowingStrategy, " +
-          s"but got ${windowing.getClass.getSimpleName}. " +
-          "This should never happen, please open an issue.")
+        return litmus.fail(
+          "StreamPhysicalGlobalWindowAggregate should only accepts " +
+            "WindowAttachedWindowingStrategy and SliceAttachedWindowingStrategy, " +
+            s"but got ${windowing.getClass.getSimpleName}. " +
+            "This should never happen, please open an issue.")
     }
     super.isValid(litmus, context)
   }
@@ -99,21 +107,22 @@ class StreamPhysicalGlobalWindowAggregate(
   override def explainTerms(pw: RelWriter): RelWriter = {
     val inputRowType = getInput.getRowType
     val inputFieldNames = inputRowType.getFieldNames.asScala.toArray
-    super.explainTerms(pw)
+    super
+      .explainTerms(pw)
       .itemIf("groupBy", RelExplainUtil.fieldToString(grouping, inputRowType), grouping.nonEmpty)
       .item("window", windowing.toSummaryString(inputFieldNames))
-      .item("select", RelExplainUtil.streamWindowAggregationToString(
-        inputRowType,
-        getRowType,
-        aggInfoList,
-        grouping,
-        namedWindowProperties,
-        isGlobal = true))
+      .item(
+        "select",
+        RelExplainUtil.streamWindowAggregationToString(
+          inputRowType,
+          getRowType,
+          aggInfoList,
+          grouping,
+          namedWindowProperties,
+          isGlobal = true))
   }
 
-  override def copy(
-      traitSet: RelTraitSet,
-      inputs: util.List[RelNode]): RelNode = {
+  override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new StreamPhysicalGlobalWindowAggregate(
       cluster,
       traitSet,
@@ -127,8 +136,9 @@ class StreamPhysicalGlobalWindowAggregate(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
-    checkEmitConfiguration(FlinkRelOptUtil.getTableConfigFromContext(this))
+    checkEmitConfiguration(unwrapTableConfig(this))
     new StreamExecGlobalWindowAggregate(
+      unwrapTableConfig(this),
       grouping,
       aggCalls.toArray,
       windowing,
@@ -136,7 +146,6 @@ class StreamPhysicalGlobalWindowAggregate(
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(inputRowTypeOfLocalAgg),
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 }

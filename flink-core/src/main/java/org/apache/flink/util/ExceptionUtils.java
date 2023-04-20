@@ -29,6 +29,8 @@ package org.apache.flink.util;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.function.RunnableWithException;
 
+import org.slf4j.Logger;
+
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -675,6 +677,28 @@ public final class ExceptionUtils {
     public static void checkInterrupted(Throwable e) {
         if (e instanceof InterruptedException) {
             Thread.currentThread().interrupt();
+        }
+    }
+
+    /**
+     * Return the given exception if it is not a {@link FlinkExpectedException}.
+     *
+     * @param e the given exception
+     * @return the given exception if it is not a {@link FlinkExpectedException}
+     */
+    public static Throwable returnExceptionIfUnexpected(Throwable e) {
+        return e instanceof FlinkExpectedException ? null : e;
+    }
+
+    /**
+     * Log the given exception in debug level if it is a {@link FlinkExpectedException}.
+     *
+     * @param e the given exception
+     * @param log logger
+     */
+    public static void logExceptionIfExcepted(Throwable e, Logger log) {
+        if (e instanceof FlinkExpectedException) {
+            log.debug("Expected exception.", e);
         }
     }
 

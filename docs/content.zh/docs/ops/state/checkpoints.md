@@ -31,13 +31,15 @@ Checkpoint 使 Flink 的状态具有良好的容错性，通过 checkpoint 机�
 
 参考 [Checkpointing]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing" >}}) 查看如何在 Flink 程序中开启和配置 checkpoint。
 
+要了解 checkpoints 和 [savepoints]({{< ref "docs/ops/state/savepoints" >}}) 之间的区别，请参阅 [checkpoints 与 savepoints]({{< ref "docs/ops/state/checkpoints_vs_savepoints" >}})。
+
 ## 保留 Checkpoint
 
 Checkpoint 在默认的情况下仅用于恢复失败的作业，并不保留，当程序取消时 checkpoint 就会被删除。当然，你可以通过配置来保留 checkpoint，这些被保留的 checkpoint 在作业失败或取消时不会被清除。这样，你就可以使用该 checkpoint 来恢复失败的作业。
 
 ```java
 CheckpointConfig config = env.getCheckpointConfig();
-config.enableExternalizedCheckpoints(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+config.setExternalizedCheckpointCleanup(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 ```
 
 `ExternalizedCheckpointCleanup` 配置项定义了当作业取消时，对作业 checkpoint 的操作：
@@ -79,12 +81,6 @@ state.checkpoints.dir: hdfs:///checkpoints/
 ```java
 env.setStateBackend(new RocksDBStateBackend("hdfs:///checkpoints-data/"));
 ```
-
-### Checkpoint 与 Savepoint 的区别
-
-Checkpoint 与 [savepoints]({{< ref "docs/ops/state/savepoints" >}}) 有一些区别，体现在 checkpoint ：
-- 使用 state backend 特定的数据格式，可能以增量方式存储。
-- 不支持 Flink 的特定功能，比如扩缩容。
 
 ### 从保留的 checkpoint 中恢复状态
 

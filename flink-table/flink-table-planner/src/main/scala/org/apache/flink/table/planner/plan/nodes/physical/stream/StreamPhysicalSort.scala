@@ -15,35 +15,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.annotation.Experimental
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSort
 import org.apache.flink.table.planner.plan.utils.{RelExplainUtil, SortUtil}
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.core.Sort
 import org.apache.calcite.rex.RexNode
 
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSort
-
 import scala.collection.JavaConversions._
 
 /**
-  * Stream physical RelNode for [[Sort]].
-  *
-  * <b>NOTES:</b> This class is used for testing with bounded source now.
-  * If a query is converted to this node in product environment, an exception will be thrown.
-  *
-  * @see [[StreamPhysicalTemporalSort]] which must be time-ascending-order sort without `limit`.
-  *
-  * e.g.
-  *      ''SELECT * FROM TABLE ORDER BY ROWTIME, a'' will be converted to
-  *         [[StreamPhysicalTemporalSort]]
-  *      ''SELECT * FROM TABLE ORDER BY a, ROWTIME'' will be converted to [[StreamPhysicalSort]]
-  */
+ * Stream physical RelNode for [[Sort]].
+ *
+ * <b>NOTES:</b> This class is used for testing with bounded source now. If a query is converted to
+ * this node in product environment, an exception will be thrown.
+ *
+ * @see
+ *   [[StreamPhysicalTemporalSort]] which must be time-ascending-order sort without `limit`.
+ *
+ * e.g. ''SELECT * FROM TABLE ORDER BY ROWTIME, a'' will be converted to
+ * [[StreamPhysicalTemporalSort]] ''SELECT * FROM TABLE ORDER BY a, ROWTIME'' will be converted to
+ * [[StreamPhysicalSort]]
+ */
 @Experimental
 class StreamPhysicalSort(
     cluster: RelOptCluster,
@@ -71,11 +71,11 @@ class StreamPhysicalSort(
 
   override def translateToExecNode(): ExecNode[_] = {
     new StreamExecSort(
+      unwrapTableConfig(this),
       SortUtil.getSortSpec(sortCollation.getFieldCollations),
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 
 }

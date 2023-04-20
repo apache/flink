@@ -114,4 +114,18 @@ public class CalcJsonPlanTest extends TableTestBase {
                         + "from MyTable where "
                         + "(udf1(a) > 0 or (a * b) < 100) and b > 10");
     }
+
+    @Test
+    public void testSarg() {
+        String sinkTableDdl =
+                "CREATE TABLE MySink (\n"
+                        + "  a bigint\n"
+                        + ") with (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'sink-insert-only' = 'false',\n"
+                        + "  'table-sink-class' = 'DEFAULT')";
+        tEnv.executeSql(sinkTableDdl);
+        String sql = "insert into MySink SELECT a from MyTable where a = 1 or a = 2 or a is null";
+        util.verifyJsonPlan(sql);
+    }
 }

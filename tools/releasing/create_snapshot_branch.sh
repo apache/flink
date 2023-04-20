@@ -17,12 +17,12 @@
 # limitations under the License.
 #
 
-if [ -z "${SHORT_RELEASE_VERSION}" ]; then
+if [ -z "${SHORT_RELEASE_VERSION:-}" ]; then
     echo "SHORT_RELEASE_VERSION was not set."
     exit 1
 fi
 
-if [ -z "${RELEASE_VERSION}" ]; then
+if [ -z "${RELEASE_VERSION:-}" ]; then
     echo "RELEASE_VERSION was not set."
     exit 1
 fi
@@ -55,7 +55,7 @@ perl -pi -e "s#^baseURL = .*#baseURL = \'${url_base}${SHORT_RELEASE_VERSION}\'#"
 perl -pi -e "s#^  JavaDocs = .*#  JavaDocs = \"${url_base}${SHORT_RELEASE_VERSION}/api/java/\"#" ${config_file}
 perl -pi -e "s#^    \[\"JavaDocs\", .*#    \[\"JavaDocs\", \"${url_base}${SHORT_RELEASE_VERSION}/api/java/\"\],#" ${config_file}
 perl -pi -e "s#^  ScalaDocs = .*#  ScalaDocs = \"${url_base}${SHORT_RELEASE_VERSION}/api/scala/index.html\#org.apache.flink.api.scala.package\"#" ${config_file}
-perl -pi -e "s#^    \[\"ScalaDocs\", .*#    \[\"ScalaDocs\", \"${url_base}${SHORT_RELEASE_VERSION}/api/scala/index.html\#org.apache.flink.api.scala.package/\"\]#" ${config_file}
+perl -pi -e "s#^    \[\"ScalaDocs\", .*#    \[\"ScalaDocs\", \"${url_base}${SHORT_RELEASE_VERSION}/api/scala/index.html\#org.apache.flink.api.scala.package/\"\],#" ${config_file}
 perl -pi -e "s#^  PyDocs = .*#  PyDocs = \"${url_base}${SHORT_RELEASE_VERSION}/api/python/\"#" ${config_file}
 perl -pi -e "s#^    \[\"PyDocs\", .*#    \[\"PyDocs\", \"${url_base}${SHORT_RELEASE_VERSION}/api/python/\"\]#" ${config_file}
 

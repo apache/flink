@@ -25,18 +25,17 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
 import org.apache.flink.configuration.Configuration;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for {@link CollectionExecutor} with broadcast variables. */
 @SuppressWarnings("serial")
-public class CollectionExecutionWithBroadcastVariableTest {
+class CollectionExecutionWithBroadcastVariableTest {
 
     private static final String BC_VAR_NAME = "BC";
 
@@ -44,24 +43,24 @@ public class CollectionExecutionWithBroadcastVariableTest {
     private static final String SUFFIX = "-suffixed";
 
     @Test
-    public void testUnaryOp() {
+    void testUnaryOp() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
 
             DataSet<String> bcData = env.fromElements(SUFFIX);
 
-            List<String> result = new ArrayList<String>();
+            List<String> result = new ArrayList<>();
 
             env.fromElements(TEST_DATA)
                     .map(new SuffixAppender())
                     .withBroadcastSet(bcData, BC_VAR_NAME)
-                    .output(new LocalCollectionOutputFormat<String>(result));
+                    .output(new LocalCollectionOutputFormat<>(result));
 
             env.execute();
 
-            assertEquals(TEST_DATA.length, result.size());
+            assertThat(result).hasSameSizeAs(TEST_DATA);
             for (String s : result) {
-                assertTrue(s.indexOf(SUFFIX) > 0);
+                assertThat(s.indexOf(SUFFIX)).isGreaterThan(0);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -70,25 +69,25 @@ public class CollectionExecutionWithBroadcastVariableTest {
     }
 
     @Test
-    public void testBinaryOp() {
+    void testBinaryOp() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
 
             DataSet<String> bcData = env.fromElements(SUFFIX);
             DataSet<String> inData = env.fromElements(TEST_DATA);
 
-            List<String> result = new ArrayList<String>();
+            List<String> result = new ArrayList<>();
 
             inData.cross(inData)
                     .with(new SuffixCross())
                     .withBroadcastSet(bcData, BC_VAR_NAME)
-                    .output(new LocalCollectionOutputFormat<String>(result));
+                    .output(new LocalCollectionOutputFormat<>(result));
 
             env.execute();
 
-            assertEquals(TEST_DATA.length * TEST_DATA.length, result.size());
+            assertThat(result).hasSize(TEST_DATA.length * TEST_DATA.length);
             for (String s : result) {
-                assertTrue(s.indexOf(SUFFIX) == 2);
+                assertThat(s.indexOf(SUFFIX)).isEqualTo(2);
             }
         } catch (Exception e) {
             e.printStackTrace();

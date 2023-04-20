@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.descriptors.Descriptor;
-import org.apache.flink.table.descriptors.Schema;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -389,12 +388,10 @@ public class TableFactoryService {
                     plainGivenKeys.stream()
                             .filter(p -> !requiredContextKeys.contains(p))
                             .collect(Collectors.toList());
-            List<String> givenFilteredKeys =
-                    filterSupportedPropertiesFactorySpecific(factory, givenContextFreeKeys);
 
             boolean allTrue = true;
             List<String> unsupportedKeys = new ArrayList<>();
-            for (String k : givenFilteredKeys) {
+            for (String k : givenContextFreeKeys) {
                 if (!(tuple2.f0.contains(k) || tuple2.f1.stream().anyMatch(k::startsWith))) {
                     allTrue = false;
                     unsupportedKeys.add(k);
@@ -455,29 +452,5 @@ public class TableFactoryService {
                 .filter(p -> p.endsWith("*"))
                 .map(s -> s.substring(0, s.length() - 1))
                 .collect(Collectors.toList());
-    }
-
-    /**
-     * Performs filtering for special cases (i.e. table format factories with schema derivation).
-     */
-    private static List<String> filterSupportedPropertiesFactorySpecific(
-            TableFactory factory, List<String> keys) {
-
-        if (factory instanceof TableFormatFactory) {
-            boolean includeSchema = ((TableFormatFactory) factory).supportsSchemaDerivation();
-            return keys.stream()
-                    .filter(
-                            k -> {
-                                if (includeSchema) {
-                                    return k.startsWith(Schema.SCHEMA + ".")
-                                            || k.startsWith(FORMAT + ".");
-                                } else {
-                                    return k.startsWith(FORMAT + ".");
-                                }
-                            })
-                    .collect(Collectors.toList());
-        } else {
-            return keys;
-        }
     }
 }

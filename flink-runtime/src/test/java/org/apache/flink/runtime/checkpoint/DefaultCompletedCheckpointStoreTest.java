@@ -21,7 +21,9 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.testutils.FlinkMatchers;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.persistence.StateHandleStore;
 import org.apache.flink.runtime.persistence.TestingRetrievableStateStorageHelper;
 import org.apache.flink.runtime.persistence.TestingStateHandleStore;
@@ -108,7 +110,10 @@ public class DefaultCompletedCheckpointStoreTest extends TestLogger {
         CompletedCheckpoint cp1 = getCheckpoint(false, 1L);
         CompletedCheckpoint sp1 = getCheckpoint(true, 2L);
         CompletedCheckpoint stop =
-                getCheckpoint(CheckpointProperties.forSyncSavepoint(false, false), 3L);
+                getCheckpoint(
+                        CheckpointProperties.forSyncSavepoint(
+                                false, false, SavepointFormatType.CANONICAL),
+                        3L);
         testCheckpointRetention(1, asList(cp1, sp1, stop), asList(stop));
     }
 
@@ -393,14 +398,16 @@ public class DefaultCompletedCheckpointStoreTest extends TestLogger {
                 DefaultCompletedCheckpointStoreUtils.retrieveCompletedCheckpoints(
                         stateHandleStore, checkpointStoreUtil),
                 SharedStateRegistry.DEFAULT_FACTORY.create(
-                        org.apache.flink.util.concurrent.Executors.directExecutor(), emptyList()),
+                        org.apache.flink.util.concurrent.Executors.directExecutor(),
+                        emptyList(),
+                        RestoreMode.DEFAULT),
                 executorService);
     }
 
     private CompletedCheckpoint getCheckpoint(boolean isSavepoint, long id) {
         return getCheckpoint(
                 isSavepoint
-                        ? CheckpointProperties.forSavepoint(false)
+                        ? CheckpointProperties.forSavepoint(false, SavepointFormatType.CANONICAL)
                         : CheckpointProperties.forCheckpoint(NEVER_RETAIN_AFTER_TERMINATION),
                 id);
     }
@@ -414,7 +421,8 @@ public class DefaultCompletedCheckpointStoreTest extends TestLogger {
                 Collections.emptyMap(),
                 Collections.emptyList(),
                 props,
-                new TestCompletedCheckpointStorageLocation());
+                new TestCompletedCheckpointStorageLocation(),
+                null);
     }
 
     private List<Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String>> createStateHandles(

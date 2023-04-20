@@ -19,15 +19,19 @@
 package org.apache.flink.streaming.api.functions.sink.filesystem;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.core.fs.Path;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 
 /** The {@link Bucket} uses the {@link InProgressFileWriter} to write element to a part file. */
 @Internal
-public interface InProgressFileWriter<IN, BucketID> extends PartFileInfo<BucketID> {
+public interface InProgressFileWriter<IN, BucketID>
+        extends PartFileInfo<BucketID>, RecordWiseCompactingFileWriter<IN> {
 
     /**
-     * Write a element to the part file.
+     * Write an element to the part file.
      *
      * @param element the element to be written.
      * @param currentTime the writing time.
@@ -51,11 +55,24 @@ public interface InProgressFileWriter<IN, BucketID> extends PartFileInfo<BucketI
     /** Dispose the part file. */
     void dispose();
 
+    @Override
+    default void write(IN element) throws IOException {
+        write(element, System.currentTimeMillis());
+    }
+
     // ------------------------------------------------------------------------
 
     /** A handle can be used to recover in-progress file.. */
     interface InProgressFileRecoverable extends PendingFileRecoverable {}
 
     /** The handle can be used to recover pending file. */
-    interface PendingFileRecoverable {}
+    interface PendingFileRecoverable {
+
+        /** @return The target path of the pending file, null if unavailable. */
+        @Nullable
+        Path getPath();
+
+        /** @return The size of the pending file, -1 if unavailable. */
+        long getSize();
+    }
 }

@@ -15,15 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.codegen.agg.batch
 
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenUtils}
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.generateCollect
 import org.apache.flink.table.planner.codegen.agg.batch.AggCodeGenHelper.genSortAggCodes
-import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext}
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList
 import org.apache.flink.table.runtime.generated.GeneratedOperator
 import org.apache.flink.table.runtime.operators.TableStreamOperator
@@ -31,9 +30,7 @@ import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.tools.RelBuilder
 
-/**
-  * Generate a agg operator without keys, auxGrouping must be empty too.
-  */
+/** Generate a agg operator without keys, auxGrouping must be empty too. */
 object AggWithoutKeysCodeGenerator {
 
   def genWithoutKeys(
@@ -44,8 +41,7 @@ object AggWithoutKeysCodeGenerator {
       outputType: RowType,
       isMerge: Boolean,
       isFinal: Boolean,
-      prefix: String)
-    : GeneratedOperator[OneInputStreamOperator[RowData, RowData]] = {
+      prefix: String): GeneratedOperator[OneInputStreamOperator[RowData, RowData]] = {
 
     // prepare for aggregation
     val auxGrouping = Array[Int]()

@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.metrics.Gauge;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
@@ -156,6 +157,14 @@ public class RecordWriterOutput<OUT> implements WatermarkGaugeExposingOutput<Str
             isPriorityEvent = false;
         }
         recordWriter.broadcastEvent(event, isPriorityEvent);
+    }
+
+    public void alignedBarrierTimeout(long checkpointId) throws IOException {
+        recordWriter.alignedBarrierTimeout(checkpointId);
+    }
+
+    public void abortCheckpoint(long checkpointId, CheckpointException cause) {
+        recordWriter.abortCheckpoint(checkpointId, cause);
     }
 
     public void flush() throws IOException {

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.TableConfig
@@ -25,23 +24,22 @@ import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.plan.nodes.exec.spec.IntervalJoinSpec.WindowBounds
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType
+import org.apache.flink.table.planner.utils.ShortcutUtils.{unwrapClassLoader, unwrapTableConfig}
 
 import org.apache.calcite.plan.RelOptUtil
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.validate.SqlValidatorUtil
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rex._
-import org.apache.calcite.sql.SqlKind
 
 import java.util
 
 import scala.collection.JavaConversions._
 
-/**
-  * Util for interval join operator.
-  */
+/** Util for interval join operator. */
 object IntervalJoinUtil {
 
   protected case class WindowBound(bound: Long, isLeftLower: Boolean)
@@ -56,25 +54,33 @@ object IntervalJoinUtil {
   protected case class TimeAttributeAccess(isEventTime: Boolean, isLeftInput: Boolean, idx: Int)
 
   /**
-    * Extracts the window bounds from a join predicate.
-    *
-    * @param  predicate           join predicate
-    * @param  leftLogicalFieldCnt number of attributes on the left join input
-    * @param  joinRowType         row type of the join result
-    * @param  rexBuilder          RexBuilder
-    * @param  config              TableConfig
-    * @return A Tuple2 of extracted window bounds and remaining predicates.
-    */
+   * Extracts the window bounds from a join predicate.
+   *
+   * @param predicate
+   *   join predicate
+   * @param leftLogicalFieldCnt
+   *   number of attributes on the left join input
+   * @param joinRowType
+   *   row type of the join result
+   * @param rexBuilder
+   *   RexBuilder
+   * @param config
+   *   TableConfig
+   * @return
+   *   A Tuple2 of extracted window bounds and remaining predicates.
+   */
   private[flink] def extractWindowBoundsFromPredicate(
       predicate: RexNode,
       leftLogicalFieldCnt: Int,
       joinRowType: RelDataType,
       rexBuilder: RexBuilder,
-      config: TableConfig): (Option[WindowBounds], Option[RexNode]) = {
+      tableConfig: TableConfig,
+      classLoader: ClassLoader): (Option[WindowBounds], Option[RexNode]) = {
 
     // Converts the condition to conjunctive normal form (CNF)
-    val cnfCondition = FlinkRexUtil.toCnf(rexBuilder,
-      config.getConfiguration.getInteger(FlinkRexUtil.TABLE_OPTIMIZER_CNF_NODES_LIMIT),
+    val cnfCondition = FlinkRexUtil.toCnf(
+      rexBuilder,
+      tableConfig.get(FlinkRexUtil.TABLE_OPTIMIZER_CNF_NODES_LIMIT),
       predicate)
 
     // split the condition into time predicates and other predicates
@@ -84,12 +90,13 @@ object IntervalJoinUtil {
         // extract all time predicates from conjunctive predicate
         call.getOperands
           .map(identifyTimePredicate(_, leftLogicalFieldCnt, joinRowType))
-          .foldLeft((Seq[TimePredicate](), Seq[RexNode]()))((preds, analyzed) => {
-            analyzed match {
-              case Left(timePred) => (preds._1 :+ timePred, preds._2)
-              case Right(otherPred) => (preds._1, preds._2 :+ otherPred)
-            }
-          })
+          .foldLeft((Seq[TimePredicate](), Seq[RexNode]()))(
+            (preds, analyzed) => {
+              analyzed match {
+                case Left(timePred) => (preds._1 :+ timePred, preds._2)
+                case Right(otherPred) => (preds._1, preds._2 :+ otherPred)
+              }
+            })
       case c: RexCall =>
         // extract time predicate if it exists
         identifyTimePredicate(c, leftLogicalFieldCnt, joinRowType) match {
@@ -107,7 +114,7 @@ object IntervalJoinUtil {
       case Seq(t) if t.pred.getKind != SqlKind.EQUALS =>
         // single predicate must be equality predicate
         return (None, Some(predicate))
-      case s@Seq(_, _) if s.exists(_.pred.getKind == SqlKind.EQUALS) =>
+      case s @ Seq(_, _) if s.exists(_.pred.getKind == SqlKind.EQUALS) =>
         // pair of range predicate must not include equals predicate
         return (None, Some(predicate))
       case Seq(_) =>
@@ -119,7 +126,8 @@ object IntervalJoinUtil {
     }
 
     // assemble window bounds from predicates
-    val streamTimeOffsets = timePreds.map(computeWindowBoundFromPredicate(_, rexBuilder, config))
+    val streamTimeOffsets =
+      timePreds.map(computeWindowBoundFromPredicate(_, rexBuilder, tableConfig, classLoader))
     val (leftLowerBound, leftUpperBound) =
       streamTimeOffsets match {
         case Seq(Some(x: WindowBound), Some(y: WindowBound)) if x.isLeftLower && !y.isLeftLower =>
@@ -146,42 +154,45 @@ object IntervalJoinUtil {
       }
 
     val bounds = if (timePreds.head.leftInputOnLeftSide) {
-      Some(new WindowBounds(
-        timePreds.head.isEventTime,
-        leftLowerBound,
-        leftUpperBound,
-        timePreds.head.leftTimeIdx,
-        timePreds.head.rightTimeIdx))
+      Some(
+        new WindowBounds(
+          timePreds.head.isEventTime,
+          leftLowerBound,
+          leftUpperBound,
+          timePreds.head.leftTimeIdx,
+          timePreds.head.rightTimeIdx))
     } else {
-      Some(new WindowBounds(
-        timePreds.head.isEventTime,
-        leftLowerBound,
-        leftUpperBound,
-        timePreds.head.rightTimeIdx,
-        timePreds.head.leftTimeIdx))
+      Some(
+        new WindowBounds(
+          timePreds.head.isEventTime,
+          leftLowerBound,
+          leftUpperBound,
+          timePreds.head.rightTimeIdx,
+          timePreds.head.leftTimeIdx))
     }
 
     (bounds, remainCondition)
   }
 
   /**
-    * Analyzes a predicate and identifies whether it is a valid predicate for a window join.
-    *
-    * A valid window join predicate is a range or equality predicate (<, <=, ==, =>, >) that
-    * accesses time attributes of both inputs, each input on a different side of the condition.
-    * Both accessed time attributes must be of the same time type, i.e., row-time or proc-time.
-    *
-    * Examples:
-    * - left.rowtime > right.rowtime + 2.minutes => valid
-    * - left.rowtime == right.rowtime => valid
-    * - left.proctime < right.rowtime + 2.minutes => invalid: different time type
-    * - left.rowtime - right.rowtime < 2.minutes => invalid: both time attributes on same side
-    *
-    * If the predicate is a regular join predicate, i.e., it accesses no time attribute it is
-    * returned as well.
-    *
-    * @return Either a valid time predicate (Left) or a valid non-time predicate (Right)
-    */
+   * Analyzes a predicate and identifies whether it is a valid predicate for a window join.
+   *
+   * A valid window join predicate is a range or equality predicate (<, <=, ==, =>, >) that accesses
+   * time attributes of both inputs, each input on a different side of the condition. Both accessed
+   * time attributes must be of the same time type, i.e., row-time or proc-time.
+   *
+   * Examples:
+   *   - left.rowtime > right.rowtime + 2.minutes => valid
+   *   - left.rowtime == right.rowtime => valid
+   *   - left.proctime < right.rowtime + 2.minutes => invalid: different time type
+   *   - left.rowtime - right.rowtime < 2.minutes => invalid: both time attributes on same side
+   *
+   * If the predicate is a regular join predicate, i.e., it accesses no time attribute it is
+   * returned as well.
+   *
+   * @return
+   *   Either a valid time predicate (Left) or a valid non-time predicate (Right)
+   */
   private def identifyTimePredicate(
       pred: RexNode,
       leftFieldCount: Int,
@@ -190,18 +201,16 @@ object IntervalJoinUtil {
     pred match {
       case c: RexCall =>
         c.getKind match {
-          case SqlKind.GREATER_THAN |
-               SqlKind.GREATER_THAN_OR_EQUAL |
-               SqlKind.LESS_THAN |
-               SqlKind.LESS_THAN_OR_EQUAL |
-               SqlKind.EQUALS =>
-
+          case SqlKind.GREATER_THAN | SqlKind.GREATER_THAN_OR_EQUAL | SqlKind.LESS_THAN |
+              SqlKind.LESS_THAN_OR_EQUAL | SqlKind.EQUALS =>
             val leftTerm = c.getOperands.get(0)
             val rightTerm = c.getOperands.get(1)
 
             // validate that both sides of the condition do not access non-time attributes
-            if (accessesNonTimeAttribute(leftTerm, inputRowType) ||
-              accessesNonTimeAttribute(rightTerm, inputRowType)) {
+            if (
+              accessesNonTimeAttribute(leftTerm, inputRowType) ||
+              accessesNonTimeAttribute(rightTerm, inputRowType)
+            ) {
               return Right(pred)
             }
 
@@ -253,10 +262,11 @@ object IntervalJoinUtil {
   }
 
   /**
-    * Extracts all time attributes that are accessed in an expression.
-    *
-    * @return A Seq of all time attribute accessed in the expression.
-    */
+   * Extracts all time attributes that are accessed in an expression.
+   *
+   * @return
+   *   A Seq of all time attribute accessed in the expression.
+   */
   private def extractTimeAttributeAccesses(
       expr: RexNode,
       leftFieldCount: Int,
@@ -288,12 +298,15 @@ object IntervalJoinUtil {
   }
 
   /**
-    * Checks if an expression accesses a non-time attribute.
-    *
-    * @param expr      The expression to check.
-    * @param inputType The input type of the expression.
-    * @return True, if the expression accesses a non-time attribute. False otherwise.
-    */
+   * Checks if an expression accesses a non-time attribute.
+   *
+   * @param expr
+   *   The expression to check.
+   * @param inputType
+   *   The input type of the expression.
+   * @return
+   *   True, if the expression accesses a non-time attribute. False otherwise.
+   */
   private def accessesNonTimeAttribute(expr: RexNode, inputType: RelDataType): Boolean = {
     expr match {
       case ref: RexInputRef =>
@@ -315,15 +328,17 @@ object IntervalJoinUtil {
   }
 
   /**
-    * Computes the absolute bound on the left operand of a comparison expression and
-    * whether the bound is an upper or lower bound.
-    *
-    * @return window boundary, is left lower bound
-    */
+   * Computes the absolute bound on the left operand of a comparison expression and whether the
+   * bound is an upper or lower bound.
+   *
+   * @return
+   *   window boundary, is left lower bound
+   */
   private def computeWindowBoundFromPredicate(
       timePred: TimePredicate,
       rexBuilder: RexBuilder,
-      config: TableConfig): Option[WindowBound] = {
+      tableConfig: TableConfig,
+      classLoader: ClassLoader): Option[WindowBound] = {
 
     val isLeftLowerBound: Boolean =
       timePred.pred.getKind match {
@@ -338,7 +353,8 @@ object IntervalJoinUtil {
       }
 
     // reduce predicate to constants to compute bounds
-    val (leftLiteral, rightLiteral) = reduceTimeExpression(timePred, rexBuilder, config)
+    val (leftLiteral, rightLiteral) =
+      reduceTimeExpression(timePred, rexBuilder, tableConfig, classLoader)
 
     if (leftLiteral.isEmpty || rightLiteral.isEmpty) {
       return None
@@ -367,42 +383,43 @@ object IntervalJoinUtil {
   }
 
   /**
-    * Replaces the time attributes on both sides of a time predicate by a zero literal and
-    * reduces the expressions on both sides to a long literal.
-    *
-    * @param timePred   The time predicate which both sides are reduced.
-    * @param rexBuilder A RexBuilder
-    * @param config     A TableConfig.
-    * @return The values of the reduced literals on both sides of the time comparison predicate.
-    */
+   * Replaces the time attributes on both sides of a time predicate by a zero literal and reduces
+   * the expressions on both sides to a long literal.
+   *
+   * @param timePred
+   *   The time predicate which both sides are reduced.
+   * @param rexBuilder
+   *   A RexBuilder
+   * @param tableConfig
+   *   A TableConfig.
+   * @return
+   *   The values of the reduced literals on both sides of the time comparison predicate.
+   */
   private def reduceTimeExpression(
       timePred: TimePredicate,
       rexBuilder: RexBuilder,
-      config: TableConfig): (Option[Long], Option[Long]) = {
+      tableConfig: TableConfig,
+      classLoader: ClassLoader): (Option[Long], Option[Long]) = {
 
-    /**
-     * Checks if the given call is a materialization call for either proctime or rowtime.
-     */
+    /** Checks if the given call is a materialization call for either proctime or rowtime. */
     def isMaterializationCall(call: RexCall): Boolean = {
       val isProctimeCall: Boolean = {
         call.getOperator == FlinkSqlOperatorTable.PROCTIME_MATERIALIZE &&
-          call.getOperands.size() == 1 &&
-          FlinkTypeFactory.isProctimeIndicatorType(call.getOperands.get(0).getType)
+        call.getOperands.size() == 1 &&
+        FlinkTypeFactory.isProctimeIndicatorType(call.getOperands.get(0).getType)
       }
 
       val isRowtimeCall: Boolean = {
         call.getOperator == SqlStdOperatorTable.CAST &&
-          call.getOperands.size() == 1 &&
-          FlinkTypeFactory.isRowtimeIndicatorType(call.getOperands.get(0).getType) &&
-          call.getType.getSqlTypeName == SqlTypeName.TIMESTAMP
+        call.getOperands.size() == 1 &&
+        FlinkTypeFactory.isRowtimeIndicatorType(call.getOperands.get(0).getType) &&
+        call.getType.getSqlTypeName == SqlTypeName.TIMESTAMP
       }
 
       isProctimeCall || isRowtimeCall
     }
 
-    /**
-      * Replace the time attribute by zero literal.
-      */
+    /** Replace the time attribute by zero literal. */
     def replaceTimeFieldWithLiteral(expr: RexNode): RexNode = {
       expr match {
         case c: RexCall if isMaterializationCall(c) =>
@@ -426,12 +443,12 @@ object IntervalJoinUtil {
     val rightSideWithLiteral = replaceTimeFieldWithLiteral(rightSide)
 
     // reduce expression to literal
-     val exprReducer = new ExpressionReducer(config, allowChangeNullability = true)
+    val exprReducer = new ExpressionReducer(tableConfig, classLoader, allowChangeNullability = true)
     val originList = new util.ArrayList[RexNode]()
     originList.add(leftSideWithLiteral)
     originList.add(rightSideWithLiteral)
-     val reduceList = new util.ArrayList[RexNode]()
-     exprReducer.reduce(rexBuilder, originList, reduceList)
+    val reduceList = new util.ArrayList[RexNode]()
+    exprReducer.reduce(rexBuilder, originList, reduceList)
 
     // extract bounds from reduced literal
     val literals = reduceList.map {
@@ -447,9 +464,10 @@ object IntervalJoinUtil {
   /**
    * Check whether input join node satisfy preconditions to convert into interval join.
    *
-   * @param join input join to analyze.
-   * @return True if input join node satisfy preconditions to convert into interval join,
-   *         else false.
+   * @param join
+   *   input join to analyze.
+   * @return
+   *   True if input join node satisfy preconditions to convert into interval join, else false.
    */
   def satisfyIntervalJoin(join: FlinkLogicalJoin): Boolean = {
     satisfyIntervalJoin(join, join.getLeft, join.getRight)
@@ -467,23 +485,25 @@ object IntervalJoinUtil {
       join.getCluster.getTypeFactory,
       null,
       join.getSystemFieldList)
-    val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(join)
+    val tableConfig = unwrapTableConfig(join)
     val (windowBounds, _) = extractWindowBoundsFromPredicate(
       join.getCondition,
       newLeft.getRowType.getFieldCount,
       newJoinRowType,
       join.getCluster.getRexBuilder,
-      tableConfig)
+      tableConfig,
+      unwrapClassLoader(join))
     windowBounds.nonEmpty
   }
 
   def extractWindowBounds(join: FlinkLogicalJoin): (Option[WindowBounds], Option[RexNode]) = {
-    val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(join)
+    val tableConfig = unwrapTableConfig(join)
     extractWindowBoundsFromPredicate(
       join.getCondition,
       join.getLeft.getRowType.getFieldCount,
       join.getRowType,
       join.getCluster.getRexBuilder,
-      tableConfig)
+      tableConfig,
+      unwrapClassLoader(join))
   }
 }

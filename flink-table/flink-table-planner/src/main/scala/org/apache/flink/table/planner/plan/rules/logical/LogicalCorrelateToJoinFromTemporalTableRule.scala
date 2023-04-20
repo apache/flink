@@ -26,9 +26,9 @@ import org.apache.flink.table.planner.plan.schema.{LegacyTableSourceTable, Table
 import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil
 import org.apache.flink.table.sources.LookupableTableSource
 
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptRuleOperand}
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.hep.{HepPlanner, HepRelVertex}
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptRuleOperand}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rel.logical._
@@ -38,12 +38,12 @@ import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 
 /**
-  * The initial temporal table join (FOR SYSTEM_TIME AS OF) is a Correlate, rewrite it into a Join
-  * to make join condition can be pushed-down. The join will be translated into
-  * [[StreamPhysicalLookupJoin]] or translated into [[StreamPhysicalTemporalJoin]] in physical.
-  *
-  * Notice: This rule can only be used in [[HepPlanner]].
-  */
+ * The initial temporal table join (FOR SYSTEM_TIME AS OF) is a Correlate, rewrite it into a Join to
+ * make join condition can be pushed-down. The join will be translated into
+ * [[StreamPhysicalLookupJoin]] or translated into [[StreamPhysicalTemporalJoin]] in physical.
+ *
+ * Notice: This rule can only be used in [[HepPlanner]].
+ */
 abstract class LogicalCorrelateToJoinFromTemporalTableRule(
     operand: RelOptRuleOperand,
     description: String)
@@ -70,18 +70,22 @@ abstract class LogicalCorrelateToJoinFromTemporalTableRule(
       // validate type is event-time or processing time
       case t: TimeIndicatorRelDataType => // do nothing
       case _ =>
-        throw new ValidationException("Temporal table join currently only supports " +
-          "'FOR SYSTEM_TIME AS OF' left table's time attribute field")
+        throw new ValidationException(
+          "Temporal table join currently only supports " +
+            "'FOR SYSTEM_TIME AS OF' left table's time attribute field")
     }
 
     snapshot.getPeriod match {
       // validate period comes from left table's field
-      case r: RexFieldAccess if r.getReferenceExpr.isInstanceOf[RexCorrelVariable] &&
-        correlate.getCorrelationId.equals(r.getReferenceExpr.asInstanceOf[RexCorrelVariable].id)
-        => // do nothing
+      case r: RexFieldAccess
+          if r.getReferenceExpr.isInstanceOf[RexCorrelVariable] &&
+            correlate.getCorrelationId.equals(
+              r.getReferenceExpr.asInstanceOf[RexCorrelVariable].id
+            ) => // do nothing
       case _ =>
-        throw new ValidationException("Temporal table join currently only supports " +
-          "'FOR SYSTEM_TIME AS OF' left table's time attribute field'")
+        throw new ValidationException(
+          "Temporal table join currently only supports " +
+            "'FOR SYSTEM_TIME AS OF' left table's time attribute field'")
     }
   }
 
@@ -140,8 +144,8 @@ abstract class LogicalCorrelateToJoinFromTemporalTableRule(
 }
 
 /**
- * Lookup join is a kind of temporal table join implementation which only supports
- * Processing-time temporal table join and the right input required a [[LookupTableSource]].
+ * Lookup join is a kind of temporal table join implementation which only supports Processing-time
+ * temporal table join and the right input required a [[LookupTableSource]].
  */
 abstract class LogicalCorrelateToJoinFromLookupTemporalTableRule(
     operand: RelOptRuleOperand,
@@ -186,9 +190,7 @@ abstract class LogicalCorrelateToJoinFromLookupTemporalTableRule(
   }
 }
 
-/**
- * General temporal table join rule to rewrite the original Correlate into a Join.
- */
+/** General temporal table join rule to rewrite the original Correlate into a Join. */
 abstract class LogicalCorrelateToJoinFromGeneralTemporalTableRule(
     operand: RelOptRuleOperand,
     description: String)
@@ -199,8 +201,9 @@ abstract class LogicalCorrelateToJoinFromGeneralTemporalTableRule(
       snapshot: LogicalSnapshot): Option[RexNode] = {
     val rightFields = snapshot.getRowType.getFieldList.asScala
     val timeAttributeFields = rightFields.filter(
-      f => f.getType.isInstanceOf[TimeIndicatorRelDataType] &&
-        f.getType.asInstanceOf[TimeIndicatorRelDataType].isEventTime)
+      f =>
+        f.getType.isInstanceOf[TimeIndicatorRelDataType] &&
+          f.getType.asInstanceOf[TimeIndicatorRelDataType].isEventTime)
 
     if (timeAttributeFields.length == 1) {
       val timeColIndex = leftInput.getRowType.getFieldCount +
@@ -264,35 +267,45 @@ abstract class LogicalCorrelateToJoinFromGeneralTemporalTableRule(
       val joinInfo = rewriteJoin.asInstanceOf[LogicalJoin].analyzeCondition()
       val leftJoinKey = joinInfo.leftKeys.map(i => rexBuilder.makeInputRef(leftInput, i))
       val leftFieldCnt = leftInput.getRowType.getFieldCount
-      val rightJoinKey = joinInfo.rightKeys.map(i => {
-        val leftKeyType = snapshot.getRowType.getFieldList.get(i).getType
-        rexBuilder.makeInputRef(leftKeyType, leftFieldCnt + i)
-      })
+      val rightJoinKey = joinInfo.rightKeys.map(
+        i => {
+          val leftKeyType = snapshot.getRowType.getFieldList.get(i).getType
+          rexBuilder.makeInputRef(leftKeyType, leftFieldCnt + i)
+        })
       if (leftJoinKey.length == 0 || rightJoinKey.length == 0) {
-        throw new ValidationException("Currently the join key in Temporal Table Join " +
-          "can not be empty.")
+        throw new ValidationException(
+          "Currently the join key in Temporal Table Join " +
+            "can not be empty.")
       }
       (leftJoinKey, rightJoinKey)
     }
 
     val snapshotTimeInputRef = extractSnapshotTimeInputRef(leftInput, snapshot)
-      .getOrElse(throw new ValidationException("Temporal Table Join requires time " +
-        "attribute in the left table, but no time attribute found."))
+      .getOrElse(
+        throw new ValidationException(
+          "Temporal Table Join requires time " +
+            "attribute in the left table, but no time attribute found."))
 
-    val temporalCondition = if(isRowTimeTemporalTableJoin(snapshot)) {
+    val temporalCondition = if (isRowTimeTemporalTableJoin(snapshot)) {
       val rightTimeInputRef = extractRightEventTimeInputRef(leftInput, snapshot)
       if (rightTimeInputRef.isEmpty || !isRowtimeIndicatorType(rightTimeInputRef.get.getType)) {
-          throw new ValidationException("Event-Time Temporal Table Join requires both" +
+        throw new ValidationException(
+          "Event-Time Temporal Table Join requires both" +
             s" primary key and row time attribute in versioned table," +
             s" but no row time attribute can be found.")
       }
 
-      if (snapshotTimeInputRef.getType.getSqlTypeName
-        != rightTimeInputRef.get.getType.getSqlTypeName) {
+      if (
+        snapshotTimeInputRef.getType.getSqlTypeName
+          != rightTimeInputRef.get.getType.getSqlTypeName
+      ) {
         throw new ValidationException(
-          String.format("Event-Time Temporal Table Join requires same rowtime" +
-          " type in left table and versioned table, but the rowtime types are %s and %s.",
-            snapshotTimeInputRef.getType.toString, rightTimeInputRef.get.getType.toString))
+          String.format(
+            "Event-Time Temporal Table Join requires same rowtime" +
+              " type in left table and versioned table, but the rowtime types are %s and %s.",
+            snapshotTimeInputRef.getType.toString,
+            rightTimeInputRef.get.getType.toString
+          ))
       }
       // Deal primary key in TemporalJoinRewriteUniqueKeyRule
       TemporalJoinUtil.makeInitialRowTimeTemporalTableJoinCondCall(
@@ -327,18 +340,19 @@ abstract class LogicalCorrelateToJoinFromGeneralTemporalTableRule(
 }
 
 /**
-  * Planner rule that matches temporal table join which implemented by lookup join, the join
-  * condition is not true, that means the right input of the Correlate is a Filter.
-  * e.g. SELECT * FROM MyTable AS T JOIN lookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
-  * ON T.a = D.id
-  */
+ * Planner rule that matches temporal table join which implemented by lookup join, the join
+ * condition is not true, that means the right input of the Correlate is a Filter. e.g. SELECT *
+ * FROM MyTable AS T JOIN lookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id
+ */
 class LogicalCorrelateToJoinFromLookupTableRuleWithFilter
   extends LogicalCorrelateToJoinFromLookupTemporalTableRule(
-    operand(classOf[LogicalCorrelate],
+    operand(
+      classOf[LogicalCorrelate],
       operand(classOf[RelNode], any()),
-      operand(classOf[LogicalFilter],
-        operand(classOf[LogicalSnapshot],
-          operand(classOf[RelNode], any())))),
+      operand(
+        classOf[LogicalFilter],
+        operand(classOf[LogicalSnapshot], operand(classOf[RelNode], any())))
+    ),
     "LogicalCorrelateToJoinFromLookupTableRuleWithFilter"
   ) {
   override def matches(call: RelOptRuleCall): Boolean = {
@@ -358,17 +372,16 @@ class LogicalCorrelateToJoinFromLookupTableRuleWithFilter
 }
 
 /**
-  * Planner rule that matches temporal table join which implemented by lookup join, the join
-  * condition is true, that means the right input of the Correlate is a Snapshot.
-  * e.g. SELECT * FROM MyTable AS T JOIN temporalTable
-  * FOR SYSTEM_TIME AS OF T.proctime AS D ON true
-  */
+ * Planner rule that matches temporal table join which implemented by lookup join, the join
+ * condition is true, that means the right input of the Correlate is a Snapshot. e.g. SELECT * FROM
+ * MyTable AS T JOIN temporalTable FOR SYSTEM_TIME AS OF T.proctime AS D ON true
+ */
 class LogicalCorrelateToJoinFromLookupTableRuleWithoutFilter
   extends LogicalCorrelateToJoinFromLookupTemporalTableRule(
-    operand(classOf[LogicalCorrelate],
+    operand(
+      classOf[LogicalCorrelate],
       operand(classOf[RelNode], any()),
-      operand(classOf[LogicalSnapshot],
-        operand(classOf[RelNode], any()))),
+      operand(classOf[LogicalSnapshot], operand(classOf[RelNode], any()))),
     "LogicalCorrelateToJoinFromLookupTableRuleWithoutFilter"
   ) {
 
@@ -388,19 +401,20 @@ class LogicalCorrelateToJoinFromLookupTableRuleWithoutFilter
 }
 
 /**
- * Planner rule that matches general temporal table join except lookup join, the join
- * condition is not true, that means the right input of the Correlate is a Filter.
- * e.g. SELECT * FROM MyTable AS T JOIN temporalTable FOR SYSTEM_TIME AS OF T.rowtime AS D
- * ON T.a = D.id
+ * Planner rule that matches general temporal table join except lookup join, the join condition is
+ * not true, that means the right input of the Correlate is a Filter. e.g. SELECT * FROM MyTable AS
+ * T JOIN temporalTable FOR SYSTEM_TIME AS OF T.rowtime AS D ON T.a = D.id
  */
 class LogicalCorrelateToJoinFromTemporalTableRuleWithFilter
   extends LogicalCorrelateToJoinFromGeneralTemporalTableRule(
-    operand(classOf[LogicalCorrelate],
+    operand(
+      classOf[LogicalCorrelate],
       operand(classOf[RelNode], any()),
-      operand(classOf[LogicalFilter],
-        operand(classOf[LogicalSnapshot],
-        operand(classOf[RelNode], any())))),
-      "LogicalCorrelateToJoinFromTemporalTableRuleWithFilter"
+      operand(
+        classOf[LogicalFilter],
+        operand(classOf[LogicalSnapshot], operand(classOf[RelNode], any())))
+    ),
+    "LogicalCorrelateToJoinFromTemporalTableRuleWithFilter"
   ) {
 
   override def matches(call: RelOptRuleCall): Boolean = {
@@ -420,16 +434,16 @@ class LogicalCorrelateToJoinFromTemporalTableRuleWithFilter
 }
 
 /**
- * Planner rule that matches general temporal table join except lookup join, the join
- * condition is true, that means the right input of the Correlate is a Snapshot.
- * e.g. SELECT * FROM MyTable AS T JOIN temporalTable FOR SYSTEM_TIME AS OF T.rowtime AS D ON true
+ * Planner rule that matches general temporal table join except lookup join, the join condition is
+ * true, that means the right input of the Correlate is a Snapshot. e.g. SELECT * FROM MyTable AS T
+ * JOIN temporalTable FOR SYSTEM_TIME AS OF T.rowtime AS D ON true
  */
 class LogicalCorrelateToJoinFromTemporalTableRuleWithoutFilter
   extends LogicalCorrelateToJoinFromGeneralTemporalTableRule(
-    operand(classOf[LogicalCorrelate],
+    operand(
+      classOf[LogicalCorrelate],
       operand(classOf[RelNode], any()),
-      operand(classOf[LogicalSnapshot],
-        operand(classOf[RelNode], any()))),
+      operand(classOf[LogicalSnapshot], operand(classOf[RelNode], any()))),
     "LogicalCorrelateToJoinFromTemporalTableRuleWithoutFilter"
   ) {
 

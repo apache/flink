@@ -21,5 +21,6 @@ import org.apache.flink.runtime.execution.ExecutionState;
 
 /** A listener that is called when an execution switched to a new state. */
 public interface ExecutionStateUpdateListener {
-    void onStateUpdate(ExecutionAttemptID execution, ExecutionState newState);
+    void onStateUpdate(
+            ExecutionAttemptID execution, ExecutionState previousState, ExecutionState newState);
 }

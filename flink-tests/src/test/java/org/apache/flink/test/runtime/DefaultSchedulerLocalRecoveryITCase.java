@@ -21,13 +21,11 @@ package org.apache.flink.test.runtime;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.program.MiniClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
@@ -47,7 +45,6 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -93,7 +90,9 @@ public class DefaultSchedulerLocalRecoveryITCase extends TestLogger {
                 continue;
             }
             AllocationID priorAllocation =
-                    vertex.getPriorExecutionAttempt(currentAttemptNumber - 1)
+                    vertex.getExecutionHistory()
+                            .getHistoricalExecution(currentAttemptNumber - 1)
+                            .get()
                             .getAssignedAllocationID();
             AllocationID currentAllocation =
                     vertex.getCurrentExecutionAttempt().getAssignedAllocationID();
@@ -109,8 +108,6 @@ public class DefaultSchedulerLocalRecoveryITCase extends TestLogger {
 
     private ArchivedExecutionGraph executeSchedulingTest(
             Configuration configuration, int parallelism) throws Exception {
-        configuration.setString(RestOptions.BIND_PORT, "0");
-
         final long slotIdleTimeout = TIMEOUT;
         configuration.setLong(JobManagerOptions.SLOT_IDLE_TIMEOUT, slotIdleTimeout);
 
@@ -120,6 +117,7 @@ public class DefaultSchedulerLocalRecoveryITCase extends TestLogger {
 
         final MiniClusterConfiguration miniClusterConfiguration =
                 new MiniClusterConfiguration.Builder()
+                        .withRandomPorts()
                         .setConfiguration(configuration)
                         .setNumTaskManagers(parallelism)
                         .setNumSlotsPerTaskManager(1)
@@ -160,9 +158,7 @@ public class DefaultSchedulerLocalRecoveryITCase extends TestLogger {
     private void waitUntilAllVerticesRunning(JobID jobId, MiniCluster miniCluster)
             throws Exception {
         CommonTestUtils.waitForAllTaskRunning(
-                () -> miniCluster.getExecutionGraph(jobId).get(TIMEOUT, TimeUnit.SECONDS),
-                Deadline.fromNow(Duration.ofMillis(TIMEOUT)),
-                false);
+                () -> miniCluster.getExecutionGraph(jobId).get(TIMEOUT, TimeUnit.SECONDS), false);
     }
 
     private JobGraph createJobGraph(int parallelism) throws IOException {

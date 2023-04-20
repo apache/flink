@@ -18,13 +18,20 @@
 
 package org.apache.flink.table.planner.loader;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.table.delegation.ExecutorFactory;
-import org.apache.flink.table.delegation.ExpressionParserFactory;
 import org.apache.flink.table.delegation.PlannerFactory;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.Test;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import static org.apache.flink.table.planner.loader.PlannerModule.FLINK_TABLE_PLANNER_FAT_JAR;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -78,23 +85,11 @@ public class LoaderITCase extends TestLogger {
     }
 
     @Test
-    public void testExpressionParserFactory() {
-        assertThat(
-                        DelegateExpressionParserFactory.class
-                                .getClassLoader()
-                                .getResourceAsStream(FLINK_TABLE_PLANNER_FAT_JAR))
-                .isNotNull();
-
-        ExpressionParserFactory expressionParserFactory =
-                FactoryUtil.discoverFactory(
-                        LoaderITCase.class.getClassLoader(),
-                        ExpressionParserFactory.class,
-                        ExpressionParserFactory.DEFAULT_IDENTIFIER);
-
-        assertThat(expressionParserFactory)
-                .isNotNull()
-                .isInstanceOf(DelegateExpressionParserFactory.class);
-        assertThat(expressionParserFactory.factoryIdentifier())
-                .isEqualTo(ExpressionParserFactory.DEFAULT_IDENTIFIER);
+    public void testPlannerJarLeak() throws IOException {
+        PlannerModule plannerModule = PlannerModule.getInstance();
+        final Path tmpDirectory =
+                Paths.get(ConfigurationUtils.parseTempDirectories(new Configuration())[0]);
+        Files.createDirectories(FileUtils.getTargetPathIfContainsSymbolicPath(tmpDirectory));
+        assertThat(tmpDirectory.startsWith("flink-table-planner_")).isEqualTo(false);
     }
 }

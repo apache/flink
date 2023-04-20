@@ -26,8 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.15-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-filesystems</artifactId>
@@ -35,7 +34,7 @@ under the License.
 	<packaging>pom</packaging>
 
 	<properties>
-		<fs.hadoopshaded.version>3.2.2</fs.hadoopshaded.version>
+		<fs.hadoopshaded.version>3.3.4</fs.hadoopshaded.version>
 	</properties>
 
 	<modules>

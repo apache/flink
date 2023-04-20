@@ -24,7 +24,7 @@ import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
+import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.DefaultSlotPoolServiceSchedulerFactory;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
@@ -64,14 +64,14 @@ public enum JobMasterServiceLeadershipRunnerFactory implements JobManagerRunnerF
         final JobMasterConfiguration jobMasterConfiguration =
                 JobMasterConfiguration.fromConfiguration(configuration);
 
-        final RunningJobsRegistry runningJobsRegistry =
-                highAvailabilityServices.getRunningJobsRegistry();
+        final JobResultStore jobResultStore = highAvailabilityServices.getJobResultStore();
+
         final LeaderElectionService jobManagerLeaderElectionService =
                 highAvailabilityServices.getJobManagerLeaderElectionService(jobGraph.getJobID());
 
         final SlotPoolServiceSchedulerFactory slotPoolServiceSchedulerFactory =
                 DefaultSlotPoolServiceSchedulerFactory.fromConfiguration(
-                        configuration, jobGraph.getJobType());
+                        configuration, jobGraph.getJobType(), jobGraph.isDynamic());
 
         if (jobMasterConfiguration.getConfiguration().get(JobManagerOptions.SCHEDULER_MODE)
                 == SchedulerExecutionMode.REACTIVE) {
@@ -118,7 +118,7 @@ public enum JobMasterServiceLeadershipRunnerFactory implements JobManagerRunnerF
         return new JobMasterServiceLeadershipRunner(
                 jobMasterServiceProcessFactory,
                 jobManagerLeaderElectionService,
-                runningJobsRegistry,
+                jobResultStore,
                 classLoaderLease,
                 fatalErrorHandler);
     }

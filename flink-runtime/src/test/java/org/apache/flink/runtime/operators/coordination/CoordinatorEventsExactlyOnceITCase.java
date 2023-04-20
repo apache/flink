@@ -22,8 +22,6 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.ListAccumulator;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -39,14 +37,14 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
-import org.apache.flink.runtime.minicluster.MiniCluster;
-import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
+import org.apache.flink.runtime.testutils.MiniClusterResource;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
@@ -55,8 +53,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterators;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
@@ -84,9 +81,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Integration Test case that validates the exactly-once mechanism for coordinator events around
@@ -112,30 +107,22 @@ import static org.junit.Assert.fail;
  * <h2>2. Exactly-once alignment between multiple Coordinators</h2>
  *
  * <p>After a coordinator completed its checkpoint future, all events sent after that must be held
- * back until the checkpoint barriers have been sent to the sources. That is because from the
- * coordinator's perspective, the events are after the checkpoint, so they must also be after the
- * checkpoint from the source task's perspective.
+ * back until its subtasks completed their checkpoint. That is because from the coordinator's
+ * perspective, the events are after the checkpoint, so they must also be after the checkpoint from
+ * the subtask's perspective.
  *
- * <p>When multiple coordinators exist, there are time spans during which some coordinators finished
- * their checkpoints, but others did not yet, and hence the source checkpoint barriers are not yet
- * injected (that happens only once all coordinators are done with their checkpoint). The events
- * from the earlier coordinators must be blocked until all coordinators finished their checkpoints
- * and the source checkpoint barriers are injected.
- *
- * <p>In the example below, the events {@code c & d} must be held back until after the barrier
- * injection.
- *
- * <pre>
- * Coordinator one events: => a . . b . |trigger| . . |complete| . . c . . d . |barrier| . e . f
- * Coordinator two events: => . . x . . |trigger| . . . . . . . . . .|complete||barrier| . . y . . z
- * </pre>
+ * <p>When multiple coordinators exist, there are time spans during which some coordinators
+ * completed their checkpoints, but others did not yet, and hence the source checkpoint barriers are
+ * not yet injected (that happens only once all coordinators are done with their checkpoint). The
+ * events from the earlier coordinators must be blocked until all coordinators complete their
+ * checkpoints, the source checkpoint barriers are injected, and their subtasks also complete the
+ * current checkpoint.
  *
  * <p>The test generates two sequences of events form two Operator Coordinators to two operators
  * (tasks). The event sequences have a different speed in which they are sent. The coordinators have
  * different delays in which they complete their checkpoints. Both coordinators inject failures at
  * different points.
  */
-@SuppressWarnings("serial")
 public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
 
     private static final ConfigOption<String> ACC_NAME =
@@ -144,28 +131,13 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
     private static final String OPERATOR_1_NAME = "operator-1";
     private static final String OPERATOR_2_NAME = "operator-2";
 
-    private static MiniCluster miniCluster;
-
-    @BeforeClass
-    public static void startMiniCluster() throws Exception {
-        final Configuration config = new Configuration();
-        config.setString(RestOptions.BIND_PORT, "0");
-
-        final MiniClusterConfiguration clusterCfg =
-                new MiniClusterConfiguration.Builder()
-                        .setNumTaskManagers(2)
-                        .setNumSlotsPerTaskManager(1)
-                        .setConfiguration(config)
-                        .build();
-
-        miniCluster = new MiniCluster(clusterCfg);
-        miniCluster.start();
-    }
-
-    @AfterClass
-    public static void shutdownMiniCluster() throws Exception {
-        miniCluster.close();
-    }
+    @ClassRule
+    public static final MiniClusterResource MINI_CLUSTER =
+            new MiniClusterResource(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setNumberTaskManagers(2)
+                            .setNumberSlotsPerTaskManager(1)
+                            .build());
 
     // ------------------------------------------------------------------------
 
@@ -175,9 +147,9 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
         TestScript.reset();
 
         final int numEvents1 = 200;
-        final int numEvents2 = 5;
+        final int numEvents2 = 10;
         final int delay1 = 1;
-        final int delay2 = 200;
+        final int delay2 = 100;
 
         final JobVertex task1 = buildJobVertex(OPERATOR_1_NAME, numEvents1, delay1);
         final JobVertex task2 = buildJobVertex(OPERATOR_2_NAME, numEvents2, delay2);
@@ -189,30 +161,19 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
                         .setJobCheckpointingSettings(createCheckpointSettings())
                         .build();
 
-        final JobExecutionResult result = miniCluster.executeJobBlocking(jobGraph);
+        final JobExecutionResult result =
+                MINI_CLUSTER.getMiniCluster().executeJobBlocking(jobGraph);
 
         checkListContainsSequence(result.getAccumulatorResult(OPERATOR_1_NAME), numEvents1);
         checkListContainsSequence(result.getAccumulatorResult(OPERATOR_2_NAME), numEvents2);
     }
 
-    private static void checkListContainsSequence(List<Integer> ints, int length) {
-        if (ints.size() != length) {
-            failList(ints, length);
+    protected static void checkListContainsSequence(List<Integer> ints, int length) {
+        Integer[] expected = new Integer[length];
+        for (int i = 0; i < length; i++) {
+            expected[i] = i;
         }
-
-        int nextExpected = 0;
-        for (int next : ints) {
-            if (next != nextExpected++) {
-                failList(ints, length);
-            }
-        }
-    }
-
-    private static void failList(List<Integer> ints, int length) {
-        fail(
-                String.format(
-                        "List did not contain expected sequence of %d elements, but was: (%d elements): %s",
-                        length, ints.size(), ints));
+        assertThat(ints).containsExactly(expected);
     }
 
     // ------------------------------------------------------------------------
@@ -262,15 +223,29 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
     //  test operator and coordinator implementations
     // ------------------------------------------------------------------------
 
-    private static final class StartEvent implements OperatorEvent {}
+    /**
+     * An operator event to notify the coordinator that the test subtask is ready to accept events.
+     */
+    protected static final class StartEvent implements OperatorEvent {
 
-    private static final class EndEvent implements OperatorEvent {}
+        /**
+         * The last integer value the subtask has received from the coordinator and stored in
+         * snapshot, or -1 if the subtask has not completed any checkpoint yet.
+         */
+        private final int lastValue;
 
-    private static final class IntegerEvent implements OperatorEvent {
+        public StartEvent(int lastValue) {
+            this.lastValue = lastValue;
+        }
+    }
 
-        final int value;
+    protected static final class EndEvent implements OperatorEvent {}
 
-        IntegerEvent(int value) {
+    protected static final class IntegerEvent implements OperatorEvent {
+
+        public final int value;
+
+        private IntegerEvent(int value) {
             this.value = value;
         }
 
@@ -280,35 +255,45 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
         }
     }
 
+    private static final class IntegerRequest implements CoordinationRequest {
+        final int value;
+
+        private IntegerRequest(int value) {
+            this.value = value;
+        }
+    }
+
+    private static final class IntegerResponse implements CoordinationResponse {
+        final int value;
+
+        private IntegerResponse(int value) {
+            this.value = value;
+        }
+    }
+
     // ------------------------------------------------------------------------
 
     /**
      * The coordinator that sends events and completes checkpoints.
      *
      * <p>All consistency guaranteed for the coordinator apply to order or method invocations (like
-     * {@link #subtaskFailed(int, Throwable)}, {@link #subtaskReset(int, long)} or {@link
-     * #checkpointCoordinator(long, CompletableFuture)}) and the order in which actions are done
-     * (sending events and completing checkpoints). Tho consistently evaluate this, but with
+     * {@link #executionAttemptFailed(int, int, Throwable)}}, {@link #subtaskReset(int, long)} or
+     * {@link #checkpointCoordinator(long, CompletableFuture)}) and the order in which actions are
+     * done (sending events and completing checkpoints). Tho consistently evaluate this, but with
      * concurrency against the scheduler thread that calls this coordinator implements a simple
      * mailbox that moves the method handling into a separate thread, but keeps the order.
+     *
+     * <p>It would inject a failure at some point while sending out operator events. This behavior
+     * helps to trigger a fail-over of the Flink job and test the exactly-once of events delivery in
+     * this case.
      */
-    private static final class EventSendingCoordinator implements OperatorCoordinator {
+    protected static class EventSendingCoordinator
+            implements OperatorCoordinator, CoordinationRequestHandler {
 
-        private final Context context;
+        protected final Context context;
 
-        private final ExecutorService mailboxExecutor;
-        private final ScheduledExecutorService scheduledExecutor;
-
-        private final int delay;
-        private final int maxNumber;
-        private final int failAtMessage;
-        private int nextNumber;
-
-        private CompletableFuture<byte[]> requestedCheckpoint;
-        private CompletableFuture<byte[]> nextToComplete;
-
-        private SubtaskGateway subtaskGateway;
-        private boolean workLoopRunning;
+        /** The max number that the coordinator might send out before it injects the failure. */
+        protected final int maxNumberBeforeFailure;
 
         /**
          * This contains all variables that are necessary to track the progress of the test, and
@@ -316,9 +301,23 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
          * implementations may re-instantiate the ExecutionGraph and the coordinators around global
          * failures).
          */
-        private final TestScript testScript;
+        protected final TestScript testScript;
 
-        private EventSendingCoordinator(Context context, String name, int numEvents, int delay) {
+        private final ExecutorService mailboxExecutor;
+        private final ScheduledExecutorService scheduledExecutor;
+
+        private final int delay;
+        private final int maxNumber;
+
+        protected int nextNumber;
+
+        protected CompletableFuture<byte[]> nextToComplete;
+        protected CompletableFuture<byte[]> requestedCheckpoint;
+
+        private SubtaskGateway subtaskGateway;
+        private boolean workLoopRunning;
+
+        protected EventSendingCoordinator(Context context, String name, int numEvents, int delay) {
             checkArgument(delay > 0);
             checkArgument(numEvents >= 3);
 
@@ -339,7 +338,8 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
                                     Thread.currentThread().getThreadGroup(),
                                     "Coordinator Periodic Actions for " + name));
 
-            this.failAtMessage = numEvents / 3 + new Random().nextInt(numEvents / 3);
+            this.nextNumber = 0;
+            this.maxNumberBeforeFailure = numEvents * 2 / 3 + new Random().nextInt(numEvents / 6);
         }
 
         @Override
@@ -348,14 +348,15 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
         @Override
         public void close() throws Exception {
             scheduledExecutor.shutdownNow();
-            assertTrue(scheduledExecutor.awaitTermination(10, TimeUnit.MINUTES));
+            assertThat(scheduledExecutor.awaitTermination(10, TimeUnit.MINUTES)).isTrue();
 
             mailboxExecutor.shutdownNow();
-            assertTrue(mailboxExecutor.awaitTermination(10, TimeUnit.MINUTES));
+            assertThat(mailboxExecutor.awaitTermination(10, TimeUnit.MINUTES)).isTrue();
         }
 
         @Override
-        public void handleEventFromOperator(int subtask, OperatorEvent event) throws Exception {
+        public void handleEventFromOperator(int subtask, int attemptNumber, OperatorEvent event)
+                throws Exception {
             if (subtask != 0 || !(event instanceof StartEvent)) {
                 throw new Exception(
                         String.format("Don't recognize event '%s' from task %d.", event, subtask));
@@ -375,13 +376,18 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
                         checkState(!workLoopRunning);
                         checkState(subtaskGateway != null);
 
+                        if (((StartEvent) event).lastValue >= 0) {
+                            nextNumber = ((StartEvent) event).lastValue + 1;
+                        }
+
                         workLoopRunning = true;
                         scheduleSingleAction();
                     });
         }
 
         @Override
-        public void subtaskFailed(int subtask, @Nullable Throwable reason) {
+        public void executionAttemptFailed(
+                int subtask, int attemptNumber, @Nullable Throwable reason) {
             // we need to create and register this outside the mailbox so that the
             // registration is not affected by the artificial stall on the mailbox, but happens
             // strictly before the tasks are restored and the operator events are received (to
@@ -418,7 +424,7 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
         public void subtaskReset(int subtask, long checkpointId) {}
 
         @Override
-        public void subtaskReady(int subtask, SubtaskGateway gateway) {
+        public void executionAttemptReady(int subtask, int attemptNumber, SubtaskGateway gateway) {
             runInMailbox(
                     () -> {
                         checkState(!workLoopRunning);
@@ -442,7 +448,7 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
         @Override
         public void notifyCheckpointComplete(long checkpointId) {}
 
-        void runInMailbox(Runnable action) {
+        protected void runInMailbox(Runnable action) {
             mailboxExecutor.execute(
                     () -> {
                         try {
@@ -499,7 +505,7 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
             scheduleSingleAction();
         }
 
-        private void handleCheckpoint() {
+        protected void handleCheckpoint() {
             // we move the checkpoint one further so it completed after the next delay
             if (nextToComplete != null) {
                 final int numToCheckpoint = Math.min(nextNumber, maxNumber);
@@ -512,7 +518,7 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
             }
         }
 
-        private void sendNextEvent() {
+        protected void sendNextEvent() {
             if (nextNumber > maxNumber) {
                 return;
             }
@@ -527,9 +533,20 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
         }
 
         private void checkWhetherToTriggerFailure() {
-            if (nextNumber >= failAtMessage && !testScript.hasAlreadyFailed()) {
+            if (nextNumber > maxNumberBeforeFailure && !testScript.hasAlreadyFailed()) {
                 testScript.recordHasFailed();
                 context.failJob(new Exception("test failure"));
+            }
+        }
+
+        @Override
+        public CompletableFuture<CoordinationResponse> handleCoordinationRequest(
+                CoordinationRequest request) {
+            if (request instanceof IntegerRequest) {
+                int value = ((IntegerRequest) request).value;
+                return CompletableFuture.completedFuture(new IntegerResponse(value + 1));
+            } else {
+                throw new UnsupportedOperationException("Unsupported request type: " + request);
             }
         }
     }
@@ -564,7 +581,18 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
             getEnvironment()
                     .getOperatorCoordinatorEventGateway()
                     .sendOperatorEventToCoordinator(
-                            operatorID, new SerializedValue<>(new StartEvent()));
+                            operatorID, new SerializedValue<>(new StartEvent(-1)));
+
+            // verify the request & response communication
+            CoordinationResponse response =
+                    getEnvironment()
+                            .getOperatorCoordinatorEventGateway()
+                            .sendRequestToCoordinator(
+                                    operatorID, new SerializedValue<>(new IntegerRequest(100)))
+                            .get();
+
+            assertThat(response).isInstanceOf(IntegerResponse.class);
+            assertThat(((IntegerResponse) response).value).isEqualTo(101);
 
             // poor-man's mailbox
             Object next;
@@ -573,6 +601,14 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
                     collectedInts.add(((IntegerEvent) next).value);
                 } else if (next instanceof CheckpointMetaData) {
                     takeCheckpoint(((CheckpointMetaData) next).getCheckpointId(), collectedInts);
+                    getEnvironment()
+                            .getOperatorCoordinatorEventGateway()
+                            .sendOperatorEventToCoordinator(
+                                    operatorID,
+                                    new SerializedValue<>(
+                                            new AcknowledgeCheckpointEvent(
+                                                    ((CheckpointMetaData) next)
+                                                            .getCheckpointId())));
                 } else {
                     throw new Exception("Unrecognized: " + next);
                 }
@@ -639,26 +675,26 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
     //  dedicated class to hold the "test script"
     // ------------------------------------------------------------------------
 
-    private static final class TestScript {
+    protected static final class TestScript {
 
         private static final Map<String, TestScript> MAP_FOR_OPERATOR = new HashMap<>();
 
-        static TestScript getForOperator(String operatorName) {
+        public static TestScript getForOperator(String operatorName) {
             return MAP_FOR_OPERATOR.computeIfAbsent(operatorName, (key) -> new TestScript());
         }
 
-        static void reset() {
+        public static void reset() {
             MAP_FOR_OPERATOR.clear();
         }
 
         private final Collection<CountDownLatch> recoveredTaskRunning = new ArrayList<>();
         private boolean failedBefore;
 
-        void recordHasFailed() {
+        public void recordHasFailed() {
             this.failedBefore = true;
         }
 
-        boolean hasAlreadyFailed() {
+        public boolean hasAlreadyFailed() {
             return failedBefore;
         }
 
@@ -694,7 +730,7 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
     }
 
     static int bytesToInt(byte[] bytes) {
-        assertEquals(4, bytes.length);
+        assertThat(bytes).hasSize(4);
         return ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).getInt(0);
     }
 

@@ -24,8 +24,9 @@ import org.apache.flink.table.runtime.operators.rank.{RankRange, RankType}
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataTypeField
-import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.{RelCollation, RelNode, RelWriter}
+import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 import org.apache.calcite.util.ImmutableBitSet
 
 import java.util
@@ -33,9 +34,9 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
-  * Sub-class of [[Rank]] that is a relational expression which returns
-  * the rows in which the rank function value of each row is in the given range.
-  */
+ * Sub-class of [[Rank]] that is a relational expression which returns the rows in which the rank
+ * function value of each row is in the given range.
+ */
 class FlinkLogicalRank(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -83,11 +84,7 @@ class FlinkLogicalRank(
 
 }
 
-private class FlinkLogicalRankConverter extends ConverterRule(
-  classOf[LogicalRank],
-  Convention.NONE,
-  FlinkConventions.LOGICAL,
-  "FlinkLogicalRankConverter") {
+private class FlinkLogicalRankConverter(config: Config) extends ConverterRule(config) {
   override def convert(rel: RelNode): RelNode = {
     val rank = rel.asInstanceOf[LogicalRank]
     val newInput = RelOptRule.convert(rank.getInput, FlinkConventions.LOGICAL)
@@ -104,7 +101,12 @@ private class FlinkLogicalRankConverter extends ConverterRule(
 }
 
 object FlinkLogicalRank {
-  val CONVERTER: ConverterRule = new FlinkLogicalRankConverter
+  val CONVERTER: ConverterRule = new FlinkLogicalRankConverter(
+    Config.INSTANCE.withConversion(
+      classOf[LogicalRank],
+      Convention.NONE,
+      FlinkConventions.LOGICAL,
+      "FlinkLogicalRankConverter"))
 
   def create(
       input: RelNode,
@@ -116,8 +118,16 @@ object FlinkLogicalRank {
       outputRankNumber: Boolean): FlinkLogicalRank = {
     val cluster = input.getCluster
     val traits = cluster.traitSetOf(FlinkConventions.LOGICAL).simplify()
-    new FlinkLogicalRank(cluster, traits, input, partitionKey,
-      orderKey, rankType, rankRange, rankNumberType, outputRankNumber)
+    new FlinkLogicalRank(
+      cluster,
+      traits,
+      input,
+      partitionKey,
+      orderKey,
+      rankType,
+      rankRange,
+      rankNumberType,
+      outputRankNumber)
   }
 
 }

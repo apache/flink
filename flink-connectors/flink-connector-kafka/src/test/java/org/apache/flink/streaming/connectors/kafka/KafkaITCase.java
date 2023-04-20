@@ -46,6 +46,7 @@ import javax.annotation.Nullable;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Optional;
+import java.util.UUID;
 
 /** IT cases for Kafka. */
 public class KafkaITCase extends KafkaConsumerTestBase {
@@ -187,7 +188,7 @@ public class KafkaITCase extends KafkaConsumerTestBase {
     @Test(timeout = 60000)
     public void testTimestamps() throws Exception {
 
-        final String topic = "tstopic";
+        final String topic = "tstopic-" + UUID.randomUUID();
         createTestTopic(topic, 3, 1);
 
         // ---------- Produce an event time stream into Kafka -------------------

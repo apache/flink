@@ -41,7 +41,8 @@ import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.met
  * to {@link LogicalTypeRoot#MULTISET} cast rule.
  */
 class MapToMapAndMultisetToMultisetCastRule
-        extends AbstractNullAwareCodeGeneratorCastRule<MapData, MapData> {
+        extends AbstractNullAwareCodeGeneratorCastRule<MapData, MapData>
+        implements ConstructedToConstructedCastRule<MapData, MapData> {
 
     static final MapToMapAndMultisetToMultisetCastRule INSTANCE =
             new MapToMapAndMultisetToMultisetCastRule();

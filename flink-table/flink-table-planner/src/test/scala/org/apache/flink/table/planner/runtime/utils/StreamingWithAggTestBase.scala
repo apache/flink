@@ -32,9 +32,10 @@ import java.util
 import scala.collection.JavaConversions._
 
 class StreamingWithAggTestBase(
-  aggMode: AggMode,
-  miniBatch: MiniBatchMode,
-  backend: StateBackendMode) extends StreamingWithMiniBatchTestBase(miniBatch, backend) {
+    aggMode: AggMode,
+    miniBatch: MiniBatchMode,
+    backend: StateBackendMode)
+  extends StreamingWithMiniBatchTestBase(miniBatch, backend) {
 
   @Before
   override def before(): Unit = {
@@ -42,11 +43,11 @@ class StreamingWithAggTestBase(
     // in order to cover more code paths
     tEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
     if (aggMode.isLocalAggEnabled) {
-      tEnv.getConfig.getConfiguration.setString(
+      tEnv.getConfig.set(
         OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
         AggregatePhaseStrategy.TWO_PHASE.toString)
     } else {
-      tEnv.getConfig.getConfiguration.setString(
+      tEnv.getConfig.set(
         OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
         AggregatePhaseStrategy.ONE_PHASE.toString)
     }
@@ -70,6 +71,7 @@ object StreamingWithAggTestBase {
       Array(LocalGlobalOn, MiniBatchOn, HEAP_BACKEND),
       Array(LocalGlobalOff, MiniBatchOff, ROCKSDB_BACKEND),
       Array(LocalGlobalOff, MiniBatchOn, ROCKSDB_BACKEND),
-      Array(LocalGlobalOn, MiniBatchOn, ROCKSDB_BACKEND))
+      Array(LocalGlobalOn, MiniBatchOn, ROCKSDB_BACKEND)
+    )
   }
 }

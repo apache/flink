@@ -34,10 +34,10 @@ Flink 利用 **[ZooKeeper](http://zookeeper.apache.org)** 在所有运行的 Job
 
 为了启用高可用集群（HA-cluster），你必须设置以下配置项:
 
-- [high-availability]({{< ref "docs/deployment/config" >}}#high-availability-1) (必要的):
-  `high-availability` 配置项必须设置为 `zookeeper`。
+- [high-availability.type]({{< ref "docs/deployment/config" >}}#high-availability-type) (必要的):
+  `high-availability.type` 配置项必须设置为 `zookeeper`。
 
-  <pre>high-availability: zookeeper</pre>
+  <pre>high-availability.type: zookeeper</pre>
 
 - [high-availability.storageDir]({{< ref "docs/deployment/config" >}}#high-availability-storagedir) (必要的):
   JobManager 元数据持久化到文件系统 `high-availability.storageDir` 配置的路径中，并且在 ZooKeeper 中只能有一个目录指向此位置。
@@ -71,7 +71,7 @@ Flink 利用 **[ZooKeeper](http://zookeeper.apache.org)** 在所有运行的 Job
 在 `conf/flink-conf.yaml` 中配置高可用模式和 ZooKeeper 复制组（quorum）:
 
 ```bash
-high-availability: zookeeper
+high-availability.type: zookeeper
 high-availability.zookeeper.quorum: localhost:2181
 high-availability.zookeeper.path.root: /flink
 high-availability.cluster-id: /cluster_one # 重要: 每个集群自定义
@@ -110,16 +110,6 @@ If you are willing to take a more aggressive approach, then you can tolerate sus
 Enabling this feature will make Flink more resilient against temporary connection problems but also increase the risk of running into ZooKeeper timing problems.
 
 For more information take a look at [Curator's error handling](https://curator.apache.org/errors.html).
-
-## ZooKeeper 版本
-
-Flink 附带了 3.4 和 3.5 的单独的 ZooKeeper 客户端，其中 3.4 位于发行版的 `lib` 目录中，为默认使用版本，而 3.5 位于 opt 目录中。
-
-3.5 客户端允许你通过 SSL 保护 ZooKeeper 连接，但 _可能_ 不适用于 3.4 版本的 ZooKeeper 安装。
-
-你可以通过在 `lib` 目录中放置任意一个 jar 来控制 Flink 使用哪个版本。
-
-{{< top >}}
 
 <a name="bootstrap-zookeeper" />
 

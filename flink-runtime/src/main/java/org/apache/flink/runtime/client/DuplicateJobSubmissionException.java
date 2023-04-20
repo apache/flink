@@ -25,6 +25,8 @@ import org.apache.flink.api.common.JobID;
  */
 public class DuplicateJobSubmissionException extends JobSubmissionException {
 
+    private static final long serialVersionUID = 2917336585664347210L;
+
     public static DuplicateJobSubmissionException of(JobID jobId) {
         return new DuplicateJobSubmissionException(jobId, false);
     }

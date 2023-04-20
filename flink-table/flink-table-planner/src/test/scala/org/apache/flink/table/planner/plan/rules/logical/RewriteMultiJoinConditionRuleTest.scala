@@ -19,6 +19,7 @@ package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.plan.optimize.program._
 import org.apache.flink.table.planner.utils.TableTestBase
 
@@ -27,9 +28,7 @@ import org.apache.calcite.rel.rules.CoreRules
 import org.apache.calcite.tools.RuleSets
 import org.junit.{Before, Test}
 
-/**
-  * Test for [[RewriteMultiJoinConditionRule]].
-  */
+/** Test for [[RewriteMultiJoinConditionRule]]. */
 class RewriteMultiJoinConditionRuleTest extends TableTestBase {
   private val util = batchTestUtil()
 
@@ -38,28 +37,38 @@ class RewriteMultiJoinConditionRuleTest extends TableTestBase {
     val program = new FlinkChainedProgram[BatchOptimizeContext]()
     program.addLast(
       "rules",
-      FlinkGroupProgramBuilder.newBuilder[BatchOptimizeContext]
-        .addProgram(FlinkHepRuleSetProgramBuilder.newBuilder
-          .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
-          .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-          .add(RuleSets.ofList(
-            CoreRules.FILTER_INTO_JOIN,
-            CoreRules.JOIN_CONDITION_PUSH))
-          .build(), "push filter into join")
-        .addProgram(FlinkHepRuleSetProgramBuilder.newBuilder
-          .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
-          .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-          .add(RuleSets.ofList(
-            CoreRules.PROJECT_MULTI_JOIN_MERGE,
-            CoreRules.FILTER_MULTI_JOIN_MERGE,
-            CoreRules.JOIN_TO_MULTI_JOIN))
-          .build(), "merge join to MultiJoin")
-        .addProgram(FlinkHepRuleSetProgramBuilder.newBuilder
-          .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
-          .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-          .add(RuleSets.ofList(RewriteMultiJoinConditionRule.INSTANCE))
-          .build(), "RewriteMultiJoinConditionRule")
-        .build())
+      FlinkGroupProgramBuilder
+        .newBuilder[BatchOptimizeContext]
+        .addProgram(
+          FlinkHepRuleSetProgramBuilder.newBuilder
+            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
+            .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+            .add(RuleSets.ofList(CoreRules.FILTER_INTO_JOIN, CoreRules.JOIN_CONDITION_PUSH))
+            .build(),
+          "push filter into join"
+        )
+        .addProgram(
+          FlinkHepRuleSetProgramBuilder.newBuilder
+            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
+            .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+            .add(
+              RuleSets.ofList(
+                CoreRules.PROJECT_MULTI_JOIN_MERGE,
+                CoreRules.FILTER_MULTI_JOIN_MERGE,
+                CoreRules.JOIN_TO_MULTI_JOIN))
+            .build(),
+          "merge join to MultiJoin"
+        )
+        .addProgram(
+          FlinkHepRuleSetProgramBuilder.newBuilder
+            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+            .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+            .add(RuleSets.ofList(RewriteMultiJoinConditionRule.INSTANCE))
+            .build(),
+          "RewriteMultiJoinConditionRule"
+        )
+        .build()
+    )
 
     util.replaceBatchProgram(program)
 
@@ -67,6 +76,10 @@ class RewriteMultiJoinConditionRuleTest extends TableTestBase {
     util.addTableSource[(Int, Long)]("B", 'b1, 'b2)
     util.addTableSource[(Int, Long)]("C", 'c1, 'c2)
     util.addTableSource[(Int, Long)]("D", 'd1, 'd2)
+
+    // Set TABLE_OPTIMIZER_BUSHY_JOIN_REORDER_THRESHOLD to 1 means disable bushy join reorder.
+    util.getTableEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_BUSHY_JOIN_REORDER_THRESHOLD, Integer.valueOf(1))
   }
 
   @Test
@@ -145,6 +158,23 @@ class RewriteMultiJoinConditionRuleTest extends TableTestBase {
   @Test
   def testMultiJoin_FullJoin2(): Unit = {
     val sqlQuery = "SELECT * FROM A FULL OUTER JOIN B ON a1 = b1 FULL OUTER JOIN C ON a1 = c1"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testMultiJoin_InnerJoin2_WithBushyJoinReorderEnable(): Unit = {
+    util.getTableEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_BUSHY_JOIN_REORDER_THRESHOLD, Integer.valueOf(3))
+    val sqlQuery = "SELECT * FROM A, B, C WHERE a1 = b1 AND a1 = c1"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testMultiJoin_InnerJoin4_WithBushyJoinReorderEnable(): Unit = {
+    util.getTableEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_BUSHY_JOIN_REORDER_THRESHOLD, Integer.valueOf(3))
+    // non-equi join condition
+    val sqlQuery = "SELECT * FROM A, B, C WHERE a1 = b1 AND a1 > c1"
     util.verifyRelPlan(sqlQuery)
   }
 

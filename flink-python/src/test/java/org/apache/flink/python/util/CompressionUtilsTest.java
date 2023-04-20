@@ -21,10 +21,8 @@ import org.apache.flink.configuration.ConfigConstants;
 
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream;
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -34,20 +32,17 @@ import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.Set;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link CompressionUtils}. */
-public class CompressionUtilsTest {
+class CompressionUtilsTest {
 
     private static final int S_IFLNK = 40960;
 
-    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
-
     @Test
-    public void testSymlink() throws IOException {
-        File zipFile = temporaryFolder.newFile();
+    void testSymlink(@TempDir Path zipPath, @TempDir Path target) throws IOException {
+        File zipFile = Files.createTempFile(zipPath, null, null).toFile();
 
         try (ZipArchiveOutputStream zipOut =
                 new ZipArchiveOutputStream(new FileOutputStream(zipFile))) {
@@ -72,24 +67,25 @@ public class CompressionUtilsTest {
             zipOut.closeArchiveEntry();
         }
 
-        String targetPath = temporaryFolder.newFolder().getCanonicalPath();
+        String targetPath = target.toString();
         CompressionUtils.extractZipFileWithPermissions(zipFile.getCanonicalPath(), targetPath);
         Path softLink = new File(targetPath, "softlink").toPath();
-        assertTrue(Files.isSymbolicLink(softLink));
-        assertTrue(Files.readSymbolicLink(softLink).toString().endsWith("zipFile1"));
+        assertThat(Files.isSymbolicLink(softLink)).isTrue();
+        assertThat(Files.readSymbolicLink(softLink).toString()).endsWith("zipFile1");
 
         Path file1Path = new File(targetPath, "zipFile1").toPath();
-        assertTrue(Files.isRegularFile(file1Path));
-        assertArrayEquals(Files.readAllBytes(file1Path), new byte[] {1, 1, 1, 1, 1});
+        assertThat(Files.isRegularFile(file1Path)).isTrue();
+        assertThat(Files.readAllBytes(file1Path)).isEqualTo(new byte[] {1, 1, 1, 1, 1});
 
         Path file2Path = new File(targetPath, "zipFile2").toPath();
-        assertTrue(Files.isRegularFile(file2Path));
-        assertArrayEquals(Files.readAllBytes(file2Path), new byte[] {2, 2, 2, 2, 2});
+        assertThat(Files.isRegularFile(file2Path)).isTrue();
+        assertThat(Files.readAllBytes(file2Path)).isEqualTo(new byte[] {2, 2, 2, 2, 2});
     }
 
     @Test
-    public void testSymlinkWithoutTargetFile() throws IOException {
-        File zipFile = temporaryFolder.newFile();
+    void testSymlinkWithoutTargetFile(@TempDir Path zipPath, @TempDir Path target)
+            throws IOException {
+        File zipFile = Files.createTempFile(zipPath, null, null).toFile();
 
         try (ZipArchiveOutputStream zipOut =
                 new ZipArchiveOutputStream(new FileOutputStream(zipFile))) {
@@ -100,16 +96,16 @@ public class CompressionUtilsTest {
             zipOut.closeArchiveEntry();
         }
 
-        String targetPath = temporaryFolder.newFolder().getCanonicalPath();
+        String targetPath = target.toString();
         CompressionUtils.extractZipFileWithPermissions(zipFile.getCanonicalPath(), targetPath);
         Path softLink = new File(targetPath, "softlink").toPath();
-        assertTrue(Files.isSymbolicLink(softLink));
-        assertTrue(Files.readSymbolicLink(softLink).toString().endsWith("targetFile"));
+        assertThat(Files.isSymbolicLink(softLink)).isTrue();
+        assertThat(Files.readSymbolicLink(softLink).toString()).endsWith("targetFile");
     }
 
     @Test
-    public void testExpandOutOfTargetDir() throws IOException {
-        File zipFile = temporaryFolder.newFile();
+    void testExpandOutOfTargetDir(@TempDir Path zipPath, @TempDir Path target) throws IOException {
+        File zipFile = Files.createTempFile(zipPath, null, null).toFile();
 
         try (ZipArchiveOutputStream zipOut =
                 new ZipArchiveOutputStream(new FileOutputStream(zipFile))) {
@@ -120,18 +116,18 @@ public class CompressionUtilsTest {
             zipOut.closeArchiveEntry();
         }
 
-        String targetPath = temporaryFolder.newFolder().getCanonicalPath();
-        try {
-            CompressionUtils.extractZipFileWithPermissions(zipFile.getCanonicalPath(), targetPath);
-            Assert.fail("exception expected");
-        } catch (IOException e) {
-            assertTrue(e.getMessage().contains("Expand ../zipFile would create a file outside of"));
-        }
+        String targetPath = target.toString();
+        assertThatThrownBy(
+                        () ->
+                                CompressionUtils.extractZipFileWithPermissions(
+                                        zipFile.getCanonicalPath(), targetPath))
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("Expand ../zipFile would create a file outside of");
     }
 
     @Test
-    public void testPermissionRestored() throws IOException {
-        File zipFile = temporaryFolder.newFile();
+    void testPermissionRestored(@TempDir Path zipPath, @TempDir Path target) throws IOException {
+        File zipFile = Files.createTempFile(zipPath, null, null).toFile();
 
         try (ZipArchiveOutputStream zipOut =
                 new ZipArchiveOutputStream(new FileOutputStream(zipFile))) {
@@ -143,11 +139,11 @@ public class CompressionUtilsTest {
             zipOut.closeArchiveEntry();
         }
 
-        String targetPath = temporaryFolder.newFolder().getCanonicalPath();
+        String targetPath = target.toString();
         CompressionUtils.extractZipFileWithPermissions(zipFile.getCanonicalPath(), targetPath);
 
         Path path = new File(targetPath, "zipFile").toPath();
-        assertEquals(0355, toUnixMode(Files.getPosixFilePermissions(path)));
+        assertThat(toUnixMode(Files.getPosixFilePermissions(path))).isEqualTo(0355);
     }
 
     private int toUnixMode(Set<PosixFilePermission> permission) {

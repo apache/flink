@@ -46,14 +46,15 @@ import org.junit.Test;
 import java.util.Collections;
 import java.util.Properties;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.powermock.api.mockito.PowerMockito.when;
 
 /** Test for FlinkCalciteCatalogReader. */
 public class FlinkCalciteCatalogReaderTest {
-    private final FlinkTypeFactory typeFactory = new FlinkTypeFactory(new FlinkTypeSystem());
+    private final FlinkTypeFactory typeFactory =
+            new FlinkTypeFactory(
+                    Thread.currentThread().getContextClassLoader(), FlinkTypeSystem.INSTANCE);
     private final String tableMockName = "ts";
 
     private SchemaPlus rootSchemaPlus;
@@ -96,7 +97,7 @@ public class FlinkCalciteCatalogReaderTest {
         rootSchemaPlus.add(tableMockName, mockTable);
         Prepare.PreparingTable preparingTable =
                 catalogReader.getTable(Collections.singletonList(tableMockName));
-        assertTrue(preparingTable instanceof FlinkPreparingTableBase);
+        assertThat(preparingTable).isInstanceOf(FlinkPreparingTableBase.class);
     }
 
     @Test
@@ -106,6 +107,6 @@ public class FlinkCalciteCatalogReaderTest {
         rootSchemaPlus.add(tableMockName, nonFlinkTableMock);
         Prepare.PreparingTable resultTable =
                 catalogReader.getTable(Collections.singletonList(tableMockName));
-        assertFalse(resultTable instanceof FlinkPreparingTableBase);
+        assertThat(resultTable).isNotInstanceOf(FlinkPreparingTableBase.class);
     }
 }

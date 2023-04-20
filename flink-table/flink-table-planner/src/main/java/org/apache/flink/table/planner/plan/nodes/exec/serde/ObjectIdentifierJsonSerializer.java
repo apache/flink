@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
@@ -26,15 +27,16 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.S
 
 import java.io.IOException;
 
-/** JSON serializer for {@link ObjectIdentifier}. */
-public class ObjectIdentifierJsonSerializer extends StdSerializer<ObjectIdentifier> {
+/**
+ * JSON serializer for {@link ObjectIdentifier}.
+ *
+ * @see ObjectIdentifierJsonDeserializer for the reverse operation
+ */
+@Internal
+final class ObjectIdentifierJsonSerializer extends StdSerializer<ObjectIdentifier> {
     private static final long serialVersionUID = 1L;
 
-    public static final String FIELD_NAME_CATALOG_NAME = "catalogName";
-    public static final String FIELD_NAME_DATABASE_NAME = "databaseName";
-    public static final String FIELD_NAME_TABLE_NAME = "tableName";
-
-    public ObjectIdentifierJsonSerializer() {
+    ObjectIdentifierJsonSerializer() {
         super(ObjectIdentifier.class);
     }
 
@@ -44,11 +46,6 @@ public class ObjectIdentifierJsonSerializer extends StdSerializer<ObjectIdentifi
             JsonGenerator jsonGenerator,
             SerializerProvider serializerProvider)
             throws IOException {
-        jsonGenerator.writeStartObject();
-        jsonGenerator.writeStringField(FIELD_NAME_CATALOG_NAME, objectIdentifier.getCatalogName());
-        jsonGenerator.writeStringField(
-                FIELD_NAME_DATABASE_NAME, objectIdentifier.getDatabaseName());
-        jsonGenerator.writeStringField(FIELD_NAME_TABLE_NAME, objectIdentifier.getObjectName());
-        jsonGenerator.writeEndObject();
+        jsonGenerator.writeString(objectIdentifier.asSerializableString());
     }
 }

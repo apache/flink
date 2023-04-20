@@ -15,42 +15,46 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.plan.logical._
-import org.apache.flink.table.planner.plan.utils.AggregateUtil._
 import org.apache.flink.table.planner.plan.utils._
+import org.apache.flink.table.planner.plan.utils.AggregateUtil._
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rel.core.AggregateCall
-import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 
-/**
- * Base streaming group window aggregate physical node for either aggregate or table aggregate.
- */
+/** Base streaming group window aggregate physical node for either aggregate or table aggregate. */
 abstract class StreamPhysicalGroupWindowAggregateBase(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
     outputRowType: RelDataType,
-    val grouping: Array[Int],
-    val aggCalls: Seq[AggregateCall],
+    grouping: Array[Int],
+    aggCalls: Seq[AggregateCall],
     val window: LogicalWindow,
-    val namedWindowProperties: Seq[NamedWindowProperty],
+    namedWindowProperties: Seq[NamedWindowProperty],
     val emitStrategy: WindowEmitStrategy)
-  extends SingleRel(cluster, traitSet, inputRel)
+  extends StreamPhysicalWindowAggregateBase(
+    cluster,
+    traitSet,
+    inputRel,
+    grouping,
+    aggCalls,
+    namedWindowProperties)
   with StreamPhysicalRel {
 
   override def requireWatermark: Boolean = window match {
     case TumblingGroupWindow(_, timeField, size)
-      if isRowtimeAttribute(timeField) && hasTimeIntervalType(size) => true
+        if isRowtimeAttribute(timeField) && hasTimeIntervalType(size) =>
+      true
     case SlidingGroupWindow(_, timeField, size, _)
-      if isRowtimeAttribute(timeField) && hasTimeIntervalType(size) => true
-    case SessionGroupWindow(_, timeField, _)
-      if isRowtimeAttribute(timeField) => true
+        if isRowtimeAttribute(timeField) && hasTimeIntervalType(size) =>
+      true
+    case SessionGroupWindow(_, timeField, _) if isRowtimeAttribute(timeField) => true
     case _ => false
   }
 
@@ -58,17 +62,22 @@ abstract class StreamPhysicalGroupWindowAggregateBase(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     val inputRowType = getInput.getRowType
-    super.explainTerms(pw)
+    super
+      .explainTerms(pw)
       .itemIf("groupBy", RelExplainUtil.fieldToString(grouping, inputRowType), grouping.nonEmpty)
       .item("window", window)
-      .itemIf("properties", namedWindowProperties.map(_.getName).mkString(", "),
+      .itemIf(
+        "properties",
+        namedWindowProperties.map(_.getName).mkString(", "),
         namedWindowProperties.nonEmpty)
-      .item("select", RelExplainUtil.legacyStreamWindowAggregationToString(
-        inputRowType,
-        grouping,
-        outputRowType,
-        aggCalls,
-        namedWindowProperties))
+      .item(
+        "select",
+        RelExplainUtil.legacyStreamWindowAggregationToString(
+          inputRowType,
+          grouping,
+          outputRowType,
+          aggCalls,
+          namedWindowProperties))
       .itemIf("emit", emitStrategy, !emitStrategy.toString.isEmpty)
   }
 }

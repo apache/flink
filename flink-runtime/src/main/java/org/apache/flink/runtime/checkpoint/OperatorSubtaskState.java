@@ -25,6 +25,8 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.SharedStateRegistryImpl.EmptyDiscardStateObjectForRegister;
+import org.apache.flink.runtime.state.SharedStateRegistryKey;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateUtil;
 
@@ -107,6 +109,8 @@ public class OperatorSubtaskState implements CompositeStateHandle {
      */
     private final long stateSize;
 
+    private final long checkpointedSize;
+
     private OperatorSubtaskState(
             StateObjectCollection<OperatorStateHandle> managedOperatorState,
             StateObjectCollection<OperatorStateHandle> rawOperatorState,
@@ -133,6 +137,14 @@ public class OperatorSubtaskState implements CompositeStateHandle {
         calculateStateSize += inputChannelState.getStateSize();
         calculateStateSize += resultSubpartitionState.getStateSize();
         stateSize = calculateStateSize;
+
+        long calculateCheckpointedSize = managedOperatorState.getCheckpointedSize();
+        calculateCheckpointedSize += rawOperatorState.getCheckpointedSize();
+        calculateCheckpointedSize += managedKeyedState.getCheckpointedSize();
+        calculateCheckpointedSize += rawKeyedState.getCheckpointedSize();
+        calculateCheckpointedSize += inputChannelState.getCheckpointedSize();
+        calculateCheckpointedSize += resultSubpartitionState.getCheckpointedSize();
+        this.checkpointedSize = calculateCheckpointedSize;
     }
 
     @VisibleForTesting
@@ -216,9 +228,21 @@ public class OperatorSubtaskState implements CompositeStateHandle {
             long checkpointID) {
         for (KeyedStateHandle stateHandle : stateHandles) {
             if (stateHandle != null) {
+                // Registering state handle to the given sharedStateRegistry serves one purpose:
+                // update the status of the checkpoint in sharedStateRegistry to which the state
+                // handle belongs.
+                sharedStateRegistry.registerReference(
+                        new SharedStateRegistryKey(stateHandle.getStateHandleId().getKeyString()),
+                        new EmptyDiscardStateObjectForRegister(stateHandle.getStateHandleId()),
+                        checkpointID);
                 stateHandle.registerSharedStates(sharedStateRegistry, checkpointID);
             }
         }
+    }
+
+    @Override
+    public long getCheckpointedSize() {
+        return checkpointedSize;
     }
 
     @Override
@@ -281,6 +305,7 @@ public class OperatorSubtaskState implements CompositeStateHandle {
         result = 31 * result + getInputRescalingDescriptor().hashCode();
         result = 31 * result + getOutputRescalingDescriptor().hashCode();
         result = 31 * result + (int) (getStateSize() ^ (getStateSize() >>> 32));
+        result = 31 * result + (int) (getCheckpointedSize() ^ (getCheckpointedSize() >>> 32));
         return result;
     }
 
@@ -301,6 +326,8 @@ public class OperatorSubtaskState implements CompositeStateHandle {
                 + resultSubpartitionState
                 + ", stateSize="
                 + stateSize
+                + ", checkpointedSize="
+                + checkpointedSize
                 + '}';
     }
 

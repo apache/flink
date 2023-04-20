@@ -19,6 +19,7 @@
 package org.apache.flink.table.client.cli;
 
 import org.jline.keymap.KeyMap;
+import org.jline.terminal.Terminal;
 import org.jline.utils.AttributedString;
 import org.jline.utils.AttributedStringBuilder;
 import org.jline.utils.AttributedStyle;
@@ -41,8 +42,8 @@ public class CliRowView extends CliView<CliRowView.RowOperation, Void> {
 
     private String[] row;
 
-    public CliRowView(CliClient client, String[] columnNames, String[] columnTypes, String[] row) {
-        super(client);
+    public CliRowView(Terminal terminal, String[] columnNames, String[] columnTypes, String[] row) {
+        super(terminal);
 
         this.columnNames = columnNames;
         this.columnTypes = columnTypes;
@@ -61,10 +62,10 @@ public class CliRowView extends CliView<CliRowView.RowOperation, Void> {
         final KeyMap<RowOperation> keys = new KeyMap<>();
         keys.setAmbiguousTimeout(200); // make ESC quicker
         keys.bind(RowOperation.QUIT, "q", "Q", esc());
-        keys.bind(RowOperation.UP, "w", "W", key(client.getTerminal(), Capability.key_up));
-        keys.bind(RowOperation.DOWN, "s", "S", key(client.getTerminal(), Capability.key_down));
-        keys.bind(RowOperation.LEFT, "a", "A", key(client.getTerminal(), Capability.key_left));
-        keys.bind(RowOperation.RIGHT, "d", "D", key(client.getTerminal(), Capability.key_right));
+        keys.bind(RowOperation.UP, "w", "W", key(terminal, Capability.key_up));
+        keys.bind(RowOperation.DOWN, "s", "S", key(terminal, Capability.key_down));
+        keys.bind(RowOperation.LEFT, "a", "A", key(terminal, Capability.key_left));
+        keys.bind(RowOperation.RIGHT, "d", "D", key(terminal, Capability.key_right));
         return keys;
     }
 

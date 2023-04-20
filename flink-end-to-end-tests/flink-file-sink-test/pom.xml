@@ -22,7 +22,7 @@ under the License.
 	<parent>
 		<artifactId>flink-end-to-end-tests</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.15-SNAPSHOT</version>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 
 	<modelVersion>4.0.0</modelVersion>
@@ -61,7 +61,7 @@ under the License.
 							<finalName>FileSinkProgram</finalName>
 							<transformers>
 								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-									<mainClass>FileSinkProgram</mainClass>
+									<mainClass>org.apache.flink.connector.file.sink.FileSinkProgram</mainClass>
 								</transformer>
 							</transformers>
 						</configuration>

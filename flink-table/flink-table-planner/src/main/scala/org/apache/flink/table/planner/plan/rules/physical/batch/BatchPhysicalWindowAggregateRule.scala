@@ -15,31 +15,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.config.OptimizerConfigOptions
-import org.apache.flink.table.api.{TableConfig, TableException}
-import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
-import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkRelFactories, FlinkTypeFactory}
-import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
+import org.apache.flink.table.functions.{AggregateFunction, DeclarativeAggregateFunction, UserDefinedFunction}
+import org.apache.flink.table.planner.calcite.{FlinkRelFactories, FlinkTypeFactory}
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, SlidingGroupWindow, TumblingGroupWindow}
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWindowAggregate
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalLocalSortWindowAggregate, BatchPhysicalSortWindowAggregate, BatchPhysicalHashWindowAggregate, BatchPhysicalLocalHashWindowAggregate}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalHashWindowAggregate, BatchPhysicalLocalHashWindowAggregate, BatchPhysicalLocalSortWindowAggregate, BatchPhysicalSortWindowAggregate}
 import org.apache.flink.table.planner.plan.utils.AggregateUtil
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.hasTimeIntervalType
 import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
+import org.apache.flink.table.planner.utils.ShortcutUtils.{unwrapTableConfig, unwrapTypeFactory}
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.logical.{BigIntType, IntType, LogicalType}
 
-import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.Aggregate.Group
-import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.rel.{RelCollations, RelNode}
+import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
+import org.apache.calcite.rel.core.Aggregate.Group
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.commons.math3.util.ArithmeticUtils
 
@@ -53,24 +52,23 @@ import scala.collection.JavaConversions._
  *      +- BatchPhysicalLocalHash(or Sort)WindowAggregate (local)
  *         +- input of window agg
  * }}}
- * when all aggregate functions are mergeable
- * and [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is TWO_PHASE, or
+ * when all aggregate functions are mergeable and
+ * [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is TWO_PHASE, or
  * {{{
  *   BatchPhysicalHash(or Sort)WindowAggregate
  *   +- BatchPhysicalExchange (hash by group keys if group keys is not empty, else singleton)
  *      +- input of window agg
  * }}}
- * when some aggregate functions are not mergeable
- * or [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is ONE_PHASE.
+ * when some aggregate functions are not mergeable or
+ * [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is ONE_PHASE.
  *
- * Notes: if [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is NONE,
- * this rule will try to create two possibilities above, and chooses the best one based on cost.
- * if all aggregate function buffer are fix length, the rule will choose hash window agg.
+ * Notes: if [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is NONE, this rule will
+ * try to create two possibilities above, and chooses the best one based on cost. if all aggregate
+ * function buffer are fix length, the rule will choose hash window agg.
  */
 class BatchPhysicalWindowAggregateRule
   extends RelOptRule(
-    operand(classOf[FlinkLogicalWindowAggregate],
-      operand(classOf[RelNode], any)),
+    operand(classOf[FlinkLogicalWindowAggregate], operand(classOf[RelNode], any)),
     FlinkRelFactories.LOGICAL_BUILDER_WITHOUT_AGG_INPUT_PRUNE,
     "BatchPhysicalWindowAggregateRule")
   with BatchPhysicalAggRuleBase {
@@ -86,7 +84,7 @@ class BatchPhysicalWindowAggregateRule
 
     // check if we have grouping sets
     val groupSets = agg.getGroupType != Group.SIMPLE
-    if (groupSets || agg.indicator) {
+    if (groupSets) {
       throw new TableException("GROUPING SETS are currently not supported.")
     }
 
@@ -101,10 +99,11 @@ class BatchPhysicalWindowAggregateRule
     val (auxGroupSet, aggCallsWithoutAuxGroupCalls) = AggregateUtil.checkAndSplitAggCalls(agg)
 
     val (_, aggBufferTypes, aggregates) = AggregateUtil.transformToBatchAggregateFunctions(
-      FlinkTypeFactory.toLogicalRowType(input.getRowType), aggCallsWithoutAuxGroupCalls)
+      unwrapTypeFactory(input),
+      FlinkTypeFactory.toLogicalRowType(input.getRowType),
+      aggCallsWithoutAuxGroupCalls)
     val aggCallToAggFunction = aggCallsWithoutAuxGroupCalls.zip(aggregates)
     val internalAggBufferTypes = aggBufferTypes.map(_.map(fromDataTypeToLogicalType))
-    val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
 
     window match {
       case TumblingGroupWindow(_, _, size) if hasTimeIntervalType(size) =>
@@ -119,7 +118,8 @@ class BatchPhysicalWindowAggregateRule
           internalAggBufferTypes,
           useHashWindowAgg(agg),
           enableAssignPane = false,
-          supportLocalWindowAgg(call, tableConfig, aggregates, sizeInLong, sizeInLong))
+          supportLocalWindowAgg(aggregates, sizeInLong, sizeInLong)
+        )
 
       case SlidingGroupWindow(_, _, size, slide) if hasTimeIntervalType(size) =>
         val (sizeInLong, slideInLong) = (
@@ -135,7 +135,8 @@ class BatchPhysicalWindowAggregateRule
           internalAggBufferTypes,
           useHashWindowAgg(agg),
           useAssignPane(aggregates, sizeInLong, slideInLong),
-          supportLocalWindowAgg(call, tableConfig, aggregates, sizeInLong, slideInLong))
+          supportLocalWindowAgg(aggregates, sizeInLong, slideInLong)
+        )
 
       case _ => // sliding & tumbling count window and session window not supported
         throw new TableException(s"Window $window is not supported right now.")
@@ -159,21 +160,28 @@ class BatchPhysicalWindowAggregateRule
     // TODO aggregate include projection now, so do not provide new trait will be safe
     val aggProvidedTraitSet = input.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
 
-    val inputTimeFieldIndex = AggregateUtil.timeFieldIndex(
-      input.getRowType, call.builder(), window.timeAttribute)
+    val inputTimeFieldIndex =
+      AggregateUtil.timeFieldIndex(input.getRowType, call.builder(), window.timeAttribute)
     val inputTimeFieldType = agg.getInput.getRowType.getFieldList.get(inputTimeFieldIndex).getType
     val inputTimeIsDate = inputTimeFieldType.getSqlTypeName == SqlTypeName.DATE
     // local-agg output order: groupSet | assignTs | auxGroupSet | aggCalls
     val newInputTimeFieldIndexFromLocal = groupSet.length
 
-    val config = input.getCluster.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
-    if (!isEnforceOnePhaseAgg(config) && supportLocalAgg) {
+    val tableConfig = unwrapTableConfig(input)
+    if (!isEnforceOnePhaseAgg(tableConfig) && supportLocalAgg) {
       val windowType = if (inputTimeIsDate) new IntType() else new BigIntType()
       // local
       var localRequiredTraitSet = input.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
       // local win-agg output order: groupSet + assignTs + auxGroupSet + aggCalls
-      val localAggRelType = inferLocalWindowAggType(enableAssignPane, input.getRowType, agg,
-        groupSet, auxGroupSet, windowType, aggregates, aggBufferTypes)
+      val localAggRelType = inferLocalWindowAggType(
+        enableAssignPane,
+        input.getRowType,
+        agg,
+        groupSet,
+        auxGroupSet,
+        windowType,
+        aggregates,
+        aggBufferTypes)
 
       val localAgg = if (preferHashExec) {
         // hash
@@ -278,7 +286,7 @@ class BatchPhysicalWindowAggregateRule
       call.transformTo(globalAgg)
     }
     // disable one-phase agg if prefer two-phase agg
-    if (!isEnforceTwoPhaseAgg(config) || !supportLocalAgg) {
+    if (!isEnforceTwoPhaseAgg(tableConfig) || !supportLocalAgg) {
       var requiredTraitSet = agg.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
       // distribute by grouping keys
       requiredTraitSet = if (agg.getGroupCount != 0) {
@@ -310,8 +318,8 @@ class BatchPhysicalWindowAggregateRule
           isMerge = false)
       } else {
         // sort by grouping keys and time field in ascending direction
-        requiredTraitSet = requiredTraitSet.replace(createRelCollation(
-          groupSet :+ inputTimeFieldIndex))
+        requiredTraitSet =
+          requiredTraitSet.replace(createRelCollation(groupSet :+ inputTimeFieldIndex))
         val newInput = RelOptRule.convert(input, requiredTraitSet)
 
         new BatchPhysicalSortWindowAggregate(
@@ -337,28 +345,25 @@ class BatchPhysicalWindowAggregateRule
 
   /**
    * Return true when sliding window with slideSize < windowSize && gcd(windowSize, slideSize) > 1.
-   * Otherwise return false, including the cases of tumbling window,
-   * sliding window with slideSize >= windowSize and
-   * sliding window with slideSize < windowSize but gcd(windowSize, slideSize) == 1.
+   * Otherwise return false, including the cases of tumbling window, sliding window with slideSize
+   * >= windowSize and sliding window with slideSize < windowSize but gcd(windowSize, slideSize) ==
+   * \1.
    */
   private def useAssignPane(
       aggregateList: Array[UserDefinedFunction],
       windowSize: Long,
       slideSize: Long): Boolean = {
     doAllSupportMerge(aggregateList) &&
-      slideSize < windowSize && isEffectiveAssigningPane(windowSize, slideSize)
+    slideSize < windowSize && isEffectiveAssigningPane(windowSize, slideSize)
   }
 
   /**
-   * In the case of sliding window without the optimization of assigning pane which means
-   * slideSize < windowSize && ArithmeticUtils.gcd(windowSize, slideSize) == 1, we will disable the
-   * local aggregate.
-   * Otherwise, we use the same way as the group aggregate to make the decision whether
+   * In the case of sliding window without the optimization of assigning pane which means slideSize
+   * < windowSize && ArithmeticUtils.gcd(windowSize, slideSize) == 1, we will disable the local
+   * aggregate. Otherwise, we use the same way as the group aggregate to make the decision whether
    * to use a local aggregate or not.
    */
   private def supportLocalWindowAgg(
-      call: RelOptRuleCall,
-      tableConfig: TableConfig,
       aggregateList: Array[UserDefinedFunction],
       windowSize: Long,
       slideSize: Long): Boolean = {
@@ -389,25 +394,28 @@ class BatchPhysicalWindowAggregateRule
 
     val aggBufferFieldNames = new Array[Array[String]](aggregates.length)
     var index = -1
-    aggregates.zipWithIndex.foreach { case (udf, aggIndex) =>
-      aggBufferFieldNames(aggIndex) = udf match {
-        case _: AggregateFunction[_, _] =>
-          Array(aggNames(aggIndex))
-        case agf: DeclarativeAggregateFunction =>
-          agf.aggBufferAttributes.map { attr =>
-            index += 1
-            s"${attr.getName}$$$index"
-          }
-        case _: UserDefinedFunction =>
-          throw new TableException(s"Don't get localAgg merge name")
-      }
+    aggregates.zipWithIndex.foreach {
+      case (udf, aggIndex) =>
+        aggBufferFieldNames(aggIndex) = udf match {
+          case _: AggregateFunction[_, _] =>
+            Array(aggNames(aggIndex))
+          case agf: DeclarativeAggregateFunction =>
+            agf.aggBufferAttributes.map {
+              attr =>
+                index += 1
+                s"${attr.getName}$$$index"
+            }
+          case _: UserDefinedFunction =>
+            throw new TableException(s"Don't get localAgg merge name")
+        }
     }
 
     // local win-agg output order: groupSet + assignTs + auxGroupSet + aggCalls
     val typeFactory = agg.getCluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    val aggBufferSqlTypes = aggBufferTypes.flatten.map { t =>
-      val nullable = !FlinkTypeFactory.isTimeIndicatorType(t)
-      typeFactory.createFieldTypeFromLogicalType(t)
+    val aggBufferSqlTypes = aggBufferTypes.flatten.map {
+      t =>
+        val nullable = !FlinkTypeFactory.isTimeIndicatorType(t)
+        typeFactory.createFieldTypeFromLogicalType(t)
     }
 
     val localAggFieldTypes = (
@@ -416,7 +424,7 @@ class BatchPhysicalWindowAggregateRule
         Array(typeFactory.createFieldTypeFromLogicalType(windowType)) ++
         auxGroupSet.map(inputType.getFieldList.get(_).getType) ++ // auxGroupSet
         aggBufferSqlTypes // aggCalls
-      ).toList
+    ).toList
 
     val assignTsFieldName = if (enableAssignPane) "assignedPane$" else "assignedWindow$"
     val localAggFieldNames = (
@@ -424,7 +432,7 @@ class BatchPhysicalWindowAggregateRule
         Array(assignTsFieldName) ++ // assignTs
         auxGroupSet.map(inputType.getFieldList.get(_).getName) ++ // auxGroupSet
         aggBufferFieldNames.flatten.toArray[String] // aggCalls
-      ).toList
+    ).toList
 
     typeFactory.createStructType(localAggFieldTypes, localAggFieldNames)
   }

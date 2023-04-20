@@ -65,11 +65,14 @@ public final class Documentation {
         public static final String COMMON_HIGH_AVAILABILITY = "common_high_availability";
         public static final String COMMON_HIGH_AVAILABILITY_ZOOKEEPER =
                 "common_high_availability_zk";
+        public static final String COMMON_HIGH_AVAILABILITY_JOB_RESULT_STORE =
+                "common_high_availability_jrs";
         public static final String COMMON_MEMORY = "common_memory";
         public static final String COMMON_MISCELLANEOUS = "common_miscellaneous";
 
         public static final String SECURITY_SSL = "security_ssl";
         public static final String SECURITY_AUTH_KERBEROS = "security_auth_kerberos";
+        public static final String SECURITY_DELEGATION_TOKEN = "security_delegation_token";
         public static final String SECURITY_AUTH_ZOOKEEPER = "security_auth_zk";
 
         public static final String STATE_BACKEND_ROCKSDB = "state_backend_rocksdb";
@@ -100,6 +103,8 @@ public final class Documentation {
         public static final String ALL_TASK_MANAGER_NETWORK = "all_taskmanager_network";
 
         public static final String DEPRECATED_FILE_SINKS = "deprecated_file_sinks";
+
+        public static final String METRIC_REPORTERS = "metric_reporters";
 
         private Sections() {}
     }
@@ -143,7 +148,9 @@ public final class Documentation {
     @Target({ElementType.FIELD, ElementType.TYPE})
     @Retention(RetentionPolicy.RUNTIME)
     @Internal
-    public @interface SuffixOption {}
+    public @interface SuffixOption {
+        String value();
+    }
 
     /**
      * Annotation used on config option fields or REST API message headers to exclude it from

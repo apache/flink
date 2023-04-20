@@ -22,14 +22,15 @@ import { NavigationEnd, Router } from '@angular/router';
 import { EMPTY, fromEvent, interval, merge, Observable, Subject } from 'rxjs';
 import { debounceTime, filter, map, mapTo, share, startWith, switchMap, tap } from 'rxjs/operators';
 
-import { BASE_URL } from 'config';
-import { Configuration } from 'interfaces';
+import { Configuration } from '@flink-runtime-web/interfaces';
+
+import { ConfigService } from './config.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class StatusService {
-  constructor(private readonly httpClient: HttpClient) {}
+  constructor(private readonly httpClient: HttpClient, private readonly configService: ConfigService) {}
 
   /** Error server response message cache list. */
   public listOfErrorMessage: string[] = [];
@@ -51,9 +52,9 @@ export class StatusService {
    *
    * @param router
    */
-  public boot(router: Router): Promise<Configuration> {
+  public boot(router: Router): Promise<Configuration | undefined> {
     return this.httpClient
-      .get<Configuration>(`${BASE_URL}/config`)
+      .get<Configuration>(`${this.configService.BASE_URL}/config`)
       .pipe(
         tap(data => {
           this.configuration = data;

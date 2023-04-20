@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.util.OutputTag;
@@ -73,6 +74,8 @@ public class StreamEdge implements Serializable {
 
     private boolean supportsUnalignedCheckpoints = true;
 
+    private final IntermediateDataSetID intermediateDatasetIdToProduce;
+
     public StreamEdge(
             StreamNode sourceVertex,
             StreamNode targetVertex,
@@ -88,7 +91,8 @@ public class StreamEdge implements Serializable {
                 outputPartitioner,
                 outputTag,
                 StreamExchangeMode.UNDEFINED,
-                0);
+                0,
+                null);
     }
 
     public StreamEdge(
@@ -98,7 +102,8 @@ public class StreamEdge implements Serializable {
             StreamPartitioner<?> outputPartitioner,
             OutputTag outputTag,
             StreamExchangeMode exchangeMode,
-            int uniqueId) {
+            int uniqueId,
+            IntermediateDataSetID intermediateDatasetId) {
 
         this(
                 sourceVertex,
@@ -108,7 +113,8 @@ public class StreamEdge implements Serializable {
                 outputPartitioner,
                 outputTag,
                 exchangeMode,
-                uniqueId);
+                uniqueId,
+                intermediateDatasetId);
     }
 
     public StreamEdge(
@@ -119,7 +125,8 @@ public class StreamEdge implements Serializable {
             StreamPartitioner<?> outputPartitioner,
             OutputTag outputTag,
             StreamExchangeMode exchangeMode,
-            int uniqueId) {
+            int uniqueId,
+            IntermediateDataSetID intermediateDatasetId) {
 
         this.sourceId = sourceVertex.getId();
         this.targetId = targetVertex.getId();
@@ -131,6 +138,7 @@ public class StreamEdge implements Serializable {
         this.sourceOperatorName = sourceVertex.getOperatorName();
         this.targetOperatorName = targetVertex.getOperatorName();
         this.exchangeMode = checkNotNull(exchangeMode);
+        this.intermediateDatasetIdToProduce = intermediateDatasetId;
         this.edgeId =
                 sourceVertex
                         + "_"
@@ -225,5 +233,9 @@ public class StreamEdge implements Serializable {
                 + ", uniqueId="
                 + uniqueId
                 + ')';
+    }
+
+    public IntermediateDataSetID getIntermediateDatasetIdToProduce() {
+        return intermediateDatasetIdToProduce;
     }
 }

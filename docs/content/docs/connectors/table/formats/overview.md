@@ -43,6 +43,7 @@ Flink supports the following formats:
           <td><a href="{{< ref "docs/connectors/table/kafka" >}}">Apache Kafka</a>,
           <a href="{{< ref "docs/connectors/table/upsert-kafka" >}}">Upsert Kafka</a>,
           <a href="{{< ref "docs/connectors/table/kinesis" >}}">Amazon Kinesis Data Streams</a>,
+          <a href="{{< ref "docs/connectors/table/firehose" >}}">Amazon Kinesis Data Firehose</a>,
           <a href="{{< ref "docs/connectors/table/filesystem" >}}">Filesystem</a></td>
         </tr>
         <tr>
@@ -50,6 +51,7 @@ Flink supports the following formats:
          <td><a href="{{< ref "docs/connectors/table/kafka" >}}">Apache Kafka</a>,
           <a href="{{< ref "docs/connectors/table/upsert-kafka" >}}">Upsert Kafka</a>,
           <a href="{{< ref "docs/connectors/table/kinesis" >}}">Amazon Kinesis Data Streams</a>,
+          <a href="{{< ref "docs/connectors/table/firehose" >}}">Amazon Kinesis Data Firehose</a>,
           <a href="{{< ref "docs/connectors/table/filesystem" >}}">Filesystem</a>,
           <a href="{{< ref "docs/connectors/table/elasticsearch" >}}">Elasticsearch</a></td>
         </tr>
@@ -58,6 +60,7 @@ Flink supports the following formats:
           <td><a href="{{< ref "docs/connectors/table/kafka" >}}">Apache Kafka</a>,
            <a href="{{< ref "docs/connectors/table/upsert-kafka" >}}">Upsert Kafka</a>,
            <a href="{{< ref "docs/connectors/table/kinesis" >}}">Amazon Kinesis Data Streams</a>,
+           <a href="{{< ref "docs/connectors/table/firehose" >}}">Amazon Kinesis Data Firehose</a>,
            <a href="{{< ref "docs/connectors/table/filesystem" >}}">Filesystem</a></td>
         </tr>
         <tr>
@@ -81,6 +84,11 @@ Flink supports the following formats:
            <a href="{{< ref "docs/connectors/table/filesystem" >}}">Filesystem</a></td>
         </tr>
         <tr>
+         <td><a href="{{< ref "docs/connectors/table/formats/ogg" >}}">OGG CDC</a></td>
+          <td><a href="{{< ref "docs/connectors/table/kafka" >}}">Apache Kafka</a>,
+           <a href="{{< ref "docs/connectors/table/filesystem" >}}">Filesystem</a></td>
+        </tr>
+        <tr>
          <td><a href="{{< ref "docs/connectors/table/formats/parquet" >}}">Apache Parquet</a></td>
          <td><a href="{{< ref "docs/connectors/table/filesystem" >}}">Filesystem</a></td>
         </tr>
@@ -93,6 +101,7 @@ Flink supports the following formats:
         <td><a href="{{< ref "docs/connectors/table/kafka" >}}">Apache Kafka</a>,
           <a href="{{< ref "docs/connectors/table/upsert-kafka" >}}">Upsert Kafka</a>,
           <a href="{{< ref "docs/connectors/table/kinesis" >}}">Amazon Kinesis Data Streams</a>,
+          <a href="{{< ref "docs/connectors/table/firehose" >}}">Amazon Kinesis Data Firehose</a>,
           <a href="{{< ref "docs/connectors/table/filesystem" >}}">Filesystem</a></td>
         </tr>
     </tbody>

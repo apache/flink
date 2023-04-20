@@ -17,17 +17,18 @@
 
 package org.apache.flink.connectors.hive.read;
 
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connectors.hive.HiveOptions;
 import org.apache.flink.connectors.hive.HiveTablePartition;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.CollectionUtil;
 
 import org.apache.hadoop.hive.metastore.api.Table;
@@ -36,7 +37,7 @@ import org.junit.Test;
 
 import java.util.Collections;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for HiveInputFormatPartitionReader. */
 public class HiveInputFormatPartitionReaderITCase {
@@ -58,16 +59,20 @@ public class HiveInputFormatPartitionReaderITCase {
             throws Exception {
         String tableName = prepareData(tableEnv, format);
         ObjectPath tablePath = new ObjectPath("default", tableName);
-        TableSchema tableSchema = hiveCatalog.getTable(tablePath).getSchema();
+        Schema schema = hiveCatalog.getTable(tablePath).getUnresolvedSchema();
         // create partition reader
         HiveInputFormatPartitionReader partitionReader =
                 new HiveInputFormatPartitionReader(
-                        new Configuration(),
+                        HiveOptions.TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM.defaultValue(),
                         new JobConf(hiveCatalog.getHiveConf()),
                         hiveCatalog.getHiveVersion(),
                         tablePath,
-                        tableSchema.getFieldDataTypes(),
-                        tableSchema.getFieldNames(),
+                        schema.getColumns().stream()
+                                .map(HiveTestUtils::getType)
+                                .toArray(DataType[]::new),
+                        schema.getColumns().stream()
+                                .map(Schema.UnresolvedColumn::getName)
+                                .toArray(String[]::new),
                         Collections.emptyList(),
                         null,
                         false);
@@ -80,17 +85,17 @@ public class HiveInputFormatPartitionReaderITCase {
                                 HiveShimLoader.loadHiveShim(hiveCatalog.getHiveVersion()),
                                 hiveTable));
         partitionReader.open(Collections.singletonList(tablePartition));
-        GenericRowData reuse = new GenericRowData(tableSchema.getFieldCount());
+        GenericRowData reuse = new GenericRowData(schema.getColumns().size());
         int count = 0;
         // this follows the way the partition reader is used during lookup join
         while (partitionReader.read(reuse) != null) {
             count++;
         }
-        assertEquals(
-                CollectionUtil.iteratorToList(
-                                tableEnv.executeSql("select * from " + tableName).collect())
-                        .size(),
-                count);
+        assertThat(count)
+                .isEqualTo(
+                        CollectionUtil.iteratorToList(
+                                        tableEnv.executeSql("select * from " + tableName).collect())
+                                .size());
     }
 
     private String prepareData(TableEnvironment tableEnv, String format) throws Exception {

@@ -15,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.batch.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.{PandasAggregateFunction, TestPythonAggregateFunction}
 import org.apache.flink.table.planner.utils.TableTestBase
+
 import org.junit.Test
 
 class PythonOverWindowAggregateTest extends TableTestBase {
@@ -29,18 +29,18 @@ class PythonOverWindowAggregateTest extends TableTestBase {
   @Test
   def testPandasRangeOverWindowAggregate(): Unit = {
     val util = batchTestUtil()
-    val sourceTable = util.addTableSource[(Int, Long, Int, Long)](
-      "MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
+    val sourceTable =
+      util.addTableSource[(Int, Long, Int, Long)]("MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
     val func = new PandasAggregateFunction
 
     val resultTable = sourceTable
       .window(
         Over
-          partitionBy 'b
-          orderBy 'rowtime
-          preceding UNBOUNDED_RANGE
-          as 'w)
-      .select('b, func('a, 'c) over 'w)
+          .partitionBy('b)
+          .orderBy('rowtime)
+          .preceding(UNBOUNDED_RANGE)
+          .as('w))
+      .select('b, func('a, 'c).over('w))
 
     util.verifyExecPlan(resultTable)
   }
@@ -48,18 +48,18 @@ class PythonOverWindowAggregateTest extends TableTestBase {
   @Test
   def testPandasRowsOverWindowAggregate(): Unit = {
     val util = batchTestUtil()
-    val sourceTable = util.addTableSource[(Int, Long, Int, Long)](
-      "MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
+    val sourceTable =
+      util.addTableSource[(Int, Long, Int, Long)]("MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
     val func = new PandasAggregateFunction
 
     val resultTable = sourceTable
       .window(
         Over
-          partitionBy 'b
-          orderBy 'rowtime
-          preceding 10.rows
-          as 'w)
-      .select('b, func('a, 'c) over 'w)
+          .partitionBy('b)
+          .orderBy('rowtime)
+          .preceding(10.rows)
+          .as('w))
+      .select('b, func('a, 'c).over('w))
 
     util.verifyExecPlan(resultTable)
   }
@@ -67,18 +67,18 @@ class PythonOverWindowAggregateTest extends TableTestBase {
   @Test(expected = classOf[TableException])
   def testGeneralRangeOverWindowAggregate(): Unit = {
     val util = batchTestUtil()
-    val sourceTable = util.addTableSource[(Int, Long, Int, Long)](
-      "MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
+    val sourceTable =
+      util.addTableSource[(Int, Long, Int, Long)]("MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
     val func = new TestPythonAggregateFunction
 
     val resultTable = sourceTable
       .window(
         Over
-          partitionBy 'b
-          orderBy 'rowtime
-          preceding UNBOUNDED_RANGE
-          as 'w)
-      .select('b, func('a, 'c) over 'w)
+          .partitionBy('b)
+          .orderBy('rowtime)
+          .preceding(UNBOUNDED_RANGE)
+          .as('w))
+      .select('b, func('a, 'c).over('w))
 
     util.verifyExecPlan(resultTable)
   }

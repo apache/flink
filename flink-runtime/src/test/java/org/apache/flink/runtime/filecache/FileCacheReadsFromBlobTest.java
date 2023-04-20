@@ -41,6 +41,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Future;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -104,7 +105,7 @@ public class FileCacheReadsFromBlobTest {
     @Test
     public void testFileDownloadedFromBlob() throws Exception {
         JobID jobID = new JobID();
-        ExecutionAttemptID attemptID = new ExecutionAttemptID();
+        ExecutionAttemptID attemptID = createExecutionAttemptId();
 
         final String fileName = "test_file";
         // copy / create the file

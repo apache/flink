@@ -27,6 +27,7 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -35,15 +36,19 @@ import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.MetricRegistryTestUtils;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.TestOperatorEvent;
+import org.apache.flink.runtime.operators.coordination.TestingCoordinationRequestHandler;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.testutils.CancelableInvokable;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -51,13 +56,19 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.futureWillCompleteExceptionally;
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 /** Test for the (failure handling of the) delivery of Operator Events. */
 public class TaskExecutorOperatorEventHandlingTest extends TestLogger {
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     private MetricRegistryImpl metricRegistry;
 
@@ -75,18 +86,18 @@ public class TaskExecutorOperatorEventHandlingTest extends TestLogger {
     @After
     public void teardown() throws ExecutionException, InterruptedException {
         if (rpcService != null) {
-            rpcService.stopService().get();
+            rpcService.closeAsync().get();
         }
 
         if (metricRegistry != null) {
-            metricRegistry.shutdown().get();
+            metricRegistry.closeAsync().get();
         }
     }
 
     @Test
     public void eventHandlingInTaskFailureFailsTask() throws Exception {
         final JobID jobId = new JobID();
-        final ExecutionAttemptID eid = new ExecutionAttemptID();
+        final ExecutionAttemptID eid = createExecutionAttemptId(new JobVertexID(), 3, 0);
 
         try (TaskSubmissionTestEnvironment env =
                 createExecutorWithRunningTask(jobId, eid, OperatorEventFailingInvokable.class)) {
@@ -106,10 +117,25 @@ public class TaskExecutorOperatorEventHandlingTest extends TestLogger {
     @Test
     public void eventToCoordinatorDeliveryFailureFailsTask() throws Exception {
         final JobID jobId = new JobID();
-        final ExecutionAttemptID eid = new ExecutionAttemptID();
+        final ExecutionAttemptID eid = createExecutionAttemptId(new JobVertexID(), 3, 0);
 
         try (TaskSubmissionTestEnvironment env =
                 createExecutorWithRunningTask(jobId, eid, OperatorEventSendingInvokable.class)) {
+            final Task task = env.getTaskSlotTable().getTask(eid);
+
+            task.getExecutingThread().join(10_000);
+            assertEquals(ExecutionState.FAILED, task.getExecutionState());
+        }
+    }
+
+    @Test
+    public void requestToCoordinatorDeliveryFailureFailsTask() throws Exception {
+        final JobID jobId = new JobID();
+        final ExecutionAttemptID eid = createExecutionAttemptId(new JobVertexID(), 3, 0);
+
+        try (TaskSubmissionTestEnvironment env =
+                createExecutorWithRunningTask(
+                        jobId, eid, CoordinationRequestSendingInvokable.class)) {
             final Task task = env.getTaskSlotTable().getTask(eid);
 
             task.getExecutingThread().join(10_000);
@@ -148,8 +174,12 @@ public class TaskExecutorOperatorEventHandlingTest extends TestLogger {
                                                 (eio, oid, value) -> {
                                                     throw new RuntimeException();
                                                 })
+                                        .setDeliverCoordinationRequestFunction(
+                                                (oid, value) -> {
+                                                    throw new RuntimeException();
+                                                })
                                         .build())
-                        .build();
+                        .build(EXECUTOR_RESOURCE.getExecutor());
 
         env.getTaskSlotTable().allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
 
@@ -173,9 +203,7 @@ public class TaskExecutorOperatorEventHandlingTest extends TestLogger {
                 new SerializedValue<>(new ExecutionConfig()),
                 "test task",
                 64,
-                3,
                 17,
-                0,
                 new Configuration(),
                 new Configuration(),
                 invokableClass.getName(),
@@ -221,6 +249,26 @@ public class TaskExecutorOperatorEventHandlingTest extends TestLogger {
                     .getOperatorCoordinatorEventGateway()
                     .sendOperatorEventToCoordinator(
                             new OperatorID(), new SerializedValue<>(new TestOperatorEvent()));
+
+            waitUntilCancelled();
+        }
+    }
+
+    /** Test invokable that fails when receiving a coordination request. */
+    public static final class CoordinationRequestSendingInvokable extends CancelableInvokable {
+
+        public CoordinationRequestSendingInvokable(Environment environment) {
+            super(environment);
+        }
+
+        @Override
+        protected void doInvoke() throws Exception {
+            getEnvironment()
+                    .getOperatorCoordinatorEventGateway()
+                    .sendRequestToCoordinator(
+                            new OperatorID(),
+                            new SerializedValue<>(
+                                    new TestingCoordinationRequestHandler.Request<>(0L)));
 
             waitUntilCancelled();
         }

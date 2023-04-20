@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.generated;
 
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.codesplit.JavaCodeSplitter;
 
@@ -45,11 +45,11 @@ public abstract class GeneratedClass<T> implements Serializable {
     private transient Class<T> compiledClass;
 
     protected GeneratedClass(
-            String className, String code, Object[] references, Configuration conf) {
+            String className, String code, Object[] references, ReadableConfig config) {
         checkNotNull(className, "name must not be null");
         checkNotNull(code, "code must not be null");
         checkNotNull(references, "references must not be null");
-        checkNotNull(conf, "conf must not be null");
+        checkNotNull(config, "config must not be null");
         this.className = className;
         this.code = code;
         this.splitCode =
@@ -57,13 +57,12 @@ public abstract class GeneratedClass<T> implements Serializable {
                         ? code
                         : JavaCodeSplitter.split(
                                 code,
-                                conf.getInteger(TableConfigOptions.MAX_LENGTH_GENERATED_CODE),
-                                conf.getInteger(TableConfigOptions.MAX_MEMBERS_GENERATED_CODE));
+                                config.get(TableConfigOptions.MAX_LENGTH_GENERATED_CODE),
+                                config.get(TableConfigOptions.MAX_MEMBERS_GENERATED_CODE));
         this.references = references;
     }
 
     /** Create a new instance of this generated class. */
-    @SuppressWarnings("unchecked")
     public T newInstance(ClassLoader classLoader) {
         try {
             return compile(classLoader)

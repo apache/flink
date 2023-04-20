@@ -24,8 +24,7 @@ under the License.
 	<parent>
 		<artifactId>flink-examples</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.15-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-examples-build-helper</artifactId>
@@ -35,9 +34,7 @@ under the License.
 	<description>This is a utility module for building example jars to be used in flink-dist.</description>
 
 	<modules>
-		<module>flink-examples-streaming-twitter</module>
 		<module>flink-examples-streaming-state-machine</module>
-		<module>flink-examples-streaming-gcp-pubsub</module>
 	</modules>
 
 </project>

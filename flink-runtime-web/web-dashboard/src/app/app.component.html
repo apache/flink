@@ -58,29 +58,31 @@
           </li>
         </ul>
       </li>
-      <li nz-menu-item routerLinkActive="ant-menu-item-selected" [routerLink]="['/task-manager']">
-        <span>
-          <i nz-icon nzType="schedule"></i>
-          <span>Task Managers</span>
-        </span>
-      </li>
-      <li nz-menu-item routerLinkActive="ant-menu-item-selected" [routerLink]="['/job-manager']">
-        <span>
-          <i nz-icon nzType="build"></i>
-          <span>Job Manager</span>
-        </span>
-      </li>
-      <li
-        *ngIf="webSubmitEnabled"
-        nz-menu-item
-        routerLinkActive="ant-menu-item-selected"
-        [routerLink]="['/submit']"
-      >
-        <span>
-          <i nz-icon nzType="upload"></i>
-          <span>Submit New Job</span>
-        </span>
-      </li>
+      <ng-container *ngIf="!historyServerEnv">
+        <li nz-menu-item routerLinkActive="ant-menu-item-selected" [routerLink]="['/task-manager']">
+          <span>
+            <i nz-icon nzType="schedule"></i>
+            <span>Task Managers</span>
+          </span>
+        </li>
+        <li nz-menu-item routerLinkActive="ant-menu-item-selected" [routerLink]="['/job-manager']">
+          <span>
+            <i nz-icon nzType="build"></i>
+            <span>Job Manager</span>
+          </span>
+        </li>
+        <li
+          *ngIf="webSubmitEnabled"
+          nz-menu-item
+          routerLinkActive="ant-menu-item-selected"
+          [routerLink]="['/submit']"
+        >
+          <span>
+            <i nz-icon nzType="upload"></i>
+            <span>Submit New Job</span>
+          </span>
+        </li>
+      </ng-container>
     </ul>
   </nz-sider>
   <nz-layout>

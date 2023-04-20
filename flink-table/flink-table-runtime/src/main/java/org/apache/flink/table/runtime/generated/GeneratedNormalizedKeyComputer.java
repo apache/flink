@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.generated;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 
 /** Describes a generated {@link NormalizedKeyComputer}. */
 public class GeneratedNormalizedKeyComputer extends GeneratedClass<NormalizedKeyComputer> {
@@ -36,9 +37,9 @@ public class GeneratedNormalizedKeyComputer extends GeneratedClass<NormalizedKey
      *
      * @param className class name of the generated class.
      * @param code code of the generated class.
-     * @param conf configuration when generating the generated class.
+     * @param config configuration when generating the generated class.
      */
-    public GeneratedNormalizedKeyComputer(String className, String code, Configuration conf) {
-        super(className, code, new Object[0], conf);
+    public GeneratedNormalizedKeyComputer(String className, String code, ReadableConfig config) {
+        super(className, code, new Object[0], config);
     }
 }

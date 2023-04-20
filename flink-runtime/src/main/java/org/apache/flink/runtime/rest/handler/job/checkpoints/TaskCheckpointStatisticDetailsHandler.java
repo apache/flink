@@ -141,6 +141,7 @@ public class TaskCheckpointStatisticDetailsHandler
                 checkpointStats.getCheckpointId(),
                 checkpointStats.getStatus(),
                 taskStatistics.getLatestAckTimestamp(),
+                taskStatistics.getCheckpointedSize(),
                 taskStatistics.getStateSize(),
                 taskStatistics.getEndToEndDuration(checkpointStats.getTriggerTimestamp()),
                 0,
@@ -171,6 +172,7 @@ public class TaskCheckpointStatisticDetailsHandler
                         StatsSummaryDto.valueOf(taskStatisticsSummary.getAlignmentDurationStats()));
 
         return new TaskCheckpointStatisticsWithSubtaskDetails.Summary(
+                StatsSummaryDto.valueOf(taskStatisticsSummary.getCheckpointedSize()),
                 StatsSummaryDto.valueOf(taskStatisticsSummary.getStateSizeStats()),
                 new StatsSummaryDto(
                         Math.max(0L, ackTSStats.getMinimum() - triggerTimestamp),
@@ -201,6 +203,7 @@ public class TaskCheckpointStatisticDetailsHandler
                                 i,
                                 subtask.getAckTimestamp(),
                                 subtask.getEndToEndDuration(triggerTimestamp),
+                                subtask.getCheckpointedSize(),
                                 subtask.getStateSize(),
                                 new SubtaskCheckpointStatistics.CompletedSubtaskCheckpointStatistics
                                         .CheckpointDuration(

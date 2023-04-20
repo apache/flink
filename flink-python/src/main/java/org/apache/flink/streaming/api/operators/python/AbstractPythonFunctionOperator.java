@@ -19,37 +19,28 @@
 package org.apache.flink.streaming.api.operators.python;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.python.PythonConfig;
-import org.apache.flink.python.PythonFunctionRunner;
-import org.apache.flink.python.PythonOptions;
-import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.PythonEnvironmentManager;
-import org.apache.flink.python.env.beam.ProcessPythonEnvironmentManager;
-import org.apache.flink.python.metric.FlinkMetricContainer;
+import org.apache.flink.python.metric.process.FlinkMetricContainer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionInternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionKeyedStateBackend;
-import org.apache.flink.streaming.api.runners.python.beam.BeamPythonFunctionRunner;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.WrappingRuntimeException;
 
 import java.lang.reflect.Field;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 
+import static org.apache.flink.python.PythonOptions.MAX_BUNDLE_SIZE;
+import static org.apache.flink.python.PythonOptions.MAX_BUNDLE_TIME_MILLS;
+import static org.apache.flink.python.PythonOptions.PYTHON_METRIC_ENABLED;
+import static org.apache.flink.python.PythonOptions.PYTHON_SYSTEMENV_ENABLED;
 import static org.apache.flink.streaming.api.utils.ClassLeakCleaner.cleanUpLeakingClasses;
 import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
 
@@ -59,13 +50,9 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
 
     private static final long serialVersionUID = 1L;
 
-    protected Configuration config;
+    protected final Configuration config;
 
-    /**
-     * The {@link PythonFunctionRunner} which is responsible for Python user-defined function
-     * execution.
-     */
-    protected transient PythonFunctionRunner pythonFunctionRunner;
+    protected transient boolean systemEnvEnabled;
 
     /** Max number of elements to include in a bundle. */
     protected transient int maxBundleSize;
@@ -73,25 +60,17 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
     /** Number of processed elements in the current bundle. */
     protected transient int elementCount;
 
-    /** The python config. */
-    protected transient PythonConfig pythonConfig;
-
-    /** The options used to configure the Python worker process. */
-    protected transient Map<String, String> jobOptions;
-
     /** Max duration of a bundle. */
     private transient long maxBundleTimeMills;
 
     /** Time that the last bundle was finished. */
-    private transient long lastFinishBundleTime;
+    protected transient long lastFinishBundleTime;
 
     /** A timer that finishes the current bundle after a fixed amount of time. */
     private transient ScheduledFuture<?> checkFinishBundleTimer;
 
     /** Callback to be executed after the current bundle was finished. */
-    private transient Runnable bundleFinishedCallback;
-
-    private transient ExecutorService flushThreadPool;
+    protected transient Runnable bundleFinishedCallback;
 
     public AbstractPythonFunctionOperator(Configuration config) {
         this.config = Preconditions.checkNotNull(config);
@@ -101,12 +80,11 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
     @Override
     public void open() throws Exception {
         try {
-            this.pythonConfig = new PythonConfig(config);
-            this.jobOptions = config.toMap();
-            this.maxBundleSize = pythonConfig.getMaxBundleSize();
+            this.systemEnvEnabled = config.get(PYTHON_SYSTEMENV_ENABLED);
+            this.maxBundleSize = config.get(MAX_BUNDLE_SIZE);
             if (this.maxBundleSize <= 0) {
-                this.maxBundleSize = PythonOptions.MAX_BUNDLE_SIZE.defaultValue();
-                LOG.error(
+                this.maxBundleSize = MAX_BUNDLE_SIZE.defaultValue();
+                LOG.warn(
                         "Invalid value for the maximum bundle size. Using default value of "
                                 + this.maxBundleSize
                                 + '.');
@@ -114,10 +92,10 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
                 LOG.info("The maximum bundle size is configured to {}.", this.maxBundleSize);
             }
 
-            this.maxBundleTimeMills = pythonConfig.getMaxBundleTimeMills();
+            this.maxBundleTimeMills = config.get(MAX_BUNDLE_TIME_MILLS);
             if (this.maxBundleTimeMills <= 0L) {
-                this.maxBundleTimeMills = PythonOptions.MAX_BUNDLE_TIME_MILLS.defaultValue();
-                LOG.error(
+                this.maxBundleTimeMills = MAX_BUNDLE_TIME_MILLS.defaultValue();
+                LOG.warn(
                         "Invalid value for the maximum bundle time. Using default value of "
                                 + this.maxBundleTimeMills
                                 + '.');
@@ -126,9 +104,6 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
                         "The maximum bundle time is configured to {} milliseconds.",
                         this.maxBundleTimeMills);
             }
-
-            this.pythonFunctionRunner = createPythonFunctionRunner();
-            this.pythonFunctionRunner.open(pythonConfig);
 
             this.elementCount = 0;
             this.lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
@@ -143,7 +118,6 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
                                     timestamp -> checkInvokeFinishBundleByTime(),
                                     bundleCheckPeriod,
                                     bundleCheckPeriod);
-            this.flushThreadPool = Executors.newSingleThreadExecutor();
         } finally {
             super.open();
         }
@@ -164,14 +138,6 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
             if (checkFinishBundleTimer != null) {
                 checkFinishBundleTimer.cancel(true);
                 checkFinishBundleTimer = null;
-            }
-            if (pythonFunctionRunner != null) {
-                pythonFunctionRunner.close();
-                pythonFunctionRunner = null;
-            }
-            if (flushThreadPool != null) {
-                flushThreadPool.shutdown();
-                flushThreadPool = null;
             }
         } finally {
             super.close();
@@ -218,21 +184,29 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
         // Approach 1) is the easiest and gives better latency, yet 2)
         // gives better throughput due to the bundle not getting cut on
         // every watermark. So we have implemented 2) below.
+
         if (mark.getTimestamp() == Long.MAX_VALUE) {
             invokeFinishBundle();
             processElementsOfCurrentKeyIfNeeded(null);
-            super.processWatermark(mark);
+            advanceWatermark(mark);
+            output.emitWatermark(mark);
         } else if (isBundleFinished()) {
-            // forward the watermark immediately if the bundle is already finished.
-            super.processWatermark(mark);
+            advanceWatermark(mark);
+            output.emitWatermark(mark);
         } else {
             // It is not safe to advance the output watermark yet, so add a hold on the current
             // output watermark.
             bundleFinishedCallback =
                     () -> {
                         try {
+                            // avoid invoking bundleFinishedCallback repeatedly in advanceWatermark
+                            // which will invoke finishBundle(which will finally invoke
+                            // bundleFinishedCallback)
+                            bundleFinishedCallback = null;
+
+                            advanceWatermark(mark);
                             // at this point the bundle is finished, allow the watermark to pass
-                            super.processWatermark(mark);
+                            output.emitWatermark(mark);
                         } catch (Exception e) {
                             throw new RuntimeException(
                                     "Failed to process watermark after finished bundle.", e);
@@ -250,7 +224,8 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
     private void processElementsOfCurrentKeyIfNeeded(Object newKey) {
         // process all the elements belonging to the current key when encountering a new key
         // for batch operator
-        if (inBatchExecutionMode(getKeyedStateBackend())
+        if (getKeyedStateStore() != null
+                && inBatchExecutionMode(getKeyedStateBackend())
                 && !Objects.equals(newKey, getCurrentKey())) {
             while (!isBundleFinished()) {
                 try {
@@ -286,32 +261,28 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
         return elementCount == 0;
     }
 
-    /** Reset the {@link Configuration} if needed. */
-    public void setConfiguration(Configuration config) {
-        this.config = config;
-    }
-
     /** Returns the {@link Configuration}. */
     public Configuration getConfiguration() {
         return config;
     }
 
+    protected abstract void invokeFinishBundle() throws Exception;
+
+    protected abstract PythonEnvironmentManager createPythonEnvironmentManager();
+
     /**
-     * Creates the {@link PythonFunctionRunner} which is responsible for Python user-defined
-     * function execution.
+     * Advances the watermark of all managed timer services, potentially firing event time timers.
+     * It also ensures that the fired timers are processed in the Python user-defined functions.
      */
-    public abstract PythonFunctionRunner createPythonFunctionRunner() throws Exception;
+    private void advanceWatermark(Watermark watermark) throws Exception {
+        if (getTimeServiceManager().isPresent()) {
+            InternalTimeServiceManager<?> timeServiceManager = getTimeServiceManager().get();
+            timeServiceManager.advanceWatermark(watermark);
 
-    /** Returns the {@link PythonEnv} used to create PythonEnvironmentManager.. */
-    public abstract PythonEnv getPythonEnv();
-
-    /** Sends the execution result to the downstream operator. */
-    public abstract void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception;
-
-    protected void emitResults() throws Exception {
-        Tuple2<byte[], Integer> resultTuple;
-        while ((resultTuple = pythonFunctionRunner.pollResult()) != null && resultTuple.f1 != 0) {
-            emitResult(resultTuple);
+            while (!isBundleFinished()) {
+                invokeFinishBundle();
+                timeServiceManager.advanceWatermark(watermark);
+            }
         }
     }
 
@@ -330,68 +301,8 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
         }
     }
 
-    protected void invokeFinishBundle() throws Exception {
-        if (elementCount > 0) {
-            AtomicBoolean flushThreadFinish = new AtomicBoolean(false);
-            AtomicReference<Throwable> exceptionReference = new AtomicReference<>();
-            flushThreadPool.submit(
-                    () -> {
-                        try {
-                            pythonFunctionRunner.flush();
-                        } catch (Throwable e) {
-                            exceptionReference.set(e);
-                        } finally {
-                            flushThreadFinish.set(true);
-                            // interrupt the progress of takeResult to avoid the main thread is
-                            // blocked forever.
-                            ((BeamPythonFunctionRunner) pythonFunctionRunner).notifyNoMoreResults();
-                        }
-                    });
-            Tuple2<byte[], Integer> resultTuple;
-            while (!flushThreadFinish.get()) {
-                resultTuple = pythonFunctionRunner.takeResult();
-                if (resultTuple.f1 != 0) {
-                    emitResult(resultTuple);
-                    emitResults();
-                }
-            }
-            emitResults();
-            Throwable flushThreadThrowable = exceptionReference.get();
-            if (flushThreadThrowable != null) {
-                throw new RuntimeException(
-                        "Error while waiting for BeamPythonFunctionRunner flush",
-                        flushThreadThrowable);
-            }
-            elementCount = 0;
-            lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
-            // callback only after current bundle was fully finalized
-            if (bundleFinishedCallback != null) {
-                bundleFinishedCallback.run();
-                bundleFinishedCallback = null;
-            }
-        }
-    }
-
-    protected PythonEnvironmentManager createPythonEnvironmentManager() {
-        PythonDependencyInfo dependencyInfo =
-                PythonDependencyInfo.create(
-                        pythonConfig, getRuntimeContext().getDistributedCache());
-        PythonEnv pythonEnv = getPythonEnv();
-        if (pythonEnv.getExecType() == PythonEnv.ExecType.PROCESS) {
-            return new ProcessPythonEnvironmentManager(
-                    dependencyInfo,
-                    getContainingTask().getEnvironment().getTaskManagerInfo().getTmpDirectories(),
-                    new HashMap<>(System.getenv()),
-                    getRuntimeContext().getJobId());
-        } else {
-            throw new UnsupportedOperationException(
-                    String.format(
-                            "Execution type '%s' is not supported.", pythonEnv.getExecType()));
-        }
-    }
-
     protected FlinkMetricContainer getFlinkMetricContainer() {
-        return this.pythonConfig.isMetricEnabled()
+        return this.config.get(PYTHON_METRIC_ENABLED)
                 ? new FlinkMetricContainer(getRuntimeContext().getMetricGroup())
                 : null;
     }

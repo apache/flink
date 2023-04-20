@@ -25,6 +25,7 @@ import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaException;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionAssigner;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.PropertiesUtil;
 
@@ -32,6 +33,8 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
 import static org.apache.flink.streaming.connectors.kafka.shuffle.FlinkKafkaShuffle.PARTITION_NUMBER;
@@ -45,6 +48,8 @@ public class FlinkKafkaShuffleProducer<IN, KEY> extends FlinkKafkaProducer<IN> {
     private final KafkaSerializer<IN> kafkaSerializer;
     private final KeySelector<IN, KEY> keySelector;
     private final int numberOfPartitions;
+
+    private final Map<Integer, Integer> subtaskToPartitionMap;
 
     FlinkKafkaShuffleProducer(
             String defaultTopicId,
@@ -67,6 +72,7 @@ public class FlinkKafkaShuffleProducer<IN, KEY> extends FlinkKafkaProducer<IN> {
                 props.getProperty(PARTITION_NUMBER) != null,
                 "Missing partition number for Kafka Shuffle");
         numberOfPartitions = PropertiesUtil.getInt(props, PARTITION_NUMBER, Integer.MIN_VALUE);
+        subtaskToPartitionMap = new HashMap<>();
     }
 
     /**
@@ -89,9 +95,10 @@ public class FlinkKafkaShuffleProducer<IN, KEY> extends FlinkKafkaProducer<IN> {
         int[] partitions = getPartitions(transaction);
         int partitionIndex;
         try {
-            partitionIndex =
+            int subtaskIndex =
                     KeyGroupRangeAssignment.assignKeyToParallelOperator(
                             keySelector.getKey(next), partitions.length, partitions.length);
+            partitionIndex = subtaskToPartitionMap.get(subtaskIndex);
         } catch (Exception e) {
             throw new RuntimeException("Fail to assign a partition number to record", e);
         }
@@ -142,6 +149,12 @@ public class FlinkKafkaShuffleProducer<IN, KEY> extends FlinkKafkaProducer<IN> {
         if (partitions == null) {
             partitions = getPartitionsByTopic(defaultTopicId, transaction.getProducer());
             topicPartitionsMap.put(defaultTopicId, partitions);
+            for (int i = 0; i < partitions.length; i++) {
+                subtaskToPartitionMap.put(
+                        KafkaTopicPartitionAssigner.assign(
+                                defaultTopicId, partitions[i], partitions.length),
+                        partitions[i]);
+            }
         }
 
         Preconditions.checkArgument(partitions.length == numberOfPartitions);

@@ -31,6 +31,7 @@
         <th></th>
         <th><strong>End to End Duration</strong></th>
         <th><strong>Checkpointed Data Size</strong></th>
+        <th><strong>Full Checkpoint Data Size</strong></th>
         <th><strong>Sync Duration</strong></th>
         <th><strong>Async Duration</strong></th>
         <th><strong>Processed (persisted) Data</strong></th>
@@ -44,6 +45,9 @@
           <td><strong>Minimum</strong></td>
           <td>
             {{ subTaskCheckPoint['summary']['end_to_end_duration']['min'] | humanizeDuration }}
+          </td>
+          <td>
+            {{ subTaskCheckPoint['summary']['checkpointed_size']['min'] | humanizeBytes }}
           </td>
           <td>{{ subTaskCheckPoint['summary']['state_size']['min'] | humanizeBytes }}</td>
           <td>
@@ -71,6 +75,9 @@
           <td>
             {{ subTaskCheckPoint['summary']['end_to_end_duration']['avg'] | humanizeDuration }}
           </td>
+          <td>
+            {{ subTaskCheckPoint['summary']['checkpointed_size']['avg'] | humanizeBytes }}
+          </td>
           <td>{{ subTaskCheckPoint['summary']['state_size']['avg'] | humanizeBytes }}</td>
           <td>
             {{
@@ -96,6 +103,9 @@
           <td><strong>Maximum</strong></td>
           <td>
             {{ subTaskCheckPoint['summary']['end_to_end_duration']['max'] | humanizeDuration }}
+          </td>
+          <td>
+            {{ subTaskCheckPoint['summary']['checkpointed_size']['max'] | humanizeBytes }}
           </td>
           <td>{{ subTaskCheckPoint['summary']['state_size']['max'] | humanizeBytes }}</td>
           <td>
@@ -136,13 +146,21 @@
         <th><strong>ID</strong></th>
         <th [nzSortFn]="sortAckTimestampFn"><strong>Acknowledged</strong></th>
         <th [nzSortFn]="sortEndToEndDurationFn"><strong>End to End Duration</strong></th>
-        <th [nzSortFn]="sortStateSizeFn"><strong>Checkpointed Data Size</strong></th>
+        <th [nzSortFn]="sortCheckpointedSizeFn">
+          <strong>Checkpointed Data Size</strong>
+        </th>
+        <th [nzSortFn]="sortStateSizeFn"><strong>Full Checkpoint Data Size</strong></th>
         <th [nzSortFn]="sortCpSyncFn"><strong>Sync Duration</strong></th>
         <th [nzSortFn]="sortCpAsyncFn"><strong>Async Duration</strong></th>
         <th [nzSortFn]="sortAlignmentProcessedFn"><strong>Processed (persisted) Data</strong></th>
         <th [nzSortFn]="sortAlignmentDurationFn"><strong>Alignment Duration</strong></th>
         <th [nzSortFn]="sortStartDelayFn"><strong>Start Delay</strong></th>
         <th [nzSortFn]="sortUnalignedCpFn"><strong>Unaligned Checkpoint</strong></th>
+        <ng-container
+          *ngIf="table.data && table.data[0] && table.data[0]['status'] === 'pending_or_failed'"
+        >
+          <th><strong>TaskManager</strong></th>
+        </ng-container>
       </tr>
     </thead>
     <tbody>
@@ -154,6 +172,7 @@
             {{ subTask['end_to_end_duration'] | humanizeDuration }}
             <span *ngIf="subTask['aborted']">(aborted)</span>
           </td>
+          <td>{{ subTask['checkpointed_size'] | humanizeBytes }}</td>
           <td>{{ subTask['state_size'] | humanizeBytes }}</td>
           <td>{{ subTask['checkpoint']['sync'] | humanizeDuration }}</td>
           <td>{{ subTask['checkpoint']['async'] | humanizeDuration }}</td>
@@ -167,7 +186,19 @@
           <td>{{ subTask['unaligned_checkpoint'] }}</td>
         </ng-container>
         <ng-container *ngIf="subTask['status'] === 'pending_or_failed'">
-          <td colspan="7">n/a</td>
+          <td colspan="10">n/a</td>
+          <td>
+            <a
+              *ngIf="mapOfSubtask.get(subTask['index'])"
+              [routerLink]="[
+                '/task-manager',
+                mapOfSubtask.get(subTask['index'])['taskmanager-id'],
+                'logs'
+              ]"
+            >
+              View Logs
+            </a>
+          </td>
         </ng-container>
       </tr>
     </tbody>

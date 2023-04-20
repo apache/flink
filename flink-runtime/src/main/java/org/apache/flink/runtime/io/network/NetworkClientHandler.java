@@ -38,4 +38,13 @@ public interface NetworkClientHandler extends ChannelHandler {
     RemoteInputChannel getInputChannel(InputChannelID inputChannelId);
 
     void cancelRequestFor(InputChannelID inputChannelId);
+
+    void setConnectionId(ConnectionID connectionId);
+
+    /**
+     * Return whether there is channel error.
+     *
+     * @return true if there is channel error
+     */
+    boolean hasChannelError();
 }

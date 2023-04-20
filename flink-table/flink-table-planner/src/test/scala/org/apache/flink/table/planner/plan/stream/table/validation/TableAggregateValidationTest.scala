@@ -15,15 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.stream.table.validation
-
-import java.sql.Timestamp
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.{EmptyTableAggFunc, TableTestBase}
+
 import org.junit.Test
+
+import java.sql.Timestamp
 
 class TableAggregateValidationTest extends TableTestBase {
 
@@ -47,8 +47,7 @@ class TableAggregateValidationTest extends TableTestBase {
   @Test
   def testInvalidParameterType(): Unit = {
     expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage(
-      "Invalid function call:\nEmptyTableAggFunc(BIGINT, STRING)")
+    expectedException.expectMessage("Invalid function call:\nEmptyTableAggFunc(BIGINT, STRING)")
 
     val util = streamTestUtil()
     val table = util.addTableSource[(Long, Int, String)]('a, 'b, 'c)
@@ -72,15 +71,16 @@ class TableAggregateValidationTest extends TableTestBase {
     val func = new EmptyTableAggFunc
     table
       .groupBy('b)
-      .flatAggregate(call(func, 'a, 'b) as ('x, 'y))
+      .flatAggregate(call(func, 'a, 'b).as('x, 'y))
       .select('x.start, 'y)
   }
 
   @Test
   def testInvalidWithAggregation(): Unit = {
     expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("Aggregate functions are not supported in the " +
-      "select right after the aggregate or flatAggregate operation.")
+    expectedException.expectMessage(
+      "Aggregate functions are not supported in the " +
+        "select right after the aggregate or flatAggregate operation.")
 
     val util = streamTestUtil()
     val table = util.addTableSource[(Long, Int, Timestamp)]('a, 'b, 'c)
@@ -88,7 +88,7 @@ class TableAggregateValidationTest extends TableTestBase {
     val func = new EmptyTableAggFunc
     table
       .groupBy('b)
-      .flatAggregate(call(func, 'a, 'b) as ('x, 'y))
+      .flatAggregate(call(func, 'a, 'b).as('x, 'y))
       .select('x.count)
   }
 
@@ -112,9 +112,10 @@ class TableAggregateValidationTest extends TableTestBase {
   @Test
   def testInvalidAliasWithWrongNumber(): Unit = {
     expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("List of column aliases must have same degree as " +
-      "table; the returned table of function 'EmptyTableAggFunc' has 2 columns, " +
-      "whereas alias list has 3 columns")
+    expectedException.expectMessage(
+      "List of column aliases must have same degree as " +
+        "table; the returned table of function 'EmptyTableAggFunc' has 2 columns, " +
+        "whereas alias list has 3 columns")
 
     val util = streamTestUtil()
     val table = util.addTableSource[(Long, Int, Timestamp)]('a, 'b, 'c)
@@ -123,7 +124,7 @@ class TableAggregateValidationTest extends TableTestBase {
     table
       .groupBy('b)
       // must fail. alias with wrong number of fields
-      .flatAggregate(call(func, 'a, 'b) as ('a, 'b, 'c))
+      .flatAggregate(call(func, 'a, 'b).as('a, 'b, 'c))
       .select('*)
   }
 
@@ -139,7 +140,7 @@ class TableAggregateValidationTest extends TableTestBase {
     table
       .groupBy('b)
       // must fail. alias with name conflict
-      .flatAggregate(call(func, 'a, 'b) as ('a, 'b))
+      .flatAggregate(call(func, 'a, 'b).as('a, 'b))
       .select('*)
   }
 }

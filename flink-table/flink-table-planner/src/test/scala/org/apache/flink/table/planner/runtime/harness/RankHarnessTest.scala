@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.harness
 
 import org.apache.flink.api.scala._
@@ -32,9 +31,9 @@ import org.apache.flink.table.runtime.util.StreamRecordUtils.binaryRecord
 import org.apache.flink.types.Row
 import org.apache.flink.types.RowKind._
 
+import org.junit.{Before, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Before, Test}
 
 import java.lang.{Long => JLong}
 import java.time.Duration
@@ -49,8 +48,7 @@ class RankHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode) {
   override def before(): Unit = {
     super.before()
     val setting = EnvironmentSettings.newInstance().inStreamingMode().build()
-    val config = new TestTableConfig
-    this.tEnv = StreamTableEnvironmentImpl.create(env, setting, config)
+    this.tEnv = StreamTableEnvironmentImpl.create(env, setting)
   }
 
   @Test
@@ -59,7 +57,8 @@ class RankHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode) {
     val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T", t)
     tEnv.createTemporarySystemFunction(
-      "STRING_SPLIT", new JavaUserDefinedTableFunctions.StringSplit)
+      "STRING_SPLIT",
+      new JavaUserDefinedTableFunctions.StringSplit)
     tEnv.getConfig.setIdleStateRetention(Duration.ofSeconds(1))
 
     val sql =
@@ -91,7 +90,8 @@ class RankHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode) {
         DataTypes.STRING().getLogicalType,
         DataTypes.BIGINT().getLogicalType,
         DataTypes.STRING().getLogicalType,
-        DataTypes.BIGINT().getLogicalType))
+        DataTypes.BIGINT().getLogicalType
+      ))
 
     testHarness.open()
 
@@ -153,7 +153,8 @@ class RankHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode) {
     val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T", t)
     tEnv.createTemporarySystemFunction(
-      "STRING_SPLIT", new JavaUserDefinedTableFunctions.StringSplit)
+      "STRING_SPLIT",
+      new JavaUserDefinedTableFunctions.StringSplit)
     tEnv.getConfig.setIdleStateRetention(Duration.ofSeconds(1))
 
     val sql =
@@ -224,12 +225,11 @@ class RankHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode) {
     testHarness.close()
   }
 
-  def prepareUpdateRankWithRowNumberTester():
-    (KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData], RowDataHarnessAssertor) = {
+  def prepareUpdateRankWithRowNumberTester()
+      : (KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData], RowDataHarnessAssertor) = {
     val data = new mutable.MutableList[(String, Int, Int)]
     val t = env.fromCollection(data).toTable(tEnv, 'word, 'cnt, 'type)
     tEnv.createTemporaryView("T", t)
-    tEnv.getConfig.setIdleStateRetention(Duration.ofSeconds(1))
 
     val sql =
       """
@@ -246,9 +246,8 @@ class RankHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode) {
 
     val t1 = tEnv.sqlQuery(sql)
 
-    val testHarness = createHarnessTester(
-      t1.toRetractStream[Row],
-      "Rank(strategy=[UpdateFastStrategy")
+    val testHarness =
+      createHarnessTester(t1.toRetractStream[Row], "Rank(strategy=[UpdateFastStrategy")
     val assertor = new RowDataHarnessAssertor(
       Array(
         DataTypes.STRING().getLogicalType,

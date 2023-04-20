@@ -22,9 +22,11 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
+import org.apache.flink.streaming.runtime.watermarkstatus.HeapPriorityQueue.HeapPriorityQueueElement;
 import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A {@code StatusWatermarkValve} embodies the logic of how {@link Watermark} and {@link
@@ -53,6 +55,9 @@ public class StatusWatermarkValve {
     /** The last watermark status emitted from the valve. */
     private WatermarkStatus lastOutputWatermarkStatus;
 
+    /** A heap-based priority queue to help find the minimum watermark. */
+    private final HeapPriorityQueue<InputChannelStatus> alignedChannelStatuses;
+
     /**
      * Returns a new {@code StatusWatermarkValve}.
      *
@@ -61,11 +66,15 @@ public class StatusWatermarkValve {
     public StatusWatermarkValve(int numInputChannels) {
         checkArgument(numInputChannels > 0);
         this.channelStatuses = new InputChannelStatus[numInputChannels];
+        this.alignedChannelStatuses =
+                new HeapPriorityQueue<>(
+                        (left, right) -> Long.compare(left.watermark, right.watermark),
+                        numInputChannels);
         for (int i = 0; i < numInputChannels; i++) {
             channelStatuses[i] = new InputChannelStatus();
             channelStatuses[i].watermark = Long.MIN_VALUE;
             channelStatuses[i].watermarkStatus = WatermarkStatus.ACTIVE;
-            channelStatuses[i].isWatermarkAligned = true;
+            markWatermarkAligned(channelStatuses[i]);
         }
 
         this.lastOutputWatermark = Long.MIN_VALUE;
@@ -94,11 +103,12 @@ public class StatusWatermarkValve {
             if (watermarkMillis > channelStatuses[channelIndex].watermark) {
                 channelStatuses[channelIndex].watermark = watermarkMillis;
 
-                // previously unaligned input channels are now aligned if its watermark has caught
-                // up
-                if (!channelStatuses[channelIndex].isWatermarkAligned
-                        && watermarkMillis >= lastOutputWatermark) {
-                    channelStatuses[channelIndex].isWatermarkAligned = true;
+                if (channelStatuses[channelIndex].isWatermarkAligned) {
+                    adjustAlignedChannelStatuses(channelStatuses[channelIndex]);
+                } else if (watermarkMillis >= lastOutputWatermark) {
+                    // previously unaligned input channels are now aligned if its watermark has
+                    // caught up
+                    markWatermarkAligned(channelStatuses[channelIndex]);
                 }
 
                 // now, attempt to find a new min watermark across all aligned channels
@@ -128,7 +138,7 @@ public class StatusWatermarkValve {
             channelStatuses[channelIndex].watermarkStatus = WatermarkStatus.IDLE;
 
             // the channel is now idle, therefore not aligned
-            channelStatuses[channelIndex].isWatermarkAligned = false;
+            markWatermarkUnaligned(channelStatuses[channelIndex]);
 
             // if all input channels of the valve are now idle, we need to output an idle stream
             // status from the valve (this also marks the valve as idle)
@@ -166,7 +176,7 @@ public class StatusWatermarkValve {
             // the overall last output watermark of the valve, then we can set the channel to be
             // aligned already.
             if (channelStatuses[channelIndex].watermark >= lastOutputWatermark) {
-                channelStatuses[channelIndex].isWatermarkAligned = true;
+                markWatermarkAligned(channelStatuses[channelIndex]);
             }
 
             // if the valve was previously marked to be idle, mark it as active and output an active
@@ -181,24 +191,51 @@ public class StatusWatermarkValve {
 
     private void findAndOutputNewMinWatermarkAcrossAlignedChannels(DataOutput<?> output)
             throws Exception {
-        long newMinWatermark = Long.MAX_VALUE;
-        boolean hasAlignedChannels = false;
-
-        // determine new overall watermark by considering only watermark-aligned channels across all
-        // channels
-        for (InputChannelStatus channelStatus : channelStatuses) {
-            if (channelStatus.isWatermarkAligned) {
-                hasAlignedChannels = true;
-                newMinWatermark = Math.min(channelStatus.watermark, newMinWatermark);
-            }
-        }
+        boolean hasAlignedChannels = !alignedChannelStatuses.isEmpty();
 
         // we acknowledge and output the new overall watermark if it really is aggregated
         // from some remaining aligned channel, and is also larger than the last output watermark
-        if (hasAlignedChannels && newMinWatermark > lastOutputWatermark) {
-            lastOutputWatermark = newMinWatermark;
+        if (hasAlignedChannels && alignedChannelStatuses.peek().watermark > lastOutputWatermark) {
+            lastOutputWatermark = alignedChannelStatuses.peek().watermark;
             output.emitWatermark(new Watermark(lastOutputWatermark));
         }
+    }
+
+    /**
+     * Mark the {@link InputChannelStatus} as watermark-aligned and add it to the {@link
+     * #alignedChannelStatuses}.
+     *
+     * @param inputChannelStatus the input channel status to be marked
+     */
+    private void markWatermarkAligned(InputChannelStatus inputChannelStatus) {
+        if (!inputChannelStatus.isWatermarkAligned) {
+            inputChannelStatus.isWatermarkAligned = true;
+            inputChannelStatus.addTo(alignedChannelStatuses);
+        }
+    }
+
+    /**
+     * Mark the {@link InputChannelStatus} as watermark-unaligned and remove it from the {@link
+     * #alignedChannelStatuses}.
+     *
+     * @param inputChannelStatus the input channel status to be marked
+     */
+    private void markWatermarkUnaligned(InputChannelStatus inputChannelStatus) {
+        if (inputChannelStatus.isWatermarkAligned) {
+            inputChannelStatus.isWatermarkAligned = false;
+            inputChannelStatus.removeFrom(alignedChannelStatuses);
+        }
+    }
+
+    /**
+     * Adjust the {@link #alignedChannelStatuses} when an element({@link InputChannelStatus}) in it
+     * was modified. The {@link #alignedChannelStatuses} is a priority queue, when an element in it
+     * was modified, we need to adjust the element's position to ensure its priority order.
+     *
+     * @param inputChannelStatus the modified input channel status
+     */
+    private void adjustAlignedChannelStatuses(InputChannelStatus inputChannelStatus) {
+        alignedChannelStatuses.adjustModifiedElement(inputChannelStatus);
     }
 
     private void findAndOutputMaxWatermarkAcrossAllChannels(DataOutput<?> output) throws Exception {
@@ -226,12 +263,21 @@ public class StatusWatermarkValve {
      *   <li>the watermark status has resumed to be active, but the watermark of the channel hasn't
      *       caught up to the last output watermark from the valve yet.
      * </ul>
+     *
+     * <p>NOTE: This class implements {@link HeapPriorityQueueElement} to be managed by {@link
+     * #alignedChannelStatuses} to help find minimum watermark.
      */
     @VisibleForTesting
-    protected static class InputChannelStatus {
+    protected static class InputChannelStatus implements HeapPriorityQueueElement {
         protected long watermark;
         protected WatermarkStatus watermarkStatus;
         protected boolean isWatermarkAligned;
+
+        /**
+         * This field holds the current physical index of this channel status when it is managed by
+         * a {@link HeapPriorityQueue}.
+         */
+        private int heapIndex = HeapPriorityQueueElement.NOT_CONTAINED;
 
         /**
          * Utility to check if at least one channel in a given array of input channels is active.
@@ -243,6 +289,27 @@ public class StatusWatermarkValve {
                 }
             }
             return false;
+        }
+
+        @Override
+        public int getInternalIndex() {
+            return heapIndex;
+        }
+
+        @Override
+        public void setInternalIndex(int newIndex) {
+            this.heapIndex = newIndex;
+        }
+
+        private void removeFrom(HeapPriorityQueue<InputChannelStatus> queue) {
+            checkState(heapIndex != HeapPriorityQueueElement.NOT_CONTAINED);
+            queue.remove(this);
+            setInternalIndex(HeapPriorityQueueElement.NOT_CONTAINED);
+        }
+
+        private void addTo(HeapPriorityQueue<InputChannelStatus> queue) {
+            checkState(heapIndex == HeapPriorityQueueElement.NOT_CONTAINED);
+            queue.add(this);
         }
     }
 

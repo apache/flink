@@ -22,7 +22,6 @@ import org.apache.flink.api.common.typeutils.{ComparatorTestBase, TypeComparator
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.EnumValueTypeInfo
 
-
 class EnumValueComparatorTest extends ComparatorTestBase[Suit.Value] {
 
   protected def createComparator(ascending: Boolean): TypeComparator[Suit.Value] = {

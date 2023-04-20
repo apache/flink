@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
-import org.apache.flink.table.api.TableConfig
+import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalJoin
@@ -25,18 +25,16 @@ import org.apache.flink.table.runtime.generated.GeneratedJoinCondition
 import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelTraitSet}
+import org.apache.calcite.rel.{RelCollations, RelNode}
 import org.apache.calcite.rel.RelDistribution.Type.{HASH_DISTRIBUTED, RANGE_DISTRIBUTED}
 import org.apache.calcite.rel.core.{Join, JoinRelType}
-import org.apache.calcite.rel.{RelCollations, RelNode}
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.util.ImmutableIntList
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 
-/**
-  * Batch physical RelNode for [[Join]]
-  */
+/** Batch physical RelNode for [[Join]] */
 abstract class BatchPhysicalJoinBase(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -48,13 +46,14 @@ abstract class BatchPhysicalJoinBase(
   with BatchPhysicalRel {
 
   private[flink] def generateCondition(
-      config: TableConfig,
+      tableConfig: ReadableConfig,
+      classLoader: ClassLoader,
       leftType: RowType,
       rightType: RowType): GeneratedJoinCondition = {
-    val ctx = CodeGeneratorContext(config)
+    val ctx = new CodeGeneratorContext(tableConfig, classLoader)
     val exprGenerator = new ExprCodeGenerator(ctx, false)
-        .bindInput(leftType)
-        .bindSecondInput(rightType)
+      .bindInput(leftType)
+      .bindSecondInput(rightType)
 
     val body = if (joinInfo.isEqui) {
       // only equality condition
@@ -68,24 +67,21 @@ abstract class BatchPhysicalJoinBase(
          |""".stripMargin
     }
 
-    FunctionCodeGenerator.generateJoinCondition(
-      ctx,
-      "JoinConditionFunction",
-      body)
+    FunctionCodeGenerator.generateJoinCondition(ctx, "JoinConditionFunction", body)
   }
 
   /**
-    * Try to satisfy hash distribution on Non-BroadcastJoin (including SortMergeJoin and
-    * Non-Broadcast HashJoin).
-    *
-    * @param requiredDistribution distribution requirement
-    * @return a Tuple including 3 element.
-    *         The first element is a flag which indicates whether the requirement can be satisfied.
-    *         The second element is the distribution requirement of left child if the requirement
-    *         can be push down into join.
-    *         The third element is the distribution requirement of right child if the requirement
-    *         can be push down into join.
-    */
+   * Try to satisfy hash distribution on Non-BroadcastJoin (including SortMergeJoin and
+   * Non-Broadcast HashJoin).
+   *
+   * @param requiredDistribution
+   *   distribution requirement
+   * @return
+   *   a Tuple including 3 element. The first element is a flag which indicates whether the
+   *   requirement can be satisfied. The second element is the distribution requirement of left
+   *   child if the requirement can be push down into join. The third element is the distribution
+   *   requirement of right child if the requirement can be push down into join.
+   */
   def satisfyHashDistributionOnNonBroadcastJoin(
       requiredDistribution: FlinkRelDistribution
   ): (Boolean, FlinkRelDistribution, FlinkRelDistribution) = {
@@ -107,36 +103,39 @@ abstract class BatchPhysicalJoinBase(
     val requiredShuffleKeys = requiredDistribution.getKeys
     val requiredLeftShuffleKeys = mutable.ArrayBuffer[Int]()
     val requiredRightShuffleKeys = mutable.ArrayBuffer[Int]()
-    requiredShuffleKeys.foreach { key =>
-      if (key < leftFieldCnt && joinType != JoinRelType.RIGHT) {
-        leftKeysToRightKeys.get(key) match {
-          case Some(rk) =>
-            requiredLeftShuffleKeys += key
-            requiredRightShuffleKeys += rk
-          case None if requiredDistribution.requireStrict =>
-            // Cannot satisfy required hash distribution due to required distribution is restrict
-            // however the key is not found in right
-            return (false, null, null)
-          case _ => // do nothing
+    requiredShuffleKeys.foreach {
+      key =>
+        if (key < leftFieldCnt && joinType != JoinRelType.RIGHT) {
+          leftKeysToRightKeys.get(key) match {
+            case Some(rk) =>
+              requiredLeftShuffleKeys += key
+              requiredRightShuffleKeys += rk
+            case None if requiredDistribution.requireStrict =>
+              // Cannot satisfy required hash distribution due to required distribution is restrict
+              // however the key is not found in right
+              return (false, null, null)
+            case _ => // do nothing
+          }
+        } else if (
+          key >= leftFieldCnt &&
+          (joinType == JoinRelType.RIGHT || joinType == JoinRelType.INNER)
+        ) {
+          val keysOnRightChild = key - leftFieldCnt
+          rightKeysToLeftKeys.get(keysOnRightChild) match {
+            case Some(lk) =>
+              requiredLeftShuffleKeys += lk
+              requiredRightShuffleKeys += keysOnRightChild
+            case None if requiredDistribution.requireStrict =>
+              // Cannot satisfy required hash distribution due to required distribution is restrict
+              // however the key is not found in left
+              return (false, null, null)
+            case _ => // do nothing
+          }
+        } else {
+          // cannot satisfy required hash distribution if requirement shuffle keys are not come from
+          // left side when Join is LOJ or are not come from right side when Join is ROJ.
+          return (false, null, null)
         }
-      } else if (key >= leftFieldCnt &&
-        (joinType == JoinRelType.RIGHT || joinType == JoinRelType.INNER)) {
-        val keysOnRightChild = key - leftFieldCnt
-        rightKeysToLeftKeys.get(keysOnRightChild) match {
-          case Some(lk) =>
-            requiredLeftShuffleKeys += lk
-            requiredRightShuffleKeys += keysOnRightChild
-          case None if requiredDistribution.requireStrict =>
-            // Cannot satisfy required hash distribution due to required distribution is restrict
-            // however the key is not found in left
-            return (false, null, null)
-          case _ => // do nothing
-        }
-      } else {
-        // cannot satisfy required hash distribution if requirement shuffle keys are not come from
-        // left side when Join is LOJ or are not come from right side when Join is ROJ.
-        return (false, null, null)
-      }
     }
     if (requiredLeftShuffleKeys.isEmpty) {
       // the join can not satisfy the required hash distribution
@@ -144,25 +143,31 @@ abstract class BatchPhysicalJoinBase(
       return (false, null, null)
     }
 
-    val (leftShuffleKeys, rightShuffleKeys) = if (joinType == JoinRelType.INNER &&
-        !requiredDistribution.requireStrict) {
-      (requiredLeftShuffleKeys.distinct, requiredRightShuffleKeys.distinct)
-    } else {
-      (requiredLeftShuffleKeys, requiredRightShuffleKeys)
-    }
-    (true,
+    val (leftShuffleKeys, rightShuffleKeys) =
+      if (
+        joinType == JoinRelType.INNER &&
+        !requiredDistribution.requireStrict
+      ) {
+        (requiredLeftShuffleKeys.distinct, requiredRightShuffleKeys.distinct)
+      } else {
+        (requiredLeftShuffleKeys, requiredRightShuffleKeys)
+      }
+    (
+      true,
       FlinkRelDistribution.hash(ImmutableIntList.of(leftShuffleKeys: _*), requireStrict = true),
       FlinkRelDistribution.hash(ImmutableIntList.of(rightShuffleKeys: _*), requireStrict = true))
   }
 
   /**
-    * Try to satisfy the given required traits on BroadcastJoin (including Broadcast-HashJoin and
-    * NestedLoopJoin).
-    *
-    * @param requiredTraitSet requirement traitSets
-    * @return Equivalent Join which satisfies required traitSet, return null if
-    *         requirement cannot be satisfied.
-    */
+   * Try to satisfy the given required traits on BroadcastJoin (including Broadcast-HashJoin and
+   * NestedLoopJoin).
+   *
+   * @param requiredTraitSet
+   *   requirement traitSets
+   * @return
+   *   Equivalent Join which satisfies required traitSet, return null if requirement cannot be
+   *   satisfied.
+   */
   protected def satisfyTraitsOnBroadcastJoin(
       requiredTraitSet: RelTraitSet,
       leftIsBroadcast: Boolean): Option[RelNode] = {
@@ -191,7 +196,7 @@ abstract class BatchPhysicalJoinBase(
     }
 
     val keysInProbeSide = if (leftIsBroadcast) {
-      ImmutableIntList.of(keys.map(_ - leftFieldCnt): _ *)
+      ImmutableIntList.of(keys.map(_ - leftFieldCnt): _*)
     } else {
       keys
     }

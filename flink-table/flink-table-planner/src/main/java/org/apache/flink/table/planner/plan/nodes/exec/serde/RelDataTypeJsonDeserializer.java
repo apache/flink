@@ -38,10 +38,10 @@ import java.io.IOException;
  * @see RelDataTypeJsonSerializer for the reverse operation
  */
 @Internal
-public class RelDataTypeJsonDeserializer extends StdDeserializer<RelDataType> {
+final class RelDataTypeJsonDeserializer extends StdDeserializer<RelDataType> {
     private static final long serialVersionUID = 1L;
 
-    public RelDataTypeJsonDeserializer() {
+    RelDataTypeJsonDeserializer() {
         super(RelDataType.class);
     }
 
@@ -50,6 +50,10 @@ public class RelDataTypeJsonDeserializer extends StdDeserializer<RelDataType> {
             throws IOException {
         final JsonNode logicalTypeNode = jsonParser.readValueAsTree();
         final SerdeContext serdeContext = SerdeContext.get(ctx);
+        return deserialize(logicalTypeNode, serdeContext);
+    }
+
+    static RelDataType deserialize(JsonNode logicalTypeNode, SerdeContext serdeContext) {
         final FlinkTypeFactory typeFactory = serdeContext.getTypeFactory();
         final LogicalType logicalType =
                 LogicalTypeJsonDeserializer.deserialize(logicalTypeNode, serdeContext);

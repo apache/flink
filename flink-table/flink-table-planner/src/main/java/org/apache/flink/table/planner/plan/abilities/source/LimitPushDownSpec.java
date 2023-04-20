@@ -26,12 +26,14 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCre
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
 
+import java.util.Objects;
+
 /**
  * A sub-class of {@link SourceAbilitySpec} that can not only serialize/deserialize the limit value
  * to/from JSON, but also can push the limit value into a {@link LimitPushDownSpec}.
  */
 @JsonTypeName("LimitPushDown")
-public class LimitPushDownSpec extends SourceAbilitySpecBase {
+public final class LimitPushDownSpec extends SourceAbilitySpecBase {
     public static final String FIELD_NAME_LIMIT = "limit";
 
     @JsonProperty(FIELD_NAME_LIMIT)
@@ -57,5 +59,25 @@ public class LimitPushDownSpec extends SourceAbilitySpecBase {
     @Override
     public String getDigests(SourceAbilityContext context) {
         return "limit=[" + this.limit + "]";
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
+        LimitPushDownSpec that = (LimitPushDownSpec) o;
+        return limit == that.limit;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), limit);
     }
 }

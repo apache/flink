@@ -18,12 +18,26 @@
 
 package org.apache.flink.connector.base.table;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.connector.base.sink.AsyncSinkBase;
+import org.apache.flink.connector.base.table.sink.AsyncDynamicTableSink;
 import org.apache.flink.connector.base.table.sink.AsyncDynamicTableSinkBuilder;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.connector.format.EncodingFormat;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
+import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.factories.SerializationFormatFactory;
+import org.apache.flink.table.types.DataType;
 
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
@@ -33,11 +47,11 @@ import static org.apache.flink.connector.base.table.AsyncSinkConnectorOptions.FL
 import static org.apache.flink.connector.base.table.AsyncSinkConnectorOptions.MAX_BATCH_SIZE;
 import static org.apache.flink.connector.base.table.AsyncSinkConnectorOptions.MAX_BUFFERED_REQUESTS;
 import static org.apache.flink.connector.base.table.AsyncSinkConnectorOptions.MAX_IN_FLIGHT_REQUESTS;
+import static org.apache.flink.table.factories.FactoryUtil.FORMAT;
 
 /**
- * Abstract Implementation of {@link DynamicTableSinkFactory} having {@link
- * org.apache.flink.connector.base.sink.AsyncSinkBase} fields as optional table options defined in
- * {@link AsyncSinkConnectorOptions}.
+ * Abstract Implementation of {@link DynamicTableSinkFactory} having {@link AsyncSinkBase} fields as
+ * optional table options defined in {@link AsyncSinkConnectorOptions}.
  */
 @PublicEvolving
 public abstract class AsyncDynamicTableSinkFactory implements DynamicTableSinkFactory {
@@ -66,5 +80,62 @@ public abstract class AsyncDynamicTableSinkFactory implements DynamicTableSinkFa
         Optional.ofNullable((Integer) configuration.get(MAX_IN_FLIGHT_REQUESTS.key()))
                 .ifPresent(builder::setMaxInFlightRequests);
         return builder;
+    }
+
+    /**
+     * Class providing common table data required by {@link AsyncDynamicTableSinkFactory} to create
+     * {@link AsyncDynamicTableSink}.
+     */
+    @Internal
+    public class AsyncDynamicSinkContext {
+
+        private final ReadableConfig tableOptions;
+        private final DataType physicalDataType;
+        private final FactoryUtil.TableFactoryHelper helper;
+        private final EncodingFormat<SerializationSchema<RowData>> encodingFormat;
+        private final Map<String, String> resolvedOptions;
+        private final List<String> partitionKeys;
+        private final boolean isPartitioned;
+
+        public AsyncDynamicSinkContext(
+                AsyncDynamicTableSinkFactory factory, DynamicTableFactory.Context context) {
+            helper = FactoryUtil.createTableFactoryHelper(factory, context);
+            tableOptions = helper.getOptions();
+            ResolvedCatalogTable catalogTable = context.getCatalogTable();
+            resolvedOptions = catalogTable.getOptions();
+            physicalDataType = catalogTable.getResolvedSchema().toPhysicalRowDataType();
+            encodingFormat =
+                    helper.discoverEncodingFormat(SerializationFormatFactory.class, FORMAT);
+            partitionKeys = catalogTable.getPartitionKeys();
+            isPartitioned = catalogTable.isPartitioned();
+        }
+
+        public ReadableConfig getTableOptions() {
+            return tableOptions;
+        }
+
+        public DataType getPhysicalDataType() {
+            return physicalDataType;
+        }
+
+        public FactoryUtil.TableFactoryHelper getFactoryHelper() {
+            return helper;
+        }
+
+        public Map<String, String> getResolvedOptions() {
+            return resolvedOptions;
+        }
+
+        public EncodingFormat<SerializationSchema<RowData>> getEncodingFormat() {
+            return encodingFormat;
+        }
+
+        public List<String> getPartitionKeys() {
+            return partitionKeys;
+        }
+
+        public boolean isPartitioned() {
+            return isPartitioned;
+        }
     }
 }

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.logical
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
@@ -23,20 +22,21 @@ import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.{RelCollation, RelCollationTraitDef, RelNode}
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 import org.apache.calcite.rel.core.Values
 import org.apache.calcite.rel.logical.LogicalValues
 import org.apache.calcite.rel.metadata.{RelMdCollation, RelMetadataQuery}
-import org.apache.calcite.rel.{RelCollation, RelCollationTraitDef, RelNode}
 import org.apache.calcite.rex.RexLiteral
 
 import java.util
 import java.util.function.Supplier
 
 /**
-  * Sub-class of [[Values]] that is a relational expression
-  * whose value is a sequence of zero or more literal row values in Flink.
-  */
+ * Sub-class of [[Values]] that is a relational expression whose value is a sequence of zero or more
+ * literal row values in Flink.
+ */
 class FlinkLogicalValues(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -59,22 +59,25 @@ class FlinkLogicalValues(
 
 }
 
-private class FlinkLogicalValuesConverter
-  extends ConverterRule(
-    classOf[LogicalValues],
-    Convention.NONE,
-    FlinkConventions.LOGICAL,
-    "FlinkLogicalValuesConverter") {
+private class FlinkLogicalValuesConverter(config: Config) extends ConverterRule(config) {
 
   override def convert(rel: RelNode): RelNode = {
     val values = rel.asInstanceOf[LogicalValues]
     FlinkLogicalValues.create(
-      rel.getCluster, values.getTraitSet, values.getRowType, values.getTuples())
+      rel.getCluster,
+      values.getTraitSet,
+      values.getRowType,
+      values.getTuples())
   }
 }
 
 object FlinkLogicalValues {
-  val CONVERTER: ConverterRule = new FlinkLogicalValuesConverter()
+  val CONVERTER: ConverterRule = new FlinkLogicalValuesConverter(
+    Config.INSTANCE.withConversion(
+      classOf[LogicalValues],
+      Convention.NONE,
+      FlinkConventions.LOGICAL,
+      "FlinkLogicalValuesConverter"))
 
   def create(
       cluster: RelOptCluster,
@@ -94,10 +97,12 @@ object FlinkLogicalValues {
           def get: RelTrait = {
             traitSet.getTrait(RelCollationTraitDef.INSTANCE)
           }
-        })
+        }
+      )
     } else {
       newTraitSet = newTraitSet.replaceIfs(
-        RelCollationTraitDef.INSTANCE, new Supplier[util.List[RelCollation]]() {
+        RelCollationTraitDef.INSTANCE,
+        new Supplier[util.List[RelCollation]]() {
           def get: util.List[RelCollation] = {
             RelMdCollation.values(mq, rowType, tuples)
           }

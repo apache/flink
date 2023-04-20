@@ -96,7 +96,7 @@ public class TaskMailboxImpl implements TaskMailbox {
         return !batch.isEmpty() || hasNewMail;
     }
 
-    @VisibleForTesting
+    @Override
     public int size() {
         final ReentrantLock lock = this.lock;
         lock.lock();

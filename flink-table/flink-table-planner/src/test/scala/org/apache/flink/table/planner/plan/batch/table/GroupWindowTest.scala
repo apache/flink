@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.batch.table
 
 import org.apache.flink.api.scala._
@@ -29,9 +28,9 @@ import java.sql.Timestamp
 
 class GroupWindowTest extends TableTestBase {
 
-  //===============================================================================================
+  // ===============================================================================================
   // Common test
-  //===============================================================================================
+  // ===============================================================================================
 
   @Test(expected = classOf[TableException])
   def testEventTimeTumblingGroupWindowOverCount(): Unit = {
@@ -39,7 +38,7 @@ class GroupWindowTest extends TableTestBase {
     val table = util.addTableSource[(Long, Int, String)]('long, 'int, 'string)
 
     val windowedTable = table
-      .window(Tumble over 2.rows on 'long as 'w)
+      .window(Tumble.over(2.rows).on('long).as('w))
       .groupBy('w, 'string)
       .select('string, 'int.count)
     util.verifyExecPlan(windowedTable)
@@ -51,7 +50,7 @@ class GroupWindowTest extends TableTestBase {
     val table = util.addTableSource[(Long, Int, String)]('long, 'int, 'string)
 
     val windowedTable = table
-      .window(Tumble over 5.millis on 'long as 'w)
+      .window(Tumble.over(5.millis).on('long).as('w))
       .groupBy('w, 'string)
       .select('string, call(classOf[WeightedAvgWithMerge], 'long, 'int))
 
@@ -64,7 +63,7 @@ class GroupWindowTest extends TableTestBase {
     val table = util.addTableSource[(Long, Int, String)]('long, 'int, 'string)
 
     val windowedTable = table
-      .window(Tumble over 5.millis on 'long as 'w)
+      .window(Tumble.over(5.millis).on('long).as('w))
       .groupBy('w, 'string)
       .select('string, 'int.count)
 
@@ -77,7 +76,7 @@ class GroupWindowTest extends TableTestBase {
     val table = util.addTableSource[(Long, Int, String)]('long, 'int, 'string)
 
     val windowedTable = table
-      .window(Tumble over 5.millis on 'long as 'w)
+      .window(Tumble.over(5.millis).on('long).as('w))
       .groupBy('w)
       .select('int.count)
     util.verifyExecPlan(windowedTable)
@@ -89,7 +88,7 @@ class GroupWindowTest extends TableTestBase {
     val table = util.addTableSource[(Long, Int, String)]('long, 'int, 'string)
 
     val windowedTable = table
-      .window(Tumble over 2.rows on 'long as 'w)
+      .window(Tumble.over(2.rows).on('long).as('w))
       .groupBy('w)
       .select('int.count)
 
@@ -102,7 +101,7 @@ class GroupWindowTest extends TableTestBase {
     val table = util.addTableSource[(Long, Int, String)]('ts, 'int, 'string)
 
     val windowedTable = table
-      .window(Tumble over 2.hours on 'ts as 'w)
+      .window(Tumble.over(2.hours).on('ts).as('w))
       .groupBy('w, 'string)
       .select('string, 'int.count, 'w.start, 'w.end, 'w.rowtime)
 
@@ -115,16 +114,16 @@ class GroupWindowTest extends TableTestBase {
     val table = util.addTableSource[(Timestamp, Int, String)]('ts, 'int, 'string)
 
     val windowedTable = table
-      .window(Tumble over 2.hours on 'ts as 'w)
+      .window(Tumble.over(2.hours).on('ts).as('w))
       .groupBy('w, 'string)
       .select('string, 'int.count, 'w.start, 'w.end, 'w.rowtime)
 
     util.verifyExecPlan(windowedTable)
   }
 
-  //===============================================================================================
+  // ===============================================================================================
   // Sliding Windows
-  //===============================================================================================
+  // ===============================================================================================
 
   @Test
   def testEventTimeSlidingGroupWindowOverTime(): Unit = {
@@ -132,7 +131,7 @@ class GroupWindowTest extends TableTestBase {
     val table = util.addTableSource[(Long, Int, String)]('long, 'int, 'string)
 
     val windowedTable = table
-      .window(Slide over 8.millis every 10.millis on 'long as 'w)
+      .window(Slide.over(8.millis).every(10.millis).on('long).as('w))
       .groupBy('w, 'string)
       .select('string, 'int.count)
 
@@ -145,7 +144,7 @@ class GroupWindowTest extends TableTestBase {
     val table = util.addTableSource[(Long, Int, String)]('long, 'int, 'string)
 
     val windowedTable = table
-      .window(Slide over 2.rows every 1.rows on 'long as 'w)
+      .window(Slide.over(2.rows).every(1.rows).on('long).as('w))
       .groupBy('w, 'string)
       .select('string, 'int.count)
 

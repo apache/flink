@@ -25,8 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.15-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-dist_${scala.binary.version}</artifactId>
@@ -34,7 +33,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<zookeeper.optional.version>3.5.9</zookeeper.optional.version>
+		<japicmp.skip>true</japicmp.skip>
 	</properties>
 
 	<dependencies>
@@ -138,6 +137,12 @@ under the License.
 			</exclusions>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-base</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
 		<!-- Default file system support. The Hadoop dependency			   -->
 		<!--       is optional, so not being added to the dist jar         -->
 
@@ -223,35 +228,21 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-examples-batch_${scala.binary.version}</artifactId>
+			<artifactId>flink-examples-batch</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-examples-streaming_${scala.binary.version}</artifactId>
+			<artifactId>flink-examples-streaming</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-examples-streaming-state-machine_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-examples-streaming-twitter_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-gelly-examples_${scala.binary.version}</artifactId>
+			<artifactId>flink-examples-streaming-state-machine</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
@@ -353,20 +344,6 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-gelly</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-gelly-scala_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-state-processor-api</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
@@ -423,6 +400,23 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-gs-fs-hadoop</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+			<exclusions>
+				<!--
+					Despite at provided scope, grpc artifacts can cause dependency resolving errors,
+					unstably, during javadoc aggregation.
+				 -->
+				<exclusion>
+					<groupId>io.grpc</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-queryable-state-runtime</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
@@ -430,7 +424,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-python_${scala.binary.version}</artifactId>
+			<artifactId>flink-python</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
@@ -569,23 +563,20 @@ under the License.
 							<skip>true</skip>
 						</configuration>
 					</execution>
+					<execution>
+						<id>forbid-direct-table-planner-dependencies</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<!-- We need to depend on table planner to ship it in the /opt folder -->
+							<skip>true</skip>
+						</configuration>
+					</execution>
 				</executions>
 			</plugin>
 
-			<!--unit tests-->
 			<!--plugin must appear BEFORE the shade-plugin to not mess up package order and include the non-uber JAR into the assembly-->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-surefire-plugin</artifactId>
-				<configuration>
-					<reuseForks>false</reuseForks>
-					<!-- <workingDirectory>${project.build.testOutputDirectory}</workingDirectory> -->
-					<systemPropertyVariables>
-						<log.level>WARN</log.level>
-					</systemPropertyVariables>
-				</configuration>
-			</plugin>
-
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
@@ -634,25 +625,6 @@ under the License.
 								</artifactItem>
 							</artifactItems>
 							<outputDirectory>${project.build.directory}/temporary/java11_exclusive</outputDirectory>
-						</configuration>
-					</execution>
-					<execution>
-						<id>copy-zk-jars</id>
-						<phase>process-resources</phase>
-						<goals>
-							<goal>copy</goal>
-						</goals>
-						<configuration>
-							<artifactItems>
-								<artifactItem>
-									<groupId>org.apache.flink</groupId>
-									<artifactId>flink-shaded-zookeeper-3</artifactId>
-									<version>${zookeeper.optional.version}-${flink.shaded.version}</version>
-									<type>jar</type>
-									<overWrite>true</overWrite>
-								</artifactItem>
-							</artifactItems>
-							<outputDirectory>${project.build.directory}/temporary</outputDirectory>
 						</configuration>
 					</execution>
 				</executions>
@@ -710,17 +682,13 @@ under the License.
 								<excludes>
 									<!-- log4j 2 is bundled separately from the flink-dist jar -->
 									<exclude>org.apache.logging.log4j:*</exclude>
-									<!-- Bundled separately so that users can easily switch between ZK 3.4/3.5-->
-									<exclude>org.apache.flink:flink-shaded-zookeeper-3</exclude>
 								</excludes>
 							</artifactSet>
 						</configuration>
 					</execution>
 					<execution>
 						<!--
-						Disable inherited shade-flink to prevent the Shade plugin from changing the project.basedir. The basedir
-						is changed by the Shade plugin when dependencyReducedPomLocation is set to a different location than the
-						original basedir. We do that in the root pom.xml.
+						Historic artifact; shade-dist execution should be renamed.
 						-->
 						<id>shade-flink</id>
 						<phase>none</phase>

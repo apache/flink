@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
@@ -25,29 +24,24 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalV
 import org.apache.calcite.plan.{RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 
-/**
-  * Rule that converts [[FlinkLogicalValues]] to [[StreamPhysicalValues]].
-  */
-class StreamPhysicalValuesRule
-  extends ConverterRule(
-    classOf[FlinkLogicalValues],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.STREAM_PHYSICAL,
-    "StreamPhysicalValuesRule") {
+/** Rule that converts [[FlinkLogicalValues]] to [[StreamPhysicalValues]]. */
+class StreamPhysicalValuesRule(config: Config) extends ConverterRule(config) {
 
   def convert(rel: RelNode): RelNode = {
     val values: FlinkLogicalValues = rel.asInstanceOf[FlinkLogicalValues]
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
 
-    new StreamPhysicalValues(
-      rel.getCluster,
-      traitSet,
-      values.getTuples,
-      rel.getRowType)
+    new StreamPhysicalValues(rel.getCluster, traitSet, values.getTuples, rel.getRowType)
   }
 }
 
 object StreamPhysicalValuesRule {
-  val INSTANCE: RelOptRule = new StreamPhysicalValuesRule
+  val INSTANCE: RelOptRule = new StreamPhysicalValuesRule(
+    Config.INSTANCE.withConversion(
+      classOf[FlinkLogicalValues],
+      FlinkConventions.LOGICAL,
+      FlinkConventions.STREAM_PHYSICAL,
+      "StreamPhysicalValuesRule"))
 }

@@ -52,7 +52,7 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.ipc.ArrowStreamReader;
 import org.apache.arrow.vector.ipc.ArrowStreamWriter;
-import org.junit.BeforeClass;
+import org.junit.jupiter.api.BeforeAll;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -63,7 +63,7 @@ import java.util.List;
 import java.util.Objects;
 
 /** Tests for {@link ArrowReader} and {@link ArrowWriter} of RowData. */
-public class ArrowReaderWriterTest extends ArrowReaderWriterTestBase<RowData> {
+class ArrowReaderWriterTest extends ArrowReaderWriterTestBase<RowData> {
     private static List<LogicalType> fieldTypes = new ArrayList<>();
     private static RowType rowType;
     private static RowType rowFieldType;
@@ -100,8 +100,8 @@ public class ArrowReaderWriterTest extends ArrowReaderWriterTestBase<RowData> {
         return Objects.equals(row1, row2);
     }
 
-    @BeforeClass
-    public static void init() {
+    @BeforeAll
+    static void init() {
         fieldTypes.add(new TinyIntType());
         fieldTypes.add(new SmallIntType());
         fieldTypes.add(new IntType());

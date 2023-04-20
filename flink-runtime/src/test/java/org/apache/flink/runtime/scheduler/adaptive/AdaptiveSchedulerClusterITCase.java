@@ -21,7 +21,6 @@ package org.apache.flink.runtime.scheduler.adaptive;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.WebOptions;
@@ -188,8 +187,7 @@ public class AdaptiveSchedulerClusterITCase extends TestLogger {
                                                                 .getCounts()
                                                                 .getNumberOfCompletedCheckpoints()
                                                         > 0)
-                                .get(),
-                Deadline.fromNow(Duration.ofHours(1)));
+                                .get());
 
         miniCluster.terminateTaskManager(0);
 
@@ -281,7 +279,6 @@ public class AdaptiveSchedulerClusterITCase extends TestLogger {
                     }
 
                     return executionJobVertex.getParallelism() == targetParallelism;
-                },
-                Deadline.fromNow(Duration.ofSeconds(10)));
+                });
     }
 }

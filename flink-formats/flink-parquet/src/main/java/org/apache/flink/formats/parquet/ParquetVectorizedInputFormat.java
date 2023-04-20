@@ -24,12 +24,12 @@ import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.util.CheckpointedPosition;
 import org.apache.flink.connector.file.src.util.Pool;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.parquet.utils.ParquetSchemaConverter;
 import org.apache.flink.formats.parquet.utils.SerializableConfiguration;
 import org.apache.flink.formats.parquet.vector.ColumnBatchFactory;
 import org.apache.flink.formats.parquet.vector.ParquetDecimalVector;
-import org.apache.flink.formats.parquet.vector.reader.AbstractColumnReader;
 import org.apache.flink.formats.parquet.vector.reader.ColumnReader;
 import org.apache.flink.table.data.columnar.vector.ColumnVector;
 import org.apache.flink.table.data.columnar.vector.VectorizedColumnBatch;
@@ -40,12 +40,12 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.parquet.ParquetReadOptions;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.page.PageReadStore;
 import org.apache.parquet.filter2.compat.FilterCompat;
 import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
-import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.schema.GroupType;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.Type;
@@ -66,9 +66,6 @@ import java.util.Set;
 
 import static org.apache.flink.formats.parquet.vector.ParquetSplitReaderUtil.createColumnReader;
 import static org.apache.flink.formats.parquet.vector.ParquetSplitReaderUtil.createWritableColumnVector;
-import static org.apache.parquet.filter2.compat.RowGroupFilter.filterRowGroups;
-import static org.apache.parquet.format.converter.ParquetMetadataConverter.range;
-import static org.apache.parquet.hadoop.ParquetFileReader.readFooter;
 import static org.apache.parquet.hadoop.ParquetInputFormat.getFilter;
 
 /**
@@ -81,12 +78,12 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
     private static final Logger LOG = LoggerFactory.getLogger(ParquetVectorizedInputFormat.class);
     private static final long serialVersionUID = 1L;
 
-    private final SerializableConfiguration hadoopConfig;
+    protected final SerializableConfiguration hadoopConfig;
     private final String[] projectedFields;
     private final LogicalType[] projectedTypes;
     private final ColumnBatchFactory<SplitT> batchFactory;
     private final int batchSize;
-    private final boolean isUtcTimestamp;
+    protected final boolean isUtcTimestamp;
     private final boolean isCaseSensitive;
     private final Set<Integer> unknownFieldsIndices = new HashSet<>();
 
@@ -114,36 +111,34 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
         final long splitOffset = split.offset();
         final long splitLength = split.length();
 
-        org.apache.hadoop.fs.Path hadoopPath = new org.apache.hadoop.fs.Path(filePath.toUri());
-        ParquetMetadata footer =
-                readFooter(
-                        hadoopConfig.conf(),
-                        hadoopPath,
-                        range(splitOffset, splitOffset + splitLength));
-        MessageType fileSchema = footer.getFileMetaData().getSchema();
+        // Using Flink FileSystem instead of Hadoop FileSystem directly, so we can get the hadoop
+        // config that create inputFile needed from flink-conf.yaml
+        final FileSystem fs = filePath.getFileSystem();
+        final ParquetInputFile inputFile =
+                new ParquetInputFile(fs.open(filePath), fs.getFileStatus(filePath).getLen());
+
+        // Notice: This filter is RowGroups level, not individual records.
         FilterCompat.Filter filter = getFilter(hadoopConfig.conf());
-        List<BlockMetaData> blocks = filterRowGroups(filter, footer.getBlocks(), fileSchema);
+        ParquetReadOptions parquetReadOptions =
+                ParquetReadOptions.builder()
+                        .withRange(splitOffset, splitOffset + splitLength)
+                        .withRecordFilter(filter)
+                        .build();
+        ParquetFileReader parquetFileReader = ParquetFileReader.open(inputFile, parquetReadOptions);
 
+        MessageType fileSchema = parquetFileReader.getFooter().getFileMetaData().getSchema();
+        // Pruning unnecessary column, we should set the projection schema before running any
+        // filtering (e.g. getting filtered record count) because projection impacts filtering
         MessageType requestedSchema = clipParquetSchema(fileSchema);
-        ParquetFileReader reader =
-                new ParquetFileReader(
-                        hadoopConfig.conf(),
-                        footer.getFileMetaData(),
-                        hadoopPath,
-                        blocks,
-                        requestedSchema.getColumns());
-
-        long totalRowCount = 0;
-        for (BlockMetaData block : blocks) {
-            totalRowCount += block.getRowCount();
-        }
+        parquetFileReader.setRequestedSchema(requestedSchema);
 
         checkSchema(fileSchema, requestedSchema);
 
+        final long totalRowCount = parquetFileReader.getFilteredRecordCount();
         final Pool<ParquetReaderBatch<T>> poolOfBatches =
                 createPoolOfBatches(split, requestedSchema, numBatchesToCirculate(config));
 
-        return new ParquetReader(reader, requestedSchema, totalRowCount, poolOfBatches);
+        return new ParquetReader(parquetFileReader, requestedSchema, totalRowCount, poolOfBatches);
     }
 
     protected int numBatchesToCirculate(Configuration config) {
@@ -235,11 +230,6 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
          * Check that the requested schema is supported.
          */
         for (int i = 0; i < requestedSchema.getFieldCount(); ++i) {
-            Type t = requestedSchema.getFields().get(i);
-            if (!t.isPrimitive() || t.isRepetition(Type.Repetition.REPEATED)) {
-                throw new UnsupportedOperationException("Complex types not supported.");
-            }
-
             String[] colPath = requestedSchema.getPaths().get(i);
             if (fileSchema.containsPath(colPath)) {
                 ColumnDescriptor fd = fileSchema.getColumnDescription(colPath);
@@ -281,12 +271,15 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
 
     private WritableColumnVector[] createWritableVectors(MessageType requestedSchema) {
         WritableColumnVector[] columns = new WritableColumnVector[projectedTypes.length];
+        List<Type> types = requestedSchema.getFields();
         for (int i = 0; i < projectedTypes.length; i++) {
             columns[i] =
                     createWritableColumnVector(
                             batchSize,
                             projectedTypes[i],
-                            requestedSchema.getColumns().get(i).getPrimitiveType());
+                            types.get(i),
+                            requestedSchema.getColumns(),
+                            0);
         }
         return columns;
     }
@@ -404,16 +397,19 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
                                 + " out of "
                                 + totalRowCount);
             }
-            List<ColumnDescriptor> columns = requestedSchema.getColumns();
-            columnReaders = new AbstractColumnReader[columns.size()];
-            for (int i = 0; i < columns.size(); ++i) {
+
+            List<Type> types = requestedSchema.getFields();
+            columnReaders = new ColumnReader[types.size()];
+            for (int i = 0; i < types.size(); ++i) {
                 if (!unknownFieldsIndices.contains(i)) {
                     columnReaders[i] =
                             createColumnReader(
                                     isUtcTimestamp,
                                     projectedTypes[i],
-                                    columns.get(i),
-                                    pages.getPageReader(columns.get(i)));
+                                    types.get(i),
+                                    requestedSchema.getColumns(),
+                                    pages,
+                                    0);
                 }
             }
             totalCountLoadedSoFar += pages.getRowCount();

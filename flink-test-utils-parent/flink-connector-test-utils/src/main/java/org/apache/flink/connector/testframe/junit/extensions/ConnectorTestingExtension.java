@@ -25,6 +25,8 @@ import org.apache.flink.connector.testframe.external.ExternalContextFactory;
 import org.apache.flink.connector.testframe.junit.annotations.TestContext;
 import org.apache.flink.connector.testframe.junit.annotations.TestEnv;
 import org.apache.flink.connector.testframe.junit.annotations.TestExternalSystem;
+import org.apache.flink.connector.testframe.junit.annotations.TestSemantics;
+import org.apache.flink.streaming.api.CheckpointingMode;
 
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
@@ -66,6 +68,7 @@ public class ConnectorTestingExtension implements BeforeAllCallback, AfterAllCal
     public static final String TEST_ENV_STORE_KEY = "testEnvironment";
     public static final String EXTERNAL_SYSTEM_STORE_KEY = "externalSystem";
     public static final String EXTERNAL_CONTEXT_FACTORIES_STORE_KEY = "externalContext";
+    public static final String SUPPORTED_SEMANTIC_STORE_KEY = "supportedSemantic";
 
     private TestEnvironment testEnvironment;
     private TestResource externalSystem;
@@ -92,6 +95,16 @@ public class ConnectorTestingExtension implements BeforeAllCallback, AfterAllCal
             context.getStore(TEST_RESOURCE_NAMESPACE)
                     .put(EXTERNAL_SYSTEM_STORE_KEY, externalSystem);
         }
+
+        // Store supported semantic
+        final List<CheckpointingMode[]> semantics =
+                AnnotationSupport.findAnnotatedFieldValues(
+                        context.getRequiredTestInstance(),
+                        TestSemantics.class,
+                        CheckpointingMode[].class);
+        checkExactlyOneAnnotatedField(semantics, TestSemantics.class);
+        context.getStore(TEST_RESOURCE_NAMESPACE)
+                .put(SUPPORTED_SEMANTIC_STORE_KEY, semantics.get(0));
 
         // Search external context factories
         final List<ExternalContextFactory> externalContextFactories =

@@ -25,6 +25,7 @@ import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.SplitsAssignment;
+import org.apache.flink.api.connector.source.SupportsIntermediateNoMoreSplits;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.groups.SplitEnumeratorMetricGroup;
 import org.apache.flink.util.Preconditions;
@@ -157,7 +158,7 @@ public class HybridSourceSplitEnumerator
                 LOG.debug("Restoring splits to subtask={} {}", subtaskId, splits);
                 context.assignSplits(
                         new SplitsAssignment<>(Collections.singletonMap(subtaskId, splits)));
-                context.signalNoMoreSplits(subtaskId);
+                checkAndSignalNoMoreSplits(context, subtaskId, sourceIndex, sources.size());
             }
             if (splitsBySource.isEmpty()) {
                 pendingSplits.remove(subtaskId);
@@ -218,7 +219,11 @@ public class HybridSourceSplitEnumerator
             }
 
             if (subtaskSourceIndex < currentSourceIndex) {
-                subtaskSourceIndex++;
+                // find initial or next index for the reader
+                subtaskSourceIndex =
+                        subtaskSourceIndex == -1
+                                ? switchedSources.getFirstSourceIndex()
+                                : ++subtaskSourceIndex;
                 sendSwitchSourceEvent(subtaskId, subtaskSourceIndex);
                 return;
             }
@@ -242,7 +247,10 @@ public class HybridSourceSplitEnumerator
 
     @Override
     public void close() throws IOException {
-        currentEnumerator.close();
+        // close may be called before currentEnumerator was initialized
+        if (currentEnumerator != null) {
+            currentEnumerator.close();
+        }
     }
 
     private void switchEnumerator() {
@@ -272,7 +280,11 @@ public class HybridSourceSplitEnumerator
         currentEnumeratorCheckpointSerializer = source.getEnumeratorCheckpointSerializer();
         SplitEnumeratorContextProxy delegatingContext =
                 new SplitEnumeratorContextProxy(
-                        currentSourceIndex, context, readerSourceIndex, switchedSources);
+                        currentSourceIndex,
+                        context,
+                        readerSourceIndex,
+                        switchedSources,
+                        sources.size());
         try {
             if (restoredEnumeratorState == null) {
                 currentEnumerator = source.createEnumerator(delegatingContext);
@@ -308,16 +320,19 @@ public class HybridSourceSplitEnumerator
         private final int sourceIndex;
         private final Map<Integer, Integer> readerSourceIndex;
         private final SwitchedSources switchedSources;
+        private final int sourceSize;
 
         private SplitEnumeratorContextProxy(
                 int sourceIndex,
                 SplitEnumeratorContext<HybridSourceSplit> realContext,
                 Map<Integer, Integer> readerSourceIndex,
-                SwitchedSources switchedSources) {
+                SwitchedSources switchedSources,
+                int sourceSize) {
             this.realContext = realContext;
             this.sourceIndex = sourceIndex;
             this.readerSourceIndex = readerSourceIndex;
             this.switchedSources = switchedSources;
+            this.sourceSize = sourceSize;
         }
 
         @Override
@@ -385,7 +400,8 @@ public class HybridSourceSplitEnumerator
 
         @Override
         public void signalNoMoreSplits(int subtask) {
-            realContext.signalNoMoreSplits(subtask);
+            // intercept noMoreSplits signaled by the child source enumerators
+            checkAndSignalNoMoreSplits(realContext, subtask, sourceIndex, sourceSize);
         }
 
         @Override
@@ -405,6 +421,23 @@ public class HybridSourceSplitEnumerator
         @Override
         public void runInCoordinatorThread(Runnable runnable) {
             realContext.runInCoordinatorThread(runnable);
+        }
+    }
+
+    private static void checkAndSignalNoMoreSplits(
+            SplitEnumeratorContext<HybridSourceSplit> context,
+            int subtaskId,
+            int sourceIndex,
+            int sourceSize) {
+        Preconditions.checkState(
+                context instanceof SupportsIntermediateNoMoreSplits,
+                "The split enumerator context %s must implement SupportsIntermediateNoMoreSplits "
+                        + "to be used in hybrid source scenario.",
+                context.getClass().getCanonicalName());
+        if (sourceIndex >= sourceSize - 1) {
+            context.signalNoMoreSplits(subtaskId);
+        } else {
+            ((SupportsIntermediateNoMoreSplits) context).signalIntermediateNoMoreSplits(subtaskId);
         }
     }
 }

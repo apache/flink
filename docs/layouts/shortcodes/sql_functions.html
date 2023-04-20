@@ -35,7 +35,7 @@ under the License.
         {{ range $category }}
             <tr>
                 <td>
-                    {{ .sql | default "N/A" }}
+                    {{ .sql | $.Page.RenderString | default "N/A" }}
                 </td>
                 <td>
                     {{ .table | default "N/A" }}

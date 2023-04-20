@@ -27,11 +27,14 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JavaType;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonMappingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializerProvider;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.jsonFormatVisitors.JsonFormatVisitorWrapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.StdSerializer;
 
 import java.io.IOException;
@@ -87,7 +90,7 @@ public class JobPlanInfo implements ResponseBody {
     public static final class RawJson {
         private final String json;
 
-        private RawJson(String json) {
+        public RawJson(String json) {
             this.json = json;
         }
 
@@ -133,6 +136,13 @@ public class JobPlanInfo implements ResponseBody {
                     SerializerProvider serializerProvider)
                     throws IOException {
                 jsonGenerator.writeRawValue(jobPlanInfo.json);
+            }
+
+            @Override
+            public void acceptJsonFormatVisitor(JsonFormatVisitorWrapper visitor, JavaType typeHint)
+                    throws JsonMappingException {
+                // this ensures the type is documented as "object" in the documentation
+                visitor.expectObjectFormat(typeHint);
             }
         }
 

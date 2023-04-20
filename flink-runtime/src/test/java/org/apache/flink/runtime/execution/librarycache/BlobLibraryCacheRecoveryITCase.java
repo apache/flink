@@ -28,8 +28,10 @@ import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.TestLogger;
 
+import org.hamcrest.collection.IsEmptyCollection;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -41,7 +43,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
@@ -70,6 +75,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
                 temporaryFolder.newFolder().getAbsolutePath());
         config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 3_600L);
 
+        final ExecutorService executorService = Executors.newSingleThreadExecutor();
         try {
             blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
@@ -160,7 +166,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
             }
 
             // Remove blobs again
-            server[1].cleanupJob(jobId, true);
+            server[1].globalCleanupAsync(jobId, executorService).join();
 
             // Verify everything is clean below recoveryDir/<cluster_id>
             final String clusterId = config.getString(HighAvailabilityOptions.HA_CLUSTER_ID);
@@ -173,6 +179,8 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
                     0,
                     recoveryFiles.length);
         } finally {
+            assertThat(executorService.shutdownNow(), IsEmptyCollection.empty());
+
             for (BlobLibraryCacheManager s : libServer) {
                 if (s != null) {
                     s.shutdown();

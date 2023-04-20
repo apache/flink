@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.stream.table.validation
 
 import org.apache.flink.api.scala._
@@ -31,12 +30,10 @@ import org.junit.Test
 
 class OverWindowValidationTest extends TableTestBase {
   private val streamUtil: StreamTableTestUtil = streamTestUtil()
-  val table: Table = streamUtil.addDataStream[(Int, String, Long)](
-    "MyTable", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
+  val table: Table = streamUtil
+    .addDataStream[(Int, String, Long)]("MyTable", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
 
-  /**
-    * OVER clause is necessary for [[OverAgg0]] window function.
-    */
+  /** OVER clause is necessary for [[OverAgg0]] window function. */
   @Test(expected = classOf[ValidationException])
   def testInvalidOverAggregation(): Unit = {
     val util = streamTestUtil()
@@ -45,9 +42,7 @@ class OverWindowValidationTest extends TableTestBase {
     table.select(overAgg('a, 'b))
   }
 
-  /**
-    * OVER clause is necessary for [[OverAgg0]] window function.
-    */
+  /** OVER clause is necessary for [[OverAgg0]] window function. */
   @Test(expected = classOf[ValidationException])
   def testInvalidOverAggregation2(): Unit = {
     val util = streamTestUtil()
@@ -55,7 +50,7 @@ class OverWindowValidationTest extends TableTestBase {
 
     val overAgg = new OverAgg0
     table
-      .window(Tumble over 2.rows on 'proctime as 'w)
+      .window(Tumble.over(2.rows).on('proctime).as('w))
       .groupBy('w, 'string)
       .select(overAgg('long, 'int))
   }
@@ -63,67 +58,68 @@ class OverWindowValidationTest extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testInvalidWindowAlias(): Unit = {
     val result = table
-      .window(Over partitionBy 'c orderBy 'rowtime preceding 2.rows as 'w)
-      .select('c, 'b.count over 'x)
+      .window(Over.partitionBy('c).orderBy('rowtime).preceding(2.rows).as('w))
+      .select('c, 'b.count.over('x))
     optimize(TableTestUtil.toRelNode(result))
   }
 
   @Test(expected = classOf[ValidationException])
   def testOrderBy(): Unit = {
     val result = table
-      .window(Over partitionBy 'c orderBy 'abc preceding 2.rows as 'w)
-      .select('c, 'b.count over 'w)
+      .window(Over.partitionBy('c).orderBy('abc).preceding(2.rows).as('w))
+      .select('c, 'b.count.over('w))
     optimize(TableTestUtil.toRelNode(result))
   }
 
   @Test(expected = classOf[ValidationException])
   def testPrecedingAndFollowingUsingIsLiteral(): Unit = {
     val result = table
-      .window(Over partitionBy 'c orderBy 'rowtime preceding 2 following "xx" as 'w)
-      .select('c, 'b.count over 'w)
+      .window(Over.partitionBy($"c").orderBy($"rowtime").preceding(2).following($"xx").as($"w"))
+      .select('c, 'b.count.over('w))
     optimize(TableTestUtil.toRelNode(result))
   }
 
   @Test(expected = classOf[ValidationException])
   def testPrecedingAndFollowingUsingSameType(): Unit = {
     val result = table
-      .window(Over partitionBy 'c orderBy 'rowtime preceding 2.rows following CURRENT_RANGE as 'w)
-      .select('c, 'b.count over 'w)
+      .window(
+        Over.partitionBy('c).orderBy('rowtime).preceding(2.rows).following(CURRENT_RANGE).as('w))
+      .select('c, 'b.count.over('w))
     optimize(TableTestUtil.toRelNode(result))
   }
 
   @Test(expected = classOf[ValidationException])
   def testPartitionByWithUnresolved(): Unit = {
     val result = table
-      .window(Over partitionBy 'a + 'b orderBy 'rowtime preceding 2.rows as 'w)
-      .select('c, 'b.count over 'w)
+      .window(Over.partitionBy('a + 'b).orderBy('rowtime).preceding(2.rows).as('w))
+      .select('c, 'b.count.over('w))
     optimize(TableTestUtil.toRelNode(result))
   }
 
   @Test(expected = classOf[ValidationException])
   def testPartitionByWithNotKeyType(): Unit = {
-    val table2 = streamUtil.addTableSource[(Int, String, Either[Long, String])](
-      "MyTable2", 'a, 'b, 'c)
+    val table2 =
+      streamUtil.addTableSource[(Int, String, Either[Long, String])]("MyTable2", 'a, 'b, 'c)
 
     val result = table2
-      .window(Over partitionBy 'c orderBy 'rowtime preceding 2.rows as 'w)
-      .select('c, 'b.count over 'w)
+      .window(Over.partitionBy('c).orderBy('rowtime).preceding(2.rows).as('w))
+      .select('c, 'b.count.over('w))
     optimize(TableTestUtil.toRelNode(result))
   }
 
   @Test(expected = classOf[ValidationException])
   def testPrecedingValue(): Unit = {
     val result = table
-      .window(Over orderBy 'rowtime preceding -1.rows as 'w)
-      .select('c, 'b.count over 'w)
+      .window(Over.orderBy('rowtime).preceding(-1.rows).as('w))
+      .select('c, 'b.count.over('w))
     optimize(TableTestUtil.toRelNode(result))
   }
 
   @Test(expected = classOf[ValidationException])
   def testFollowingValue(): Unit = {
     val result = table
-      .window(Over orderBy 'rowtime preceding 1.rows following -2.rows as 'w)
-      .select('c, 'b.count over 'w)
+      .window(Over.orderBy('rowtime).preceding(1.rows).following(-2.rows).as('w))
+      .select('c, 'b.count.over('w))
     optimize(TableTestUtil.toRelNode(result))
   }
 
@@ -132,20 +128,19 @@ class OverWindowValidationTest extends TableTestBase {
     val weightedAvg = new WeightedAvgWithRetract
 
     val result = table
-      .window(Over orderBy 'rowtime preceding 1.minutes as 'w)
-      .select('c, weightedAvg('b, 'a) over 'w)
+      .window(Over.orderBy('rowtime).preceding(1.minutes).as('w))
+      .select('c, weightedAvg('b, 'a).over('w))
     optimize(TableTestUtil.toRelNode(result))
   }
 
   @Test
   def testAccessesWindowProperties(): Unit = {
     thrown.expect(classOf[ValidationException])
-    thrown.expectMessage(
-      "Window start and end properties are not available for Over windows.")
+    thrown.expectMessage("Window start and end properties are not available for Over windows.")
 
     table
-    .window(Over orderBy 'rowtime preceding 1.minutes as 'w)
-    .select('c, 'a.count over 'w, 'w.start + 1, 'w.end)
+      .window(Over.orderBy('rowtime).preceding(1.minutes).as('w))
+      .select('c, 'a.count.over('w), 'w.start + 1, 'w.end)
   }
 
   private def optimize(rel: RelNode): RelNode = {

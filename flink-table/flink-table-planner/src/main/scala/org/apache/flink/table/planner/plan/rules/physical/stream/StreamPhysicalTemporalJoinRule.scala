@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
@@ -28,8 +27,8 @@ import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 
 /**
- * Rule that matches a temporal join node and converts it to [[StreamPhysicalTemporalJoin]],
- * the temporal join node is a [[FlinkLogicalJoin]] which contains [[TEMPORAL_JOIN_CONDITION]].
+ * Rule that matches a temporal join node and converts it to [[StreamPhysicalTemporalJoin]], the
+ * temporal join node is a [[FlinkLogicalJoin]] which contains [[TEMPORAL_JOIN_CONDITION]].
  */
 class StreamPhysicalTemporalJoinRule
   extends StreamPhysicalJoinRuleBase("StreamPhysicalTemporalJoinRule") {

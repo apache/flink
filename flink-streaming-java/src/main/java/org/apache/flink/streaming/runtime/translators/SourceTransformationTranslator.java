@@ -77,6 +77,7 @@ public class SourceTransformationTranslator<OUT, SplitT extends SourceSplit, Enu
                         emitProgressiveWatermarks);
 
         operatorFactory.setChainingStrategy(transformation.getChainingStrategy());
+        operatorFactory.setCoordinatorListeningID(transformation.getCoordinatorListeningID());
 
         streamGraph.addSource(
                 transformationId,
@@ -92,8 +93,13 @@ public class SourceTransformationTranslator<OUT, SplitT extends SourceSplit, Enu
                         ? transformation.getParallelism()
                         : executionConfig.getParallelism();
 
-        streamGraph.setParallelism(transformationId, parallelism);
+        streamGraph.setParallelism(
+                transformationId, parallelism, transformation.isParallelismConfigured());
         streamGraph.setMaxParallelism(transformationId, transformation.getMaxParallelism());
+
+        streamGraph.setSupportsConcurrentExecutionAttempts(
+                transformationId, transformation.isSupportsConcurrentExecutionAttempts());
+
         return Collections.singleton(transformationId);
     }
 }

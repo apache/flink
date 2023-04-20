@@ -66,6 +66,7 @@ public class StatefulStreamJobUpgradeTestProgram {
 
     private static final ConfigOption<String> TEST_JOB_VARIANT =
             ConfigOptions.key("test.job.variant")
+                    .stringType()
                     .defaultValue(TEST_JOB_VARIANT_ORIGINAL)
                     .withDescription(
                             String.format(

@@ -19,21 +19,21 @@ package org.apache.flink.table.planner.codegen.agg
 
 import org.apache.flink.table.data.{GenericRowData, RowData, UpdatableRowData}
 import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.functions.{ImperativeAggregateFunction, UserDefinedFunctionHelper}
+import org.apache.flink.table.functions.{FunctionContext, ImperativeAggregateFunction, UserDefinedFunctionHelper}
+import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExprCodeGenerator, GeneratedExpression}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateFieldAccess
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator._
-import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExprCodeGenerator, GeneratedExpression}
 import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver
 import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver.toRexInputRef
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
 import org.apache.flink.table.planner.plan.utils.AggregateInfo
-import org.apache.flink.table.planner.utils.SingleElementIterator
 import org.apache.flink.table.runtime.dataview.DataViewSpec
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.runtime.util.SingleElementIterator
 import org.apache.flink.table.types.DataType
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldCount
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldCount
 import org.apache.flink.util.Collector
 
 import org.apache.calcite.tools.RelBuilder
@@ -43,23 +43,33 @@ import java.lang.{Iterable => JIterable}
 import scala.collection.mutable.ArrayBuffer
 
 /**
-  * It is for code generate aggregation functions that are specified in terms of
-  * accumulate(), retract() and merge() functions. The aggregate accumulator is
-  * embedded inside of a larger shared aggregation buffer.
-  *
-  * @param ctx the code gen context
-  * @param aggInfo  the aggregate information
-  * @param filterExpression filter argument access expression, none if no filter
-  * @param mergedAccOffset the mergedAcc may come from local aggregate,
-  *                        this is the first buffer offset in the row
-  * @param aggBufferOffset  the offset in the buffers of this aggregate
-  * @param aggBufferSize  the total size of aggregate buffers
-  * @param inputTypes   the input field type infos
-  * @param constantExprs  the constant expressions
-  * @param relBuilder  the rel builder to translate expressions to calcite rex nodes
-  * @param hasNamespace  whether the accumulators state has namespace
-  * @param inputFieldCopy    copy input field element if true (only mutable type will be copied)
-  */
+ * It is for code generate aggregation functions that are specified in terms of accumulate(),
+ * retract() and merge() functions. The aggregate accumulator is embedded inside of a larger shared
+ * aggregation buffer.
+ *
+ * @param ctx
+ *   the code gen context
+ * @param aggInfo
+ *   the aggregate information
+ * @param filterExpression
+ *   filter argument access expression, none if no filter
+ * @param mergedAccOffset
+ *   the mergedAcc may come from local aggregate, this is the first buffer offset in the row
+ * @param aggBufferOffset
+ *   the offset in the buffers of this aggregate
+ * @param aggBufferSize
+ *   the total size of aggregate buffers
+ * @param inputTypes
+ *   the input field type infos
+ * @param constantExprs
+ *   the constant expressions
+ * @param relBuilder
+ *   the rel builder to translate expressions to calcite rex nodes
+ * @param hasNamespace
+ *   whether the accumulators state has namespace
+ * @param inputFieldCopy
+ *   copy input field element if true (only mutable type will be copied)
+ */
 class ImperativeAggCodeGen(
     ctx: CodeGeneratorContext,
     aggInfo: AggregateInfo,
@@ -82,14 +92,17 @@ class ImperativeAggCodeGen(
   val function = aggInfo.function.asInstanceOf[ImperativeAggregateFunction[_, _]]
   val functionTerm: String = ctx.addReusableFunction(
     function,
-    contextTerm = s"$STORE_TERM.getRuntimeContext()")
+    classOf[FunctionContext],
+    Seq(s"$STORE_TERM.getRuntimeContext()"))
   val aggIndex: Int = aggInfo.aggIndex
 
   val externalAccType = aggInfo.externalAccTypes(0)
   private val internalAccType = fromDataTypeToLogicalType(externalAccType)
 
-  /** whether the acc type is an internal type.
-    * Currently we only support GenericRowData as internal acc type */
+  /**
+   * whether the acc type is an internal type. Currently we only support GenericRowData as internal
+   * acc type
+   */
   val isAccTypeInternal: Boolean =
     classOf[RowData].isAssignableFrom(externalAccType.getConversionClass)
 
@@ -232,8 +245,7 @@ class ImperativeAggCodeGen(
     } else {
       val otherAccExternal = newName("other_acc_external")
       s"""
-         |$accTypeExternalTerm $otherAccExternal = ${
-            genToExternalConverter(ctx, mergedAccExternalType, expr.resultTerm)};
+         |$accTypeExternalTerm $otherAccExternal = ${genToExternalConverter(ctx, mergedAccExternalType, expr.resultTerm)};
          |$accIterTerm.set($otherAccExternal);
          |$functionTerm.merge($accExternalTerm, $accIterTerm);
       """.stripMargin
@@ -262,31 +274,34 @@ class ImperativeAggCodeGen(
   private def aggParametersCode(generator: ExprCodeGenerator): (String, String) = {
     val externalInputTypes = aggInfo.externalArgTypes
     var codes: ArrayBuffer[String] = ArrayBuffer.empty[String]
-    val inputFields = aggInfo.argIndexes.zipWithIndex.map { case (f, index) =>
-      if (f >= inputTypes.length) {
-        // index to constant
-        val expr = constantExprs(f - inputTypes.length)
-        genToExternalConverterAll(ctx, externalInputTypes(index), expr)
-      } else {
-        // index to input field
-        val inputRef = if (generator.input1Term.startsWith(DISTINCT_KEY_TERM)) {
-          if (externalInputTypes.length == 1) {
-            // called from distinct merge and the inputTerm is the only argument
-            DeclarativeExpressionResolver.toRexDistinctKey(
-              relBuilder, generator.input1Term, inputTypes(f))
-          } else {
-            // called from distinct merge call and the inputTerm is RowData type
-            toRexInputRef(relBuilder, index, inputTypes(f))
-          }
+    val inputFields = aggInfo.argIndexes.zipWithIndex.map {
+      case (f, index) =>
+        if (f >= inputTypes.length) {
+          // index to constant
+          val expr = constantExprs(f - inputTypes.length)
+          genToExternalConverterAll(ctx, externalInputTypes(index), expr)
         } else {
-          // called from accumulate
-          toRexInputRef(relBuilder, f, inputTypes(f))
+          // index to input field
+          val inputRef = if (generator.input1Term.startsWith(DISTINCT_KEY_TERM)) {
+            if (externalInputTypes.length == 1) {
+              // called from distinct merge and the inputTerm is the only argument
+              DeclarativeExpressionResolver.toRexDistinctKey(
+                relBuilder,
+                generator.input1Term,
+                inputTypes(f))
+            } else {
+              // called from distinct merge call and the inputTerm is RowData type
+              toRexInputRef(relBuilder, index, inputTypes(f))
+            }
+          } else {
+            // called from accumulate
+            toRexInputRef(relBuilder, f, inputTypes(f))
+          }
+          var inputExpr = generator.generateExpression(inputRef.accept(rexNodeGen))
+          if (inputFieldCopy) inputExpr = inputExpr.deepCopy(ctx)
+          codes += inputExpr.code
+          genToExternalConverterAll(ctx, externalInputTypes(index), inputExpr)
         }
-        var inputExpr = generator.generateExpression(inputRef.accept(rexNodeGen))
-        if (inputFieldCopy) inputExpr = inputExpr.deepCopy(ctx)
-        codes += inputExpr.code
-        genToExternalConverterAll(ctx, externalInputTypes(index), inputExpr)
-      }
     }
 
     val accTerm = if (isAccTypeInternal) accInternalTerm else accExternalTerm
@@ -297,17 +312,17 @@ class ImperativeAggCodeGen(
   }
 
   /**
-    * This method is mainly the same as CodeGenUtils.generateFieldAccess(), the only difference is
-    * that this method using UpdatableRowData to wrap RowData to handle DataViews.
-    */
+   * This method is mainly the same as CodeGenUtils.generateFieldAccess(), the only difference is
+   * that this method using UpdatableRowData to wrap RowData to handle DataViews.
+   */
   def generateAccumulatorAccess(
-    ctx: CodeGeneratorContext,
-    inputType: LogicalType,
-    inputTerm: String,
-    index: Int,
-    viewSpecs: Array[DataViewSpec],
-    useStateDataView: Boolean,
-    useBackupDataView: Boolean): GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      inputType: LogicalType,
+      inputTerm: String,
+      index: Int,
+      viewSpecs: Array[DataViewSpec],
+      useStateDataView: Boolean,
+      useBackupDataView: Boolean): GeneratedExpression = {
 
     // if input has been used before, we can reuse the code that
     // has already been generated
@@ -352,8 +367,8 @@ class ImperativeAggCodeGen(
             if (isAccTypeInternal) {
               val code =
                 s"""
-                  |${newExpr.code}
-                  |${generateDataViewFieldSetter(newExpr.resultTerm, viewSpecs, useBackupDataView)}
+                   |${newExpr.code}
+                   |${generateDataViewFieldSetter(newExpr.resultTerm, viewSpecs, useBackupDataView)}
                 """.stripMargin
               GeneratedExpression(newExpr.resultTerm, newExpr.nullTerm, code, newExpr.resultType)
             } else {
@@ -385,11 +400,13 @@ class ImperativeAggCodeGen(
   }
 
   /**
-    * Generate statements to set data view field when use state backend.
-    *
-    * @param accTerm aggregation term
-    * @return data view field set statements
-    */
+   * Generate statements to set data view field when use state backend.
+   *
+   * @param accTerm
+   *   aggregation term
+   * @return
+   *   data view field set statements
+   */
   private def generateDataViewFieldSetter(
       accTerm: String,
       viewSpecs: Array[DataViewSpec],
@@ -484,5 +501,11 @@ class ImperativeAggCodeGen(
   def emitValue: String = {
     val accTerm = if (isAccTypeInternal) accInternalTerm else accExternalTerm
     s"$functionTerm.emitValue($accTerm, $MEMBER_COLLECTOR_TERM);"
+  }
+
+  override def setWindowSize(generator: ExprCodeGenerator): String = {
+    // currently, we don't support set window size for ImperativeAggregateFunction,
+    // so return empty string directly
+    ""
   }
 }

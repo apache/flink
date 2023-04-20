@@ -20,23 +20,23 @@ package org.apache.flink.table.examples.java.basics;
 
 import org.apache.flink.table.examples.utils.ExampleOutputTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link UpdatingTopCityExample}. */
-public class UpdatingTopCityExampleITCase extends ExampleOutputTestBase {
+class UpdatingTopCityExampleITCase extends ExampleOutputTestBase {
 
     @Test
-    public void testExample() throws Exception {
+    void testExample() throws Exception {
         UpdatingTopCityExample.main(new String[0]);
         final String consoleOutput = getOutputString();
-        assertThat(consoleOutput, containsString("AZ, Phoenix, 2015, 4581120"));
-        assertThat(consoleOutput, containsString("IL, Chicago, 2015, 9557880"));
-        assertThat(consoleOutput, containsString("CA, San Francisco, 2015, 4649540"));
-        assertThat(consoleOutput, containsString("CA, Los Angeles, 2015, 13251000"));
-        assertThat(consoleOutput, containsString("TX, Dallas, 2015, 7109280"));
-        assertThat(consoleOutput, containsString("TX, Houston, 2015, 6676560"));
+        assertThat(consoleOutput)
+                .contains("AZ, Phoenix, 2015, 4581120")
+                .contains("IL, Chicago, 2015, 9557880")
+                .contains("CA, San Francisco, 2015, 4649540")
+                .contains("CA, Los Angeles, 2015, 13251000")
+                .contains("TX, Dallas, 2015, 7109280")
+                .contains("TX, Houston, 2015, 6676560");
     }
 }

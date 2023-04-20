@@ -24,14 +24,17 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
  * A validated {@link CatalogTable} that is backed by the original metadata coming from the {@link
  * Catalog} but resolved by the framework.
  *
- * <p>Note: Compared to {@link CatalogTable}, instances of this class are serializable into a map of
- * string properties.
+ * <p>Note: Compared to {@link CatalogTable}, instances of this class are serializable for
+ * persistence if and only if the originating {@link CatalogTable} implements {@link
+ * CatalogTable#getOptions()}. Catalog implementations are encouraged to use {@link
+ * ResolvedCatalogTable#toProperties()}.
  */
 @PublicEvolving
 public final class ResolvedCatalogTable
@@ -58,6 +61,16 @@ public final class ResolvedCatalogTable
         return resolvedSchema;
     }
 
+    /**
+     * Convenience method for {@link Catalog} implementations for serializing instances of this
+     * class into a map of string properties. Instances are serializable for persistence if and only
+     * if the originating {@link CatalogTable} implements {@link CatalogTable#getOptions()}.
+     *
+     * <p>{@link CatalogTable#fromProperties(Map)} provides the reverse operation for
+     * deserialization. Note that the serialization and deserialization of catalog tables are not
+     * symmetric. The framework will resolve functions and perform other validation tasks. A catalog
+     * implementation must not deal with this during a read operation.
+     */
     @Override
     public Map<String, String> toProperties() {
         return CatalogPropertiesUtil.serializeCatalogTable(this);
@@ -110,5 +123,33 @@ public final class ResolvedCatalogTable
     @Override
     public ResolvedCatalogTable copy(Map<String, String> options) {
         return new ResolvedCatalogTable(origin.copy(options), resolvedSchema);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        ResolvedCatalogTable that = (ResolvedCatalogTable) o;
+        return Objects.equals(origin, that.origin)
+                && Objects.equals(resolvedSchema, that.resolvedSchema);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(origin, resolvedSchema);
+    }
+
+    @Override
+    public String toString() {
+        return "ResolvedCatalogTable{"
+                + "origin="
+                + origin
+                + ", resolvedSchema="
+                + resolvedSchema
+                + '}';
     }
 }

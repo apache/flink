@@ -58,6 +58,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.TestLogger;
@@ -177,11 +178,12 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
         int subtaskIdx = 0;
 
         LocalRecoveryDirectoryProvider directoryProvider =
-                new LocalRecoveryDirectoryProviderImpl(
-                        temporaryFolder.newFolder(), jobID, jobVertexID, subtaskIdx);
+                mode == ONLY_JM_RECOVERY
+                        ? null
+                        : new LocalRecoveryDirectoryProviderImpl(
+                                temporaryFolder.newFolder(), jobID, jobVertexID, subtaskIdx);
 
-        LocalRecoveryConfig localRecoveryConfig =
-                new LocalRecoveryConfig(mode != ONLY_JM_RECOVERY, directoryProvider);
+        LocalRecoveryConfig localRecoveryConfig = new LocalRecoveryConfig(directoryProvider);
 
         MockEnvironment mockEnvironment =
                 new MockEnvironmentBuilder()
@@ -235,7 +237,8 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
                             ClassLoader userClassloader,
                             KeyContext keyContext,
                             ProcessingTimeService processingTimeService,
-                            Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates)
+                            Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates,
+                            StreamTaskCancellationContext cancellationContext)
                             throws IOException {
                         return null;
                     }

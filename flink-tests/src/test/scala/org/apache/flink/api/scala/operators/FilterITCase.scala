@@ -17,15 +17,15 @@
  */
 package org.apache.flink.api.scala.operators
 
-import org.apache.flink.api.scala._
 import org.apache.flink.api.common.functions.RichFilterFunction
+import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.FileSystem.WriteMode
+import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
-import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
 
-import org.junit.{Test, After, Before, Rule}
+import org.junit.{After, Before, Rule, Test}
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -58,7 +58,7 @@ class FilterITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env)
-    val filterDs = ds.filter( t => false )
+    val filterDs = ds.filter(t => false)
     filterDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = "\n"
@@ -71,7 +71,7 @@ class FilterITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env)
-    val filterDs = ds.filter( t => true )
+    val filterDs = ds.filter(t => true)
     filterDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n" + "4,3,Hello world, " +
@@ -89,7 +89,7 @@ class FilterITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env)
-    val filterDs = ds.filter( _._3.contains("world") )
+    val filterDs = ds.filter(_._3.contains("world"))
     filterDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = "3,2,Hello world\n" + "4,3,Hello world, how are you?\n"
@@ -102,7 +102,7 @@ class FilterITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env)
-    val filterDs = ds.filter( _._1 % 2 == 0 )
+    val filterDs = ds.filter(_._1 % 2 == 0)
     filterDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = "2,2,Hello\n" + "4,3,Hello world, how are you?\n" + "6,3,Luke Skywalker\n" + "8,4," +
@@ -117,7 +117,7 @@ class FilterITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.getStringDataSet(env)
-    val filterDs = ds.filter( _.startsWith("H") )
+    val filterDs = ds.filter(_.startsWith("H"))
     filterDs.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
     expected = "Hi\n" + "Hello\n" + "Hello world\n" + "Hello world, how are you?\n"
@@ -130,7 +130,7 @@ class FilterITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.getCustomTypeDataSet(env)
-    val filterDs = ds.filter( _.myString.contains("a") )
+    val filterDs = ds.filter(_.myString.contains("a"))
     filterDs.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
     expected = "3,3,Hello world, how are you?\n" + "3,4,I am fine.\n" + "3,5,Luke Skywalker\n"
@@ -144,16 +144,18 @@ class FilterITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ints = CollectionDataSets.getIntDataSet(env)
     val ds = CollectionDataSets.get3TupleDataSet(env)
-    val filterDs = ds.filter( new RichFilterFunction[(Int, Long, String)] {
-      var literal = -1
-      override def open(config: Configuration): Unit = {
-        val ints = getRuntimeContext.getBroadcastVariable[Int]("ints")
-        for (i <- ints.asScala) {
-          literal = if (literal < i) i else literal
+    val filterDs = ds
+      .filter(new RichFilterFunction[(Int, Long, String)] {
+        var literal = -1
+        override def open(config: Configuration): Unit = {
+          val ints = getRuntimeContext.getBroadcastVariable[Int]("ints")
+          for (i <- ints.asScala) {
+            literal = if (literal < i) i else literal
+          }
         }
-      }
-      override def filter(value: (Int, Long, String)): Boolean = value._1 < literal
-    }).withBroadcastSet(ints, "ints")
+        override def filter(value: (Int, Long, String)): Boolean = value._1 < literal
+      })
+      .withBroadcastSet(ints, "ints")
     filterDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n" + "4,3,Hello world, how are you?\n"

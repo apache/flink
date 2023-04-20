@@ -18,9 +18,12 @@
 
 package org.apache.flink.formats.parquet.avro;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.connector.file.src.reader.StreamFormat;
 import org.apache.flink.formats.avro.typeutils.AvroTypeInfo;
 import org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo;
+import org.apache.flink.util.function.SerializableSupplier;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
@@ -30,9 +33,10 @@ import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificRecordBase;
 
 /**
- * Convenience builder to create {@link AvroParquetRecordFormat} instances for the different Avro
- * types.
+ * A convenience builder to create {@link AvroParquetRecordFormat} instances for the different kinds
+ * of Avro record types.
  */
+@Experimental
 public class AvroParquetReaders {
 
     /**
@@ -44,7 +48,7 @@ public class AvroParquetReaders {
      *
      * @see #forGenericRecord(Schema)
      */
-    public static <T extends SpecificRecordBase> AvroParquetRecordFormat<T> forSpecificRecord(
+    public static <T extends SpecificRecordBase> StreamFormat<T> forSpecificRecord(
             final Class<T> typeClass) {
         return new AvroParquetRecordFormat<>(
                 new AvroTypeInfo<>(typeClass), () -> SpecificData.get());
@@ -63,7 +67,7 @@ public class AvroParquetReaders {
      * @see #forGenericRecord(Schema)
      * @see #forSpecificRecord(Class)
      */
-    public static <T> AvroParquetRecordFormat<T> forReflectRecord(final Class<T> typeClass) {
+    public static <T> StreamFormat<T> forReflectRecord(final Class<T> typeClass) {
         if (SpecificRecordBase.class.isAssignableFrom(typeClass)) {
             throw new IllegalArgumentException(
                     "Please use AvroParquetReaders.forSpecificRecord(Class<T>) for SpecificRecord.");
@@ -93,9 +97,17 @@ public class AvroParquetReaders {
      * needs this schema during 'pre-flight' time when the data flow is set up and wired, which is
      * before there is access to the files.
      */
-    public static AvroParquetRecordFormat<GenericRecord> forGenericRecord(final Schema schema) {
+    public static StreamFormat<GenericRecord> forGenericRecord(final Schema schema) {
         return new AvroParquetRecordFormat<>(
-                new GenericRecordAvroTypeInfo(schema), () -> GenericData.get());
+                new GenericRecordAvroTypeInfo(schema),
+                // Must override the lambda representation because of a bug in shading lambda
+                // serialization, see FLINK-28043 for more details.
+                new SerializableSupplier<GenericData>() {
+                    @Override
+                    public GenericData get() {
+                        return GenericData.get();
+                    }
+                });
     }
 
     // ------------------------------------------------------------------------

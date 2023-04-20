@@ -39,6 +39,7 @@ public class KubernetesJobManagerTestBase extends KubernetesPodTestBase {
     protected static final String REST_BIND_PORT = "9082";
     protected static final int RPC_PORT = 7123;
     protected static final int BLOB_SERVER_PORT = 8346;
+    protected static final String ENTRYPOINT_ARGS = "entrypoint args";
 
     protected KubernetesJobManagerParameters kubernetesJobManagerParameters;
 
@@ -65,6 +66,8 @@ public class KubernetesJobManagerTestBase extends KubernetesPodTestBase {
         this.flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_NODE_SELECTOR, nodeSelector);
         this.flinkConfig.set(
                 JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(JOB_MANAGER_MEMORY));
+        this.flinkConfig.set(
+                KubernetesConfigOptions.KUBERNETES_JOBMANAGER_ENTRYPOINT_ARGS, ENTRYPOINT_ARGS);
     }
 
     @Override

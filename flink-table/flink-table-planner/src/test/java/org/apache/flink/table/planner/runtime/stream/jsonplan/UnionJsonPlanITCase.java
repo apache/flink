@@ -50,7 +50,7 @@ public class UnionJsonPlanITCase extends JsonPlanTestBase {
                 "INSERT INTO MySink "
                         + "(SELECT * FROM MyTable where a >=3)"
                         + "     union all (select * from MyTable2 where a <= 3)";
-        executeSqlWithJsonPlanVerified(dml).await();
+        compileSqlAndExecutePlan(dml).await();
         List<String> expected =
                 Arrays.asList(
                         "+I[2, a, 6]",

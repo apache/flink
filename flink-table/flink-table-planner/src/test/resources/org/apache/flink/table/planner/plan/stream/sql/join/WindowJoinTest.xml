@@ -157,6 +157,78 @@ WindowJoin(leftWindow=[TUMBLE(win_start=[window_start], win_end=[window_end], si
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testJoinToMultiSink">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink1], fields=[window_start, window_end, user_id, dt, hour])
++- LogicalProject(window_start=[$1], window_end=[$2], user_id=[$0], dt=[DATE_FORMAT(+($2, 25200000:INTERVAL HOUR), _UTF-16LE'yyyyMMdd')], hour=[DATE_FORMAT(+($2, 25200000:INTERVAL HOUR), _UTF-16LE'HH')])
+   +- LogicalJoin(condition=[AND(=($0, $3), =($1, $4), =($2, $5))], joinType=[left])
+      :- LogicalAggregate(group=[{0, 1, 2}])
+      :  +- LogicalProject(user_id=[$0], window_start=[$4], window_end=[$5])
+      :     +- LogicalTableFunctionScan(invocation=[TUMBLE($3, DESCRIPTOR($3), 60000:INTERVAL MINUTE)], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) order_id, INTEGER amount, TIMESTAMP(3) *ROWTIME* event_time, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+      :        +- LogicalProject(user_id=[$0], order_id=[$1], amount=[$2], event_time=[$3])
+      :           +- LogicalWatermarkAssigner(rowtime=[event_time], watermark=[$3])
+      :              +- LogicalTableScan(table=[[default_catalog, default_database, food_order]])
+      +- LogicalAggregate(group=[{0, 1, 2}])
+         +- LogicalProject(user_id=[$0], window_start=[$4], window_end=[$5])
+            +- LogicalTableFunctionScan(invocation=[TUMBLE($3, DESCRIPTOR($3), 60000:INTERVAL MINUTE)], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) order_id, INTEGER amount, TIMESTAMP(3) *ROWTIME* event_time, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+               +- LogicalProject(user_id=[$0], order_id=[$1], amount=[$2], event_time=[$3])
+                  +- LogicalWatermarkAssigner(rowtime=[event_time], watermark=[$3])
+                     +- LogicalTableScan(table=[[default_catalog, default_database, food_order]])
+
+LogicalSink(table=[default_catalog.default_database.sink2], fields=[window_start, window_end, user_id, dt, hour])
++- LogicalProject(window_start=[$1], window_end=[$2], user_id=[$0], dt=[DATE_FORMAT(+($2, 25200000:INTERVAL HOUR), _UTF-16LE'yyyyMMdd')], hour=[DATE_FORMAT(+($2, 25200000:INTERVAL HOUR), _UTF-16LE'HH')])
+   +- LogicalJoin(condition=[AND(=($0, $3), =($1, $4), =($2, $5))], joinType=[left])
+      :- LogicalAggregate(group=[{0, 1, 2}])
+      :  +- LogicalProject(user_id=[$0], window_start=[$4], window_end=[$5])
+      :     +- LogicalTableFunctionScan(invocation=[TUMBLE($3, DESCRIPTOR($3), 60000:INTERVAL MINUTE)], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) order_id, INTEGER amount, TIMESTAMP(3) *ROWTIME* event_time, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+      :        +- LogicalProject(user_id=[$0], order_id=[$1], amount=[$2], event_time=[$3])
+      :           +- LogicalWatermarkAssigner(rowtime=[event_time], watermark=[$3])
+      :              +- LogicalTableScan(table=[[default_catalog, default_database, food_order]])
+      +- LogicalAggregate(group=[{0, 1, 2}])
+         +- LogicalProject(user_id=[$0], window_start=[$4], window_end=[$5])
+            +- LogicalTableFunctionScan(invocation=[TUMBLE($3, DESCRIPTOR($3), 60000:INTERVAL MINUTE)], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) order_id, INTEGER amount, TIMESTAMP(3) *ROWTIME* event_time, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+               +- LogicalProject(user_id=[$0], order_id=[$1], amount=[$2], event_time=[$3])
+                  +- LogicalWatermarkAssigner(rowtime=[event_time], watermark=[$3])
+                     +- LogicalTableScan(table=[[default_catalog, default_database, food_order]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink1], fields=[window_start, window_end, user_id, dt, hour])
++- Calc(select=[window_start, window_end, user_id, DATE_FORMAT(+(window_end, 25200000:INTERVAL HOUR), 'yyyyMMdd') AS dt, DATE_FORMAT(+(window_end, 25200000:INTERVAL HOUR), 'HH') AS hour])
+   +- WindowJoin(leftWindow=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[1 min])], rightWindow=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[1 min])], joinType=[LeftOuterJoin], where=[=(user_id, user_id0)], select=[user_id, window_start, window_end, user_id0, window_start0, window_end0])
+      :- Exchange(distribution=[hash[user_id]])
+      :  +- GlobalWindowAggregate(groupBy=[user_id], window=[TUMBLE(slice_end=[$slice_end], size=[1 min])], select=[user_id, start('w$) AS window_start, end('w$) AS window_end])
+      :     +- Exchange(distribution=[hash[user_id]])
+      :        +- LocalWindowAggregate(groupBy=[user_id], window=[TUMBLE(time_col=[event_time], size=[1 min])], select=[user_id, slice_end('w$) AS $slice_end])
+      :           +- WatermarkAssigner(rowtime=[event_time], watermark=[event_time])
+      :              +- TableSourceScan(table=[[default_catalog, default_database, food_order, project=[user_id, event_time], metadata=[]]], fields=[user_id, event_time])
+      +- Exchange(distribution=[hash[user_id]])
+         +- GlobalWindowAggregate(groupBy=[user_id], window=[TUMBLE(slice_end=[$slice_end], size=[1 min])], select=[user_id, start('w$) AS window_start, end('w$) AS window_end])
+            +- Exchange(distribution=[hash[user_id]])
+               +- LocalWindowAggregate(groupBy=[user_id], window=[TUMBLE(time_col=[event_time], size=[1 min])], select=[user_id, slice_end('w$) AS $slice_end])
+                  +- WatermarkAssigner(rowtime=[event_time], watermark=[event_time])
+                     +- TableSourceScan(table=[[default_catalog, default_database, food_order, project=[user_id, event_time], metadata=[]]], fields=[user_id, event_time])
+
+Sink(table=[default_catalog.default_database.sink2], fields=[window_start, window_end, user_id, dt, hour])
++- Calc(select=[window_start, window_end, user_id, DATE_FORMAT(+(window_end, 25200000:INTERVAL HOUR), 'yyyyMMdd') AS dt, DATE_FORMAT(+(window_end, 25200000:INTERVAL HOUR), 'HH') AS hour])
+   +- WindowJoin(leftWindow=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[1 min])], rightWindow=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[1 min])], joinType=[LeftOuterJoin], where=[=(user_id, user_id0)], select=[user_id, window_start, window_end, user_id0, window_start0, window_end0])
+      :- Exchange(distribution=[hash[user_id]])
+      :  +- GlobalWindowAggregate(groupBy=[user_id], window=[TUMBLE(slice_end=[$slice_end], size=[1 min])], select=[user_id, start('w$) AS window_start, end('w$) AS window_end])
+      :     +- Exchange(distribution=[hash[user_id]])
+      :        +- LocalWindowAggregate(groupBy=[user_id], window=[TUMBLE(time_col=[event_time], size=[1 min])], select=[user_id, slice_end('w$) AS $slice_end])
+      :           +- WatermarkAssigner(rowtime=[event_time], watermark=[event_time])
+      :              +- TableSourceScan(table=[[default_catalog, default_database, food_order, project=[user_id, event_time], metadata=[]]], fields=[user_id, event_time])
+      +- Exchange(distribution=[hash[user_id]])
+         +- GlobalWindowAggregate(groupBy=[user_id], window=[TUMBLE(slice_end=[$slice_end], size=[1 min])], select=[user_id, start('w$) AS window_start, end('w$) AS window_end])
+            +- Exchange(distribution=[hash[user_id]])
+               +- LocalWindowAggregate(groupBy=[user_id], window=[TUMBLE(time_col=[event_time], size=[1 min])], select=[user_id, slice_end('w$) AS $slice_end])
+                  +- WatermarkAssigner(rowtime=[event_time], watermark=[event_time])
+                     +- TableSourceScan(table=[[default_catalog, default_database, food_order, project=[user_id, event_time], metadata=[]]], fields=[user_id, event_time])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testJoinWithIsNotDistinctFrom">
     <Resource name="sql">
       <![CDATA[

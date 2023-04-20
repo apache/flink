@@ -69,7 +69,7 @@ public class TestingJobManagerRunner implements JobManagerRunner {
 
         final ExecutionGraphInfo suspendedExecutionGraphInfo =
                 new ExecutionGraphInfo(
-                        ArchivedExecutionGraph.createFromInitializingJob(
+                        ArchivedExecutionGraph.createSparseArchivedExecutionGraph(
                                 jobId, "TestJob", JobStatus.SUSPENDED, null, null, 0L),
                         null);
         terminationFuture.whenComplete(
@@ -155,6 +155,10 @@ public class TestingJobManagerRunner implements JobManagerRunner {
         terminationFuture.complete(null);
     }
 
+    public void completeTerminationFutureExceptionally(Throwable expectedException) {
+        terminationFuture.completeExceptionally(expectedException);
+    }
+
     public CompletableFuture<Void> getTerminationFuture() {
         return terminationFuture;
     }
@@ -166,7 +170,7 @@ public class TestingJobManagerRunner implements JobManagerRunner {
     /** {@code Builder} for instantiating {@link TestingJobManagerRunner} instances. */
     public static class Builder {
 
-        private JobID jobId = null;
+        private JobID jobId = new JobID();
         private boolean blockingTermination = false;
         private CompletableFuture<JobMasterGateway> jobMasterGatewayFuture =
                 new CompletableFuture<>();

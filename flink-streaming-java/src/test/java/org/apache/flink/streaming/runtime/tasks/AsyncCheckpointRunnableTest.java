@@ -31,6 +31,7 @@ import org.apache.flink.runtime.state.DoneFuture;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TestTaskStateManager;
+import org.apache.flink.runtime.testutils.ExceptionallyDoneFuture;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 
 import org.junit.Assert;

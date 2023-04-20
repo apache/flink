@@ -15,19 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.utils
 
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 
+import java.util.{List => JList, Optional}
 import java.util.function.{BiConsumer, Consumer, Function}
-import java.util.{Optional, List => JList}
 
 import scala.collection.JavaConverters._
 
-/**
-  * Utilities for interoperability between Scala and Java classes.
-  */
+/** Utilities for interoperability between Scala and Java classes. */
 object JavaScalaConversionUtil {
 
   def toJava[T](option: Option[T]): Optional[T] = option match {
@@ -54,4 +51,7 @@ object JavaScalaConversionUtil {
 
   def toScala[T](list: JList[T]): Seq[T] =
     list.asScala
+
+  def toScala[T0, T1](tuple: JTuple2[T0, T1]): (T0, T1) =
+    (tuple.f0, tuple.f1)
 }

@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.FlinkVersion;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -30,8 +31,6 @@ import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
 import org.hamcrest.Matcher;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -40,15 +39,10 @@ import java.util.List;
 import static org.hamcrest.Matchers.is;
 
 /** A {@link TypeSerializerUpgradeTestBase} for {@link RowSerializer}. */
-@RunWith(Parameterized.class)
+@VisibleForTesting
 public class RowSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Row, Row> {
 
-    public RowSerializerUpgradeTest(TestSpecification<Row, Row> testSpecification) {
-        super(testSpecification);
-    }
-
-    @Parameterized.Parameters(name = "Test Specification = {0}")
-    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
         // for RowSerializer we also test against 1.10 and newer because we have snapshots
         // for this which go beyond what we have for the usual subclasses of

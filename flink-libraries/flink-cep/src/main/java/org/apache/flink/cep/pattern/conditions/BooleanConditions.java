@@ -29,25 +29,11 @@ public class BooleanConditions {
 
     /** @return An {@link IterativeCondition} that always returns {@code true}. */
     public static <T> IterativeCondition<T> trueFunction() {
-        return new SimpleCondition<T>() {
-            private static final long serialVersionUID = 8379409657655181451L;
-
-            @Override
-            public boolean filter(T value) throws Exception {
-                return true;
-            }
-        };
+        return SimpleCondition.of(value -> true);
     }
 
     /** @return An {@link IterativeCondition} that always returns {@code false}. */
     public static <T> IterativeCondition<T> falseFunction() {
-        return new SimpleCondition<T>() {
-            private static final long serialVersionUID = -823981593720949910L;
-
-            @Override
-            public boolean filter(T value) throws Exception {
-                return false;
-            }
-        };
+        return SimpleCondition.of(value -> false);
     }
 }

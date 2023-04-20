@@ -19,7 +19,7 @@
 
 # This bash script aims to predownload dependency tarballs for the E2E tests.
 
-if [ -z "$E2E_TARBALL_CACHE" ] ; then
+if [ -z "${E2E_TARBALL_CACHE:-}" ] ; then
     echo "You have to export the E2E Tarball Cache as E2E_TARBALL_CACHE"
     exit 1
 fi

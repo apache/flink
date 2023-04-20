@@ -18,6 +18,8 @@
 
 package org.apache.flink.connector.kafka.source;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -74,10 +76,14 @@ import java.util.function.Supplier;
  *     .build();
  * }</pre>
  *
- * <p>See {@link KafkaSourceBuilder} for more details.
+ * <p>{@link org.apache.flink.connector.kafka.source.enumerator.KafkaSourceEnumerator} only supports
+ * adding new splits and not removing splits in split discovery.
+ *
+ * <p>See {@link KafkaSourceBuilder} for more details on how to configure this source.
  *
  * @param <OUT> the output type of the source.
  */
+@PublicEvolving
 public class KafkaSource<OUT>
         implements Source<OUT, KafkaPartitionSplit, KafkaSourceEnumState>,
                 ResultTypeQueryable<OUT> {
@@ -122,6 +128,7 @@ public class KafkaSource<OUT>
         return this.boundedness;
     }
 
+    @Internal
     @Override
     public SourceReader<OUT, KafkaPartitionSplit> createReader(SourceReaderContext readerContext)
             throws Exception {
@@ -163,6 +170,7 @@ public class KafkaSource<OUT>
                 kafkaSourceReaderMetrics);
     }
 
+    @Internal
     @Override
     public SplitEnumerator<KafkaPartitionSplit, KafkaSourceEnumState> createEnumerator(
             SplitEnumeratorContext<KafkaPartitionSplit> enumContext) {
@@ -175,6 +183,7 @@ public class KafkaSource<OUT>
                 boundedness);
     }
 
+    @Internal
     @Override
     public SplitEnumerator<KafkaPartitionSplit, KafkaSourceEnumState> restoreEnumerator(
             SplitEnumeratorContext<KafkaPartitionSplit> enumContext,
@@ -190,11 +199,13 @@ public class KafkaSource<OUT>
                 checkpoint.assignedPartitions());
     }
 
+    @Internal
     @Override
     public SimpleVersionedSerializer<KafkaPartitionSplit> getSplitSerializer() {
         return new KafkaPartitionSplitSerializer();
     }
 
+    @Internal
     @Override
     public SimpleVersionedSerializer<KafkaSourceEnumState> getEnumeratorCheckpointSerializer() {
         return new KafkaSourceEnumStateSerializer();
@@ -216,5 +227,15 @@ public class KafkaSource<OUT>
     @VisibleForTesting
     Configuration getConfiguration() {
         return toConfiguration(props);
+    }
+
+    @VisibleForTesting
+    KafkaSubscriber getKafkaSubscriber() {
+        return subscriber;
+    }
+
+    @VisibleForTesting
+    OffsetsInitializer getStoppingOffsetsInitializer() {
+        return stoppingOffsetsInitializer;
     }
 }

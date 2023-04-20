@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest.messages.job.savepoints;
 
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.TriggerId;
 
@@ -37,6 +38,7 @@ public class SavepointTriggerRequestBody implements RequestBody {
     private static final String FIELD_NAME_CANCEL_JOB = "cancel-job";
 
     private static final String FIELD_NAME_TRIGGER_ID = "triggerId";
+    private static final String FIELD_NAME_FORMAT_TYPE = "formatType";
 
     @JsonProperty(FIELD_NAME_TARGET_DIRECTORY)
     @Nullable
@@ -49,14 +51,20 @@ public class SavepointTriggerRequestBody implements RequestBody {
     @Nullable
     private final TriggerId triggerId;
 
+    @JsonProperty(FIELD_NAME_FORMAT_TYPE)
+    @Nullable
+    private final SavepointFormatType formatType;
+
     @JsonCreator
     public SavepointTriggerRequestBody(
             @Nullable @JsonProperty(FIELD_NAME_TARGET_DIRECTORY) final String targetDirectory,
             @Nullable @JsonProperty(FIELD_NAME_CANCEL_JOB) final Boolean cancelJob,
+            @Nullable @JsonProperty(FIELD_NAME_FORMAT_TYPE) final SavepointFormatType formatType,
             @Nullable @JsonProperty(FIELD_NAME_TRIGGER_ID) TriggerId triggerId) {
         this.targetDirectory = targetDirectory;
         this.cancelJob = cancelJob != null ? cancelJob : false;
         this.triggerId = triggerId;
+        this.formatType = formatType != null ? formatType : SavepointFormatType.DEFAULT;
     }
 
     @JsonIgnore
@@ -71,5 +79,10 @@ public class SavepointTriggerRequestBody implements RequestBody {
 
     public boolean isCancelJob() {
         return cancelJob;
+    }
+
+    @JsonIgnore
+    public SavepointFormatType getFormatType() {
+        return formatType;
     }
 }

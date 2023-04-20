@@ -22,7 +22,7 @@ import sys
 import tempfile
 
 from pyflink.table import EnvironmentSettings, TableEnvironment
-
+from pyflink.table.expressions import col, call, lit
 
 def word_count():
     content = "line Licensed to the Apache Software Foundation ASF under one " \
@@ -38,7 +38,7 @@ def word_count():
     # used to test pipeline.jars and pipeline.classpaths
     config_key = sys.argv[1]
     config_value = sys.argv[2]
-    t_env.get_config().get_configuration().set_string(config_key, config_value)
+    t_env.get_config().set(config_key, config_value)
 
     # register Results table in table environment
     tmp_dir = tempfile.gettempdir()
@@ -71,10 +71,14 @@ def word_count():
     t_env.register_java_function("add_one_java", "org.apache.flink.python.tests.util.AddOne")
 
     elements = [(word, 0) for word in content.split(" ")]
-    t_env.from_elements(elements, ["word", "count"]) \
-        .select("word, add_one(count) as count, add_one_java(count) as count_java") \
-        .group_by("word") \
-        .select("word, count(count) as count, count(count_java) as count_java") \
+    t = t_env.from_elements(elements, ["word", "count"])
+    t.select(t.word,
+             call("add_one", t.count).alias("count"),
+             call("add_one_java", t.count).alias("count_java")) \
+        .group_by(t.word) \
+        .select(t.word,
+                col("count").count.alias("count"),
+                col("count_java").count.alias("count_java")) \
         .execute_insert("Results")
 
 

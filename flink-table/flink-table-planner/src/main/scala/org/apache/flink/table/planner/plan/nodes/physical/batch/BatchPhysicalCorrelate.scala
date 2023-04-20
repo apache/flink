@@ -18,20 +18,19 @@
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecCorrelate
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
 import org.apache.flink.table.planner.plan.utils.JoinTypeUtil
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{Correlate, JoinRelType}
 import org.apache.calcite.rex.{RexCall, RexNode}
 
-/**
-  * Batch physical RelNode for [[Correlate]] (Java/Scala user defined table function).
-  */
+/** Batch physical RelNode for [[Correlate]] (Java/Scala user defined table function). */
 class BatchPhysicalCorrelate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -49,22 +48,13 @@ class BatchPhysicalCorrelate(
     outputRowType,
     joinType) {
 
-  def copy(
-      traitSet: RelTraitSet,
-      child: RelNode,
-      outputType: RelDataType): RelNode = {
-    new BatchPhysicalCorrelate(
-      cluster,
-      traitSet,
-      child,
-      scan,
-      condition,
-      outputType,
-      joinType)
+  def copy(traitSet: RelTraitSet, child: RelNode, outputType: RelDataType): RelNode = {
+    new BatchPhysicalCorrelate(cluster, traitSet, child, scan, condition, outputType, joinType)
   }
 
   override def translateToExecNode(): ExecNode[_] = {
     new BatchExecCorrelate(
+      unwrapTableConfig(this),
       JoinTypeUtil.getFlinkJoinType(joinType),
       scan.getCall.asInstanceOf[RexCall],
       condition.orNull,

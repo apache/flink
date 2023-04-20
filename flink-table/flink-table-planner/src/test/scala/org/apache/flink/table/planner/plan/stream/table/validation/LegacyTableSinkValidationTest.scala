@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.stream.table.validation
 
 import org.apache.flink.api.scala._
@@ -39,8 +38,9 @@ class LegacyTableSinkValidationTest extends TableTestBase {
     val t = env.fromCollection(TestData.smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
 
     t.groupBy('text)
-    .select('text, 'id.count, 'num.sum)
-    .toAppendStream[Row].addSink(new TestingAppendSink)
+      .select('text, 'id.count, 'num.sum)
+      .toAppendStream[Row]
+      .addSink(new TestingAppendSink)
 
     // must fail because table is not append-only
     env.execute()
@@ -51,15 +51,17 @@ class LegacyTableSinkValidationTest extends TableTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
-    val t = env.fromCollection(TestData.tupleData3)
+    val t = env
+      .fromCollection(TestData.tupleData3)
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text)
 
     val sink = new TestingUpsertTableSink(Array(0, 1))
 
-    val result = t.select('id, 'num, 'text.charLength() as 'len, ('id > 0) as 'cTrue)
-    .groupBy('len, 'cTrue)
-    .select('len, 'id.count, 'num.sum)
+    val result = t
+      .select('id, 'num, 'text.charLength().as('len), ('id > 0).as('cTrue))
+      .groupBy('len, 'cTrue)
+      .select('len, 'id.count, 'num.sum)
     val schema = result.getSchema
     sink.configure(schema.getFieldNames, schema.getFieldTypes)
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("testSink", sink)
@@ -75,9 +77,11 @@ class LegacyTableSinkValidationTest extends TableTestBase {
     val ds1 = env.fromCollection(TestData.tupleData3).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = env.fromCollection(TestData.tupleData5).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
-    ds1.leftOuterJoin(ds2, 'a === 'd && 'b === 'h)
+    ds1
+      .leftOuterJoin(ds2, 'a === 'd && 'b === 'h)
       .select('c, 'g)
-      .toAppendStream[Row].addSink(new TestingAppendSink)
+      .toAppendStream[Row]
+      .addSink(new TestingAppendSink)
 
     // must fail because table is not append-only
     env.execute()
@@ -88,27 +92,27 @@ class LegacyTableSinkValidationTest extends TableTestBase {
     expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage(
       "Column types of query result and sink for " +
-      "'default_catalog.default_database.testSink' do not match.\n" +
-      "Cause: Incompatible types for sink column 'd' at position 3.\n\n" +
-      "Query schema: [a: INT, b: BIGINT, c: STRING, d: BIGINT]\n" +
-      "Sink schema:  [a: INT, b: BIGINT, c: STRING, d: INT]")
+        "'default_catalog.default_database.testSink' do not match.\n" +
+        "Cause: Incompatible types for sink column 'd' at position 3.\n\n" +
+        "Query schema: [a: INT, b: BIGINT, c: STRING, d: BIGINT]\n" +
+        "Sink schema:  [a: INT, b: BIGINT, c: STRING, d: INT]")
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val sourceTable = env.fromCollection(TestData.tupleData3).toTable(tEnv, 'a, 'b, 'c)
-    tEnv.registerTable("source", sourceTable)
+    tEnv.createTemporaryView("source", sourceTable)
     val resultTable = tEnv.sqlQuery("select a, b, c, b as d from source")
 
-    val sinkSchema = TableSchema.builder()
+    val sinkSchema = TableSchema
+      .builder()
       .field("a", DataTypes.INT())
       .field("b", DataTypes.BIGINT())
       .field("c", DataTypes.STRING())
       .field("d", DataTypes.INT())
       .build()
 
-    MemoryTableSourceSinkUtil.createDataTypeOutputFormatTable(
-      tEnv, sinkSchema, "testSink")
+    MemoryTableSourceSinkUtil.createDataTypeOutputFormatTable(tEnv, sinkSchema, "testSink")
     // must fail because query result table schema is different with sink table schema
     resultTable.executeInsert("testSink").await()
   }

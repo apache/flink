@@ -26,7 +26,6 @@ from pyflink.common import Row
 from pyflink.fn_execution.coders import PickleCoder
 from pyflink.fn_execution.table.state_data_view import DataViewSpec, ListViewSpec, MapViewSpec, \
     PerKeyStateDataViewStore
-from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 from pyflink.table import AggregateFunction, TableAggregateFunction
 
 cdef InternalRow join_row(list left, list right, InternalRowKind row_kind):
@@ -435,7 +434,7 @@ cdef class GroupAggFunctionBase:
     def __init__(self,
                  aggs_handle: AggsHandleFunctionBase,
                  key_selector: RowKeySelector,
-                 state_backend: RemoteKeyedStateBackend,
+                 state_backend,
                  state_value_coder,
                  generate_update_before: bool,
                  state_cleaning_enabled: bool,
@@ -457,7 +456,7 @@ cdef class GroupAggFunctionBase:
 
     cpdef void on_timer(self, InternalRow key):
         if self.state_cleaning_enabled:
-            self.state_backend.set_current_key(key)
+            self.state_backend.set_current_key(list(key.values))
             accumulator_state = self.state_backend.get_value_state(
                 "accumulators", self.state_value_coder)
             accumulator_state.clear()
@@ -479,7 +478,7 @@ cdef class GroupAggFunction(GroupAggFunctionBase):
     def __init__(self,
                  aggs_handle,
                  key_selector: RowKeySelector,
-                 state_backend: RemoteKeyedStateBackend,
+                 state_backend,
                  state_value_coder,
                  generate_update_before: bool,
                  state_cleaning_enabled: bool,
@@ -586,7 +585,7 @@ cdef class GroupTableAggFunction(GroupAggFunctionBase):
     def __init__(self,
                  aggs_handle,
                  key_selector: RowKeySelector,
-                 state_backend: RemoteKeyedStateBackend,
+                 state_backend,
                  state_value_coder,
                  generate_update_before: bool,
                  state_cleaning_enabled: bool,

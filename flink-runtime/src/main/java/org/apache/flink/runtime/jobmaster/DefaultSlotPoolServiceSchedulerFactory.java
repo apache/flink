@@ -23,11 +23,11 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.CheckpointingOptions;
-import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.runtime.blob.BlobWriter;
+import org.apache.flink.runtime.blocklist.BlocklistOperations;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
@@ -35,6 +35,7 @@ import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolBridgeServiceFactory;
+import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolServiceFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.PreferredAllocationRequestSlotMatchingStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.RequestSlotMatchingStrategy;
@@ -47,7 +48,9 @@ import org.apache.flink.runtime.scheduler.DefaultSchedulerFactory;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.runtime.scheduler.adaptive.AdaptiveSchedulerFactory;
+import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchSchedulerFactory;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.clock.SystemClock;
 
 import org.slf4j.Logger;
@@ -80,8 +83,9 @@ public final class DefaultSlotPoolServiceSchedulerFactory
     }
 
     @Override
-    public SlotPoolService createSlotPoolService(JobID jid) {
-        return slotPoolServiceFactory.createSlotPoolService(jid);
+    public SlotPoolService createSlotPoolService(
+            JobID jid, DeclarativeSlotPoolFactory declarativeSlotPoolFactory) {
+        return slotPoolServiceFactory.createSlotPoolService(jid, declarativeSlotPoolFactory);
     }
 
     @Override
@@ -109,7 +113,8 @@ public final class DefaultSlotPoolServiceSchedulerFactory
             long initializationTimestamp,
             ComponentMainThreadExecutor mainThreadExecutor,
             FatalErrorHandler fatalErrorHandler,
-            JobStatusListener jobStatusListener)
+            JobStatusListener jobStatusListener,
+            BlocklistOperations blocklistOperations)
             throws Exception {
         return schedulerNGFactory.createInstance(
                 log,
@@ -130,7 +135,8 @@ public final class DefaultSlotPoolServiceSchedulerFactory
                 initializationTimestamp,
                 mainThreadExecutor,
                 fatalErrorHandler,
-                jobStatusListener);
+                jobStatusListener,
+                blocklistOperations);
     }
 
     public static DefaultSlotPoolServiceSchedulerFactory create(
@@ -140,7 +146,7 @@ public final class DefaultSlotPoolServiceSchedulerFactory
     }
 
     public static DefaultSlotPoolServiceSchedulerFactory fromConfiguration(
-            Configuration configuration, JobType jobType) {
+            Configuration configuration, JobType jobType, boolean isDynamicGraph) {
 
         final Time rpcTimeout =
                 Time.fromDuration(configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION));
@@ -153,16 +159,19 @@ public final class DefaultSlotPoolServiceSchedulerFactory
         final SchedulerNGFactory schedulerNGFactory;
 
         JobManagerOptions.SchedulerType schedulerType =
-                ClusterOptions.getSchedulerType(configuration);
-        if (schedulerType == JobManagerOptions.SchedulerType.Adaptive && jobType == JobType.BATCH) {
-            LOG.info(
-                    "Adaptive Scheduler configured, but Batch job detected. Changing scheduler type to NG / DefaultScheduler.");
-            // overwrite
-            schedulerType = JobManagerOptions.SchedulerType.Ng;
+                getSchedulerType(configuration, jobType, isDynamicGraph);
+
+        if (configuration
+                .getOptional(JobManagerOptions.HYBRID_PARTITION_DATA_CONSUME_CONSTRAINT)
+                .isPresent()) {
+            Preconditions.checkState(
+                    schedulerType == JobManagerOptions.SchedulerType.AdaptiveBatch,
+                    "Only adaptive batch scheduler supports setting "
+                            + JobManagerOptions.HYBRID_PARTITION_DATA_CONSUME_CONSTRAINT.key());
         }
 
         switch (schedulerType) {
-            case Ng:
+            case Default:
                 schedulerNGFactory = new DefaultSchedulerFactory();
                 slotPoolServiceFactory =
                         new DeclarativeSlotPoolBridgeServiceFactory(
@@ -178,6 +187,16 @@ public final class DefaultSlotPoolServiceSchedulerFactory
                         new DeclarativeSlotPoolServiceFactory(
                                 SystemClock.getInstance(), slotIdleTimeout, rpcTimeout);
                 break;
+            case AdaptiveBatch:
+                schedulerNGFactory = new AdaptiveBatchSchedulerFactory();
+                slotPoolServiceFactory =
+                        new DeclarativeSlotPoolBridgeServiceFactory(
+                                SystemClock.getInstance(),
+                                rpcTimeout,
+                                slotIdleTimeout,
+                                batchSlotTimeout,
+                                getRequestSlotMatchingStrategy(configuration, jobType));
+                break;
             default:
                 throw new IllegalArgumentException(
                         String.format(
@@ -187,6 +206,56 @@ public final class DefaultSlotPoolServiceSchedulerFactory
 
         return new DefaultSlotPoolServiceSchedulerFactory(
                 slotPoolServiceFactory, schedulerNGFactory);
+    }
+
+    private static JobManagerOptions.SchedulerType getSchedulerType(
+            Configuration configuration, JobType jobType, boolean isDynamicGraph) {
+        JobManagerOptions.SchedulerType schedulerType;
+        if (jobType == JobType.BATCH) {
+            if (configuration.get(JobManagerOptions.SCHEDULER_MODE)
+                            == SchedulerExecutionMode.REACTIVE
+                    || configuration.get(JobManagerOptions.SCHEDULER)
+                            == JobManagerOptions.SchedulerType.Adaptive) {
+                LOG.info(
+                        "Adaptive Scheduler configured, but Batch job detected. Changing scheduler type to 'AdaptiveBatch'.");
+                // overwrite
+                schedulerType = JobManagerOptions.SchedulerType.AdaptiveBatch;
+            } else {
+                schedulerType =
+                        configuration
+                                .getOptional(JobManagerOptions.SCHEDULER)
+                                .orElse(
+                                        isDynamicGraph
+                                                ? JobManagerOptions.SchedulerType.AdaptiveBatch
+                                                : JobManagerOptions.SchedulerType.Default);
+            }
+        } else {
+            if (configuration.get(JobManagerOptions.SCHEDULER_MODE)
+                    == SchedulerExecutionMode.REACTIVE) {
+                schedulerType = JobManagerOptions.SchedulerType.Adaptive;
+            } else {
+                schedulerType =
+                        configuration
+                                .getOptional(JobManagerOptions.SCHEDULER)
+                                .orElse(
+                                        System.getProperties()
+                                                        .containsKey(
+                                                                "flink.tests.enable-adaptive-scheduler")
+                                                ? JobManagerOptions.SchedulerType.Adaptive
+                                                : JobManagerOptions.SchedulerType.Default);
+            }
+        }
+
+        if (schedulerType == JobManagerOptions.SchedulerType.Ng) {
+            LOG.warn(
+                    "Config value '{}' for option '{}' is deprecated, use '{}' instead.",
+                    JobManagerOptions.SchedulerType.Ng,
+                    JobManagerOptions.SCHEDULER.key(),
+                    JobManagerOptions.SchedulerType.Default);
+            // overwrite
+            schedulerType = JobManagerOptions.SchedulerType.Default;
+        }
+        return schedulerType;
     }
 
     @VisibleForTesting

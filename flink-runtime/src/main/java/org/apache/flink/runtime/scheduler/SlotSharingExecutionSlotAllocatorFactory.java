@@ -24,7 +24,7 @@ import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotRequestBulkChecke
 import org.apache.flink.runtime.scheduler.SharedSlotProfileRetriever.SharedSlotProfileRetrieverFactory;
 
 /** Factory for {@link SlotSharingExecutionSlotAllocator}. */
-class SlotSharingExecutionSlotAllocatorFactory implements ExecutionSlotAllocatorFactory {
+public class SlotSharingExecutionSlotAllocatorFactory implements ExecutionSlotAllocatorFactory {
     private final PhysicalSlotProvider slotProvider;
 
     private final boolean slotWillBeOccupiedIndefinitely;
@@ -35,7 +35,7 @@ class SlotSharingExecutionSlotAllocatorFactory implements ExecutionSlotAllocator
 
     private final SlotSharingStrategy.Factory slotSharingStrategyFactory;
 
-    SlotSharingExecutionSlotAllocatorFactory(
+    public SlotSharingExecutionSlotAllocatorFactory(
             PhysicalSlotProvider slotProvider,
             boolean slotWillBeOccupiedIndefinitely,
             PhysicalSlotRequestBulkChecker bulkChecker,
@@ -73,7 +73,7 @@ class SlotSharingExecutionSlotAllocatorFactory implements ExecutionSlotAllocator
         SharedSlotProfileRetrieverFactory sharedSlotProfileRetrieverFactory =
                 new MergingSharedSlotProfileRetrieverFactory(
                         preferredLocationsRetriever,
-                        context::getPriorAllocationId,
+                        context::findPriorAllocationId,
                         context::getReservedAllocations);
         return new SlotSharingExecutionSlotAllocator(
                 slotProvider,

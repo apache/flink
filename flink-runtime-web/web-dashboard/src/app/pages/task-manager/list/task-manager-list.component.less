@@ -15,7 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@import "theme";
 
-.break-word {
-  word-break: break-all;
+:host {
+  .break-word {
+    word-break: break-all;
+  }
+
+  ::ng-deep {
+    .ant-table-cell {
+      font-size: @font-size-sm;
+    }
+  }
 }

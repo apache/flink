@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler.adaptive;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinatorHolder;
@@ -44,13 +45,15 @@ class TestingOperatorCoordinatorHandler implements OperatorCoordinatorHandler {
     }
 
     @Override
-    public void initializeOperatorCoordinators(ComponentMainThreadExecutor mainThreadExecutor) {
-        throw new UnsupportedOperationException();
+    public void initializeOperatorCoordinators(
+            ComponentMainThreadExecutor mainThreadExecutor,
+            JobManagerJobMetricGroup jobManagerJobMetricGroup) {
+        // No-op.
     }
 
     @Override
     public void startAllOperatorCoordinators() {
-        throw new UnsupportedOperationException();
+        // No-op.
     }
 
     @Override
@@ -69,7 +72,8 @@ class TestingOperatorCoordinatorHandler implements OperatorCoordinatorHandler {
     @Override
     public void registerAndStartNewCoordinators(
             Collection<OperatorCoordinatorHolder> coordinators,
-            ComponentMainThreadExecutor mainThreadExecutor) {
+            ComponentMainThreadExecutor mainThreadExecutor,
+            JobManagerJobMetricGroup jobManagerJobMetricGroup) {
         throw new UnsupportedOperationException();
     }
 }

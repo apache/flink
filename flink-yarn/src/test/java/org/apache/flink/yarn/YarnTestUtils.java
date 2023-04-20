@@ -77,7 +77,7 @@ public class YarnTestUtils {
 
         for (Map.Entry<String, String> src : srcFiles.entrySet()) {
             File file = new File(directory, src.getKey());
-            //noinspection ResultOfMethodCallIgnored
+            // noinspection ResultOfMethodCallIgnored
             file.getParentFile().mkdirs();
             try (DataOutputStream out = new DataOutputStream(new FileOutputStream(file))) {
                 out.writeUTF(src.getValue());

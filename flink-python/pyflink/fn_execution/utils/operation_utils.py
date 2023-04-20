@@ -48,7 +48,10 @@ def normalize_table_function_result(it):
             return [value]
 
     if it is None:
-        return []
+        def func():
+            for i in []:
+                yield i
+        return func()
 
     if isinstance(it, (list, range, Generator)):
         def func():
@@ -57,7 +60,9 @@ def normalize_table_function_result(it):
 
         return func()
     else:
-        return [normalize_one_row(it)]
+        def func():
+            yield normalize_one_row(it)
+        return func()
 
 
 def normalize_pandas_result(it):
@@ -93,7 +98,8 @@ def extract_over_window_user_defined_function(user_defined_function_proto):
     return (*extract_user_defined_function(user_defined_function_proto, True), window_index)
 
 
-def extract_user_defined_function(user_defined_function_proto, pandas_udaf=False)\
+def extract_user_defined_function(user_defined_function_proto, pandas_udaf=False,
+                                  one_arg_optimization=False)\
         -> Tuple[str, Dict, List]:
     """
     Extracts user-defined-function from the proto representation of a
@@ -101,6 +107,7 @@ def extract_user_defined_function(user_defined_function_proto, pandas_udaf=False
 
     :param user_defined_function_proto: the proto representation of the Python
     :param pandas_udaf: whether the user_defined_function_proto is pandas udaf
+    :param one_arg_optimization: whether the optimization enabled
     :class:`UserDefinedFunction`
     """
 
@@ -116,13 +123,17 @@ def extract_user_defined_function(user_defined_function_proto, pandas_udaf=False
         for arg in args:
             if arg.HasField("udf"):
                 # for chaining Python UDF input: the input argument is a Python ScalarFunction
-                udf_arg, udf_variable_dict, udf_funcs = extract_user_defined_function(arg.udf)
+                udf_arg, udf_variable_dict, udf_funcs = extract_user_defined_function(
+                    arg.udf, one_arg_optimization=one_arg_optimization)
                 args_str.append(udf_arg)
                 local_variable_dict.update(udf_variable_dict)
                 local_funcs.extend(udf_funcs)
             elif arg.HasField("inputOffset"):
-                # the input argument is a column of the input row
-                args_str.append("value[%s]" % arg.inputOffset)
+                if one_arg_optimization:
+                    args_str.append("value")
+                else:
+                    # the input argument is a column of the input row
+                    args_str.append("value[%s]" % arg.inputOffset)
             else:
                 # the input argument is a constant value
                 constant_value_name, parsed_constant_value = \
@@ -295,7 +306,7 @@ class PeriodicThread(threading.Thread):
         now = time.time()
         next_call = now + self._interval
         while (next_call <= now and not self._finished.is_set()) or \
-                (not self._finished.wait(next_call - now)):
+                (next_call > now and not self._finished.wait(next_call - now)):
             if next_call <= now:
                 next_call = now + self._interval
             else:

@@ -24,6 +24,8 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.List;
 import java.util.Objects;
 
@@ -48,6 +50,7 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
             @JsonProperty(FIELD_NAME_ID) long checkpointId,
             @JsonProperty(FIELD_NAME_CHECKPOINT_STATUS) CheckpointStatsStatus checkpointStatus,
             @JsonProperty(FIELD_NAME_LATEST_ACK_TIMESTAMP) long latestAckTimestamp,
+            @JsonProperty(FIELD_NAME_CHECKPOINTED_SIZE) long checkpointedSize,
             @JsonProperty(FIELD_NAME_STATE_SIZE) long stateSize,
             @JsonProperty(FIELD_NAME_DURATION) long duration,
             @JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) long alignmentBuffered,
@@ -62,6 +65,7 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
                 checkpointId,
                 checkpointStatus,
                 latestAckTimestamp,
+                checkpointedSize,
                 stateSize,
                 duration,
                 alignmentBuffered,
@@ -109,7 +113,10 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
     // -----------------------------------------------------------------------------------
 
     /** Summary of the checkpoint statistics for a given task. */
+    @Schema(name = "TaskCheckpointStatisticsWithSubtaskDetailsSummary")
     public static final class Summary {
+
+        public static final String FIELD_NAME_CHECKPOINTED_SIZE = "checkpointed_size";
 
         /**
          * The accurate name of this field should be 'checkpointed_data_size', keep it as before to
@@ -126,6 +133,9 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
         public static final String FIELD_NAME_ALIGNMENT = "alignment";
 
         public static final String FIELD_NAME_START_DELAY = "start_delay";
+
+        @JsonProperty(FIELD_NAME_CHECKPOINTED_SIZE)
+        private final StatsSummaryDto checkpointedSize;
 
         @JsonProperty(FIELD_NAME_STATE_SIZE)
         private final StatsSummaryDto stateSize;
@@ -144,16 +154,22 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
 
         @JsonCreator
         public Summary(
+                @JsonProperty(FIELD_NAME_CHECKPOINTED_SIZE) StatsSummaryDto checkpointedSize,
                 @JsonProperty(FIELD_NAME_STATE_SIZE) StatsSummaryDto stateSize,
                 @JsonProperty(FIELD_NAME_DURATION) StatsSummaryDto duration,
                 @JsonProperty(FIELD_NAME_CHECKPOINT_DURATION) CheckpointDuration checkpointDuration,
                 @JsonProperty(FIELD_NAME_ALIGNMENT) CheckpointAlignment checkpointAlignment,
                 @JsonProperty(FIELD_NAME_START_DELAY) StatsSummaryDto checkpointStartDelay) {
+            this.checkpointedSize = Preconditions.checkNotNull(checkpointedSize);
             this.stateSize = Preconditions.checkNotNull(stateSize);
             this.duration = Preconditions.checkNotNull(duration);
             this.checkpointDuration = Preconditions.checkNotNull(checkpointDuration);
             this.checkpointAlignment = Preconditions.checkNotNull(checkpointAlignment);
             this.checkpointStartDelay = Preconditions.checkNotNull(checkpointStartDelay);
+        }
+
+        public StatsSummaryDto getCheckpointedSize() {
+            return checkpointedSize;
         }
 
         public StatsSummaryDto getStateSize() {
@@ -185,7 +201,8 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
                 return false;
             }
             Summary summary = (Summary) o;
-            return Objects.equals(stateSize, summary.stateSize)
+            return Objects.equals(checkpointedSize, summary.checkpointedSize)
+                    && Objects.equals(stateSize, summary.stateSize)
                     && Objects.equals(duration, summary.duration)
                     && Objects.equals(checkpointDuration, summary.checkpointDuration)
                     && Objects.equals(checkpointAlignment, summary.checkpointAlignment)
@@ -195,6 +212,7 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
         @Override
         public int hashCode() {
             return Objects.hash(
+                    checkpointedSize,
                     stateSize,
                     duration,
                     checkpointDuration,
@@ -204,6 +222,7 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
     }
 
     /** Duration of a checkpoint split up into its synchronous and asynchronous part. */
+    @Schema(name = "CheckpointDurationSummary")
     public static final class CheckpointDuration {
 
         public static final String FIELD_NAME_SYNCHRONOUS_DURATION = "sync";
@@ -253,6 +272,7 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
     }
 
     /** Alignment information for a specific checkpoint at a given task. */
+    @Schema(name = "CheckpointAlignmentSummary")
     public static final class CheckpointAlignment {
 
         public static final String FIELD_NAME_BUFFERED_DATA = "buffered";

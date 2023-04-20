@@ -60,9 +60,9 @@ public class JavaCatalogTableTest extends TableTestBase {
 
     private TableTestUtil getTestUtil() {
         if (isStreamingMode) {
-            return streamTestUtil(new TableConfig());
+            return streamTestUtil(TableConfig.getDefault());
         } else {
-            return batchTestUtil(new TableConfig());
+            return batchTestUtil(TableConfig.getDefault());
         }
     }
 

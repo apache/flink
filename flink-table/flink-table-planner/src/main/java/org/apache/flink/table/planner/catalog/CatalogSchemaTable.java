@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.catalog;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogBaseTable;
@@ -27,6 +28,7 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.ContextResolvedTable;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.table.factories.TableSourceFactory;
@@ -40,6 +42,7 @@ import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceValidation;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.utils.TableSchemaUtils;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -154,14 +157,34 @@ public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
     private Optional<TableSource<?>> findAndCreateTableSource() {
         Optional<TableSource<?>> tableSource = Optional.empty();
         try {
-            if (contextResolvedTable.getTable() instanceof CatalogTable) {
+            if (contextResolvedTable.getResolvedTable() instanceof CatalogTable) {
                 // Use an empty config for TableSourceFactoryContextImpl since we can't fetch the
                 // actual TableConfig here. And currently the empty config do not affect the logic.
                 ReadableConfig config = new Configuration();
+                // The input table is ResolvedCatalogTable that the
+                // rowtime/proctime contains {@link TimestampKind}. However, rowtime
+                // is the concept defined by the WatermarkGenerator and the
+                // WatermarkGenerator is responsible to convert the rowtime column
+                // to Long. For source, it only treats the rowtime column as regular
+                // timestamp. So, we remove the rowtime indicator here. Please take a
+                // look at the usage of the {@link DataTypeUtils#removeTimeAttribute}
+                ResolvedCatalogTable originTable = contextResolvedTable.getResolvedTable();
                 TableSourceFactory.Context context =
                         new TableSourceFactoryContextImpl(
                                 contextResolvedTable.getIdentifier(),
-                                contextResolvedTable.getTable(),
+                                new ResolvedCatalogTable(
+                                        CatalogTable.of(
+                                                Schema.newBuilder()
+                                                        .fromResolvedSchema(
+                                                                TableSchemaUtils
+                                                                        .removeTimeAttributeFromResolvedSchema(
+                                                                                originTable
+                                                                                        .getResolvedSchema()))
+                                                        .build(),
+                                                originTable.getComment(),
+                                                originTable.getPartitionKeys(),
+                                                originTable.getOptions()),
+                                        originTable.getResolvedSchema()),
                                 config,
                                 contextResolvedTable.isTemporary());
                 TableSource<?> source = TableFactoryUtil.findAndCreateTableSource(context);

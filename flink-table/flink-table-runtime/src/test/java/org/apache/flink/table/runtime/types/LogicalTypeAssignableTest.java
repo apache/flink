@@ -60,9 +60,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link PlannerTypeUtils#isAssignable(LogicalType, LogicalType)}. */
 @RunWith(Parameterized.class)
@@ -218,9 +216,9 @@ public class LogicalTypeAssignableTest {
 
     @Test
     public void testAreTypesCompatible() {
-        assertThat(PlannerTypeUtils.isAssignable(sourceType, targetType), equalTo(equals));
-        assertTrue(PlannerTypeUtils.isAssignable(sourceType, sourceType.copy()));
-        assertTrue(PlannerTypeUtils.isAssignable(targetType, targetType.copy()));
+        assertThat(PlannerTypeUtils.isAssignable(sourceType, targetType)).isEqualTo(equals);
+        assertThat(PlannerTypeUtils.isAssignable(sourceType, sourceType.copy())).isTrue();
+        assertThat(PlannerTypeUtils.isAssignable(targetType, targetType.copy())).isTrue();
     }
 
     private static DistinctType createDistinctType(LogicalType sourceType) {

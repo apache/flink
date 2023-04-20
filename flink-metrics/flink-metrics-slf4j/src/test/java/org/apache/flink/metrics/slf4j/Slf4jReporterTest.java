@@ -27,53 +27,114 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMetricGroup;
-import org.apache.flink.testutils.logging.TestLoggerResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.logging.LoggerAuditingExtension;
 
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.event.Level;
 
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.hasItem;
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link Slf4jReporter}. */
-public class Slf4jReporterTest extends TestLogger {
+class Slf4jReporterTest {
 
     private static final String SCOPE = "scope";
     private static char delimiter;
 
     private static MetricGroup metricGroup;
-    private static Slf4jReporter reporter;
+    private Slf4jReporter reporter;
 
-    @Rule
-    public final TestLoggerResource testLoggerResource =
-            new TestLoggerResource(Slf4jReporter.class, Level.INFO);
+    @RegisterExtension
+    private final LoggerAuditingExtension testLoggerResource =
+            new LoggerAuditingExtension(Slf4jReporter.class, Level.INFO);
 
-    @BeforeClass
-    public static void setUp() {
+    @BeforeAll
+    static void setUp() {
         delimiter = '.';
 
         metricGroup =
                 TestMetricGroup.newBuilder()
                         .setMetricIdentifierFunction((s, characterFilter) -> SCOPE + delimiter + s)
                         .build();
+    }
+
+    @BeforeEach
+    void setUpReporter() {
         reporter = new Slf4jReporter();
         reporter.open(new MetricConfig());
     }
 
     @Test
-    public void testAddCounter() throws Exception {
+    void testSkipOnNoMetrics() {
+        reporter.report();
+
+        assertThat(testLoggerResource.getMessages())
+                .noneMatch(logOutput -> logOutput.contains("Starting metrics report"))
+                .anyMatch(logOutput -> logOutput.contains("Skipping metrics report"));
+    }
+
+    @Test
+    void testOnlyCounterRegistered() {
+        reporter.notifyOfAddedMetric(new SimpleCounter(), "metric", metricGroup);
+
+        reporter.report();
+
+        assertThat(testLoggerResource.getMessages())
+                .noneMatch(logOutput -> logOutput.contains("-- Meter"))
+                .noneMatch(logOutput -> logOutput.contains("-- Gauge"))
+                .noneMatch(logOutput -> logOutput.contains("-- Histogram"))
+                .anyMatch(logOutput -> logOutput.contains("-- Counter"));
+    }
+
+    @Test
+    void testOnlyMeterRegistered() {
+        reporter.notifyOfAddedMetric(new MeterView(new SimpleCounter()), "metric", metricGroup);
+
+        reporter.report();
+
+        assertThat(testLoggerResource.getMessages())
+                .noneMatch(logOutput -> logOutput.contains("-- Counter"))
+                .noneMatch(logOutput -> logOutput.contains("-- Gauge"))
+                .noneMatch(logOutput -> logOutput.contains("-- Histogram"))
+                .anyMatch(logOutput -> logOutput.contains("-- Meter"));
+    }
+
+    @Test
+    void testOnlyGaugeRegistered() {
+        reporter.notifyOfAddedMetric((Gauge<Number>) () -> 4, "metric", metricGroup);
+
+        reporter.report();
+
+        assertThat(testLoggerResource.getMessages())
+                .noneMatch(logOutput -> logOutput.contains("-- Meter"))
+                .noneMatch(logOutput -> logOutput.contains("-- Counter"))
+                .noneMatch(logOutput -> logOutput.contains("-- Histogram"))
+                .anyMatch(logOutput -> logOutput.contains("-- Gauge"));
+    }
+
+    @Test
+    void testOnlyHistogramRegistered() {
+        reporter.notifyOfAddedMetric(new TestHistogram(), "metric", metricGroup);
+
+        reporter.report();
+
+        assertThat(testLoggerResource.getMessages())
+                .noneMatch(logOutput -> logOutput.contains("-- Meter"))
+                .noneMatch(logOutput -> logOutput.contains("-- Gauge"))
+                .noneMatch(logOutput -> logOutput.contains("-- Counter"))
+                .anyMatch(logOutput -> logOutput.contains("-- Histogram"));
+    }
+
+    @Test
+    void testAddCounter() throws Exception {
         String counterName = "simpleCounter";
 
         SimpleCounter counter = new SimpleCounter();
         reporter.notifyOfAddedMetric(counter, counterName, metricGroup);
 
-        assertTrue(reporter.getCounters().containsKey(counter));
+        assertThat(reporter.getCounters()).containsKey(counter);
 
         String expectedCounterReport =
                 reporter.filterCharacters(SCOPE)
@@ -82,17 +143,17 @@ public class Slf4jReporterTest extends TestLogger {
                         + ": 0";
 
         reporter.report();
-        assertThat(
-                testLoggerResource.getMessages(), hasItem(containsString(expectedCounterReport)));
+        assertThat(testLoggerResource.getMessages())
+                .anyMatch(logOutput -> logOutput.contains(expectedCounterReport));
     }
 
     @Test
-    public void testAddGauge() throws Exception {
+    void testAddGauge() throws Exception {
         String gaugeName = "gauge";
 
         Gauge<Long> gauge = () -> null;
         reporter.notifyOfAddedMetric(gauge, gaugeName, metricGroup);
-        assertTrue(reporter.getGauges().containsKey(gauge));
+        assertThat(reporter.getGauges()).containsKey(gauge);
 
         String expectedGaugeReport =
                 reporter.filterCharacters(SCOPE)
@@ -101,16 +162,17 @@ public class Slf4jReporterTest extends TestLogger {
                         + ": null";
 
         reporter.report();
-        assertThat(testLoggerResource.getMessages(), hasItem(containsString(expectedGaugeReport)));
+        assertThat(testLoggerResource.getMessages())
+                .anyMatch(logOutput -> logOutput.contains(expectedGaugeReport));
     }
 
     @Test
-    public void testAddMeter() throws Exception {
+    void testAddMeter() throws Exception {
         String meterName = "meter";
 
         Meter meter = new MeterView(5);
         reporter.notifyOfAddedMetric(meter, meterName, metricGroup);
-        assertTrue(reporter.getMeters().containsKey(meter));
+        assertThat(reporter.getMeters()).containsKey(meter);
 
         String expectedMeterReport =
                 reporter.filterCharacters(SCOPE)
@@ -119,16 +181,17 @@ public class Slf4jReporterTest extends TestLogger {
                         + ": 0.0";
 
         reporter.report();
-        assertThat(testLoggerResource.getMessages(), hasItem(containsString(expectedMeterReport)));
+        assertThat(testLoggerResource.getMessages())
+                .anyMatch(logOutput -> logOutput.contains(expectedMeterReport));
     }
 
     @Test
-    public void testAddHistogram() throws Exception {
+    void testAddHistogram() throws Exception {
         String histogramName = "histogram";
 
         Histogram histogram = new TestHistogram();
         reporter.notifyOfAddedMetric(histogram, histogramName, metricGroup);
-        assertTrue(reporter.getHistograms().containsKey(histogram));
+        assertThat(reporter.getHistograms()).containsKey(histogram);
 
         String expectedHistogramName =
                 reporter.filterCharacters(SCOPE)
@@ -136,14 +199,14 @@ public class Slf4jReporterTest extends TestLogger {
                         + reporter.filterCharacters(histogramName);
 
         reporter.report();
-        assertThat(
-                testLoggerResource.getMessages(), hasItem(containsString(expectedHistogramName)));
+        assertThat(testLoggerResource.getMessages())
+                .anyMatch(logOutput -> logOutput.contains(expectedHistogramName));
     }
 
     @Test
-    public void testFilterCharacters() throws Exception {
-        assertThat(reporter.filterCharacters(""), equalTo(""));
-        assertThat(reporter.filterCharacters("abc"), equalTo("abc"));
-        assertThat(reporter.filterCharacters("a:b$%^::"), equalTo("a:b$%^::"));
+    void testFilterCharacters() throws Exception {
+        assertThat(reporter.filterCharacters("")).isEqualTo("");
+        assertThat(reporter.filterCharacters("abc")).isEqualTo("abc");
+        assertThat(reporter.filterCharacters("a:b$%^::")).isEqualTo("a:b$%^::");
     }
 }

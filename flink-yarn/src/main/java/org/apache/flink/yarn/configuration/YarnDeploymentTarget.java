@@ -30,9 +30,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** A class containing all the supported deployment target names for Yarn. */
 @Internal
 public enum YarnDeploymentTarget {
-    PER_JOB("yarn-per-job"),
     SESSION("yarn-session"),
-    APPLICATION("yarn-application");
+    APPLICATION("yarn-application"),
+
+    @Deprecated
+    PER_JOB("yarn-per-job");
 
     public static final String ERROR_MESSAGE =
             "No Executor found. Please make sure to export the HADOOP_CLASSPATH environment variable "

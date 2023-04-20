@@ -84,8 +84,8 @@ one can refer to different notions of *time*:
   out-of-order or late events, or when reprocessing historic data. For example,
   an hourly event time window will contain all records that carry an event
   timestamp that falls into that hour, regardless of the order in which they
-  arrive, or when they are processed. (See the section on [late
-  events](#late-elements) for more information.)
+  arrive, or when they are processed. (See the section on [lateness](#lateness)
+  for more information.)
 
   Note that sometimes when event time programs are processing live data in
   real-time, they will use some *processing time* operations in order to

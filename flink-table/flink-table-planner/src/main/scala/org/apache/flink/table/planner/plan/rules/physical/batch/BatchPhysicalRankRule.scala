@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.api.TableException
@@ -27,27 +26,23 @@ import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType}
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
-import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.{RelCollations, RelNode}
+import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 
 import scala.collection.JavaConversions._
 
 /**
-  * Rule that matches [[FlinkLogicalRank]] with rank function and constant rank range,
-  * and converts it to
-  * {{{
-  * BatchPhysicalRank (global)
-  * +- BatchPhysicalExchange (singleton if partition keys is empty, else hash)
-  *    +- BatchPhysicalRank (local)
-  *       +- input of rank
-  * }}}
-  */
-class BatchPhysicalRankRule
-  extends ConverterRule(
-    classOf[FlinkLogicalRank],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.BATCH_PHYSICAL,
-    "BatchPhysicalRankRule") {
+ * Rule that matches [[FlinkLogicalRank]] with rank function and constant rank range, and converts
+ * it to
+ * {{{
+ * BatchPhysicalRank (global)
+ * +- BatchPhysicalExchange (singleton if partition keys is empty, else hash)
+ *    +- BatchPhysicalRank (local)
+ *       +- input of rank
+ * }}}
+ */
+class BatchPhysicalRankRule(config: Config) extends ConverterRule(config) {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val rank: FlinkLogicalRank = call.rel(0)
@@ -64,7 +59,8 @@ class BatchPhysicalRankRule
 
     val cluster = rel.getCluster
     val emptyTraits = cluster.getPlanner.emptyTraitSet().replace(FlinkConventions.BATCH_PHYSICAL)
-    val sortFieldCollations = rank.partitionKey.asList()
+    val sortFieldCollations = rank.partitionKey
+      .asList()
       .map(FlinkRelOptUtil.ofRelFieldCollation(_)) ++ rank.orderKey.getFieldCollations
     val sortCollation = RelCollations.of(sortFieldCollations: _*)
     val localRequiredTraitSet = emptyTraits.replace(sortCollation)
@@ -115,5 +111,10 @@ class BatchPhysicalRankRule
 }
 
 object BatchPhysicalRankRule {
-  val INSTANCE: RelOptRule = new BatchPhysicalRankRule
+  val INSTANCE: RelOptRule = new BatchPhysicalRankRule(
+    Config.INSTANCE.withConversion(
+      classOf[FlinkLogicalRank],
+      FlinkConventions.LOGICAL,
+      FlinkConventions.BATCH_PHYSICAL,
+      "BatchPhysicalRankRule"))
 }

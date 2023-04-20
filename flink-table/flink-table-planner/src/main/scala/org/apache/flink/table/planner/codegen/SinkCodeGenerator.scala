@@ -15,18 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
-import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
+import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase
 import org.apache.flink.api.scala.createTuple2TypeInformation
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.data.util.RowDataUtil
 import org.apache.flink.table.data.{GenericRowData, RowData}
+import org.apache.flink.table.data.util.RowDataUtil
 import org.apache.flink.table.planner.codegen.CodeGenUtils.genToExternalConverterWithLegacy
 import org.apache.flink.table.planner.codegen.GeneratedExpression.NO_CODE
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.{generateCollect, generateCollectWithTimestamp}
@@ -61,7 +60,7 @@ object SinkCodeGenerator {
     outputTypeInfo.asInstanceOf[TypeInformation[OUT]]
   }
 
-  /** Code gen a operator to convert internal type rows to external type. **/
+  /** Code gen a operator to convert internal type rows to external type. * */
   def generateRowConverterOperator[OUT](
       ctx: CodeGeneratorContext,
       inputRowType: RowType,
@@ -76,34 +75,31 @@ object SinkCodeGenerator {
     var modifiedRowtimeIndex = rowtimeIndex
     val fieldIndexProcessCode = physicalTypeInfo match {
       case pojo: PojoTypeInfo[_] =>
-        val mapping = pojo.getFieldNames.map { name =>
-          val index = inputRowType.getFieldIndex(name)
-          if (index < 0) {
-            throw new TableException(
-              s"$name is not found in ${inputRowType.getFieldNames.asScala.mkString(", ")}")
-          }
-          index
+        val mapping = pojo.getFieldNames.map {
+          name =>
+            val index = inputRowType.getFieldIndex(name)
+            if (index < 0) {
+              throw new TableException(
+                s"$name is not found in ${inputRowType.getFieldNames.asScala.mkString(", ")}")
+            }
+            index
         }
         val resultGenerator = new ExprCodeGenerator(ctx, false)
-          .bindInput(
-            inputRowType,
-            inputTerm,
-            inputFieldMapping = Option(mapping))
+          .bindInput(inputRowType, inputTerm, inputFieldMapping = Option(mapping))
         val outputRowType = RowType.of(
           (0 until pojo.getArity)
             .map(pojo.getTypeAt)
             .map(fromTypeInfoToLogicalType): _*)
         if (rowtimeIndex >= 0) {
-          modifiedRowtimeIndex = outputRowType.getFieldIndex(
-            inputRowType.getFieldNames.get(rowtimeIndex))
+          modifiedRowtimeIndex =
+            outputRowType.getFieldIndex(inputRowType.getFieldNames.get(rowtimeIndex))
         }
-        val conversion = resultGenerator.generateConverterResultExpression(
-          outputRowType,
-          classOf[GenericRowData])
+        val conversion =
+          resultGenerator.generateConverterResultExpression(outputRowType, classOf[GenericRowData])
         afterIndexModify = CodeGenUtils.newName("afterIndexModify")
         s"""
            |${conversion.code}
-           |${conversion.resultTerm}.setRowKind(${inputTerm}.getRowKind());
+           |${conversion.resultTerm}.setRowKind($inputTerm.getRowKind());
            |${classOf[RowData].getCanonicalName} $afterIndexModify = ${conversion.resultTerm};
            |""".stripMargin
       case _ =>

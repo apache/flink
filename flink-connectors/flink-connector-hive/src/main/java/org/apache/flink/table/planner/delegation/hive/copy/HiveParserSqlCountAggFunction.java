@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.delegation.hive.copy;
 
+import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.SqlAggFunction;
@@ -29,6 +30,7 @@ import org.apache.calcite.sql.type.SqlOperandTypeInference;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.ImmutableIntList;
+import org.apache.calcite.util.Optionality;
 
 /**
  * Counterpart of hive's
@@ -49,11 +51,15 @@ public class HiveParserSqlCountAggFunction extends SqlAggFunction
             SqlOperandTypeChecker operandTypeChecker) {
         super(
                 "count",
+                null,
                 SqlKind.COUNT,
                 returnTypeInference,
                 operandTypeInference,
                 operandTypeChecker,
-                SqlFunctionCategory.NUMERIC);
+                SqlFunctionCategory.NUMERIC,
+                false,
+                false,
+                Optionality.FORBIDDEN);
         this.isDistinct = isDistinct;
         this.returnTypeInference = returnTypeInference;
         this.operandTypeChecker = operandTypeChecker;
@@ -85,8 +91,12 @@ public class HiveParserSqlCountAggFunction extends SqlAggFunction
                             operandTypeInference,
                             operandTypeChecker),
                     false,
+                    false,
+                    false,
                     ImmutableIntList.of(),
                     -1,
+                    null,
+                    RelCollations.EMPTY,
                     typeFactory.createTypeWithNullability(
                             typeFactory.createSqlType(SqlTypeName.BIGINT), true),
                     "count");

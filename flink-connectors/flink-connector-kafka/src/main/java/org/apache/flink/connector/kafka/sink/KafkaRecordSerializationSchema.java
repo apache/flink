@@ -23,6 +23,8 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 
 import org.apache.kafka.clients.producer.ProducerRecord;
 
+import javax.annotation.Nullable;
+
 import java.io.Serializable;
 
 /**
@@ -54,8 +56,9 @@ public interface KafkaRecordSerializationSchema<T> extends Serializable {
      * @param element element to be serialized
      * @param context context to possibly determine target partition
      * @param timestamp timestamp
-     * @return Kafka {@link ProducerRecord}
+     * @return Kafka {@link ProducerRecord} or null if the given element cannot be serialized
      */
+    @Nullable
     ProducerRecord<byte[], byte[]> serialize(T element, KafkaSinkContext context, Long timestamp);
 
     /** Context providing information of the kafka record target location. */
@@ -63,11 +66,11 @@ public interface KafkaRecordSerializationSchema<T> extends Serializable {
     interface KafkaSinkContext {
 
         /**
-         * Get the number of the subtask the KafkaSink is running on. The numbering starts from 0
-         * and goes up to parallelism-1. (parallelism as returned by {@link
+         * Get the ID of the subtask the KafkaSink is running on. The numbering starts from 0 and
+         * goes up to parallelism-1. (parallelism as returned by {@link
          * #getNumberOfParallelInstances()}
          *
-         * @return number of subtask
+         * @return ID of subtask
          */
         int getParallelInstanceId();
 

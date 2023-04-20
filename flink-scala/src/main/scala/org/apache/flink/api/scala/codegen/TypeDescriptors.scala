@@ -29,7 +29,7 @@ import scala.reflect.macros.Context
 private[flink] trait TypeDescriptors[C <: Context] { this: MacroContextHolder[C] =>
   import c.universe._
 
-  abstract sealed class UDTDescriptor {
+  sealed abstract class UDTDescriptor {
     val id: Int
     val tpe: Type
   }
@@ -54,11 +54,7 @@ private[flink] trait TypeDescriptors[C <: Context] { this: MacroContextHolder[C]
 
   case class TryDescriptor(id: Int, tpe: Type, elem: UDTDescriptor) extends UDTDescriptor
 
-  case class FactoryTypeDescriptor(
-      id: Int,
-      tpe: Type,
-      baseType: Type,
-      params: Seq[UDTDescriptor])
+  case class FactoryTypeDescriptor(id: Int, tpe: Type, baseType: Type, params: Seq[UDTDescriptor])
     extends UDTDescriptor
 
   case class OptionDescriptor(id: Int, tpe: Type, elem: UDTDescriptor) extends UDTDescriptor
@@ -69,7 +65,8 @@ private[flink] trait TypeDescriptors[C <: Context] { this: MacroContextHolder[C]
       default: Literal,
       wrapper: Type,
       box: Tree => Tree,
-      unbox: Tree => Tree) extends UDTDescriptor {
+      unbox: Tree => Tree)
+    extends UDTDescriptor {
 
     override def hashCode() = (id, tpe, default, wrapper, "BoxedPrimitiveDescriptor").hashCode()
 
@@ -117,8 +114,7 @@ private[flink] trait TypeDescriptors[C <: Context] { this: MacroContextHolder[C]
 
     override def equals(that: Any) = that match {
       case PojoDescriptor(thatId, thatTpe, thatGetters) =>
-        (id, tpe, getters).equals(
-          thatId, thatTpe, thatGetters)
+        (id, tpe, getters).equals(thatId, thatTpe, thatGetters)
       case _ => false
     }
 
@@ -129,17 +125,22 @@ private[flink] trait TypeDescriptors[C <: Context] { this: MacroContextHolder[C]
       tpe: Type,
       mutable: Boolean,
       ctor: Symbol,
-      getters: Seq[FieldDescriptor]) extends UDTDescriptor {
+      getters: Seq[FieldDescriptor])
+    extends UDTDescriptor {
 
     // Hack: ignore the ctorTpe, since two Type instances representing
-    // the same ctor function type don't appear to be considered equal. 
+    // the same ctor function type don't appear to be considered equal.
     // Equality of the tpe and ctor fields implies equality of ctorTpe anyway.
     override def hashCode = (id, tpe, ctor, getters).hashCode
 
     override def equals(that: Any) = that match {
       case CaseClassDescriptor(thatId, thatTpe, thatMutable, thatCtor, thatGetters) =>
         (id, tpe, mutable, ctor, getters).equals(
-          thatId, thatTpe, thatMutable, thatCtor, thatGetters)
+          thatId,
+          thatTpe,
+          thatMutable,
+          thatCtor,
+          thatGetters)
       case _ => false
     }
 
@@ -158,10 +159,7 @@ private[flink] trait TypeDescriptors[C <: Context] { this: MacroContextHolder[C]
 
   case class WritableDescriptor(id: Int, tpe: Type) extends UDTDescriptor
 
-  case class JavaTupleDescriptor(
-      id: Int,
-      tpe: Type,
-      fields: Seq[UDTDescriptor])
+  case class JavaTupleDescriptor(id: Int, tpe: Type, fields: Seq[UDTDescriptor])
     extends UDTDescriptor {
 
     // Hack: ignore the ctorTpe, since two Type instances representing
@@ -171,11 +169,9 @@ private[flink] trait TypeDescriptors[C <: Context] { this: MacroContextHolder[C]
 
     override def equals(that: Any) = that match {
       case JavaTupleDescriptor(thatId, thatTpe, thatFields) =>
-        (id, tpe, fields).equals(
-          thatId, thatTpe, thatFields)
+        (id, tpe, fields).equals(thatId, thatTpe, thatFields)
       case _ => false
     }
 
   }
 }
-

@@ -87,6 +87,23 @@ class MyMapper extends RichMapFunction[String,String] {
 
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+
+class MyMapper(MapFunction):
+    def __init__(self):
+        self.counter = None
+
+    def open(self, runtime_context: RuntimeContext):
+        self.counter = runtime_context \
+            .get_metrics_group() \
+            .counter("my_counter")
+
+    def map(self, value: str):
+        self.counter.inc()
+        return value
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 Alternatively you can also use your own `Counter` implementation:
@@ -133,6 +150,11 @@ class MyMapper extends RichMapFunction[String,String] {
   }
 }
 
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+Still not supported in Python API.
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -191,6 +213,24 @@ new class MyMapper extends RichMapFunction[String,String] {
 
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+
+class MyMapper(MapFunction):
+    def __init__(self):
+        self.value_to_expose = 0
+
+    def open(self, runtime_context: RuntimeContext):
+        runtime_context \
+            .get_metrics_group() \
+            .gauge("my_gauge", lambda: self.value_to_expose)
+
+    def map(self, value: str):
+        self.value_to_expose += 1
+        return value
+
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 Note that reporters will turn the exposed object into a `String`, which means that a meaningful `toString()` implementation is required.
@@ -241,6 +281,11 @@ class MyMapper extends RichMapFunction[Long,Long] {
 
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+Still not supported in Python API.
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 Flink does not provide a default implementation for `Histogram`, but offers a {{< gh_link file="flink-metrics/flink-metrics-dropwizard/src/main/java/org/apache/flink/dropwizard/metrics/DropwizardHistogramWrapper.java" name="Wrapper" >}} that allows usage of Codahale/DropWizard histograms.
@@ -286,7 +331,7 @@ class MyMapper extends RichMapFunction[Long, Long] {
   @transient private var histogram: Histogram = _
 
   override def open(config: Configuration): Unit = {
-    com.codahale.metrics.Histogram dropwizardHistogram =
+    val dropwizardHistogram =
       new com.codahale.metrics.Histogram(new SlidingWindowReservoir(500))
         
     histogram = getRuntimeContext()
@@ -300,6 +345,11 @@ class MyMapper extends RichMapFunction[Long, Long] {
   }
 }
 
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+Still not supported in Python API.
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -347,6 +397,25 @@ class MyMapper extends RichMapFunction[Long,Long] {
     value
   }
 }
+
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+
+class MyMapperMeter(MapFunction):
+    def __init__(self):
+        self.meter = None
+
+    def open(self, runtime_context: RuntimeContext):
+        # an average rate of events per second over 120s, default is 60s.
+        self.meter = runtime_context \
+            .get_metrics_group() \
+            .meter("my_meter", time_span_in_seconds=120)
+
+    def map(self, value: str):
+        self.meter.mark_event()
+        return value
 
 ```
 {{< /tab >}}
@@ -409,6 +478,11 @@ class MyMapper extends RichMapFunction[Long,Long] {
 
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+Still not supported in Python API.
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 ## Scope
@@ -456,6 +530,21 @@ counter = getRuntimeContext()
 
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+
+counter = runtime_context \
+    .get_metric_group() \
+    .add_group("my_metrics") \
+    .counter("my_counter")
+
+counter = runtime_context \
+    .get_metric_group() \
+    .add_group("my_metrics_key", "my_metrics_value") \
+    .counter("my_counter")
+
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 ### System Scope
@@ -468,13 +557,13 @@ Each of these keys expect a format string that may contain constants (e.g. "task
 - `metrics.scope.jm`
   - Default: &lt;host&gt;.jobmanager
   - Applied to all metrics that were scoped to a job manager.
-- `metrics.scope.jm.job`
+- `metrics.scope.jm-job`
   - Default: &lt;host&gt;.jobmanager.&lt;job_name&gt;
   - Applied to all metrics that were scoped to a job manager and job.
 - `metrics.scope.tm`
   - Default: &lt;host&gt;.taskmanager.&lt;tm_id&gt;
   - Applied to all metrics that were scoped to a task manager.
-- `metrics.scope.tm.job`
+- `metrics.scope.tm-job`
   - Default: &lt;host&gt;.taskmanager.&lt;tm_id&gt;.&lt;job_name&gt;
   - Applied to all metrics that were scoped to a task manager and job.
 - `metrics.scope.task`
@@ -534,6 +623,14 @@ counter = getRuntimeContext()
   .addGroup("MyMetricsKey", "MyMetricsValue")
   .counter("myCounter")
 
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+counter = runtime_context
+    .get_metric_group() \
+    .add_group("my_metrics_key", "my_metrics_value") \
+    .counter("my_counter")
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -782,7 +879,7 @@ Some metrics might not be exposed when using other JVM implementations (e.g. IBM
 </table>
 
 
-### Network 
+### Network
 
 {{< hint warning >}}
 Deprecated: use [Default shuffle service metrics](#default-shuffle-service)
@@ -840,12 +937,12 @@ Deprecated: use [Default shuffle service metrics](#default-shuffle-service)
     </tr>
     <tr>
       <td>outPoolUsage</td>
-      <td>An estimate of the output buffers usage.</td>
+      <td>An estimate of the output buffers usage. The pool usage can be > 100% if overdraft buffers are being used.</td>
       <td>Gauge</td>
     </tr>
     <tr>
       <td rowspan="4">Network.&lt;Input|Output&gt;.&lt;gate|partition&gt;<br />
-        <strong>(only available if <tt>taskmanager.net.detailed-metrics</tt> config option is set)</strong></td>
+        <strong>(only available if <tt>taskmanager.network.detailed-metrics</tt> config option is set)</strong></td>
       <td>totalQueueLen</td>
       <td>Total number of queued buffers in all input/output channels.</td>
       <td>Gauge</td>
@@ -884,8 +981,8 @@ Metrics related to data exchange between task executors using netty network comm
   </thead>
   <tbody>
     <tr>
-      <th rowspan="6"><strong>TaskManager</strong></th>
-      <td rowspan="6">Status.Shuffle.Netty</td>
+      <th rowspan="7"><strong>TaskManager</strong></th>
+      <td rowspan="7">Status.Shuffle.Netty</td>
       <td>AvailableMemorySegments</td>
       <td>The number of unused memory segments.</td>
       <td>Gauge</td>
@@ -913,6 +1010,11 @@ Metrics related to data exchange between task executors using netty network comm
     <tr>
       <td>TotalMemory</td>
       <td>The amount of allocated memory in bytes.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>RequestedMemoryUsage</td>
+      <td>Experimental: The usage of the network memory. Shows (as percentage) the total amount of requested memory from all of the subtasks. It can exceed 100% as not all requested memory is required for subtask to make progress. However if usage exceeds 100% throughput can suffer greatly and please consider increasing available network memory, or decreasing configured size of network buffer pools.</td>
       <td>Gauge</td>
     </tr>
     <tr>
@@ -955,12 +1057,12 @@ Metrics related to data exchange between task executors using netty network comm
     </tr>
     <tr>
       <td>outPoolUsage</td>
-      <td>An estimate of the output buffers usage.</td>
+      <td>An estimate of the output buffers usage. The pool usage can be > 100% if overdraft buffers are being used.</td>
       <td>Gauge</td>
     </tr>
     <tr>
       <td rowspan="4">Shuffle.Netty.&lt;Input|Output&gt;.&lt;gate|partition&gt;<br />
-        <strong>(only available if <tt>taskmanager.net.detailed-metrics</tt> config option is set)</strong></td>
+        <strong>(only available if <tt>taskmanager.network.detailed-metrics</tt> config option is set)</strong></td>
       <td>totalQueueLen</td>
       <td>Total number of queued buffers in all input/output channels.</td>
       <td>Gauge</td>
@@ -1036,7 +1138,7 @@ Metrics related to data exchange between task executors using netty network comm
   </thead>
   <tbody>
     <tr>
-      <th rowspan="4"><strong>JobManager</strong></th>
+      <th rowspan="5"><strong>JobManager</strong></th>
       <td>numRegisteredTaskManagers</td>
       <td>The number of registered taskmanagers.</td>
       <td>Gauge</td>
@@ -1100,6 +1202,46 @@ Whether these metrics are reported depends on the [metrics.job.status.enable]({{
   </tbody>
 </table>
 
+{{< hint info >}}
+<span class="label label-info">Experimental</span>
+
+While the job is in the RUNNING state the metrics in this table provide additional details on what the job is currently doing.
+Whether these metrics are reported depends on the [metrics.job.status.enable]({{< ref "docs/deployment/config" >}}#metrics-job-status-enable) setting.
+
+<table class="table table-bordered table-inline">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 18%">Scope</th>
+      <th class="text-left" style="width: 26%">Metrics</th>
+      <th class="text-left" style="width: 48%">Description</th>
+      <th class="text-left" style="width: 8%">Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="3"><strong>Job (only available on JobManager)</strong></th>
+      <td>deployingState</td>
+      <td>Return 1 if the job is currently deploying* tasks, otherwise return 0.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>deployingTime</td>
+      <td>Return the time (in milliseconds) since the job has started deploying* tasks, otherwise return 0.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>deployingTimeTotal</td>
+      <td>Return how much time (in milliseconds) the job has spent deploying* tasks in total.</td>
+      <td>Gauge</td>
+    </tr>
+  </tbody>
+</table>
+
+*A job is considered to be deploying tasks when:
+* for streaming jobs, any task is in the DEPLOYING state
+* for batch jobs, if at least 1 task is in the DEPLOYING state, and there are no INITIALIZING/RUNNING tasks
+{{< /hint >}}
+
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -1155,14 +1297,24 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
   </thead>
   <tbody>
     <tr>
-      <th rowspan="8"><strong>Job (only available on JobManager)</strong></th>
+      <th rowspan="10"><strong>Job (only available on JobManager)</strong></th>
       <td>lastCheckpointDuration</td>
       <td>The time it took to complete the last checkpoint (in milliseconds).</td>
       <td>Gauge</td>
     </tr>
     <tr>
       <td>lastCheckpointSize</td>
-      <td>The total size of the last checkpoint (in bytes).</td>
+      <td>The checkpointed size of the last checkpoint (in bytes), this metric could be different from lastCheckpointFullSize if incremental checkpoint or changelog is enabled.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>lastCompletedCheckpointId</td>
+      <td>The identifier of the last completed checkpoint.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>lastCheckpointFullSize</td>
+      <td>The full size of the last checkpoint (in bytes).</td>
       <td>Gauge</td>
     </tr>
     <tr>
@@ -1209,8 +1361,258 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
   </tbody>
 </table>
 
+### State Access Latency
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 18%">Scope</th>
+      <th class="text-left" style="width: 26%">Metrics</th>
+      <th class="text-left" style="width: 48%">Description</th>
+      <th class="text-left" style="width: 8%">Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="27"><strong>Task/Operator</strong></th>
+      <td>stateClearLatency</td>
+      <td>The latency of clear operation for state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>valueStateGetLatency</td>
+      <td>The latency of Get operation for value state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>valueStateUpdateLatency</td>
+      <td>The latency of update operation for value state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>listStateGetLatency</td>
+      <td>The latency of get operation for list state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>listStateAddLatency</td>
+      <td>The latency of add operation for list state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>listStateAddAllLatency</td>
+      <td>The latency of addAll operation for list state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>listStateUpdateLatency</td>
+      <td>The latency of update operation for list state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>listStateMergeNamespacesLatency</td>
+      <td>The latency of merge namespace operation for list state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateGetLatency</td>
+      <td>The latency of get operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStatePutLatency</td>
+      <td>The latency of put operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStatePutAllLatency</td>
+      <td>The latency of putAll operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateRemoveLatency</td>
+      <td>The latency of remove operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateContainsLatency</td>
+      <td>The latency of contains operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateEntriesInitLatency</td>
+      <td>The init latency of entries operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateKeysInitLatency</td>
+      <td>The init latency of keys operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateValuesInitLatency</td>
+      <td>The init latency of values operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateIteratorInitLatency</td>
+      <td>The init latency of iterator operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateIsEmptyLatency</td>
+      <td>The latency of isEmpty operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateIteratorHasNextLatency</td>
+      <td>The latency of iterator#hasNext operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateIteratorNextLatency</td>
+      <td>The latency of iterator#next operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateIteratorRemoveLatency</td>
+      <td>The latency of iterator#remove operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>aggregatingStateGetLatency</td>
+      <td>The latency of get operation for aggregating state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>aggregatingStateAddLatency</td>
+      <td>The latency of add operation for aggregating state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>aggregatingStateMergeNamespacesLatency</td>
+      <td>The latency of merge namespace operation for aggregating state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>reducingStateGetLatency</td>
+      <td>The latency of get operation for reducing state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>reducingStateAddLatency</td>
+      <td>The latency of add operation for reducing state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>reducingStateMergeNamespacesLatency</td>
+      <td>The latency of merge namespace operation for reducing state</td>
+      <td>Histogram</td>
+    </tr>
+  </tbody>
+</table>
+
 ### RocksDB
 Certain RocksDB native metrics are available but disabled by default, you can find full documentation [here]({{< ref "docs/deployment/config" >}}#rocksdb-native-metrics)
+
+### State Changelog
+
+Note that the metrics are only available via reporters.
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 18%">Scope</th>
+      <th class="text-left" style="width: 26%">Metrics</th>
+      <th class="text-left" style="width: 48%">Description</th>
+      <th class="text-left" style="width: 8%">Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="8"><strong>Job (only available on TaskManager)</strong></th>
+      <td>numberOfUploadRequests</td>
+      <td>Total number of upload requests made</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+      <td>numberOfUploadFailures</td>
+      <td>Total number of failed upload requests (request may be retried after the failure)</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+      <td>attemptsPerUpload</td>
+      <td>The number of attempts per upload</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>totalAttemptsPerUpload</td>
+      <td>The total count distributions of attempts for per upload</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>uploadBatchSizes</td>
+      <td>The number of upload tasks (coming from one or more writers, i.e. backends/tasks) that were grouped together and form a single upload resulting in a single file</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>uploadLatenciesNanos</td>
+      <td>The latency distributions of uploads</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>uploadSizes</td>
+      <td>The size distributions of uploads</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>uploadQueueSize</td>
+      <td>Current size of upload queue. Queue items can be packed together and form a single upload.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <th rowspan="8"><strong>Task/Operator</strong></th>
+      <td>startedMaterialization</td>
+      <td>The number of started materializations.</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+      <td>completedMaterialization</td>
+      <td>The number of successfully completed materializations.</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+      <td>failedMaterialization</td>
+      <td>The number of failed materializations.</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+      <td>lastDurationOfMaterialization</td>
+      <td>The duration of the last materialization (in milliseconds).</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>lastFullSizeOfMaterialization</td>
+      <td>The full size of the materialization part of the last reported checkpoint (in bytes).</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>lastIncSizeOfMaterialization</td>
+      <td>The incremental size of the materialization part of the last reported checkpoint (in bytes).</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>lastFullSizeOfNonMaterialization</td>
+      <td>The full size of the non-materialization part of the last reported checkpoint (in bytes).</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>lastIncSizeOfNonMaterialization</td>
+      <td>The incremental size of the non-materialization part of the last reported checkpoint (in bytes).</td>
+      <td>Gauge</td>
+    </tr>
+  </tbody>
+</table>
 
 ### IO
 <table class="table table-bordered">
@@ -1230,7 +1632,7 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
       <td>Histogram</td>
     </tr>
     <tr>
-      <th rowspan="20"><strong>Task</strong></th>
+      <th rowspan="23"><strong>Task</strong></th>
       <td>numBytesInLocal</td>
       <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{{< ref "docs/ops/metrics" >}}#default-shuffle-service">Default shuffle service metrics</a>.</td>
       <td>Counter</td>
@@ -1331,6 +1733,21 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
       <td>Gauge</td>
     </tr>
     <tr>
+      <td>mailboxMailsPerSecond</td>
+      <td>The number of actions processed from the task's mailbox per second which includes all actions, e.g., checkpointing, timer, or cancellation actions.</td>
+      <td>Meter</td>
+    </tr>
+    <tr>
+      <td>mailboxLatencyMs</td>
+      <td>The latency is the time that actions spend waiting in the task's mailbox before being processed. The metric is a statistic of the latency in milliseconds that is measured approximately once every second and includes the last 60 measurements.</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mailboxQueueSize</td>
+      <td>The number of actions in the task's mailbox that are waiting to be processed.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
       <td rowspan="2"><strong>Task (only if buffer debloating is enabled and in non-source tasks)</strong></td>
       <td>estimatedTimeToConsumeBuffersMs</td>
       <td>The estimated time (in milliseconds) by the buffer debloater to consume all of the buffered data in the network exchange preceding this task. This value is calculated by approximated amount of the in-flight data and calculated throughput.</td>
@@ -1376,7 +1793,7 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
       <td>Gauge</td>
     </tr>
     <tr>
-      <th rowspan="3"><strong>Operator</strong></th>
+      <th rowspan="4"><strong>Operator</strong></th>
       <td>currentInput<strong>N</strong>Watermark</td>
       <td>
         The last watermark this operator has received in its <strong>N'th</strong> input (in milliseconds), with index <strong>N</strong> starting from 1. For example currentInput<strong>1</strong>Watermark, currentInput<strong>2</strong>Watermark, ...
@@ -1388,6 +1805,16 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
       <td>currentOutputWatermark</td>
       <td>
         The last watermark this operator has emitted (in milliseconds).
+      </td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>watermarkAlignmentDrift</td>
+      <td>
+        The current drift from the minimal watermark emitted by all sources/tasks/splits that belong
+        to the same watermark group.
+        <p><strong>Note:</strong> Available only when watermark alignment is enabled and the first common watermark is
+        announced. You can configure the update interval in the WatermarkStrategy.</p>
       </td>
       <td>Gauge</td>
     </tr>
@@ -1449,15 +1876,15 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
   </tbody>
 </table>
 
-#### Kinesis Connectors
+#### Kinesis 源
 <table class="table table-bordered">
   <thead>
     <tr>
-      <th class="text-left" style="width: 15%">Scope</th>
-      <th class="text-left" style="width: 18%">Metrics</th>
-      <th class="text-left" style="width: 18%">User Variables</th>
-      <th class="text-left" style="width: 39%">Description</th>
-      <th class="text-left" style="width: 10%">Type</th>
+      <th class="text-left" style="width: 15%">范围</th>
+      <th class="text-left" style="width: 18%">指标</th>
+      <th class="text-left" style="width: 18%">用户变量</th>
+      <th class="text-left" style="width: 39%">描述</th>
+      <th class="text-left" style="width: 10%">类型</th>
     </tr>
   </thead>
   <tbody>
@@ -1465,11 +1892,11 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
       <th rowspan="1">Operator</th>
       <td>millisBehindLatest</td>
       <td>stream, shardId</td>
-      <td>The number of milliseconds the consumer is behind the head of the stream,
-      indicating how far behind current time the consumer is, for each Kinesis shard.
-      A particular shard's metric can be specified by stream name and shard id.
-      A value of 0 indicates record processing is caught up, and there are no new records
-      to process at this moment. A value of -1 indicates that there is no reported value for the metric, yet.
+      <td>消费者落后于流头部的毫秒数，
+	  对每个Kinesis分片，表示费者落后当前时间多久。
+	  可以通过流名称和分片id指定一个特定分片的指标值。
+	  值为0表示记录处理已完成，并且没有新记录在此时处理。
+	  值为-1表示尚未报告指标值。
       </td>
       <td>Gauge</td>
     </tr>
@@ -1477,8 +1904,8 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
       <th rowspan="1">Operator</th>
       <td>sleepTimeMillis</td>
       <td>stream, shardId</td>
-      <td>The number of milliseconds the consumer spends sleeping before fetching records from Kinesis.
-      A particular shard's metric can be specified by stream name and shard id.
+      <td>消费者在从Kinesis获取记录之前睡眠的毫秒数。
+      可以通过流名称和分片id指定特定分片的指标值。
       </td>
       <td>Gauge</td>
     </tr>
@@ -1486,8 +1913,8 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
       <th rowspan="1">Operator</th>
       <td>maxNumberOfRecordsPerFetch</td>
       <td>stream, shardId</td>
-      <td>The maximum number of records requested by the consumer in a single getRecords call to Kinesis. If ConsumerConfigConstants.SHARD_USE_ADAPTIVE_READS
-      is set to true, this value is adaptively calculated to maximize the 2 Mbps read limits from Kinesis.
+      <td>消费者在对Kinesis的单个getRecords调用中请求的最大记录数。如果ConsumerConfigConstants.SHARD_USE_ADAPTIVE_READS
+	  设置为true，自适应计算该值，以最大化来自Kinesis的2Mbps读取限制。
       </td>
       <td>Gauge</td>
     </tr>
@@ -1495,7 +1922,7 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
       <th rowspan="1">Operator</th>
       <td>numberOfAggregatedRecordsPerFetch</td>
       <td>stream, shardId</td>
-      <td>The number of aggregated Kinesis records fetched by the consumer in a single getRecords call to Kinesis.
+      <td>消费者在对Kinesis的单个getRecords调用中获取的聚合的Kinesis记录数。
       </td>
       <td>Gauge</td>
     </tr>
@@ -1503,7 +1930,7 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
       <th rowspan="1">Operator</th>
       <td>numberOfDeggregatedRecordsPerFetch</td>
       <td>stream, shardId</td>
-      <td>The number of deaggregated Kinesis records fetched by the consumer in a single getRecords call to Kinesis.
+      <td>消费者在对Kinesis的单个getRecords调用中获取的非聚合的Kinesis记录数。
       </td>
       <td>Gauge</td>
     </tr>
@@ -1511,7 +1938,7 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
       <th rowspan="1">Operator</th>
       <td>averageRecordSizeBytes</td>
       <td>stream, shardId</td>
-      <td>The average size of a Kinesis record in bytes, fetched by the consumer in a single getRecords call.
+      <td>以字节为单位的Kinesis记录的平均大小，由消费者在单个getRecords调用中获取。
       </td>
       <td>Gauge</td>
     </tr>
@@ -1519,7 +1946,7 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
       <th rowspan="1">Operator</th>
       <td>runLoopTimeNanos</td>
       <td>stream, shardId</td>
-      <td>The actual time taken, in nanoseconds, by the consumer in the run loop.
+      <td>消费者在运行循环中花费的实际时间（纳秒）。
       </td>
       <td>Gauge</td>
     </tr>
@@ -1527,7 +1954,7 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
       <th rowspan="1">Operator</th>
       <td>loopFrequencyHz</td>
       <td>stream, shardId</td>
-      <td>The number of calls to getRecords in one second. 
+      <td>一秒钟内调用getRecords的次数。 
       </td>
       <td>Gauge</td>
     </tr>
@@ -1535,8 +1962,44 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
       <th rowspan="1">Operator</th>
       <td>bytesRequestedPerFetch</td>
       <td>stream, shardId</td>
-      <td>The bytes requested (2 Mbps / loopFrequencyHz) in a single call to getRecords.
+      <td>在对getRecords的单个调用中请求的字节数（2 Mbps / loopFrequencyHz）。
       </td>
+      <td>Gauge</td>
+    </tr>
+  </tbody>
+</table>
+
+#### Kinesis 接收器
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 15%">范围</th>
+      <th class="text-left" style="width: 18%">指标</th>
+      <th class="text-left" style="width: 39%">描述</th>
+      <th class="text-left" style="width: 10%">类型</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="1">Operator</th>
+      <td>numRecordsOutErrors (已弃用, 请使用numRecordsSendErrors)</td>
+      <td>被拒绝的记录写入数。</td>
+      <td>Counter</td>
+    </tr>
+  </tbody>
+  <tbody>
+    <tr>
+      <th rowspan="1">Operator</th>
+      <td>numRecordsSendErrors</td>
+      <td>被拒绝的记录写入数。</td>
+      <td>Counter</td>
+    </tr>
+  </tbody>
+  <tbody>
+    <tr>
+      <th rowspan="1">Operator</th>
+      <td>CurrentSendTime</td>
+      <td>最后一批请求的1次往返所用的毫秒数。</td>
       <td>Gauge</td>
     </tr>
   </tbody>
@@ -1574,12 +2037,12 @@ configured interval (`metrics.system-resource-probing-interval`).
 System resources reporting requires an optional dependency to be present on the
 classpath (for example placed in Flink's `lib` directory):
 
-  - `com.github.oshi:oshi-core:3.4.0` (licensed under EPL 1.0 license)
+  - `com.github.oshi:oshi-core:6.1.5` (licensed under MIT license)
 
 Including it's transitive dependencies:
 
-  - `net.java.dev.jna:jna-platform:jar:4.2.2`
-  - `net.java.dev.jna:jna:jar:4.2.2`
+  - `net.java.dev.jna:jna-platform:jar:5.10.0`
+  - `net.java.dev.jna:jna:jar:5.10.0`
 
 Failures in this regard will be reported as warning messages like `NoClassDefFoundError`
 logged by `SystemResourcesMetricsInitializer` during the startup.
@@ -1708,6 +2171,34 @@ logged by `SystemResourcesMetricsInitializer` during the startup.
   </tbody>
 </table>
 
+### 预测执行
+
+以下指标可以用来衡量预测执行的有效性。
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 18%">Scope</th>
+      <th class="text-left" style="width: 26%">Metrics</th>
+      <th class="text-left" style="width: 48%">Description</th>
+      <th class="text-left" style="width: 8%">Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="2"><strong>Job (only available on JobManager)</strong></th>
+      <td>numSlowExecutionVertices</td>
+      <td>当前的慢执行节点数量。</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>numEffectiveSpeculativeExecutions</td>
+      <td>有效的预测执行数量，即比初始执行实例更早结束的预测执行实例的数量。</td>
+      <td>Counter</td>
+    </tr>
+  </tbody>
+</table>
+
 ## End-to-End latency tracking
 
 Flink allows to track the latency of records travelling through the system. This feature is disabled by default.
@@ -1748,6 +2239,9 @@ This configuration has a default value of 100. A smaller value will get more acc
 As the type of this latency metrics is histogram, `state.backend.latency-track.history-size` will control the maximum number of recorded values in history, which has the default value of 128.
 A larger value of this configuration will require more memory, but will provide a more accurate result.
 
+<span class="label label-danger">Warning</span> Enabling state-access-latency metrics may impact the performance.
+It is recommended to only use them for debugging purposes.
+
 ## REST API integration
 
 Metrics can be queried through the [Monitoring REST API]({{< ref "docs/ops/rest_api" >}}).
@@ -1775,7 +2269,7 @@ Request metrics aggregated over a subset of all entities of the respective type:
   - `/jobs/metrics?jobs=D,E,F`
   - `/jobs/<jobid>/vertices/<vertexid>/subtasks/metrics?subtask=1,2,3`
 
-<span class="label label-danger">Warning</span> Metric names can contain special characters that you need to be escape when querying metrics.
+<span class="label label-danger">Warning</span> Metric names can contain special characters that you need to escape when querying metrics.
 For example, "`a_+_b`" would be escaped to "`a_%2B_b`".
 
 List of characters that should be escaped:

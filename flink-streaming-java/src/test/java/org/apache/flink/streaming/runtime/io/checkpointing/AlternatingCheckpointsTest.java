@@ -17,8 +17,11 @@
 
 package org.apache.flink.streaming.runtime.io.checkpointing;
 
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.SavepointType;
+import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.RecordingChannelStateWriter;
 import org.apache.flink.runtime.event.RuntimeEvent;
@@ -35,7 +38,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.TestInputChannel;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
-import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierHandler.Cancellable;
+import org.apache.flink.streaming.runtime.io.checkpointing.BarrierAlignmentUtil.Cancellable;
 import org.apache.flink.streaming.util.TestCheckpointedInputGateBuilder;
 import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.ManualClock;
@@ -54,7 +57,6 @@ import java.util.Optional;
 import java.util.PriorityQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiFunction;
 
 import static java.util.Collections.singletonList;
 import static junit.framework.TestCase.assertTrue;
@@ -63,7 +65,6 @@ import static org.apache.flink.runtime.checkpoint.CheckpointOptions.alignedNoTim
 import static org.apache.flink.runtime.checkpoint.CheckpointOptions.alignedWithTimeout;
 import static org.apache.flink.runtime.checkpoint.CheckpointOptions.unaligned;
 import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
-import static org.apache.flink.runtime.checkpoint.CheckpointType.SAVEPOINT;
 import static org.apache.flink.runtime.io.network.api.serialization.EventSerializer.toBuffer;
 import static org.apache.flink.runtime.io.network.util.TestBufferFactory.createBuffer;
 import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
@@ -107,7 +108,7 @@ public class AlternatingCheckpointsTest {
             sendBarrier(
                     0,
                     clock.relativeTimeMillis(),
-                    SAVEPOINT,
+                    SavepointType.savepoint(SavepointFormatType.CANONICAL),
                     gate,
                     0); // using AC because UC would require ordering in gate while polling
             ((RemoteInputChannel) gate.getChannel(0))
@@ -165,7 +166,7 @@ public class AlternatingCheckpointsTest {
 
     @Test
     public void testSavepointHandling() throws Exception {
-        testBarrierHandling(SAVEPOINT);
+        testBarrierHandling(SavepointType.savepoint(SavepointFormatType.CANONICAL));
     }
 
     @Test
@@ -181,7 +182,10 @@ public class AlternatingCheckpointsTest {
             List<Long> barriers = new ArrayList<>();
             for (long barrier = 0; barrier < numBarriers; barrier++) {
                 barriers.add(barrier);
-                CheckpointType type = barrier % 2 == 0 ? CHECKPOINT : SAVEPOINT;
+                SnapshotType type =
+                        barrier % 2 == 0
+                                ? CHECKPOINT
+                                : SavepointType.savepoint(SavepointFormatType.CANONICAL);
                 for (int channel = 0; channel < numChannels; channel++) {
                     send(
                             barrier(
@@ -201,7 +205,7 @@ public class AlternatingCheckpointsTest {
     public void testAlignedAfterTimedOut() throws Exception {
         int numChannels = 1;
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
-        long alignmentTimeOut = 100L;
+        long alignedCheckpointTimeout = 100L;
         try (CheckpointedInputGate gate =
                 new TestCheckpointedInputGateBuilder(
                                 numChannels, getTestBarrierHandlerFactory(target))
@@ -214,10 +218,12 @@ public class AlternatingCheckpointsTest {
                             1,
                             clock.relativeTimeMillis(),
                             alignedWithTimeout(
-                                    CheckpointType.CHECKPOINT, getDefault(), alignmentTimeOut));
+                                    CheckpointType.CHECKPOINT,
+                                    getDefault(),
+                                    alignedCheckpointTimeout));
             ((RemoteInputChannel) gate.getChannel(0)).onBuffer(barrier1.retainBuffer(), 0, 0);
             assertAnnouncement(gate);
-            clock.advanceTime(alignmentTimeOut + 1, TimeUnit.MILLISECONDS);
+            clock.advanceTime(alignedCheckpointTimeout + 1, TimeUnit.MILLISECONDS);
             assertBarrier(gate);
 
             assertEquals(1, target.getTriggeredCheckpointCounter());
@@ -226,7 +232,9 @@ public class AlternatingCheckpointsTest {
                             2,
                             clock.relativeTimeMillis(),
                             alignedWithTimeout(
-                                    CheckpointType.CHECKPOINT, getDefault(), alignmentTimeOut));
+                                    CheckpointType.CHECKPOINT,
+                                    getDefault(),
+                                    alignedCheckpointTimeout));
             ((RemoteInputChannel) gate.getChannel(0)).onBuffer(barrier2.retainBuffer(), 1, 0);
             assertAnnouncement(gate);
             assertBarrier(gate);
@@ -237,7 +245,9 @@ public class AlternatingCheckpointsTest {
                     contains(
                             unaligned(CheckpointType.CHECKPOINT, getDefault()),
                             alignedWithTimeout(
-                                    CheckpointType.CHECKPOINT, getDefault(), alignmentTimeOut)));
+                                    CheckpointType.CHECKPOINT,
+                                    getDefault(),
+                                    alignedCheckpointTimeout)));
         }
     }
 
@@ -299,9 +309,11 @@ public class AlternatingCheckpointsTest {
     }
 
     private void testTimeoutBarrierOnTwoChannels(
-            ValidatingCheckpointHandler target, CheckpointedInputGate gate, long alignmentTimeout)
+            ValidatingCheckpointHandler target,
+            CheckpointedInputGate gate,
+            long alignedCheckpointTimeout)
             throws Exception {
-        Buffer checkpointBarrier = withTimeout(alignmentTimeout);
+        Buffer checkpointBarrier = withTimeout(alignedCheckpointTimeout);
 
         getChannel(gate, 0).onBuffer(dataBuffer(), 0, 0);
         getChannel(gate, 0).onBuffer(dataBuffer(), 1, 0);
@@ -311,7 +323,7 @@ public class AlternatingCheckpointsTest {
 
         assertEquals(0, target.getTriggeredCheckpointCounter());
         assertAnnouncement(gate);
-        clock.advanceTime(alignmentTimeout * 2, TimeUnit.MILLISECONDS);
+        clock.advanceTime(alignedCheckpointTimeout * 2, TimeUnit.MILLISECONDS);
         assertAnnouncement(gate);
         assertBarrier(gate);
         assertBarrier(gate);
@@ -344,8 +356,8 @@ public class AlternatingCheckpointsTest {
                         .withMailboxExecutor()
                         .build();
 
-        long alignmentTimeout = 100;
-        Buffer checkpointBarrier = withTimeout(alignmentTimeout);
+        long alignedCheckpointTimeout = 100;
+        Buffer checkpointBarrier = withTimeout(alignedCheckpointTimeout);
 
         for (int i = 0; i < numChannels; i++) {
             (getChannel(gate, i)).onBuffer(checkpointBarrier.retainBuffer(), 0, 0);
@@ -357,7 +369,7 @@ public class AlternatingCheckpointsTest {
         }
         assertEquals(0, target.getTriggeredCheckpointCounter());
 
-        clock.advanceTime(alignmentTimeout * 4, TimeUnit.MILLISECONDS);
+        clock.advanceTime(alignedCheckpointTimeout * 4, TimeUnit.MILLISECONDS);
 
         assertBarrier(gate);
         assertEquals(1, target.getTriggeredCheckpointCounter());
@@ -399,8 +411,8 @@ public class AlternatingCheckpointsTest {
                         .withMailboxExecutor()
                         .build();
 
-        long alignmentTimeout = 100;
-        Buffer checkpointBarrier = withTimeout(1, alignmentTimeout);
+        long alignedCheckpointTimeout = 100;
+        Buffer checkpointBarrier = withTimeout(1, alignedCheckpointTimeout);
 
         // when: Execute the first checkpoint when announcement received first.
         ((TestInputChannel) gate.getChannel(0)).read(checkpointBarrier.retainBuffer());
@@ -417,9 +429,9 @@ public class AlternatingCheckpointsTest {
         assertEquals(1, target.getTriggeredCheckpointCounter());
 
         // given: The time in the future.
-        clock.advanceTime(alignmentTimeout + 1, TimeUnit.MILLISECONDS);
+        clock.advanceTime(alignedCheckpointTimeout + 1, TimeUnit.MILLISECONDS);
 
-        checkpointBarrier = withTimeout(2, alignmentTimeout);
+        checkpointBarrier = withTimeout(2, alignedCheckpointTimeout);
 
         // when: Execute the second checkpoint when barrier from local channel without announcement
         // received first.
@@ -431,7 +443,7 @@ public class AlternatingCheckpointsTest {
 
         // when: Receiving the barrier from second channel(with/without) announcement after time
         // more than alignment timeout.
-        clock.advanceTime(alignmentTimeout + 1, TimeUnit.MILLISECONDS);
+        clock.advanceTime(alignedCheckpointTimeout + 1, TimeUnit.MILLISECONDS);
         (getChannel(gate, 1)).onBuffer(checkpointBarrier.retainBuffer(), 1, 0);
         assertAnnouncement(gate);
         assertBarrier(gate);
@@ -454,8 +466,8 @@ public class AlternatingCheckpointsTest {
                         .withMixedChannels(0)
                         .withMailboxExecutor()
                         .build()) {
-            long alignmentTimeout = 10;
-            Buffer checkpointBarrier = withTimeout(alignmentTimeout);
+            long alignedCheckpointTimeout = 10;
+            Buffer checkpointBarrier = withTimeout(alignedCheckpointTimeout);
 
             ((TestInputChannel) gate.getChannel(0)).read(checkpointBarrier.retainBuffer());
             ((TestInputChannel) gate.getChannel(0)).read(dataBuffer());
@@ -465,7 +477,8 @@ public class AlternatingCheckpointsTest {
             getChannel(gate, 1).onBuffer(checkpointBarrier.retainBuffer(), 1, 0);
 
             assertEquals(0, target.getTriggeredCheckpointCounter());
-            clock.advanceTimeWithoutRunningCallables(alignmentTimeout + 1, TimeUnit.MILLISECONDS);
+            clock.advanceTimeWithoutRunningCallables(
+                    alignedCheckpointTimeout + 1, TimeUnit.MILLISECONDS);
             // the announcement should passively time out causing the barriers to overtake the data
             // buffers
             assertAnnouncement(gate);
@@ -498,11 +511,11 @@ public class AlternatingCheckpointsTest {
                         .withMailboxExecutor()
                         .build();
 
-        long alignmentTimeout = 100;
-        performFirstCheckpoint(numChannels, target, gate, alignmentTimeout);
+        long alignedCheckpointTimeout = 100;
+        performFirstCheckpoint(numChannels, target, gate, alignedCheckpointTimeout);
         assertEquals(1, target.getTriggeredCheckpointCounter());
 
-        Buffer checkpointBarrier = withTimeout(2, alignmentTimeout);
+        Buffer checkpointBarrier = withTimeout(2, alignedCheckpointTimeout);
 
         for (int i = 0; i < numChannels; i++) {
             (getChannel(gate, i)).onBuffer(dataBuffer(), 1, 0);
@@ -515,7 +528,7 @@ public class AlternatingCheckpointsTest {
         }
         assertEquals(1, target.getTriggeredCheckpointCounter());
 
-        clock.advanceTime(alignmentTimeout * 4, TimeUnit.MILLISECONDS);
+        clock.advanceTime(alignedCheckpointTimeout * 4, TimeUnit.MILLISECONDS);
         // the barrier should overtake the data buffers
         assertBarrier(gate);
         assertEquals(2, target.getTriggeredCheckpointCounter());
@@ -525,9 +538,9 @@ public class AlternatingCheckpointsTest {
             int numChannels,
             ValidatingCheckpointHandler target,
             CheckpointedInputGate gate,
-            long alignmentTimeout)
+            long alignedCheckpointTimeout)
             throws IOException, InterruptedException {
-        Buffer checkpointBarrier = withTimeout(1, alignmentTimeout);
+        Buffer checkpointBarrier = withTimeout(1, alignedCheckpointTimeout);
         for (int i = 0; i < numChannels; i++) {
             (getChannel(gate, i)).onBuffer(checkpointBarrier.retainBuffer(), 0, 0);
         }
@@ -551,14 +564,15 @@ public class AlternatingCheckpointsTest {
                         .withMailboxExecutor()
                         .build();
 
-        long alignmentTimeout = 100;
-        Buffer checkpointBarrier = withTimeout(alignmentTimeout);
+        long alignedCheckpointTimeout = 100;
+        Buffer checkpointBarrier = withTimeout(alignedCheckpointTimeout);
 
         (getChannel(gate, 0)).onBuffer(checkpointBarrier.retainBuffer(), 0, 0);
         assertEquals(0, target.getTriggeredCheckpointCounter());
         assertAnnouncement(gate);
         assertBarrier(gate);
-        clock.advanceTimeWithoutRunningCallables(alignmentTimeout * 4, TimeUnit.MILLISECONDS);
+        clock.advanceTimeWithoutRunningCallables(
+                alignedCheckpointTimeout * 4, TimeUnit.MILLISECONDS);
         (getChannel(gate, 1)).onBuffer(checkpointBarrier.retainBuffer(), 0, 0);
         assertAnnouncement(gate);
 
@@ -577,19 +591,19 @@ public class AlternatingCheckpointsTest {
                         .withSyncExecutor()
                         .build();
 
-        long alignmentTimeout = 100;
-        Buffer checkpointBarrier = withTimeout(alignmentTimeout);
+        long alignedCheckpointTimeout = 100;
+        Buffer checkpointBarrier = withTimeout(alignedCheckpointTimeout);
 
         send(checkpointBarrier, 0, gate);
 
-        clock.advanceTime(alignmentTimeout + 1, TimeUnit.MILLISECONDS);
+        clock.advanceTime(alignedCheckpointTimeout + 1, TimeUnit.MILLISECONDS);
         assertThat(
                 target.getTriggeredCheckpointOptions(),
                 contains(unaligned(CheckpointType.CHECKPOINT, getDefault())));
     }
 
     @Test
-    public void testAllChannelsUnblockedAfterAlignmentTimeout() throws Exception {
+    public void testAllChannelsUnblockedAfteralignedCheckpointTimeout() throws Exception {
         int numberOfChannels = 2;
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
         CheckpointedInputGate gate =
@@ -599,13 +613,13 @@ public class AlternatingCheckpointsTest {
                         .withSyncExecutor()
                         .build();
 
-        long alignmentTimeout = 100;
+        long alignedCheckpointTimeout = 100;
         CheckpointBarrier checkpointBarrier =
                 new CheckpointBarrier(
                         1,
                         clock.relativeTimeMillis(),
                         alignedWithTimeout(
-                                CheckpointType.CHECKPOINT, getDefault(), alignmentTimeout));
+                                CheckpointType.CHECKPOINT, getDefault(), alignedCheckpointTimeout));
         Buffer checkpointBarrierBuffer = toBuffer(checkpointBarrier, false);
 
         // we set timer on announcement and test channels do not produce announcements by themselves
@@ -614,7 +628,7 @@ public class AlternatingCheckpointsTest {
         ((TestInputChannel) gate.getChannel(0)).setBlocked(true);
         send(checkpointBarrierBuffer, 0, gate);
 
-        clock.advanceTime(alignmentTimeout + 1, TimeUnit.MILLISECONDS);
+        clock.advanceTime(alignedCheckpointTimeout + 1, TimeUnit.MILLISECONDS);
         send(EventSerializer.toBuffer(new EventAnnouncement(checkpointBarrier, 0), true), 1, gate);
         // emulate blocking channels on aligned barriers
         ((TestInputChannel) gate.getChannel(1)).setBlocked(true);
@@ -639,12 +653,12 @@ public class AlternatingCheckpointsTest {
                         .withSyncExecutor()
                         .build();
 
-        long alignmentTimeout = 100;
-        Buffer checkpointBarrier = withTimeout(alignmentTimeout);
+        long alignedCheckpointTimeout = 100;
+        Buffer checkpointBarrier = withTimeout(alignedCheckpointTimeout);
 
         send(checkpointBarrier, 0, gate);
         send(checkpointBarrier, 1, gate);
-        clock.advanceTime(alignmentTimeout + 1, TimeUnit.MILLISECONDS);
+        clock.advanceTime(alignedCheckpointTimeout + 1, TimeUnit.MILLISECONDS);
 
         assertThat(
                 target.getTriggeredCheckpointOptions(),
@@ -662,13 +676,13 @@ public class AlternatingCheckpointsTest {
                         .withSyncExecutor()
                         .build();
 
-        long alignmentTimeout = 100;
-        Buffer checkpointBarrier = withTimeout(alignmentTimeout);
+        long alignedCheckpointTimeout = 100;
+        Buffer checkpointBarrier = withTimeout(alignedCheckpointTimeout);
 
         send(checkpointBarrier, 0, gate);
         send(toBuffer(new CancelCheckpointMarker(1L), true), 0, gate);
         send(toBuffer(new CancelCheckpointMarker(1L), true), 1, gate);
-        clock.advanceTime(alignmentTimeout + 1, TimeUnit.MILLISECONDS);
+        clock.advanceTime(alignedCheckpointTimeout + 1, TimeUnit.MILLISECONDS);
 
         assertThat(target.getTriggeredCheckpointOptions().size(), equalTo(0));
     }
@@ -679,8 +693,8 @@ public class AlternatingCheckpointsTest {
         ClockWithDelayedActions clockWithDelayedActions =
                 new ClockWithDelayedActions() {
                     @Override
-                    public Cancellable apply(Callable<?> callable, Duration delay) {
-                        super.apply(callable, delay);
+                    public Cancellable registerTask(Callable<?> callable, Duration delay) {
+                        super.registerTask(callable, delay);
                         // do not unregister timers on cancel
                         return () -> {};
                     }
@@ -696,12 +710,12 @@ public class AlternatingCheckpointsTest {
                         .withSyncExecutor()
                         .build();
 
-        long alignmentTimeout = 100;
-        Buffer checkpointBarrier = withTimeout(alignmentTimeout);
+        long alignedCheckpointTimeout = 100;
+        Buffer checkpointBarrier = withTimeout(alignedCheckpointTimeout);
 
         send(checkpointBarrier, 0, gate);
         gate.close();
-        clockWithDelayedActions.advanceTime(alignmentTimeout + 1, TimeUnit.MILLISECONDS);
+        clockWithDelayedActions.advanceTime(alignedCheckpointTimeout + 1, TimeUnit.MILLISECONDS);
 
         assertThat(target.getTriggeredCheckpointOptions().size(), equalTo(0));
     }
@@ -716,8 +730,8 @@ public class AlternatingCheckpointsTest {
                         .withRemoteChannels()
                         .withMailboxExecutor()
                         .build()) {
-            long alignmentTimeout = 10;
-            Buffer checkpointBarrier = withTimeout(alignmentTimeout);
+            long alignedCheckpointTimeout = 10;
+            Buffer checkpointBarrier = withTimeout(alignedCheckpointTimeout);
 
             getChannel(gate, 0).onBuffer(dataBuffer(), 0, 0);
             getChannel(gate, 0).onBuffer(dataBuffer(), 1, 0);
@@ -729,7 +743,7 @@ public class AlternatingCheckpointsTest {
             assertAnnouncement(gate);
             assertAnnouncement(gate);
             // the announcement should time out causing the barriers to overtake the data buffers
-            clock.advanceTime(alignmentTimeout + 1, TimeUnit.MILLISECONDS);
+            clock.advanceTime(alignedCheckpointTimeout + 1, TimeUnit.MILLISECONDS);
             assertBarrier(gate);
             assertBarrier(gate);
             assertEquals(1, target.getTriggeredCheckpointCounter());
@@ -753,8 +767,8 @@ public class AlternatingCheckpointsTest {
                         .withRemoteChannels()
                         .withMailboxExecutor()
                         .build()) {
-            long alignmentTimeout = 10;
-            Buffer checkpointBarrier = withTimeout(alignmentTimeout);
+            long alignedCheckpointTimeout = 10;
+            Buffer checkpointBarrier = withTimeout(alignedCheckpointTimeout);
 
             getChannel(gate, 0).onBuffer(dataBuffer(), 0, 0);
             getChannel(gate, 0).onBuffer(dataBuffer(), 1, 0);
@@ -764,7 +778,8 @@ public class AlternatingCheckpointsTest {
 
             assertEquals(0, target.getTriggeredCheckpointCounter());
             assertAnnouncement(gate);
-            clock.advanceTimeWithoutRunningCallables(alignmentTimeout + 1, TimeUnit.MILLISECONDS);
+            clock.advanceTimeWithoutRunningCallables(
+                    alignedCheckpointTimeout + 1, TimeUnit.MILLISECONDS);
             // the announcement should passively time out causing the barriers to overtake the data
             // buffers
             assertAnnouncement(gate);
@@ -837,8 +852,8 @@ public class AlternatingCheckpointsTest {
                         .withRemoteChannels()
                         .withMailboxExecutor()
                         .build()) {
-            long alignmentTimeout = 10;
-            Buffer checkpointBarrier = withTimeout(alignmentTimeout);
+            long alignedCheckpointTimeout = 10;
+            Buffer checkpointBarrier = withTimeout(alignedCheckpointTimeout);
 
             getChannel(gate, 0).onBuffer(dataBuffer(), 0, 0);
             getChannel(gate, 0).onBuffer(dataBuffer(), 1, 0);
@@ -849,7 +864,8 @@ public class AlternatingCheckpointsTest {
             // we simulate active time out firing after the passive one
             assertData(gate);
             assertData(gate);
-            clock.advanceTimeWithoutRunningCallables(alignmentTimeout + 1, TimeUnit.MILLISECONDS);
+            clock.advanceTimeWithoutRunningCallables(
+                    alignedCheckpointTimeout + 1, TimeUnit.MILLISECONDS);
             // the first barrier should passively time out causing the second barrier to overtake
             // the remaining data buffer
             assertBarrier(gate);
@@ -918,7 +934,7 @@ public class AlternatingCheckpointsTest {
     public void testTimeoutAlignmentAfterReceivedEndOfPartition() throws Exception {
         int numChannels = 3;
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
-        long alignmentTimeOut = 100L;
+        long alignedCheckpointTimeout = 100L;
 
         try (CheckpointedInputGate gate =
                 new TestCheckpointedInputGateBuilder(
@@ -935,7 +951,7 @@ public class AlternatingCheckpointsTest {
                                     alignedWithTimeout(
                                             CheckpointType.CHECKPOINT,
                                             getDefault(),
-                                            alignmentTimeOut)),
+                                            alignedCheckpointTimeout)),
                             0,
                             0);
             assertAnnouncement(gate);
@@ -943,7 +959,8 @@ public class AlternatingCheckpointsTest {
 
             // Advances time but do not execute the registered callable which would turns into
             // unaligned checkpoint.
-            clock.advanceTimeWithoutRunningCallables(alignmentTimeOut + 1, TimeUnit.MILLISECONDS);
+            clock.advanceTimeWithoutRunningCallables(
+                    alignedCheckpointTimeout + 1, TimeUnit.MILLISECONDS);
 
             // The EndOfPartition should convert the checkpoint into unaligned.
             getChannel(gate, 1).onBuffer(dataBuffer(), 0, 0);
@@ -974,7 +991,7 @@ public class AlternatingCheckpointsTest {
     public void testStartNewCheckpointViaAnnouncement() throws Exception {
         int numChannels = 3;
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
-        long alignmentTimeOut = 10000L;
+        long alignedCheckpointTimeout = 10000L;
 
         try (CheckpointedInputGate gate =
                 new TestCheckpointedInputGateBuilder(
@@ -990,7 +1007,7 @@ public class AlternatingCheckpointsTest {
                                     alignedWithTimeout(
                                             CheckpointType.CHECKPOINT,
                                             getDefault(),
-                                            alignmentTimeOut)),
+                                            alignedCheckpointTimeout)),
                             0,
                             0);
             getChannel(gate, 1).onBuffer(endOfPartition(), 0, 0);
@@ -1014,7 +1031,7 @@ public class AlternatingCheckpointsTest {
                                     alignedWithTimeout(
                                             CheckpointType.CHECKPOINT,
                                             getDefault(),
-                                            alignmentTimeOut)),
+                                            alignedCheckpointTimeout)),
                             0,
                             0);
             assertAnnouncement(gate);
@@ -1059,7 +1076,12 @@ public class AlternatingCheckpointsTest {
 
         startNanos = clock.relativeTimeNanos();
         long checkpoint2CreationTime = clock.relativeTimeMillis() - 5;
-        sendBarrier(2, checkpoint2CreationTime, SAVEPOINT, gate, 0);
+        sendBarrier(
+                2,
+                checkpoint2CreationTime,
+                SavepointType.savepoint(SavepointFormatType.CANONICAL),
+                gate,
+                0);
         sendData(bufferSize, 1, gate);
 
         assertMetrics(
@@ -1071,7 +1093,12 @@ public class AlternatingCheckpointsTest {
                 5_000_000L,
                 bufferSize * 2);
         clock.advanceTime(5, TimeUnit.MILLISECONDS);
-        sendBarrier(2, checkpoint2CreationTime, SAVEPOINT, gate, 1);
+        sendBarrier(
+                2,
+                checkpoint2CreationTime,
+                SavepointType.savepoint(SavepointFormatType.CANONICAL),
+                gate,
+                1);
         sendData(bufferSize, 0, gate);
 
         assertMetrics(
@@ -1136,7 +1163,12 @@ public class AlternatingCheckpointsTest {
         long checkpoint2CreationTime = clock.relativeTimeMillis() - 5;
         startNanos = clock.relativeTimeNanos();
         sendData(1000, 0, gate);
-        sendBarrier(2, checkpoint2CreationTime, SAVEPOINT, gate, 0);
+        sendBarrier(
+                2,
+                checkpoint2CreationTime,
+                SavepointType.savepoint(SavepointFormatType.CANONICAL),
+                gate,
+                0);
         sendData(1000, 0, gate);
         clock.advanceTime(5, TimeUnit.MILLISECONDS);
         assertMetrics(
@@ -1178,7 +1210,10 @@ public class AlternatingCheckpointsTest {
 
         for (int i = 0; i < 4; i++) {
             int channel = i % 2;
-            CheckpointType type = channel == 0 ? SAVEPOINT : CHECKPOINT;
+            SnapshotType type =
+                    channel == 0
+                            ? SavepointType.savepoint(SavepointFormatType.CANONICAL)
+                            : CHECKPOINT;
             target.setNextExpectedCheckpointId(-1);
 
             if (type.isSavepoint()) {
@@ -1253,7 +1288,9 @@ public class AlternatingCheckpointsTest {
                 new CheckpointBarrier(
                         outOfOrderSavepointId,
                         clock.relativeTimeMillis(),
-                        new CheckpointOptions(SAVEPOINT, getDefault())),
+                        new CheckpointOptions(
+                                SavepointType.savepoint(SavepointFormatType.CANONICAL),
+                                getDefault())),
                 new InputChannelInfo(0, 1),
                 false);
 
@@ -1272,16 +1309,16 @@ public class AlternatingCheckpointsTest {
                         .withSyncExecutor()
                         .build();
 
-        long alignmentTimeout = 10000;
-        Buffer checkpointBarrier = withTimeout(alignmentTimeout);
+        long alignedCheckpointTimeout = 10000;
+        Buffer checkpointBarrier = withTimeout(alignedCheckpointTimeout);
 
         send(checkpointBarrier, 0, gate);
         clock.advanceTime(Duration.ofSeconds(1));
-        send(withTimeout(2, alignmentTimeout), 0, gate);
+        send(withTimeout(2, alignedCheckpointTimeout), 0, gate);
         clock.advanceTime(Duration.ofSeconds(1));
         send(toBuffer(new CancelCheckpointMarker(1L), true), 1, gate);
         clock.advanceTime(Duration.ofSeconds(1));
-        send(withTimeout(2, alignmentTimeout), 1, gate);
+        send(withTimeout(2, alignedCheckpointTimeout), 1, gate);
         clock.advanceTime(Duration.ofSeconds(1));
 
         assertEquals(
@@ -1289,7 +1326,7 @@ public class AlternatingCheckpointsTest {
                 target.lastAlignmentDurationNanos.get().longValue());
     }
 
-    private void testBarrierHandling(CheckpointType checkpointType) throws Exception {
+    private void testBarrierHandling(SnapshotType checkpointType) throws Exception {
         final long barrierId = 123L;
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
         SingleInputGate gate = new SingleInputGateBuilder().setNumberOfChannels(2).build();
@@ -1328,7 +1365,7 @@ public class AlternatingCheckpointsTest {
     private void sendBarrier(
             long barrierId,
             long barrierCreationTime,
-            CheckpointType type,
+            SnapshotType type,
             CheckpointedInputGate gate,
             int channelId)
             throws Exception {
@@ -1440,7 +1477,7 @@ public class AlternatingCheckpointsTest {
     }
 
     private static class ClockWithDelayedActions extends Clock
-            implements BiFunction<Callable<?>, Duration, Cancellable> {
+            implements BarrierAlignmentUtil.DelayableTimer {
 
         // must start at least at 100 ms, because ValidatingCheckpointHandler
         // expects barriers to have positive timestamps
@@ -1449,7 +1486,7 @@ public class AlternatingCheckpointsTest {
                 new PriorityQueue<>(Comparator.comparingLong(CallableWithTimestamp::getTimestamp));
 
         @Override
-        public Cancellable apply(Callable<?> callable, Duration delay) {
+        public Cancellable registerTask(Callable<?> callable, Duration delay) {
             CallableWithTimestamp callableWithTimestamp =
                     new CallableWithTimestamp(
                             clock.relativeTimeNanos() + delay.toNanos(), callable);

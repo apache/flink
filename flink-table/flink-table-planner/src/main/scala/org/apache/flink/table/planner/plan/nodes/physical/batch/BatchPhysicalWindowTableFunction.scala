@@ -15,14 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.logical.TimeAttributeWindowingStrategy
 import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalWindowTableFunction
-import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecWindowTableFunction
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecWindowTableFunction
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -30,39 +30,27 @@ import org.apache.calcite.rel.RelNode
 
 import java.util
 
-/**
- * Batch physical RelNode for window table-valued function.
- */
+/** Batch physical RelNode for window table-valued function. */
 class BatchPhysicalWindowTableFunction(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
     outputRowType: RelDataType,
     windowing: TimeAttributeWindowingStrategy)
-  extends CommonPhysicalWindowTableFunction(
-    cluster,
-    traitSet,
-    inputRel,
-    outputRowType,
-    windowing)
+  extends CommonPhysicalWindowTableFunction(cluster, traitSet, inputRel, outputRowType, windowing)
   with BatchPhysicalRel {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new BatchPhysicalWindowTableFunction(
-      cluster,
-      traitSet,
-      inputs.get(0),
-      outputRowType,
-      windowing)
+    new BatchPhysicalWindowTableFunction(cluster, traitSet, inputs.get(0), outputRowType, windowing)
   }
 
   override def translateToExecNode(): ExecNode[_] = {
     new BatchExecWindowTableFunction(
+      unwrapTableConfig(this),
       windowing,
       // TODO set semantic window (such as session window) require other Dam Behavior
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 }

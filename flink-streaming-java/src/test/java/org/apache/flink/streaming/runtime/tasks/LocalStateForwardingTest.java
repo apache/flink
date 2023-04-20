@@ -41,6 +41,7 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateObject;
+import org.apache.flink.runtime.state.TaskExecutorStateChangelogStoragesManager;
 import org.apache.flink.runtime.state.TaskLocalStateStore;
 import org.apache.flink.runtime.state.TaskLocalStateStoreImpl;
 import org.apache.flink.runtime.state.TaskStateManagerImpl;
@@ -68,6 +69,7 @@ import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.mockito.Mockito.mock;
 
 /**
@@ -98,7 +100,7 @@ public class LocalStateForwardingTest extends TestLogger {
                         0,
                         taskStateManager);
 
-        StreamTask testStreamTask = new StreamTaskTest.NoOpStreamTask(streamMockEnvironment);
+        StreamTask testStreamTask = new StreamTaskITCase.NoOpStreamTask(streamMockEnvironment);
         CheckpointMetaData checkpointMetaData = new CheckpointMetaData(0L, 0L);
         CheckpointMetricsBuilder checkpointMetrics = new CheckpointMetricsBuilder();
 
@@ -184,11 +186,12 @@ public class LocalStateForwardingTest extends TestLogger {
 
         final JobID jobID = new JobID();
         final AllocationID allocationID = new AllocationID();
-        final ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
         final CheckpointMetaData checkpointMetaData = new CheckpointMetaData(42L, 4711L);
         final CheckpointMetrics checkpointMetrics = new CheckpointMetrics();
         final int subtaskIdx = 42;
         JobVertexID jobVertexID = new JobVertexID();
+        final ExecutionAttemptID executionAttemptID =
+                createExecutionAttemptId(jobVertexID, subtaskIdx, 0);
 
         TaskStateSnapshot jmSnapshot = new TaskStateSnapshot();
         TaskStateSnapshot tmSnapshot = new TaskStateSnapshot();
@@ -221,7 +224,7 @@ public class LocalStateForwardingTest extends TestLogger {
                 new LocalRecoveryDirectoryProviderImpl(
                         temporaryFolder.newFolder(), jobID, jobVertexID, subtaskIdx);
 
-        LocalRecoveryConfig localRecoveryConfig = new LocalRecoveryConfig(true, directoryProvider);
+        LocalRecoveryConfig localRecoveryConfig = new LocalRecoveryConfig(directoryProvider);
 
         TaskLocalStateStore taskLocalStateStore =
                 new TaskLocalStateStoreImpl(
@@ -249,6 +252,7 @@ public class LocalStateForwardingTest extends TestLogger {
                         executionAttemptID,
                         taskLocalStateStore,
                         stateChangelogStorage,
+                        new TaskExecutorStateChangelogStoragesManager(),
                         null,
                         checkpointResponder);
 

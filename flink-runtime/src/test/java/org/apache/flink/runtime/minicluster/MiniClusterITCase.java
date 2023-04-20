@@ -23,7 +23,6 @@ import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -73,10 +72,10 @@ public class MiniClusterITCase extends TestLogger {
 
         final MiniClusterConfiguration cfg =
                 new MiniClusterConfiguration.Builder()
+                        .withRandomPorts()
                         .setNumTaskManagers(numOfTMs)
                         .setNumSlotsPerTaskManager(slotsPerTM)
                         .setRpcServiceSharing(RpcServiceSharing.SHARED)
-                        .setConfiguration(getDefaultConfiguration())
                         .build();
 
         try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
@@ -93,10 +92,10 @@ public class MiniClusterITCase extends TestLogger {
 
         final MiniClusterConfiguration cfg =
                 new MiniClusterConfiguration.Builder()
+                        .withRandomPorts()
                         .setNumTaskManagers(numOfTMs)
                         .setNumSlotsPerTaskManager(slotsPerTM)
                         .setRpcServiceSharing(RpcServiceSharing.DEDICATED)
-                        .setConfiguration(getDefaultConfiguration())
                         .build();
 
         try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
@@ -134,7 +133,7 @@ public class MiniClusterITCase extends TestLogger {
     }
 
     private void runHandleJobsWhenNotEnoughSlots(final JobGraph jobGraph) throws Exception {
-        final Configuration configuration = getDefaultConfiguration();
+        final Configuration configuration = new Configuration();
         // this triggers the failure for the default scheduler
         configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 100L);
         // this triggers the failure for the adaptive scheduler
@@ -142,6 +141,7 @@ public class MiniClusterITCase extends TestLogger {
 
         final MiniClusterConfiguration cfg =
                 new MiniClusterConfiguration.Builder()
+                        .withRandomPorts()
                         .setNumTaskManagers(1)
                         .setNumSlotsPerTaskManager(1)
                         .setConfiguration(configuration)
@@ -160,9 +160,9 @@ public class MiniClusterITCase extends TestLogger {
 
         final MiniClusterConfiguration cfg =
                 new MiniClusterConfiguration.Builder()
+                        .withRandomPorts()
                         .setNumTaskManagers(1)
                         .setNumSlotsPerTaskManager(2 * parallelism)
-                        .setConfiguration(getDefaultConfiguration())
                         .build();
 
         try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
@@ -191,9 +191,9 @@ public class MiniClusterITCase extends TestLogger {
 
         final MiniClusterConfiguration cfg =
                 new MiniClusterConfiguration.Builder()
+                        .withRandomPorts()
                         .setNumTaskManagers(1)
                         .setNumSlotsPerTaskManager(2 * parallelism)
-                        .setConfiguration(getDefaultConfiguration())
                         .build();
 
         try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
@@ -222,9 +222,9 @@ public class MiniClusterITCase extends TestLogger {
 
         final MiniClusterConfiguration cfg =
                 new MiniClusterConfiguration.Builder()
+                        .withRandomPorts()
                         .setNumTaskManagers(1)
                         .setNumSlotsPerTaskManager(6 * parallelism)
-                        .setConfiguration(getDefaultConfiguration())
                         .build();
 
         try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
@@ -267,9 +267,9 @@ public class MiniClusterITCase extends TestLogger {
 
         final MiniClusterConfiguration cfg =
                 new MiniClusterConfiguration.Builder()
+                        .withRandomPorts()
                         .setNumTaskManagers(1)
                         .setNumSlotsPerTaskManager(6 * parallelism)
-                        .setConfiguration(getDefaultConfiguration())
                         .build();
 
         try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
@@ -305,9 +305,9 @@ public class MiniClusterITCase extends TestLogger {
 
         final MiniClusterConfiguration cfg =
                 new MiniClusterConfiguration.Builder()
+                        .withRandomPorts()
                         .setNumTaskManagers(1)
                         .setNumSlotsPerTaskManager(parallelism)
-                        .setConfiguration(getDefaultConfiguration())
                         .build();
 
         try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
@@ -348,9 +348,9 @@ public class MiniClusterITCase extends TestLogger {
 
         final MiniClusterConfiguration cfg =
                 new MiniClusterConfiguration.Builder()
+                        .withRandomPorts()
                         .setNumTaskManagers(1)
                         .setNumSlotsPerTaskManager(2 * parallelism)
-                        .setConfiguration(getDefaultConfiguration())
                         .build();
 
         try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
@@ -386,9 +386,9 @@ public class MiniClusterITCase extends TestLogger {
 
         final MiniClusterConfiguration cfg =
                 new MiniClusterConfiguration.Builder()
+                        .withRandomPorts()
                         .setNumTaskManagers(1)
                         .setNumSlotsPerTaskManager(parallelism)
-                        .setConfiguration(getDefaultConfiguration())
                         .build();
 
         try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
@@ -434,9 +434,9 @@ public class MiniClusterITCase extends TestLogger {
 
         final MiniClusterConfiguration cfg =
                 new MiniClusterConfiguration.Builder()
+                        .withRandomPorts()
                         .setNumTaskManagers(1)
                         .setNumSlotsPerTaskManager(2 * parallelism)
-                        .setConfiguration(getDefaultConfiguration())
                         .build();
 
         try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
@@ -472,9 +472,9 @@ public class MiniClusterITCase extends TestLogger {
 
         final MiniClusterConfiguration cfg =
                 new MiniClusterConfiguration.Builder()
+                        .withRandomPorts()
                         .setNumTaskManagers(1)
                         .setNumSlotsPerTaskManager(2 * parallelism)
-                        .setConfiguration(getDefaultConfiguration())
                         .build();
 
         try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
@@ -511,9 +511,9 @@ public class MiniClusterITCase extends TestLogger {
 
         final MiniClusterConfiguration cfg =
                 new MiniClusterConfiguration.Builder()
+                        .withRandomPorts()
                         .setNumTaskManagers(1)
                         .setNumSlotsPerTaskManager(parallelism)
-                        .setConfiguration(getDefaultConfiguration())
                         .build();
 
         try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
@@ -560,9 +560,9 @@ public class MiniClusterITCase extends TestLogger {
 
         final MiniClusterConfiguration cfg =
                 new MiniClusterConfiguration.Builder()
+                        .withRandomPorts()
                         .setNumTaskManagers(1)
                         .setNumSlotsPerTaskManager(2 * parallelism)
-                        .setConfiguration(getDefaultConfiguration())
                         .build();
 
         try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
@@ -603,9 +603,9 @@ public class MiniClusterITCase extends TestLogger {
 
         final MiniClusterConfiguration cfg =
                 new MiniClusterConfiguration.Builder()
+                        .withRandomPorts()
                         .setNumTaskManagers(1)
                         .setNumSlotsPerTaskManager(parallelism)
-                        .setConfiguration(getDefaultConfiguration())
                         .build();
 
         try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
@@ -645,9 +645,9 @@ public class MiniClusterITCase extends TestLogger {
 
         final MiniClusterConfiguration cfg =
                 new MiniClusterConfiguration.Builder()
+                        .withRandomPorts()
                         .setNumTaskManagers(1)
                         .setNumSlotsPerTaskManager(parallelism)
-                        .setConfiguration(getDefaultConfiguration())
                         .build();
 
         try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
@@ -683,13 +683,6 @@ public class MiniClusterITCase extends TestLogger {
     //  Utilities
     // ------------------------------------------------------------------------
 
-    private Configuration getDefaultConfiguration() {
-        final Configuration configuration = new Configuration();
-        configuration.setString(RestOptions.BIND_PORT, "0");
-
-        return configuration;
-    }
-
     private static JobGraph getSimpleJob(int parallelism) throws IOException {
         final JobVertex task = new JobVertex("Test task");
         task.setParallelism(parallelism);
@@ -721,7 +714,7 @@ public class MiniClusterITCase extends TestLogger {
         }
 
         @Override
-        public void finalizeOnMaster(ClassLoader loader) throws Exception {
+        public void finalizeOnMaster(FinalizeOnMasterContext context) throws Exception {
             Thread.sleep(waitingTime);
             finalizedOnMaster.set(true);
         }
@@ -738,7 +731,7 @@ public class MiniClusterITCase extends TestLogger {
         }
 
         @Override
-        public void finalizeOnMaster(ClassLoader loader) {
+        public void finalizeOnMaster(FinalizeOnMasterContext context) {
             throw new OutOfMemoryError("Java heap space");
         }
     }
@@ -750,7 +743,7 @@ public class MiniClusterITCase extends TestLogger {
         }
 
         @Override
-        public void initializeOnMaster(ClassLoader loader) {
+        public void initializeOnMaster(InitializeOnMasterContext context) {
             throw new OutOfMemoryError("Java heap space");
         }
     }

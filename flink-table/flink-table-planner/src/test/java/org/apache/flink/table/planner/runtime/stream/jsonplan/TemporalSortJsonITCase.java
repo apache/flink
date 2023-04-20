@@ -28,7 +28,7 @@ import org.junit.Test;
 import java.util.Arrays;
 import java.util.HashMap;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for temporal sort json plan. */
 public class TemporalSortJsonITCase extends JsonPlanTestBase {
@@ -43,9 +43,8 @@ public class TemporalSortJsonITCase extends JsonPlanTestBase {
                 "c STRING",
                 "proctime as PROCTIME()");
         createTestValuesSinkTable("MySink", "a INT");
-        String jsonPlan =
-                tableEnv.getJsonPlan("insert into MySink SELECT a FROM MyTable order by proctime");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+        compileSqlAndExecutePlan("insert into MySink SELECT a FROM MyTable order by proctime")
+                .await();
 
         assertResult(
                 Arrays.asList("+I[1]", "+I[2]", "+I[3]"),
@@ -75,15 +74,14 @@ public class TemporalSortJsonITCase extends JsonPlanTestBase {
                     }
                 });
         createTestValuesSinkTable("MySink", "`int` INT");
-        String jsonPlan =
-                tableEnv.getJsonPlan(
-                        "insert into MySink SELECT `int` FROM MyTable order by rowtime, `double`");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+        compileSqlAndExecutePlan(
+                        "insert into MySink SELECT `int` FROM MyTable order by rowtime, `double`")
+                .await();
 
-        assertEquals(
-                Arrays.asList(
-                        "+I[1]", "+I[2]", "+I[2]", "+I[5]", "+I[6]", "+I[3]", "+I[3]", "+I[4]",
-                        "+I[7]", "+I[1]"),
-                TestValuesTableFactory.getResults("MySink"));
+        assertThat(TestValuesTableFactory.getResults("MySink"))
+                .isEqualTo(
+                        Arrays.asList(
+                                "+I[1]", "+I[2]", "+I[2]", "+I[5]", "+I[6]", "+I[3]", "+I[3]",
+                                "+I[4]", "+I[7]", "+I[1]"));
     }
 }

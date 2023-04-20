@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import java.util.Map;
 
@@ -33,5 +34,25 @@ public interface FinishedTaskStateProvider {
     void reportTaskHasFinishedOperators(ExecutionVertex task);
 
     /** Fulfills the state for the finished subtasks and operators to indicate they are finished. */
-    void fulfillFinishedTaskStatus(Map<OperatorID, OperatorState> operatorStates);
+    void fulfillFinishedTaskStatus(Map<OperatorID, OperatorState> operatorStates)
+            throws PartialFinishingNotSupportedByStateException;
+
+    /**
+     * Thrown when some subtasks of the operator have been finished but state doesn't support that
+     * (e.g. Union).
+     */
+    class PartialFinishingNotSupportedByStateException extends FlinkRuntimeException {
+
+        public PartialFinishingNotSupportedByStateException(String message) {
+            super(message);
+        }
+
+        public PartialFinishingNotSupportedByStateException(Throwable cause) {
+            super(cause);
+        }
+
+        public PartialFinishingNotSupportedByStateException(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
 }

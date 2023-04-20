@@ -19,17 +19,21 @@
 package org.apache.flink.table.planner.connectors;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.transformations.WithBoundedness;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.connector.source.abilities.SupportsSourceWatermark;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.TransformationMetadata;
 import org.apache.flink.table.runtime.operators.source.InputConversionOperator;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.RowKind;
@@ -42,6 +46,8 @@ import java.util.Map;
 @Internal
 final class ExternalDynamicSource<E>
         implements ScanTableSource, SupportsReadingMetadata, SupportsSourceWatermark {
+
+    private static final String EXTERNAL_DATASTREAM_TRANSFORMATION = "external-datastream";
 
     private static final String ROWTIME_METADATA_KEY = "rowtime";
 
@@ -102,12 +108,29 @@ final class ExternalDynamicSource<E>
                 runtimeProviderContext.createDataStructureConverter(physicalDataType);
 
         final Transformation<E> externalTransformation = dataStream.getTransformation();
+        final boolean isBounded =
+                !isUnboundedSource(externalTransformation)
+                        && externalTransformation.getTransitivePredecessors().stream()
+                                .noneMatch(this::isUnboundedSource);
 
-        final Transformation<RowData> conversionTransformation =
-                ExecNodeUtil.createOneInputTransformation(
+        return new TransformationScanProvider() {
+            @Override
+            public Transformation<RowData> createTransformation(ProviderContext providerContext) {
+                return ExecNodeUtil.createOneInputTransformation(
                         externalTransformation,
-                        generateOperatorName(),
-                        generateOperatorDesc(),
+                        providerContext
+                                .generateUid(EXTERNAL_DATASTREAM_TRANSFORMATION)
+                                .map(
+                                        uid ->
+                                                new TransformationMetadata(
+                                                        uid,
+                                                        generateOperatorName(),
+                                                        generateOperatorDesc()))
+                                .orElseGet(
+                                        () ->
+                                                new TransformationMetadata(
+                                                        generateOperatorName(),
+                                                        generateOperatorDesc())),
                         new InputConversionOperator<>(
                                 physicalConverter,
                                 !isTopLevelRecord,
@@ -115,9 +138,20 @@ final class ExternalDynamicSource<E>
                                 propagateWatermark,
                                 changelogMode.containsOnly(RowKind.INSERT)),
                         null, // will be filled by the framework
-                        externalTransformation.getParallelism());
+                        externalTransformation.getParallelism(),
+                        false);
+            }
 
-        return TransformationScanProvider.of(conversionTransformation);
+            @Override
+            public boolean isBounded() {
+                return isBounded;
+            }
+        };
+    }
+
+    private boolean isUnboundedSource(Transformation<?> transformation) {
+        return transformation instanceof WithBoundedness
+                && ((WithBoundedness) transformation).getBoundedness() != Boundedness.BOUNDED;
     }
 
     private String generateOperatorName() {

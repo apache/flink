@@ -22,6 +22,9 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
+import org.apache.flink.util.SerializedValue;
+
+import javax.annotation.Nullable;
 
 /** RPC Gateway interface for messages to the CheckpointCoordinator. */
 public interface CheckpointCoordinatorGateway extends RpcGateway {
@@ -31,7 +34,7 @@ public interface CheckpointCoordinatorGateway extends RpcGateway {
             final ExecutionAttemptID executionAttemptID,
             final long checkpointId,
             final CheckpointMetrics checkpointMetrics,
-            final TaskStateSnapshot subtaskState);
+            @Nullable final SerializedValue<TaskStateSnapshot> subtaskState);
 
     void declineCheckpoint(DeclineCheckpoint declineCheckpoint);
 

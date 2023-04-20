@@ -79,20 +79,16 @@ public final class EitherSerializerSnapshot<L, R> implements TypeSerializerSnaps
             throws IOException {
         switch (readVersion) {
             case 1:
-                readV1(in, classLoader);
-                break;
+                throw new UnsupportedOperationException(
+                        String.format(
+                                "No longer supported version [%d]. Please upgrade first to Flink 1.16. ",
+                                readVersion));
             case 2:
                 readV2(in, classLoader);
                 break;
             default:
                 throw new IllegalArgumentException("Unrecognized version: " + readVersion);
         }
-    }
-
-    private void readV1(DataInputView in, ClassLoader classLoader) throws IOException {
-        nestedSnapshot =
-                NestedSerializersSnapshotDelegate.legacyReadNestedSerializerSnapshots(
-                        in, classLoader);
     }
 
     private void readV2(DataInputView in, ClassLoader classLoader) throws IOException {

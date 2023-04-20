@@ -19,10 +19,8 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.GenericTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.GenericTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -136,32 +134,6 @@ public final class CopyableValueSerializer<T extends CopyableValue<T>> extends T
     @Override
     public TypeSerializerSnapshot<T> snapshotConfiguration() {
         return new CopyableValueSerializerSnapshot<>(valueClass);
-    }
-
-    @Deprecated
-    public static final class CopyableValueSerializerConfigSnapshot<T extends CopyableValue<T>>
-            extends GenericTypeSerializerConfigSnapshot<T> {
-
-        private static final int VERSION = 1;
-
-        /** This empty nullary constructor is required for deserializing the configuration. */
-        public CopyableValueSerializerConfigSnapshot() {}
-
-        public CopyableValueSerializerConfigSnapshot(Class<T> copyableValueClass) {
-            super(copyableValueClass);
-        }
-
-        @Override
-        public int getVersion() {
-            return VERSION;
-        }
-
-        @Override
-        public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
-                TypeSerializer<T> newSerializer) {
-            return new CopyableValueSerializerSnapshot<>(getTypeClass())
-                    .resolveSchemaCompatibility(newSerializer);
-        }
     }
 
     /** {@link TypeSerializerSnapshot} for the {@code CopyableValueSerializer}. */

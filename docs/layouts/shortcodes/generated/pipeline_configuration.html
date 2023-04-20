@@ -22,7 +22,7 @@
         </tr>
         <tr>
             <td><h5>pipeline.auto-watermark-interval</h5></td>
-            <td style="word-wrap: break-word;">0 ms</td>
+            <td style="word-wrap: break-word;">200 ms</td>
             <td>Duration</td>
             <td>The interval of the automatic watermark emission. Watermarks are used throughout the streaming system to keep track of the progress of time. They are used, for example, for time based windowing.</td>
         </tr>
@@ -30,7 +30,7 @@
             <td><h5>pipeline.cached-files</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>List&lt;String&gt;</td>
-            <td>Files to be registered at the distributed cache under the given name. The files will be accessible from any user-defined function in the (distributed) runtime under a local path. Files may be local files (which will be distributed via BlobServer), or files in a distributed file system. The runtime will copy the files temporarily to a local cache, if needed.<br /><br />Example:<br /><code class="highlighter-rouge">name:file1,path:`file:///tmp/file1`;name:file2,path:`hdfs:///tmp/file2`</code></td>
+            <td>Files to be registered at the distributed cache under the given name. The files will be accessible from any user-defined function in the (distributed) runtime under a local path. Files may be local files (which will be distributed via BlobServer), or files in a distributed file system. The runtime will copy the files temporarily to a local cache, if needed.<br /><br />Example:<br /><code class="highlighter-rouge">name:file1,path:'file:///tmp/file1';name:file2,path:'hdfs:///tmp/file2'</code></td>
         </tr>
         <tr>
             <td><h5>pipeline.classpaths</h5></td>
@@ -81,10 +81,16 @@
             <td>A semicolon-separated list of the jars to package with the job jars to be sent to the cluster. These have to be valid paths.</td>
         </tr>
         <tr>
+            <td><h5>pipeline.jobvertex-parallelism-overrides</h5></td>
+            <td style="word-wrap: break-word;"></td>
+            <td>Map</td>
+            <td>A parallelism override map (jobVertexId -&gt; parallelism) which will be used to update the parallelism of the corresponding job vertices of submitted JobGraphs.</td>
+        </tr>
+        <tr>
             <td><h5>pipeline.max-parallelism</h5></td>
             <td style="word-wrap: break-word;">-1</td>
             <td>Integer</td>
-            <td>The program-wide maximum parallelism used for operators which haven't specified a maximum parallelism. The maximum parallelism specifies the upper limit for dynamic scaling and the number of key groups used for partitioned state.</td>
+            <td>The program-wide maximum parallelism used for operators which haven't specified a maximum parallelism. The maximum parallelism specifies the upper limit for dynamic scaling and the number of key groups used for partitioned state. Changing the value explicitly when recovery from original job will lead to state incompatibility. Must be less than or equal to 32768.</td>
         </tr>
         <tr>
             <td><h5>pipeline.name</h5></td>
@@ -121,6 +127,18 @@
             <td style="word-wrap: break-word;">TREE</td>
             <td><p>Enum</p></td>
             <td>The mode how we organize description of a job vertex.<br /><br />Possible values:<ul><li>"TREE"</li><li>"CASCADING"</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>pipeline.vertex-name-include-index-prefix</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether name of vertex includes topological index or not. When it is true, the name will have a prefix of index of the vertex, like '[vertex-0]Source: source'. It is false by default</td>
+        </tr>
+        <tr>
+            <td><h5>pipeline.watermark-alignment.allow-unaligned-source-splits</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>If watermark alignment is used, sources with multiple splits will attempt to pause/resume split readers to avoid watermark drift of source splits. However, if split readers don't support pause/resume an UnsupportedOperationException will be thrown when there is an attempt to pause/resume. To allow use of split readers that don't support pause/resume and, hence, t allow unaligned splits while still using watermark alignment, set this parameter to true. The default value is false. Note: This parameter may be removed in future releases.</td>
         </tr>
     </tbody>
 </table>

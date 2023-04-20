@@ -22,34 +22,30 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
-import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraphGenerator;
-import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel;
 import org.apache.flink.table.planner.utils.BatchTableTestUtil;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.flink.util.FileUtils;
 
-import org.apache.calcite.rel.RelNode;
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Collections;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link MultipleInputNodeCreationProcessor}. */
 public class MultipleInputNodeCreationProcessorTest extends TableTestBase {
 
-    private final BatchTableTestUtil batchUtil = batchTestUtil(new TableConfig());
-    private final StreamTableTestUtil streamUtil = streamTestUtil(new TableConfig());
+    private final BatchTableTestUtil batchUtil = batchTestUtil(TableConfig.getDefault());
+    private final StreamTableTestUtil streamUtil = streamTestUtil(TableConfig.getDefault());
 
     @Test
     public void testIsChainableDataStreamSource() {
@@ -100,18 +96,14 @@ public class MultipleInputNodeCreationProcessorTest extends TableTestBase {
 
     private void assertChainableSource(String name, TableTestUtil util, boolean expected) {
         String sql = "SELECT * FROM " + name;
-        Table table = util.tableEnv().sqlQuery(sql);
-        RelNode relNode = TableTestUtil.toRelNode(table);
-        FlinkPhysicalRel optimizedRel = (FlinkPhysicalRel) util.getPlanner().optimize(relNode);
-        ExecNodeGraphGenerator generator = new ExecNodeGraphGenerator();
-        ExecNodeGraph execGraph = generator.generate(Collections.singletonList(optimizedRel));
+        ExecNodeGraph execGraph = TableTestUtil.toExecNodeGraph(util.tableEnv(), sql);
         ExecNode<?> execNode = execGraph.getRootNodes().get(0);
         while (!execNode.getInputEdges().isEmpty()) {
             execNode = execNode.getInputEdges().get(0).getSource();
         }
         ProcessorContext context = new ProcessorContext(util.getPlanner());
-        Assert.assertEquals(
-                expected, MultipleInputNodeCreationProcessor.isChainableSource(execNode, context));
+        assertThat(MultipleInputNodeCreationProcessor.isChainableSource(execNode, context))
+                .isEqualTo(expected);
     }
 
     private void createChainableStream(TableTestUtil util) {

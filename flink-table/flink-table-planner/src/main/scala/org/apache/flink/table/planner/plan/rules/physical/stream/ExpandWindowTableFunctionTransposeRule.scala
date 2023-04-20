@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -27,8 +26,8 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysical
 import org.apache.flink.table.planner.plan.utils.WindowUtil
 import org.apache.flink.table.planner.plan.utils.WindowUtil.buildNewProgramWithoutWindowColumns
 
-import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex.{RexInputRef, RexLiteral, RexNode, RexProgram}
 
@@ -70,9 +69,9 @@ import scala.collection.mutable.ArrayBuffer
  * }}}
  *
  * However, it can't match [[PullUpWindowTableFunctionIntoWindowAggregateRule]], because
- * [[StreamPhysicalWindowTableFunction]] is not near [[StreamPhysicalWindowAggregate]].
- * So we need to transpose [[StreamPhysicalExpand]] past [[StreamPhysicalWindowTableFunction]]
- * to make the part of rel tree like this which can be matched by
+ * [[StreamPhysicalWindowTableFunction]] is not near [[StreamPhysicalWindowAggregate]]. So we need
+ * to transpose [[StreamPhysicalExpand]] past [[StreamPhysicalWindowTableFunction]] to make the part
+ * of rel tree like this which can be matched by
  * [[PullUpWindowTableFunctionIntoWindowAggregateRule]].
  *
  * {{{
@@ -88,8 +87,10 @@ import scala.collection.mutable.ArrayBuffer
  */
 class ExpandWindowTableFunctionTransposeRule
   extends RelOptRule(
-    operand(classOf[StreamPhysicalExpand],
-      operand(classOf[StreamPhysicalCalc],
+    operand(
+      classOf[StreamPhysicalExpand],
+      operand(
+        classOf[StreamPhysicalCalc],
         operand(classOf[StreamPhysicalWindowTableFunction], any()))),
     "ExpandWindowTableFunctionTransposeRule") {
 
@@ -108,8 +109,8 @@ class ExpandWindowTableFunctionTransposeRule
     // otherwise, it's meaningless to transpose
     val expandWindowProps = fmq.getRelWindowProperties(expand)
     expandWindowProps != null &&
-      !expandWindowProps.getWindowStartColumns.isEmpty &&
-      !expandWindowProps.getWindowEndColumns.isEmpty
+    !expandWindowProps.getWindowStartColumns.isEmpty &&
+    !expandWindowProps.getWindowEndColumns.isEmpty
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
@@ -205,34 +206,35 @@ class ExpandWindowTableFunctionTransposeRule
     val newInputRowType = newCalc.getRowType
     val expandIdIndex = expand.expandIdIndex
     var newExpandIdIndex = -1
-    val newProjects = expand.projects.asScala.map { exprs =>
-      val newExprs = ArrayBuffer[RexNode]()
-      var baseOffset = 0
-      exprs.asScala.zipWithIndex.foreach {
-        case (ref: RexInputRef, _) if inputFieldShifting(ref.getIndex) < 0 =>
+    val newProjects = expand.projects.asScala.map {
+      exprs =>
+        val newExprs = ArrayBuffer[RexNode]()
+        var baseOffset = 0
+        exprs.asScala.zipWithIndex.foreach {
+          case (ref: RexInputRef, _) if inputFieldShifting(ref.getIndex) < 0 =>
           // skip the window columns
-        case (ref: RexInputRef, _) =>
-          val newInputIndex = inputFieldShifting(ref.getIndex)
-          newExprs += RexInputRef.of(newInputIndex, newInputRowType)
-          // we only use the type from input ref instead of literal
-          baseOffset += 1
-        case (lit: RexLiteral, exprIndex) =>
-          newExprs += lit
-          if (exprIndex == expandIdIndex) {
-            // this is the expand id, we should remember the new index of expand id
-            // and update type for this expr
-            newExpandIdIndex = baseOffset
-          }
-          baseOffset += 1
-        case exp@_ =>
-          throw new IllegalArgumentException(
-            "Expand node should only contain RexInputRef and RexLiteral, but got " + exp)
-      }
-      if (timeFieldAdded) {
-        // append time attribute reference if needed
-        newExprs += RexInputRef.of(newTimeField, newInputRowType)
-      }
-      newExprs.asJava
+          case (ref: RexInputRef, _) =>
+            val newInputIndex = inputFieldShifting(ref.getIndex)
+            newExprs += RexInputRef.of(newInputIndex, newInputRowType)
+            // we only use the type from input ref instead of literal
+            baseOffset += 1
+          case (lit: RexLiteral, exprIndex) =>
+            newExprs += lit
+            if (exprIndex == expandIdIndex) {
+              // this is the expand id, we should remember the new index of expand id
+              // and update type for this expr
+              newExpandIdIndex = baseOffset
+            }
+            baseOffset += 1
+          case exp @ _ =>
+            throw new IllegalArgumentException(
+              "Expand node should only contain RexInputRef and RexLiteral, but got " + exp)
+        }
+        if (timeFieldAdded) {
+          // append time attribute reference if needed
+          newExprs += RexInputRef.of(newTimeField, newInputRowType)
+        }
+        newExprs.asJava
     }
 
     new StreamPhysicalExpand(
@@ -257,19 +259,20 @@ class ExpandWindowTableFunctionTransposeRule
     val newWindowStartPos = newWindowTVF.getRowType.getFieldCount - 3
     var numWindowColumns = 0
     val projectMapping = ArrayBuffer[Int]()
-    (0 until oldExpand.getRowType.getFieldCount).foreach { index =>
-      if (startColumns.contains(index)) {
-        projectMapping += newWindowStartPos
-        numWindowColumns += 1
-      } else if (endColumns.contains(index)) {
-        projectMapping += newWindowEndPos
-        numWindowColumns += 1
-      } else if (timeColumns.contains(index)) {
-        projectMapping += newWindowTimePos
-        numWindowColumns += 1
-      } else {
-        projectMapping += index - numWindowColumns
-      }
+    (0 until oldExpand.getRowType.getFieldCount).foreach {
+      index =>
+        if (startColumns.contains(index)) {
+          projectMapping += newWindowStartPos
+          numWindowColumns += 1
+        } else if (endColumns.contains(index)) {
+          projectMapping += newWindowEndPos
+          numWindowColumns += 1
+        } else if (timeColumns.contains(index)) {
+          projectMapping += newWindowTimePos
+          numWindowColumns += 1
+        } else {
+          projectMapping += index - numWindowColumns
+        }
     }
     projectMapping.toArray
   }

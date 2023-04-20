@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
@@ -36,9 +35,7 @@ class FlinkRelMdDistributionTest extends FlinkRelMdHandlerTestBase {
   @Test
   def testDistributionOnTableScan(): Unit = {
     Array(studentLogicalScan, studentFlinkLogicalScan, studentBatchScan, studentStreamScan)
-      .foreach { scan =>
-        assertEquals(FlinkRelDistribution.ANY, mq.flinkDistribution(scan))
-      }
+      .foreach(scan => assertEquals(FlinkRelDistribution.ANY, mq.flinkDistribution(scan)))
 
     val distribution01 = FlinkRelDistribution.hash(Array(0, 1), requireStrict = false)
     val flinkLogicalScan: FlinkLogicalDataStreamTableScan =
@@ -50,7 +47,8 @@ class FlinkRelMdDistributionTest extends FlinkRelMdHandlerTestBase {
     assertEquals(distribution01, mq.flinkDistribution(batchScan))
 
     val streamScan: StreamPhysicalDataStreamScan = createDataStreamScan(
-      ImmutableList.of("student"), streamPhysicalTraits.replace(distribution01))
+      ImmutableList.of("student"),
+      streamPhysicalTraits.replace(distribution01))
     assertEquals(distribution01, mq.flinkDistribution(streamScan))
   }
 
@@ -65,7 +63,8 @@ class FlinkRelMdDistributionTest extends FlinkRelMdHandlerTestBase {
     val expr4 = relBuilder.call(LESS_THAN, relBuilder.field(4), relBuilder.literal(170.0))
     val calc =
       createLogicalCalc(scan1, logicalProject.getRowType, logicalProject.getProjects, List(expr4))
-    assertEquals(FlinkRelDistribution.hash(Array(6), requireStrict = false),
+    assertEquals(
+      FlinkRelDistribution.hash(Array(6), requireStrict = false),
       mq.flinkDistribution(calc))
 
     val distribution01 = FlinkRelDistribution.hash(Array(0, 1), requireStrict = false)
@@ -79,13 +78,15 @@ class FlinkRelMdDistributionTest extends FlinkRelMdHandlerTestBase {
       relBuilder.field(1),
       relBuilder.literal(true),
       makeLiteral(2.1, new DoubleType(), isNullable = false, allowCast = true),
-      makeLiteral(2L, new BigIntType(), isNullable = false, allowCast = true))
+      makeLiteral(2L, new BigIntType(), isNullable = false, allowCast = true)
+    )
     val outputRowType = relBuilder.project(projects1).build().getRowType
     relBuilder.push(scan2)
     val expr1 = relBuilder.call(LESS_THAN_OR_EQUAL, relBuilder.field(0), relBuilder.literal(2))
     // calc => projects + filter: $0 <= 2
     val calc1 = createLogicalCalc(scan2, outputRowType, projects1, List(expr1))
-    assertEquals(FlinkRelDistribution.hash(Array(1, 2), requireStrict = false),
+    assertEquals(
+      FlinkRelDistribution.hash(Array(1, 2), requireStrict = false),
       mq.flinkDistribution(calc1))
 
     // projects: $0==1, $0, 2.1, true, 2.1, 2
@@ -95,7 +96,8 @@ class FlinkRelMdDistributionTest extends FlinkRelMdHandlerTestBase {
       makeLiteral(2.1, new DoubleType(), isNullable = false, allowCast = true),
       relBuilder.literal(true),
       makeLiteral(2.1, new DoubleType(), isNullable = false, allowCast = true),
-      makeLiteral(2L, new BigIntType(), isNullable = false, allowCast = true))
+      makeLiteral(2L, new BigIntType(), isNullable = false, allowCast = true)
+    )
     val calc2 = createLogicalCalc(scan2, outputRowType, projects2, List())
     assertEquals(FlinkRelDistribution.ANY, mq.flinkDistribution(calc2))
   }
@@ -106,4 +108,3 @@ class FlinkRelMdDistributionTest extends FlinkRelMdHandlerTestBase {
     assertEquals(FlinkRelDistribution.SINGLETON, mq.flinkDistribution(streamSort))
   }
 }
-

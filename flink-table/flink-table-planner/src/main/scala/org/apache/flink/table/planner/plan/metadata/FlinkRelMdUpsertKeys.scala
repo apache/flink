@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.planner._
@@ -25,14 +24,15 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalGr
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
 import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalChangelogNormalize, StreamPhysicalDeduplicate, StreamPhysicalDropUpdateBefore, StreamPhysicalGlobalGroupAggregate, StreamPhysicalGroupAggregate, StreamPhysicalGroupWindowAggregate, StreamPhysicalIntervalJoin, StreamPhysicalLocalGroupAggregate, StreamPhysicalOverAggregate}
 import org.apache.flink.table.planner.plan.schema.IntermediateRelTable
+import org.apache.flink.table.planner.plan.utils.FlinkRexUtil
 
 import com.google.common.collect.ImmutableSet
 import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.plan.volcano.RelSubset
+import org.apache.calcite.rel.{RelDistribution, RelNode, SingleRel}
 import org.apache.calcite.rel.core.{Aggregate, Calc, Exchange, Filter, Join, JoinInfo, JoinRelType, Project, SetOp, Sort, TableScan, Window}
 import org.apache.calcite.rel.metadata._
-import org.apache.calcite.rel.{RelDistribution, RelNode, SingleRel}
-import org.apache.calcite.rex.RexNode
+import org.apache.calcite.rex.{RexNode, RexUtil}
 import org.apache.calcite.util.{Bug, ImmutableBitSet, Util}
 
 import java.util
@@ -77,7 +77,8 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
 
   def getUpsertKeys(rel: Expand, mq: RelMetadataQuery): JSet[ImmutableBitSet] =
     FlinkRelMdUniqueKeys.INSTANCE.getExpandUniqueKeys(
-      rel, () => FlinkRelMetadataQuery.reuseOrCreate(mq).getUpsertKeys(rel.getInput))
+      rel,
+      () => FlinkRelMetadataQuery.reuseOrCreate(mq).getUpsertKeys(rel.getInput))
 
   def getUpsertKeys(rel: Exchange, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
     val keys = FlinkRelMetadataQuery.reuseOrCreate(mq).getUpsertKeys(rel.getInput)
@@ -90,8 +91,11 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
   }
 
   def getUpsertKeys(rel: Rank, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
-    val inputKeys = filterKeys(FlinkRelMetadataQuery.reuseOrCreate(mq)
-        .getUpsertKeys(rel.getInput), rel.partitionKey)
+    val inputKeys = filterKeys(
+      FlinkRelMetadataQuery
+        .reuseOrCreate(mq)
+        .getUpsertKeys(rel.getInput),
+      rel.partitionKey)
     FlinkRelMdUniqueKeys.INSTANCE.getRankUniqueKeys(rel, inputKeys)
   }
 
@@ -100,28 +104,29 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
       FlinkRelMetadataQuery.reuseOrCreate(mq).getUpsertKeys(rel.getInput),
       ImmutableBitSet.of(rel.getCollation.getKeys))
 
-  def getUpsertKeys(
-      rel: StreamPhysicalDeduplicate, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
+  def getUpsertKeys(rel: StreamPhysicalDeduplicate, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
     ImmutableSet.of(ImmutableBitSet.of(rel.getUniqueKeys.map(Integer.valueOf).toList))
   }
 
   def getUpsertKeys(
-      rel: StreamPhysicalChangelogNormalize, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
+      rel: StreamPhysicalChangelogNormalize,
+      mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
     ImmutableSet.of(ImmutableBitSet.of(rel.uniqueKeys.map(Integer.valueOf).toList))
   }
 
   def getUpsertKeys(
-      rel: StreamPhysicalDropUpdateBefore, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
+      rel: StreamPhysicalDropUpdateBefore,
+      mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
     FlinkRelMetadataQuery.reuseOrCreate(mq).getUpsertKeys(rel.getInput)
   }
 
-  def getUpsertKeys(
-      rel: Aggregate, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
+  def getUpsertKeys(rel: Aggregate, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
     FlinkRelMdUniqueKeys.INSTANCE.getUniqueKeysOnAggregate(rel.getGroupSet.toArray)
   }
 
   def getUpsertKeys(
-      rel: BatchPhysicalGroupAggregateBase, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
+      rel: BatchPhysicalGroupAggregateBase,
+      mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
     if (rel.isFinal) {
       FlinkRelMdUniqueKeys.INSTANCE.getUniqueKeysOnAggregate(rel.grouping)
     } else {
@@ -130,20 +135,22 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
   }
 
   def getUpsertKeys(
-      rel: StreamPhysicalGroupAggregate, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
+      rel: StreamPhysicalGroupAggregate,
+      mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
     FlinkRelMdUniqueKeys.INSTANCE.getUniqueKeysOnAggregate(rel.grouping)
   }
 
   def getUpsertKeys(
-      rel: StreamPhysicalLocalGroupAggregate, mq: RelMetadataQuery): JSet[ImmutableBitSet] = null
+      rel: StreamPhysicalLocalGroupAggregate,
+      mq: RelMetadataQuery): JSet[ImmutableBitSet] = null
 
   def getUpsertKeys(
-      rel: StreamPhysicalGlobalGroupAggregate, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
+      rel: StreamPhysicalGlobalGroupAggregate,
+      mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
     FlinkRelMdUniqueKeys.INSTANCE.getUniqueKeysOnAggregate(rel.grouping)
   }
 
-  def getUpsertKeys(
-      rel: WindowAggregate, mq: RelMetadataQuery): util.Set[ImmutableBitSet] = {
+  def getUpsertKeys(rel: WindowAggregate, mq: RelMetadataQuery): util.Set[ImmutableBitSet] = {
     FlinkRelMdUniqueKeys.INSTANCE.getUniqueKeysOnWindowAgg(
       rel.getRowType.getFieldCount,
       rel.getNamedProperties,
@@ -151,7 +158,8 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
   }
 
   def getUpsertKeys(
-      rel: BatchPhysicalWindowAggregateBase, mq: RelMetadataQuery): util.Set[ImmutableBitSet] = {
+      rel: BatchPhysicalWindowAggregateBase,
+      mq: RelMetadataQuery): util.Set[ImmutableBitSet] = {
     if (rel.isFinal) {
       FlinkRelMdUniqueKeys.INSTANCE.getUniqueKeysOnWindowAgg(
         rel.getRowType.getFieldCount,
@@ -163,23 +171,27 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
   }
 
   def getUpsertKeys(
-      rel: StreamPhysicalGroupWindowAggregate, mq: RelMetadataQuery): util.Set[ImmutableBitSet] = {
+      rel: StreamPhysicalGroupWindowAggregate,
+      mq: RelMetadataQuery): util.Set[ImmutableBitSet] = {
     FlinkRelMdUniqueKeys.INSTANCE.getUniqueKeysOnWindowAgg(
-      rel.getRowType.getFieldCount, rel.namedWindowProperties, rel.grouping)
+      rel.getRowType.getFieldCount,
+      rel.namedWindowProperties,
+      rel.grouping)
   }
 
-  def getUpsertKeys(
-      rel: Window, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
+  def getUpsertKeys(rel: Window, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
     getUpsertKeysOnOver(rel, mq, rel.groups.map(_.keys): _*)
   }
 
   def getUpsertKeys(
-      rel: BatchPhysicalOverAggregate, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
+      rel: BatchPhysicalOverAggregate,
+      mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
     getUpsertKeysOnOver(rel, mq, ImmutableBitSet.of(rel.partitionKeyIndices: _*))
   }
 
   def getUpsertKeys(
-      rel: StreamPhysicalOverAggregate, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
+      rel: StreamPhysicalOverAggregate,
+      mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
     getUpsertKeysOnOver(rel, mq, rel.logicWindow.groups.map(_.keys): _*)
   }
 
@@ -194,8 +206,7 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
     inputKeys
   }
 
-  def getUpsertKeys(
-      join: Join, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
+  def getUpsertKeys(join: Join, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
     val joinInfo = join.analyzeCondition()
     join.getJoinType match {
       case JoinRelType.SEMI | JoinRelType.ANTI =>
@@ -208,22 +219,43 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
   }
 
   def getUpsertKeys(
-      rel: StreamPhysicalIntervalJoin, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
+      rel: StreamPhysicalIntervalJoin,
+      mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
     val joinInfo = JoinInfo.of(rel.getLeft, rel.getRight, rel.originalCondition)
     getJoinUpsertKeys(joinInfo, rel.getJoinType, rel.getLeft, rel.getRight, mq)
   }
 
   def getUpsertKeys(
-      join: CommonPhysicalLookupJoin, mq: RelMetadataQuery): util.Set[ImmutableBitSet] = {
+      join: CommonPhysicalLookupJoin,
+      mq: RelMetadataQuery): util.Set[ImmutableBitSet] = {
     val left = join.getInput
-    val leftKeys = FlinkRelMetadataQuery.reuseOrCreate(mq).getUpsertKeys(left)
     val leftType = left.getRowType
     val leftJoinKeys = join.joinInfo.leftSet
+    // differs from regular join, here we do not filterKeys because there's no shuffle on join keys
+    // by default.
+    val leftUpsertKeys = FlinkRelMetadataQuery.reuseOrCreate(mq).getUpsertKeys(left)
+    val rightUniqueKeys = FlinkRelMdUniqueKeys.INSTANCE.getUniqueKeysOfTemporalTable(join)
+
+    val remainingConditionNonDeterministic =
+      join.remainingCondition.exists(c => !RexUtil.isDeterministic(c))
+    lazy val calcOnTemporalTableNonDeterministic =
+      join.calcOnTemporalTable.exists(p => !FlinkRexUtil.isDeterministic(p))
+
+    val rightUpsertKeys =
+      if (remainingConditionNonDeterministic || calcOnTemporalTableNonDeterministic) {
+        null
+      } else {
+        rightUniqueKeys
+      }
+
     FlinkRelMdUniqueKeys.INSTANCE.getJoinUniqueKeys(
-      join.joinType, leftType, filterKeys(leftKeys, leftJoinKeys), null,
-      areColumnsUpsertKeys(leftKeys, leftJoinKeys),
-      // TODO get uniqueKeys from TableSchema of TableSource
-      null)
+      join.joinType,
+      leftType,
+      leftUpsertKeys,
+      rightUpsertKeys,
+      areColumnsUpsertKeys(leftUpsertKeys, leftJoinKeys),
+      rightUpsertKeys != null
+    )
   }
 
   private def getJoinUpsertKeys(
@@ -241,17 +273,17 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
       filterKeys(leftKeys, joinInfo.leftSet),
       filterKeys(rightKeys, joinInfo.rightSet),
       areColumnsUpsertKeys(leftKeys, joinInfo.leftSet),
-      areColumnsUpsertKeys(rightKeys, joinInfo.rightSet))
+      areColumnsUpsertKeys(rightKeys, joinInfo.rightSet)
+    )
   }
 
   def getUpsertKeys(rel: SetOp, mq: RelMetadataQuery): JSet[ImmutableBitSet] =
     FlinkRelMdUniqueKeys.INSTANCE.getUniqueKeys(rel, mq, ignoreNulls = false)
 
-  def getUpsertKeys(
-      subset: RelSubset, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
+  def getUpsertKeys(subset: RelSubset, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
     if (!Bug.CALCITE_1048_FIXED) {
-      //if the best node is null, so we can get the uniqueKeys based original node, due to
-      //the original node is logically equivalent as the rel.
+      // if the best node is null, so we can get the uniqueKeys based original node, due to
+      // the original node is logically equivalent as the rel.
       val rel = Util.first(subset.getBest, subset.getOriginal)
       FlinkRelMetadataQuery.reuseOrCreate(mq).getUpsertKeys(rel)
     } else {
@@ -259,18 +291,17 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
     }
   }
 
-  def getUpsertKeys(
-      subset: HepRelVertex, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
+  def getUpsertKeys(subset: HepRelVertex, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
     FlinkRelMetadataQuery.reuseOrCreate(mq).getUpsertKeys(subset.getCurrentRel)
   }
 
-  def getUpsertKeys(
-      subset: WatermarkAssigner, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
+  def getUpsertKeys(subset: WatermarkAssigner, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
     FlinkRelMetadataQuery.reuseOrCreate(mq).getUpsertKeys(subset.getInput)
   }
 
   private def filterKeys(
-      keys: JSet[ImmutableBitSet], distributionKey: ImmutableBitSet): JSet[ImmutableBitSet] = {
+      keys: JSet[ImmutableBitSet],
+      distributionKey: ImmutableBitSet): JSet[ImmutableBitSet] = {
     if (keys != null) {
       keys.filter(k => k.contains(distributionKey))
     } else {
@@ -279,7 +310,8 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
   }
 
   private def areColumnsUpsertKeys(
-      keys: JSet[ImmutableBitSet], columns: ImmutableBitSet): Boolean = {
+      keys: JSet[ImmutableBitSet],
+      columns: ImmutableBitSet): Boolean = {
     if (keys != null) {
       keys.exists(columns.contains)
     } else {
@@ -295,7 +327,7 @@ object FlinkRelMdUpsertKeys {
 
   private val INSTANCE = new FlinkRelMdUpsertKeys
 
-  val SOURCE: RelMetadataProvider = ReflectiveRelMetadataProvider.reflectiveSource(
-    UpsertKeys.METHOD, INSTANCE)
+  val SOURCE: RelMetadataProvider =
+    ReflectiveRelMetadataProvider.reflectiveSource(UpsertKeys.METHOD, INSTANCE)
 
 }

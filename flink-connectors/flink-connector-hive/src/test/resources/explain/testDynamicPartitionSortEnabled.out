@@ -1,0 +1,16 @@
+== Abstract Syntax Tree ==
+LogicalSink(table=[test-catalog.default.dynamic_partition_t], fields=[EXPR$0, EXPR$1, EXPR$2])
++- LogicalProject(EXPR$0=[1], EXPR$1=[1], EXPR$2=[_UTF-16LE'd'])
+   +- LogicalValues(tuples=[[{ 0 }]])
+
+== Optimized Physical Plan ==
+Sink(table=[test-catalog.default.dynamic_partition_t], fields=[EXPR$0, EXPR$1, EXPR$2])
++- Sort(orderBy=[EXPR$2 ASC])
+   +- Calc(select=[1 AS EXPR$0, 1 AS EXPR$1, 'd' AS EXPR$2])
+      +- Values(tuples=[[{ 0 }]], values=[ZERO])
+
+== Optimized Execution Plan ==
+Sink(table=[test-catalog.default.dynamic_partition_t], fields=[EXPR$0, EXPR$1, EXPR$2])
++- Sort(orderBy=[EXPR$2 ASC])
+   +- Calc(select=[1 AS EXPR$0, 1 AS EXPR$1, 'd' AS EXPR$2])
+      +- Values(tuples=[[{ 0 }]], values=[ZERO])

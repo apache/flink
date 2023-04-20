@@ -30,9 +30,9 @@ import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 
 /**
- * {@link java.util.concurrent.Executor} like interface for an build around a mailbox-based
- * execution model. {@code MailboxExecutor} can also execute downstream messages of a mailbox by
- * yielding control from the task thread.
+ * {@link java.util.concurrent.Executor} like interface for a build around a mailbox-based execution
+ * model. {@code MailboxExecutor} can also execute downstream messages of a mailbox by yielding
+ * control from the task thread.
  *
  * <p>All submission functions can be called from any thread and will enqueue the action for further
  * processing in a FIFO fashion.
@@ -218,7 +218,7 @@ public interface MailboxExecutor {
     }
 
     /**
-     * This methods starts running the command at the head of the mailbox and is intended to be used
+     * This method starts running the command at the head of the mailbox and is intended to be used
      * by the mailbox thread to yield from a currently ongoing action to another command. The method
      * blocks until another command to run is available in the mailbox and must only be called from
      * the mailbox thread. Must only be called from the mailbox thread to not violate the
@@ -232,7 +232,7 @@ public interface MailboxExecutor {
     void yield() throws InterruptedException, FlinkRuntimeException;
 
     /**
-     * This methods attempts to run the command at the head of the mailbox. This is intended to be
+     * This method attempts to run the command at the head of the mailbox. This is intended to be
      * used by the mailbox thread to yield from a currently ongoing action to another command. The
      * method returns true if a command was found and executed or false if the mailbox was empty.
      * Must only be called from the mailbox thread to not violate the single-threaded execution

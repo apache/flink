@@ -51,6 +51,8 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Collector;
 
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -59,6 +61,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -67,15 +70,22 @@ import java.util.function.Supplier;
 import static org.apache.flink.table.data.StringData.fromString;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Harness tests for {@link LookupJoinRunner} and {@link LookupJoinWithCalcRunner}. */
+@RunWith(Parameterized.class)
 public class AsyncLookupJoinHarnessTest {
 
     private static final int ASYNC_BUFFER_CAPACITY = 100;
     private static final int ASYNC_TIMEOUT_MS = 3000;
+
+    @Parameterized.Parameter public boolean orderedResult;
+
+    @Parameterized.Parameters(name = "ordered result = {0}")
+    public static Object[] parameters() {
+        return new Object[][] {new Object[] {true}, new Object[] {false}};
+    }
 
     private final TypeSerializer<RowData> inSerializer =
             new RowDataSerializer(
@@ -131,7 +141,7 @@ public class AsyncLookupJoinHarnessTest {
         expectedOutput.add(insertRecord(3, "c", 3, "Jackson"));
         expectedOutput.add(insertRecord(4, "d", 4, "Fabian"));
 
-        assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+        checkResult(expectedOutput, testHarness.getOutput());
     }
 
     @Test
@@ -160,7 +170,7 @@ public class AsyncLookupJoinHarnessTest {
         expectedOutput.add(insertRecord(3, "c", 3, "Jackson"));
         expectedOutput.add(insertRecord(4, "d", 4, "Fabian"));
 
-        assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+        checkResult(expectedOutput, testHarness.getOutput());
     }
 
     @Test
@@ -192,7 +202,7 @@ public class AsyncLookupJoinHarnessTest {
         expectedOutput.add(insertRecord(4, "d", 4, "Fabian"));
         expectedOutput.add(insertRecord(5, "e", null, null));
 
-        assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+        checkResult(expectedOutput, testHarness.getOutput());
     }
 
     @Test
@@ -223,10 +233,18 @@ public class AsyncLookupJoinHarnessTest {
         expectedOutput.add(insertRecord(4, "d", 4, "Fabian"));
         expectedOutput.add(insertRecord(5, "e", null, null));
 
-        assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+        checkResult(expectedOutput, testHarness.getOutput());
     }
 
     // ---------------------------------------------------------------------------------
+
+    private void checkResult(Collection<Object> expectedOutput, Collection<Object> actualOutput) {
+        if (orderedResult) {
+            assertor.assertOutputEquals("output wrong.", expectedOutput, actualOutput);
+        } else {
+            assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, actualOutput);
+        }
+    }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private OneInputStreamOperatorTestHarness<RowData, RowData> createHarness(
@@ -259,7 +277,9 @@ public class AsyncLookupJoinHarnessTest {
                         joinRunner,
                         ASYNC_TIMEOUT_MS,
                         ASYNC_BUFFER_CAPACITY,
-                        AsyncDataStream.OutputMode.ORDERED),
+                        orderedResult
+                                ? AsyncDataStream.OutputMode.ORDERED
+                                : AsyncDataStream.OutputMode.UNORDERED),
                 inSerializer);
     }
 
@@ -273,17 +293,17 @@ public class AsyncLookupJoinHarnessTest {
                         rightRowSerializer,
                         true,
                         100);
-        assertNull(joinRunner.getAllResultFutures());
+        assertThat(joinRunner.getAllResultFutures()).isNull();
         closeAsyncLookupJoinRunner(joinRunner);
 
         joinRunner.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
         joinRunner.open(new Configuration());
-        assertNotNull(joinRunner.getAllResultFutures());
+        assertThat(joinRunner.getAllResultFutures()).isNotNull();
         closeAsyncLookupJoinRunner(joinRunner);
 
         joinRunner.open(new Configuration());
         joinRunner.asyncInvoke(row(1, "a"), new TestingFetcherResultFuture());
-        assertNotNull(joinRunner.getAllResultFutures());
+        assertThat(joinRunner.getAllResultFutures()).isNotNull();
         closeAsyncLookupJoinRunner(joinRunner);
     }
 
@@ -320,6 +340,8 @@ public class AsyncLookupJoinHarnessTest {
 
         private static final Map<Integer, List<RowData>> data = new HashMap<>();
 
+        private final Random random = new Random();
+
         static {
             data.put(1, Collections.singletonList(GenericRowData.of(1, fromString("Julian"))));
             data.put(
@@ -335,7 +357,8 @@ public class AsyncLookupJoinHarnessTest {
         @Override
         public void open(Configuration parameters) throws Exception {
             super.open(parameters);
-            this.executor = Executors.newSingleThreadExecutor();
+            // generate unordered result for async lookup
+            this.executor = Executors.newFixedThreadPool(2);
         }
 
         @Override
@@ -343,7 +366,16 @@ public class AsyncLookupJoinHarnessTest {
                 throws Exception {
             int id = input.getInt(0);
             CompletableFuture.supplyAsync(
-                            (Supplier<Collection<RowData>>) () -> data.get(id), executor)
+                            (Supplier<Collection<RowData>>)
+                                    () -> {
+                                        try {
+                                            Thread.sleep(random.nextInt(5));
+                                        } catch (InterruptedException e) {
+                                            throw new RuntimeException(e);
+                                        }
+                                        return data.get(id);
+                                    },
+                            executor)
                     .thenAcceptAsync(resultFuture::complete, executor);
         }
 

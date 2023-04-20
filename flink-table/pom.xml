@@ -23,8 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.15-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-table</artifactId>
@@ -42,10 +41,14 @@ under the License.
 		<module>flink-table-api-java-uber</module>
 		<module>flink-table-planner</module>
 		<module>flink-table-planner-loader</module>
+		<module>flink-table-planner-loader-bundle</module>
 		<module>flink-table-runtime</module>
+		<module>flink-sql-gateway-api</module>
+		<module>flink-sql-gateway</module>
 		<module>flink-sql-client</module>
+		<module>flink-sql-jdbc-driver</module>
+		<module>flink-sql-jdbc-driver-bundle</module>
 		<module>flink-sql-parser</module>
-		<module>flink-sql-parser-hive</module>
 		<module>flink-table-code-splitter</module>
 		<module>flink-table-test-utils</module>
 	</modules>
@@ -74,10 +77,12 @@ under the License.
 	</dependencyManagement>
 
 	<properties>
-		<calcite.version>1.26.0</calcite.version>
-		<!-- Keep Janino in sync with calcite. -->
-		<janino.version>3.0.11</janino.version>
-		<jsonpath.version>2.6.0</jsonpath.version>
+		<calcite.version>1.30.0</calcite.version>
+		<!-- Calcite 1.30.0 depends on 3.1.6,
+		at the same time minimum 3.1.x Janino version passing Flink tests is 3.1.9,
+		more details are in FLINK-27995 -->
+		<janino.version>3.1.9</janino.version>
+		<jsonpath.version>2.7.0</jsonpath.version>
 		<guava.version>29.0-jre</guava.version>
 	</properties>
 </project>

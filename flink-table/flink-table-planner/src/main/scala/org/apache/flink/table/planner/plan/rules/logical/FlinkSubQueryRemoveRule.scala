@@ -15,18 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.logical
 
+import org.apache.flink.table.planner.alias.ClearJoinHintWithInvalidPropagationShuttle
 import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, FlinkRelFactories}
+import org.apache.flink.table.planner.hint.FlinkHints
 
 import com.google.common.collect.ImmutableList
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptRuleOperand, RelOptUtil}
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.RelOptUtil.Logic
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptRuleOperand}
+import org.apache.calcite.rel.{RelNode, RelShuttleImpl}
 import org.apache.calcite.rel.core.{Filter, JoinRelType}
 import org.apache.calcite.rel.logical.{LogicalFilter, LogicalJoin, LogicalProject}
-import org.apache.calcite.rel.{RelNode, RelShuttleImpl}
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.tools.{RelBuilder, RelBuilderFactory}
@@ -38,16 +39,15 @@ import scala.collection.JavaConversions._
 import scala.collection.mutable
 
 /**
-  * Planner rule that converts IN and EXISTS into semi-join,
-  * converts NOT IN and NOT EXISTS into anti-join.
-  *
-  * <p>Sub-queries are represented by [[RexSubQuery]] expressions.
-  *
-  * <p>A sub-query may or may not be correlated. If a sub-query is correlated,
-  * the wrapped [[RelNode]] will contain a [[RexCorrelVariable]] before the rewrite,
-  * and the product of the rewrite will be a [[org.apache.calcite.rel.core.Join]]
-  * with SEMI or ANTI join type.
-  */
+ * Planner rule that converts IN and EXISTS into semi-join, converts NOT IN and NOT EXISTS into
+ * anti-join.
+ *
+ * <p>Sub-queries are represented by [[RexSubQuery]] expressions.
+ *
+ * <p>A sub-query may or may not be correlated. If a sub-query is correlated, the wrapped
+ * [[RelNode]] will contain a [[RexCorrelVariable]] before the rewrite, and the product of the
+ * rewrite will be a [[org.apache.calcite.rel.core.Join]] with SEMI or ANTI join type.
+ */
 class FlinkSubQueryRemoveRule(
     operand: RelOptRuleOperand,
     relBuilderFactory: RelBuilderFactory,
@@ -95,7 +95,14 @@ class FlinkSubQueryRemoveRule(
           relBuilder.filter(c)
         }
         relBuilder.project(fields(relBuilder, filter.getRowType.getFieldCount))
-        call.transformTo(relBuilder.build)
+        // the sub query has been replaced with a common node,
+        // so hints in it should also be resolved with the same logic in SqlToRelConverter
+        val newNode = relBuilder.build
+        val nodeWithHint = RelOptUtil.propagateRelHints(newNode, false)
+        val nodeWithCapitalizedJoinHints = FlinkHints.capitalizeJoinHints(nodeWithHint)
+        val finalNode =
+          nodeWithCapitalizedJoinHints.accept(new ClearJoinHintWithInvalidPropagationShuttle)
+        call.transformTo(finalNode)
       case _ => // do nothing
     }
   }
@@ -180,21 +187,23 @@ class FlinkSubQueryRemoveRule(
         // adds projection if the operands of IN contains non-RexInputRef nodes
         // e.g. SELECT * FROM l WHERE a + 1 IN (SELECT c FROM r)
         val (newOperands, newJoinCondition) =
-        handleSubQueryOperands(subQuery, joinCondition, relBuilder)
+          handleSubQueryOperands(subQuery, joinCondition, relBuilder)
         val leftFieldCount = relBuilder.peek().getRowType.getFieldCount
 
         relBuilder.push(newRight) // push join right
 
         val joinConditions = newOperands
           .zip(relBuilder.fields())
-          .map { case (op, f) =>
-            val inCondition = relBuilder.equals(op, RexUtil.shift(f, leftFieldCount))
-            if (withNot) {
-              relBuilder.or(inCondition, relBuilder.isNull(inCondition))
-            } else {
-              inCondition
-            }
-          }.toBuffer
+          .map {
+            case (op, f) =>
+              val inCondition = relBuilder.equals(op, RexUtil.shift(f, leftFieldCount))
+              if (withNot) {
+                relBuilder.or(inCondition, relBuilder.isNull(inCondition))
+              } else {
+                inCondition
+              }
+          }
+          .toBuffer
 
         newJoinCondition.foreach(joinConditions += _)
 
@@ -295,13 +304,13 @@ class FlinkSubQueryRemoveRule(
       replacement: RexNode): RexNode = {
     condition.accept(new RexShuttle() {
       override def visitSubQuery(subQuery: RexSubQuery): RexNode = {
-        if (RexUtil.eq(subQuery, oldSubQueryCall)) replacement else subQuery
+        if (subQuery.equals(oldSubQueryCall)) replacement else subQuery
       }
 
       override def visitCall(call: RexCall): RexNode = {
         call.getKind match {
           case SqlKind.NOT if call.operands.head.isInstanceOf[RexSubQuery] =>
-            if (RexUtil.eq(call, oldSubQueryCall)) replacement else call
+            if (call.equals(oldSubQueryCall)) replacement else call
           case _ =>
             super.visitCall(call)
         }
@@ -310,13 +319,13 @@ class FlinkSubQueryRemoveRule(
   }
 
   /**
-    * Adds projection if the operands of a SubQuery contains non-RexInputRef nodes,
-    * and returns SubQuery's new operands and new join condition with new index.
-    *
-    * e.g. SELECT * FROM l WHERE a + 1 IN (SELECT c FROM r)
-    * We will add projection as SEMI join left input, the added projection will pass along fields
-    * from the input, and add `a + 1` as new field.
-    */
+   * Adds projection if the operands of a SubQuery contains non-RexInputRef nodes, and returns
+   * SubQuery's new operands and new join condition with new index.
+   *
+   * e.g. SELECT * FROM l WHERE a + 1 IN (SELECT c FROM r) We will add projection as SEMI join left
+   * input, the added projection will pass along fields from the input, and add `a + 1` as new
+   * field.
+   */
   private def handleSubQueryOperands(
       subQuery: RexSubQuery,
       joinCondition: Option[RexNode],
@@ -333,13 +342,14 @@ class FlinkSubQueryRemoveRule(
     val newLeftProjects = mutable.ListBuffer[RexNode]()
     val newOperandIndices = mutable.ListBuffer[Int]()
     (0 until oldLeftFieldCount).foreach(newLeftProjects += rexBuilder.makeInputRef(oldLeftNode, _))
-    operands.foreach { o =>
-      var index = newLeftProjects.indexOf(o)
-      if (index < 0) {
-        index = newLeftProjects.size
-        newLeftProjects += o
-      }
-      newOperandIndices += index
+    operands.foreach {
+      o =>
+        var index = newLeftProjects.indexOf(o)
+        if (index < 0) {
+          index = newLeftProjects.size
+          newLeftProjects += o
+        }
+        newOperandIndices += index
     }
 
     // adjust join condition after adds new projection
@@ -356,10 +366,10 @@ class FlinkSubQueryRemoveRule(
   }
 
   /**
-    * Check the condition whether contains unsupported SubQuery.
-    *
-    * Now, we only support single SubQuery or SubQuery connected with AND.
-    */
+   * Check the condition whether contains unsupported SubQuery.
+   *
+   * Now, we only support single SubQuery or SubQuery connected with AND.
+   */
   private def hasUnsupportedSubQuery(condition: RexNode): Boolean = {
     val visitor = new RexVisitorImpl[Unit](true) {
       val stack: util.Deque[SqlKind] = new util.ArrayDeque[SqlKind]()
@@ -400,9 +410,7 @@ class FlinkSubQueryRemoveRule(
     }
   }
 
-  /**
-    * Check nodes' SubQuery whether contains correlated expressions.
-    */
+  /** Check nodes' SubQuery whether contains correlated expressions. */
   private def hasCorrelatedExpressions(nodes: RexNode*): Boolean = {
     val relShuttle = new RelShuttleImpl() {
       private val corVarFinder = new RexVisitorImpl[Unit](true) {

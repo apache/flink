@@ -218,4 +218,11 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
      * @return the allocated slots on the task manager
      */
     AllocatedSlotReport createAllocatedSlotReport(ResourceID taskManagerId);
+
+    /**
+     * Sets whether the underlying job is currently restarting or not.
+     *
+     * @param isJobRestarting whether the job is restarting or not
+     */
+    void setIsJobRestarting(boolean isJobRestarting);
 }

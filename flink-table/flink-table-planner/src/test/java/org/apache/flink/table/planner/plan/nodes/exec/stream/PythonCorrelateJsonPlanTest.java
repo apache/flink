@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
-import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction;
@@ -39,10 +37,9 @@ public class PythonCorrelateJsonPlanTest extends TableTestBase {
     public void setup() {
         TableConfig tableConfig = TableConfig.getDefault();
         util = streamTestUtil(tableConfig);
-        util.addFunction(
-                "TableFunc", new MockPythonTableFunction(), new RowTypeInfo(Types.INT, Types.INT));
-        util.addFunction("pyFunc", new PythonScalarFunction("pyFunc"));
         tEnv = util.getTableEnv();
+        tEnv.createTemporaryFunction("TableFunc", new MockPythonTableFunction());
+        tEnv.createTemporaryFunction("pyFunc", new PythonScalarFunction("pyFunc"));
 
         String srcTableDdl =
                 "CREATE TABLE MyTable (\n"

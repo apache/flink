@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.harness
 
 import org.apache.flink.api.scala._
@@ -33,19 +32,17 @@ import org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills
 import org.apache.flink.types.Row
 import org.apache.flink.types.RowKind.INSERT
 
-import java.time.{LocalDateTime, ZoneId}
-import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.{Collection => JCollection}
-
+import org.junit.{Before, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Before, Test}
+
+import java.time.{LocalDateTime, ZoneId}
+import java.util.{Collection => JCollection}
+import java.util.concurrent.ConcurrentLinkedQueue
 
 import scala.collection.JavaConversions._
 
-/**
- * Harness tests for processing-time window table function.
- */
+/** Harness tests for processing-time window table function. */
 @RunWith(classOf[Parameterized])
 class WindowTableFunctionHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneId)
   extends HarnessTestBase(backend) {
@@ -60,29 +57,29 @@ class WindowTableFunctionHarnessTest(backend: StateBackendMode, shiftTimeZone: Z
       DataTypes.STRING().getLogicalType,
       DataTypes.TIMESTAMP_LTZ(3).getLogicalType,
       DataTypes.TIMESTAMP_LTZ(3).getLogicalType,
-      DataTypes.TIMESTAMP_LTZ(3).getLogicalType))
+      DataTypes.TIMESTAMP_LTZ(3).getLogicalType
+    ))
 
   @Before
   override def before(): Unit = {
     super.before()
     val dataId = TestValuesTableFactory.registerData(TestData.windowDataWithTimestamp)
     tEnv.getConfig.setLocalTimeZone(shiftTimeZone)
-    tEnv.executeSql(
-      s"""
-         |CREATE TABLE T1 (
-         | `ts` STRING,
-         | `int` INT,
-         | `double` DOUBLE,
-         | `float` FLOAT,
-         | `bigdec` DECIMAL(10, 2),
-         | `string` STRING,
-         | `name` STRING,
-         | proctime AS PROCTIME()
-         |) WITH (
-         | 'connector' = 'values',
-         | 'data-id' = '$dataId'
-         |)
-         |""".stripMargin)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE T1 (
+                       | `ts` STRING,
+                       | `int` INT,
+                       | `double` DOUBLE,
+                       | `float` FLOAT,
+                       | `bigdec` DECIMAL(10, 2),
+                       | `string` STRING,
+                       | `name` STRING,
+                       | proctime AS PROCTIME()
+                       |) WITH (
+                       | 'connector' = 'values',
+                       | 'data-id' = '$dataId'
+                       |)
+                       |""".stripMargin)
   }
 
   @Test
@@ -98,50 +95,105 @@ class WindowTableFunctionHarnessTest(backend: StateBackendMode, shiftTimeZone: Z
     testHarness.open()
     ingestData(testHarness)
     val expected = new ConcurrentLinkedQueue[Object]()
-    expected.add(record("a", 1.0D, "Hi", null,
-      localMills("1970-01-01T00:00:00"),
-      localMills("1970-01-01T00:00:05"),
-      mills("1970-01-01T00:00:04.999")))
-    expected.add(record("a", 2.0D, "Comment#1", null,
-      localMills("1970-01-01T00:00:00"),
-      localMills("1970-01-01T00:00:05"),
-      mills("1970-01-01T00:00:04.999")))
-    expected.add(record("a", 2.0D, "Comment#1", null,
-      localMills("1970-01-01T00:00:00"),
-      localMills("1970-01-01T00:00:05"),
-      mills("1970-01-01T00:00:04.999")))
-    expected.add(record("a", 5.0D, null, null,
-      localMills("1970-01-01T00:00:00"),
-      localMills("1970-01-01T00:00:05"),
-      mills("1970-01-01T00:00:04.999")))
-    expected.add(record("a", 5.0D, "Hi", null,
-      localMills("1970-01-01T00:00:00"),
-      localMills("1970-01-01T00:00:05"),
-      mills("1970-01-01T00:00:04.999")))
-    expected.add(record("b", 6.0D, "Hi", null,
-      localMills("1970-01-01T00:00:05"),
-      localMills("1970-01-01T00:00:10"),
-      mills("1970-01-01T00:00:09.999")))
-    expected.add(record("b", 3.0D, "Hello", null,
-      localMills("1970-01-01T00:00:05"),
-      localMills("1970-01-01T00:00:10"),
-      mills("1970-01-01T00:00:09.999")))
-    expected.add(record("a", null, "Comment#2", null,
-      localMills("1970-01-01T00:00:05"),
-      localMills("1970-01-01T00:00:10"),
-      mills("1970-01-01T00:00:09.999")))
-    expected.add(record("b", 4.0D, "Hi", null,
-      localMills("1970-01-01T00:00:15"),
-      localMills("1970-01-01T00:00:20"),
-      mills("1970-01-01T00:00:19.999")))
-    expected.add(record(null, 7.0D, null, null,
-      localMills("1970-01-01T00:00:30"),
-      localMills("1970-01-01T00:00:35"),
-      mills("1970-01-01T00:00:34.999")))
-    expected.add(record("b", 3.0D, "Comment#3", null,
-      localMills("1970-01-01T00:00:30"),
-      localMills("1970-01-01T00:00:35"),
-      mills("1970-01-01T00:00:34.999")))
+    expected.add(
+      record(
+        "a",
+        1.0d,
+        "Hi",
+        null,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:05"),
+        mills("1970-01-01T00:00:04.999")))
+    expected.add(
+      record(
+        "a",
+        2.0d,
+        "Comment#1",
+        null,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:05"),
+        mills("1970-01-01T00:00:04.999")))
+    expected.add(
+      record(
+        "a",
+        2.0d,
+        "Comment#1",
+        null,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:05"),
+        mills("1970-01-01T00:00:04.999")))
+    expected.add(
+      record(
+        "a",
+        5.0d,
+        null,
+        null,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:05"),
+        mills("1970-01-01T00:00:04.999")))
+    expected.add(
+      record(
+        "a",
+        5.0d,
+        "Hi",
+        null,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:05"),
+        mills("1970-01-01T00:00:04.999")))
+    expected.add(
+      record(
+        "b",
+        6.0d,
+        "Hi",
+        null,
+        localMills("1970-01-01T00:00:05"),
+        localMills("1970-01-01T00:00:10"),
+        mills("1970-01-01T00:00:09.999")))
+    expected.add(
+      record(
+        "b",
+        3.0d,
+        "Hello",
+        null,
+        localMills("1970-01-01T00:00:05"),
+        localMills("1970-01-01T00:00:10"),
+        mills("1970-01-01T00:00:09.999")))
+    expected.add(
+      record(
+        "a",
+        null,
+        "Comment#2",
+        null,
+        localMills("1970-01-01T00:00:05"),
+        localMills("1970-01-01T00:00:10"),
+        mills("1970-01-01T00:00:09.999")))
+    expected.add(
+      record(
+        "b",
+        4.0d,
+        "Hi",
+        null,
+        localMills("1970-01-01T00:00:15"),
+        localMills("1970-01-01T00:00:20"),
+        mills("1970-01-01T00:00:19.999")))
+    expected.add(
+      record(
+        null,
+        7.0d,
+        null,
+        null,
+        localMills("1970-01-01T00:00:30"),
+        localMills("1970-01-01T00:00:35"),
+        mills("1970-01-01T00:00:34.999")))
+    expected.add(
+      record(
+        "b",
+        3.0d,
+        "Comment#3",
+        null,
+        localMills("1970-01-01T00:00:30"),
+        localMills("1970-01-01T00:00:35"),
+        mills("1970-01-01T00:00:34.999")))
     assertor.assertOutputEqualsSorted("result mismatch", expected, testHarness.getOutput)
 
     testHarness.close()
@@ -161,94 +213,204 @@ class WindowTableFunctionHarnessTest(backend: StateBackendMode, shiftTimeZone: Z
     ingestData(testHarness)
 
     val expected = new ConcurrentLinkedQueue[Object]()
-    expected.add(record("a", 1.0D, "Hi", null,
-      localMills("1969-12-31T23:59:55"),
-      localMills("1970-01-01T00:00:05"),
-      mills("1970-01-01T00:00:04.999")))
-    expected.add(record("a", 1.0D, "Hi", null,
-      localMills("1970-01-01T00:00"),
-      localMills("1970-01-01T00:00:10"),
-      mills("1970-01-01T00:00:09.999")))
-    expected.add(record("a", 2.0D, "Comment#1", null,
-      localMills("1969-12-31T23:59:55"),
-      localMills("1970-01-01T00:00:05"),
-      mills("1970-01-01T00:00:04.999")))
-    expected.add(record("a", 2.0D, "Comment#1", null,
-      localMills("1970-01-01T00:00"),
-      localMills("1970-01-01T00:00:10"),
-      mills("1970-01-01T00:00:09.999")))
-    expected.add(record("a", 2.0D, "Comment#1", null,
-      localMills("1969-12-31T23:59:55"),
-      localMills("1970-01-01T00:00:05"),
-      mills("1970-01-01T00:00:04.999")))
-    expected.add(record("a", 2.0D, "Comment#1", null,
-      localMills("1970-01-01T00:00"),
-      localMills("1970-01-01T00:00:10"),
-      mills("1970-01-01T00:00:09.999")))
-    expected.add(record("a", 5.0D, null, null,
-      localMills("1969-12-31T23:59:55"),
-      localMills("1970-01-01T00:00:05"),
-      mills("1970-01-01T00:00:04.999")))
-    expected.add(record("a", 5.0D, null, null,
-      localMills("1970-01-01T00:00"),
-      localMills("1970-01-01T00:00:10"),
-      mills("1970-01-01T00:00:09.999")))
-    expected.add(record("a", 5.0D, "Hi", null,
-      localMills("1969-12-31T23:59:55"),
-      localMills("1970-01-01T00:00:05"),
-      mills("1970-01-01T00:00:04.999")))
-    expected.add(record("a", 5.0D, "Hi", null,
-      localMills("1970-01-01T00:00"),
-      localMills("1970-01-01T00:00:10"),
-      mills("1970-01-01T00:00:09.999")))
-    expected.add(record("b", 6.0D, "Hi", null,
-      localMills("1970-01-01T00:00:00"),
-      localMills("1970-01-01T00:00:10"),
-      mills("1970-01-01T00:00:09.999")))
-    expected.add(record("b", 6.0D, "Hi", null,
-      localMills("1970-01-01T00:00:05"),
-      localMills("1970-01-01T00:00:15"),
-      mills("1970-01-01T00:00:14.999")))
-    expected.add(record("b", 3.0D, "Hello", null,
-      localMills("1970-01-01T00:00:00"),
-      localMills("1970-01-01T00:00:10"),
-      mills("1970-01-01T00:00:09.999")))
-    expected.add(record("b", 3.0D, "Hello", null,
-      localMills("1970-01-01T00:00:05"),
-      localMills("1970-01-01T00:00:15"),
-      mills("1970-01-01T00:00:14.999")))
-    expected.add(record("a", null, "Comment#2", null,
-      localMills("1970-01-01T00:00:00"),
-      localMills("1970-01-01T00:00:10"),
-      mills("1970-01-01T00:00:09.999")))
-    expected.add(record("a", null, "Comment#2", null,
-      localMills("1970-01-01T00:00:05"),
-      localMills("1970-01-01T00:00:15"),
-      mills("1970-01-01T00:00:14.999")))
-    expected.add(record("b", 4.0D, "Hi", null,
-      localMills("1970-01-01T00:00:10"),
-      localMills("1970-01-01T00:00:20"),
-      mills("1970-01-01T00:00:19.999")))
-    expected.add(record("b", 4.0D, "Hi", null,
-      localMills("1970-01-01T00:00:15"),
-      localMills("1970-01-01T00:00:25"),
-      mills("1970-01-01T00:00:24.999")))
-    expected.add(record(null, 7.0D, null, null,
-      localMills("1970-01-01T00:00:25"),
-      localMills("1970-01-01T00:00:35"),
-      mills("1970-01-01T00:00:34.999")))
-    expected.add(record(null, 7.0D, null, null,
-      localMills("1970-01-01T00:00:30"),
-      localMills("1970-01-01T00:00:40"),
-      mills("1970-01-01T00:00:39.999")))
-    expected.add(record("b", 3.0D, "Comment#3", null,
-      localMills("1970-01-01T00:00:25"),
-      localMills("1970-01-01T00:00:35"),
-      mills("1970-01-01T00:00:34.999")))
-    expected.add(record("b", 3.0D, "Comment#3", null,
-      localMills("1970-01-01T00:00:30"),
-      localMills("1970-01-01T00:00:40"),
-      mills("1970-01-01T00:00:39.999")))
+    expected.add(
+      record(
+        "a",
+        1.0d,
+        "Hi",
+        null,
+        localMills("1969-12-31T23:59:55"),
+        localMills("1970-01-01T00:00:05"),
+        mills("1970-01-01T00:00:04.999")))
+    expected.add(
+      record(
+        "a",
+        1.0d,
+        "Hi",
+        null,
+        localMills("1970-01-01T00:00"),
+        localMills("1970-01-01T00:00:10"),
+        mills("1970-01-01T00:00:09.999")))
+    expected.add(
+      record(
+        "a",
+        2.0d,
+        "Comment#1",
+        null,
+        localMills("1969-12-31T23:59:55"),
+        localMills("1970-01-01T00:00:05"),
+        mills("1970-01-01T00:00:04.999")))
+    expected.add(
+      record(
+        "a",
+        2.0d,
+        "Comment#1",
+        null,
+        localMills("1970-01-01T00:00"),
+        localMills("1970-01-01T00:00:10"),
+        mills("1970-01-01T00:00:09.999")))
+    expected.add(
+      record(
+        "a",
+        2.0d,
+        "Comment#1",
+        null,
+        localMills("1969-12-31T23:59:55"),
+        localMills("1970-01-01T00:00:05"),
+        mills("1970-01-01T00:00:04.999")))
+    expected.add(
+      record(
+        "a",
+        2.0d,
+        "Comment#1",
+        null,
+        localMills("1970-01-01T00:00"),
+        localMills("1970-01-01T00:00:10"),
+        mills("1970-01-01T00:00:09.999")))
+    expected.add(
+      record(
+        "a",
+        5.0d,
+        null,
+        null,
+        localMills("1969-12-31T23:59:55"),
+        localMills("1970-01-01T00:00:05"),
+        mills("1970-01-01T00:00:04.999")))
+    expected.add(
+      record(
+        "a",
+        5.0d,
+        null,
+        null,
+        localMills("1970-01-01T00:00"),
+        localMills("1970-01-01T00:00:10"),
+        mills("1970-01-01T00:00:09.999")))
+    expected.add(
+      record(
+        "a",
+        5.0d,
+        "Hi",
+        null,
+        localMills("1969-12-31T23:59:55"),
+        localMills("1970-01-01T00:00:05"),
+        mills("1970-01-01T00:00:04.999")))
+    expected.add(
+      record(
+        "a",
+        5.0d,
+        "Hi",
+        null,
+        localMills("1970-01-01T00:00"),
+        localMills("1970-01-01T00:00:10"),
+        mills("1970-01-01T00:00:09.999")))
+    expected.add(
+      record(
+        "b",
+        6.0d,
+        "Hi",
+        null,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:10"),
+        mills("1970-01-01T00:00:09.999")))
+    expected.add(
+      record(
+        "b",
+        6.0d,
+        "Hi",
+        null,
+        localMills("1970-01-01T00:00:05"),
+        localMills("1970-01-01T00:00:15"),
+        mills("1970-01-01T00:00:14.999")))
+    expected.add(
+      record(
+        "b",
+        3.0d,
+        "Hello",
+        null,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:10"),
+        mills("1970-01-01T00:00:09.999")))
+    expected.add(
+      record(
+        "b",
+        3.0d,
+        "Hello",
+        null,
+        localMills("1970-01-01T00:00:05"),
+        localMills("1970-01-01T00:00:15"),
+        mills("1970-01-01T00:00:14.999")))
+    expected.add(
+      record(
+        "a",
+        null,
+        "Comment#2",
+        null,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:10"),
+        mills("1970-01-01T00:00:09.999")))
+    expected.add(
+      record(
+        "a",
+        null,
+        "Comment#2",
+        null,
+        localMills("1970-01-01T00:00:05"),
+        localMills("1970-01-01T00:00:15"),
+        mills("1970-01-01T00:00:14.999")))
+    expected.add(
+      record(
+        "b",
+        4.0d,
+        "Hi",
+        null,
+        localMills("1970-01-01T00:00:10"),
+        localMills("1970-01-01T00:00:20"),
+        mills("1970-01-01T00:00:19.999")))
+    expected.add(
+      record(
+        "b",
+        4.0d,
+        "Hi",
+        null,
+        localMills("1970-01-01T00:00:15"),
+        localMills("1970-01-01T00:00:25"),
+        mills("1970-01-01T00:00:24.999")))
+    expected.add(
+      record(
+        null,
+        7.0d,
+        null,
+        null,
+        localMills("1970-01-01T00:00:25"),
+        localMills("1970-01-01T00:00:35"),
+        mills("1970-01-01T00:00:34.999")))
+    expected.add(
+      record(
+        null,
+        7.0d,
+        null,
+        null,
+        localMills("1970-01-01T00:00:30"),
+        localMills("1970-01-01T00:00:40"),
+        mills("1970-01-01T00:00:39.999")))
+    expected.add(
+      record(
+        "b",
+        3.0d,
+        "Comment#3",
+        null,
+        localMills("1970-01-01T00:00:25"),
+        localMills("1970-01-01T00:00:35"),
+        mills("1970-01-01T00:00:34.999")))
+    expected.add(
+      record(
+        "b",
+        3.0d,
+        "Comment#3",
+        null,
+        localMills("1970-01-01T00:00:30"),
+        localMills("1970-01-01T00:00:40"),
+        mills("1970-01-01T00:00:39.999")))
     assertor.assertOutputEqualsSorted("result mismatch", expected, testHarness.getOutput)
 
     testHarness.close()
@@ -268,138 +430,286 @@ class WindowTableFunctionHarnessTest(backend: StateBackendMode, shiftTimeZone: Z
     ingestData(testHarness)
 
     val expected = new ConcurrentLinkedQueue[Object]()
-    expected.add(record("a", 1.0D, "Hi", null,
-      localMills("1970-01-01T00:00:00"),
-      localMills("1970-01-01T00:00:05"),
-      mills("1970-01-01T00:00:04.999")))
-    expected.add(record("a", 1.0D, "Hi", null,
-      localMills("1970-01-01T00:00"),
-      localMills("1970-01-01T00:00:10"),
-      mills("1970-01-01T00:00:09.999")))
-    expected.add(record("a", 1.0D, "Hi", null,
-      localMills("1970-01-01T00:00"),
-      localMills("1970-01-01T00:00:15"),
-      mills("1970-01-01T00:00:14.999")))
-    expected.add(record("a", 2.0D, "Comment#1", null,
-      localMills("1970-01-01T00:00:00"),
-      localMills("1970-01-01T00:00:05"),
-      mills("1970-01-01T00:00:04.999")))
-    expected.add(record("a", 2.0D, "Comment#1", null,
-      localMills("1970-01-01T00:00"),
-      localMills("1970-01-01T00:00:10"),
-      mills("1970-01-01T00:00:09.999")))
-    expected.add(record("a", 2.0D, "Comment#1", null,
-      localMills("1970-01-01T00:00"),
-      localMills("1970-01-01T00:00:15"),
-      mills("1970-01-01T00:00:14.999")))
-    expected.add(record("a", 2.0D, "Comment#1", null,
-      localMills("1970-01-01T00:00:00"),
-      localMills("1970-01-01T00:00:05"),
-      mills("1970-01-01T00:00:04.999")))
-    expected.add(record("a", 2.0D, "Comment#1", null,
-      localMills("1970-01-01T00:00"),
-      localMills("1970-01-01T00:00:10"),
-      mills("1970-01-01T00:00:09.999")))
-    expected.add(record("a", 2.0D, "Comment#1", null,
-      localMills("1970-01-01T00:00"),
-      localMills("1970-01-01T00:00:15"),
-      mills("1970-01-01T00:00:14.999")))
-    expected.add(record("a", 5.0D, null, null,
-      localMills("1970-01-01T00:00:00"),
-      localMills("1970-01-01T00:00:05"),
-      mills("1970-01-01T00:00:04.999")))
-    expected.add(record("a", 5.0D, null, null,
-      localMills("1970-01-01T00:00"),
-      localMills("1970-01-01T00:00:10"),
-      mills("1970-01-01T00:00:09.999")))
-    expected.add(record("a", 5.0D, null, null,
-      localMills("1970-01-01T00:00"),
-      localMills("1970-01-01T00:00:15"),
-      mills("1970-01-01T00:00:14.999")))
-    expected.add(record("a", 5.0D, "Hi", null,
-      localMills("1970-01-01T00:00:00"),
-      localMills("1970-01-01T00:00:05"),
-      mills("1970-01-01T00:00:04.999")))
-    expected.add(record("a", 5.0D, "Hi", null,
-      localMills("1970-01-01T00:00"),
-      localMills("1970-01-01T00:00:10"),
-      mills("1970-01-01T00:00:09.999")))
-    expected.add(record("a", 5.0D, "Hi", null,
-      localMills("1970-01-01T00:00"),
-      localMills("1970-01-01T00:00:15"),
-      mills("1970-01-01T00:00:14.999")))
-    expected.add(record("b", 6.0D, "Hi", null,
-      localMills("1970-01-01T00:00:00"),
-      localMills("1970-01-01T00:00:10"),
-      mills("1970-01-01T00:00:09.999")))
-    expected.add(record("b", 6.0D, "Hi", null,
-      localMills("1970-01-01T00:00:00"),
-      localMills("1970-01-01T00:00:15"),
-      mills("1970-01-01T00:00:14.999")))
-    expected.add(record("b", 3.0D, "Hello", null,
-      localMills("1970-01-01T00:00:00"),
-      localMills("1970-01-01T00:00:10"),
-      mills("1970-01-01T00:00:09.999")))
-    expected.add(record("b", 3.0D, "Hello", null,
-      localMills("1970-01-01T00:00:00"),
-      localMills("1970-01-01T00:00:15"),
-      mills("1970-01-01T00:00:14.999")))
-    expected.add(record("a", null, "Comment#2", null,
-      localMills("1970-01-01T00:00:00"),
-      localMills("1970-01-01T00:00:10"),
-      mills("1970-01-01T00:00:09.999")))
-    expected.add(record("a", null, "Comment#2", null,
-      localMills("1970-01-01T00:00:00"),
-      localMills("1970-01-01T00:00:15"),
-      mills("1970-01-01T00:00:14.999")))
-    expected.add(record("b", 4.0D, "Hi", null,
-      localMills("1970-01-01T00:00:15"),
-      localMills("1970-01-01T00:00:20"),
-      mills("1970-01-01T00:00:19.999")))
-    expected.add(record("b", 4.0D, "Hi", null,
-      localMills("1970-01-01T00:00:15"),
-      localMills("1970-01-01T00:00:25"),
-      mills("1970-01-01T00:00:24.999")))
-    expected.add(record("b", 4.0D, "Hi", null,
-      localMills("1970-01-01T00:00:15"),
-      localMills("1970-01-01T00:00:30"),
-      mills("1970-01-01T00:00:29.999")))
-    expected.add(record(null, 7.0D, null, null,
-      localMills("1970-01-01T00:00:30"),
-      localMills("1970-01-01T00:00:35"),
-      mills("1970-01-01T00:00:34.999")))
-    expected.add(record(null, 7.0D, null, null,
-      localMills("1970-01-01T00:00:30"),
-      localMills("1970-01-01T00:00:40"),
-      mills("1970-01-01T00:00:39.999")))
-    expected.add(record(null, 7.0D, null, null,
-      localMills("1970-01-01T00:00:30"),
-      localMills("1970-01-01T00:00:45"),
-      mills("1970-01-01T00:00:44.999")))
-    expected.add(record("b", 3.0D, "Comment#3", null,
-      localMills("1970-01-01T00:00:30"),
-      localMills("1970-01-01T00:00:35"),
-      mills("1970-01-01T00:00:34.999")))
-    expected.add(record("b", 3.0D, "Comment#3", null,
-      localMills("1970-01-01T00:00:30"),
-      localMills("1970-01-01T00:00:40"),
-      mills("1970-01-01T00:00:39.999")))
-    expected.add(record("b", 3.0D, "Comment#3", null,
-      localMills("1970-01-01T00:00:30"),
-      localMills("1970-01-01T00:00:45"),
-      mills("1970-01-01T00:00:44.999")))
+    expected.add(
+      record(
+        "a",
+        1.0d,
+        "Hi",
+        null,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:05"),
+        mills("1970-01-01T00:00:04.999")))
+    expected.add(
+      record(
+        "a",
+        1.0d,
+        "Hi",
+        null,
+        localMills("1970-01-01T00:00"),
+        localMills("1970-01-01T00:00:10"),
+        mills("1970-01-01T00:00:09.999")))
+    expected.add(
+      record(
+        "a",
+        1.0d,
+        "Hi",
+        null,
+        localMills("1970-01-01T00:00"),
+        localMills("1970-01-01T00:00:15"),
+        mills("1970-01-01T00:00:14.999")))
+    expected.add(
+      record(
+        "a",
+        2.0d,
+        "Comment#1",
+        null,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:05"),
+        mills("1970-01-01T00:00:04.999")))
+    expected.add(
+      record(
+        "a",
+        2.0d,
+        "Comment#1",
+        null,
+        localMills("1970-01-01T00:00"),
+        localMills("1970-01-01T00:00:10"),
+        mills("1970-01-01T00:00:09.999")))
+    expected.add(
+      record(
+        "a",
+        2.0d,
+        "Comment#1",
+        null,
+        localMills("1970-01-01T00:00"),
+        localMills("1970-01-01T00:00:15"),
+        mills("1970-01-01T00:00:14.999")))
+    expected.add(
+      record(
+        "a",
+        2.0d,
+        "Comment#1",
+        null,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:05"),
+        mills("1970-01-01T00:00:04.999")))
+    expected.add(
+      record(
+        "a",
+        2.0d,
+        "Comment#1",
+        null,
+        localMills("1970-01-01T00:00"),
+        localMills("1970-01-01T00:00:10"),
+        mills("1970-01-01T00:00:09.999")))
+    expected.add(
+      record(
+        "a",
+        2.0d,
+        "Comment#1",
+        null,
+        localMills("1970-01-01T00:00"),
+        localMills("1970-01-01T00:00:15"),
+        mills("1970-01-01T00:00:14.999")))
+    expected.add(
+      record(
+        "a",
+        5.0d,
+        null,
+        null,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:05"),
+        mills("1970-01-01T00:00:04.999")))
+    expected.add(
+      record(
+        "a",
+        5.0d,
+        null,
+        null,
+        localMills("1970-01-01T00:00"),
+        localMills("1970-01-01T00:00:10"),
+        mills("1970-01-01T00:00:09.999")))
+    expected.add(
+      record(
+        "a",
+        5.0d,
+        null,
+        null,
+        localMills("1970-01-01T00:00"),
+        localMills("1970-01-01T00:00:15"),
+        mills("1970-01-01T00:00:14.999")))
+    expected.add(
+      record(
+        "a",
+        5.0d,
+        "Hi",
+        null,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:05"),
+        mills("1970-01-01T00:00:04.999")))
+    expected.add(
+      record(
+        "a",
+        5.0d,
+        "Hi",
+        null,
+        localMills("1970-01-01T00:00"),
+        localMills("1970-01-01T00:00:10"),
+        mills("1970-01-01T00:00:09.999")))
+    expected.add(
+      record(
+        "a",
+        5.0d,
+        "Hi",
+        null,
+        localMills("1970-01-01T00:00"),
+        localMills("1970-01-01T00:00:15"),
+        mills("1970-01-01T00:00:14.999")))
+    expected.add(
+      record(
+        "b",
+        6.0d,
+        "Hi",
+        null,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:10"),
+        mills("1970-01-01T00:00:09.999")))
+    expected.add(
+      record(
+        "b",
+        6.0d,
+        "Hi",
+        null,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:15"),
+        mills("1970-01-01T00:00:14.999")))
+    expected.add(
+      record(
+        "b",
+        3.0d,
+        "Hello",
+        null,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:10"),
+        mills("1970-01-01T00:00:09.999")))
+    expected.add(
+      record(
+        "b",
+        3.0d,
+        "Hello",
+        null,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:15"),
+        mills("1970-01-01T00:00:14.999")))
+    expected.add(
+      record(
+        "a",
+        null,
+        "Comment#2",
+        null,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:10"),
+        mills("1970-01-01T00:00:09.999")))
+    expected.add(
+      record(
+        "a",
+        null,
+        "Comment#2",
+        null,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:15"),
+        mills("1970-01-01T00:00:14.999")))
+    expected.add(
+      record(
+        "b",
+        4.0d,
+        "Hi",
+        null,
+        localMills("1970-01-01T00:00:15"),
+        localMills("1970-01-01T00:00:20"),
+        mills("1970-01-01T00:00:19.999")))
+    expected.add(
+      record(
+        "b",
+        4.0d,
+        "Hi",
+        null,
+        localMills("1970-01-01T00:00:15"),
+        localMills("1970-01-01T00:00:25"),
+        mills("1970-01-01T00:00:24.999")))
+    expected.add(
+      record(
+        "b",
+        4.0d,
+        "Hi",
+        null,
+        localMills("1970-01-01T00:00:15"),
+        localMills("1970-01-01T00:00:30"),
+        mills("1970-01-01T00:00:29.999")))
+    expected.add(
+      record(
+        null,
+        7.0d,
+        null,
+        null,
+        localMills("1970-01-01T00:00:30"),
+        localMills("1970-01-01T00:00:35"),
+        mills("1970-01-01T00:00:34.999")))
+    expected.add(
+      record(
+        null,
+        7.0d,
+        null,
+        null,
+        localMills("1970-01-01T00:00:30"),
+        localMills("1970-01-01T00:00:40"),
+        mills("1970-01-01T00:00:39.999")))
+    expected.add(
+      record(
+        null,
+        7.0d,
+        null,
+        null,
+        localMills("1970-01-01T00:00:30"),
+        localMills("1970-01-01T00:00:45"),
+        mills("1970-01-01T00:00:44.999")))
+    expected.add(
+      record(
+        "b",
+        3.0d,
+        "Comment#3",
+        null,
+        localMills("1970-01-01T00:00:30"),
+        localMills("1970-01-01T00:00:35"),
+        mills("1970-01-01T00:00:34.999")))
+    expected.add(
+      record(
+        "b",
+        3.0d,
+        "Comment#3",
+        null,
+        localMills("1970-01-01T00:00:30"),
+        localMills("1970-01-01T00:00:40"),
+        mills("1970-01-01T00:00:39.999")))
+    expected.add(
+      record(
+        "b",
+        3.0d,
+        "Comment#3",
+        null,
+        localMills("1970-01-01T00:00:30"),
+        localMills("1970-01-01T00:00:45"),
+        mills("1970-01-01T00:00:44.999")))
     assertor.assertOutputEqualsSorted("result mismatch", expected, testHarness.getOutput)
 
     testHarness.close()
   }
 
   /**
-   * Ingests testing data, the input schema is [name, double, string, proctime].
-   * We follow the test data in [[TestData.windowDataWithTimestamp]] to have the same produced
-   * result.
+   * Ingests testing data, the input schema is [name, double, string, proctime]. We follow the test
+   * data in [[TestData.windowDataWithTimestamp]] to have the same produced result.
    */
-  private def ingestData(
-      testHarness: OneInputStreamOperatorTestHarness[RowData, RowData]): Unit = {
+  private def ingestData(testHarness: OneInputStreamOperatorTestHarness[RowData, RowData]): Unit = {
     // input schema: [name, double, string, proctime]
     testHarness.setProcessingTime(1000L)
     testHarness.processElement(record("a", 1d, "Hi", null))
@@ -431,7 +741,7 @@ class WindowTableFunctionHarnessTest(backend: StateBackendMode, shiftTimeZone: Z
     val objs = args.map {
       case l: Long => Long.box(l)
       case d: Double => Double.box(d)
-      case arg@_ => arg.asInstanceOf[Object]
+      case arg @ _ => arg.asInstanceOf[Object]
     }.toArray
     binaryRecord(INSERT, objs: _*)
   }
@@ -456,6 +766,7 @@ object WindowTableFunctionHarnessTest {
       Array(HEAP_BACKEND, ZoneId.of("UTC")),
       Array(HEAP_BACKEND, ZoneId.of("Asia/Shanghai")),
       Array(ROCKSDB_BACKEND, ZoneId.of("UTC")),
-      Array(ROCKSDB_BACKEND, ZoneId.of("Asia/Shanghai")))
+      Array(ROCKSDB_BACKEND, ZoneId.of("Asia/Shanghai"))
+    )
   }
 }

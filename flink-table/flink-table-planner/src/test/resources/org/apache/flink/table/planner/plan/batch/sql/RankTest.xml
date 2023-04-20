@@ -36,11 +36,12 @@ LogicalSink(table=[default_catalog.default_database.sink], fields=[name, eat, cn
 Sink(table=[default_catalog.default_database.sink], fields=[name, eat, cnt])
 +- Calc(select=[name, eat, cnt], where=[(w0$o0 <= 3)])
    +- OverAggregate(partitionBy=[name], orderBy=[cnt DESC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[name, eat, cnt, w0$o0])
-      +- Sort(orderBy=[name ASC, cnt DESC])
-         +- Exchange(distribution=[hash[name]])
-            +- HashAggregate(isMerge=[true], groupBy=[name, eat], select=[name, eat, Final_SUM(sum$0) AS cnt])
-               +- Exchange(distribution=[hash[name, eat]])
-                  +- TableSourceScan(table=[[default_catalog, default_database, test_source, aggregates=[grouping=[name,eat], aggFunctions=[LongSumAggFunction(age)]]]], fields=[name, eat, sum$0])
+      +- Exchange(distribution=[forward])
+         +- Sort(orderBy=[name ASC, cnt DESC])
+            +- Exchange(distribution=[hash[name]])
+               +- HashAggregate(isMerge=[true], groupBy=[name, eat], select=[name, eat, Final_SUM(sum$0) AS cnt])
+                  +- Exchange(distribution=[hash[name, eat]])
+                     +- TableSourceScan(table=[[default_catalog, default_database, test_source, aggregates=[grouping=[name,eat], aggFunctions=[LongSumAggFunction(age)]]]], fields=[name, eat, sum$0])
 ]]>
     </Resource>
   </TestCase>
@@ -63,12 +64,14 @@ LogicalProject(a=[$0], b=[$1], rk=[$2])
     <Resource name="optimized exec plan">
       <![CDATA[
 Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[b], orderBy=[a ASC], global=[true], select=[a, b, w0$o0])
-+- Sort(orderBy=[b ASC, a ASC])
-   +- Exchange(distribution=[hash[b]])
-      +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[b], orderBy=[a ASC], global=[false], select=[a, b])
-         +- Sort(orderBy=[b ASC, a ASC])
-            +- Calc(select=[a, b])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, rk)]]], fields=[a, b, rk])
++- Exchange(distribution=[forward])
+   +- Sort(orderBy=[b ASC, a ASC])
+      +- Exchange(distribution=[hash[b]])
+         +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[b], orderBy=[a ASC], global=[false], select=[a, b])
+            +- Exchange(distribution=[forward])
+               +- Sort(orderBy=[b ASC, a ASC])
+                  +- Calc(select=[a, b])
+                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, rk)]]], fields=[a, b, rk])
 ]]>
     </Resource>
   </TestCase>
@@ -94,12 +97,14 @@ LogicalProject(a=[$0], b=[$1], rk1=[$2], rk2=[$3])
       <![CDATA[
 Calc(select=[a, b, w0$o0 AS rk1, w0$o0 AS rk2])
 +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[b], orderBy=[a ASC], global=[true], select=[a, b, w0$o0])
-   +- Sort(orderBy=[b ASC, a ASC])
-      +- Exchange(distribution=[hash[b]])
-         +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[b], orderBy=[a ASC], global=[false], select=[a, b])
-            +- Sort(orderBy=[b ASC, a ASC])
-               +- Calc(select=[a, b])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[b ASC, a ASC])
+         +- Exchange(distribution=[hash[b]])
+            +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[b], orderBy=[a ASC], global=[false], select=[a, b])
+               +- Exchange(distribution=[forward])
+                  +- Sort(orderBy=[b ASC, a ASC])
+                     +- Calc(select=[a, b])
+                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -123,11 +128,13 @@ LogicalProject(a=[$0], rk=[$1], b=[$2], c=[$3])
       <![CDATA[
 Calc(select=[a, w0$o0 AS rk, b, c])
 +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[a], orderBy=[a ASC], global=[true], select=[a, b, c, w0$o0])
-   +- Sort(orderBy=[a ASC])
-      +- Exchange(distribution=[hash[a]])
-         +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[a], orderBy=[a ASC], global=[false], select=[a, b, c])
-            +- Sort(orderBy=[a ASC])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[a ASC])
+         +- Exchange(distribution=[hash[a]])
+            +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[a], orderBy=[a ASC], global=[false], select=[a, b, c])
+               +- Exchange(distribution=[forward])
+                  +- Sort(orderBy=[a ASC])
+                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -151,11 +158,13 @@ LogicalProject(a=[$0], b=[$1], rk=[$2])
       <![CDATA[
 Calc(select=[a, b, 2 AS $2])
 +- Rank(rankType=[RANK], rankRange=[rankStart=2, rankEnd=2], partitionBy=[b], orderBy=[a ASC, c ASC], global=[true], select=[a, b, c])
-   +- Sort(orderBy=[b ASC, a ASC, c ASC])
-      +- Exchange(distribution=[hash[b]])
-         +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=2], partitionBy=[b], orderBy=[a ASC, c ASC], global=[false], select=[a, b, c])
-            +- Sort(orderBy=[b ASC, a ASC, c ASC])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[b ASC, a ASC, c ASC])
+         +- Exchange(distribution=[hash[b]])
+            +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=2], partitionBy=[b], orderBy=[a ASC, c ASC], global=[false], select=[a, b, c])
+               +- Exchange(distribution=[forward])
+                  +- Sort(orderBy=[b ASC, a ASC, c ASC])
+                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -179,11 +188,13 @@ LogicalProject(a=[$0], b=[$1], rk=[$2])
       <![CDATA[
 Calc(select=[a, b, w0$o0])
 +- Rank(rankType=[RANK], rankRange=[rankStart=-1, rankEnd=2], partitionBy=[b, c], orderBy=[a ASC], global=[true], select=[a, b, c, w0$o0])
-   +- Sort(orderBy=[b ASC, c ASC, a ASC])
-      +- Exchange(distribution=[hash[b, c]])
-         +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=2], partitionBy=[b, c], orderBy=[a ASC], global=[false], select=[a, b, c])
-            +- Sort(orderBy=[b ASC, c ASC, a ASC])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[b ASC, c ASC, a ASC])
+         +- Exchange(distribution=[hash[b, c]])
+            +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=2], partitionBy=[b, c], orderBy=[a ASC], global=[false], select=[a, b, c])
+               +- Exchange(distribution=[forward])
+                  +- Sort(orderBy=[b ASC, c ASC, a ASC])
+                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -207,12 +218,14 @@ LogicalProject(a=[$0], b=[$1], rk=[$2])
       <![CDATA[
 Calc(select=[a, b, w0$o0], where=[(a > 10)])
 +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=2], partitionBy=[b], orderBy=[a ASC], global=[true], select=[a, b, w0$o0])
-   +- Sort(orderBy=[b ASC, a ASC])
-      +- Exchange(distribution=[hash[b]])
-         +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=2], partitionBy=[b], orderBy=[a ASC], global=[false], select=[a, b])
-            +- Sort(orderBy=[b ASC, a ASC])
-               +- Calc(select=[a, b])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[b ASC, a ASC])
+         +- Exchange(distribution=[hash[b]])
+            +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=2], partitionBy=[b], orderBy=[a ASC], global=[false], select=[a, b])
+               +- Exchange(distribution=[forward])
+                  +- Sort(orderBy=[b ASC, a ASC])
+                     +- Calc(select=[a, b])
+                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -238,9 +251,10 @@ Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[], orderB
 +- Sort(orderBy=[a ASC])
    +- Exchange(distribution=[single])
       +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[], orderBy=[a ASC], global=[false], select=[a, b])
-         +- Sort(orderBy=[a ASC])
-            +- Calc(select=[a, b])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         +- Exchange(distribution=[forward])
+            +- Sort(orderBy=[a ASC])
+               +- Calc(select=[a, b])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -272,13 +286,15 @@ LogicalProject(rn1=[CAST($3):INTEGER NOT NULL], rn2=[CAST($4):INTEGER NOT NULL])
       <![CDATA[
 Calc(select=[CAST(rna AS INTEGER) AS rn1, CAST(w0$o0 AS INTEGER) AS rn2], where=[(w0$o0 <= 200)])
 +- OverAggregate(partitionBy=[a], orderBy=[b DESC], window#0=[ROW_NUMBER(*) AS w0$o0_0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0, w0$o0_0])
-   +- Sort(orderBy=[a ASC, b DESC])
-      +- Exchange(distribution=[hash[a]])
-         +- Calc(select=[a, b, c, w0$o0], where=[(w0$o0 <= 100)])
-            +- OverAggregate(partitionBy=[a, c], orderBy=[b DESC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0])
-               +- Sort(orderBy=[a ASC, c ASC, b DESC])
-                  +- Exchange(distribution=[hash[a, c]])
-                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[a ASC, b DESC])
+         +- Exchange(distribution=[hash[a]])
+            +- Calc(select=[a, b, c, w0$o0], where=[(w0$o0 <= 100)])
+               +- OverAggregate(partitionBy=[a, c], orderBy=[b DESC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0])
+                  +- Exchange(distribution=[forward])
+                     +- Sort(orderBy=[a ASC, c ASC, b DESC])
+                        +- Exchange(distribution=[hash[a, c]])
+                           +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -342,17 +358,21 @@ LogicalProject(url=[CONCAT(_UTF-16LE'http://txmov2.a.yximgs.com', $0)], download
       <![CDATA[
 Calc(select=[CONCAT('http://txmov2.a.yximgs.com', uri) AS url, reqcount AS download_count, start_time AS timestamp])
 +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=100000], partitionBy=[start_time], orderBy=[reqcount DESC], global=[true], select=[uri, reqcount, start_time])
-   +- Sort(orderBy=[start_time ASC, reqcount DESC])
-      +- Exchange(distribution=[hash[start_time]])
-         +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=100000], partitionBy=[start_time], orderBy=[reqcount DESC], global=[false], select=[uri, reqcount, start_time])
-            +- Sort(orderBy=[start_time ASC, reqcount DESC])
-               +- Calc(select=[uri, reqcount, start_time])
-                  +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=100000], partitionBy=[start_time, bucket_id], orderBy=[reqcount DESC], global=[true], select=[uri, reqcount, start_time, bucket_id])
-                     +- Sort(orderBy=[start_time ASC, bucket_id ASC, reqcount DESC])
-                        +- Exchange(distribution=[hash[start_time, bucket_id]])
-                           +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=100000], partitionBy=[start_time, bucket_id], orderBy=[reqcount DESC], global=[false], select=[uri, reqcount, start_time, bucket_id])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[start_time ASC, reqcount DESC])
+         +- Exchange(distribution=[hash[start_time]])
+            +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=100000], partitionBy=[start_time], orderBy=[reqcount DESC], global=[false], select=[uri, reqcount, start_time])
+               +- Exchange(distribution=[forward])
+                  +- Sort(orderBy=[start_time ASC, reqcount DESC])
+                     +- Calc(select=[uri, reqcount, start_time])
+                        +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=100000], partitionBy=[start_time, bucket_id], orderBy=[reqcount DESC], global=[true], select=[uri, reqcount, start_time, bucket_id])
+                           +- Exchange(distribution=[forward])
                               +- Sort(orderBy=[start_time ASC, bucket_id ASC, reqcount DESC])
-                                 +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[uri, reqcount, start_time, bucket_id])
+                                 +- Exchange(distribution=[hash[start_time, bucket_id]])
+                                    +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=100000], partitionBy=[start_time, bucket_id], orderBy=[reqcount DESC], global=[false], select=[uri, reqcount, start_time, bucket_id])
+                                       +- Exchange(distribution=[forward])
+                                          +- Sort(orderBy=[start_time ASC, bucket_id ASC, reqcount DESC])
+                                             +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[uri, reqcount, start_time, bucket_id])
 ]]>
     </Resource>
   </TestCase>

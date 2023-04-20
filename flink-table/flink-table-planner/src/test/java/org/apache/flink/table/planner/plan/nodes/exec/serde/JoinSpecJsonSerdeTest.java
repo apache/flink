@@ -21,23 +21,20 @@ package org.apache.flink.table.planner.plan.nodes.exec.serde;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.io.IOException;
-import java.io.StringWriter;
 
-import static org.junit.Assert.assertEquals;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.testJsonRoundTrip;
 
 /** Tests for {@link JoinSpec} serialization and deserialization. */
-public class JoinSpecJsonSerdeTest {
-
-    private final ObjectMapper mapper = JsonSerdeUtil.getObjectMapper();
+@Execution(ExecutionMode.CONCURRENT)
+class JoinSpecJsonSerdeTest {
 
     @Test
-    public void testJoinSpecSerde() throws IOException {
+    void testJoinSpecSerde() throws IOException {
         JoinSpec joinSpec =
                 new JoinSpec(
                         FlinkJoinType.ANTI,
@@ -46,12 +43,6 @@ public class JoinSpecJsonSerdeTest {
                         new boolean[] {true},
                         null);
 
-        StringWriter writer = new StringWriter(100);
-        try (JsonGenerator gen = mapper.getFactory().createGenerator(writer)) {
-            gen.writeObject(joinSpec);
-        }
-        String json = writer.toString();
-        JoinSpec actual = mapper.readValue(json, JoinSpec.class);
-        assertEquals(joinSpec, actual);
+        testJsonRoundTrip(joinSpec, JoinSpec.class);
     }
 }

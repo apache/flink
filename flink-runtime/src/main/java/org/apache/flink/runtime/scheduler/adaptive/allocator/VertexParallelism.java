@@ -20,17 +20,45 @@ package org.apache.flink.runtime.scheduler.adaptive.allocator;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
- * Core result of {@link SlotAllocator#determineParallelism(JobInformation, Collection)}, describing
- * the parallelism each vertex could be scheduled with.
- *
- * <p>{@link SlotAllocator} implementations may encode additional information to be used in {@link
- * SlotAllocator#tryReserveResources(VertexParallelism)}.
+ * Core result of {@link SlotAllocator#determineParallelism(JobInformation, Collection)} among with
+ * {@link org.apache.flink.runtime.scheduler.adaptive.JobSchedulingPlan.SlotAssignment
+ * slotAssignments}, describing the parallelism each vertex could be scheduled with.
  */
-public interface VertexParallelism {
-    Map<JobVertexID, Integer> getMaxParallelismForVertices();
+public class VertexParallelism {
+    private final Map<JobVertexID, Integer> parallelismForVertices;
 
-    int getParallelism(JobVertexID jobVertexId);
+    public VertexParallelism(Map<JobVertexID, Integer> parallelismForVertices) {
+        this.parallelismForVertices = parallelismForVertices;
+    }
+
+    public int getParallelism(JobVertexID jobVertexId) {
+        checkArgument(
+                parallelismForVertices.containsKey(jobVertexId), "Unknown vertex: " + jobVertexId);
+        return parallelismForVertices.get(jobVertexId);
+    }
+
+    public Optional<Integer> getParallelismOptional(JobVertexID jobVertexId) {
+        return Optional.ofNullable(parallelismForVertices.get(jobVertexId));
+    }
+
+    public Set<JobVertexID> getVertices() {
+        return Collections.unmodifiableSet(parallelismForVertices.keySet());
+    }
+
+    @Override
+    public String toString() {
+        return "VertexParallelism: " + parallelismForVertices;
+    }
+
+    public static VertexParallelism empty() {
+        return new VertexParallelism(Collections.emptyMap());
+    }
 }

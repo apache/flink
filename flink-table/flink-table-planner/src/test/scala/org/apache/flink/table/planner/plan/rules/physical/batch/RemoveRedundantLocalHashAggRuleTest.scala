@@ -24,9 +24,7 @@ import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.{Before, Test}
 
-/**
-  * Test for [[RemoveRedundantLocalHashAggRule]].
-  */
+/** Test for [[RemoveRedundantLocalHashAggRule]]. */
 class RemoveRedundantLocalHashAggRuleTest extends TableTestBase {
 
   private val util = batchTestUtil()
@@ -40,11 +38,12 @@ class RemoveRedundantLocalHashAggRuleTest extends TableTestBase {
 
   @Test
   def testRemoveRedundantLocalHashAgg_ShuffleKeyFromJoin(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortMergeJoin,NestedLoopJoin,SortAgg")
+    util.tableEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS,
+      "SortMergeJoin,NestedLoopJoin,SortAgg")
     // disable BroadcastHashJoin
-    util.tableEnv.getConfig.getConfiguration.setLong(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
+    util.tableEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, Long.box(-1))
     val sqlQuery =
       """
         |WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')
@@ -55,10 +54,10 @@ class RemoveRedundantLocalHashAggRuleTest extends TableTestBase {
 
   @Test
   def testRemoveRedundantLocalHashAgg_ShuffleKeyFromRank(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg")
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      BatchPhysicalJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED, true)
+    util.tableEnv.getConfig.set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg")
+    util.tableEnv.getConfig.set(
+      BatchPhysicalJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED,
+      Boolean.box(true))
     val sqlQuery =
       """
         |SELECT a, SUM(b) FROM (
@@ -72,10 +71,10 @@ class RemoveRedundantLocalHashAggRuleTest extends TableTestBase {
 
   @Test
   def testUsingLocalAggCallFilters(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg")
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      BatchPhysicalJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED, true)
+    util.tableEnv.getConfig.set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg")
+    util.tableEnv.getConfig.set(
+      BatchPhysicalJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED,
+      Boolean.box(true))
     val sqlQuery = "SELECT d, MAX(e), MAX(e) FILTER (WHERE a < 10), COUNT(DISTINCT c),\n" +
       "COUNT(DISTINCT c) FILTER (WHERE a > 5), COUNT(DISTINCT b) FILTER (WHERE b > 3)\n" +
       "FROM z GROUP BY d"

@@ -89,7 +89,7 @@ public class AppendOnlyFirstNFunction extends AbstractTopNFunction {
         currentRank += 1;
         state.update(currentRank);
 
-        if (outputRankNumber) {
+        if (outputRankNumber || hasOffset()) {
             collectInsert(out, input, currentRank);
         } else {
             collectInsert(out, input);

@@ -19,24 +19,23 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
-import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
-import org.apache.flink.table.planner.codegen.sort.SortCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
-import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.JoinUtil;
-import org.apache.flink.table.planner.plan.utils.SortUtil;
+import org.apache.flink.table.planner.plan.utils.SorMergeJoinOperatorUtil;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
+import org.apache.flink.table.runtime.operators.join.SortMergeJoinFunction;
 import org.apache.flink.table.runtime.operators.join.SortMergeJoinOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -64,6 +63,7 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
     private final boolean leftIsSmaller;
 
     public BatchExecSortMergeJoin(
+            ReadableConfig tableConfig,
             FlinkJoinType joinType,
             int[] leftKeys,
             int[] rightKeys,
@@ -74,7 +74,13 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
             InputProperty rightInputProperty,
             RowType outputType,
             String description) {
-        super(Arrays.asList(leftInputProperty, rightInputProperty), outputType, description);
+        super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(BatchExecSortMergeJoin.class),
+                ExecNodeContext.newPersistedConfig(BatchExecSortMergeJoin.class, tableConfig),
+                Arrays.asList(leftInputProperty, rightInputProperty),
+                outputType,
+                description);
         this.joinType = checkNotNull(joinType);
         this.leftKeys = checkNotNull(leftKeys);
         this.rightKeys = checkNotNull(rightKeys);
@@ -88,7 +94,8 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
 
     @Override
     @SuppressWarnings("unchecked")
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         ExecEdge leftInputEdge = getInputEdges().get(0);
         ExecEdge rightInputEdge = getInputEdges().get(1);
 
@@ -100,18 +107,19 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
                 IntStream.of(leftKeys).mapToObj(leftType::getTypeAt).toArray(LogicalType[]::new);
         RowType keyType = RowType.of(keyFieldTypes);
 
-        TableConfig config = planner.getTableConfig();
         GeneratedJoinCondition condFunc =
-                JoinUtil.generateConditionFunction(config, nonEquiCondition, leftType, rightType);
+                JoinUtil.generateConditionFunction(
+                        config,
+                        planner.getFlinkContext().getClassLoader(),
+                        nonEquiCondition,
+                        leftType,
+                        rightType);
 
         long externalBufferMemory =
-                config.getConfiguration()
-                        .get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)
+                config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)
                         .getBytes();
         long sortMemory =
-                config.getConfiguration()
-                        .get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY)
-                        .getBytes();
+                config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY).getBytes();
         int externalBufferNum = 1;
         if (joinType == FlinkJoinType.FULL) {
             externalBufferNum = 2;
@@ -119,35 +127,20 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
 
         long managedMemory = externalBufferMemory * externalBufferNum + sortMemory * 2;
 
-        SortCodeGenerator leftSortGen = newSortGen(config, leftKeys, leftType);
-        SortCodeGenerator rightSortGen = newSortGen(config, rightKeys, rightType);
-
-        int[] keyPositions = IntStream.range(0, leftKeys.length).toArray();
-        SortMergeJoinOperator operator =
-                new SortMergeJoinOperator(
-                        1.0 * externalBufferMemory / managedMemory,
+        SortMergeJoinFunction sortMergeJoinFunction =
+                SorMergeJoinOperatorUtil.getSortMergeJoinFunction(
+                        planner.getFlinkContext().getClassLoader(),
+                        config,
                         joinType,
+                        leftType,
+                        rightType,
+                        leftKeys,
+                        rightKeys,
+                        keyType,
                         leftIsSmaller,
+                        filterNulls,
                         condFunc,
-                        ProjectionCodeGenerator.generateProjection(
-                                new CodeGeneratorContext(config),
-                                "SMJProjection",
-                                leftType,
-                                keyType,
-                                leftKeys),
-                        ProjectionCodeGenerator.generateProjection(
-                                new CodeGeneratorContext(config),
-                                "SMJProjection",
-                                rightType,
-                                keyType,
-                                rightKeys),
-                        leftSortGen.generateNormalizedKeyComputer("LeftComputer"),
-                        leftSortGen.generateRecordComparator("LeftComparator"),
-                        rightSortGen.generateNormalizedKeyComputer("RightComputer"),
-                        rightSortGen.generateRecordComparator("RightComparator"),
-                        newSortGen(config, keyPositions, keyType)
-                                .generateRecordComparator("KeyComparator"),
-                        filterNulls);
+                        1.0 * externalBufferMemory / managedMemory);
 
         Transformation<RowData> leftInputTransform =
                 (Transformation<RowData>) leftInputEdge.translateToPlan(planner);
@@ -156,17 +149,12 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
         return ExecNodeUtil.createTwoInputTransformation(
                 leftInputTransform,
                 rightInputTransform,
-                getOperatorName(planner.getTableConfig()),
-                getOperatorDescription(planner.getTableConfig()),
-                SimpleOperatorFactory.of(operator),
+                createTransformationName(config),
+                createTransformationDescription(config),
+                SimpleOperatorFactory.of(new SortMergeJoinOperator(sortMergeJoinFunction)),
                 InternalTypeInfo.of(getOutputType()),
                 rightInputTransform.getParallelism(),
-                managedMemory);
-    }
-
-    private SortCodeGenerator newSortGen(
-            TableConfig config, int[] originalKeys, RowType inputType) {
-        SortSpec sortSpec = SortUtil.getAscendingSortSpec(originalKeys);
-        return new SortCodeGenerator(config, inputType, sortSpec);
+                managedMemory,
+                false);
     }
 }

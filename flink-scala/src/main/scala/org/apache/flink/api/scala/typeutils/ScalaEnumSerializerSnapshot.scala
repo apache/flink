@@ -15,9 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.scala.typeutils
-
 
 import org.apache.flink.api.common.typeutils.{TypeSerializer, TypeSerializerSchemaCompatibility, TypeSerializerSnapshot}
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
@@ -25,8 +23,7 @@ import org.apache.flink.util.{InstantiationUtil, Preconditions}
 
 import scala.collection.mutable.ListBuffer
 
-class ScalaEnumSerializerSnapshot[E <: Enumeration]
-  extends TypeSerializerSnapshot[E#Value] {
+class ScalaEnumSerializerSnapshot[E <: Enumeration] extends TypeSerializerSnapshot[E#Value] {
 
   var enumClass: Class[E] = _
   var previousEnumConstants: List[(String, Int)] = _
@@ -48,7 +45,7 @@ class ScalaEnumSerializerSnapshot[E <: Enumeration]
   override def writeSnapshot(out: DataOutputView): Unit = {
     Preconditions.checkState(enumClass != null)
     Preconditions.checkState(previousEnumConstants != null)
-    
+
     out.writeUTF(enumClass.getName)
 
     out.writeInt(previousEnumConstants.length)
@@ -59,7 +56,9 @@ class ScalaEnumSerializerSnapshot[E <: Enumeration]
   }
 
   override def readSnapshot(
-      readVersion: Int, in: DataInputView, userCodeClassLoader: ClassLoader): Unit = {
+      readVersion: Int,
+      in: DataInputView,
+      userCodeClassLoader: ClassLoader): Unit = {
 
     enumClass = InstantiationUtil.resolveClassByName(in, userCodeClassLoader)
 
@@ -82,7 +81,7 @@ class ScalaEnumSerializerSnapshot[E <: Enumeration]
   }
 
   override def resolveSchemaCompatibility(
-    newSerializer: TypeSerializer[E#Value]): TypeSerializerSchemaCompatibility[E#Value] = {
+      newSerializer: TypeSerializer[E#Value]): TypeSerializerSchemaCompatibility[E#Value] = {
 
     Preconditions.checkState(enumClass != null)
     Preconditions.checkState(previousEnumConstants != null)

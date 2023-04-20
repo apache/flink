@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.logical
 
 import org.apache.flink.table.api.ValidationException
@@ -23,24 +22,25 @@ import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.{RelCollation, RelCollationTraitDef, RelNode}
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 import org.apache.calcite.rel.core.Window
 import org.apache.calcite.rel.logical.LogicalWindow
 import org.apache.calcite.rel.metadata.RelMdCollation
-import org.apache.calcite.rel.{RelCollation, RelCollationTraitDef, RelNode}
 import org.apache.calcite.rex.RexLiteral
 import org.apache.calcite.sql.SqlRankFunction
 
 import java.util
-import java.util.function.Supplier
 import java.util.{List => JList}
+import java.util.function.Supplier
 
 import scala.collection.JavaConversions._
 
 /**
-  * Sub-class of [[Window]] that is a relational expression
-  * which represents a set of over window aggregates in Flink.
-  */
+ * Sub-class of [[Window]] that is a relational expression which represents a set of over window
+ * aggregates in Flink.
+ */
 class FlinkLogicalOverAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -63,32 +63,35 @@ class FlinkLogicalOverAggregate(
 
 }
 
-class FlinkLogicalOverAggregateConverter
-  extends ConverterRule(
-    classOf[LogicalWindow],
-    Convention.NONE,
-    FlinkConventions.LOGICAL,
-    "FlinkLogicalOverAggregateConverter") {
+class FlinkLogicalOverAggregateConverter(config: Config) extends ConverterRule(config) {
 
   override def convert(rel: RelNode): RelNode = {
     val window = rel.asInstanceOf[LogicalWindow]
     val mq = rel.getCluster.getMetadataQuery
-    val traitSet = rel.getCluster.traitSetOf(FlinkConventions.LOGICAL).replaceIfs(
-      RelCollationTraitDef.INSTANCE, new Supplier[util.List[RelCollation]]() {
-        def get: util.List[RelCollation] = {
-          RelMdCollation.window(mq, window.getInput(), window.groups)
+    val traitSet = rel.getCluster
+      .traitSetOf(FlinkConventions.LOGICAL)
+      .replaceIfs(
+        RelCollationTraitDef.INSTANCE,
+        new Supplier[util.List[RelCollation]]() {
+          def get: util.List[RelCollation] = {
+            RelMdCollation.window(mq, window.getInput(), window.groups)
+          }
         }
-      }).simplify()
+      )
+      .simplify()
     val newInput = RelOptRule.convert(window.getInput, FlinkConventions.LOGICAL)
 
-    window.groups.foreach { group =>
-      val orderKeySize = group.orderKeys.getFieldCollations.size()
-      group.aggCalls.foreach { winAggCall =>
-        if (orderKeySize == 0 && winAggCall.op.isInstanceOf[SqlRankFunction]) {
-          throw new ValidationException("Over Agg: The window rank function without order by. " +
-            "please re-check the over window statement.")
+    window.groups.foreach {
+      group =>
+        val orderKeySize = group.orderKeys.getFieldCollations.size()
+        group.aggCalls.foreach {
+          winAggCall =>
+            if (orderKeySize == 0 && winAggCall.op.isInstanceOf[SqlRankFunction]) {
+              throw new ValidationException(
+                "Over Agg: The window rank function requires order by clause with non-constant fields. " +
+                  "please re-check the over window statement.")
+            }
         }
-      }
     }
 
     new FlinkLogicalOverAggregate(
@@ -102,5 +105,10 @@ class FlinkLogicalOverAggregateConverter
 }
 
 object FlinkLogicalOverAggregate {
-  val CONVERTER = new FlinkLogicalOverAggregateConverter
+  val CONVERTER: ConverterRule = new FlinkLogicalOverAggregateConverter(
+    Config.INSTANCE.withConversion(
+      classOf[LogicalWindow],
+      Convention.NONE,
+      FlinkConventions.LOGICAL,
+      "FlinkLogicalOverAggregateConverter"))
 }

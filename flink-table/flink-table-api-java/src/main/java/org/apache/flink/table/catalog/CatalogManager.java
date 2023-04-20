@@ -226,6 +226,9 @@ public final class CatalogManager {
                 "Catalog name cannot be null or empty.");
 
         if (catalogs.containsKey(catalogName)) {
+            if (currentCatalogName.equals(catalogName)) {
+                throw new CatalogException("Cannot drop a catalog which is currently in use.");
+            }
             Catalog catalog = catalogs.remove(catalogName);
             catalog.close();
         } else if (!ignoreIfNotExists) {
@@ -241,6 +244,14 @@ public final class CatalogManager {
      */
     public Optional<Catalog> getCatalog(String catalogName) {
         return Optional.ofNullable(catalogs.get(catalogName));
+    }
+
+    public Catalog getCatalogOrThrowException(String catalogName) {
+        return getCatalog(catalogName)
+                .orElseThrow(
+                        () ->
+                                new ValidationException(
+                                        String.format("Catalog %s does not exist", catalogName)));
     }
 
     /**
@@ -804,6 +815,30 @@ public final class CatalogManager {
     }
 
     /**
+     * Alters a table in a given fully qualified path with table changes.
+     *
+     * @param table The table to put in the given path
+     * @param changes The table changes from the original table to the new table.
+     * @param objectIdentifier The fully qualified path where to alter the table.
+     * @param ignoreIfNotExists If false exception will be thrown if the table or database or
+     *     catalog to be altered does not exist.
+     */
+    public void alterTable(
+            CatalogBaseTable table,
+            List<TableChange> changes,
+            ObjectIdentifier objectIdentifier,
+            boolean ignoreIfNotExists) {
+        execute(
+                (catalog, path) -> {
+                    final CatalogBaseTable resolvedTable = resolveCatalogBaseTable(table);
+                    catalog.alterTable(path, resolvedTable, changes, ignoreIfNotExists);
+                },
+                objectIdentifier,
+                ignoreIfNotExists,
+                "AlterTable");
+    }
+
+    /**
      * Drops a table in a given fully qualified path.
      *
      * @param objectIdentifier The fully qualified path of the table to drop.
@@ -899,7 +934,7 @@ public final class CatalogManager {
 
     /** Resolves a {@link CatalogBaseTable} to a validated {@link ResolvedCatalogBaseTable}. */
     public ResolvedCatalogBaseTable<?> resolveCatalogBaseTable(CatalogBaseTable baseTable) {
-        Preconditions.checkState(schemaResolver != null, "Schema resolver is not initialized.");
+        Preconditions.checkNotNull(schemaResolver, "Schema resolver is not initialized.");
         if (baseTable instanceof CatalogTable) {
             return resolveCatalogTable((CatalogTable) baseTable);
         } else if (baseTable instanceof CatalogView) {
@@ -911,13 +946,14 @@ public final class CatalogManager {
 
     /** Resolves a {@link CatalogTable} to a validated {@link ResolvedCatalogTable}. */
     public ResolvedCatalogTable resolveCatalogTable(CatalogTable table) {
-        Preconditions.checkState(schemaResolver != null, "Schema resolver is not initialized.");
+        Preconditions.checkNotNull(schemaResolver, "Schema resolver is not initialized.");
         if (table instanceof ResolvedCatalogTable) {
             return (ResolvedCatalogTable) table;
         }
 
         final ResolvedSchema resolvedSchema = table.getUnresolvedSchema().resolve(schemaResolver);
 
+        // Validate partition keys are included in physical columns
         final List<String> physicalColumns =
                 resolvedSchema.getColumns().stream()
                         .filter(Column::isPhysical)
@@ -941,7 +977,7 @@ public final class CatalogManager {
 
     /** Resolves a {@link CatalogView} to a validated {@link ResolvedCatalogView}. */
     public ResolvedCatalogView resolveCatalogView(CatalogView view) {
-        Preconditions.checkState(schemaResolver != null, "Schema resolver is not initialized.");
+        Preconditions.checkNotNull(schemaResolver, "Schema resolver is not initialized.");
         if (view instanceof ResolvedCatalogView) {
             return (ResolvedCatalogView) view;
         }

@@ -15,28 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalPythonCalc
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
+
 import scala.collection.JavaConverters._
 
-/**
-  * Rule that converts [[FlinkLogicalCalc]] to [[BatchPhysicalPythonCalc]].
-  */
-class BatchPhysicalPythonCalcRule
-  extends ConverterRule(
-    classOf[FlinkLogicalCalc],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.BATCH_PHYSICAL,
-    "BatchPhysicalPythonCalcRule") {
+/** Rule that converts [[FlinkLogicalCalc]] to [[BatchPhysicalPythonCalc]]. */
+class BatchPhysicalPythonCalcRule(config: Config) extends ConverterRule(config) {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val calc: FlinkLogicalCalc = call.rel(0)
@@ -49,15 +43,15 @@ class BatchPhysicalPythonCalcRule
     val newTrait = rel.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
     val newInput = RelOptRule.convert(calc.getInput, FlinkConventions.BATCH_PHYSICAL)
 
-    new BatchPhysicalPythonCalc(
-      rel.getCluster,
-      newTrait,
-      newInput,
-      calc.getProgram,
-      rel.getRowType)
+    new BatchPhysicalPythonCalc(rel.getCluster, newTrait, newInput, calc.getProgram, rel.getRowType)
   }
 }
 
 object BatchPhysicalPythonCalcRule {
-  val INSTANCE: RelOptRule = new BatchPhysicalPythonCalcRule
+  val INSTANCE: RelOptRule = new BatchPhysicalPythonCalcRule(
+    Config.INSTANCE.withConversion(
+      classOf[FlinkLogicalCalc],
+      FlinkConventions.LOGICAL,
+      FlinkConventions.BATCH_PHYSICAL,
+      "BatchPhysicalPythonCalcRule"))
 }

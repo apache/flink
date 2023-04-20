@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -28,27 +28,21 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.akka.exceptions.AkkaRpcException;
 import org.apache.flink.runtime.rpc.exceptions.RpcException;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.FunctionWithException;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnull;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the over sized response message handling of the {@link AkkaRpcActor}. */
-public class AkkaRpcActorOversizedResponseMessageTest extends TestLogger {
-
-    private static final Time TIMEOUT = Time.seconds(10L);
+class AkkaRpcActorOversizedResponseMessageTest {
 
     private static final int FRAMESIZE = 32000;
 
@@ -60,9 +54,11 @@ public class AkkaRpcActorOversizedResponseMessageTest extends TestLogger {
 
     private static RpcService rpcService2;
 
-    @BeforeClass
-    public static void setupClass() throws Exception {
+    @BeforeAll
+    static void setupClass() throws Exception {
         final Configuration configuration = new Configuration();
+        // some tests explicitly test local communication where no serialization should occur
+        configuration.set(AkkaOptions.FORCE_RPC_INVOCATION_SERIALIZATION, false);
         configuration.setString(AkkaOptions.FRAMESIZE, FRAMESIZE + " b");
 
         rpcService1 =
@@ -73,48 +69,46 @@ public class AkkaRpcActorOversizedResponseMessageTest extends TestLogger {
                         .createAndStart();
     }
 
-    @AfterClass
-    public static void teardownClass() throws Exception {
-        RpcUtils.terminateRpcServices(TIMEOUT, rpcService1, rpcService2);
+    @AfterAll
+    static void teardownClass() throws Exception {
+        RpcUtils.terminateRpcService(rpcService1, rpcService2);
     }
 
     @Test
-    public void testOverSizedResponseMsgAsync() throws Exception {
-        try {
-            runRemoteMessageResponseTest(OVERSIZED_PAYLOAD, this::requestMessageAsync);
-
-            fail("Expected the RPC to fail.");
-        } catch (ExecutionException e) {
-            assertThat(
-                    ExceptionUtils.findThrowable(e, AkkaRpcException.class).isPresent(), is(true));
-            assertThat(e.getCause().getMessage().contains(String.valueOf(FRAMESIZE)), is(true));
-        }
+    void testOverSizedResponseMsgAsync() throws Exception {
+        assertThatThrownBy(
+                        () ->
+                                runRemoteMessageResponseTest(
+                                        OVERSIZED_PAYLOAD, this::requestMessageAsync))
+                .hasCauseInstanceOf(AkkaRpcException.class)
+                .extracting(ExceptionUtils::stripExecutionException)
+                .isInstanceOf(AkkaRpcException.class)
+                .extracting(Throwable::getMessage)
+                .satisfies(message -> assertThat(message).contains(String.valueOf(FRAMESIZE)));
     }
 
     @Test
-    public void testNormalSizedResponseMsgAsync() throws Exception {
+    void testNormalSizedResponseMsgAsync() throws Exception {
         final String message = runRemoteMessageResponseTest(PAYLOAD, this::requestMessageAsync);
-        assertThat(message, is(equalTo(PAYLOAD)));
+        assertThat(message).isEqualTo(PAYLOAD);
     }
 
     @Test
-    public void testNormalSizedResponseMsgSync() throws Exception {
+    void testNormalSizedResponseMsgSync() throws Exception {
         final String message =
                 runRemoteMessageResponseTest(PAYLOAD, MessageRpcGateway::messageSync);
-        assertThat(message, is(equalTo(PAYLOAD)));
+        assertThat(message).isEqualTo(PAYLOAD);
     }
 
     @Test
-    public void testOverSizedResponseMsgSync() throws Exception {
-        try {
-            runRemoteMessageResponseTest(OVERSIZED_PAYLOAD, MessageRpcGateway::messageSync);
-
-            fail("Expected the RPC to fail.");
-        } catch (RpcException e) {
-            assertThat(
-                    ExceptionUtils.findThrowable(e, AkkaRpcException.class).isPresent(), is(true));
-            assertThat(e.getCause().getMessage().contains(String.valueOf(FRAMESIZE)), is(true));
-        }
+    void testOverSizedResponseMsgSync() throws Exception {
+        assertThatThrownBy(
+                        () ->
+                                runRemoteMessageResponseTest(
+                                        OVERSIZED_PAYLOAD, MessageRpcGateway::messageSync))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                AkkaRpcException.class, String.valueOf(FRAMESIZE)));
     }
 
     /**
@@ -122,10 +116,10 @@ public class AkkaRpcActorOversizedResponseMessageTest extends TestLogger {
      * endpoint.
      */
     @Test
-    public void testLocalOverSizedResponseMsgSync() throws Exception {
+    void testLocalOverSizedResponseMsgSync() throws Exception {
         final String message =
                 runLocalMessageResponseTest(OVERSIZED_PAYLOAD, MessageRpcGateway::messageSync);
-        assertThat(message, is(equalTo(OVERSIZED_PAYLOAD)));
+        assertThat(message).isEqualTo(OVERSIZED_PAYLOAD);
     }
 
     /**
@@ -133,10 +127,10 @@ public class AkkaRpcActorOversizedResponseMessageTest extends TestLogger {
      * endpoint.
      */
     @Test
-    public void testLocalOverSizedResponseMsgAsync() throws Exception {
+    void testLocalOverSizedResponseMsgAsync() throws Exception {
         final String message =
                 runLocalMessageResponseTest(OVERSIZED_PAYLOAD, this::requestMessageAsync);
-        assertThat(message, is(equalTo(OVERSIZED_PAYLOAD)));
+        assertThat(message).isEqualTo(OVERSIZED_PAYLOAD);
     }
 
     private String requestMessageAsync(MessageRpcGateway messageRpcGateway) throws Exception {
@@ -157,7 +151,7 @@ public class AkkaRpcActorOversizedResponseMessageTest extends TestLogger {
 
             return rpcCall.apply(rpcGateway);
         } finally {
-            RpcUtils.terminateRpcEndpoint(rpcEndpoint, TIMEOUT);
+            RpcUtils.terminateRpcEndpoint(rpcEndpoint);
         }
     }
 
@@ -174,7 +168,7 @@ public class AkkaRpcActorOversizedResponseMessageTest extends TestLogger {
 
             return rpcCall.apply(rpcGateway);
         } finally {
-            RpcUtils.terminateRpcEndpoint(rpcEndpoint, TIMEOUT);
+            RpcUtils.terminateRpcEndpoint(rpcEndpoint);
         }
     }
 

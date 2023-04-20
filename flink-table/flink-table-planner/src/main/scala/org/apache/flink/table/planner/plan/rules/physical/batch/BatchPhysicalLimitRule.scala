@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
@@ -27,39 +26,34 @@ import org.apache.flink.table.planner.plan.utils.SortUtil
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 import org.apache.calcite.rex.RexLiteral
 import org.apache.calcite.sql.`type`.SqlTypeName
 
 /**
-  * Rule that matches [[FlinkLogicalSort]] with empty sort fields,
-  * and converts it to
-  * {{{
-  * BatchPhysicalLimit (global)
-  * +- BatchPhysicalExchange (singleton)
-  *    +- BatchPhysicalLimit (local)
-  *       +- input of sort
-  * }}}
-  * when fetch is not null, or
-  * {{{
-  * BatchPhysicalLimit
-  * +- BatchPhysicalExchange (singleton)
-  *    +- input of sort
-  * }}}
-  * when fetch is null.
-  */
-class BatchPhysicalLimitRule
-  extends ConverterRule(
-    classOf[FlinkLogicalSort],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.BATCH_PHYSICAL,
-    "BatchPhysicalLimitRule") {
+ * Rule that matches [[FlinkLogicalSort]] with empty sort fields, and converts it to
+ * {{{
+ * BatchPhysicalLimit (global)
+ * +- BatchPhysicalExchange (singleton)
+ *    +- BatchPhysicalLimit (local)
+ *       +- input of sort
+ * }}}
+ * when fetch is not null, or
+ * {{{
+ * BatchPhysicalLimit
+ * +- BatchPhysicalExchange (singleton)
+ *    +- input of sort
+ * }}}
+ * when fetch is null.
+ */
+class BatchPhysicalLimitRule(config: Config) extends ConverterRule(config) {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val sort: FlinkLogicalSort = call.rel(0)
     // only matches Sort with empty sort fields and non-null fetch
     val fetch = sort.fetch
     sort.getCollation.getFieldCollations.isEmpty &&
-      (fetch == null || fetch != null && RexLiteral.intValue(fetch) < Long.MaxValue)
+    (fetch == null || fetch != null && RexLiteral.intValue(fetch) < Long.MaxValue)
   }
 
   override def convert(rel: RelNode): RelNode = {
@@ -104,5 +98,10 @@ class BatchPhysicalLimitRule
 }
 
 object BatchPhysicalLimitRule {
-  val INSTANCE: RelOptRule = new BatchPhysicalLimitRule
+  val INSTANCE: RelOptRule = new BatchPhysicalLimitRule(
+    Config.INSTANCE.withConversion(
+      classOf[FlinkLogicalSort],
+      FlinkConventions.LOGICAL,
+      FlinkConventions.BATCH_PHYSICAL,
+      "BatchPhysicalLimitRule"))
 }

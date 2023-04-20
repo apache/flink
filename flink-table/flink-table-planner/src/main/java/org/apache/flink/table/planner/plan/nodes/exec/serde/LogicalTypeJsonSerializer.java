@@ -64,56 +64,56 @@ import java.io.IOException;
  * @see LogicalTypeJsonDeserializer for the reverse operation.
  */
 @Internal
-public final class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
+final class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
     private static final long serialVersionUID = 1L;
 
     // Common fields
-    public static final String FIELD_NAME_TYPE_NAME = "type";
-    public static final String FIELD_NAME_NULLABLE = "nullable";
-    public static final String FIELD_NAME_DESCRIPTION = "description";
+    static final String FIELD_NAME_TYPE_NAME = "type";
+    static final String FIELD_NAME_NULLABLE = "nullable";
+    static final String FIELD_NAME_DESCRIPTION = "description";
 
     // CHAR, VARCHAR, BINARY, VARBINARY
-    public static final String FIELD_NAME_LENGTH = "length";
+    static final String FIELD_NAME_LENGTH = "length";
 
     // TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE
-    public static final String FIELD_NAME_PRECISION = "precision";
-    public static final String FIELD_NAME_TIMESTAMP_KIND = "kind";
+    static final String FIELD_NAME_PRECISION = "precision";
+    static final String FIELD_NAME_TIMESTAMP_KIND = "kind";
 
     // ARRAY, MULTISET
-    public static final String FIELD_NAME_ELEMENT_TYPE = "elementType";
+    static final String FIELD_NAME_ELEMENT_TYPE = "elementType";
 
     // MAP
-    public static final String FIELD_NAME_KEY_TYPE = "keyType";
-    public static final String FIELD_NAME_VALUE_TYPE = "valueType";
+    static final String FIELD_NAME_KEY_TYPE = "keyType";
+    static final String FIELD_NAME_VALUE_TYPE = "valueType";
 
     // ROW
-    public static final String FIELD_NAME_FIELDS = "fields";
-    public static final String FIELD_NAME_FIELD_NAME = "name";
-    public static final String FIELD_NAME_FIELD_TYPE = "fieldType";
-    public static final String FIELD_NAME_FIELD_DESCRIPTION = "description";
+    static final String FIELD_NAME_FIELDS = "fields";
+    static final String FIELD_NAME_FIELD_NAME = "name";
+    static final String FIELD_NAME_FIELD_TYPE = "fieldType";
+    static final String FIELD_NAME_FIELD_DESCRIPTION = "description";
 
     // DISTINCT_TYPE
-    public static final String FIELD_NAME_SOURCE_TYPE = "sourceType";
+    static final String FIELD_NAME_SOURCE_TYPE = "sourceType";
 
     // STRUCTURED_TYPE
-    public static final String FIELD_NAME_OBJECT_IDENTIFIER = "objectIdentifier";
-    public static final String FIELD_NAME_IMPLEMENTATION_CLASS = "implementationClass";
-    public static final String FIELD_NAME_ATTRIBUTES = "attributes";
-    public static final String FIELD_NAME_ATTRIBUTE_NAME = "name";
-    public static final String FIELD_NAME_ATTRIBUTE_TYPE = "attributeType";
-    public static final String FIELD_NAME_ATTRIBUTE_DESCRIPTION = "description";
-    public static final String FIELD_NAME_FINAL = "final";
-    public static final String FIELD_NAME_INSTANTIABLE = "instantiable";
-    public static final String FIELD_NAME_COMPARISON = "comparison";
-    public static final String FIELD_NAME_SUPER_TYPE = "superType";
+    static final String FIELD_NAME_OBJECT_IDENTIFIER = "objectIdentifier";
+    static final String FIELD_NAME_IMPLEMENTATION_CLASS = "implementationClass";
+    static final String FIELD_NAME_ATTRIBUTES = "attributes";
+    static final String FIELD_NAME_ATTRIBUTE_NAME = "name";
+    static final String FIELD_NAME_ATTRIBUTE_TYPE = "attributeType";
+    static final String FIELD_NAME_ATTRIBUTE_DESCRIPTION = "description";
+    static final String FIELD_NAME_FINAL = "final";
+    static final String FIELD_NAME_INSTANTIABLE = "instantiable";
+    static final String FIELD_NAME_COMPARISON = "comparison";
+    static final String FIELD_NAME_SUPER_TYPE = "superType";
 
     // RAW
-    public static final String FIELD_NAME_CLASS = "class";
-    public static final String FIELD_NAME_EXTERNAL_DATA_TYPE = "externalDataType";
-    public static final String FIELD_NAME_SPECIAL_SERIALIZER = "specialSerializer";
-    public static final String FIELD_VALUE_EXTERNAL_SERIALIZER_NULL = "NULL";
+    static final String FIELD_NAME_CLASS = "class";
+    static final String FIELD_NAME_EXTERNAL_DATA_TYPE = "externalDataType";
+    static final String FIELD_NAME_SPECIAL_SERIALIZER = "specialSerializer";
+    static final String FIELD_VALUE_EXTERNAL_SERIALIZER_NULL = "NULL";
 
-    public LogicalTypeJsonSerializer() {
+    LogicalTypeJsonSerializer() {
         super(LogicalType.class);
     }
 

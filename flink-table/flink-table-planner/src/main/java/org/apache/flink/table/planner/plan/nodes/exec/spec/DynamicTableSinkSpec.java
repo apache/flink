@@ -18,8 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.spec;
 
-import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.FactoryUtil;
@@ -28,7 +27,7 @@ import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.plan.abilities.sink.SinkAbilitySpec;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonGetter;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
@@ -36,57 +35,112 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import javax.annotation.Nullable;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * {@link DynamicTableSourceSpec} describes how to serialize/deserialize dynamic table sink table
  * and create {@link DynamicTableSink} from the deserialization result.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-@JsonInclude(JsonInclude.Include.NON_EMPTY)
-public class DynamicTableSinkSpec extends CatalogTableSpecBase {
+public class DynamicTableSinkSpec extends DynamicTableSpecBase {
 
-    public static final String FIELD_NAME_SINK_ABILITY_SPECS = "sinkAbilitySpecs";
+    public static final String FIELD_NAME_CATALOG_TABLE = "table";
+    public static final String FIELD_NAME_SINK_ABILITIES = "abilities";
 
-    @JsonIgnore private DynamicTableSink tableSink;
+    public static final String FIELD_NAME_TARGET_COLUMNS = "targetColumns";
 
-    @JsonProperty(FIELD_NAME_SINK_ABILITY_SPECS)
-    private final @Nullable List<SinkAbilitySpec> sinkAbilitySpecs;
+    private final ContextResolvedTable contextResolvedTable;
+    private final @Nullable List<SinkAbilitySpec> sinkAbilities;
+
+    private final @Nullable int[][] targetColumns;
+
+    private DynamicTableSink tableSink;
 
     @JsonCreator
     public DynamicTableSinkSpec(
-            @JsonProperty(FIELD_NAME_IDENTIFIER) ObjectIdentifier objectIdentifier,
-            @JsonProperty(FIELD_NAME_CATALOG_TABLE) ResolvedCatalogTable catalogTable,
-            @Nullable @JsonProperty(FIELD_NAME_SINK_ABILITY_SPECS)
-                    List<SinkAbilitySpec> sinkAbilitySpecs) {
-        super(objectIdentifier, catalogTable);
-        this.sinkAbilitySpecs = sinkAbilitySpecs;
+            @JsonProperty(FIELD_NAME_CATALOG_TABLE) ContextResolvedTable contextResolvedTable,
+            @Nullable @JsonProperty(FIELD_NAME_SINK_ABILITIES) List<SinkAbilitySpec> sinkAbilities,
+            @Nullable @JsonProperty(FIELD_NAME_TARGET_COLUMNS) int[][] targetColumns) {
+        this.contextResolvedTable = contextResolvedTable;
+        this.sinkAbilities = sinkAbilities;
+        this.targetColumns = targetColumns;
     }
 
-    public DynamicTableSink getTableSink(FlinkContext flinkContext) {
+    @JsonGetter(FIELD_NAME_CATALOG_TABLE)
+    public ContextResolvedTable getContextResolvedTable() {
+        return contextResolvedTable;
+    }
+
+    @JsonGetter(FIELD_NAME_SINK_ABILITIES)
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    @Nullable
+    public List<SinkAbilitySpec> getSinkAbilities() {
+        return sinkAbilities;
+    }
+
+    public DynamicTableSink getTableSink(FlinkContext context) {
         if (tableSink == null) {
             final DynamicTableSinkFactory factory =
-                    flinkContext
-                            .getModuleManager()
-                            .getFactory(Module::getTableSinkFactory)
-                            .orElse(null);
+                    context.getModuleManager().getFactory(Module::getTableSinkFactory).orElse(null);
 
             tableSink =
                     FactoryUtil.createDynamicTableSink(
                             factory,
-                            objectIdentifier,
-                            catalogTable,
-                            configuration,
-                            classLoader,
-                            // isTemporary, it's always true since the catalog is always null now.
-                            true);
-            if (sinkAbilitySpecs != null) {
-                sinkAbilitySpecs.forEach(spec -> spec.apply(tableSink));
+                            contextResolvedTable.getIdentifier(),
+                            contextResolvedTable.getResolvedTable(),
+                            loadOptionsFromCatalogTable(contextResolvedTable, context),
+                            context.getTableConfig(),
+                            context.getClassLoader(),
+                            contextResolvedTable.isTemporary());
+            if (sinkAbilities != null) {
+                sinkAbilities.forEach(spec -> spec.apply(tableSink));
             }
         }
         return tableSink;
     }
 
+    @JsonGetter(FIELD_NAME_TARGET_COLUMNS)
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    @Nullable
+    public int[][] getTargetColumns() {
+        return targetColumns;
+    }
+
     public void setTableSink(DynamicTableSink tableSink) {
         this.tableSink = tableSink;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        DynamicTableSinkSpec that = (DynamicTableSinkSpec) o;
+        return Objects.equals(contextResolvedTable, that.contextResolvedTable)
+                && Objects.equals(sinkAbilities, that.sinkAbilities)
+                && Objects.equals(tableSink, that.tableSink)
+                && Objects.equals(targetColumns, that.targetColumns);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(contextResolvedTable, sinkAbilities, targetColumns, tableSink);
+    }
+
+    @Override
+    public String toString() {
+        return "DynamicTableSinkSpec{"
+                + "contextResolvedTable="
+                + contextResolvedTable
+                + ", sinkAbilities="
+                + sinkAbilities
+                + ", targetColumns="
+                + targetColumns
+                + ", tableSink="
+                + tableSink
+                + '}';
     }
 }

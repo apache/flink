@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.logical
 
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
@@ -26,6 +25,7 @@ import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.util.ImmutableBitSet
@@ -33,9 +33,9 @@ import org.apache.calcite.util.ImmutableBitSet
 import java.util
 
 /**
-  * Sub-class of [[WindowTableAggregate]] that is a relational expression which performs window
-  * aggregations but outputs 0 or more records for a group.
-  */
+ * Sub-class of [[WindowTableAggregate]] that is a relational expression which performs window
+ * aggregations but outputs 0 or more records for a group.
+ */
 class FlinkLogicalWindowTableAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -44,7 +44,7 @@ class FlinkLogicalWindowTableAggregate(
     groupSets: util.List[ImmutableBitSet],
     aggCalls: util.List[AggregateCall],
     window: LogicalWindow,
-    namedProperties: Seq[NamedWindowProperty])
+    namedProperties: util.List[NamedWindowProperty])
   extends WindowTableAggregate(
     cluster,
     traitSet,
@@ -79,12 +79,7 @@ class FlinkLogicalWindowTableAggregate(
   }
 }
 
-class FlinkLogicalWindowTableAggregateConverter
-  extends ConverterRule(
-    classOf[LogicalWindowTableAggregate],
-    Convention.NONE,
-    FlinkConventions.LOGICAL,
-    "FlinkLogicalWindowTableAggregateConverter") {
+class FlinkLogicalWindowTableAggregateConverter(config: Config) extends ConverterRule(config) {
 
   override def convert(rel: RelNode): RelNode = {
     val agg = rel.asInstanceOf[LogicalWindowTableAggregate]
@@ -104,5 +99,10 @@ class FlinkLogicalWindowTableAggregateConverter
 }
 
 object FlinkLogicalWindowTableAggregate {
-  val CONVERTER = new FlinkLogicalWindowTableAggregateConverter
+  val CONVERTER = new FlinkLogicalWindowTableAggregateConverter(
+    Config.INSTANCE.withConversion(
+      classOf[LogicalWindowTableAggregate],
+      Convention.NONE,
+      FlinkConventions.LOGICAL,
+      "FlinkLogicalWindowTableAggregateConverter"))
 }

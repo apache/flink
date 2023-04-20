@@ -40,16 +40,19 @@ Connectors provide code for interfacing with various third-party systems. Curren
 
  * [Apache Kafka]({{< ref "docs/connectors/datastream/kafka" >}}) (source/sink)
  * [Apache Cassandra]({{< ref "docs/connectors/datastream/cassandra" >}}) (sink)
- * [Amazon Kinesis Streams]({{< ref "docs/connectors/datastream/kinesis" >}}) (source/sink)
+ * [Amazon DynamoDB]({{< ref "docs/connectors/datastream/dynamodb" >}}) (sink)
+ * [Amazon Kinesis Data Streams]({{< ref "docs/connectors/datastream/kinesis" >}}) (source/sink)
+ * [Amazon Kinesis Data Firehose]({{< ref "docs/connectors/datastream/firehose" >}}) (sink)
+ * [DataGen]({{< ref "docs/connectors/datastream/datagen" >}}) (source)
  * [Elasticsearch]({{< ref "docs/connectors/datastream/elasticsearch" >}}) (sink)
- * [FileSystem]({{< ref "docs/connectors/datastream/filesystem" >}}) (sink)
+ * [Opensearch]({{< ref "docs/connectors/datastream/opensearch" >}}) (sink)
+ * [FileSystem]({{< ref "docs/connectors/datastream/filesystem" >}}) (source/sink)
  * [RabbitMQ]({{< ref "docs/connectors/datastream/rabbitmq" >}}) (source/sink)
  * [Google PubSub]({{< ref "docs/connectors/datastream/pubsub" >}}) (source/sink)
  * [Hybrid Source]({{< ref "docs/connectors/datastream/hybridsource" >}}) (source)
- * [Apache NiFi]({{< ref "docs/connectors/datastream/nifi" >}}) (source/sink)
  * [Apache Pulsar]({{< ref "docs/connectors/datastream/pulsar" >}}) (source)
- * [Twitter Streaming API]({{< ref "docs/connectors/datastream/twitter" >}}) (source)
  * [JDBC]({{< ref "docs/connectors/datastream/jdbc" >}}) (sink)
+ * [MongoDB]({{< ref "docs/connectors/datastream/mongodb" >}}) (source/sink)
 
 Keep in mind that to use one of these connectors in an application, additional third party
 components are usually required, e.g. servers for the data stores or message queues.

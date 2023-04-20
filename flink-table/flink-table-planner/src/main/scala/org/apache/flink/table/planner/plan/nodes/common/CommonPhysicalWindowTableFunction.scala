@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.common
 
 import org.apache.flink.table.api.TableException
@@ -23,14 +22,12 @@ import org.apache.flink.table.planner.plan.logical.{CumulativeWindowSpec, Hoppin
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+import org.apache.calcite.rel.metadata.RelMetadataQuery
 
 import scala.collection.JavaConverters._
 
-/**
- * Base physical RelNode for window table-valued function.
- */
+/** Base physical RelNode for window table-valued function. */
 abstract class CommonPhysicalWindowTableFunction(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -43,7 +40,8 @@ abstract class CommonPhysicalWindowTableFunction(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     val inputFieldNames = getInput.getRowType.getFieldNames.asScala.toArray
-    super.explainTerms(pw)
+    super
+      .explainTerms(pw)
       .item("window", windowing.toSummaryString(inputFieldNames))
   }
 

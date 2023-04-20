@@ -19,9 +19,10 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.delegation.ExpressionParser;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
+
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 
 /** Sliding window on time. */
 @PublicEvolving
@@ -46,7 +47,7 @@ public final class SlideWithSizeAndSlideOnTime {
      * @return this window
      */
     public SlideWithSizeAndSlideOnTimeWithAlias as(String alias) {
-        return as(ExpressionParser.INSTANCE.parseExpression(alias));
+        return as(unresolvedRef(alias));
     }
 
     /**

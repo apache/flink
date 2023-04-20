@@ -27,7 +27,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link InputSelectionHandler}. */
 public class InputSelectionHandlerTest extends MultipleInputTestBase {
@@ -42,13 +42,13 @@ public class InputSelectionHandlerTest extends MultipleInputTestBase {
                         new InputSpec(4, 0, createTwoInputOperatorWrapper("input4"), 2),
                         new InputSpec(5, 0, createOneInputOperatorWrapper("input5"), 1));
         InputSelectionHandler handler = new InputSelectionHandler(inputSpecs);
-        assertEquals(InputSelection.ALL, handler.getInputSelection());
+        assertThat(handler.getInputSelection()).isEqualTo(InputSelection.ALL);
 
         List<Integer> inputIds = Arrays.asList(1, 2, 3, 4, 5);
         Collections.shuffle(inputIds);
         for (int inputId : inputIds) {
             handler.endInput(inputId);
-            assertEquals(InputSelection.ALL, handler.getInputSelection());
+            assertThat(handler.getInputSelection()).isEqualTo(InputSelection.ALL);
         }
     }
 
@@ -62,29 +62,26 @@ public class InputSelectionHandlerTest extends MultipleInputTestBase {
                         new InputSpec(4, 0, createTwoInputOperatorWrapper("input4"), 2),
                         new InputSpec(5, 2, createOneInputOperatorWrapper("input5"), 1));
         InputSelectionHandler handler = new InputSelectionHandler(inputSpecs);
-        assertEquals(
-                new InputSelection.Builder().select(3).select(4).build(5),
-                handler.getInputSelection());
+        assertThat(handler.getInputSelection())
+                .isEqualTo(new InputSelection.Builder().select(3).select(4).build(5));
 
         handler.endInput(3);
-        assertEquals(
-                new InputSelection.Builder().select(3).select(4).build(5),
-                handler.getInputSelection());
+        assertThat(handler.getInputSelection())
+                .isEqualTo(new InputSelection.Builder().select(3).select(4).build(5));
 
         handler.endInput(4);
-        assertEquals(
-                new InputSelection.Builder().select(1).select(2).build(5),
-                handler.getInputSelection());
+        assertThat(handler.getInputSelection())
+                .isEqualTo(new InputSelection.Builder().select(1).select(2).build(5));
 
         handler.endInput(2);
-        assertEquals(
-                new InputSelection.Builder().select(1).select(2).build(5),
-                handler.getInputSelection());
+        assertThat(handler.getInputSelection())
+                .isEqualTo(new InputSelection.Builder().select(1).select(2).build(5));
 
         handler.endInput(1);
-        assertEquals(new InputSelection.Builder().select(5).build(5), handler.getInputSelection());
+        assertThat(handler.getInputSelection())
+                .isEqualTo(new InputSelection.Builder().select(5).build(5));
 
         handler.endInput(5);
-        assertEquals(InputSelection.ALL, handler.getInputSelection());
+        assertThat(handler.getInputSelection()).isEqualTo(InputSelection.ALL);
     }
 }

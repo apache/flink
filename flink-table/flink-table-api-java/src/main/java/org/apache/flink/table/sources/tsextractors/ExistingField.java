@@ -95,7 +95,7 @@ public final class ExistingField extends TimestampExtractor {
                 return fieldReferenceExpr;
             case VARCHAR:
                 DataType outputType = TIMESTAMP(3).bridgedTo(Timestamp.class);
-                return new CallExpression(
+                return CallExpression.permanent(
                         CAST,
                         Arrays.asList(fieldReferenceExpr, typeLiteral(outputType)),
                         outputType);

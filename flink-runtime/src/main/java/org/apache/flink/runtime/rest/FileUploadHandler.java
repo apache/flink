@@ -24,15 +24,13 @@ import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 import org.apache.flink.runtime.rest.util.RestConstants;
 import org.apache.flink.util.FileUtils;
 
-import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelPipeline;
 import org.apache.flink.shaded.netty4.io.netty.channel.SimpleChannelInboundHandler;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpConstants;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpContent;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderNames;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpMethod;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpObject;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
@@ -115,9 +113,9 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
                 final HttpRequest httpRequest = (HttpRequest) msg;
                 LOG.trace(
                         "Received request. URL:{} Method:{}",
-                        httpRequest.getUri(),
-                        httpRequest.getMethod());
-                if (httpRequest.getMethod().equals(HttpMethod.POST)) {
+                        httpRequest.uri(),
+                        httpRequest.method());
+                if (httpRequest.method().equals(HttpMethod.POST)) {
                     if (HttpPostRequestDecoder.isMultipart(httpRequest)) {
                         LOG.trace("Initializing multipart file upload.");
                         checkState(currentHttpPostRequestDecoder == null);
@@ -146,33 +144,7 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
                 // meanwhile
                 RestServerEndpoint.createUploadDir(uploadDir, LOG, false);
 
-                HttpContent httpContent = (HttpContent) msg;
-                final ByteBuf content = httpContent.content();
-
-                // the following is a defense mechanism against
-                // https://github.com/netty/netty/issues/11668
-                // if the CRLF prefix of a multipart delimiter is split across 2 chunks an exception
-                // is thrown
-                // if CR is the last byte of the current chunk, then we pessimistically assume that
-                // this case occurred
-                // exclude the trailing CR from the current chunk, and add it to the front of the
-                // next received chunk
-                if (addCRPrefix) {
-                    final byte[] contentWithLeadingCR = new byte[1 + content.readableBytes()];
-                    contentWithLeadingCR[0] = HttpConstants.CR;
-                    content.getBytes(0, contentWithLeadingCR, 1, content.readableBytes());
-
-                    httpContent = httpContent.replace(Unpooled.wrappedBuffer(contentWithLeadingCR));
-                    addCRPrefix = false;
-                } else {
-                    if (content.writerIndex() > 0
-                            && content.getByte(content.writerIndex() - 1) == HttpConstants.CR) {
-                        // we may run into https://github.com/netty/netty/issues/11668
-                        // hide CR from this chunk, add it to the next received chunk
-                        content.writerIndex(content.writerIndex() - 1);
-                        addCRPrefix = true;
-                    }
-                }
+                final HttpContent httpContent = (HttpContent) msg;
                 currentHttpPostRequestDecoder.offer(httpContent);
 
                 while (httpContent != LastHttpContent.EMPTY_LAST_CONTENT
@@ -217,18 +189,16 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
                     if (currentJsonPayload != null) {
                         currentHttpRequest
                                 .headers()
-                                .set(HttpHeaders.Names.CONTENT_LENGTH, currentJsonPayload.length);
+                                .set(HttpHeaderNames.CONTENT_LENGTH, currentJsonPayload.length);
                         currentHttpRequest
                                 .headers()
-                                .set(
-                                        HttpHeaders.Names.CONTENT_TYPE,
-                                        RestConstants.REST_CONTENT_TYPE);
+                                .set(HttpHeaderNames.CONTENT_TYPE, RestConstants.REST_CONTENT_TYPE);
                         ctx.fireChannelRead(currentHttpRequest);
                         ctx.fireChannelRead(
                                 httpContent.replace(Unpooled.wrappedBuffer(currentJsonPayload)));
                     } else {
-                        currentHttpRequest.headers().set(HttpHeaders.Names.CONTENT_LENGTH, 0);
-                        currentHttpRequest.headers().remove(HttpHeaders.Names.CONTENT_TYPE);
+                        currentHttpRequest.headers().set(HttpHeaderNames.CONTENT_LENGTH, 0);
+                        currentHttpRequest.headers().remove(HttpHeaderNames.CONTENT_TYPE);
                         ctx.fireChannelRead(currentHttpRequest);
                         ctx.fireChannelRead(LastHttpContent.EMPTY_LAST_CONTENT);
                     }
@@ -288,7 +258,7 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
     }
 
     public static FileUploads getMultipartFileUploads(ChannelHandlerContext ctx) {
-        return Optional.ofNullable(ctx.channel().attr(UPLOADED_FILES).getAndRemove())
+        return Optional.ofNullable(ctx.channel().attr(UPLOADED_FILES).getAndSet(null))
                 .orElse(FileUploads.EMPTY);
     }
 }

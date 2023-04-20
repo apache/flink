@@ -31,22 +31,16 @@ functions]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}) which process d
 [vectorized Python user-defined functions]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}})
 which process data one batch at a time.
 
-## Bundling UDFs
+## 打包 UDFs
 
-To run Python UDFs (as well as Pandas UDFs) in any non-local mode, it is strongly recommended
-bundling your Python UDF definitions using the config option [`python-files`]({{< ref "docs/dev/python/python_config" >}}#python-files),
-if your Python UDFs live outside the file where the `main()` function is defined.
-Otherwise, you may run into `ModuleNotFoundError: No module named 'my_udf'`
-if you define Python UDFs in a file called `my_udf.py`.
+如果你在非 local 模式下运行 Python UDFs 和 Pandas UDFs，且 Python UDFs 没有定义在含 `main()` 入口的 Python 主文件中，强烈建议你通过 [`python-files`]({{< ref "docs/dev/python/python_config" >}}#python-files) 配置项指定 Python UDF 的定义。
+否则，如果你将 Python UDFs 定义在名为 `my_udf.py` 的文件中，你可能会遇到 `ModuleNotFoundError: No module named 'my_udf'` 这样的报错。
 
-## Loading resources in UDFs
+## 在 UDF 中载入资源
 
-There are scenarios when you want to load some resources in UDFs first, then running computation
-(i.e., `eval`) over and over again, without having to re-load the resources.
-For example, you may want to load a large deep learning model only once,
-then run batch prediction against the model multiple times.
+有时候，我们想在 UDF 中只载入一次资源，然后反复使用该资源进行计算。例如，你想在 UDF 中首先载入一个巨大的深度学习模型，然后使用该模型多次进行预测。
 
-Overriding the `open` method of `UserDefinedFunction` is exactly what you need.
+你要做的是重载 `UserDefinedFunction` 类的 `open` 方法。
 
 ```python
 class Predict(ScalarFunction):
@@ -60,6 +54,36 @@ class Predict(ScalarFunction):
         return self.model.predict(x)
 
 predict = udf(Predict(), result_type=DataTypes.DOUBLE(), func_type="pandas")
+```
+
+## 访问作业参数
+
+The `open()` method provides a `FunctionContext` that contains information about the context in which
+user-defined functions are executed, such as the metric group, the global job parameters, etc.
+
+The following information can be obtained by calling the corresponding methods of `FunctionContext`:
+
+| Method                                   | Description                                                             |
+| :--------------------------------------- | :---------------------------------------------------------------------- |
+| `get_metric_group()`                       | Metric group for this parallel subtask.                                 |
+| `get_job_parameter(name, default_value)`    | Global job parameter value associated with given key.                   |
+
+```python
+class HashCode(ScalarFunction):
+
+    def open(self, function_context: FunctionContext):
+        # access the global "hashcode_factor" parameter
+        # "12" would be the default value if the parameter does not exist
+        self.factor = int(function_context.get_job_parameter("hashcode_factor", "12"))
+
+    def eval(self, s: str):
+        return hash(s) * self.factor
+
+hash_code = udf(HashCode(), result_type=DataTypes.INT())
+TableEnvironment t_env = TableEnvironment.create(...)
+t_env.get_config().set('pipeline.global-job-parameters', 'hashcode_factor:31')
+t_env.create_temporary_system_function("hashCode", hash_code)
+t_env.sql_query("SELECT myField, hashCode(myField) FROM MyTable")
 ```
 
 ## 测试自定义函数

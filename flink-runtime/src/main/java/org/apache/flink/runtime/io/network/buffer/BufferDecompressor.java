@@ -37,15 +37,19 @@ public class BufferDecompressor {
     /** The intermediate buffer for the decompressed data. */
     private final NetworkBuffer internalBuffer;
 
+    /** The backup array of intermediate buffer. */
+    private final byte[] internalBufferArray;
+
     public BufferDecompressor(int bufferSize, String factoryName) {
         checkArgument(bufferSize > 0);
         checkNotNull(factoryName);
 
         // the decompressed data size should be never larger than the configured buffer size
-        final byte[] heapBuffer = new byte[bufferSize];
+        this.internalBufferArray = new byte[bufferSize];
         this.internalBuffer =
                 new NetworkBuffer(
-                        MemorySegmentFactory.wrap(heapBuffer), FreeingBufferRecycler.INSTANCE);
+                        MemorySegmentFactory.wrap(internalBufferArray),
+                        FreeingBufferRecycler.INSTANCE);
         this.blockDecompressor =
                 BlockCompressionFactory.createBlockCompressionFactory(factoryName)
                         .getDecompressor();
@@ -82,7 +86,7 @@ public class BufferDecompressor {
         // copy the decompressed data back
         int memorySegmentOffset = buffer.getMemorySegmentOffset();
         MemorySegment segment = buffer.getMemorySegment();
-        segment.put(memorySegmentOffset, internalBuffer.array(), 0, decompressedLen);
+        segment.put(memorySegmentOffset, internalBufferArray, 0, decompressedLen);
 
         return new ReadOnlySlicedNetworkBuffer(
                 buffer.asByteBuf(), 0, decompressedLen, memorySegmentOffset, false);
@@ -103,12 +107,28 @@ public class BufferDecompressor {
                 "Illegal reference count, buffer need to be released.");
 
         int length = buffer.getSize();
-        // decompress the given buffer into the internal heap buffer
-        return blockDecompressor.decompress(
-                buffer.getNioBuffer(0, length),
-                0,
-                length,
-                internalBuffer.getNioBuffer(0, internalBuffer.capacity()),
-                0);
+        MemorySegment memorySegment = buffer.getMemorySegment();
+        // If buffer is on-heap, manipulate the underlying array directly. There are two main
+        // reasons why NIO buffer is not directly used here: One is that some compression
+        // libraries will use the underlying array for heap buffer, but our input buffer may be
+        // a read-only ByteBuffer, and it is illegal to access internal array. Another reason
+        // is that for the on-heap buffer, directly operating the underlying array can reduce
+        // additional overhead compared to generating a NIO buffer.
+        if (!memorySegment.isOffHeap()) {
+            return blockDecompressor.decompress(
+                    memorySegment.getArray(),
+                    buffer.getMemorySegmentOffset(),
+                    length,
+                    internalBufferArray,
+                    0);
+        } else {
+            // decompress the given buffer into the internal heap buffer
+            return blockDecompressor.decompress(
+                    buffer.getNioBuffer(0, length),
+                    0,
+                    length,
+                    internalBuffer.getNioBuffer(0, internalBuffer.capacity()),
+                    0);
+        }
     }
 }

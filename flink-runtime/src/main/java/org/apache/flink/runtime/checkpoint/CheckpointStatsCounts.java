@@ -163,6 +163,15 @@ public class CheckpointStatsCounts implements Serializable {
     }
 
     /**
+     * Increments the number of failed checkpoints without in progress checkpoint. For example, it
+     * should be callback when triggering checkpoint failure before creating PendingCheckpoint.
+     */
+    void incrementFailedCheckpointsWithoutInProgress() {
+        numFailedCheckpoints++;
+        numTotalCheckpoints++;
+    }
+
+    /**
      * Creates a snapshot of the current state.
      *
      * @return Snapshot of the current state.

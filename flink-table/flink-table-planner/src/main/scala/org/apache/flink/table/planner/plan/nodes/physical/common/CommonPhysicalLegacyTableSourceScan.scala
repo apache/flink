@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.common
 
 import org.apache.flink.api.dag.Transformation
@@ -24,8 +23,8 @@ import org.apache.flink.table.planner.plan.utils.RelExplainUtil
 import org.apache.flink.table.sources.TableSource
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.RelWriter
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.RelWriter
 import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rel.hint.RelHint
 
@@ -33,9 +32,7 @@ import java.util
 
 import scala.collection.JavaConverters._
 
-/**
-  * Base physical RelNode to read data from an external source defined by a [[TableSource]].
-  */
+/** Base physical RelNode to read data from an external source defined by a [[TableSource]]. */
 abstract class CommonPhysicalLegacyTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -58,7 +55,8 @@ abstract class CommonPhysicalLegacyTableSourceScan(
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw)
+    super
+      .explainTerms(pw)
       .item("fields", getRowType.getFieldNames.asScala.mkString(", "))
       .itemIf("hints", RelExplainUtil.hintsToString(getHints), !getHints.isEmpty);
   }

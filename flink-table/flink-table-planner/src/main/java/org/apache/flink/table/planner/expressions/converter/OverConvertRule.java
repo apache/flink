@@ -38,6 +38,7 @@ import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexFieldCollation;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexWindowBound;
+import org.apache.calcite.rex.RexWindowBounds;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlKind;
@@ -132,7 +133,8 @@ public class OverConvertRule implements CallExpressionConvertRule {
                                     isPhysical,
                                     true,
                                     false,
-                                    isDistinct));
+                                    isDistinct,
+                                    false));
         }
         return Optional.empty();
     }
@@ -189,11 +191,11 @@ public class OverConvertRule implements CallExpressionConvertRule {
                         sqlKind.equals(SqlKind.PRECEDING)
                                 ? SqlWindow.createUnboundedPreceding(SqlParserPos.ZERO)
                                 : SqlWindow.createUnboundedFollowing(SqlParserPos.ZERO);
-                return RexWindowBound.create(unbounded, null);
+                return RexWindowBounds.create(unbounded, null);
             } else if (BuiltInFunctionDefinitions.CURRENT_ROW.equals(func)
                     || BuiltInFunctionDefinitions.CURRENT_RANGE.equals(func)) {
                 SqlNode currentRow = SqlWindow.createCurrentRow(SqlParserPos.ZERO);
-                return RexWindowBound.create(currentRow, null);
+                return RexWindowBounds.create(currentRow, null);
             } else {
                 throw new IllegalArgumentException("Unexpected expression: " + bound);
             }
@@ -228,7 +230,7 @@ public class OverConvertRule implements CallExpressionConvertRule {
                     context.getRelBuilder()
                             .getRexBuilder()
                             .makeCall(returnType, sqlOperator, expressions);
-            return RexWindowBound.create(node, rexNode);
+            return RexWindowBounds.create(node, rexNode);
         } else {
             throw new TableException("Unexpected expression: " + bound);
         }

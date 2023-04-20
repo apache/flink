@@ -15,18 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.plan.stats.TableStats
-import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalSort, FlinkLogicalLegacyTableSourceScan}
+import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalLegacyTableSourceScan, FlinkLogicalSort}
 import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, LegacyTableSourceTable}
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.sources.LimitableTableSource
 
-import org.apache.calcite.plan.RelOptRule.{none, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.plan.RelOptRule.{none, operand}
 import org.apache.calcite.rel.core.{Sort, TableScan}
 import org.apache.calcite.rex.RexLiteral
 import org.apache.calcite.tools.RelBuilder
@@ -34,29 +33,31 @@ import org.apache.calcite.tools.RelBuilder
 import java.util.Collections
 
 /**
-  * Planner rule that tries to push limit into a [[LimitableTableSource]].
-  * The original limit will still be retained.
-  *
-  * The reasons why the limit still be retained:
-  * 1.If the source is required to return the exact number of limit number, the implementation
-  * of the source is highly required. The source is required to accurately control the record
-  * number of split, and the parallelism setting also need to be adjusted accordingly.
-  * 2.When remove the limit, maybe filter will be pushed down to the source after limit pushed
-  * down. The source need know it should do limit first and do the filter later, it is hard to
-  * implement.
-  * 3.We can support limit with offset, we can push down offset + fetch to table source.
-  */
-class PushLimitIntoLegacyTableSourceScanRule extends RelOptRule(
-  operand(classOf[FlinkLogicalSort],
-    operand(classOf[FlinkLogicalLegacyTableSourceScan], none)),
-  "PushLimitIntoLegacyTableSourceScanRule") {
+ * Planner rule that tries to push limit into a [[LimitableTableSource]]. The original limit will
+ * still be retained.
+ *
+ * The reasons why the limit still be retained:
+ * 1.If the source is required to return the exact number of limit number, the implementation of the
+ * source is highly required. The source is required to accurately control the record number of
+ * split, and the parallelism setting also need to be adjusted accordingly. 2.When remove the limit,
+ * maybe filter will be pushed down to the source after limit pushed down. The source need know it
+ * should do limit first and do the filter later, it is hard to implement. 3.We can support limit
+ * with offset, we can push down offset + fetch to table source.
+ */
+class PushLimitIntoLegacyTableSourceScanRule
+  extends RelOptRule(
+    operand(classOf[FlinkLogicalSort], operand(classOf[FlinkLogicalLegacyTableSourceScan], none)),
+    "PushLimitIntoLegacyTableSourceScanRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val sort = call.rel(0).asInstanceOf[Sort]
     val onlyLimit = sort.getCollation.getFieldCollations.isEmpty && sort.fetch != null
     if (onlyLimit) {
-      call.rel(1).asInstanceOf[TableScan]
-          .getTable.unwrap(classOf[LegacyTableSourceTable[_]]) match {
+      call
+        .rel(1)
+        .asInstanceOf[TableScan]
+        .getTable
+        .unwrap(classOf[LegacyTableSourceTable[_]]) match {
         case table: LegacyTableSourceTable[_] =>
           table.tableSource match {
             case source: LimitableTableSource[_] =>
@@ -82,9 +83,12 @@ class PushLimitIntoLegacyTableSourceScanRule extends RelOptRule(
     val newTableSource = newRelOptTable.unwrap(classOf[LegacyTableSourceTable[_]]).tableSource
     val oldTableSource = tableSourceTable.unwrap(classOf[LegacyTableSourceTable[_]]).tableSource
 
-    if (newTableSource.asInstanceOf[LimitableTableSource[_]].isLimitPushedDown
-        && newTableSource.explainSource().equals(oldTableSource.explainSource)) {
-      throw new TableException("Failed to push limit into table source! "
+    if (
+      newTableSource.asInstanceOf[LimitableTableSource[_]].isLimitPushedDown
+      && newTableSource.explainSource().equals(oldTableSource.explainSource)
+    ) {
+      throw new TableException(
+        "Failed to push limit into table source! "
           + "table source with pushdown capability must override and change "
           + "explainSource() API to explain the pushdown applied!")
     }
@@ -108,10 +112,11 @@ class PushLimitIntoLegacyTableSourceScanRule extends RelOptRule(
     }
     // Update TableStats after limit push down
     val newTableStats = new TableStats(newRowCount)
-    val newStatistic = FlinkStatistic.builder()
-        .statistic(statistic)
-        .tableStats(newTableStats)
-        .build()
+    val newStatistic = FlinkStatistic
+      .builder()
+      .statistic(statistic)
+      .tableStats(newTableStats)
+      .build()
     tableSourceTable.copy(newTableSource, newStatistic)
   }
 }

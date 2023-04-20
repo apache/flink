@@ -15,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.calcite.Expand
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecExpand
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -29,9 +29,7 @@ import org.apache.calcite.rex.RexNode
 
 import java.util
 
-/**
-  * Batch physical RelNode for [[Expand]].
-  */
+/** Batch physical RelNode for [[Expand]]. */
 class BatchPhysicalExpand(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -53,10 +51,10 @@ class BatchPhysicalExpand(
 
   override def translateToExecNode(): ExecNode[_] = {
     new BatchExecExpand(
+      unwrapTableConfig(this),
       projects,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 }

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.batch.sql.agg
 
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
@@ -26,9 +25,7 @@ import org.junit.{Before, Test}
 
 import scala.collection.Seq
 
-/**
-  * Distinct Aggregate IT case base class.
-  */
+/** Distinct Aggregate IT case base class. */
 abstract class DistinctAggregateITCaseBase extends BatchTestBase {
 
   def prepareAggOp(): Unit
@@ -42,13 +39,14 @@ abstract class DistinctAggregateITCaseBase extends BatchTestBase {
     registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
     registerCollection("Table5", data5, type5, "a, b, c, d, e", nullablesOfData5)
 
-    val nullData3 = data3.map { r =>
-      val v2 = if (r.getField(2).toString.contains("Hello")) {
-        null
-      } else {
-        r.getField(2)
-      }
-      row(r.getField(0), r.getField(1), v2)
+    val nullData3 = data3.map {
+      r =>
+        val v2 = if (r.getField(2).toString.contains("Hello")) {
+          null
+        } else {
+          r.getField(2)
+        }
+        row(r.getField(0), r.getField(1), v2)
     }
 
     registerCollection("NullTable3", nullData3, type3, "a, b, c", Array(true, true, true))
@@ -191,7 +189,12 @@ abstract class DistinctAggregateITCaseBase extends BatchTestBase {
 
     checkResult(
       "SELECT b, COUNT(b), SUM(DISTINCT a), COUNT(DISTINCT c) FROM NullTable3 GROUP BY b",
-      Seq(row(1, 1, 1, 1), row(2, 2, 5, 0), row(3, 3, 15, 2), row(4, 4, 34, 4), row(5, 5, 65, 5),
+      Seq(
+        row(1, 1, 1, 1),
+        row(2, 2, 5, 0),
+        row(3, 3, 15, 2),
+        row(4, 4, 34, 4),
+        row(5, 5, 65, 5),
         row(6, 6, 111, 6))
     )
 
@@ -281,59 +284,70 @@ abstract class DistinctAggregateITCaseBase extends BatchTestBase {
 
   @Test
   def testSingleDistinctWithFilter(): Unit = {
-    checkResult("SELECT e, COUNT(DISTINCT a) FILTER (WHERE c > 0) FROM Table5 GROUP BY e",
-      Seq(row(1, 3), row(2, 4), row(3, 2))
-    )
+    checkResult(
+      "SELECT e, COUNT(DISTINCT a) FILTER (WHERE c > 0) FROM Table5 GROUP BY e",
+      Seq(row(1, 3), row(2, 4), row(3, 2)))
   }
 
   @Test
   def testMultiDistinctOnSameColumnWithFilter(): Unit = {
-    checkResult("SELECT e, COUNT(DISTINCT a), COUNT(DISTINCT a) FILTER (WHERE c > 0), " +
-      "COUNT(DISTINCT a) FILTER (WHERE c < 10) FROM Table5 GROUP BY e",
-      Seq(row(1, 4, 3, 3), row(2, 4, 4, 3), row(3, 2, 2, 1)))
+    checkResult(
+      "SELECT e, COUNT(DISTINCT a), COUNT(DISTINCT a) FILTER (WHERE c > 0), " +
+        "COUNT(DISTINCT a) FILTER (WHERE c < 10) FROM Table5 GROUP BY e",
+      Seq(row(1, 4, 3, 3), row(2, 4, 4, 3), row(3, 2, 2, 1))
+    )
   }
 
   @Test
   def TestMultiDistinctOnDifferentColumnWithFilter(): Unit = {
-    checkResult("SELECT e, COUNT(DISTINCT a), COUNT(DISTINCT a) FILTER (WHERE c > 0), " +
-      "COUNT(DISTINCT b) FILTER (WHERE b > 1) FROM Table5 GROUP BY e",
-      Seq(row(1, 4, 3, 4), row(2, 4, 4, 7), row(3, 2, 2, 3)))
+    checkResult(
+      "SELECT e, COUNT(DISTINCT a), COUNT(DISTINCT a) FILTER (WHERE c > 0), " +
+        "COUNT(DISTINCT b) FILTER (WHERE b > 1) FROM Table5 GROUP BY e",
+      Seq(row(1, 4, 3, 4), row(2, 4, 4, 7), row(3, 2, 2, 3))
+    )
   }
 
   @Test
   def TestMultiDistinctWithFilterAndNonDistinctAgg(): Unit = {
-    checkResult("SELECT e, COUNT(DISTINCT a), COUNT(DISTINCT a) FILTER (WHERE c > 0), " +
-      "MAX(c), MIN(c) FROM Table5 GROUP BY e",
-      Seq(row(1, 4, 3, 10, 0), row(2, 4, 4, 14, 1), row (3, 2, 2, 12, 5)))
+    checkResult(
+      "SELECT e, COUNT(DISTINCT a), COUNT(DISTINCT a) FILTER (WHERE c > 0), " +
+        "MAX(c), MIN(c) FROM Table5 GROUP BY e",
+      Seq(row(1, 4, 3, 10, 0), row(2, 4, 4, 14, 1), row(3, 2, 2, 12, 5))
+    )
   }
 
   @Test
   def testMultiDistinctAndNonDistinctAggWithFilter(): Unit = {
-    checkResult("SELECT e, MAX(c), MAX(c) FILTER (WHERE b < 10), COUNT(DISTINCT a), " +
-      "COUNT(DISTINCT a) FILTER (WHERE c > 5), COUNT(DISTINCT b) FILTER (WHERE b > 3)\n" +
-      "FROM Table5 GROUP BY e",
-      Seq(row(1, 10, 8, 4, 2, 3), row(2, 14, 6, 4, 2, 6), row (3, 12, 5, 2, 1, 3)))
+    checkResult(
+      "SELECT e, MAX(c), MAX(c) FILTER (WHERE b < 10), COUNT(DISTINCT a), " +
+        "COUNT(DISTINCT a) FILTER (WHERE c > 5), COUNT(DISTINCT b) FILTER (WHERE b > 3)\n" +
+        "FROM Table5 GROUP BY e",
+      Seq(row(1, 10, 8, 4, 2, 3), row(2, 14, 6, 4, 2, 6), row(3, 12, 5, 2, 1, 3))
+    )
   }
 
   @Test
   def TestDistinctWithFilterWithoutGroupBy(): Unit = {
     // single distinct agg with filter.
-    checkResult("SELECT COUNT(DISTINCT a) FILTER (WHERE c > 0) FROM Table5",
-      Seq(row(4)))
+    checkResult("SELECT COUNT(DISTINCT a) FILTER (WHERE c > 0) FROM Table5", Seq(row(4)))
 
     // multi distinct aggs on same column with filter.
-    checkResult("SELECT COUNT(DISTINCT a), COUNT(DISTINCT a) FILTER (WHERE c > 10),\n" +
-      "COUNT(DISTINCT a) FILTER (WHERE c < 10) FROM Table5",
+    checkResult(
+      "SELECT COUNT(DISTINCT a), COUNT(DISTINCT a) FILTER (WHERE c > 10),\n" +
+        "COUNT(DISTINCT a) FILTER (WHERE c < 10) FROM Table5",
       Seq(row(5, 1, 4)))
 
     // multi distinct aggs on different columns with filter.
-    checkResult("SELECT COUNT(DISTINCT a), COUNT(DISTINCT a) FILTER (WHERE c > 0),\n" +
-      "COUNT(DISTINCT b) FILTER (WHERE b > 1) FROM Table5",
+    checkResult(
+      "SELECT COUNT(DISTINCT a), COUNT(DISTINCT a) FILTER (WHERE c > 0),\n" +
+        "COUNT(DISTINCT b) FILTER (WHERE b > 1) FROM Table5",
       Seq(row(5, 4, 14)))
 
     // multi distinct aggs with non-distinct agg with filter.
-    checkResult("SELECT MAX(e), MAX(e) FILTER (WHERE c < 10), COUNT(DISTINCT a),\n" +
-      "COUNT(DISTINCT a) FILTER (WHERE c > 5), COUNT(DISTINCT b) FILTER (WHERE b > 3) FROM Table5",
-      Seq(row(3, 3, 5, 2, 12)))
+    checkResult(
+      "SELECT MAX(e), MAX(e) FILTER (WHERE c < 10), COUNT(DISTINCT a),\n" +
+        "COUNT(DISTINCT a) FILTER (WHERE c > 5), COUNT(DISTINCT b) FILTER (WHERE b > 3) FROM Table5",
+      Seq(row(3, 3, 5, 2, 12))
+    )
   }
 }

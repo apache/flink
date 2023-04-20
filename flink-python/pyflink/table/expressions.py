@@ -20,18 +20,20 @@ from typing import Union
 from pyflink import add_version_doc
 from pyflink.java_gateway import get_gateway
 from pyflink.table.expression import Expression, _get_java_expression, TimePointUnit, JsonOnNull
-from pyflink.table.types import _to_java_data_type, DataType, _to_java_type
-from pyflink.table.udf import UserDefinedFunctionWrapper, UserDefinedTableFunctionWrapper
+from pyflink.table.types import _to_java_data_type, DataType
+from pyflink.table.udf import UserDefinedFunctionWrapper
 from pyflink.util.java_utils import to_jarray, load_java_class
 
 __all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'not_', 'UNBOUNDED_ROW',
-           'UNBOUNDED_RANGE', 'CURRENT_ROW', 'CURRENT_RANGE', 'current_date', 'current_time',
-           'current_timestamp', 'current_watermark', 'local_time', 'local_timestamp',
+           'UNBOUNDED_RANGE', 'CURRENT_ROW', 'CURRENT_RANGE', 'current_database',
+           'current_date', 'current_time', 'current_timestamp',
+           'current_watermark', 'local_time', 'local_timestamp',
            'temporal_overlaps', 'date_format', 'timestamp_diff', 'array', 'row', 'map_',
            'row_interval', 'pi', 'e', 'rand', 'rand_integer', 'atan2', 'negative', 'concat',
            'concat_ws', 'uuid', 'null_of', 'log', 'with_columns', 'without_columns', 'json_string',
            'json_object', 'json_object_agg', 'json_array', 'json_array_agg', 'call', 'call_sql',
-           'source_watermark']
+           'source_watermark', 'to_timestamp_ltz', 'from_unixtime', 'to_date', 'to_timestamp',
+           'convert_tz', 'unix_timestamp']
 
 
 def _leaf_op(op_name: str) -> Expression:
@@ -84,7 +86,7 @@ def _add_version_doc():
 
 def col(name: str) -> Expression:
     """
-    Creates an expression which refers to a table's field.
+    Creates an expression which refers to a table's column.
 
     Example:
     ::
@@ -93,7 +95,7 @@ def col(name: str) -> Expression:
 
     :param name: the field name to refer to
     """
-    return _unary_op("$", name)
+    return _unary_op("col", name)
 
 
 def lit(v, data_type: DataType = None) -> Expression:
@@ -208,6 +210,13 @@ all rows with the same sort key as the current row are included in the window.
 CURRENT_RANGE = Expression("CURRENT_RANGE")  # type: Expression
 
 
+def current_database() -> Expression:
+    """
+    Returns the current database
+    """
+    return _leaf_op("currentDatabase")
+
+
 def current_date() -> Expression:
     """
     Returns the current SQL date in local time zone.
@@ -262,6 +271,37 @@ def local_timestamp() -> Expression:
     the return type of this expression s TIMESTAMP.
     """
     return _leaf_op("localTimestamp")
+
+
+def to_date(date_str: Union[str, Expression[str]],
+            format: Union[str, Expression[str]] = None) -> Expression:
+    """
+    Converts the date string with the given format (by default 'yyyy-MM-dd') to a date.
+
+    :param date_str: The date string
+    :param format: The format of the string
+    :return: The date value with DATE type.
+    """
+    if format is None:
+        return _unary_op("toDate", date_str)
+    else:
+        return _binary_op("toDate", date_str, format)
+
+
+def to_timestamp(timestamp_str: Union[str, Expression[str]],
+                 format: Union[str, Expression[str]] = None) -> Expression:
+    """
+    Converts the date time string with the given format (by default: 'yyyy-MM-dd HH:mm:ss')
+    under the 'UTC+0' time zone to a timestamp.
+
+    :param timestamp_str: The date time string
+    :param format: The format of the string
+    :return: The date value with TIMESTAMP type.
+    """
+    if format is None:
+        return _unary_op("toTimestamp", timestamp_str)
+    else:
+        return _binary_op("toTimestamp", timestamp_str, format)
 
 
 def to_timestamp_ltz(numeric_epoch_time, precision) -> Expression:
@@ -339,6 +379,59 @@ def timestamp_diff(time_point_unit: TimePointUnit, time_point1, time_point2) -> 
                        time_point1, time_point2)
 
 
+def convert_tz(date_str: Union[str, Expression[str]],
+               tz_from: Union[str, Expression[str]],
+               tz_to: Union[str, Expression[str]]) -> Expression:
+    """
+    Converts a datetime string date_str (with default ISO timestamp format 'yyyy-MM-dd HH:mm:ss')
+    from time zone tz_from to time zone tz_to. The format of time zone should be either an
+    abbreviation such as "PST", a full name such as "America/Los_Angeles", or a custom ID such as
+    "GMT-08:00". E.g., convert_tz('1970-01-01 00:00:00', 'UTC', 'America/Los_Angeles') returns
+    '1969-12-31 16:00:00'.
+
+    Example:
+    ::
+
+        >>> tab.select(convert_tz(col('a'), 'PST', 'UTC'))
+
+    :param date_str: the date time string
+    :param tz_from: the original time zone
+    :param tz_to: the target time zone
+    :return: The formatted timestamp as string.
+    """
+    return _ternary_op("convertTz", date_str, tz_from, tz_to)
+
+
+def from_unixtime(unixtime, format=None) -> Expression:
+    """
+    Converts unix timestamp (seconds since '1970-01-01 00:00:00' UTC) to datetime string the given
+    format. The default format is "yyyy-MM-dd HH:mm:ss".
+    """
+    if format is None:
+        return _unary_op("fromUnixtime", unixtime)
+    else:
+        return _binary_op("fromUnixtime", unixtime, format)
+
+
+def unix_timestamp(date_str: Union[str, Expression[str]] = None,
+                   format: Union[str, Expression[str]] = None) -> Expression:
+    """
+    Gets the current unix timestamp in seconds if no arguments are not specified.
+    This function is not deterministic which means the value would be recalculated for each record.
+
+    If the date time string date_str is specified, it will convert the given date time string
+    in the specified format (by default: yyyy-MM-dd HH:mm:ss if not specified) to unix timestamp
+    (in seconds), using the specified timezone in table config.
+    """
+
+    if date_str is None:
+        return _leaf_op("unixTimestamp")
+    elif format is None:
+        return _unary_op("unixTimestamp", date_str)
+    else:
+        return _binary_op("unixTimestamp", date_str, format)
+
+
 def array(head, *tail) -> Expression:
     """
     Creates an array of literals.
@@ -390,6 +483,26 @@ def map_(key, value, *tail) -> Expression:
     return _ternary_op("map", key, value, tail)
 
 
+def map_from_arrays(key, value) -> Expression:
+    """
+    Creates a map from an array of keys and an array of values.
+
+    Example:
+    ::
+
+        >>> tab.select(
+        >>>     map_from_arrays(
+        >>>         array("key1", "key2", "key3"),
+        >>>         array(1, 2, 3)
+        >>>     ))
+
+    .. note::
+
+        both arrays should have the same length.
+    """
+    return _binary_op("mapFromArrays", key, value)
+
+
 def row_interval(rows: int) -> Expression:
     """
     Creates an interval of rows.
@@ -438,7 +551,7 @@ def rand(seed: Union[int, Expression[int]] = None) -> Expression[float]:
 def rand_integer(bound: Union[int, Expression[int]],
                  seed: Union[int, Expression[int]] = None) -> Expression:
     """
-    Returns a pseudorandom integer value between 0.0 (inclusive) and the specified value
+    Returns a pseudorandom integer value between 0 (inclusive) and the specified value
     (exclusive) with a initial seed if specified. Two rand_integer() functions will return
     identical sequences of numbers if they have same initial seed and same bound.
     """
@@ -767,21 +880,6 @@ def call(f: Union[str, UserDefinedFunctionWrapper], *args) -> Expression:
         return Expression(gateway.jvm.Expressions.call(
             f, to_jarray(gateway.jvm.Object, [_get_java_expression(arg) for arg in args])))
 
-    def get_function_definition(f):
-        if isinstance(f, UserDefinedTableFunctionWrapper):
-            """
-            TypeInference was not supported for TableFunction in the old planner. Use
-            TableFunctionDefinition to work around this issue.
-            """
-            j_result_types = to_jarray(gateway.jvm.TypeInformation,
-                                       [_to_java_type(i) for i in f._result_types])
-            j_result_type = gateway.jvm.org.apache.flink.api.java.typeutils.RowTypeInfo(
-                j_result_types)
-            return gateway.jvm.org.apache.flink.table.functions.TableFunctionDefinition(
-                'f', f._java_user_defined_function(), j_result_type)
-        else:
-            return f._java_user_defined_function()
-
     expressions_clz = load_java_class("org.apache.flink.table.api.Expressions")
     function_definition_clz = load_java_class('org.apache.flink.table.functions.FunctionDefinition')
     j_object_array_type = to_jarray(gateway.jvm.Object, []).getClass()
@@ -794,7 +892,7 @@ def call(f: Union[str, UserDefinedFunctionWrapper], *args) -> Expression:
     return Expression(api_call_method.invoke(
         None,
         to_jarray(gateway.jvm.Object,
-                  [get_function_definition(f),
+                  [f._java_user_defined_function(),
                    to_jarray(gateway.jvm.Object, [_get_java_expression(arg) for arg in args])])))
 
 

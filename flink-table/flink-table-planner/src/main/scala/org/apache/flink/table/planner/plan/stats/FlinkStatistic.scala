@@ -15,10 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.stats
 
-import org.apache.flink.table.catalog.{ContextResolvedTable, ResolvedSchema, UniqueConstraint}
+import org.apache.flink.table.catalog.{ResolvedSchema, UniqueConstraint}
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
 import org.apache.flink.table.planner.plan.`trait`.{RelModifiedMonotonicity, RelWindowProperties}
 
@@ -30,13 +29,10 @@ import org.apache.calcite.util.ImmutableBitSet
 import javax.annotation.Nullable
 
 import java.util
-import java.util.{HashSet, Optional, Set}
 
 import scala.collection.JavaConversions._
 
-/**
-  * The class provides statistics for a [[org.apache.calcite.schema.Table]].
-  */
+/** The class provides statistics for a [[org.apache.calcite.schema.Table]]. */
 class FlinkStatistic(
     tableStats: TableStats,
     uniqueKeys: util.Set[_ <: util.Set[String]] = null,
@@ -45,22 +41,26 @@ class FlinkStatistic(
   extends Statistic {
 
   require(tableStats != null, "tableStats should not be null")
-  require(uniqueKeys == null || !uniqueKeys.exists(keys => keys == null || keys.isEmpty),
+  require(
+    uniqueKeys == null || !uniqueKeys.exists(keys => keys == null || keys.isEmpty),
     "uniqueKeys contains invalid elements!")
 
   /**
-    * Returns the table statistics.
-    *
-    * @return The table statistics
-    */
+   * Returns the table statistics.
+   *
+   * @return
+   *   The table statistics
+   */
   def getTableStats: TableStats = tableStats
 
   /**
-    * Returns the stats of the specified the column.
-    *
-    * @param columnName The name of the column for which the stats are requested.
-    * @return The stats of the specified column.
-    */
+   * Returns the stats of the specified the column.
+   *
+   * @param columnName
+   *   The name of the column for which the stats are requested.
+   * @return
+   *   The stats of the specified column.
+   */
   def getColumnStats(columnName: String): ColumnStats = {
     if (tableStats != TableStats.UNKNOWN && tableStats.getColumnStats != null) {
       tableStats.getColumnStats.get(columnName)
@@ -70,26 +70,23 @@ class FlinkStatistic(
   }
 
   /**
-    * Returns the table uniqueKeys.
-    * @return
-    */
+   * Returns the table uniqueKeys.
+   * @return
+   */
   def getUniqueKeys: util.Set[_ <: util.Set[String]] = uniqueKeys
 
-  /**
-    * Returns the modified monotonicity of the table
-    */
+  /** Returns the modified monotonicity of the table */
   def getRelModifiedMonotonicity: RelModifiedMonotonicity = relModifiedMonotonicity
 
-  /**
-   * Returns the window properties of the table
-   */
+  /** Returns the window properties of the table */
   def getRelWindowProperties: RelWindowProperties = relWindowProperties
 
   /**
-    * Returns the number of rows of the table.
-    *
-    * @return The number of rows of the table.
-    */
+   * Returns the number of rows of the table.
+   *
+   * @return
+   *   The number of rows of the table.
+   */
   override def getRowCount: java.lang.Double = {
     if (tableStats != TableStats.UNKNOWN) {
       val rowCount = tableStats.getRowCount.toDouble
@@ -107,18 +104,18 @@ class FlinkStatistic(
   override def getCollations: util.List[RelCollation] = util.Collections.emptyList()
 
   /**
-    * Returns whether the given columns are a key or a superset of a unique key
-    * of this table.
-    *
-    * Note: Do not call this method!
-    * Use [[org.apache.calcite.rel.metadata.RelMetadataQuery]].areRowsUnique if need.
-    * Because columns in original uniqueKey may not exist in RowType after project pushDown, however
-    * the RowType cannot be available here.
-    *
-    * @param columns Ordinals of key columns
-    * @return if bit mask represents a unique column set; false if not (or
-    *         if no metadata is available).
-    */
+   * Returns whether the given columns are a key or a superset of a unique key of this table.
+   *
+   * Note: Do not call this method! Use
+   * [[org.apache.calcite.rel.metadata.RelMetadataQuery]].areRowsUnique if need. Because columns in
+   * original uniqueKey may not exist in RowType after project pushDown, however the RowType cannot
+   * be available here.
+   *
+   * @param columns
+   *   Ordinals of key columns
+   * @return
+   *   if bit mask represents a unique column set; false if not (or if no metadata is available).
+   */
   override def isKey(columns: ImmutableBitSet): Boolean = false
 
   override def getDistribution: RelDistribution = null
@@ -129,9 +126,10 @@ class FlinkStatistic(
   override def toString: String = {
     val builder = new StringBuilder
     if (tableStats != TableStats.UNKNOWN) {
-      builder.append(s"TableStats: " +
-        s"{rowCount: ${tableStats.getRowCount}, " +
-        s"columnStats: ${tableStats.getColumnStats}}, ")
+      builder.append(
+        s"TableStats: " +
+          s"{rowCount: ${tableStats.getRowCount}, " +
+          s"columnStats: ${tableStats.getColumnStats}}, ")
     }
     if (uniqueKeys != null) {
       builder.append(s"uniqueKeys: $uniqueKeys, ")
@@ -153,9 +151,7 @@ class FlinkStatistic(
   override def getKeys: util.List[ImmutableBitSet] = ImmutableList.of()
 }
 
-/**
-  * Methods to create FlinkStatistic.
-  */
+/** Methods to create FlinkStatistic. */
 object FlinkStatistic {
 
   /** Represents a FlinkStatistic that knows nothing about a table */
@@ -209,26 +205,30 @@ object FlinkStatistic {
       this.tableStats = statistic.getTableStats
       this.uniqueKeys = statistic.getUniqueKeys
       this.relModifiedMonotonicity = statistic.getRelModifiedMonotonicity
+      this.windowProperties = statistic.getRelWindowProperties
       this
     }
 
     def build(): FlinkStatistic = {
-      if (tableStats == TableStats.UNKNOWN &&
+      if (
+        tableStats == TableStats.UNKNOWN &&
         uniqueKeys == null &&
         relModifiedMonotonicity == null &&
-        windowProperties == null) {
+        windowProperties == null
+      ) {
         UNKNOWN
       } else {
-        new FlinkStatistic(tableStats, uniqueKeys, relModifiedMonotonicity)
+        new FlinkStatistic(tableStats, uniqueKeys, relModifiedMonotonicity, windowProperties)
       }
     }
   }
 
   /**
-    * Return a new builder that builds a [[FlinkStatistic]].
-    *
-    * @return a new builder to build a [[FlinkStatistic]]
-    */
+   * Return a new builder that builds a [[FlinkStatistic]].
+   *
+   * @return
+   *   a new builder to build a [[FlinkStatistic]]
+   */
   def builder(): Builder = new Builder
 
   def unknown(resolvedSchema: ResolvedSchema): Builder =

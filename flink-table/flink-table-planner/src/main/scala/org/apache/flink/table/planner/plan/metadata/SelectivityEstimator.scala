@@ -15,50 +15,50 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.metadata
 
+import org.apache.flink.table.planner.{JArrayList, JDouble, JHashMap, JHashSet}
 import org.apache.flink.table.planner.plan.metadata.SelectivityEstimator._
 import org.apache.flink.table.planner.plan.stats._
-import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, FlinkRexUtil}
-import org.apache.flink.table.planner.{JArrayList, JDouble, JHashMap, JHashSet}
+import org.apache.flink.table.planner.plan.utils.FlinkRexUtil
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.avatica.util.DateTimeUtils
 import org.apache.calcite.plan.{RelOptPredicateList, RelOptUtil}
-import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFamily}
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.metadata.RelMdUtil
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.{SqlTypeFamily, SqlTypeName}
-import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.sql.{SqlKind, SqlOperator}
+import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.util.{ImmutableBitSet, Sarg, TimeString}
 
 import scala.collection.JavaConversions._
 
 /**
-  * Estimates selectivity of rows meeting a filter predicate on a RelNode.
-  *
-  * <p>For some unsupported cases, we use the default selectivity values
-  * referred to [[org.apache.calcite.rel.metadata.RelMdUtil.guessSelectivity]].
-  *
-  * <p><strong>NOTES:</strong>
-  * In current stage, we don't have advanced statistics such as sketches or histograms,
-  * we have to assume uniform distribution.
-  * We should update estimation methods in the future if advanced statistics is ready.
-  *
-  * <p>Part of the code is referred from Apache Spark.
-  *
-  * @param rel RelNode
-  * @param mq  Metadata query
-  */
+ * Estimates selectivity of rows meeting a filter predicate on a RelNode.
+ *
+ * <p>For some unsupported cases, we use the default selectivity values referred to
+ * [[org.apache.calcite.rel.metadata.RelMdUtil.guessSelectivity]].
+ *
+ * <p><strong>NOTES:</strong> In current stage, we don't have advanced statistics such as sketches
+ * or histograms, we have to assume uniform distribution. We should update estimation methods in the
+ * future if advanced statistics is ready.
+ *
+ * <p>Part of the code is referred from Apache Spark.
+ *
+ * @param rel
+ *   RelNode
+ * @param mq
+ *   Metadata query
+ */
 class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
   extends RexVisitorImpl[Option[Double]](true) {
 
   private val rexBuilder = rel.getCluster.getRexBuilder
-  private val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(rel)
-  private val maxCnfNodeCount = tableConfig.getConfiguration.getInteger(
-    FlinkRexUtil.TABLE_OPTIMIZER_CNF_NODES_LIMIT)
+  private val tableConfig = unwrapTableConfig(rel)
+  private val maxCnfNodeCount = tableConfig.get(FlinkRexUtil.TABLE_OPTIMIZER_CNF_NODES_LIMIT)
 
   // these default values is referred to RelMdUtil#guessSelectivity
   private[flink] val defaultComparisonSelectivity = Some(0.5d)
@@ -69,20 +69,23 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
   private[flink] val defaultSelectivity = Some(0.25d)
 
   /**
-    * Returns a percentage of rows meeting a filter predicate on TableScan node.
-    *
-    * @param predicate predicate whose selectivity is to be estimated against scan's output.
-    * @return estimated selectivity (between 0.0 and 1.0),
-    *         or None if no reliable estimate can be determined.
-    */
+   * Returns a percentage of rows meeting a filter predicate on TableScan node.
+   *
+   * @param predicate
+   *   predicate whose selectivity is to be estimated against scan's output.
+   * @return
+   *   estimated selectivity (between 0.0 and 1.0), or None if no reliable estimate can be
+   *   determined.
+   */
   def evaluate(predicate: RexNode): Option[Double] = {
     try {
       if (predicate == null) {
         Some(1.0)
       } else {
-        val rexSimplify = new RexSimplify(
-          rexBuilder, RelOptPredicateList.EMPTY, true, RexUtil.EXECUTOR)
-        val simplifiedPredicate = rexSimplify.simplify(predicate)
+        val rexSimplify =
+          new RexSimplify(rexBuilder, RelOptPredicateList.EMPTY, RexUtil.EXECUTOR)
+        val simplifiedPredicate =
+          rexSimplify.simplifyUnknownAs(predicate, RexUnknownAs.falseIf(true))
         if (simplifiedPredicate.isAlwaysTrue) {
           Some(1.0)
         } else if (simplifiedPredicate.isAlwaysFalse) {
@@ -110,15 +113,17 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
 
   def isNonPointsSearchCall(call: RexCall): Boolean = {
     require(call.getKind == SqlKind.SEARCH)
-    !call.getOperands.get(1)
-        .asInstanceOf[RexLiteral]
-        .getValueAs(classOf[Sarg[_]])
-        .isPoints
+    !call.getOperands
+      .get(1)
+      .asInstanceOf[RexLiteral]
+      .getValueAs(classOf[Sarg[_]])
+      .isPoints
   }
 
   override def visitCall(oriCall: RexCall): Option[Double] = {
-    val call = FlinkRexUtil.expandSearch(rexBuilder, oriCall, isNonPointsSearchCall)
-        .asInstanceOf[RexCall]
+    val call = FlinkRexUtil
+      .expandSearch(rexBuilder, oriCall, isNonPointsSearchCall)
+      .asInstanceOf[RexCall]
     call.getOperator match {
       case AND =>
         val predicates = splitAndPredicate(call)
@@ -159,16 +164,18 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
   }
 
   /**
-    * Returns a percentage of rows meeting a single condition in Filter node.
-    *
-    * We will do partition pruning with those supported partition-pruning predicates,
-    * and the rowCount in [[org.apache.flink.table.plan.stats.TableStats]] should exclude the
-    * rows of the pruned partitions. So we should ignore partition predicate here.
-    *
-    * @param singlePredicate predicate whose selectivity is to be estimated against scan's output.
-    * @return an optional double value to show the percentage of rows meeting a given condition.
-    *         It returns None if the condition is not supported.
-    */
+   * Returns a percentage of rows meeting a single condition in Filter node.
+   *
+   * We will do partition pruning with those supported partition-pruning predicates, and the
+   * rowCount in [[org.apache.flink.table.plan.stats.TableStats]] should exclude the rows of the
+   * pruned partitions. So we should ignore partition predicate here.
+   *
+   * @param singlePredicate
+   *   predicate whose selectivity is to be estimated against scan's output.
+   * @return
+   *   an optional double value to show the percentage of rows meeting a given condition. It returns
+   *   None if the condition is not supported.
+   */
   private def estimateSinglePredicate(singlePredicate: RexCall): Option[Double] = {
     val operands = singlePredicate.getOperands
     singlePredicate.getOperator match {
@@ -212,12 +219,11 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
   }
 
   /**
-    * Decomposes a predicate into a list of expressions that are AND'ed together,
-    * and the expressions with same RexInputRefs will be converted into an AND.
-    * e.g.
-    * input predicate: `a > 10 AND b < 40.0 AND a < 20 AND CAST(b AS INTEGER) > 30`
-    * output expressions: `a > 10 AND a < 20` and `b < 40.0` and `CAST(b AS INTEGER) > 30`
-    */
+   * Decomposes a predicate into a list of expressions that are AND'ed together, and the expressions
+   * with same RexInputRefs will be converted into an AND. e.g. input predicate: `a > 10 AND b <
+   * 40.0 AND a < 20 AND CAST(b AS INTEGER) > 30` output expressions: `a > 10 AND a < 20` and `b <
+   * 40.0` and `CAST(b AS INTEGER) > 30`
+   */
   private def splitAndPredicate(call: RexCall): Seq[RexNode] = {
     val cnf = FlinkRexUtil.toCnf(rexBuilder, maxCnfNodeCount, call)
     val conjunctions = RelOptUtil.conjunctions(cnf)
@@ -246,20 +252,19 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
 
     conjunctions.foreach(_.accept(visitor))
 
-    val combined = combinations.values.map { r =>
-      RexUtil.composeConjunction(rexBuilder, r, false)
+    val combined = combinations.values.map {
+      r => RexUtil.composeConjunction(rexBuilder, r, false)
     }.toSeq
 
     combined ++ nonCombinations
   }
 
   /**
-    * Decomposes a predicate into a list of expressions that are OR'ed together,
-    * and the expressions with same RexInputRefs connected with EQUALS will be converted into an IN.
-    * e.g.
-    * input predicate: `a = 10 or a = 20 OR a > 40.0 OR a < 0 OR b > 30`
-    * output expressions: `a IN (10, 20)` and `(a > 40 OR a < 0)` and `b > 30`
-    */
+   * Decomposes a predicate into a list of expressions that are OR'ed together, and the expressions
+   * with same RexInputRefs connected with EQUALS will be converted into an IN. e.g. input
+   * predicate: `a = 10 or a = 20 OR a > 40.0 OR a < 0 OR b > 30` output expressions: `a IN (10,
+   * 20)` and `(a > 40 OR a < 0)` and `b > 30`
+   */
   private def splitOrPredicate(call: RexCall): Seq[RexNode] = {
     val combinations = new JHashMap[String, JArrayList[RexNode]]()
     val nonCombinations = new JArrayList[RexNode]()
@@ -290,36 +295,40 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
     val disjunctions = RelOptUtil.disjunctions(call)
     disjunctions.foreach(_.accept(visitor))
 
-    val combined = combinations.values.flatMap { r =>
-      val (equalsNodes, nonEqualsNodes) = r.partition(_.asInstanceOf[RexCall].getOperator == EQUALS)
-      if (equalsNodes.size > 1) {
-        val inputRef = equalsNodes.head.asInstanceOf[RexCall].getOperands.head
-        val valuesNode = equalsNodes.map(_.asInstanceOf[RexCall].getOperands.last)
-        val inNode = rexBuilder.makeIn(inputRef, valuesNode)
-        if (nonEqualsNodes.isEmpty) {
-          Seq(inNode)
+    val combined = combinations.values.flatMap {
+      r =>
+        val (equalsNodes, nonEqualsNodes) =
+          r.partition(_.asInstanceOf[RexCall].getOperator == EQUALS)
+        if (equalsNodes.size > 1) {
+          val inputRef = equalsNodes.head.asInstanceOf[RexCall].getOperands.head
+          val valuesNode = equalsNodes.map(_.asInstanceOf[RexCall].getOperands.last)
+          val inNode = rexBuilder.makeIn(inputRef, valuesNode)
+          if (nonEqualsNodes.isEmpty) {
+            Seq(inNode)
+          } else {
+            Seq(inNode, RexUtil.composeDisjunction(rexBuilder, nonEqualsNodes, false))
+          }
         } else {
-          Seq(inNode, RexUtil.composeDisjunction(rexBuilder, nonEqualsNodes, false))
+          Seq(RexUtil.composeDisjunction(rexBuilder, r, false))
         }
-      } else {
-        Seq(RexUtil.composeDisjunction(rexBuilder, r, false))
-      }
     }.toSeq
 
     combined ++ nonCombinations
   }
 
   /**
-    * Returns a percentage of rows meeting an AND condition with same RexInputRef in Filter node.
-    * Each sub-condition in AND is a binary comparison condition,
-    * and only binary comparison operator <, <=, >, >= are supported now.
-    *
-    * The condition is like: `a > 10 AND a < 20`
-    *
-    * @param andPredicate predicate whose selectivity is to be estimated against scan's output.
-    * @return an optional double value to show the percentage of rows meeting a given condition.
-    *         It returns None if the condition is not supported.
-    */
+   * Returns a percentage of rows meeting an AND condition with same RexInputRef in Filter node.
+   * Each sub-condition in AND is a binary comparison condition, and only binary comparison operator
+   * <, <=, >, >= are supported now.
+   *
+   * The condition is like: `a > 10 AND a < 20`
+   *
+   * @param andPredicate
+   *   predicate whose selectivity is to be estimated against scan's output.
+   * @return
+   *   an optional double value to show the percentage of rows meeting a given condition. It returns
+   *   None if the condition is not supported.
+   */
   private def estimateAndPredicate(andPredicate: RexCall): Option[Double] = {
     val cnf = FlinkRexUtil.toCnf(rexBuilder, maxCnfNodeCount, andPredicate)
     val conjunctions = RelOptUtil.conjunctions(cnf)
@@ -392,10 +401,10 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
   }
 
   /**
-    * Returns a percentage of rows meeting an AND condition and
-    * each sub-condition is a binary numeric comparison expression.
-    * This method evaluate expression for Numeric/Boolean/Date/Time/Timestamp columns.
-    */
+   * Returns a percentage of rows meeting an AND condition and each sub-condition is a binary
+   * numeric comparison expression. This method evaluate expression for
+   * Numeric/Boolean/Date/Time/Timestamp columns.
+   */
   private def estimateAndNumericComparison(
       inputRefIndex: Int,
       intervals: Seq[ValueInterval]): Option[Double] = {
@@ -432,16 +441,18 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
   }
 
   /**
-    * Returns a percentage of rows meeting an OR condition with same RexInputRef in Filter node.
-    * Each sub-condition in OR is a binary comparison condition,
-    * and only binary comparison operator <, <=, >, >= are supported now.
-    *
-    * The condition is like: `a > 20 OR a < 10`
-    *
-    * @param orPredicate predicate whose selectivity is to be estimated against scan's output.
-    * @return an optional double value to show the percentage of rows meeting a given condition.
-    *         It returns None if the condition is not supported.
-    */
+   * Returns a percentage of rows meeting an OR condition with same RexInputRef in Filter node. Each
+   * sub-condition in OR is a binary comparison condition, and only binary comparison operator <,
+   * <=, >, >= are supported now.
+   *
+   * The condition is like: `a > 20 OR a < 10`
+   *
+   * @param orPredicate
+   *   predicate whose selectivity is to be estimated against scan's output.
+   * @return
+   *   an optional double value to show the percentage of rows meeting a given condition. It returns
+   *   None if the condition is not supported.
+   */
   private def estimateOrPredicate(orPredicate: RexCall): Option[Double] = {
     val disjunctions = RelOptUtil.disjunctions(orPredicate)
     val result = disjunctions.map(estimateOperand)
@@ -449,19 +460,22 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
   }
 
   /**
-    * Returns a percentage of rows meeting a binary comparison expression containing two columns.
-    *
-    * We will use default comparison selectivity(0.5), in the following cases:
-    * 1. the type is not supported
-    * 2. the operator is not supported
-    * 3. the specified column's stats is empty
-    *
-    * @param op    a binary comparison operator, including =, <=>, <, <=, >, >=
-    * @param left  the left RexInputRef
-    * @param right the right RexInputRef
-    * @return an optional double value to show the percentage of rows meeting a given condition.
-    *         It returns None if no statistics collected for a given column.
-    */
+   * Returns a percentage of rows meeting a binary comparison expression containing two columns.
+   *
+   * We will use default comparison selectivity(0.5), in the following cases:
+   *   1. the type is not supported 2. the operator is not supported 3. the specified column's stats
+   *      is empty
+   *
+   * @param op
+   *   a binary comparison operator, including =, <=>, <, <=, >, >=
+   * @param left
+   *   the left RexInputRef
+   * @param right
+   *   the right RexInputRef
+   * @return
+   *   an optional double value to show the percentage of rows meeting a given condition. It returns
+   *   None if no statistics collected for a given column.
+   */
   private def estimateComparison(op: SqlOperator, left: RexNode, right: RexNode): Option[Double] = {
     if (!isSupportedComparisonType(left.getType) || !isSupportedComparisonType(right.getType)) {
       val default = op match {
@@ -472,48 +486,56 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
     }
 
     op match {
-      case EQUALS => (left, right) match {
-        case (i: RexInputRef, l: RexLiteral) => estimateEquals(i, l)
-        case (l: RexLiteral, i: RexInputRef) => estimateEquals(i, l)
-        case (l: RexInputRef, r: RexInputRef) => estimateComparison(EQUALS, l, r)
-        case _ => defaultEqualsSelectivity
-      }
-      case LESS_THAN => (left, right) match {
-        case (i: RexInputRef, l: RexLiteral) => estimateComparison(LESS_THAN, i, l)
-        case (l: RexLiteral, i: RexInputRef) => estimateComparison(GREATER_THAN, i, l)
-        case (l: RexInputRef, r: RexInputRef) => estimateComparison(LESS_THAN, l, r)
-        case _ => defaultComparisonSelectivity
-      }
-      case LESS_THAN_OR_EQUAL => (left, right) match {
-        case (i: RexInputRef, l: RexLiteral) => estimateComparison(LESS_THAN_OR_EQUAL, i, l)
-        case (l: RexLiteral, i: RexInputRef) => estimateComparison(GREATER_THAN_OR_EQUAL, i, l)
-        case (l: RexInputRef, r: RexInputRef) => estimateComparison(LESS_THAN_OR_EQUAL, l, r)
-        case _ => defaultComparisonSelectivity
-      }
-      case GREATER_THAN => (left, right) match {
-        case (i: RexInputRef, l: RexLiteral) => estimateComparison(GREATER_THAN, i, l)
-        case (l: RexLiteral, i: RexInputRef) => estimateComparison(LESS_THAN, i, l)
-        case (l: RexInputRef, r: RexInputRef) => estimateComparison(GREATER_THAN, l, r)
-        case _ => defaultComparisonSelectivity
-      }
-      case GREATER_THAN_OR_EQUAL => (left, right) match {
-        case (i: RexInputRef, l: RexLiteral) => estimateComparison(GREATER_THAN_OR_EQUAL, i, l)
-        case (l: RexLiteral, i: RexInputRef) => estimateComparison(LESS_THAN_OR_EQUAL, i, l)
-        case (l: RexInputRef, r: RexInputRef) => estimateComparison(GREATER_THAN_OR_EQUAL, l, r)
-        case _ => defaultComparisonSelectivity
-      }
+      case EQUALS =>
+        (left, right) match {
+          case (i: RexInputRef, l: RexLiteral) => estimateEquals(i, l)
+          case (l: RexLiteral, i: RexInputRef) => estimateEquals(i, l)
+          case (l: RexInputRef, r: RexInputRef) => estimateComparison(EQUALS, l, r)
+          case _ => defaultEqualsSelectivity
+        }
+      case LESS_THAN =>
+        (left, right) match {
+          case (i: RexInputRef, l: RexLiteral) => estimateComparison(LESS_THAN, i, l)
+          case (l: RexLiteral, i: RexInputRef) => estimateComparison(GREATER_THAN, i, l)
+          case (l: RexInputRef, r: RexInputRef) => estimateComparison(LESS_THAN, l, r)
+          case _ => defaultComparisonSelectivity
+        }
+      case LESS_THAN_OR_EQUAL =>
+        (left, right) match {
+          case (i: RexInputRef, l: RexLiteral) => estimateComparison(LESS_THAN_OR_EQUAL, i, l)
+          case (l: RexLiteral, i: RexInputRef) => estimateComparison(GREATER_THAN_OR_EQUAL, i, l)
+          case (l: RexInputRef, r: RexInputRef) => estimateComparison(LESS_THAN_OR_EQUAL, l, r)
+          case _ => defaultComparisonSelectivity
+        }
+      case GREATER_THAN =>
+        (left, right) match {
+          case (i: RexInputRef, l: RexLiteral) => estimateComparison(GREATER_THAN, i, l)
+          case (l: RexLiteral, i: RexInputRef) => estimateComparison(LESS_THAN, i, l)
+          case (l: RexInputRef, r: RexInputRef) => estimateComparison(GREATER_THAN, l, r)
+          case _ => defaultComparisonSelectivity
+        }
+      case GREATER_THAN_OR_EQUAL =>
+        (left, right) match {
+          case (i: RexInputRef, l: RexLiteral) => estimateComparison(GREATER_THAN_OR_EQUAL, i, l)
+          case (l: RexLiteral, i: RexInputRef) => estimateComparison(LESS_THAN_OR_EQUAL, i, l)
+          case (l: RexInputRef, r: RexInputRef) => estimateComparison(GREATER_THAN_OR_EQUAL, l, r)
+          case _ => defaultComparisonSelectivity
+        }
       case _ => defaultComparisonSelectivity
     }
   }
 
   /**
-    * Returns a percentage of rows meeting an equality (=) expression.
-    *
-    * @param inputRef a RexInputRef
-    * @param literal  a literal value (or constant)
-    * @return an optional double value to show the percentage of rows meeting a given condition.
-    *         It returns None if no statistics collected for a given column.
-    */
+   * Returns a percentage of rows meeting an equality (=) expression.
+   *
+   * @param inputRef
+   *   a RexInputRef
+   * @param literal
+   *   a literal value (or constant)
+   * @return
+   *   an optional double value to show the percentage of rows meeting a given condition. It returns
+   *   None if no statistics collected for a given column.
+   */
   private def estimateEquals(inputRef: RexInputRef, literal: RexLiteral): Option[Double] = {
     if (literal.isNull) {
       return estimateIsNull(inputRef)
@@ -543,14 +565,18 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
   }
 
   /**
-    * Returns a percentage of rows meeting a binary comparison expression.
-    *
-    * @param op       a binary comparison operator, including <, <=, >, >=
-    * @param inputRef a RexInputRef
-    * @param literal  a literal value (or constant)
-    * @return an optional double value to show the percentage of rows meeting a given condition.
-    *         It returns None if no statistics collected for a given column.
-    */
+   * Returns a percentage of rows meeting a binary comparison expression.
+   *
+   * @param op
+   *   a binary comparison operator, including <, <=, >, >=
+   * @param inputRef
+   *   a RexInputRef
+   * @param literal
+   *   a literal value (or constant)
+   * @return
+   *   an optional double value to show the percentage of rows meeting a given condition. It returns
+   *   None if no statistics collected for a given column.
+   */
   private def estimateComparison(
       op: SqlOperator,
       inputRef: RexInputRef,
@@ -568,15 +594,19 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
   }
 
   /**
-    * Returns a percentage of rows meeting a binary numeric comparison expression.
-    * This method evaluate expression for Numeric/Boolean/Date/Time/Timestamp columns.
-    *
-    * @param op       a binary comparison operator, including <, <=, >, >=
-    * @param inputRef a RexInputRef
-    * @param literal  a literal value (or constant)
-    * @return an optional double value to show the percentage of rows meeting a given condition.
-    *         It returns None if no statistics collected for a given column.
-    */
+   * Returns a percentage of rows meeting a binary numeric comparison expression. This method
+   * evaluate expression for Numeric/Boolean/Date/Time/Timestamp columns.
+   *
+   * @param op
+   *   a binary comparison operator, including <, <=, >, >=
+   * @param inputRef
+   *   a RexInputRef
+   * @param literal
+   *   a literal value (or constant)
+   * @return
+   *   an optional double value to show the percentage of rows meeting a given condition. It returns
+   *   None if no statistics collected for a given column.
+   */
   private def estimateNumericComparison(
       op: SqlOperator,
       inputRef: RexInputRef,
@@ -599,18 +629,22 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
         }
         val lit = literalToDouble(literal)
         val (noOverlap, completeOverlap) = op match {
-          case LESS_THAN => (
-            greaterThanOrEqualTo(min, lit),
-            if (includeMax) lessThan(max, lit) else lessThanOrEqualTo(max, lit))
-          case LESS_THAN_OR_EQUAL => (
-            if (includeMin) greaterThan(min, lit) else greaterThanOrEqualTo(min, lit),
-            lessThanOrEqualTo(max, lit))
-          case GREATER_THAN => (
-            lessThanOrEqualTo(max, lit),
-            if (includeMin) greaterThan(min, lit) else greaterThanOrEqualTo(min, lit))
-          case GREATER_THAN_OR_EQUAL => (
-            if (includeMax) lessThan(max, lit) else lessThanOrEqualTo(max, lit),
-            greaterThanOrEqualTo(min, lit))
+          case LESS_THAN =>
+            (
+              greaterThanOrEqualTo(min, lit),
+              if (includeMax) lessThan(max, lit) else lessThanOrEqualTo(max, lit))
+          case LESS_THAN_OR_EQUAL =>
+            (
+              if (includeMin) greaterThan(min, lit) else greaterThanOrEqualTo(min, lit),
+              lessThanOrEqualTo(max, lit))
+          case GREATER_THAN =>
+            (
+              lessThanOrEqualTo(max, lit),
+              if (includeMin) greaterThan(min, lit) else greaterThanOrEqualTo(min, lit))
+          case GREATER_THAN_OR_EQUAL =>
+            (
+              if (includeMax) lessThan(max, lit) else lessThanOrEqualTo(max, lit),
+              greaterThanOrEqualTo(min, lit))
         }
 
         val selectivity = if (noOverlap) {
@@ -625,7 +659,8 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
             case LESS_THAN =>
               if (doubleEquals(lit, max)) {
                 if (includeMax) {
-                  Option(ndv).map(v => 1.0 - (1.0 / v))
+                  Option(ndv)
+                    .map(v => 1.0 - (1.0 / v))
                     .getOrElse(defaultComparisonSelectivity.get)
                 } else {
                   1.0
@@ -649,7 +684,8 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
             case GREATER_THAN =>
               if (doubleEquals(lit, min)) {
                 if (includeMin) {
-                  Option(ndv).map(v => 1.0 - (1.0 / v))
+                  Option(ndv)
+                    .map(v => 1.0 - (1.0 / v))
                     .getOrElse(defaultComparisonSelectivity.get)
                 } else {
                   1.0
@@ -678,18 +714,21 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
   }
 
   /**
-    * Returns a percentage of rows meeting a binary comparison expression containing two columns.
-    * In SQL queries, we also see predicate expressions involving two columns
-    * such as "column-1 (op) column-2" where column-1 and column-2 belong to same table.
-    * Note that, if column-1 and column-2 belong to different tables, then it is a join
-    * operator's work, NOT a filter operator's work.
-    *
-    * @param op    a binary comparison operator, including =, <, <=, >, >=
-    * @param left  the left RexInputRef
-    * @param right the right RexInputRef
-    * @return an optional double value to show the percentage of rows meeting a given condition.
-    *         It returns None if no statistics collected for a given column.
-    */
+   * Returns a percentage of rows meeting a binary comparison expression containing two columns. In
+   * SQL queries, we also see predicate expressions involving two columns such as "column-1 (op)
+   * column-2" where column-1 and column-2 belong to same table. Note that, if column-1 and column-2
+   * belong to different tables, then it is a join operator's work, NOT a filter operator's work.
+   *
+   * @param op
+   *   a binary comparison operator, including =, <, <=, >, >=
+   * @param left
+   *   the left RexInputRef
+   * @param right
+   *   the right RexInputRef
+   * @return
+   *   an optional double value to show the percentage of rows meeting a given condition. It returns
+   *   None if no statistics collected for a given column.
+   */
   private def estimateComparison(
       op: SqlOperator,
       left: RexInputRef,
@@ -707,16 +746,19 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
   }
 
   /**
-    * Returns a percentage of rows meeting a binary numeric comparison expression
-    * containing two columns.
-    * This method evaluate expression for Numeric/Boolean/Date/Time/Timestamp columns.
-    *
-    * @param op    a binary comparison operator, including =, <, <=, >, >=
-    * @param left  the left RexInputRef
-    * @param right the right RexInputRef
-    * @return an optional double value to show the percentage of rows meeting a given condition.
-    *         It returns None if no statistics collected for a given column.
-    */
+   * Returns a percentage of rows meeting a binary numeric comparison expression containing two
+   * columns. This method evaluate expression for Numeric/Boolean/Date/Time/Timestamp columns.
+   *
+   * @param op
+   *   a binary comparison operator, including =, <, <=, >, >=
+   * @param left
+   *   the left RexInputRef
+   * @param right
+   *   the right RexInputRef
+   * @return
+   *   an optional double value to show the percentage of rows meeting a given condition. It returns
+   *   None if no statistics collected for a given column.
+   */
   private def estimateNumericComparison(
       op: SqlOperator,
       left: RexInputRef,
@@ -727,10 +769,12 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
     }
     val leftInterval = mq.getColumnInterval(this.rel, left.getIndex)
     val rightInterval = mq.getColumnInterval(this.rel, right.getIndex)
-    if (leftInterval == null ||
+    if (
+      leftInterval == null ||
       leftInterval == ValueInterval.infinite ||
       rightInterval == null ||
-      rightInterval == ValueInterval.infinite) {
+      rightInterval == ValueInterval.infinite
+    ) {
       return selectivityWithoutStats
     } else if (leftInterval == ValueInterval.empty || rightInterval == ValueInterval.empty) {
       return Some(0.0)
@@ -746,10 +790,12 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
     val leftNdv = mq.getDistinctRowCount(this.rel, bitSetOfLeftInputRef, null)
     val bitSetOfRightInputRef = ImmutableBitSet.of(right.getIndex)
     val rightNdv = mq.getDistinctRowCount(this.rel, bitSetOfRightInputRef, null)
-    if (op.equals(EQUALS) &&
+    if (
+      op.equals(EQUALS) &&
       (!(leftInterval.isInstanceOf[FiniteValueInterval]
         && rightInterval.isInstanceOf[FiniteValueInterval])) ||
-      leftNdv == null || rightNdv == null) {
+      leftNdv == null || rightNdv == null
+    ) {
       return defaultEqualsSelectivity
     }
     // left interval
@@ -860,14 +906,16 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
   }
 
   /**
-    * Returns a percentage of rows meeting "IS NULL" condition.
-    *
-    * We will use default is_null selectivity(0.1), if the column stats is empty.
-    *
-    * @param input a RexNode
-    * @return an optional double value to show the percentage of rows meeting a given condition
-    *         It returns None if no statistics collected for a given column.
-    */
+   * Returns a percentage of rows meeting "IS NULL" condition.
+   *
+   * We will use default is_null selectivity(0.1), if the column stats is empty.
+   *
+   * @param input
+   *   a RexNode
+   * @return
+   *   an optional double value to show the percentage of rows meeting a given condition It returns
+   *   None if no statistics collected for a given column.
+   */
   private def estimateIsNull(input: RexNode): Option[Double] = {
     val inputRef = convertToRexInputRef(input)
     val nullCount = mq.getColumnNullCount(this.rel, inputRef.getIndex)
@@ -885,14 +933,16 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
   }
 
   /**
-    * Returns a percentage of rows meeting "IS NOT NULL" condition.
-    *
-    * We will use default is_not_null selectivity(0.9), if the column stats is empty.
-    *
-    * @param input a RexNode
-    * @return an optional double value to show the percentage of rows meeting a given condition
-    *         It returns None if no statistics collected for a given column.
-    */
+   * Returns a percentage of rows meeting "IS NOT NULL" condition.
+   *
+   * We will use default is_not_null selectivity(0.9), if the column stats is empty.
+   *
+   * @param input
+   *   a RexNode
+   * @return
+   *   an optional double value to show the percentage of rows meeting a given condition It returns
+   *   None if no statistics collected for a given column.
+   */
   private def estimateIsNotNull(input: RexNode): Option[Double] = {
     val inputRef = convertToRexInputRef(input)
     val nullCount = mq.getColumnNullCount(this.rel, inputRef.getIndex)
@@ -910,19 +960,23 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
   }
 
   /**
-    * Returns a percentage of rows meeting "IN" operator expression.
-    *
-    * @param input a RexNode
-    * @param sargLiteral sarg of literal values
-    * @return an optional double value to show the percentage of rows meeting a given condition
-    *         It returns None if no statistics exists for a given column.
-    */
+   * Returns a percentage of rows meeting "IN" operator expression.
+   *
+   * @param input
+   *   a RexNode
+   * @param sargLiteral
+   *   sarg of literal values
+   * @return
+   *   an optional double value to show the percentage of rows meeting a given condition It returns
+   *   None if no statistics exists for a given column.
+   */
   private def estimateIn(input: RexNode, sargLiteral: RexLiteral): Option[Double] = {
     val sarg = sargLiteral.getValueAs(classOf[Sarg[_]])
     require(sarg.isPoints)
-    val inSet = sarg.rangeSet.asRanges().map(range =>
-      rexBuilder.makeLiteral(range.lowerEndpoint(), sargLiteral.getType, false))
-        .toSeq
+    val inSet = sarg.rangeSet
+      .asRanges()
+      .map(range => rexBuilder.makeLiteral(range.lowerEndpoint(), sargLiteral.getType, false))
+      .toSeq
     val inputRef = convertToRexInputRef(input)
     checkInSet(inSet)
 
@@ -969,20 +1023,14 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
     }
   }
 
-  /**
-    * Checks whether all values are literal. If contains non-literal values, throw an exception.
-    */
+  /** Checks whether all values are literal. If contains non-literal values, throw an exception. */
   private def checkInSet(inSet: Seq[RexNode]): Unit = {
     if (inSet.exists(!_.isA(SqlKind.LITERAL))) {
-      throw new IllegalArgumentException(s"${
-        inSet.mkString(",")
-      } contain some non-literal values.")
+      throw new IllegalArgumentException(s"${inSet.mkString(",")} contain some non-literal values.")
     }
   }
 
-  /**
-    * If a rexNode is RexInputRef type, convert it to RexInputRef; else throw an exception.
-    */
+  /** If a rexNode is RexInputRef type, convert it to RexInputRef; else throw an exception. */
   private def convertToRexInputRef(rexNode: RexNode): RexInputRef = {
     rexNode match {
       case i: RexInputRef => i
@@ -997,20 +1045,18 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
 object SelectivityEstimator {
 
   /**
-    * Convert ValueInterval,
-    * for Numeric/Boolean/Date/Time/Timestamp, min/max will be converted to Double,
-    * for CHARACTER, min/max will be converted to String.
-    */
+   * Convert ValueInterval, for Numeric/Boolean/Date/Time/Timestamp, min/max will be converted to
+   * Double, for CHARACTER, min/max will be converted to String.
+   */
   def convertValueInterval(interval: ValueInterval, dataType: RelDataType): ValueInterval = {
     require(interval != null && dataType != null)
     convertValueInterval(interval, dataType.getFamily)
   }
 
   /**
-    * Convert ValueInterval,
-    * for Numeric/Boolean/Date/Time/Timestamp, min/max will be converted to Double,
-    * for CHARACTER, min/max will be converted to String.
-    */
+   * Convert ValueInterval, for Numeric/Boolean/Date/Time/Timestamp, min/max will be converted to
+   * Double, for CHARACTER, min/max will be converted to String.
+   */
   def convertValueInterval(
       interval: ValueInterval,
       typeFamily: RelDataTypeFamily): ValueInterval = {
@@ -1028,42 +1074,39 @@ object SelectivityEstimator {
         }
         typeFamily match {
           case SqlTypeFamily.NUMERIC | SqlTypeFamily.BOOLEAN | SqlTypeFamily.DATE |
-               SqlTypeFamily.TIME | SqlTypeFamily.TIMESTAMP =>
+              SqlTypeFamily.TIME | SqlTypeFamily.TIMESTAMP =>
             ValueInterval(
               comparableToDouble(lower),
               comparableToDouble(upper),
               includeLower,
               includeUpper)
           case SqlTypeFamily.CHARACTER =>
-            ValueInterval(
-              lower.toString,
-              upper.toString,
-              includeLower,
-              includeUpper)
+            ValueInterval(lower.toString, upper.toString, includeLower, includeUpper)
           case _ => throw new UnsupportedOperationException(s"Unsupported typeFamily: $typeFamily")
         }
     }
   }
 
   /**
-    * Get literal value as Comparable.
-    *
-    * The class may be different between literal value and min/max value,
-    * and different classes can't be compared. So
-    * for Numeric/Boolean/Date/Time/Timestamp, literal will be converted to Double uniformly,
-    * for CHARACTER, literal will be converted to String.
-    *
-    * e.g. min/max values are Double: min=10.0 and max=100.0,
-    * however the literal values are Integer: select * from tb where a in (20, 30, 40)
-    */
+   * Get literal value as Comparable.
+   *
+   * The class may be different between literal value and min/max value, and different classes can't
+   * be compared. So for Numeric/Boolean/Date/Time/Timestamp, literal will be converted to Double
+   * uniformly, for CHARACTER, literal will be converted to String.
+   *
+   * e.g. min/max values are Double: min=10.0 and max=100.0, however the literal values are Integer:
+   * select * from tb where a in (20, 30, 40)
+   */
   def literalToComparable(literal: RexLiteral): Comparable[_] = {
     if (!literal.isNull) {
       literal.getType.getFamily match {
         case SqlTypeFamily.NUMERIC | SqlTypeFamily.BOOLEAN | SqlTypeFamily.DATE |
-             SqlTypeFamily.TIME | SqlTypeFamily.TIMESTAMP => literalToDouble(literal)
+            SqlTypeFamily.TIME | SqlTypeFamily.TIMESTAMP =>
+          literalToDouble(literal)
         case SqlTypeFamily.CHARACTER => literal.getValueAs(classOf[String])
-        case _ => throw new UnsupportedOperationException(
-          s"Can't get value as comparable from literal type: ${literal.getType}")
+        case _ =>
+          throw new UnsupportedOperationException(
+            s"Can't get value as comparable from literal type: ${literal.getType}")
       }
     } else {
       null
@@ -1137,24 +1180,24 @@ object SelectivityEstimator {
     }
   }
 
-  /**
-    * Currently, Numeric/Boolean/String/Date/Time/Timestamp are supported.
-    */
+  /** Currently, Numeric/Boolean/String/Date/Time/Timestamp are supported. */
   def isSupportedComparisonType(relType: RelDataType): Boolean = {
     relType.getFamily match {
       case SqlTypeFamily.NUMERIC | SqlTypeFamily.BOOLEAN | SqlTypeFamily.CHARACTER |
-           SqlTypeFamily.DATE | SqlTypeFamily.TIME | SqlTypeFamily.TIMESTAMP => true
+          SqlTypeFamily.DATE | SqlTypeFamily.TIME | SqlTypeFamily.TIMESTAMP =>
+        true
       case _ => false
     }
   }
 
   /**
-    * Currently, value of Numeric/Boolean/Date/Time/Timestamp column can be converted to a number.
-    */
+   * Currently, value of Numeric/Boolean/Date/Time/Timestamp column can be converted to a number.
+   */
   def canConvertToNumericType(relType: RelDataType): Boolean = {
     relType.getFamily match {
-      case SqlTypeFamily.NUMERIC | SqlTypeFamily.BOOLEAN |
-           SqlTypeFamily.DATE | SqlTypeFamily.TIME | SqlTypeFamily.TIMESTAMP => true
+      case SqlTypeFamily.NUMERIC | SqlTypeFamily.BOOLEAN | SqlTypeFamily.DATE | SqlTypeFamily.TIME |
+          SqlTypeFamily.TIMESTAMP =>
+        true
       case _ => false
     }
   }

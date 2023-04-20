@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.batch.sql
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO}
@@ -28,31 +27,31 @@ import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.{DataTypes, TableSchema, ValidationException}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
+import org.apache.flink.table.api.config.ExecutionConfigOptions.LegacyCastBehaviour
+import org.apache.flink.table.catalog.CatalogDatabaseImpl
 import org.apache.flink.table.data.{DecimalDataUtils, TimestampData}
 import org.apache.flink.table.data.util.DataFormatConverters.LocalDateConverter
 import org.apache.flink.table.planner.expressions.utils.{RichFunc1, RichFunc2, RichFunc3, SplitUDF}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalSortRule
+import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase, TestData, UserDefinedFunctionTestUtils}
 import org.apache.flink.table.planner.runtime.utils.BatchTableEnvUtil.parseFieldNames
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils._
-import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase, TestData, UserDefinedFunctionTestUtils}
 import org.apache.flink.table.planner.utils.{DateTimeTestUtil, TestLegacyFilterableTableSource}
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.utils.DateTimeUtils.toLocalDateTime
 import org.apache.flink.types.Row
 
-import org.junit.Assert.assertEquals
 import org.junit._
+import org.junit.Assert.assertEquals
 import org.junit.rules.ExpectedException
 
 import java.nio.charset.StandardCharsets
 import java.sql.{Date, Time, Timestamp}
-import java.time.{Instant, LocalDate, LocalDateTime, LocalTime, ZoneId}
+import java.time._
 import java.util
-
-import scala.collection.Seq
 
 class CalcITCase extends BatchTestBase {
 
@@ -71,17 +70,22 @@ class CalcITCase extends BatchTestBase {
   }
 
   @Test
-  def testSelectStar(): Unit = {
+  def testSelectWithLegacyCastIntToDate(): Unit = {
+    tEnv.getConfig.getConfiguration
+      .set(ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR, LegacyCastBehaviour.ENABLED)
     checkResult(
-      "SELECT * FROM Table3 where a is not null",
-      data3)
+      "SELECT CASE WHEN true THEN CAST(2 AS INT) ELSE CAST('2017-12-11' AS DATE) END",
+      Seq(row("1970-01-03")))
+  }
+
+  @Test
+  def testSelectStar(): Unit = {
+    checkResult("SELECT * FROM Table3 where a is not null", data3)
   }
 
   @Test
   def testSimpleSelectAll(): Unit = {
-    checkResult(
-      "SELECT a, b, c FROM Table3",
-      data3)
+    checkResult("SELECT a, b, c FROM Table3", data3)
   }
 
   @Test
@@ -106,19 +110,21 @@ class CalcITCase extends BatchTestBase {
         |  c, a, b, g, f, e, h, d
         |FROM MyT WHERE a
       """.stripMargin,
-      Seq(row(
-        true, 1, 2, 3, 4, 5, 6, 7, true, 1, 2, 6, 3, 4, 5, 7, 7, 6, 5, 4, 3, 2, 1,
-        true, 7, 5, 4, 3, 6, 2, 1, true, 2, true, 1, 6, 5, 4, 7, 3, true, 1, 2, 3,
-        4, 5, 6, 7, true, 1, 2, 6, 3, 4, 5, 7, 7, 6, 5, 4, 3, 2, 1, true, 7, 5, 4,
-        3, 6, 2, 1, true, 2, true, 1, 6, 5, 4, 7, 3
-      )))
+      Seq(
+        row(
+          true, 1, 2, 3, 4, 5, 6, 7, true, 1, 2, 6, 3, 4, 5, 7, 7, 6, 5, 4, 3, 2, 1, true, 7, 5, 4,
+          3, 6, 2, 1, true, 2, true, 1, 6, 5, 4, 7, 3, true, 1, 2, 3, 4, 5, 6, 7, true, 1, 2, 6, 3,
+          4, 5, 7, 7, 6, 5, 4, 3, 2, 1, true, 7, 5, 4, 3, 6, 2, 1, true, 2, true, 1, 6, 5, 4, 7, 3
+        ))
+    )
   }
 
   @Test
   def testManySelect(): Unit = {
     registerCollection(
       "ProjectionTestTable",
-      projectionTestData, projectionTestDataType,
+      projectionTestData,
+      projectionTestDataType,
       "a, b, c, d, e, f, g, h",
       nullablesOfProjectionTestData)
     checkResult(
@@ -138,67 +144,273 @@ class CalcITCase extends BatchTestBase {
       """.stripMargin,
       Seq(
         row(
-          1, 10, 100, "1", "10", "100", 1000, "1000",
-          1, 10, 100, 1000, "1", "10", "100", "1000",
-          "1000", 1000, "100", "10", "1", 100, 10, 1,
-          "1000", "100", "10", "1", 1000, 100, 10, 1,
-          100, 1, 10, 1000, "100", "10", "1000", "1",
-          1, 10, 100, "1", "10", "100", 1000, "1000",
-          1, 10, 100, 1000, "1", "10", "100", "1000",
-          "1000", 1000, "100", "10", "1", 100, 10, 1,
-          "1000", "100", "10", "1", 1000, 100, 10, 1,
-          100, 1, 10, 1000, "100", "10", "1000", "1"),
+          1,
+          10,
+          100,
+          "1",
+          "10",
+          "100",
+          1000,
+          "1000",
+          1,
+          10,
+          100,
+          1000,
+          "1",
+          "10",
+          "100",
+          "1000",
+          "1000",
+          1000,
+          "100",
+          "10",
+          "1",
+          100,
+          10,
+          1,
+          "1000",
+          "100",
+          "10",
+          "1",
+          1000,
+          100,
+          10,
+          1,
+          100,
+          1,
+          10,
+          1000,
+          "100",
+          "10",
+          "1000",
+          "1",
+          1,
+          10,
+          100,
+          "1",
+          "10",
+          "100",
+          1000,
+          "1000",
+          1,
+          10,
+          100,
+          1000,
+          "1",
+          "10",
+          "100",
+          "1000",
+          "1000",
+          1000,
+          "100",
+          "10",
+          "1",
+          100,
+          10,
+          1,
+          "1000",
+          "100",
+          "10",
+          "1",
+          1000,
+          100,
+          10,
+          1,
+          100,
+          1,
+          10,
+          1000,
+          "100",
+          "10",
+          "1000",
+          "1"
+        ),
         row(
-          2, 20, 200, "2", "20", "200", 2000, "2000",
-          2, 20, 200, 2000, "2", "20", "200", "2000",
-          "2000", 2000, "200", "20", "2", 200, 20, 2,
-          "2000", "200", "20", "2", 2000, 200, 20, 2,
-          200, 2, 20, 2000, "200", "20", "2000", "2",
-          2, 20, 200, "2", "20", "200", 2000, "2000",
-          2, 20, 200, 2000, "2", "20", "200", "2000",
-          "2000", 2000, "200", "20", "2", 200, 20, 2,
-          "2000", "200", "20", "2", 2000, 200, 20, 2,
-          200, 2, 20, 2000, "200", "20", "2000", "2"),
+          2,
+          20,
+          200,
+          "2",
+          "20",
+          "200",
+          2000,
+          "2000",
+          2,
+          20,
+          200,
+          2000,
+          "2",
+          "20",
+          "200",
+          "2000",
+          "2000",
+          2000,
+          "200",
+          "20",
+          "2",
+          200,
+          20,
+          2,
+          "2000",
+          "200",
+          "20",
+          "2",
+          2000,
+          200,
+          20,
+          2,
+          200,
+          2,
+          20,
+          2000,
+          "200",
+          "20",
+          "2000",
+          "2",
+          2,
+          20,
+          200,
+          "2",
+          "20",
+          "200",
+          2000,
+          "2000",
+          2,
+          20,
+          200,
+          2000,
+          "2",
+          "20",
+          "200",
+          "2000",
+          "2000",
+          2000,
+          "200",
+          "20",
+          "2",
+          200,
+          20,
+          2,
+          "2000",
+          "200",
+          "20",
+          "2",
+          2000,
+          200,
+          20,
+          2,
+          200,
+          2,
+          20,
+          2000,
+          "200",
+          "20",
+          "2000",
+          "2"
+        ),
         row(
-          3, 30, 300, "3", "30", "300", 3000, "3000",
-          3, 30, 300, 3000, "3", "30", "300", "3000",
-          "3000", 3000, "300", "30", "3", 300, 30, 3,
-          "3000", "300", "30", "3", 3000, 300, 30, 3,
-          300, 3, 30, 3000, "300", "30", "3000", "3",
-          3, 30, 300, "3", "30", "300", 3000, "3000",
-          3, 30, 300, 3000, "3", "30", "300", "3000",
-          "3000", 3000, "300", "30", "3", 300, 30, 3,
-          "3000", "300", "30", "3", 3000, 300, 30, 3,
-          300, 3, 30, 3000, "300", "30", "3000", "3")
-      ))
+          3,
+          30,
+          300,
+          "3",
+          "30",
+          "300",
+          3000,
+          "3000",
+          3,
+          30,
+          300,
+          3000,
+          "3",
+          "30",
+          "300",
+          "3000",
+          "3000",
+          3000,
+          "300",
+          "30",
+          "3",
+          300,
+          30,
+          3,
+          "3000",
+          "300",
+          "30",
+          "3",
+          3000,
+          300,
+          30,
+          3,
+          300,
+          3,
+          30,
+          3000,
+          "300",
+          "30",
+          "3000",
+          "3",
+          3,
+          30,
+          300,
+          "3",
+          "30",
+          "300",
+          3000,
+          "3000",
+          3,
+          30,
+          300,
+          3000,
+          "3",
+          "30",
+          "300",
+          "3000",
+          "3000",
+          3000,
+          "300",
+          "30",
+          "3",
+          300,
+          30,
+          3,
+          "3000",
+          "300",
+          "30",
+          "3",
+          3000,
+          300,
+          30,
+          3,
+          300,
+          3,
+          30,
+          3000,
+          "300",
+          "30",
+          "3000",
+          "3"
+        )
+      )
+    )
   }
 
   @Test
   def testSelectWithNaming(): Unit = {
-    checkResult(
-      "SELECT `1-_./Ü`, b, c FROM (SELECT a as `1-_./Ü`, b, c FROM Table3)",
-      data3)
+    checkResult("SELECT `1-_./Ü`, b, c FROM (SELECT a as `1-_./Ü`, b, c FROM Table3)", data3)
   }
 
   @Test(expected = classOf[ValidationException])
   def testInvalidFields(): Unit = {
-    checkResult(
-      "SELECT a, foo FROM Table3",
-      data3)
+    checkResult("SELECT a, foo FROM Table3", data3)
   }
 
   @Test
   def testAllRejectingFilter(): Unit = {
-    checkResult(
-      "SELECT * FROM Table3 WHERE false",
-      Seq())
+    checkResult("SELECT * FROM Table3 WHERE false", Seq())
   }
 
   @Test
   def testAllPassingFilter(): Unit = {
-    checkResult(
-      "SELECT * FROM Table3 WHERE true",
-      data3)
+    checkResult("SELECT * FROM Table3 WHERE true", data3)
   }
 
   @Test
@@ -226,7 +438,8 @@ class CalcITCase extends BatchTestBase {
         row(16, 6L, "Comment#10"),
         row(18, 6L, "Comment#12"),
         row(20, 6L, "Comment#14")
-      ))
+      )
+    )
   }
 
   @Test
@@ -250,22 +463,23 @@ class CalcITCase extends BatchTestBase {
         row(17, 6L, "Comment#11"),
         row(19, 6L, "Comment#13"),
         row(21, 6L, "Comment#15")
-      ))
+      )
+    )
   }
 
   @Test
   def testAdvancedDataTypes(): Unit = {
     val data = Seq(
-      row(
-        localDate("1984-07-12"),
-        localTime("14:34:24"),
-        localDateTime("1984-07-12 14:34:24")))
+      row(localDate("1984-07-12"), localTime("14:34:24"), localDateTime("1984-07-12 14:34:24")))
     registerCollection(
-      "MyTable", data, new RowTypeInfo(LOCAL_DATE, LOCAL_TIME, LOCAL_DATE_TIME), "a, b, c")
+      "MyTable",
+      data,
+      new RowTypeInfo(LOCAL_DATE, LOCAL_TIME, LOCAL_DATE_TIME),
+      "a, b, c")
 
     checkResult(
       "SELECT a, b, c, DATE '1984-07-12', TIME '14:34:24', " +
-          "TIMESTAMP '1984-07-12 14:34:24' FROM MyTable",
+        "TIMESTAMP '1984-07-12 14:34:24' FROM MyTable",
       Seq(
         row(
           localDate("1984-07-12"),
@@ -273,12 +487,14 @@ class CalcITCase extends BatchTestBase {
           localDateTime("1984-07-12 14:34:24"),
           localDate("1984-07-12"),
           localTime("14:34:24"),
-          localDateTime("1984-07-12 14:34:24"))))
+          localDateTime("1984-07-12 14:34:24")
+        ))
+    )
 
     checkResult(
       "SELECT a, b, c, DATE '1984-07-12', TIME '14:34:24', " +
-          "TIMESTAMP '1984-07-12 14:34:24' FROM MyTable " +
-          "WHERE a = '1984-07-12' and b = '14:34:24' and c = '1984-07-12 14:34:24'",
+        "TIMESTAMP '1984-07-12 14:34:24' FROM MyTable " +
+        "WHERE a = '1984-07-12' and b = '14:34:24' and c = '1984-07-12 14:34:24'",
       Seq(
         row(
           localDate("1984-07-12"),
@@ -286,12 +502,14 @@ class CalcITCase extends BatchTestBase {
           localDateTime("1984-07-12 14:34:24"),
           localDate("1984-07-12"),
           localTime("14:34:24"),
-          localDateTime("1984-07-12 14:34:24"))))
+          localDateTime("1984-07-12 14:34:24")
+        ))
+    )
 
     checkResult(
       "SELECT a, b, c, DATE '1984-07-12', TIME '14:34:24', " +
-          "TIMESTAMP '1984-07-12 14:34:24' FROM MyTable " +
-          "WHERE '1984-07-12' = a and '14:34:24' = b and '1984-07-12 14:34:24' = c",
+        "TIMESTAMP '1984-07-12 14:34:24' FROM MyTable " +
+        "WHERE '1984-07-12' = a and '14:34:24' = b and '1984-07-12 14:34:24' = c",
       Seq(
         row(
           localDate("1984-07-12"),
@@ -299,7 +517,9 @@ class CalcITCase extends BatchTestBase {
           localDateTime("1984-07-12 14:34:24"),
           localDate("1984-07-12"),
           localTime("14:34:24"),
-          localDateTime("1984-07-12 14:34:24"))))
+          localDateTime("1984-07-12 14:34:24")
+        ))
+    )
   }
 
   @Test
@@ -310,16 +530,15 @@ class CalcITCase extends BatchTestBase {
 
     checkResult(
       "SELECT hashCode(text), hashCode('22') FROM MyTable",
-      Seq(row(97,1600), row(98,1600), row(99,1600)
-      ))
+      Seq(row(97, 1600), row(98, 1600), row(99, 1600)))
   }
 
   @Test
   def testDecimalReturnType(): Unit = {
     registerFunction("myNegative", MyNegative)
-    checkResult("SELECT myNegative(5.1)",
-      Seq(row(new java.math.BigDecimal("-5.100000000000000000"))
-      ))
+    checkResult(
+      "SELECT myNegative(5.1)",
+      Seq(row(new java.math.BigDecimal("-5.100000000000000000"))))
   }
 
   @Test
@@ -328,10 +547,7 @@ class CalcITCase extends BatchTestBase {
     val data = Seq(row("a"), row("b"), row("c"))
     registerCollection("MyTable", data, new RowTypeInfo(STRING_TYPE_INFO), "text")
 
-    checkResult(
-      "SELECT func(text) FROM MyTable",
-      Seq(row("a"), row("b"), row("c")
-      ))
+    checkResult("SELECT func(text) FROM MyTable", Seq(row("a"), row("b"), row("c")))
   }
 
   @Test
@@ -342,10 +558,11 @@ class CalcITCase extends BatchTestBase {
     // TODO: Add ZonedDateTime/OffsetDateTime
     val new_york = ZoneId.of("America/New_York")
     val ldt = localDateTime("1969-07-20 16:17:39")
-    val data = Seq(row(
-      ldt,
-      ldt.toInstant(new_york.getRules.getOffset(ldt))
-    ))
+    val data = Seq(
+      row(
+        ldt,
+        ldt.toInstant(new_york.getRules.getOffset(ldt))
+      ))
     registerCollection("T", data, new RowTypeInfo(LOCAL_DATE_TIME, INSTANT), "a, b")
 
     val pairs = ZoneId.of("Europe/Paris")
@@ -358,15 +575,19 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testTimeUDF(): Unit = {
-    val data = Seq(row(
-      localDate("1984-07-12"),
-      Date.valueOf("1984-07-12"),
-      DateTimeTestUtil.localTime("08:03:09"),
-      Time.valueOf("08:03:09"),
-      localDateTime("2019-09-19 08:03:09"),
-      Timestamp.valueOf("2019-09-19 08:03:09"),
-      Timestamp.valueOf("2019-09-19 08:03:09").toInstant))
-    registerCollection("MyTable", data,
+    val data = Seq(
+      row(
+        localDate("1984-07-12"),
+        Date.valueOf("1984-07-12"),
+        DateTimeTestUtil.localTime("08:03:09"),
+        Time.valueOf("08:03:09"),
+        localDateTime("2019-09-19 08:03:09"),
+        Timestamp.valueOf("2019-09-19 08:03:09"),
+        Timestamp.valueOf("2019-09-19 08:03:09").toInstant
+      ))
+    registerCollection(
+      "MyTable",
+      data,
       new RowTypeInfo(LOCAL_DATE, DATE, LOCAL_TIME, TIME, LOCAL_DATE_TIME, TIMESTAMP, INSTANT),
       "a, b, c, d, e, f, g")
 
@@ -384,46 +605,58 @@ class CalcITCase extends BatchTestBase {
     val v4 = "2019-09-19T08:03:09"
     checkResult(
       "SELECT" +
-          " dateFunc(a), localDateFunc(a), dateFunc(b), localDateFunc(b)," +
-          " timeFunc(c), localTimeFunc(c), timeFunc(d), localTimeFunc(d)," +
-          " timestampFunc(e), datetimeFunc(e), timestampFunc(f), datetimeFunc(f)," +
-          " CAST(instantFunc(g) AS TIMESTAMP), instantFunc(g)" +
-          " FROM MyTable",
-      Seq(row(
-        v1, v1, v1, v1,
-        v2, v2, v2, v2,
-        v3, v4, v3, v4,
-        localDateTime("2019-09-19 08:03:09"),
-        Timestamp.valueOf("2019-09-19 08:03:09").toInstant)))
+        " dateFunc(a), localDateFunc(a), dateFunc(b), localDateFunc(b)," +
+        " timeFunc(c), localTimeFunc(c), timeFunc(d), localTimeFunc(d)," +
+        " timestampFunc(e), datetimeFunc(e), timestampFunc(f), datetimeFunc(f)," +
+        " CAST(instantFunc(g) AS TIMESTAMP), instantFunc(g)" +
+        " FROM MyTable",
+      Seq(
+        row(
+          v1,
+          v1,
+          v1,
+          v1,
+          v2,
+          v2,
+          v2,
+          v2,
+          v3,
+          v4,
+          v3,
+          v4,
+          localDateTime("2019-09-19 08:03:09"),
+          Timestamp.valueOf("2019-09-19 08:03:09").toInstant))
+    )
   }
 
   @Test
   def testTimeUDFParametersImplicitCast(): Unit = {
-    val data: Seq[Row] = Seq(row(
-      localDateTime("2019-09-19 08:03:09.123"),
-      Timestamp.valueOf("2019-09-19 08:03:09").toInstant,
-      Timestamp.valueOf("2019-09-19 08:03:09.123").toInstant,
-      Timestamp.valueOf("2019-09-19 08:03:09.123456").toInstant,
-      Timestamp.valueOf("2019-09-19 08:03:09.123456789").toInstant,
-      Timestamp.valueOf("2019-09-19 08:03:09.123").toInstant)
-    )
+    val data: Seq[Row] = Seq(
+      row(
+        localDateTime("2019-09-19 08:03:09.123"),
+        Timestamp.valueOf("2019-09-19 08:03:09").toInstant,
+        Timestamp.valueOf("2019-09-19 08:03:09.123").toInstant,
+        Timestamp.valueOf("2019-09-19 08:03:09.123456").toInstant,
+        Timestamp.valueOf("2019-09-19 08:03:09.123456789").toInstant,
+        Timestamp.valueOf("2019-09-19 08:03:09.123").toInstant
+      ))
     val dataId = TestValuesTableFactory.registerData(data)
 
     val ddl =
-    s"""
-        |CREATE TABLE MyTable (
-        |  ntz TIMESTAMP(3),
-        |  ltz0 TIMESTAMP_LTZ(0),
-        |  ltz3 TIMESTAMP_LTZ(3),
-        |  ltz6 TIMESTAMP_LTZ(6),
-        |  ltz9 TIMESTAMP_LTZ(9),
-        |  ltz_not_null TIMESTAMP_LTZ(3) NOT NULL
-        |) WITH (
-        |  'connector' = 'values',
-        |  'data-id' = '$dataId',
-        |  'bounded' = 'true'
-        |)
-        |""".stripMargin
+      s"""
+         |CREATE TABLE MyTable (
+         |  ntz TIMESTAMP(3),
+         |  ltz0 TIMESTAMP_LTZ(0),
+         |  ltz3 TIMESTAMP_LTZ(3),
+         |  ltz6 TIMESTAMP_LTZ(6),
+         |  ltz9 TIMESTAMP_LTZ(9),
+         |  ltz_not_null TIMESTAMP_LTZ(3) NOT NULL
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$dataId',
+         |  'bounded' = 'true'
+         |)
+         |""".stripMargin
 
     tEnv.executeSql(ddl)
     tEnv.createTemporaryFunction("timestampFunc", TimestampFunction)
@@ -439,25 +672,33 @@ class CalcITCase extends BatchTestBase {
         " timestampFunc(ltz9), datetimeFunc(ltz9), instantFunc(ltz9)," +
         " timestampFunc(ltz_not_null), datetimeFunc(ltz_not_null), instantFunc(ltz_not_null)" +
         " FROM MyTable",
-      Seq(row(
-        // ntz
-       "2019-09-19 08:03:09.123", "2019-09-19T08:03:09.123",
-        Timestamp.valueOf("2019-09-19 08:03:09.123").toInstant,
-        // ltz0
-        "2019-09-19 08:03:09.0", "2019-09-19T08:03:09",
-        Timestamp.valueOf("2019-09-19 08:03:09").toInstant,
-        // ltz3
-        "2019-09-19 08:03:09.123", "2019-09-19T08:03:09.123",
-        Timestamp.valueOf("2019-09-19 08:03:09.123").toInstant,
-        // ltz6
-        "2019-09-19 08:03:09.123456", "2019-09-19T08:03:09.123456",
-        Timestamp.valueOf("2019-09-19 08:03:09.123456").toInstant,
-        // ltz6
-        "2019-09-19 08:03:09.123456789", "2019-09-19T08:03:09.123456789",
-        Timestamp.valueOf("2019-09-19 08:03:09.123456789").toInstant,
-        // ltz_not_null
-        "2019-09-19 08:03:09.123", "2019-09-19T08:03:09.123",
-        Timestamp.valueOf("2019-09-19 08:03:09.123").toInstant))
+      Seq(
+        row(
+          // ntz
+          "2019-09-19 08:03:09.123",
+          "2019-09-19T08:03:09.123",
+          Timestamp.valueOf("2019-09-19 08:03:09.123").toInstant,
+          // ltz0
+          "2019-09-19 08:03:09.0",
+          "2019-09-19T08:03:09",
+          Timestamp.valueOf("2019-09-19 08:03:09").toInstant,
+          // ltz3
+          "2019-09-19 08:03:09.123",
+          "2019-09-19T08:03:09.123",
+          Timestamp.valueOf("2019-09-19 08:03:09.123").toInstant,
+          // ltz6
+          "2019-09-19 08:03:09.123456",
+          "2019-09-19T08:03:09.123456",
+          Timestamp.valueOf("2019-09-19 08:03:09.123456").toInstant,
+          // ltz6
+          "2019-09-19 08:03:09.123456789",
+          "2019-09-19T08:03:09.123456789",
+          Timestamp.valueOf("2019-09-19 08:03:09.123456789").toInstant,
+          // ltz_not_null
+          "2019-09-19 08:03:09.123",
+          "2019-09-19T08:03:09.123",
+          Timestamp.valueOf("2019-09-19 08:03:09.123").toInstant
+        ))
     )
   }
 
@@ -470,9 +711,7 @@ class CalcITCase extends BatchTestBase {
       new RowTypeInfo(INT_TYPE_INFO, INT_TYPE_INFO, BYTE_PRIMITIVE_ARRAY_TYPE_INFO),
       "a, b, c")
 
-    checkResult(
-      "SELECT a, b, c FROM MyTable",
-      data)
+    checkResult("SELECT a, b, c FROM MyTable", data)
   }
 
   @Test
@@ -526,7 +765,8 @@ class CalcITCase extends BatchTestBase {
         row("a", util.Arrays.asList("a"), "a"),
         row("b", util.Arrays.asList("b"), "b"),
         row("c", util.Arrays.asList("c"), "c")
-      ))
+      )
+    )
   }
 
   @Test
@@ -541,20 +781,18 @@ class CalcITCase extends BatchTestBase {
     // go to shuffler to serializer
     checkResult(
       "SELECT text, count(*), rowToStr(func1(text)), func2(text), func3(text) " +
-          "FROM MyTable group by text",
+        "FROM MyTable group by text",
       Seq(
         row("a", 1, "a", util.Arrays.asList("a"), "a"),
         row("b", 1, "b", util.Arrays.asList("b"), "b"),
         row("c", 1, "c", util.Arrays.asList("c"), "c")
-      ))
+      )
+    )
   }
 
   @Test
   def testPojoField(): Unit = {
-    val data = Seq(
-      row(new MyPojo(5, 105)),
-      row(new MyPojo(6, 11)),
-      row(new MyPojo(7, 12)))
+    val data = Seq(row(new MyPojo(5, 105)), row(new MyPojo(6, 11)), row(new MyPojo(7, 12)))
     registerCollection(
       "MyTable",
       data,
@@ -572,30 +810,22 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testPojoFieldUDF(): Unit = {
-    val data = Seq(
-      row(new MyPojo(5, 105)),
-      row(new MyPojo(6, 11)),
-      row(new MyPojo(7, 12)))
+    val data = Seq(row(new MyPojo(5, 105)), row(new MyPojo(6, 11)), row(new MyPojo(7, 12)))
     registerCollection(
       "MyTable",
       data,
       new RowTypeInfo(TypeExtractor.createTypeInfo(classOf[MyPojo])),
       "a")
 
-    //1. external type for udf parameter
+    // 1. external type for udf parameter
     registerFunction("pojoFunc", MyPojoFunc)
     registerFunction("toPojoFunc", MyToPojoFunc)
-    checkResult(
-      "SELECT pojoFunc(a) FROM MyTable",
-      Seq(row(105), row(11), row(12)))
+    checkResult("SELECT pojoFunc(a) FROM MyTable", Seq(row(105), row(11), row(12)))
 
-    //2. external type return in udf
+    // 2. external type return in udf
     checkResult(
       "SELECT toPojoFunc(pojoFunc(a)) FROM MyTable",
-      Seq(
-        row(row(11, 11)),
-        row(row(12, 12)),
-        row(row(105, 105))))
+      Seq(row(row(11, 11)), row(row(12, 12)), row(row(105, 105))))
   }
 
   // TODO
@@ -617,14 +847,19 @@ class CalcITCase extends BatchTestBase {
 //  }
 
   @Test
-  def testInSmallValues(): Unit = {
+  def testInNonConstantValue(): Unit = {
     checkResult(
-      "SELECT a FROM Table3 WHERE a in (1, 2)",
-      Seq(row(1), row(2)))
+      "SELECT a FROM Table3 WHERE a IN (CAST(b AS INT), 21)",
+      Seq(row(1), row(2), row(21)))
+  }
 
-    checkResult(
-      "SELECT a FROM Table3 WHERE a in (1, 2) and b = 2",
-      Seq(row(2)))
+  @Test
+  def testInSmallValues(): Unit = {
+    checkResult("SELECT a FROM Table3 WHERE a in (1, 2)", Seq(row(1), row(2)))
+
+    checkResult("SELECT a FROM Table3 WHERE a in (1, 2, NULL)", Seq(row(1), row(2)))
+
+    checkResult("SELECT a FROM Table3 WHERE a in (1, 2) and b = 2", Seq(row(2)))
   }
 
   @Test
@@ -633,13 +868,9 @@ class CalcITCase extends BatchTestBase {
       "SELECT a FROM Table3 WHERE a in (1, 2, 3, 4, 5)",
       Seq(row(1), row(2), row(3), row(4), row(5)))
 
-    checkResult(
-      "SELECT a FROM Table3 WHERE a in (1, 2, 3, 4, 5) and b = 2",
-      Seq(row(2), row(3)))
+    checkResult("SELECT a FROM Table3 WHERE a in (1, 2, 3, 4, 5) and b = 2", Seq(row(2), row(3)))
 
-    checkResult(
-      "SELECT c FROM Table3 WHERE c in ('Hi', 'H2', 'H3', 'H4', 'H5')",
-      Seq(row("Hi")))
+    checkResult("SELECT c FROM Table3 WHERE c in ('Hi', 'H2', 'H3', 'H4', 'H5')", Seq(row("Hi")))
   }
 
   @Test
@@ -650,23 +881,22 @@ class CalcITCase extends BatchTestBase {
 
     checkResult(
       "SELECT c FROM Table3 WHERE a = 1 and " +
-          "(b = 1 or (c = 'Hello' and substring(c, 0, 2) in ('Hi', 'H2', 'H3', 'H4', 'H5')))",
+        "(b = 1 or (c = 'Hello' and substring(c, 0, 2) in ('Hi', 'H2', 'H3', 'H4', 'H5')))",
       Seq(row("Hi")))
 
     checkResult(
       "SELECT c FROM Table3 WHERE a = 1 and " +
-          "(b = 1 or (c = 'Hello' and (" +
-          "substring(c, 0, 2) = 'Hi' or substring(c, 0, 2) = 'H2' or " +
-          "substring(c, 0, 2) = 'H3' or substring(c, 0, 2) = 'H4' or " +
-          "substring(c, 0, 2) = 'H5')))",
-      Seq(row("Hi")))
+        "(b = 1 or (c = 'Hello' and (" +
+        "substring(c, 0, 2) = 'Hi' or substring(c, 0, 2) = 'H2' or " +
+        "substring(c, 0, 2) = 'H3' or substring(c, 0, 2) = 'H4' or " +
+        "substring(c, 0, 2) = 'H5')))",
+      Seq(row("Hi"))
+    )
   }
 
   @Test
   def testNotInLargeValues(): Unit = {
-    checkResult(
-      "SELECT a FROM SmallTable3 WHERE a not in (2, 3, 4, 5)",
-      Seq(row(1)))
+    checkResult("SELECT a FROM SmallTable3 WHERE a not in (2, 3, 4, 5)", Seq(row(1)))
 
     checkResult(
       "SELECT a FROM SmallTable3 WHERE a not in (2, 3, 4, 5) or b = 2",
@@ -685,16 +915,17 @@ class CalcITCase extends BatchTestBase {
 
     checkResult(
       "SELECT c FROM SmallTable3 WHERE a = 1 or " +
-          "(b = 1 and (c = 'Hello' or substring(c, 0, 2) not in ('Hi', 'H2', 'H3', 'H4', 'H5')))",
+        "(b = 1 and (c = 'Hello' or substring(c, 0, 2) not in ('Hi', 'H2', 'H3', 'H4', 'H5')))",
       Seq(row("Hi")))
 
     checkResult(
       "SELECT c FROM SmallTable3 WHERE a = 1 or " +
-          "(b = 1 and (c = 'Hello' or (" +
-          "substring(c, 0, 2) <> 'Hi' and substring(c, 0, 2) <> 'H2' and " +
-          "substring(c, 0, 2) <> 'H3' and substring(c, 0, 2) <> 'H4' and " +
-          "substring(c, 0, 2) <> 'H5')))",
-      Seq(row("Hi")))
+        "(b = 1 and (c = 'Hello' or (" +
+        "substring(c, 0, 2) <> 'Hi' and substring(c, 0, 2) <> 'H2' and " +
+        "substring(c, 0, 2) <> 'H3' and substring(c, 0, 2) <> 'H4' and " +
+        "substring(c, 0, 2) <> 'H5')))",
+      Seq(row("Hi"))
+    )
   }
 
   @Test
@@ -801,7 +1032,8 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testMapTypeGroupBy(): Unit = {
-    _expectedEx.expectMessage("is not supported as a GROUP_BY/PARTITION_BY/JOIN_EQUAL/UNION field")
+    _expectedEx.expectMessage(
+      "Type(MAP<INT NOT NULL, VARCHAR(5) NOT NULL> NOT NULL) is not an orderable data type, it is not supported as a ORDER_BY/GROUP_BY/JOIN_EQUAL field.")
     checkResult(
       "SELECT COUNT(*) FROM SmallTable3 GROUP BY MAP[1, 'Hello', 2, 'Hi']",
       Seq()
@@ -812,11 +1044,16 @@ class CalcITCase extends BatchTestBase {
   def testValueConstructor(): Unit = {
     val data = Seq(row("foo", 12, localDateTime("1984-07-12 14:34:24.001")))
     BatchTableEnvUtil.registerCollection(
-      tEnv, "MyTable", data,
+      tEnv,
+      "MyTable",
+      data,
       new RowTypeInfo(Types.STRING, Types.INT, Types.LOCAL_DATE_TIME),
-      Some(parseFieldNames("a, b, c")), None, None)
+      Some(parseFieldNames("a, b, c")),
+      None,
+      None)
 
-    val table = parseQuery("SELECT ROW(a, b, c), ARRAY[12, b], MAP[a, c] FROM MyTable " +
+    val table = parseQuery(
+      "SELECT ROW(a, b, c), ARRAY[12, b], MAP[a, c] FROM MyTable " +
         "WHERE (a, b, c) = ('foo', 12, TIMESTAMP '1984-07-12 14:34:24.001')")
     val result = executeQuery(table)
 
@@ -830,19 +1067,20 @@ class CalcITCase extends BatchTestBase {
     assertEquals(data.head.getField(1), arr(1))
 
     val hashMap = result.head.getField(2).asInstanceOf[util.HashMap[String, Timestamp]]
-    assertEquals(data.head.getField(2),
-      hashMap.get(data.head.getField(0).asInstanceOf[String]))
+    assertEquals(data.head.getField(2), hashMap.get(data.head.getField(0).asInstanceOf[String]))
   }
 
   @Test
   def testSelectStarFromNestedTable(): Unit = {
 
-    val table = BatchTableEnvUtil.fromCollection(tEnv, Seq(
-      ((0, 0), "0"),
-      ((1, 1), "1"),
-      ((2, 2), "2")
-    ))
-    tEnv.registerTable("MyTable", table)
+    val table = BatchTableEnvUtil.fromCollection(
+      tEnv,
+      Seq(
+        ((0, 0), "0"),
+        ((1, 1), "1"),
+        ((2, 2), "2")
+      ))
+    tEnv.createTemporaryView("MyTable", table)
 
     checkResult(
       "SELECT * FROM MyTable",
@@ -856,12 +1094,15 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testSelectStarFromNestedValues(): Unit = {
-    val table = BatchTableEnvUtil.fromCollection(tEnv, Seq(
-      (0L, "0"),
-      (1L, "1"),
-      (2L, "2")
-    ), "a, b")
-    tEnv.registerTable("MyTable", table)
+    val table = BatchTableEnvUtil.fromCollection(
+      tEnv,
+      Seq(
+        (0L, "0"),
+        (1L, "1"),
+        (2L, "2")
+      ),
+      "a, b")
+    tEnv.createTemporaryView("MyTable", table)
 
     checkResult(
       "select * from (select MAP[a,b], a from MyTable)",
@@ -884,12 +1125,15 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testSelectStarFromNestedValues2(): Unit = {
-    val table = BatchTableEnvUtil.fromCollection(tEnv, Seq(
-      (0L, "0"),
-      (1L, "1"),
-      (2L, "2")
-    ), "a, b")
-    tEnv.registerTable("MyTable", table)
+    val table = BatchTableEnvUtil.fromCollection(
+      tEnv,
+      Seq(
+        (0L, "0"),
+        (1L, "1"),
+        (2L, "2")
+      ),
+      "a, b")
+    tEnv.createTemporaryView("MyTable", table)
     checkResult(
       "select * from (select ARRAY[a,cast(b as BIGINT)], a from MyTable)",
       Seq(
@@ -915,7 +1159,7 @@ class CalcITCase extends BatchTestBase {
     registerFunction("splitUDF1", splitUDF1)
 
     val t1 = BatchTableEnvUtil.fromCollection(tEnv, data, "a, b, c")
-    tEnv.registerTable("T1", t1)
+    tEnv.createTemporaryView("T1", t1)
     // uses SQL escaping (be aware that even Scala multi-line strings parse backslash!)
     checkResult(
       s"""
@@ -928,9 +1172,7 @@ class CalcITCase extends BatchTestBase {
          |  splitUDF1(c, U&'${'\\'}"#0004' UESCAPE '#', 0) AS c1
          |FROM T1
          |""".stripMargin,
-      Seq(
-        row("a", "a", "d", "d", "e", "e"),
-        row("x", "x", "z", "z", "z", "z"))
+      Seq(row("a", "a", "d", "d", "e", "e"), row("x", "x", "z", "z", "z", "z"))
     )
   }
 
@@ -943,9 +1185,7 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testLike(): Unit = {
-    checkResult(
-      "SELECT a FROM NullTable3 WHERE c LIKE '%llo%'",
-      Seq(row(2), row(3), row(4)))
+    checkResult("SELECT a FROM NullTable3 WHERE c LIKE '%llo%'", Seq(row(2), row(3), row(4)))
 
     checkResult(
       "SELECT a FROM NullTable3 WHERE CAST(a as VARCHAR(10)) LIKE CAST(b as VARCHAR(10))",
@@ -959,13 +1199,9 @@ class CalcITCase extends BatchTestBase {
       "SELECT a FROM NullTable3 WHERE c LIKE 'Comment#%' and c LIKE '%2'",
       Seq(row(8), row(18)))
 
-    checkResult(
-      "SELECT a FROM NullTable3 WHERE c LIKE 'Comment#12'",
-      Seq(row(18)))
+    checkResult("SELECT a FROM NullTable3 WHERE c LIKE 'Comment#12'", Seq(row(18)))
 
-    checkResult(
-      "SELECT a FROM NullTable3 WHERE c LIKE '%omm%nt#12'",
-      Seq(row(18)))
+    checkResult("SELECT a FROM NullTable3 WHERE c LIKE '%omm%nt#12'", Seq(row(18)))
   }
 
   @Test
@@ -981,33 +1217,19 @@ class CalcITCase extends BatchTestBase {
 
     BatchTableEnvUtil.registerCollection(tEnv, "MyT", rows, "a, b")
 
-    checkResult(
-      "SELECT a FROM MyT WHERE b LIKE '%ha?_ha%' ESCAPE '?'",
-      Seq(row(1), row(2), row(3)))
+    checkResult("SELECT a FROM MyT WHERE b LIKE '%ha?_ha%' ESCAPE '?'", Seq(row(1), row(2), row(3)))
 
-    checkResult(
-      "SELECT a FROM MyT WHERE b LIKE '%ha?_ha' ESCAPE '?'",
-      Seq(row(1)))
+    checkResult("SELECT a FROM MyT WHERE b LIKE '%ha?_ha' ESCAPE '?'", Seq(row(1)))
 
-    checkResult(
-      "SELECT a FROM MyT WHERE b LIKE 'ha?_ha%' ESCAPE '?'",
-      Seq(row(1)))
+    checkResult("SELECT a FROM MyT WHERE b LIKE 'ha?_ha%' ESCAPE '?'", Seq(row(1)))
 
-    checkResult(
-      "SELECT a FROM MyT WHERE b LIKE 'ha?_ha' ESCAPE '?'",
-      Seq(row(1)))
+    checkResult("SELECT a FROM MyT WHERE b LIKE 'ha?_ha' ESCAPE '?'", Seq(row(1)))
 
-    checkResult(
-      "SELECT a FROM MyT WHERE b LIKE '%affh%ha?_ha%' ESCAPE '?'",
-      Seq(row(3)))
+    checkResult("SELECT a FROM MyT WHERE b LIKE '%affh%ha?_ha%' ESCAPE '?'", Seq(row(3)))
 
-    checkResult(
-      "SELECT a FROM MyT WHERE b LIKE 'a?%?_ha' ESCAPE '?'",
-      Seq(row(5)))
+    checkResult("SELECT a FROM MyT WHERE b LIKE 'a?%?_ha' ESCAPE '?'", Seq(row(5)))
 
-    checkResult(
-      "SELECT a FROM MyT WHERE b LIKE 'h_?_ha' ESCAPE '?'",
-      Seq(row(1)))
+    checkResult("SELECT a FROM MyT WHERE b LIKE 'h_?_ha' ESCAPE '?'", Seq(row(1)))
   }
 
   @Test
@@ -1018,9 +1240,7 @@ class CalcITCase extends BatchTestBase {
       Seq())
 
     // special case to test CHAIN_PATTERN.
-    checkResult(
-      "SELECT a FROM NullTable3 WHERE c LIKE '%Tuple%%'",
-      Seq(row(null), row(null)))
+    checkResult("SELECT a FROM NullTable3 WHERE c LIKE '%Tuple%%'", Seq(row(null), row(null)))
 
     // special case to test CHAIN_PATTERN.
     checkResult(
@@ -1030,38 +1250,26 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testEqual(): Unit = {
-    checkResult(
-      "SELECT a FROM Table3 WHERE c = 'Hi'",
-      Seq(row(1)))
+    checkResult("SELECT a FROM Table3 WHERE c = 'Hi'", Seq(row(1)))
 
-    checkResult(
-      "SELECT c FROM Table3 WHERE c <> 'Hello' AND b = 2",
-      Seq(row("Hello world")))
+    checkResult("SELECT c FROM Table3 WHERE c <> 'Hello' AND b = 2", Seq(row("Hello world")))
   }
 
   @Test
   def testSubString(): Unit = {
-    checkResult(
-      "SELECT SUBSTRING(c, 6, 13) FROM Table3 WHERE a = 6",
-      Seq(row("Skywalker")))
+    checkResult("SELECT SUBSTRING(c, 6, 13) FROM Table3 WHERE a = 6", Seq(row("Skywalker")))
   }
 
   @Test
   def testConcat(): Unit = {
-    checkResult(
-      "SELECT CONCAT(c, '-haha') FROM Table3 WHERE a = 1",
-      Seq(row("Hi-haha")))
+    checkResult("SELECT CONCAT(c, '-haha') FROM Table3 WHERE a = 1", Seq(row("Hi-haha")))
 
-    checkResult(
-      "SELECT CONCAT_WS('-x-', c, 'haha') FROM Table3 WHERE a = 1",
-      Seq(row("Hi-x-haha")))
+    checkResult("SELECT CONCAT_WS('-x-', c, 'haha') FROM Table3 WHERE a = 1", Seq(row("Hi-x-haha")))
   }
 
   @Test
   def testStringAgg(): Unit = {
-    checkResult(
-      "SELECT MIN(c) FROM NullTable3",
-      Seq(row("Comment#1")))
+    checkResult("SELECT MIN(c) FROM NullTable3", Seq(row("Comment#1")))
 
     checkResult(
       "SELECT SUM(b) FROM NullTable3 WHERE c = 'NullTuple' OR c LIKE '%Hello world%' GROUP BY c",
@@ -1070,29 +1278,17 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testTruncate(): Unit = {
-    checkResult(
-      "SELECT TRUNCATE(CAST(123.456 AS DOUBLE), 2)",
-      Seq(row(123.45)))
+    checkResult("SELECT TRUNCATE(CAST(123.456 AS DOUBLE), 2)", Seq(row(123.45)))
 
-    checkResult(
-      "SELECT TRUNCATE(CAST(123.456 AS DOUBLE))",
-      Seq(row(123.0)))
+    checkResult("SELECT TRUNCATE(CAST(123.456 AS DOUBLE))", Seq(row(123.0)))
 
-    checkResult(
-      "SELECT TRUNCATE(CAST(123.456 AS FLOAT), 2)",
-      Seq(row(123.45f)))
+    checkResult("SELECT TRUNCATE(CAST(123.456 AS FLOAT), 2)", Seq(row(123.45f)))
 
-    checkResult(
-      "SELECT TRUNCATE(CAST(123.456 AS FLOAT))",
-      Seq(row(123.0f)))
+    checkResult("SELECT TRUNCATE(CAST(123.456 AS FLOAT))", Seq(row(123.0f)))
 
-    checkResult(
-      "SELECT TRUNCATE(123, -1)",
-      Seq(row(120)))
+    checkResult("SELECT TRUNCATE(123, -1)", Seq(row(120)))
 
-    checkResult(
-      "SELECT TRUNCATE(123, -2)",
-      Seq(row(100)))
+    checkResult("SELECT TRUNCATE(123, -2)", Seq(row(100)))
 
     checkResult(
       "SELECT TRUNCATE(CAST(123.456 AS DECIMAL(6, 3)), 2)",
@@ -1106,9 +1302,7 @@ class CalcITCase extends BatchTestBase {
   @Test
   def testStringUdf(): Unit = {
     registerFunction("myFunc", MyStringFunc)
-    checkResult(
-      "SELECT myFunc(c) FROM Table3 WHERE a = 1",
-      Seq(row("Hihaha")))
+    checkResult("SELECT myFunc(c) FROM Table3 WHERE a = 1", Seq(row("Hihaha")))
   }
 
   @Test
@@ -1119,20 +1313,18 @@ class CalcITCase extends BatchTestBase {
       Seq(row("Hello worldhahahahahaha"), row("Hellohahahahahaha"), row("Hihahahahahaha")))
   }
 
-
   @Test
   def testCurrentDate(): Unit = {
     // Execution in on Query should return the same value
-    checkResult("SELECT CURRENT_DATE = CURRENT_DATE FROM testTable WHERE a = TRUE",
-      Seq(row(true)))
+    checkResult("SELECT CURRENT_DATE = CURRENT_DATE FROM testTable WHERE a = TRUE", Seq(row(true)))
 
     val d0 = LocalDateConverter.INSTANCE.toInternal(
       toLocalDateTime(System.currentTimeMillis()).toLocalDate)
 
     val table = parseQuery("SELECT CURRENT_DATE FROM testTable WHERE a = TRUE")
     val result = executeQuery(table)
-    val d1 = LocalDateConverter.INSTANCE.toInternal(
-      result.toList.head.getField(0).asInstanceOf[LocalDate])
+    val d1 =
+      LocalDateConverter.INSTANCE.toInternal(result.toList.head.getField(0).asInstanceOf[LocalDate])
 
     Assert.assertTrue(d0 <= d1 && d1 - d0 <= 1)
   }
@@ -1140,7 +1332,8 @@ class CalcITCase extends BatchTestBase {
   @Test
   def testCurrentTimestamp(): Unit = {
     // Execution in on Query should return the same value
-    checkResult("SELECT CURRENT_TIMESTAMP = CURRENT_TIMESTAMP FROM testTable WHERE a = TRUE",
+    checkResult(
+      "SELECT CURRENT_TIMESTAMP = CURRENT_TIMESTAMP FROM testTable WHERE a = TRUE",
       Seq(row(true)))
 
     // CURRENT_TIMESTAMP should return the current timestamp
@@ -1148,8 +1341,8 @@ class CalcITCase extends BatchTestBase {
 
     val table = parseQuery("SELECT CURRENT_TIMESTAMP FROM testTable WHERE a = TRUE")
     val result = executeQuery(table)
-    val ts1 = TimestampData.fromInstant(
-      result.toList.head.getField(0).asInstanceOf[Instant]).getMillisecond
+    val ts1 =
+      TimestampData.fromInstant(result.toList.head.getField(0).asInstanceOf[Instant]).getMillisecond
 
     val ts2 = System.currentTimeMillis()
 
@@ -1159,48 +1352,41 @@ class CalcITCase extends BatchTestBase {
   @Test
   def testCurrentTime(): Unit = {
     // Execution in on Query should return the same value
-    checkResult("SELECT CURRENT_TIME = CURRENT_TIME FROM testTable WHERE a = TRUE",
-      Seq(row(true)))
+    checkResult("SELECT CURRENT_TIME = CURRENT_TIME FROM testTable WHERE a = TRUE", Seq(row(true)))
   }
 
   def testTimestampCompareWithDate(): Unit = {
-    checkResult("SELECT j FROM testTable WHERE j < DATE '2017-11-11'",
-      Seq(row(true)))
+    checkResult("SELECT j FROM testTable WHERE j < DATE '2017-11-11'", Seq(row(true)))
   }
 
   /**
-    * TODO Support below string timestamp format to cast to timestamp:
-    * yyyy
-    * yyyy-[m]m
-    * yyyy-[m]m-[d]d
-    * yyyy-[m]m-[d]d
-    * yyyy-[m]m-[d]d [h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]
-    * yyyy-[m]m-[d]d [h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]Z
-    * yyyy-[m]m-[d]d [h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]-[h]h:[m]m
-    * yyyy-[m]m-[d]d [h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]+[h]h:[m]m
-    * yyyy-[m]m-[d]dT[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]
-    * yyyy-[m]m-[d]dT[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]Z
-    * yyyy-[m]m-[d]dT[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]-[h]h:[m]m
-    * yyyy-[m]m-[d]dT[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]+[h]h:[m]m
-    * [h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]
-    * [h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]Z
-    * [h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]-[h]h:[m]m
-    * [h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]+[h]h:[m]m
-    * T[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]
-    * T[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]Z
-    * T[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]-[h]h:[m]m
-    * T[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]+[h]h:[m]m
-    */
+   * TODO Support below string timestamp format to cast to timestamp: yyyy yyyy-[m]m yyyy-[m]m-[d]d
+   * yyyy-[m]m-[d]d yyyy-[m]m-[d]d [h]h:[m]m:[s]s.[ms][ms][ms][us][us][us] yyyy-[m]m-[d]d
+   * [h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]Z yyyy-[m]m-[d]d
+   * [h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]-[h]h:[m]m yyyy-[m]m-[d]d
+   * [h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]+[h]h:[m]m
+   * yyyy-[m]m-[d]dT[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]
+   * yyyy-[m]m-[d]dT[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]Z
+   * yyyy-[m]m-[d]dT[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]-[h]h:[m]m
+   * yyyy-[m]m-[d]dT[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]+[h]h:[m]m
+   * [h]h:[m]m:[s]s.[ms][ms][ms][us][us][us] [h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]Z
+   * [h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]-[h]h:[m]m
+   * [h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]+[h]h:[m]m T[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]
+   * T[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]Z T[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]-[h]h:[m]m
+   * T[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]+[h]h:[m]m
+   */
   @Test
   def testTimestampCompareWithDateString(): Unit = {
-    //j 2015-05-20 10:00:00.887
-    checkResult("SELECT j FROM testTable WHERE j < '2017-11-11'",
+    // j 2015-05-20 10:00:00.887
+    checkResult(
+      "SELECT j FROM testTable WHERE j < '2017-11-11'",
       Seq(row(localDateTime("2015-05-20 10:00:00.887"))))
   }
 
   @Test
   def testDateCompareWithDateString(): Unit = {
-    checkResult("SELECT h FROM testTable WHERE h <= '2017-12-12'",
+    checkResult(
+      "SELECT h FROM testTable WHERE h <= '2017-12-12'",
       Seq(
         row(localDate("2017-12-12")),
         row(localDate("2017-12-12"))
@@ -1209,7 +1395,8 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testDateEqualsWithDateString(): Unit = {
-    checkResult("SELECT h FROM testTable WHERE h = '2017-12-12'",
+    checkResult(
+      "SELECT h FROM testTable WHERE h = '2017-12-12'",
       Seq(
         row(localDate("2017-12-12")),
         row(localDate("2017-12-12"))
@@ -1218,109 +1405,132 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testDateFormat(): Unit = {
-    //j 2015-05-20 10:00:00.887
-    checkResult("SELECT j, " +
+    // j 2015-05-20 10:00:00.887
+    checkResult(
+      "SELECT j, " +
         " DATE_FORMAT(j, 'yyyy/MM/dd HH:mm:ss')," +
         " DATE_FORMAT('2015-05-20 10:00:00.887', 'yyyy/MM/dd HH:mm:ss')" +
         " FROM testTable WHERE a = TRUE",
       Seq(
-        row(localDateTime("2015-05-20 10:00:00.887"),
-          "2015/05/20 10:00:00",
-          "2015/05/20 10:00:00")
-      ))
+        row(localDateTime("2015-05-20 10:00:00.887"), "2015/05/20 10:00:00", "2015/05/20 10:00:00")
+      )
+    )
   }
 
   @Test
   def testYear(): Unit = {
-    checkResult("SELECT j, YEAR(j) FROM testTable WHERE a = TRUE",
+    checkResult(
+      "SELECT j, YEAR(j) FROM testTable WHERE a = TRUE",
       Seq(row(localDateTime("2015-05-20 10:00:00.887"), "2015")))
   }
 
   @Test
   def testQuarter(): Unit = {
-    checkResult("SELECT j, QUARTER(j) FROM testTable WHERE a = TRUE",
+    checkResult(
+      "SELECT j, QUARTER(j) FROM testTable WHERE a = TRUE",
       Seq(row(localDateTime("2015-05-20 10:00:00.887"), "2")))
   }
 
   @Test
   def testMonth(): Unit = {
-    checkResult("SELECT j, MONTH(j) FROM testTable WHERE a = TRUE",
+    checkResult(
+      "SELECT j, MONTH(j) FROM testTable WHERE a = TRUE",
       Seq(row(localDateTime("2015-05-20 10:00:00.887"), "5")))
   }
 
   @Test
   def testWeek(): Unit = {
-    checkResult("SELECT j, WEEK(j) FROM testTable WHERE a = TRUE",
+    checkResult(
+      "SELECT j, WEEK(j) FROM testTable WHERE a = TRUE",
       Seq(row(localDateTime("2015-05-20 10:00:00.887"), "21")))
   }
 
   @Test
   def testDayOfYear(): Unit = {
-    checkResult("SELECT j, DAYOFYEAR(j) FROM testTable WHERE a = TRUE",
+    checkResult(
+      "SELECT j, DAYOFYEAR(j) FROM testTable WHERE a = TRUE",
       Seq(row(localDateTime("2015-05-20 10:00:00.887"), "140")))
   }
 
   @Test
   def testDayOfMonth(): Unit = {
-    checkResult("SELECT j, DAYOFMONTH(j) FROM testTable WHERE a = TRUE",
+    checkResult(
+      "SELECT j, DAYOFMONTH(j) FROM testTable WHERE a = TRUE",
       Seq(row(localDateTime("2015-05-20 10:00:00.887"), "20")))
   }
 
   @Test
   def testDayOfWeek(): Unit = {
-    checkResult("SELECT j, DAYOFWEEK(j) FROM testTable WHERE a = TRUE",
+    checkResult(
+      "SELECT j, DAYOFWEEK(j) FROM testTable WHERE a = TRUE",
       Seq(row(localDateTime("2015-05-20 10:00:00.887"), "4")))
   }
 
   @Test
   def testHour(): Unit = {
-    checkResult("SELECT j, HOUR(j) FROM testTable WHERE a = TRUE",
+    checkResult(
+      "SELECT j, HOUR(j) FROM testTable WHERE a = TRUE",
       Seq(row(localDateTime("2015-05-20 10:00:00.887"), "10")))
   }
 
   @Test
   def testMinute(): Unit = {
-    checkResult("SELECT j, MINUTE(j) FROM testTable WHERE a = TRUE",
+    checkResult(
+      "SELECT j, MINUTE(j) FROM testTable WHERE a = TRUE",
       Seq(row(localDateTime("2015-05-20 10:00:00.887"), "0")))
   }
 
   @Test
   def testSecond(): Unit = {
-    checkResult("SELECT j, SECOND(j) FROM testTable WHERE a = TRUE",
+    checkResult(
+      "SELECT j, SECOND(j) FROM testTable WHERE a = TRUE",
       Seq(row(localDateTime("2015-05-20 10:00:00.887"), "0")))
   }
 
   @Test
   def testToDate(): Unit = {
-    checkResult("SELECT" +
+    checkResult(
+      "SELECT" +
         " TO_DATE(CAST(null AS VARCHAR))," +
         " TO_DATE('2016-12-31')," +
         " TO_DATE('2016-12-31', 'yyyy-MM-dd')",
-      Seq(row(null, localDate("2016-12-31"), localDate("2016-12-31"))))
+      Seq(row(null, localDate("2016-12-31"), localDate("2016-12-31")))
+    )
   }
 
   @Test
   def testToTimestamp(): Unit = {
-    checkResult("SELECT" +
+    checkResult(
+      "SELECT" +
         " TO_TIMESTAMP(CAST(null AS VARCHAR))," +
         " TO_TIMESTAMP('2016-12-31 00:12:00')," +
         " TO_TIMESTAMP('2016-12-31', 'yyyy-MM-dd')",
-      Seq(row(null, localDateTime("2016-12-31 00:12:00"), localDateTime("2016-12-31 00:00:00"))))
+      Seq(row(null, localDateTime("2016-12-31 00:12:00"), localDateTime("2016-12-31 00:00:00")))
+    )
   }
 
   @Test
   def testCalcBinary(): Unit = {
     registerCollection(
       "BinaryT",
-      nullData3.map((r) => row(r.getField(0), r.getField(1),
-        r.getField(2).toString.getBytes(StandardCharsets.UTF_8))),
+      nullData3.map(
+        r =>
+          row(
+            r.getField(0),
+            r.getField(1),
+            r.getField(2).toString.getBytes(StandardCharsets.UTF_8))),
       new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, BYTE_PRIMITIVE_ARRAY_TYPE_INFO),
       "a, b, c",
-      nullablesOfNullData3)
+      nullablesOfNullData3
+    )
     checkResult(
       "select a, b, c from BinaryT where b < 1000",
-      nullData3.map((r) => row(r.getField(0), r.getField(1),
-        r.getField(2).toString.getBytes(StandardCharsets.UTF_8)))
+      nullData3.map(
+        r =>
+          row(
+            r.getField(0),
+            r.getField(1),
+            r.getField(2).toString.getBytes(StandardCharsets.UTF_8)))
     )
   }
 
@@ -1328,21 +1538,28 @@ class CalcITCase extends BatchTestBase {
   def testOrderByBinary(): Unit = {
     registerCollection(
       "BinaryT",
-      nullData3.map((r) => row(r.getField(0), r.getField(1),
-        r.getField(2).toString.getBytes(StandardCharsets.UTF_8))),
+      nullData3.map(
+        r =>
+          row(
+            r.getField(0),
+            r.getField(1),
+            r.getField(2).toString.getBytes(StandardCharsets.UTF_8))),
       new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, BYTE_PRIMITIVE_ARRAY_TYPE_INFO),
       "a, b, c",
-      nullablesOfNullData3)
-    conf.getConfiguration.setInteger(
-      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1)
-    conf.getConfiguration.setBoolean(
-      BatchPhysicalSortRule.TABLE_EXEC_RANGE_SORT_ENABLED, true)
+      nullablesOfNullData3
+    )
+    tableConfig.set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(1))
+    tableConfig.set(BatchPhysicalSortRule.TABLE_EXEC_RANGE_SORT_ENABLED, Boolean.box(true))
     checkResult(
       "select * from BinaryT order by c",
-      nullData3.sortBy((x : Row) =>
-        x.getField(2).asInstanceOf[String]).map((r) =>
-        row(r.getField(0), r.getField(1),
-          r.getField(2).toString.getBytes(StandardCharsets.UTF_8))),
+      nullData3
+        .sortBy((x: Row) => x.getField(2).asInstanceOf[String])
+        .map(
+          r =>
+            row(
+              r.getField(0),
+              r.getField(1),
+              r.getField(2).toString.getBytes(StandardCharsets.UTF_8))),
       isSorted = true
     )
   }
@@ -1351,11 +1568,16 @@ class CalcITCase extends BatchTestBase {
   def testGroupByBinary(): Unit = {
     registerCollection(
       "BinaryT2",
-      nullData3.map((r) => row(r.getField(0),
-        r.getField(1).toString.getBytes(StandardCharsets.UTF_8), r.getField(2))),
+      nullData3.map(
+        r =>
+          row(
+            r.getField(0),
+            r.getField(1).toString.getBytes(StandardCharsets.UTF_8),
+            r.getField(2))),
       new RowTypeInfo(INT_TYPE_INFO, BYTE_PRIMITIVE_ARRAY_TYPE_INFO, STRING_TYPE_INFO),
       "a, b, c",
-      nullablesOfNullData3)
+      nullablesOfNullData3
+    )
     checkResult(
       "select sum(sumA) from (select sum(a) as sumA, b, c from BinaryT2 group by c, b) group by b",
       Seq(row(1), row(111), row(15), row(34), row(5), row(65), row(null))
@@ -1419,7 +1641,8 @@ class CalcITCase extends BatchTestBase {
         |    deepNested.nested2.num AS nestedNum
         |from NestedTable
         |""".stripMargin,
-      Seq(row(1, "HI", 1111, true, 111),
+      Seq(
+        row(1, "HI", 1111, true, 111),
         row(2, "HELLO", 2222, false, 222),
         row(3, "HELLO WORLD", 3333, true, 333))
     )
@@ -1443,14 +1666,11 @@ class CalcITCase extends BatchTestBase {
 
     val query = """
                   |select * from myTable where f0 in (1.0, 2.0, 3.0)
-                  |""".stripMargin;
+                  |""".stripMargin
 
     checkResult(
       query,
-      Seq(
-        row(1.0f, 11.0f, 12.0f),
-        row(2.0f, 21.0f, 22.0f),
-        row(3.0f, 31.0f, 32.0f))
+      Seq(row(1.0f, 11.0f, 12.0f), row(2.0f, 21.0f, 22.0f), row(3.0f, 31.0f, 32.0f))
     )
   }
 
@@ -1521,8 +1741,7 @@ class CalcITCase extends BatchTestBase {
   }
 
   private def runQueryWithIn(inParameter: String): Unit = {
-    val myTableDataId = TestValuesTableFactory.registerData(
-      Seq(row("HC809"), row(null)))
+    val myTableDataId = TestValuesTableFactory.registerData(Seq(row("HC809"), row(null)))
     val ddl =
       s"""
          |CREATE TABLE SimpleTable (
@@ -1560,7 +1779,8 @@ class CalcITCase extends BatchTestBase {
       row(localDateTime("2021-03-30 10:00:00"), localDateTime("2021-03-30 15:00:01")),
       row(localDateTime("2021-03-30 10:00:00"), localDateTime("2023-03-30 09:59:59")),
       row(localDateTime("2021-03-30 10:00:00"), localDateTime("2023-03-30 10:00:00")),
-      row(localDateTime("2021-03-30 10:00:00"), localDateTime("2023-03-30 10:00:01")))
+      row(localDateTime("2021-03-30 10:00:00"), localDateTime("2023-03-30 10:00:01"))
+    )
 
     TestLegacyFilterableTableSource.createTemporaryTable(
       tEnv,
@@ -1574,7 +1794,9 @@ class CalcITCase extends BatchTestBase {
       "SELECT * FROM myTable WHERE TIMESTAMPADD(HOUR, 5, a) >= b",
       Seq(
         row(localDateTime("2021-03-30 10:00:00"), localDateTime("2021-03-30 14:59:59")),
-        row(localDateTime("2021-03-30 10:00:00"), localDateTime("2021-03-30 15:00:00"))))
+        row(localDateTime("2021-03-30 10:00:00"), localDateTime("2021-03-30 15:00:00"))
+      )
+    )
 
     checkResult(
       "SELECT * FROM myTable WHERE TIMESTAMPADD(YEAR, 2, a) >= b",
@@ -1583,7 +1805,9 @@ class CalcITCase extends BatchTestBase {
         row(localDateTime("2021-03-30 10:00:00"), localDateTime("2021-03-30 15:00:00")),
         row(localDateTime("2021-03-30 10:00:00"), localDateTime("2021-03-30 15:00:01")),
         row(localDateTime("2021-03-30 10:00:00"), localDateTime("2023-03-30 09:59:59")),
-        row(localDateTime("2021-03-30 10:00:00"), localDateTime("2023-03-30 10:00:00"))))
+        row(localDateTime("2021-03-30 10:00:00"), localDateTime("2023-03-30 10:00:00"))
+      )
+    )
   }
 
   @Test
@@ -1597,37 +1821,173 @@ class CalcITCase extends BatchTestBase {
         row(1, 1L, "Hi"),
         row(3, 2L, "Hello world"),
         row(null, 999L, "NullTuple"),
-        row(null, 999L, "NullTuple")))
+        row(null, 999L, "NullTuple"))
+    )
+
+    checkResult(
+      """
+        |SELECT * FROM NullTable3 AS T
+        |WHERE T.a IN (1, 3) OR T.a IS NULL
+        |""".stripMargin,
+      Seq(
+        row(1, 1L, "Hi"),
+        row(3, 2L, "Hello world"),
+        row(null, 999L, "NullTuple"),
+        row(null, 999L, "NullTuple"))
+    )
+
+    checkResult(
+      """
+        |SELECT * FROM NullTable3 AS T
+        |WHERE T.a IN (1, 3) OR T.a IS NOT NULL
+        |""".stripMargin,
+      Seq(
+        row(1, 1L, "Hi"),
+        row(10, 4L, "Comment#4"),
+        row(11, 5L, "Comment#5"),
+        row(12, 5L, "Comment#6"),
+        row(13, 5L, "Comment#7"),
+        row(14, 5L, "Comment#8"),
+        row(15, 5L, "Comment#9"),
+        row(16, 6L, "Comment#10"),
+        row(17, 6L, "Comment#11"),
+        row(18, 6L, "Comment#12"),
+        row(19, 6L, "Comment#13"),
+        row(2, 2L, "Hello"),
+        row(20, 6L, "Comment#14"),
+        row(21, 6L, "Comment#15"),
+        row(3, 2L, "Hello world"),
+        row(4, 3L, "Hello world, how are you?"),
+        row(5, 3L, "I am fine."),
+        row(6, 3L, "Luke Skywalker"),
+        row(7, 4L, "Comment#1"),
+        row(8, 4L, "Comment#2"),
+        row(9, 4L, "Comment#3")
+      )
+    )
+
+    checkResult(
+      """
+        |SELECT * FROM NullTable3 AS T
+        |WHERE T.a NOT IN (1, 2) OR T.a IS NULL
+        |""".stripMargin,
+      Seq(
+        row(10, 4L, "Comment#4"),
+        row(11, 5L, "Comment#5"),
+        row(12, 5L, "Comment#6"),
+        row(13, 5L, "Comment#7"),
+        row(14, 5L, "Comment#8"),
+        row(15, 5L, "Comment#9"),
+        row(16, 6L, "Comment#10"),
+        row(17, 6L, "Comment#11"),
+        row(18, 6L, "Comment#12"),
+        row(19, 6L, "Comment#13"),
+        row(20, 6L, "Comment#14"),
+        row(21, 6L, "Comment#15"),
+        row(3, 2L, "Hello world"),
+        row(4, 3L, "Hello world, how are you?"),
+        row(5, 3L, "I am fine."),
+        row(6, 3L, "Luke Skywalker"),
+        row(7, 4L, "Comment#1"),
+        row(8, 4L, "Comment#2"),
+        row(9, 4L, "Comment#3"),
+        row(null, 999L, "NullTuple"),
+        row(null, 999L, "NullTuple")
+      )
+    )
+
+    checkResult(
+      """
+        |SELECT * FROM NullTable3 AS T
+        |WHERE T.a NOT IN (1, 2) OR T.a IS NOT NULL
+        |""".stripMargin,
+      Seq(
+        row(1, 1L, "Hi"),
+        row(10, 4L, "Comment#4"),
+        row(11, 5L, "Comment#5"),
+        row(12, 5L, "Comment#6"),
+        row(13, 5L, "Comment#7"),
+        row(14, 5L, "Comment#8"),
+        row(15, 5L, "Comment#9"),
+        row(16, 6L, "Comment#10"),
+        row(17, 6L, "Comment#11"),
+        row(18, 6L, "Comment#12"),
+        row(19, 6L, "Comment#13"),
+        row(20, 6L, "Comment#14"),
+        row(21, 6L, "Comment#15"),
+        row(2, 2L, "Hello"),
+        row(3, 2L, "Hello world"),
+        row(4, 3L, "Hello world, how are you?"),
+        row(5, 3L, "I am fine."),
+        row(6, 3L, "Luke Skywalker"),
+        row(7, 4L, "Comment#1"),
+        row(8, 4L, "Comment#2"),
+        row(9, 4L, "Comment#3")
+      )
+    )
+
+    // Test for Sarg.nullAs == RexUnknownAs.FALSE
+    // taken from https://issues.apache.org/jira/browse/CALCITE-4446
+    checkResult(
+      """
+        |SELECT * FROM NullTable3 AS T
+        |WHERE T.a IS NOT NULL AND T.a IN (1, 3)
+        |""".stripMargin,
+      Seq(
+        row(1, 1L, "Hi"),
+        row(3, 2L, "Hello world")
+      )
+    )
+
+    // Test for Sarg.nullAs == RexUnknownAs.UNKNOWN
+    // taken from https://issues.apache.org/jira/browse/CALCITE-4446
+    checkResult(
+      """
+        |SELECT * FROM NullTable3 AS T
+        |WHERE T.a IN (1, 3)
+        |""".stripMargin,
+      Seq(
+        row(1, 1L, "Hi"),
+        row(3, 2L, "Hello world")
+      )
+    )
   }
 
   @Test
   def testOrWithIsNullInIf(): Unit = {
-    val data = Seq(
-      row("", "N"),
-      row("X", "Y"),
-      row(null, "Y"))
-    registerCollection(
-      "MyTable", data, new RowTypeInfo(STRING_TYPE_INFO, STRING_TYPE_INFO), "a, b")
+    val data = Seq(row("", "N"), row("X", "Y"), row(null, "Y"))
+    registerCollection("MyTable", data, new RowTypeInfo(STRING_TYPE_INFO, STRING_TYPE_INFO), "a, b")
 
-    checkResult(
-      "SELECT IF(a = '', 'a', 'b') FROM MyTable",
-      Seq(row('a'), row('b'), row('b')))
-    checkResult(
-      "SELECT IF(a IS NULL, 'a', 'b') FROM MyTable",
-      Seq(row('b'), row('b'), row('a')))
+    checkResult("SELECT IF(a = '', 'a', 'b') FROM MyTable", Seq(row('a'), row('b'), row('b')))
+    checkResult("SELECT IF(a IS NULL, 'a', 'b') FROM MyTable", Seq(row('b'), row('b'), row('a')))
     checkResult(
       "SELECT IF(a = '' OR a IS NULL, 'a', 'b') FROM MyTable",
       Seq(row('a'), row('b'), row('a')))
+    checkResult(
+      "SELECT IF(a IN ('', ' ') OR a IS NULL, 'a', 'b') FROM MyTable",
+      Seq(row('a'), row('b'), row('a')))
+    checkResult(
+      "SELECT IF(a IN ('', ' ') OR a IS NOT NULL, 'a', 'b') FROM MyTable",
+      Seq(row('a'), row('a'), row('b')))
+    checkResult(
+      "SELECT IF(a NOT IN ('', ' ') OR a IS NULL, 'a', 'b') FROM MyTable",
+      Seq(row('b'), row('a'), row('a')))
+    // Test for Sarg.nullAs == RexUnknownAs.FALSE
+    // taken from https://issues.apache.org/jira/browse/CALCITE-4446
+    checkResult(
+      "SELECT IF(a NOT IN ('', ' ') AND a IS NOT NULL, 'a', 'b') FROM MyTable",
+      Seq(row('b'), row('a'), row('b')))
+    // Test for Sarg.nullAs == RexUnknownAs.UNKNOWN
+    // taken from https://issues.apache.org/jira/browse/CALCITE-4446
+    checkResult(
+      "SELECT IF(a NOT IN ('', ' '), 'a', 'b') FROM MyTable",
+      Seq(row('a'), row('b'), row('b')))
   }
 
   @Test
   def testFilterConditionWithCast(): Unit = {
     val dataId = TestValuesTableFactory.registerData(
-      Seq(
-        row(1, "true"),
-        row(2, "false"),
-        row(3, "invalid"),
-        row(4, null)))
+      Seq(row(1, "true"), row(2, "false"), row(3, "invalid"), row(4, null)))
     val ddl =
       s"""
          |CREATE TABLE MyTable (
@@ -1641,11 +2001,9 @@ class CalcITCase extends BatchTestBase {
        """.stripMargin
     tEnv.executeSql(ddl)
 
+    checkResult("select a from MyTable where try_cast(b as boolean)", Seq(row(1)))
     checkResult(
-      "select a from MyTable where cast(b as boolean)",
-      Seq(row(1)))
-    checkResult(
-      "select cast(b as boolean) from MyTable",
+      "select try_cast(b as boolean) from MyTable",
       Seq(row(true), row(false), row(null), row(null)))
   }
 
@@ -1654,14 +2012,15 @@ class CalcITCase extends BatchTestBase {
     // we're not adding this test to ScalarFunctionsTest because that test
     // directly uses the generated code and does not check for expression types
     val dataId = TestValuesTableFactory.registerData(
-      Seq(row(
-        LocalDateTime.of(2021, 7, 15, 16, 50, 0, 123000000),
-        LocalDateTime.of(2021, 7, 15, 16, 50, 0, 123456789),
-        Instant.ofEpochMilli(1626339000123L),
-        Instant.ofEpochSecond(1626339000, 123456789),
-        LocalDate.of(2021, 7, 15),
-        LocalTime.of(16, 50, 0, 123000000)
-      )))
+      Seq(
+        row(
+          LocalDateTime.of(2021, 7, 15, 16, 50, 0, 123000000),
+          LocalDateTime.of(2021, 7, 15, 16, 50, 0, 123456789),
+          Instant.ofEpochMilli(1626339000123L),
+          Instant.ofEpochSecond(1626339000, 123456789),
+          LocalDate.of(2021, 7, 15),
+          LocalTime.of(16, 50, 0, 123000000)
+        )))
     val ddl =
       s"""
          |CREATE TABLE MyTable (
@@ -1708,31 +2067,222 @@ class CalcITCase extends BatchTestBase {
         |  timestampadd(second, 1, f)
         |from MyTable
         |""".stripMargin,
-      Seq(row(
-        LocalDateTime.of(2021, 7, 16, 16, 50, 0, 123000000),
-        LocalDateTime.of(2021, 7, 15, 17, 50, 0, 123000000),
-        LocalDateTime.of(2021, 7, 15, 16, 51, 0, 123000000),
-        LocalDateTime.of(2021, 7, 15, 16, 50, 1, 123000000),
-        LocalDateTime.of(2021, 7, 16, 16, 50, 0, 123456789),
-        LocalDateTime.of(2021, 7, 15, 17, 50, 0, 123456789),
-        LocalDateTime.of(2021, 7, 15, 16, 51, 0, 123456789),
-        LocalDateTime.of(2021, 7, 15, 16, 50, 1, 123456789),
-        Instant.ofEpochMilli(1626339000123L + 24 * 3600 * 1000L),
-        Instant.ofEpochMilli(1626339000123L + 3600 * 1000L),
-        Instant.ofEpochMilli(1626339000123L + 60 * 1000L),
-        Instant.ofEpochMilli(1626339000123L + 1000L),
-        Instant.ofEpochSecond(1626339000 + 24 * 3600, 123456789),
-        Instant.ofEpochSecond(1626339000 + 3600, 123456789),
-        Instant.ofEpochSecond(1626339000 + 60, 123456789),
-        Instant.ofEpochSecond(1626339000 + 1, 123456789),
-        LocalDate.of(2021, 7, 16),
-        LocalDateTime.of(2021, 7, 15, 1, 0, 0),
-        LocalDateTime.of(2021, 7, 15, 0, 1, 0),
-        LocalDateTime.of(2021, 7, 15, 0, 0, 1),
-        LocalTime.of(16, 50, 0, 123000000),
-        LocalTime.of(17, 50, 0, 123000000),
-        LocalTime.of(16, 51, 0, 123000000),
-        LocalTime.of(16, 50, 1, 123000000)
-      )))
+      Seq(
+        row(
+          LocalDateTime.of(2021, 7, 16, 16, 50, 0, 123000000),
+          LocalDateTime.of(2021, 7, 15, 17, 50, 0, 123000000),
+          LocalDateTime.of(2021, 7, 15, 16, 51, 0, 123000000),
+          LocalDateTime.of(2021, 7, 15, 16, 50, 1, 123000000),
+          LocalDateTime.of(2021, 7, 16, 16, 50, 0, 123456789),
+          LocalDateTime.of(2021, 7, 15, 17, 50, 0, 123456789),
+          LocalDateTime.of(2021, 7, 15, 16, 51, 0, 123456789),
+          LocalDateTime.of(2021, 7, 15, 16, 50, 1, 123456789),
+          Instant.ofEpochMilli(1626339000123L + 24 * 3600 * 1000L),
+          Instant.ofEpochMilli(1626339000123L + 3600 * 1000L),
+          Instant.ofEpochMilli(1626339000123L + 60 * 1000L),
+          Instant.ofEpochMilli(1626339000123L + 1000L),
+          Instant.ofEpochSecond(1626339000 + 24 * 3600, 123456789),
+          Instant.ofEpochSecond(1626339000 + 3600, 123456789),
+          Instant.ofEpochSecond(1626339000 + 60, 123456789),
+          Instant.ofEpochSecond(1626339000 + 1, 123456789),
+          LocalDate.of(2021, 7, 16),
+          LocalDateTime.of(2021, 7, 15, 1, 0, 0),
+          LocalDateTime.of(2021, 7, 15, 0, 1, 0),
+          LocalDateTime.of(2021, 7, 15, 0, 0, 1),
+          LocalTime.of(16, 50, 0, 123000000),
+          LocalTime.of(17, 50, 0, 123000000),
+          LocalTime.of(16, 51, 0, 123000000),
+          LocalTime.of(16, 50, 1, 123000000)
+        ))
+    )
+
+    // Tests for tinyint
+    checkResult(
+      """
+        |select
+        |  timestampadd(day, cast(1 as tinyint), a),
+        |  timestampadd(hour, cast(1 as tinyint), a),
+        |  timestampadd(minute, cast(1 as tinyint), a),
+        |  timestampadd(second, cast(1 as tinyint), a),
+        |  timestampadd(day, cast(1 as tinyint), b),
+        |  timestampadd(hour, cast(1 as tinyint), b),
+        |  timestampadd(minute, cast(1 as tinyint), b),
+        |  timestampadd(second, cast(1 as tinyint), b),
+        |  timestampadd(day, cast(1 as tinyint), c),
+        |  timestampadd(hour, cast(1 as tinyint), c),
+        |  timestampadd(minute, cast(1 as tinyint), c),
+        |  timestampadd(second, cast(1 as tinyint), c),
+        |  timestampadd(day, cast(1 as tinyint), d),
+        |  timestampadd(hour, cast(1 as tinyint), d),
+        |  timestampadd(minute, cast(1 as tinyint), d),
+        |  timestampadd(second, cast(1 as tinyint), d),
+        |  timestampadd(day, cast(1 as tinyint), e),
+        |  timestampadd(hour, cast(1 as tinyint), e),
+        |  timestampadd(minute, cast(1 as tinyint), e),
+        |  timestampadd(second, cast(1 as tinyint), e),
+        |  timestampadd(day, cast(1 as tinyint), f),
+        |  timestampadd(hour, cast(1 as tinyint), f),
+        |  timestampadd(minute, cast(1 as tinyint), f),
+        |  timestampadd(second, cast(1 as tinyint), f)
+        |from MyTable
+        |""".stripMargin,
+      Seq(
+        row(
+          LocalDateTime.of(2021, 7, 16, 16, 50, 0, 123000000),
+          LocalDateTime.of(2021, 7, 15, 17, 50, 0, 123000000),
+          LocalDateTime.of(2021, 7, 15, 16, 51, 0, 123000000),
+          LocalDateTime.of(2021, 7, 15, 16, 50, 1, 123000000),
+          LocalDateTime.of(2021, 7, 16, 16, 50, 0, 123456789),
+          LocalDateTime.of(2021, 7, 15, 17, 50, 0, 123456789),
+          LocalDateTime.of(2021, 7, 15, 16, 51, 0, 123456789),
+          LocalDateTime.of(2021, 7, 15, 16, 50, 1, 123456789),
+          Instant.ofEpochMilli(1626339000123L + 24 * 3600 * 1000L),
+          Instant.ofEpochMilli(1626339000123L + 3600 * 1000L),
+          Instant.ofEpochMilli(1626339000123L + 60 * 1000L),
+          Instant.ofEpochMilli(1626339000123L + 1000L),
+          Instant.ofEpochSecond(1626339000 + 24 * 3600, 123456789),
+          Instant.ofEpochSecond(1626339000 + 3600, 123456789),
+          Instant.ofEpochSecond(1626339000 + 60, 123456789),
+          Instant.ofEpochSecond(1626339000 + 1, 123456789),
+          LocalDate.of(2021, 7, 16),
+          LocalDateTime.of(2021, 7, 15, 1, 0, 0),
+          LocalDateTime.of(2021, 7, 15, 0, 1, 0),
+          LocalDateTime.of(2021, 7, 15, 0, 0, 1),
+          LocalTime.of(16, 50, 0, 123000000),
+          LocalTime.of(17, 50, 0, 123000000),
+          LocalTime.of(16, 51, 0, 123000000),
+          LocalTime.of(16, 50, 1, 123000000)
+        ))
+    )
+
+    // Tests for smallint
+    checkResult(
+      """
+        |select
+        |  timestampadd(day, cast(1 as smallint), a),
+        |  timestampadd(hour, cast(1 as smallint), a),
+        |  timestampadd(minute, cast(1 as smallint), a),
+        |  timestampadd(second, cast(1 as smallint), a),
+        |  timestampadd(day, cast(1 as smallint), b),
+        |  timestampadd(hour, cast(1 as smallint), b),
+        |  timestampadd(minute, cast(1 as smallint), b),
+        |  timestampadd(second, cast(1 as smallint), b),
+        |  timestampadd(day, cast(1 as smallint), c),
+        |  timestampadd(hour, cast(1 as smallint), c),
+        |  timestampadd(minute, cast(1 as smallint), c),
+        |  timestampadd(second, cast(1 as smallint), c),
+        |  timestampadd(day, cast(1 as smallint), d),
+        |  timestampadd(hour, cast(1 as smallint), d),
+        |  timestampadd(minute, cast(1 as smallint), d),
+        |  timestampadd(second, cast(1 as smallint), d),
+        |  timestampadd(day, cast(1 as smallint), e),
+        |  timestampadd(hour, cast(1 as smallint), e),
+        |  timestampadd(minute, cast(1 as smallint), e),
+        |  timestampadd(second, cast(1 as smallint), e),
+        |  timestampadd(day, cast(1 as smallint), f),
+        |  timestampadd(hour, cast(1 as smallint), f),
+        |  timestampadd(minute, cast(1 as smallint), f),
+        |  timestampadd(second, cast(1 as smallint), f)
+        |from MyTable
+        |""".stripMargin,
+      Seq(
+        row(
+          LocalDateTime.of(2021, 7, 16, 16, 50, 0, 123000000),
+          LocalDateTime.of(2021, 7, 15, 17, 50, 0, 123000000),
+          LocalDateTime.of(2021, 7, 15, 16, 51, 0, 123000000),
+          LocalDateTime.of(2021, 7, 15, 16, 50, 1, 123000000),
+          LocalDateTime.of(2021, 7, 16, 16, 50, 0, 123456789),
+          LocalDateTime.of(2021, 7, 15, 17, 50, 0, 123456789),
+          LocalDateTime.of(2021, 7, 15, 16, 51, 0, 123456789),
+          LocalDateTime.of(2021, 7, 15, 16, 50, 1, 123456789),
+          Instant.ofEpochMilli(1626339000123L + 24 * 3600 * 1000L),
+          Instant.ofEpochMilli(1626339000123L + 3600 * 1000L),
+          Instant.ofEpochMilli(1626339000123L + 60 * 1000L),
+          Instant.ofEpochMilli(1626339000123L + 1000L),
+          Instant.ofEpochSecond(1626339000 + 24 * 3600, 123456789),
+          Instant.ofEpochSecond(1626339000 + 3600, 123456789),
+          Instant.ofEpochSecond(1626339000 + 60, 123456789),
+          Instant.ofEpochSecond(1626339000 + 1, 123456789),
+          LocalDate.of(2021, 7, 16),
+          LocalDateTime.of(2021, 7, 15, 1, 0, 0),
+          LocalDateTime.of(2021, 7, 15, 0, 1, 0),
+          LocalDateTime.of(2021, 7, 15, 0, 0, 1),
+          LocalTime.of(16, 50, 0, 123000000),
+          LocalTime.of(17, 50, 0, 123000000),
+          LocalTime.of(16, 51, 0, 123000000),
+          LocalTime.of(16, 50, 1, 123000000)
+        ))
+    )
+  }
+
+  @Test
+  def testTryCast(): Unit = {
+    checkResult("SELECT TRY_CAST('invalid' AS INT)", Seq(row(null)))
+    checkResult("SELECT TRY_CAST(g AS DOUBLE) FROM testTable", Seq(row(null), row(null), row(null)))
+  }
+
+  @Test
+  def testMultipleCoalesces(): Unit = {
+    checkResult(
+      "SELECT COALESCE(1),\n" +
+        "COALESCE(1, 2),\n" +
+        "COALESCE(cast(NULL as int), 2),\n" +
+        "COALESCE(1, cast(NULL as int)),\n" +
+        "COALESCE(cast(NULL as int), cast(NULL as int), 3),\n" +
+        "COALESCE(4, cast(NULL as int), cast(NULL as int), cast(NULL as int)),\n" +
+        "COALESCE('1'),\n" +
+        "COALESCE('1', '23'),\n" +
+        "COALESCE(cast(NULL as varchar), '2'),\n" +
+        "COALESCE('1', cast(NULL as varchar)),\n" +
+        "COALESCE(cast(NULL as varchar), cast(NULL as varchar), '3'),\n" +
+        "COALESCE('4', cast(NULL as varchar), cast(NULL as varchar), cast(NULL as varchar)),\n" +
+        "COALESCE(1.0),\n" +
+        "COALESCE(1.0, 2),\n" +
+        "COALESCE(cast(NULL as double), 2.0),\n" +
+        "COALESCE(cast(NULL as double), 2.0, 3.0),\n" +
+        "COALESCE(2.0, cast(NULL as double), 3.0),\n" +
+        "COALESCE(cast(NULL as double), cast(NULL as double))",
+      Seq(row(1, 1, 2, 1, 3, 4, 1, 1, 2, 1, 3, 4, 1.0, 1.0, 2.0, 2.0, 2.0, null))
+    )
+  }
+
+  @Test
+  def testCurrentDatabase(): Unit = {
+    checkResult("SELECT CURRENT_DATABASE()", Seq(row(tEnv.getCurrentDatabase)))
+    // switch to another database
+    tEnv
+      .getCatalog(tEnv.getCurrentCatalog)
+      .get()
+      .createDatabase(
+        "db1",
+        new CatalogDatabaseImpl(new util.HashMap[String, String](), "db1"),
+        false)
+    tEnv.useDatabase("db1")
+    checkResult("SELECT CURRENT_DATABASE()", Seq(row(tEnv.getCurrentDatabase)))
+  }
+
+  @Test
+  def testLikeWithConditionContainsDoubleQuotationMark(): Unit = {
+    val rows = Seq(row(42, "abc"), row(2, "cbc\"ddd"))
+    val dataId = TestValuesTableFactory.registerData(rows)
+
+    val ddl =
+      s"""
+         |CREATE TABLE MyTable (
+         |  a int,
+         |  b string
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$dataId',
+         |  'bounded' = 'true'
+         |)
+         |""".stripMargin
+    tEnv.executeSql(ddl)
+
+    checkResult(
+      """
+        | SELECT * FROM MyTable WHERE b LIKE '%"%'
+        |""".stripMargin,
+      Seq(row(2, "cbc\"ddd")))
   }
 }

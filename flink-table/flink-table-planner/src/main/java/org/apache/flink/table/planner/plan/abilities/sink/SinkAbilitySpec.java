@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.abilities.sink;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonSubTypes;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeInfo;
 
@@ -28,11 +29,14 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTyp
  * An interface that can not only serialize/deserialize the sink abilities to/from JSON, but also
  * can apply the abilities to a {@link DynamicTableSink}.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes({
     @JsonSubTypes.Type(value = OverwriteSpec.class),
     @JsonSubTypes.Type(value = PartitioningSpec.class),
-    @JsonSubTypes.Type(value = WritingMetadataSpec.class)
+    @JsonSubTypes.Type(value = WritingMetadataSpec.class),
+    @JsonSubTypes.Type(value = RowLevelDeleteSpec.class),
+    @JsonSubTypes.Type(value = RowLevelUpdateSpec.class)
 })
 @Internal
 public interface SinkAbilitySpec {

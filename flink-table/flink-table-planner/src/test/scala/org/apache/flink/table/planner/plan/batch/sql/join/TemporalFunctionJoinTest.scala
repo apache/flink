@@ -30,11 +30,11 @@ class TemporalFunctionJoinTest extends TableTestBase {
 
   val util: BatchTableTestUtil = batchTestUtil()
 
-  val orders = util.addDataStream[(Long, String, Timestamp)](
-    "Orders", 'o_amount, 'o_currency, 'o_rowtime)
+  val orders =
+    util.addDataStream[(Long, String, Timestamp)]("Orders", 'o_amount, 'o_currency, 'o_rowtime)
 
-  val ratesHistory = util.addDataStream[(String, Int, Timestamp)](
-    "RatesHistory", 'currency, 'rate, 'rowtime)
+  val ratesHistory =
+    util.addDataStream[(String, Int, Timestamp)]("RatesHistory", 'currency, 'rate, 'rowtime)
 
   val rates = util.addTemporarySystemFunction(
     "Rates",
@@ -55,19 +55,29 @@ class TemporalFunctionJoinTest extends TableTestBase {
   }
 
   /**
-    * Test temporal table joins with more complicated query.
-    * Important thing here is that we have complex OR join condition
-    * and there are some columns that are not being used (are being pruned).
-    */
+   * Test temporal table joins with more complicated query. Important thing here is that we have
+   * complex OR join condition and there are some columns that are not being used (are being
+   * pruned).
+   */
   @Test(expected = classOf[TableException])
   def testComplexJoin(): Unit = {
     val util = batchTestUtil()
     util.addDataStream[(String, Int)]("Table3", 't3_comment, 't3_secondary_key)
     util.addDataStream[(Timestamp, String, Long, String, Int)](
-      "Orders", 'o_rowtime, 'o_comment, 'o_amount, 'o_currency, 'o_secondary_key)
+      "Orders",
+      'o_rowtime,
+      'o_comment,
+      'o_amount,
+      'o_currency,
+      'o_secondary_key)
 
     val ratesHistory = util.addDataStream[(Timestamp, String, String, Int, Int)](
-      "RatesHistory", 'rowtime, 'comment, 'currency, 'rate, 'secondary_key)
+      "RatesHistory",
+      'rowtime,
+      'comment,
+      'currency,
+      'rate,
+      'secondary_key)
     val rates = ratesHistory.createTemporalTableFunction($"rowtime", $"currency")
     util.addTemporarySystemFunction("Rates", rates)
 

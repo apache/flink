@@ -3,8 +3,8 @@ title:  "Text files"
 weight: 4
 type: docs
 aliases:
-- /dev/connectors/formats/text_files.html
-- /apis/streaming/connectors/formats/text_files.html
+- /zh//connectors/formats/text_files.html
+- /zh/apis/streaming/connectors/formats/text_files.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -28,8 +28,8 @@ under the License.
 
 # Text files format
 
-Flink supports reading from text lines from a file using `TextLineInputFormat`. This format uses Java's built-in InputStreamReader to decode the byte stream using various supported charset encodings.
-To use the format you need to add the Flink Connector Files dependency to your project:
+Flink 支持使用 `TextLineInputFormat` 从文件中读取文本行。此 format 使用 Java 的内置 InputStreamReader 以支持的字符集编码来解码字节流。
+要使用该 format，你需要将 Flink Connector Files 依赖项添加到项目中：
 
 ```xml
 <dependency>
@@ -39,16 +39,20 @@ To use the format you need to add the Flink Connector Files dependency to your p
 </dependency>
 ```
 
-This format is compatible with the new Source that can be used in both batch and streaming modes.
-Thus, you can use this format in two ways:
-- Bounded read for batch mode
-- Continuous read for streaming mode: monitors a directory for new files that appear
+PyFlink 用户可直接使用相关接口，无需添加依赖。
 
-**Bounded read example**:
+此 format 与新 Source 兼容，可以在批处理和流模式下使用。
+因此，你可以通过两种方式使用此 format：
+- 批处理模式的有界读取
+- 流模式的连续读取：监视目录中出现的新文件
 
-In this example we create a DataStream containing the lines of a text file as Strings. 
-There is no need for a watermark strategy as records do not contain event timestamps.
+**有界读取示例**:
 
+在此示例中，我们创建了一个 DataStream，其中包含作为字符串的文本文件的行。
+此处不需要水印策略，因为记录不包含事件时间戳。
+
+{{< tabs "bounded" >}}
+{{< tab "Java" >}}
 ```java
 final FileSource<String> source =
   FileSource.forRecordStreamFormat(new TextLineInputFormat(), /* Flink Path */)
@@ -56,12 +60,21 @@ final FileSource<String> source =
 final DataStream<String> stream =
   env.fromSource(source, WatermarkStrategy.noWatermarks(), "file-source");
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+source = FileSource.for_record_stream_format(StreamFormat.text_line_format(), *path).build()
+stream = env.from_source(source, WatermarkStrategy.no_watermarks(), "file-source")
+```
+{{< /tab >}}
+{{< /tabs >}}
 
-**Continuous read example**:
-In this example, we create a DataStream containing the lines of text files as Strings that will infinitely grow 
-as new files are added to the directory. We monitor for new files each second.
-There is no need for a watermark strategy as records do not contain event timestamps.
+**连续读取示例**:
+在此示例中，我们创建了一个 DataStream，随着新文件被添加到目录中，其中包含的文本文件行的字符串流将无限增长。我们每秒会进行新文件监控。
+此处不需要水印策略，因为记录不包含事件时间戳。
 
+{{< tabs "continous" >}}
+{{< tab "Java" >}}
 ```java
 final FileSource<String> source =
     FileSource.forRecordStreamFormat(new TextLineInputFormat(), /* Flink Path */)
@@ -70,3 +83,14 @@ final FileSource<String> source =
 final DataStream<String> stream =
   env.fromSource(source, WatermarkStrategy.noWatermarks(), "file-source");
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+source = FileSource \
+    .for_record_stream_format(StreamFormat.text_line_format(), *path) \
+    .monitor_continously(Duration.of_seconds(1)) \
+    .build()
+stream = env.from_source(source, WatermarkStrategy.no_watermarks(), "file-source")
+```
+{{< /tab >}}
+{{< /tabs >}}

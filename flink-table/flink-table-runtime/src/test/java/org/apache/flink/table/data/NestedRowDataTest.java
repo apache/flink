@@ -37,8 +37,7 @@ import org.junit.Test;
 
 import static org.apache.flink.table.data.util.DataFormatTestUtil.MyObj;
 import static org.apache.flink.table.data.util.DataFormatTestUtil.splitBytes;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link NestedRowData}s. */
 public class NestedRowDataTest {
@@ -50,11 +49,12 @@ public class NestedRowDataTest {
         TypeSerializer<MyObj> genericSerializer = info.createSerializer(new ExecutionConfig());
 
         RowData nestedRow = row.getRow(0, 5);
-        assertEquals(nestedRow.getInt(0), 1);
-        assertEquals(nestedRow.getLong(1), 5L);
-        assertEquals(nestedRow.getString(2), StringData.fromString("12345678"));
-        assertTrue(nestedRow.isNullAt(3));
-        assertEquals(new MyObj(15, 5), nestedRow.<MyObj>getRawValue(4).toObject(genericSerializer));
+        assertThat(1).isEqualTo(nestedRow.getInt(0));
+        assertThat(5L).isEqualTo(nestedRow.getLong(1));
+        assertThat(StringData.fromString("12345678")).isEqualTo(nestedRow.getString(2));
+        assertThat(nestedRow.isNullAt(3)).isTrue();
+        assertThat(nestedRow.<MyObj>getRawValue(4).toObject(genericSerializer))
+                .isEqualTo(new MyObj(15, 5));
     }
 
     @Test
@@ -67,12 +67,12 @@ public class NestedRowDataTest {
         row.pointTo(segments, 3, row.getSizeInBytes());
         {
             RowData nestedRow = row.getRow(0, 5);
-            assertEquals(nestedRow.getInt(0), 1);
-            assertEquals(nestedRow.getLong(1), 5L);
-            assertEquals(nestedRow.getString(2), StringData.fromString("12345678"));
-            assertTrue(nestedRow.isNullAt(3));
-            assertEquals(
-                    new MyObj(15, 5), nestedRow.<MyObj>getRawValue(4).toObject(genericSerializer));
+            assertThat(1).isEqualTo(nestedRow.getInt(0));
+            assertThat(5L).isEqualTo(nestedRow.getLong(1));
+            assertThat(StringData.fromString("12345678")).isEqualTo(nestedRow.getString(2));
+            assertThat(nestedRow.isNullAt(3)).isTrue();
+            assertThat(nestedRow.<MyObj>getRawValue(4).toObject(genericSerializer))
+                    .isEqualTo(new MyObj(15, 5));
         }
     }
 
@@ -118,15 +118,15 @@ public class NestedRowDataTest {
             BinaryRowData binaryRow = new BinaryRowData(2);
             binaryRow.pointTo(
                     nestedRow.getSegments(), nestedRow.getOffset(), nestedRow.getSizeInBytes());
-            assertEquals(binaryRow, row);
+            assertThat(row).isEqualTo(binaryRow);
         }
 
-        assertEquals(row2.getRow(0, 2).getString(0), StringData.fromString("hahahahafff"));
+        assertThat(StringData.fromString("hahahahafff")).isEqualTo(row2.getRow(0, 2).getString(0));
         RowData nestedRow = row2.getRow(0, 2).getRow(1, 4);
-        assertEquals(nestedRow.getInt(0), 1);
-        assertEquals(nestedRow.getLong(1), 5L);
-        assertEquals(nestedRow.getString(2), StringData.fromString("12345678"));
-        assertTrue(nestedRow.isNullAt(3));
+        assertThat(1).isEqualTo(nestedRow.getInt(0));
+        assertThat(5L).isEqualTo(nestedRow.getLong(1));
+        assertThat(StringData.fromString("12345678")).isEqualTo(nestedRow.getString(2));
+        assertThat(nestedRow.isNullAt(3)).isTrue();
     }
 
     private BinaryRowData getBinaryRowData() {

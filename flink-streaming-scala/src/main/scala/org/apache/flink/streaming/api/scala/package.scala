@@ -15,21 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.streaming.api
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.{createTuple2TypeInformation => apiTupleCreator}
 import org.apache.flink.api.scala.typeutils.{CaseClassTypeInfo, TypeUtils}
-import org.apache.flink.streaming.api.datastream.{ DataStream => JavaStream }
-import org.apache.flink.streaming.api.datastream.{ ConnectedStreams => ConnectedJavaStreams }
-import org.apache.flink.streaming.api.datastream.{ BroadcastConnectedStream => BroadcastConnectedJavaStreams }
-import org.apache.flink.streaming.api.datastream.{ KeyedStream => KeyedJavaStream }
+import org.apache.flink.streaming.api.datastream.{BroadcastConnectedStream => BroadcastConnectedJavaStreams}
+import org.apache.flink.streaming.api.datastream.{ConnectedStreams => ConnectedJavaStreams}
+import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream}
+import org.apache.flink.streaming.api.datastream.{KeyedStream => KeyedJavaStream}
 
-import language.implicitConversions
 import language.experimental.macros
+import language.implicitConversions
 
 package object scala {
-  
+
   // We have this here so that we always have generated TypeInformationS when
   // using the Scala API
   implicit def createTypeInformation[T]: TypeInformation[T] = macro TypeUtils.createTypeInfo[T]
@@ -38,28 +37,28 @@ package object scala {
    * Converts an [[org.apache.flink.streaming.api.datastream.DataStream]] to a
    * [[org.apache.flink.streaming.api.scala.DataStream]].
    */
-  private[flink] def asScalaStream[R](stream: JavaStream[R])
-                                             = new DataStream[R](stream)
+  private[flink] def asScalaStream[R](stream: JavaStream[R]) = new DataStream[R](stream)
 
   /**
    * Converts an [[org.apache.flink.streaming.api.datastream.KeyedStream]] to a
    * [[org.apache.flink.streaming.api.scala.KeyedStream]].
    */
-  private[flink] def asScalaStream[R, K](stream: KeyedJavaStream[R, K])
-                                             = new KeyedStream[R, K](stream)
+  private[flink] def asScalaStream[R, K](stream: KeyedJavaStream[R, K]) =
+    new KeyedStream[R, K](stream)
 
   /**
    * Converts an [[org.apache.flink.streaming.api.datastream.ConnectedStreams]] to a
    * [[org.apache.flink.streaming.api.scala.ConnectedStreams]].
    */
-  private[flink] def asScalaStream[IN1, IN2](stream: ConnectedJavaStreams[IN1, IN2])
-                                             = new ConnectedStreams[IN1, IN2](stream)
+  private[flink] def asScalaStream[IN1, IN2](stream: ConnectedJavaStreams[IN1, IN2]) =
+    new ConnectedStreams[IN1, IN2](stream)
+
   /**
-    * Converts an [[org.apache.flink.streaming.api.datastream.BroadcastConnectedStream]] to a
-    * [[org.apache.flink.streaming.api.scala.BroadcastConnectedStream]].
-    */
-  private[flink] def asScalaStream[IN1, IN2](stream: BroadcastConnectedJavaStreams[IN1, IN2])
-                                              = new BroadcastConnectedStream[IN1, IN2](stream)
+   * Converts an [[org.apache.flink.streaming.api.datastream.BroadcastConnectedStream]] to a
+   * [[org.apache.flink.streaming.api.scala.BroadcastConnectedStream]].
+   */
+  private[flink] def asScalaStream[IN1, IN2](stream: BroadcastConnectedJavaStreams[IN1, IN2]) =
+    new BroadcastConnectedStream[IN1, IN2](stream)
 
   private[flink] def fieldNames2Indices(
       typeInfo: TypeInformation[_],
@@ -69,20 +68,22 @@ package object scala {
         val result = ti.getFieldIndices(fields)
 
         if (result.contains(-1)) {
-          throw new IllegalArgumentException("Fields '" + fields.mkString(", ") +
-            "' are not valid for '" + ti.toString + "'.")
+          throw new IllegalArgumentException(
+            "Fields '" + fields.mkString(", ") +
+              "' are not valid for '" + ti.toString + "'.")
         }
 
         result
 
       case _ =>
-        throw new UnsupportedOperationException("Specifying fields by name is only" +
-          "supported on Case Classes (for now).")
+        throw new UnsupportedOperationException(
+          "Specifying fields by name is only" +
+            "supported on Case Classes (for now).")
     }
   }
 
   def createTuple2TypeInformation[T1, T2](
       t1: TypeInformation[T1],
-      t2: TypeInformation[T2]) : TypeInformation[(T1, T2)] =
+      t2: TypeInformation[T2]): TypeInformation[(T1, T2)] =
     apiTupleCreator[T1, T2](t1, t2)
 }

@@ -15,26 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.codegen.agg.batch
 
-import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.utils.JoinedRowData
 import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenUtils, ProjectionCodeGenerator}
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.generateCollect
-import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext, ProjectionCodeGenerator}
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList
+import org.apache.flink.table.planner.typeutils.RowTypeUtils
 import org.apache.flink.table.runtime.generated.GeneratedOperator
 import org.apache.flink.table.runtime.operators.TableStreamOperator
 import org.apache.flink.table.types.logical.RowType
 
+import org.apache.calcite.tools.RelBuilder
+
 /**
-  * Sort aggregation code generator to deal with all aggregate functions with keys.
-  * It require input in keys order.
-  */
+ * Sort aggregation code generator to deal with all aggregate functions with keys. It require input
+ * in keys order.
+ */
 object SortAggCodeGenerator {
 
   def genWithKeys(
@@ -46,8 +47,7 @@ object SortAggCodeGenerator {
       grouping: Array[Int],
       auxGrouping: Array[Int],
       isMerge: Boolean,
-      isFinal: Boolean)
-    : GeneratedOperator[OneInputStreamOperator[RowData, RowData]] = {
+      isFinal: Boolean): GeneratedOperator[OneInputStreamOperator[RowData, RowData]] = {
 
     // prepare for aggregation
     val aggInfos = aggInfoList.aggInfos
@@ -64,15 +64,17 @@ object SortAggCodeGenerator {
     val currentKeyTerm = "currentKey"
     val currentKeyWriterTerm = "currentKeyWriter"
 
-    val groupKeyRowType = AggCodeGenHelper.projectRowType(inputType, grouping)
-    val keyProjectionCode = ProjectionCodeGenerator.generateProjectionExpression(
-      ctx,
-      inputType,
-      groupKeyRowType,
-      grouping,
-      inputTerm = inputTerm,
-      outRecordTerm = currentKeyTerm,
-      outRecordWriterTerm = currentKeyWriterTerm).code
+    val groupKeyRowType = RowTypeUtils.projectRowType(inputType, grouping)
+    val keyProjectionCode = ProjectionCodeGenerator
+      .generateProjectionExpression(
+        ctx,
+        inputType,
+        groupKeyRowType,
+        grouping,
+        inputTerm = inputTerm,
+        outRecordTerm = currentKeyTerm,
+        outRecordWriterTerm = currentKeyWriterTerm)
+      .code
 
     val keyNotEquals = AggCodeGenHelper.genGroupKeyChangedCheckCode(currentKeyTerm, lastKeyTerm)
 

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.network.api.EndOfData;
@@ -31,7 +32,6 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.function.SupplierWithException;
 
@@ -43,13 +43,12 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
+import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
 import static org.apache.flink.util.Preconditions.checkElementIndex;
@@ -57,10 +56,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * {@link SortMergeResultPartition} appends records and events to {@link SortBuffer} and after the
- * {@link SortBuffer} is full, all data in the {@link SortBuffer} will be copied and spilled to a
+ * {@link SortMergeResultPartition} appends records and events to {@link DataBuffer} and after the
+ * {@link DataBuffer} is full, all data in the {@link DataBuffer} will be copied and spilled to a
  * {@link PartitionedFile} in subpartition index order sequentially. Large records that can not be
- * appended to an empty {@link SortBuffer} will be spilled to the result {@link PartitionedFile}
+ * appended to an empty {@link DataBuffer} will be spilled to the result {@link PartitionedFile}
  * separately.
  */
 @NotThreadSafe
@@ -68,9 +67,17 @@ public class SortMergeResultPartition extends ResultPartition {
 
     /**
      * Number of expected buffer size to allocate for data writing. Currently, it is an empirical
-     * value (16M) which can not be configured.
+     * value (8M) which can not be configured.
      */
-    private static final int NUM_WRITE_BUFFER_BYTES = 16 * 1024 * 1024;
+    private static final int NUM_WRITE_BUFFER_BYTES = 8 * 1024 * 1024;
+
+    /**
+     * Expected number of buffers for data batch writing. 512 mean that at most 1024 buffers
+     * (including the headers) will be written in one request. This value is selected because that
+     * the writev system call has a limit on the maximum number of buffers can be written in one
+     * invoke whose advertised value is 1024 (please see writev man page for more information).
+     */
+    private static final int EXPECTED_WRITE_BATCH_SIZE = 512;
 
     private final Object lock = new Object();
 
@@ -78,36 +85,54 @@ public class SortMergeResultPartition extends ResultPartition {
     @GuardedBy("lock")
     private PartitionedFile resultFile;
 
-    /** Buffers cut from the network buffer pool for data writing. */
-    private final List<MemorySegment> writeSegments = new ArrayList<>();
-
     private boolean hasNotifiedEndOfUserRecords;
 
     /** Size of network buffer and write buffer. */
     private final int networkBufferSize;
 
     /** File writer for this result partition. */
-    private final PartitionedFileWriter fileWriter;
+    @GuardedBy("lock")
+    private PartitionedFileWriter fileWriter;
 
-    /** Subpartition orders of coping data from {@link SortBuffer} and writing to file. */
+    /**
+     * Selected storage path to be used by this result partition to store shuffle data file and
+     * index file.
+     */
+    private final String resultFileBasePath;
+
+    /** Subpartition orders of coping data from {@link DataBuffer} and writing to file. */
     private final int[] subpartitionOrder;
+
+    /**
+     * A shared buffer pool to allocate buffers from when reading data from this result partition.
+     */
+    private final BatchShuffleReadBufferPool readBufferPool;
 
     /**
      * Data read scheduler for this result partition which schedules data read of all subpartitions.
      */
     private final SortMergeResultPartitionReadScheduler readScheduler;
 
+    /** All available network buffers can be used by this result partition for a data region. */
+    private final LinkedList<MemorySegment> freeSegments = new LinkedList<>();
+
     /**
-     * Number of guaranteed network buffers can be used by {@link #unicastSortBuffer} and {@link
-     * #broadcastSortBuffer}.
+     * Number of guaranteed network buffers can be used by {@link #unicastDataBuffer} and {@link
+     * #broadcastDataBuffer}.
      */
     private int numBuffersForSort;
 
-    /** {@link SortBuffer} for records sent by {@link #broadcastRecord(ByteBuffer)}. */
-    private SortBuffer broadcastSortBuffer;
+    /**
+     * If true, {@link HashBasedDataBuffer} will be used, otherwise, {@link SortBasedDataBuffer}
+     * will be used.
+     */
+    private boolean useHashBuffer;
 
-    /** {@link SortBuffer} for records sent by {@link #emitRecord(ByteBuffer, int)}. */
-    private SortBuffer unicastSortBuffer;
+    /** {@link DataBuffer} for records sent by {@link #broadcastRecord(ByteBuffer)}. */
+    private DataBuffer broadcastDataBuffer;
+
+    /** {@link DataBuffer} for records sent by {@link #emitRecord(ByteBuffer, int)}. */
+    private DataBuffer unicastDataBuffer;
 
     public SortMergeResultPartition(
             String owningTaskName,
@@ -134,6 +159,8 @@ public class SortMergeResultPartition extends ResultPartition {
                 bufferCompressor,
                 bufferPoolFactory);
 
+        this.resultFileBasePath = checkNotNull(resultFileBasePath);
+        this.readBufferPool = checkNotNull(readBufferPool);
         this.networkBufferSize = readBufferPool.getBufferSize();
         // because IO scheduling will always try to read data in file offset order for better IO
         // performance, when writing data to file, we use a random subpartition order to avoid
@@ -142,73 +169,53 @@ public class SortMergeResultPartition extends ResultPartition {
         this.subpartitionOrder = getRandomSubpartitionOrder(numSubpartitions);
         this.readScheduler =
                 new SortMergeResultPartitionReadScheduler(readBufferPool, readIOExecutor, lock);
-
-        PartitionedFileWriter fileWriter = null;
-        try {
-            // allocate at most 4M heap memory for caching of index entries
-            fileWriter = new PartitionedFileWriter(numSubpartitions, 4194304, resultFileBasePath);
-        } catch (Throwable throwable) {
-            ExceptionUtils.rethrow(throwable);
-        }
-        this.fileWriter = fileWriter;
     }
 
     @Override
-    public void setup() throws IOException {
-        super.setup();
-
-        int expectedWriteBuffers = NUM_WRITE_BUFFER_BYTES / networkBufferSize;
-        if (networkBufferSize > NUM_WRITE_BUFFER_BYTES) {
-            expectedWriteBuffers = 1;
-        }
-
-        int numRequiredBuffer = bufferPool.getNumberOfRequiredMemorySegments();
-        int numWriteBuffers = Math.min(numRequiredBuffer / 2, expectedWriteBuffers);
-        if (numWriteBuffers < 1) {
-            throw new IOException(
-                    String.format(
-                            "Too few sort buffers, please increase %s.",
-                            NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS));
-        }
-        numBuffersForSort = numRequiredBuffer - numWriteBuffers;
-
-        try {
-            for (int i = 0; i < numWriteBuffers; ++i) {
-                MemorySegment segment = bufferPool.requestMemorySegmentBlocking();
-                writeSegments.add(segment);
+    protected void setupInternal() throws IOException {
+        synchronized (lock) {
+            if (isReleased()) {
+                throw new IOException("Result partition has been released.");
             }
-        } catch (InterruptedException exception) {
-            // the setup method does not allow InterruptedException
-            throw new IOException(exception);
+            try {
+                // allocate at most 4M heap memory for caching of index entries
+                fileWriter =
+                        new PartitionedFileWriter(numSubpartitions, 4194304, resultFileBasePath);
+            } catch (Throwable throwable) {
+                throw new IOException("Failed to create file writer.", throwable);
+            }
         }
 
-        LOG.info(
-                "Sort-merge partition {} initialized, num sort buffers: {}, num write buffers: {}.",
-                getPartitionId(),
-                numBuffersForSort,
-                numWriteBuffers);
+        // reserve the "guaranteed" buffers for this buffer pool to avoid the case that those
+        // buffers are taken by other result partitions and can not be released, which may cause
+        // deadlock
+        requestGuaranteedBuffers();
+
+        // initialize the buffer pool eagerly to avoid reporting errors such as OOM too late
+        readBufferPool.initialize();
+        LOG.info("Sort-merge partition {} initialized.", getPartitionId());
     }
 
     @Override
     protected void releaseInternal() {
         synchronized (lock) {
-            if (resultFile == null) {
+            if (resultFile == null && fileWriter != null) {
                 fileWriter.releaseQuietly();
             }
-
-            // delete the produced file only when no reader is reading now
-            readScheduler
-                    .release()
-                    .thenRun(
-                            () -> {
-                                synchronized (lock) {
-                                    if (resultFile != null) {
-                                        resultFile.deleteQuietly();
-                                        resultFile = null;
-                                    }
-                                }
-                            });
         }
+
+        // delete the produced file only when no reader is reading now
+        readScheduler
+                .release()
+                .thenRun(
+                        () -> {
+                            synchronized (lock) {
+                                if (resultFile != null) {
+                                    resultFile.deleteQuietly();
+                                    resultFile = null;
+                                }
+                            }
+                        });
     }
 
     @Override
@@ -232,6 +239,16 @@ public class SortMergeResultPartition extends ResultPartition {
         }
     }
 
+    @Override
+    public void alignedBarrierTimeout(long checkpointId) throws IOException {
+        // Nothing to do.
+    }
+
+    @Override
+    public void abortCheckpoint(long checkpointId, CheckpointException cause) {
+        // Nothing to do.
+    }
+
     private void broadcast(ByteBuffer record, DataType dataType) throws IOException {
         emit(record, 0, dataType, true);
     }
@@ -241,105 +258,170 @@ public class SortMergeResultPartition extends ResultPartition {
             throws IOException {
         checkInProduceState();
 
-        SortBuffer sortBuffer = isBroadcast ? getBroadcastSortBuffer() : getUnicastSortBuffer();
-        if (sortBuffer.append(record, targetSubpartition, dataType)) {
+        DataBuffer dataBuffer = isBroadcast ? getBroadcastDataBuffer() : getUnicastDataBuffer();
+        if (!dataBuffer.append(record, targetSubpartition, dataType)) {
             return;
         }
 
-        if (!sortBuffer.hasRemaining()) {
-            // the record can not be appended to the free sort buffer because it is too large
-            sortBuffer.finish();
-            sortBuffer.release();
+        if (!dataBuffer.hasRemaining()) {
+            dataBuffer.release();
             writeLargeRecord(record, targetSubpartition, dataType, isBroadcast);
             return;
         }
 
-        flushSortBuffer(sortBuffer, isBroadcast);
-        emit(record, targetSubpartition, dataType, isBroadcast);
-    }
-
-    private void releaseSortBuffer(SortBuffer sortBuffer) {
-        if (sortBuffer != null) {
-            sortBuffer.release();
+        flushDataBuffer(dataBuffer, isBroadcast);
+        dataBuffer.release();
+        if (record.hasRemaining()) {
+            emit(record, targetSubpartition, dataType, isBroadcast);
         }
     }
 
-    private SortBuffer getUnicastSortBuffer() throws IOException {
-        flushBroadcastSortBuffer();
-
-        if (unicastSortBuffer != null && !unicastSortBuffer.isFinished()) {
-            return unicastSortBuffer;
+    private void releaseDataBuffer(DataBuffer dataBuffer) {
+        if (dataBuffer != null) {
+            dataBuffer.release();
         }
-
-        unicastSortBuffer =
-                new PartitionSortedBuffer(
-                        bufferPool,
-                        numSubpartitions,
-                        networkBufferSize,
-                        numBuffersForSort,
-                        subpartitionOrder);
-        return unicastSortBuffer;
     }
 
-    private SortBuffer getBroadcastSortBuffer() throws IOException {
-        flushUnicastSortBuffer();
+    private DataBuffer getUnicastDataBuffer() throws IOException {
+        flushBroadcastDataBuffer();
 
-        if (broadcastSortBuffer != null && !broadcastSortBuffer.isFinished()) {
-            return broadcastSortBuffer;
+        if (unicastDataBuffer != null
+                && !unicastDataBuffer.isFinished()
+                && !unicastDataBuffer.isReleased()) {
+            return unicastDataBuffer;
         }
 
-        broadcastSortBuffer =
-                new PartitionSortedBuffer(
-                        bufferPool,
-                        numSubpartitions,
-                        networkBufferSize,
-                        numBuffersForSort,
-                        subpartitionOrder);
-        return broadcastSortBuffer;
+        unicastDataBuffer = createNewDataBuffer();
+        return unicastDataBuffer;
     }
 
-    private void flushSortBuffer(SortBuffer sortBuffer, boolean isBroadcast) throws IOException {
-        if (sortBuffer == null || sortBuffer.isReleased()) {
+    private DataBuffer getBroadcastDataBuffer() throws IOException {
+        flushUnicastDataBuffer();
+
+        if (broadcastDataBuffer != null
+                && !broadcastDataBuffer.isFinished()
+                && !broadcastDataBuffer.isReleased()) {
+            return broadcastDataBuffer;
+        }
+
+        broadcastDataBuffer = createNewDataBuffer();
+        return broadcastDataBuffer;
+    }
+
+    private DataBuffer createNewDataBuffer() throws IOException {
+        requestNetworkBuffers();
+
+        if (useHashBuffer) {
+            return new HashBasedDataBuffer(
+                    freeSegments,
+                    bufferPool,
+                    numSubpartitions,
+                    networkBufferSize,
+                    numBuffersForSort,
+                    subpartitionOrder);
+        } else {
+            return new SortBasedDataBuffer(
+                    freeSegments,
+                    bufferPool,
+                    numSubpartitions,
+                    networkBufferSize,
+                    numBuffersForSort,
+                    subpartitionOrder);
+        }
+    }
+
+    private void requestGuaranteedBuffers() throws IOException {
+        int numRequiredBuffer = bufferPool.getNumberOfRequiredMemorySegments();
+        if (numRequiredBuffer < 2) {
+            throw new IOException(
+                    String.format(
+                            "Too few sort buffers, please increase %s.",
+                            NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS));
+        }
+
+        try {
+            while (freeSegments.size() < numRequiredBuffer) {
+                freeSegments.add(checkNotNull(bufferPool.requestMemorySegmentBlocking()));
+            }
+        } catch (InterruptedException exception) {
+            freeSegments.forEach(bufferPool::recycle);
+            throw new IOException("Failed to allocate buffers for result partition.", exception);
+        }
+    }
+
+    private void requestNetworkBuffers() throws IOException {
+        requestGuaranteedBuffers();
+
+        // avoid taking too many buffers in one result partition
+        while (freeSegments.size() < bufferPool.getMaxNumberOfMemorySegments()) {
+            MemorySegment segment = bufferPool.requestMemorySegment();
+            if (segment == null) {
+                break;
+            }
+            freeSegments.add(segment);
+        }
+
+        useHashBuffer = false;
+        int numWriteBuffers = 0;
+        if (freeSegments.size() >= 2 * numSubpartitions) {
+            useHashBuffer = true;
+        } else if (networkBufferSize >= NUM_WRITE_BUFFER_BYTES) {
+            numWriteBuffers = 1;
+        } else {
+            numWriteBuffers =
+                    Math.min(EXPECTED_WRITE_BATCH_SIZE, NUM_WRITE_BUFFER_BYTES / networkBufferSize);
+        }
+        numWriteBuffers = Math.min(freeSegments.size() / 2, numWriteBuffers);
+        numBuffersForSort = freeSegments.size() - numWriteBuffers;
+    }
+
+    private void flushDataBuffer(DataBuffer dataBuffer, boolean isBroadcast) throws IOException {
+        if (dataBuffer == null || dataBuffer.isReleased() || !dataBuffer.hasRemaining()) {
             return;
         }
-        sortBuffer.finish();
+        dataBuffer.finish();
 
-        if (sortBuffer.hasRemaining()) {
-            fileWriter.startNewRegion(isBroadcast);
+        Queue<MemorySegment> segments = new ArrayDeque<>(freeSegments);
+        int numBuffersToWrite =
+                useHashBuffer
+                        ? EXPECTED_WRITE_BATCH_SIZE
+                        : Math.min(EXPECTED_WRITE_BATCH_SIZE, segments.size());
+        List<BufferWithChannel> toWrite = new ArrayList<>(numBuffersToWrite);
 
-            List<BufferWithChannel> toWrite = new ArrayList<>();
-            Queue<MemorySegment> segments = getWriteSegments();
-
-            while (sortBuffer.hasRemaining()) {
-                if (segments.isEmpty()) {
-                    fileWriter.writeBuffers(toWrite);
-                    toWrite.clear();
-                    segments = getWriteSegments();
-                }
-
-                BufferWithChannel bufferWithChannel =
-                        sortBuffer.copyIntoSegment(checkNotNull(segments.poll()));
-                updateStatistics(bufferWithChannel.getBuffer(), isBroadcast);
-                toWrite.add(compressBufferIfPossible(bufferWithChannel));
+        fileWriter.startNewRegion(isBroadcast);
+        do {
+            if (toWrite.size() >= numBuffersToWrite) {
+                writeBuffers(toWrite);
+                segments = new ArrayDeque<>(freeSegments);
             }
 
-            fileWriter.writeBuffers(toWrite);
+            BufferWithChannel bufferWithChannel = dataBuffer.getNextBuffer(segments.poll());
+            if (bufferWithChannel == null) {
+                writeBuffers(toWrite);
+                break;
+            }
+
+            updateStatistics(bufferWithChannel, isBroadcast);
+            toWrite.add(compressBufferIfPossible(bufferWithChannel));
+        } while (true);
+
+        releaseFreeBuffers();
+    }
+
+    private void flushBroadcastDataBuffer() throws IOException {
+        if (broadcastDataBuffer != null) {
+            flushDataBuffer(broadcastDataBuffer, true);
+            broadcastDataBuffer.release();
+            broadcastDataBuffer = null;
         }
-
-        releaseSortBuffer(sortBuffer);
     }
 
-    private void flushBroadcastSortBuffer() throws IOException {
-        flushSortBuffer(broadcastSortBuffer, true);
-    }
-
-    private void flushUnicastSortBuffer() throws IOException {
-        flushSortBuffer(unicastSortBuffer, false);
-    }
-
-    private Queue<MemorySegment> getWriteSegments() {
-        checkState(!writeSegments.isEmpty(), "Task has been canceled.");
-        return new ArrayDeque<>(writeSegments);
+    private void flushUnicastDataBuffer() throws IOException {
+        if (unicastDataBuffer != null) {
+            flushDataBuffer(unicastDataBuffer, false);
+            unicastDataBuffer.release();
+            unicastDataBuffer = null;
+        }
     }
 
     private BufferWithChannel compressBufferIfPossible(BufferWithChannel bufferWithChannel) {
@@ -352,10 +434,14 @@ public class SortMergeResultPartition extends ResultPartition {
         return new BufferWithChannel(buffer, bufferWithChannel.getChannelIndex());
     }
 
-    private void updateStatistics(Buffer buffer, boolean isBroadcast) {
+    private void updateStatistics(BufferWithChannel bufferWithChannel, boolean isBroadcast) {
         numBuffersOut.inc(isBroadcast ? numSubpartitions : 1);
-        long readableBytes = buffer.readableBytes();
-        numBytesProduced.inc(readableBytes);
+        long readableBytes = bufferWithChannel.getBuffer().readableBytes();
+        if (isBroadcast) {
+            resultPartitionBytes.incAll(readableBytes);
+        } else {
+            resultPartitionBytes.inc(bufferWithChannel.getChannelIndex(), readableBytes);
+        }
         numBytesOut.inc(isBroadcast ? readableBytes * numSubpartitions : readableBytes);
     }
 
@@ -365,16 +451,17 @@ public class SortMergeResultPartition extends ResultPartition {
     private void writeLargeRecord(
             ByteBuffer record, int targetSubpartition, DataType dataType, boolean isBroadcast)
             throws IOException {
+        // a large record will be spilled to a separated data region
         fileWriter.startNewRegion(isBroadcast);
 
         List<BufferWithChannel> toWrite = new ArrayList<>();
-        Queue<MemorySegment> segments = getWriteSegments();
+        Queue<MemorySegment> segments = new ArrayDeque<>(freeSegments);
 
         while (record.hasRemaining()) {
             if (segments.isEmpty()) {
                 fileWriter.writeBuffers(toWrite);
                 toWrite.clear();
-                segments = getWriteSegments();
+                segments = new ArrayDeque<>(freeSegments);
             }
 
             int toCopy = Math.min(record.remaining(), networkBufferSize);
@@ -383,11 +470,18 @@ public class SortMergeResultPartition extends ResultPartition {
 
             NetworkBuffer buffer = new NetworkBuffer(writeBuffer, (buf) -> {}, dataType, toCopy);
             BufferWithChannel bufferWithChannel = new BufferWithChannel(buffer, targetSubpartition);
-            updateStatistics(buffer, isBroadcast);
+            updateStatistics(bufferWithChannel, isBroadcast);
             toWrite.add(compressBufferIfPossible(bufferWithChannel));
         }
 
         fileWriter.writeBuffers(toWrite);
+        releaseFreeBuffers();
+    }
+
+    private void writeBuffers(List<BufferWithChannel> buffers) throws IOException {
+        fileWriter.writeBuffers(buffers);
+        buffers.forEach(buffer -> buffer.getBuffer().recycleBuffer());
+        buffers.clear();
     }
 
     @Override
@@ -402,36 +496,33 @@ public class SortMergeResultPartition extends ResultPartition {
     public void finish() throws IOException {
         broadcastEvent(EndOfPartitionEvent.INSTANCE, false);
         checkState(
-                unicastSortBuffer == null || unicastSortBuffer.isReleased(),
+                unicastDataBuffer == null,
                 "The unicast sort buffer should be either null or released.");
-        flushBroadcastSortBuffer();
+        flushBroadcastDataBuffer();
 
         synchronized (lock) {
             checkState(!isReleased(), "Result partition is already released.");
 
             resultFile = fileWriter.finish();
+            super.finish();
             LOG.info("New partitioned file produced: {}.", resultFile);
         }
-
-        super.finish();
     }
 
-    private void releaseWriteBuffers() {
+    private void releaseFreeBuffers() {
         if (bufferPool != null) {
-            for (MemorySegment segment : writeSegments) {
-                bufferPool.recycle(segment);
-            }
-            writeSegments.clear();
+            freeSegments.forEach(buffer -> bufferPool.recycle(buffer));
+            freeSegments.clear();
         }
     }
 
     @Override
     public void close() {
-        releaseWriteBuffers();
-        // the close method will be always called by the task thread, so there is need to make
+        releaseFreeBuffers();
+        // the close method will always be called by the task thread, so there is need to make
         // the sort buffer fields volatile and visible to the cancel thread intermediately
-        releaseSortBuffer(unicastSortBuffer);
-        releaseSortBuffer(broadcastSortBuffer);
+        releaseDataBuffer(unicastDataBuffer);
+        releaseDataBuffer(broadcastDataBuffer);
         super.close();
 
         IOUtils.closeQuietly(fileWriter);
@@ -446,30 +537,20 @@ public class SortMergeResultPartition extends ResultPartition {
             checkState(!isReleased(), "Partition released.");
             checkState(isFinished(), "Trying to read unfinished blocking partition.");
 
+            if (!resultFile.isReadable()) {
+                throw new PartitionNotFoundException(getPartitionId());
+            }
+
             return readScheduler.createSubpartitionReader(
                     availabilityListener, subpartitionIndex, resultFile);
         }
     }
 
     @Override
-    public void flushAll() {
-        try {
-            flushUnicastSortBuffer();
-            flushBroadcastSortBuffer();
-        } catch (IOException e) {
-            LOG.error("Failed to flush the current sort buffer.", e);
-        }
-    }
+    public void flushAll() {}
 
     @Override
-    public void flush(int subpartitionIndex) {
-        try {
-            flushUnicastSortBuffer();
-            flushBroadcastSortBuffer();
-        } catch (IOException e) {
-            LOG.error("Failed to flush the current sort buffer.", e);
-        }
-    }
+    public void flush(int subpartitionIndex) {}
 
     @Override
     public CompletableFuture<?> getAvailableFuture() {
@@ -492,10 +573,13 @@ public class SortMergeResultPartition extends ResultPartition {
     }
 
     private int[] getRandomSubpartitionOrder(int numSubpartitions) {
-        List<Integer> list =
-                IntStream.range(0, numSubpartitions).boxed().collect(Collectors.toList());
-        Collections.shuffle(list);
-        return list.stream().mapToInt(Integer::intValue).toArray();
+        int[] order = new int[numSubpartitions];
+        Random random = new Random();
+        int shift = random.nextInt(numSubpartitions);
+        for (int channel = 0; channel < numSubpartitions; ++channel) {
+            order[(channel + shift) % numSubpartitions] = channel;
+        }
+        return order;
     }
 
     @VisibleForTesting

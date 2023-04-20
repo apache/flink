@@ -15,16 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import java.sql.Timestamp
-
 import org.junit.{Before, Test}
+
+import java.sql.Timestamp
 
 class WindowTableFunctionTest extends TableTestBase {
 
@@ -34,16 +33,15 @@ class WindowTableFunctionTest extends TableTestBase {
   def before(): Unit = {
     util.addTableSource[(Timestamp, Long, Int, String)]("MyTable", 'ts, 'a, 'b, 'c)
     util.addTableSource[(Int, Long, String, Int, Timestamp)]("MyTable1", 'a, 'b, 'c, 'd, 'ts)
-    util.tableEnv.executeSql(
-      s"""
-         |create table MyTable2 (
-         |  a int,
-         |  b bigint,
-         |  c as proctime()
-         |) with (
-         |  'connector' = 'COLLECTION'
-         |)
-         |""".stripMargin)
+    util.tableEnv.executeSql(s"""
+                                |create table MyTable2 (
+                                |  a int,
+                                |  b bigint,
+                                |  c as proctime()
+                                |) with (
+                                |  'connector' = 'COLLECTION'
+                                |)
+                                |""".stripMargin)
   }
 
   @Test
@@ -79,8 +77,7 @@ class WindowTableFunctionTest extends TableTestBase {
         |FROM TABLE(TUMBLE(TABLE MyTable2, DESCRIPTOR(c), INTERVAL '15' MINUTE))
         |""".stripMargin
     expectedException.expect(classOf[TableException])
-    expectedException.expectMessage(
-      "Processing time Window TableFunction is not supported yet.")
+    expectedException.expectMessage("Processing time Window TableFunction is not supported yet.")
     util.verifyExplain(sql)
   }
 
@@ -102,8 +99,7 @@ class WindowTableFunctionTest extends TableTestBase {
         |FROM TABLE(HOP(TABLE MyTable2, DESCRIPTOR(c), INTERVAL '1' HOUR, INTERVAL '2' HOUR))
         |""".stripMargin
     expectedException.expect(classOf[TableException])
-    expectedException.expectMessage(
-      "Processing time Window TableFunction is not supported yet.")
+    expectedException.expectMessage("Processing time Window TableFunction is not supported yet.")
     util.verifyExplain(sql)
   }
 
@@ -127,8 +123,7 @@ class WindowTableFunctionTest extends TableTestBase {
         | CUMULATE(TABLE MyTable2, DESCRIPTOR(c), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
         |""".stripMargin
     expectedException.expect(classOf[TableException])
-    expectedException.expectMessage(
-      "Processing time Window TableFunction is not supported yet.")
+    expectedException.expectMessage("Processing time Window TableFunction is not supported yet.")
     util.verifyExplain(sql)
   }
 

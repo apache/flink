@@ -20,20 +20,21 @@ package org.apache.flink.table.planner.parse;
 
 import org.junit.Test;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ResetOperationParseStrategy}. */
 public class ResetOperationParseStrategyTest {
 
     @Test
     public void testMatches() {
-        assertTrue(ResetOperationParseStrategy.INSTANCE.match("RESET"));
-        assertTrue(ResetOperationParseStrategy.INSTANCE.match("RESET table.planner"));
+        assertThat(ResetOperationParseStrategy.INSTANCE.match("RESET")).isTrue();
+        assertThat(ResetOperationParseStrategy.INSTANCE.match("RESET table.planner")).isTrue();
+        assertThat(ResetOperationParseStrategy.INSTANCE.match("RESET;")).isTrue();
+        assertThat(ResetOperationParseStrategy.INSTANCE.match("RESET table.planner;")).isTrue();
     }
 
     @Test
     public void testDoesNotMatchQuotedKey() {
-        assertFalse(ResetOperationParseStrategy.INSTANCE.match("RESET 'table.planner'"));
+        assertThat(ResetOperationParseStrategy.INSTANCE.match("RESET 'table.planner'")).isFalse();
     }
 }

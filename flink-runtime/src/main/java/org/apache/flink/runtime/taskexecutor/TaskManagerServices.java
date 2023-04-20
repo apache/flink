@@ -18,25 +18,30 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.entrypoint.WorkingDirectory;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironmentContext;
 import org.apache.flink.runtime.shuffle.ShuffleServiceLoader;
+import org.apache.flink.runtime.state.TaskExecutorChannelStateExecutorFactoryManager;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.state.TaskExecutorStateChangelogStoragesManager;
 import org.apache.flink.runtime.taskexecutor.slot.DefaultTimerService;
+import org.apache.flink.runtime.taskexecutor.slot.FileSlotAllocationSnapshotPersistenceService;
+import org.apache.flink.runtime.taskexecutor.slot.NoOpSlotAllocationSnapshotPersistenceService;
+import org.apache.flink.runtime.taskexecutor.slot.SlotAllocationSnapshotPersistenceService;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTableImpl;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
@@ -63,8 +68,6 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 public class TaskManagerServices {
     private static final Logger LOG = LoggerFactory.getLogger(TaskManagerServices.class);
 
-    @VisibleForTesting public static final String LOCAL_STATE_SUB_DIRECTORY_ROOT = "localState";
-
     /** TaskManager services. */
     private final UnresolvedTaskManagerLocation unresolvedTaskManagerLocation;
 
@@ -78,9 +81,12 @@ public class TaskManagerServices {
     private final JobLeaderService jobLeaderService;
     private final TaskExecutorLocalStateStoresManager taskManagerStateStore;
     private final TaskExecutorStateChangelogStoragesManager taskManagerChangelogManager;
+    private final TaskExecutorChannelStateExecutorFactoryManager taskManagerChannelStateManager;
     private final TaskEventDispatcher taskEventDispatcher;
     private final ExecutorService ioExecutor;
     private final LibraryCacheManager libraryCacheManager;
+    private final SlotAllocationSnapshotPersistenceService slotAllocationSnapshotPersistenceService;
+    private final SharedResources sharedResources;
 
     TaskManagerServices(
             UnresolvedTaskManagerLocation unresolvedTaskManagerLocation,
@@ -94,9 +100,12 @@ public class TaskManagerServices {
             JobLeaderService jobLeaderService,
             TaskExecutorLocalStateStoresManager taskManagerStateStore,
             TaskExecutorStateChangelogStoragesManager taskManagerChangelogManager,
+            TaskExecutorChannelStateExecutorFactoryManager taskManagerChannelStateManager,
             TaskEventDispatcher taskEventDispatcher,
             ExecutorService ioExecutor,
-            LibraryCacheManager libraryCacheManager) {
+            LibraryCacheManager libraryCacheManager,
+            SlotAllocationSnapshotPersistenceService slotAllocationSnapshotPersistenceService,
+            SharedResources sharedResources) {
 
         this.unresolvedTaskManagerLocation =
                 Preconditions.checkNotNull(unresolvedTaskManagerLocation);
@@ -110,9 +119,12 @@ public class TaskManagerServices {
         this.jobLeaderService = Preconditions.checkNotNull(jobLeaderService);
         this.taskManagerStateStore = Preconditions.checkNotNull(taskManagerStateStore);
         this.taskManagerChangelogManager = Preconditions.checkNotNull(taskManagerChangelogManager);
+        this.taskManagerChannelStateManager = taskManagerChannelStateManager;
         this.taskEventDispatcher = Preconditions.checkNotNull(taskEventDispatcher);
         this.ioExecutor = Preconditions.checkNotNull(ioExecutor);
         this.libraryCacheManager = Preconditions.checkNotNull(libraryCacheManager);
+        this.slotAllocationSnapshotPersistenceService = slotAllocationSnapshotPersistenceService;
+        this.sharedResources = Preconditions.checkNotNull(sharedResources);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -163,6 +175,10 @@ public class TaskManagerServices {
         return taskManagerChangelogManager;
     }
 
+    public TaskExecutorChannelStateExecutorFactoryManager getTaskManagerChannelStateManager() {
+        return taskManagerChannelStateManager;
+    }
+
     public TaskEventDispatcher getTaskEventDispatcher() {
         return taskEventDispatcher;
     }
@@ -173,6 +189,10 @@ public class TaskManagerServices {
 
     public LibraryCacheManager getLibraryCacheManager() {
         return libraryCacheManager;
+    }
+
+    public SharedResources getSharedResources() {
+        return sharedResources;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -258,6 +278,7 @@ public class TaskManagerServices {
      * @param taskManagerMetricGroup metric group of the task manager
      * @param ioExecutor executor for async IO operations
      * @param fatalErrorHandler to handle class loading OOMs
+     * @param workingDirectory the working directory of the process
      * @return task manager components
      * @throws Exception
      */
@@ -266,7 +287,8 @@ public class TaskManagerServices {
             PermanentBlobService permanentBlobService,
             MetricGroup taskManagerMetricGroup,
             ExecutorService ioExecutor,
-            FatalErrorHandler fatalErrorHandler)
+            FatalErrorHandler fatalErrorHandler,
+            WorkingDirectory workingDirectory)
             throws Exception {
 
         // pre-start checks
@@ -298,7 +320,8 @@ public class TaskManagerServices {
                         // iff the external data port is not explicitly defined
                         taskManagerServicesConfiguration.getExternalDataPort() > 0
                                 ? taskManagerServicesConfiguration.getExternalDataPort()
-                                : listeningDataPort);
+                                : listeningDataPort,
+                        taskManagerServicesConfiguration.getNodeId());
 
         final BroadcastVariableManager broadcastVariableManager = new BroadcastVariableManager();
 
@@ -317,24 +340,17 @@ public class TaskManagerServices {
                         unresolvedTaskManagerLocation,
                         taskManagerServicesConfiguration.getRetryingRegistrationConfiguration());
 
-        final String[] stateRootDirectoryStrings =
-                taskManagerServicesConfiguration.getLocalRecoveryStateRootDirectories();
-
-        final File[] stateRootDirectoryFiles = new File[stateRootDirectoryStrings.length];
-
-        for (int i = 0; i < stateRootDirectoryStrings.length; ++i) {
-            stateRootDirectoryFiles[i] =
-                    new File(stateRootDirectoryStrings[i], LOCAL_STATE_SUB_DIRECTORY_ROOT);
-        }
-
         final TaskExecutorLocalStateStoresManager taskStateManager =
                 new TaskExecutorLocalStateStoresManager(
                         taskManagerServicesConfiguration.isLocalRecoveryEnabled(),
-                        stateRootDirectoryFiles,
+                        taskManagerServicesConfiguration.getLocalRecoveryStateDirectories(),
                         ioExecutor);
 
         final TaskExecutorStateChangelogStoragesManager changelogStoragesManager =
                 new TaskExecutorStateChangelogStoragesManager();
+
+        final TaskExecutorChannelStateExecutorFactoryManager channelStateExecutorFactoryManager =
+                new TaskExecutorChannelStateExecutorFactoryManager();
 
         final boolean failOnJvmMetaspaceOomError =
                 taskManagerServicesConfiguration
@@ -354,6 +370,17 @@ public class TaskManagerServices {
                                 failOnJvmMetaspaceOomError ? fatalErrorHandler : null,
                                 checkClassLoaderLeak));
 
+        final SlotAllocationSnapshotPersistenceService slotAllocationSnapshotPersistenceService;
+
+        if (taskManagerServicesConfiguration.isLocalRecoveryEnabled()) {
+            slotAllocationSnapshotPersistenceService =
+                    new FileSlotAllocationSnapshotPersistenceService(
+                            workingDirectory.getSlotAllocationSnapshotDirectory());
+        } else {
+            slotAllocationSnapshotPersistenceService =
+                    NoOpSlotAllocationSnapshotPersistenceService.INSTANCE;
+        }
+
         return new TaskManagerServices(
                 unresolvedTaskManagerLocation,
                 taskManagerServicesConfiguration.getManagedMemorySize().getBytes(),
@@ -366,9 +393,12 @@ public class TaskManagerServices {
                 jobLeaderService,
                 taskStateManager,
                 changelogStoragesManager,
+                channelStateExecutorFactoryManager,
                 taskEventDispatcher,
                 ioExecutor,
-                libraryCacheManager);
+                libraryCacheManager,
+                slotAllocationSnapshotPersistenceService,
+                new SharedResources());
     }
 
     private static TaskSlotTable<Task> createTaskSlotTable(
@@ -405,6 +435,8 @@ public class TaskManagerServices {
                         taskManagerServicesConfiguration.getNetworkMemorySize(),
                         taskManagerServicesConfiguration.isLocalCommunicationOnly(),
                         taskManagerServicesConfiguration.getBindAddress(),
+                        taskManagerServicesConfiguration.getNumberOfSlots(),
+                        taskManagerServicesConfiguration.getTmpDirPaths(),
                         taskEventDispatcher,
                         taskManagerMetricGroup,
                         ioExecutor);
@@ -462,5 +494,9 @@ public class TaskManagerServices {
                 throw new IllegalArgumentException("Temporary file directory #$id is null.");
             }
         }
+    }
+
+    public SlotAllocationSnapshotPersistenceService getSlotAllocationSnapshotPersistenceService() {
+        return slotAllocationSnapshotPersistenceService;
     }
 }

@@ -43,26 +43,15 @@ public class IncrementalAggregateJsonPlanITCase extends JsonPlanTestBase {
     public void setup() throws Exception {
         super.setup();
         tableEnv.getConfig()
-                .getConfiguration()
                 .set(
                         OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
-                        AggregatePhaseStrategy.TWO_PHASE.name());
-        tableEnv.getConfig()
-                .getConfiguration()
-                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true);
-        tableEnv.getConfig()
-                .getConfiguration()
-                .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true);
-        tableEnv.getConfig()
-                .getConfiguration()
+                        AggregatePhaseStrategy.TWO_PHASE.name())
+                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
+                .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true)
                 .set(
                         ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY,
-                        Duration.ofSeconds(10));
-        tableEnv.getConfig()
-                .getConfiguration()
-                .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, 5L);
-        tableEnv.getConfig()
-                .getConfiguration()
+                        Duration.ofSeconds(10))
+                .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, 5L)
                 .set(IncrementalAggregateRule.TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED(), true);
     }
 
@@ -77,13 +66,11 @@ public class IncrementalAggregateJsonPlanITCase extends JsonPlanTestBase {
                 "c varchar");
         createTestNonInsertOnlyValuesSinkTable(
                 "MySink", "b bigint", "a bigint", "primary key (b) not enforced");
-        String jsonPlan =
-                tableEnv.getJsonPlan(
+        compileSqlAndExecutePlan(
                         "insert into MySink select b, "
                                 + "count(distinct a) as a "
-                                + "from MyTable group by b");
-
-        tableEnv.executeJsonPlan(jsonPlan).await();
+                                + "from MyTable group by b")
+                .await();
 
         List<String> result = TestValuesTableFactory.getResults("MySink");
         assertResult(Arrays.asList("+I[1, 1]", "+I[2, 2]"), result);

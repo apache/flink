@@ -21,6 +21,7 @@ package org.apache.flink.runtime.util;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Queue;
@@ -64,6 +65,10 @@ public class BoundedFIFOQueue<T> implements Iterable<T>, Serializable {
         if (elements.add(element) && elements.size() > maxSize) {
             elements.poll();
         }
+    }
+
+    public ArrayList<T> toArrayList() {
+        return new ArrayList<>(elements);
     }
 
     /**

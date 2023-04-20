@@ -35,19 +35,20 @@ import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
  * Wrapper for expressions that have been resolved already in the API with the new type inference
  * stack.
  */
-case class ApiResolvedExpression(resolvedDataType: DataType)
-  extends LeafExpression {
+case class ApiResolvedExpression(resolvedDataType: DataType) extends LeafExpression {
 
   override private[flink] def resultType: TypeInformation[_] =
     TypeConversions.fromDataTypeToLegacyInfo(resolvedDataType)
 }
 
 /**
-  * Over call with unresolved alias for over window.
-  *
-  * @param agg The aggregation of the over call.
-  * @param alias The alias of the referenced over window.
-  */
+ * Over call with unresolved alias for over window.
+ *
+ * @param agg
+ *   The aggregation of the over call.
+ * @param alias
+ *   The alias of the referenced over window.
+ */
 case class UnresolvedOverCall(agg: PlannerExpression, alias: PlannerExpression)
   extends PlannerExpression {
 
@@ -60,20 +61,26 @@ case class UnresolvedOverCall(agg: PlannerExpression, alias: PlannerExpression)
 }
 
 /**
-  * Over expression for Calcite over transform.
-  *
-  * @param agg            over-agg expression
-  * @param partitionBy    The fields by which the over window is partitioned
-  * @param orderBy        The field by which the over window is sorted
-  * @param preceding      The lower bound of the window
-  * @param following      The upper bound of the window
-  */
+ * Over expression for Calcite over transform.
+ *
+ * @param agg
+ *   over-agg expression
+ * @param partitionBy
+ *   The fields by which the over window is partitioned
+ * @param orderBy
+ *   The field by which the over window is sorted
+ * @param preceding
+ *   The lower bound of the window
+ * @param following
+ *   The upper bound of the window
+ */
 case class OverCall(
     agg: PlannerExpression,
     partitionBy: Seq[PlannerExpression],
     orderBy: PlannerExpression,
     preceding: PlannerExpression,
-    following: PlannerExpression) extends PlannerExpression {
+    following: PlannerExpression)
+  extends PlannerExpression {
 
   override def toString: String = s"$agg OVER (" +
     s"PARTITION BY (${partitionBy.mkString(", ")}) " +
@@ -98,14 +105,16 @@ case class OverCall(
 
     // check partitionBy expression keys are resolved field reference
     partitionBy.foreach {
-      case r: PlannerResolvedFieldReference if r.resultType.isKeyType  =>
+      case r: PlannerResolvedFieldReference if r.resultType.isKeyType =>
         ValidationSuccess
       case r: PlannerResolvedFieldReference =>
-        return ValidationFailure(s"Invalid PartitionBy expression: $r. " +
-          s"Expression must return key type.")
+        return ValidationFailure(
+          s"Invalid PartitionBy expression: $r. " +
+            s"Expression must return key type.")
       case r =>
-        return ValidationFailure(s"Invalid PartitionBy expression: $r. " +
-          s"Expression must be a resolved field reference.")
+        return ValidationFailure(
+          s"Invalid PartitionBy expression: $r. " +
+            s"Expression must be a resolved field reference.")
     }
 
     // check preceding is valid
@@ -158,11 +167,13 @@ case class OverCall(
 }
 
 /**
-  * Expression for calling a user-defined scalar functions.
-  *
-  * @param scalarFunction scalar function to be called (might be overloaded)
-  * @param parameters actual parameters that determine target evaluation method
-  */
+ * Expression for calling a user-defined scalar functions.
+ *
+ * @param scalarFunction
+ *   scalar function to be called (might be overloaded)
+ * @param parameters
+ *   actual parameters that determine target evaluation method
+ */
 case class PlannerScalarFunctionCall(
     scalarFunction: ScalarFunction,
     parameters: Seq[PlannerExpression])
@@ -176,18 +187,17 @@ case class PlannerScalarFunctionCall(
     s"${scalarFunction.getClass.getCanonicalName}(${parameters.mkString(", ")})"
 
   override private[flink] def resultType =
-    fromDataTypeToTypeInfo(getResultTypeOfScalarFunction(
-      scalarFunction,
-      signature))
+    fromDataTypeToTypeInfo(getResultTypeOfScalarFunction(scalarFunction, signature))
 
   override private[flink] def validateInput(): ValidationResult = {
     signature = children.map(_.resultType).map(fromTypeInfoToLogicalType).toArray
     // look for a signature that matches the input types
     val foundSignature = getEvalMethodSignatureOption(scalarFunction, signature)
     if (foundSignature.isEmpty) {
-      ValidationFailure(s"Given parameters do not match any signature. \n" +
-        s"Actual: ${signatureToString(signature.map(fromLogicalTypeToDataType))} \n" +
-        s"Expected: ${signaturesToString(scalarFunction, "eval")}")
+      ValidationFailure(
+        s"Given parameters do not match any signature. \n" +
+          s"Actual: ${signatureToString(signature.map(fromLogicalTypeToDataType))} \n" +
+          s"Expected: ${signaturesToString(scalarFunction, "eval")}")
     } else {
       ValidationSuccess
     }
@@ -195,14 +205,17 @@ case class PlannerScalarFunctionCall(
 }
 
 /**
-  *
-  * Expression for calling a user-defined table function with actual parameters.
-  *
-  * @param functionName function name
-  * @param tableFunction user-defined table function
-  * @param parameters actual parameters of function
-  * @param resultType type information of returned table
-  */
+ * Expression for calling a user-defined table function with actual parameters.
+ *
+ * @param functionName
+ *   function name
+ * @param tableFunction
+ *   user-defined table function
+ * @param parameters
+ *   actual parameters of function
+ * @param resultType
+ *   type information of returned table
+ */
 case class PlannerTableFunctionCall(
     functionName: String,
     tableFunction: TableFunction[_],
@@ -215,8 +228,7 @@ case class PlannerTableFunctionCall(
   override def validateInput(): ValidationResult = {
     // look for a signature that matches the input types
     val signature = parameters.map(_.resultType).map(fromLegacyInfoToDataType)
-    val foundMethod = getUserDefinedMethod(
-      tableFunction, "eval", signature)
+    val foundMethod = getUserDefinedMethod(tableFunction, "eval", signature)
     if (foundMethod.isEmpty) {
       ValidationFailure(
         s"Given parameters of function '$functionName' do not match any signature. \n" +
@@ -241,7 +253,8 @@ case class ThrowException(msg: PlannerExpression, tp: TypeInformation[_]) extend
     if (child.resultType == Types.STRING) {
       ValidationSuccess
     } else {
-      ValidationFailure(s"ThrowException operator requires String input, " +
+      ValidationFailure(
+        s"ThrowException operator requires String input, " +
           s"but $child is of type ${child.resultType}")
     }
   }

@@ -40,8 +40,11 @@ import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.SourceStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskTest;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 
 import org.junit.Assert;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.io.Serializable;
@@ -50,11 +53,15 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.junit.Assert.assertEquals;
 
 /** This test secures the lifecycle of AbstractUdfStreamOperator, including it's UDF handling. */
 public class AbstractUdfStreamOperatorLifecycleTest {
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     private static final List<String> EXPECTED_CALL_ORDER_FULL =
             Arrays.asList(
@@ -156,7 +163,11 @@ public class AbstractUdfStreamOperatorLifecycleTest {
         try (ShuffleEnvironment shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build()) {
             Task task =
                     StreamTaskTest.createTask(
-                            SourceStreamTask.class, shuffleEnvironment, cfg, taskManagerConfig);
+                            SourceStreamTask.class,
+                            shuffleEnvironment,
+                            cfg,
+                            taskManagerConfig,
+                            EXECUTOR_RESOURCE.getExecutor());
 
             task.startTaskThread();
 
@@ -183,7 +194,11 @@ public class AbstractUdfStreamOperatorLifecycleTest {
         try (ShuffleEnvironment shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build()) {
             Task task =
                     StreamTaskTest.createTask(
-                            SourceStreamTask.class, shuffleEnvironment, cfg, taskManagerConfig);
+                            SourceStreamTask.class,
+                            shuffleEnvironment,
+                            cfg,
+                            taskManagerConfig,
+                            EXECUTOR_RESOURCE.getExecutor());
 
             task.startTaskThread();
             LifecycleTrackingStreamSource.runStarted.await();

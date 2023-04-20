@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
@@ -26,23 +25,19 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalL
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 
 /**
-  * Rule that matches [[FlinkLogicalSort]] with empty sort fields,
-  * and converts it to [[StreamPhysicalLimit]].
-  */
-class StreamPhysicalLimitRule
-  extends ConverterRule(
-    classOf[FlinkLogicalSort],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.STREAM_PHYSICAL,
-    "StreamPhysicalLimitRule") {
+ * Rule that matches [[FlinkLogicalSort]] with empty sort fields, and converts it to
+ * [[StreamPhysicalLimit]].
+ */
+class StreamPhysicalLimitRule(config: Config) extends ConverterRule(config) {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val sort: FlinkLogicalSort = call.rel(0)
     // only matches Sort with empty sort fields
     sort.getCollation.getFieldCollations.isEmpty
-}
+  }
 
   override def convert(rel: RelNode): RelNode = {
     val sort = rel.asInstanceOf[FlinkLogicalSort]
@@ -66,5 +61,10 @@ class StreamPhysicalLimitRule
 }
 
 object StreamPhysicalLimitRule {
-  val INSTANCE: RelOptRule = new StreamPhysicalLimitRule
+  val INSTANCE: RelOptRule = new StreamPhysicalLimitRule(
+    Config.INSTANCE.withConversion(
+      classOf[FlinkLogicalSort],
+      FlinkConventions.LOGICAL,
+      FlinkConventions.STREAM_PHYSICAL,
+      "StreamPhysicalLimitRule"))
 }

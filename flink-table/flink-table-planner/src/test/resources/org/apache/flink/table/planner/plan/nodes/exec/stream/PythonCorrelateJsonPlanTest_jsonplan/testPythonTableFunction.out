@@ -1,32 +1,42 @@
 {
   "flinkVersion" : "",
   "nodes" : [ {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
+    "id" : 1,
+    "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
-      "identifier" : {
-        "catalogName" : "default_catalog",
-        "databaseName" : "default_database",
-        "tableName" : "MyTable"
-      },
-      "catalogTable" : {
-        "schema.3.data-type" : "TIMESTAMP(3)",
-        "schema.2.data-type" : "INT",
-        "schema.3.name" : "d",
-        "connector" : "values",
-        "schema.0.data-type" : "INT",
-        "schema.2.name" : "c",
-        "schema.1.name" : "b",
-        "bounded" : "false",
-        "schema.0.name" : "a",
-        "schema.1.data-type" : "INT"
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`MyTable`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "INT"
+            }, {
+              "name" : "b",
+              "dataType" : "INT"
+            }, {
+              "name" : "c",
+              "dataType" : "INT"
+            }, {
+              "name" : "d",
+              "dataType" : "TIMESTAMP(3)"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ],
+          "options" : {
+            "connector" : "values",
+            "bounded" : "false"
+          }
+        }
       }
     },
-    "id" : 1,
     "outputType" : "ROW<`a` INT, `b` INT, `c` INT, `d` TIMESTAMP(3)>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])",
     "inputProperties" : [ ]
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "id" : 2,
+    "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
@@ -44,12 +54,9 @@
       "inputIndex" : 3,
       "type" : "TIMESTAMP(3)"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "*",
-        "kind" : "TIMES",
-        "syntax" : "BINARY"
-      },
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$*$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 0,
@@ -62,7 +69,6 @@
       "type" : "INT"
     } ],
     "condition" : null,
-    "id" : 2,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -73,29 +79,19 @@
     "outputType" : "ROW<`a` INT, `b` INT, `c` INT, `d` TIMESTAMP(3), `f0` INT>",
     "description" : "Calc(select=[a, b, c, d, (a * a) AS f0])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonCorrelate",
+    "id" : 3,
+    "type" : "stream-exec-python-correlate_1",
     "joinType" : "LEFT",
     "functionCall" : {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "TableFunc",
-        "kind" : "OTHER_FUNCTION",
-        "syntax" : "FUNCTION"
-      },
+      "kind" : "CALL",
+      "catalogName" : "`default_catalog`.`default_database`.`TableFunc`",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 4,
         "type" : "INT"
       }, {
-        "kind" : "REX_CALL",
-        "operator" : {
-          "name" : "pyFunc",
-          "kind" : "OTHER_FUNCTION",
-          "syntax" : "FUNCTION",
-          "displayName" : "pyFunc",
-          "functionKind" : "SCALAR",
-          "instance" : "rO0ABXNyAGBvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnBsYW5uZXIucnVudGltZS51dGlscy5KYXZhVXNlckRlZmluZWRTY2FsYXJGdW5jdGlvbnMkUHl0aG9uU2NhbGFyRnVuY3Rpb27_1ZOqAJexIAIAAUwABG5hbWV0ABJMamF2YS9sYW5nL1N0cmluZzt4cgAvb3JnLmFwYWNoZS5mbGluay50YWJsZS5mdW5jdGlvbnMuU2NhbGFyRnVuY3Rpb26383IwrjqOqQIAAHhyADRvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmZ1bmN0aW9ucy5Vc2VyRGVmaW5lZEZ1bmN0aW9uWWgLCLtDDxYCAAB4cHQABnB5RnVuYw"
-        },
+        "kind" : "CALL",
+        "catalogName" : "`default_catalog`.`default_database`.`pyFunc`",
         "operands" : [ {
           "kind" : "INPUT_REF",
           "inputIndex" : 0,
@@ -107,9 +103,8 @@
         } ],
         "type" : "INT NOT NULL"
       } ],
-      "type" : "ROW<`f0` INT, `f1` INT> NOT NULL"
+      "type" : "ROW<`x` INT, `y` INT> NOT NULL"
     },
-    "id" : 3,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -117,10 +112,11 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` INT, `b` INT, `c` INT, `d` TIMESTAMP(3), `f0` INT, `f00` INT, `f1` INT>",
-    "description" : "PythonCorrelate(invocation=[TableFunc($4, pyFunc($0, $1))], correlate=[table(TableFunc(f0,pyFunc(a, b)))], select=[a,b,c,d,f0,f00,f1], rowType=[RecordType(INTEGER a, INTEGER b, INTEGER c, TIMESTAMP(3) d, INTEGER f0, INTEGER f00, INTEGER f1)], joinType=[LEFT])"
+    "outputType" : "ROW<`a` INT, `b` INT, `c` INT, `d` TIMESTAMP(3), `f0` INT, `x` INT, `y` INT>",
+    "description" : "PythonCorrelate(invocation=[TableFunc($4, pyFunc($0, $1))], correlate=[table(TableFunc(f0,pyFunc(a, b)))], select=[a,b,c,d,f0,x,y], rowType=[RecordType(INTEGER a, INTEGER b, INTEGER c, TIMESTAMP(3) d, INTEGER f0, INTEGER x, INTEGER y)], joinType=[LEFT])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "id" : 4,
+    "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 5,
@@ -131,7 +127,6 @@
       "type" : "INT"
     } ],
     "condition" : null,
-    "id" : 4,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -140,26 +135,39 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`x` INT, `y` INT>",
-    "description" : "Calc(select=[f00 AS x, f1 AS y])"
+    "description" : "Calc(select=[x, y])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
+    "id" : 5,
+    "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
     "dynamicTableSink" : {
-      "identifier" : {
-        "catalogName" : "default_catalog",
-        "databaseName" : "default_database",
-        "tableName" : "MySink"
-      },
-      "catalogTable" : {
-        "table-sink-class" : "DEFAULT",
-        "connector" : "values",
-        "schema.0.data-type" : "INT",
-        "schema.1.name" : "b",
-        "schema.0.name" : "a",
-        "schema.1.data-type" : "INT"
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`MySink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "INT"
+            }, {
+              "name" : "b",
+              "dataType" : "INT"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ],
+          "options" : {
+            "connector" : "values",
+            "table-sink-class" : "DEFAULT"
+          }
+        }
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "id" : 5,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"

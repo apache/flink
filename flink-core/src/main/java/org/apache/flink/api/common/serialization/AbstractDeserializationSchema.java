@@ -108,7 +108,8 @@ public abstract class AbstractDeserializationSchema<T> implements Deserializatio
                     "The implementation of AbstractDeserializationSchema is using a generic variable. "
                             + "This is not supported, because due to Java's generic type erasure, it will not be possible to "
                             + "determine the full type at runtime. For generic implementations, please pass the TypeInformation "
-                            + "or type class explicitly to the constructor.");
+                            + "or type class explicitly to the constructor.",
+                    e);
         }
     }
 

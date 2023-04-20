@@ -44,7 +44,12 @@ public interface DataInputView extends DataInput {
 
     /**
      * Reads up to {@code len} bytes of memory and stores it into {@code b} starting at offset
-     * {@code off}. It returns the number of read bytes or -1 if there is no more data left.
+     * {@code off}.
+     *
+     * <p>If <code>len</code> is zero, then no bytes are read and <code>0</code> is returned;
+     * otherwise, there is an attempt to read at least one byte. If there is no more data left, the
+     * value <code>-1</code> is returned; otherwise, at least one byte is read and stored into
+     * <code>b</code>.
      *
      * @param b byte array to store the data to
      * @param off offset into byte array

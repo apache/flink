@@ -29,65 +29,87 @@ import org.junit.Test
 abstract class AggregateTestBase extends TableTestBase {
 
   protected val util: BatchTableTestUtil = batchTestUtil()
-  util.addTableSource("MyTable",
+  util.addTableSource(
+    "MyTable",
     Array[TypeInformation[_]](
-      Types.BYTE, Types.SHORT, Types.INT, Types.LONG, Types.FLOAT, Types.DOUBLE, Types.BOOLEAN,
-      Types.STRING, Types.LOCAL_DATE, Types.LOCAL_TIME, Types.LOCAL_DATE_TIME,
-      DecimalDataTypeInfo.of(30, 20), DecimalDataTypeInfo.of(10, 5)),
-    Array("byte", "short", "int", "long", "float", "double", "boolean",
-      "string", "date", "time", "timestamp", "decimal3020", "decimal105"))
+      Types.BYTE,
+      Types.SHORT,
+      Types.INT,
+      Types.LONG,
+      Types.FLOAT,
+      Types.DOUBLE,
+      Types.BOOLEAN,
+      Types.STRING,
+      Types.LOCAL_DATE,
+      Types.LOCAL_TIME,
+      Types.LOCAL_DATE_TIME,
+      DecimalDataTypeInfo.of(30, 20),
+      DecimalDataTypeInfo.of(10, 5)
+    ),
+    Array(
+      "byte",
+      "short",
+      "int",
+      "long",
+      "float",
+      "double",
+      "boolean",
+      "string",
+      "date",
+      "time",
+      "timestamp",
+      "decimal3020",
+      "decimal105")
+  )
   util.addTableSource[(Int, Long, String)]("MyTable1", 'a, 'b, 'c)
 
   @Test
   def testAvg(): Unit = {
-    util.verifyRelPlanWithType(
-      """
-        |SELECT AVG(`byte`),
-        |       AVG(`short`),
-        |       AVG(`int`),
-        |       AVG(`long`),
-        |       AVG(`float`),
-        |       AVG(`double`),
-        |       AVG(`decimal3020`),
-        |       AVG(`decimal105`)
-        |FROM MyTable
+    util.verifyRelPlanWithType("""
+                                 |SELECT AVG(`byte`),
+                                 |       AVG(`short`),
+                                 |       AVG(`int`),
+                                 |       AVG(`long`),
+                                 |       AVG(`float`),
+                                 |       AVG(`double`),
+                                 |       AVG(`decimal3020`),
+                                 |       AVG(`decimal105`)
+                                 |FROM MyTable
       """.stripMargin)
   }
 
   @Test
   def testSum(): Unit = {
-    util.verifyRelPlanWithType(
-      """
-        |SELECT SUM(`byte`),
-        |       SUM(`short`),
-        |       SUM(`int`),
-        |       SUM(`long`),
-        |       SUM(`float`),
-        |       SUM(`double`),
-        |       SUM(`decimal3020`),
-        |       SUM(`decimal105`)
-        |FROM MyTable
+    util.verifyRelPlanWithType("""
+                                 |SELECT SUM(`byte`),
+                                 |       SUM(`short`),
+                                 |       SUM(`int`),
+                                 |       SUM(`long`),
+                                 |       SUM(`float`),
+                                 |       SUM(`double`),
+                                 |       SUM(`decimal3020`),
+                                 |       SUM(`decimal105`)
+                                 |FROM MyTable
       """.stripMargin)
   }
 
   @Test
   def testCount(): Unit = {
-    util.verifyRelPlanWithType(
-      """
-        |SELECT COUNT(`byte`),
-        |       COUNT(`short`),
-        |       COUNT(`int`),
-        |       COUNT(`long`),
-        |       COUNT(`float`),
-        |       COUNT(`double`),
-        |       COUNT(`decimal3020`),
-        |       COUNT(`decimal105`),
-        |       COUNT(`boolean`),
-        |       COUNT(`date`),
-        |       COUNT(`time`),
-        |       COUNT(`timestamp`),
-        |       COUNT(`string`)
-        |FROM MyTable
+    util.verifyRelPlanWithType("""
+                                 |SELECT COUNT(`byte`),
+                                 |       COUNT(`short`),
+                                 |       COUNT(`int`),
+                                 |       COUNT(`long`),
+                                 |       COUNT(`float`),
+                                 |       COUNT(`double`),
+                                 |       COUNT(`decimal3020`),
+                                 |       COUNT(`decimal105`),
+                                 |       COUNT(`boolean`),
+                                 |       COUNT(`date`),
+                                 |       COUNT(`time`),
+                                 |       COUNT(`timestamp`),
+                                 |       COUNT(`string`)
+                                 |FROM MyTable
       """.stripMargin)
   }
 
@@ -96,6 +118,20 @@ abstract class AggregateTestBase extends TableTestBase {
     util.verifyRelPlanWithType("SELECT COUNT(*) FROM MyTable")
   }
 
+  @Test
+  def testCountStartWithProjectPushDown(): Unit = {
+    // the test values table source supports projection push down by default
+    util.tableEnv.executeSql("""
+                               |CREATE TABLE src (
+                               | id VARCHAR,
+                               | cnt BIGINT
+                               |) WITH (
+                               | 'connector' = 'values'
+                               | ,'bounded' = 'true'
+                               |)
+                               |""".stripMargin)
+    util.verifyRelPlanWithType("SELECT COUNT(*) FROM src")
+  }
 
   @Test
   def testCannotCountOnMultiFields(): Unit = {
@@ -107,21 +143,20 @@ abstract class AggregateTestBase extends TableTestBase {
 
   @Test
   def testMinWithFixLengthType(): Unit = {
-    util.verifyRelPlanWithType(
-      """
-        |SELECT MIN(`byte`),
-        |       MIN(`short`),
-        |       MIN(`int`),
-        |       MIN(`long`),
-        |       MIN(`float`),
-        |       MIN(`double`),
-        |       MIN(`decimal3020`),
-        |       MIN(`decimal105`),
-        |       MIN(`boolean`),
-        |       MIN(`date`),
-        |       MIN(`time`),
-        |       MIN(`timestamp`)
-        |FROM MyTable
+    util.verifyRelPlanWithType("""
+                                 |SELECT MIN(`byte`),
+                                 |       MIN(`short`),
+                                 |       MIN(`int`),
+                                 |       MIN(`long`),
+                                 |       MIN(`float`),
+                                 |       MIN(`double`),
+                                 |       MIN(`decimal3020`),
+                                 |       MIN(`decimal105`),
+                                 |       MIN(`boolean`),
+                                 |       MIN(`date`),
+                                 |       MIN(`time`),
+                                 |       MIN(`timestamp`)
+                                 |FROM MyTable
       """.stripMargin)
   }
 
@@ -132,21 +167,20 @@ abstract class AggregateTestBase extends TableTestBase {
 
   @Test
   def testMaxWithFixLengthType(): Unit = {
-    util.verifyRelPlanWithType(
-      """
-        |SELECT MAX(`byte`),
-        |       MAX(`short`),
-        |       MAX(`int`),
-        |       MAX(`long`),
-        |       MAX(`float`),
-        |       MAX(`double`),
-        |       MAX(`decimal3020`),
-        |       MAX(`decimal105`),
-        |       MAX(`boolean`),
-        |       MAX(`date`),
-        |       MAX(`time`),
-        |       MAX(`timestamp`)
-        |FROM MyTable
+    util.verifyRelPlanWithType("""
+                                 |SELECT MAX(`byte`),
+                                 |       MAX(`short`),
+                                 |       MAX(`int`),
+                                 |       MAX(`long`),
+                                 |       MAX(`float`),
+                                 |       MAX(`double`),
+                                 |       MAX(`decimal3020`),
+                                 |       MAX(`decimal105`),
+                                 |       MAX(`boolean`),
+                                 |       MAX(`date`),
+                                 |       MAX(`time`),
+                                 |       MAX(`timestamp`)
+                                 |FROM MyTable
       """.stripMargin)
   }
 

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.calcite
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -25,17 +24,20 @@ import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.rel.{RelNode, RelShuttle, RelWriter}
+import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.util.ImmutableBitSet
 
 import java.util
 
+import scala.collection.JavaConverters._
+
 /**
-  * Relational operator that eliminates duplicates and computes totals with time window group.
-  *
-  * NOTES: complex group (GROUPING SETS, CUBE, ROLLUP) is not supported now
-  */
+ * Relational operator that eliminates duplicates and computes totals with time window group.
+ *
+ * NOTES: complex group (GROUPING SETS, CUBE, ROLLUP) is not supported now
+ */
 abstract class WindowAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -43,10 +45,11 @@ abstract class WindowAggregate(
     groupSet: ImmutableBitSet,
     aggCalls: util.List[AggregateCall],
     window: LogicalWindow,
-    namedProperties: Seq[NamedWindowProperty])
+    namedProperties: util.List[NamedWindowProperty])
   extends Aggregate(
     cluster,
     traitSet,
+    new util.ArrayList[RelHint],
     child,
     groupSet,
     ImmutableList.of(groupSet),
@@ -54,7 +57,7 @@ abstract class WindowAggregate(
 
   def getWindow: LogicalWindow = window
 
-  def getNamedProperties: Seq[NamedWindowProperty] = namedProperties
+  def getNamedProperties: util.List[NamedWindowProperty] = namedProperties
 
   override def accept(shuttle: RelShuttle): RelNode = shuttle.visit(this)
 
@@ -63,25 +66,26 @@ abstract class WindowAggregate(
     val typeFactory = getCluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     val builder = typeFactory.builder
     builder.addAll(aggregateRowType.getFieldList)
-    namedProperties.foreach { namedProp =>
-      builder.add(
-        namedProp.getName,
-        typeFactory.createFieldTypeFromLogicalType(namedProp.getProperty.getResultType)
-      )
+    namedProperties.asScala.foreach {
+      namedProp =>
+        builder.add(
+          namedProp.getName,
+          typeFactory.createFieldTypeFromLogicalType(namedProp.getProperty.getResultType)
+        )
     }
     builder.build()
   }
 
   /**
-    * The [[getDigest]] should be uniquely identifies the node; another node
-    * is equivalent if and only if it has the same value. The [[getDigest]] is
-    * computed by [[explainTerms(pw)]], so it should contains window information
-    * to identify different WindowAggregate nodes, otherwise WindowAggregate node
-    * can be replaced by any other WindowAggregate node.
-    */
+   * The [[getDigest]] should be uniquely identifies the node; another node is equivalent if and
+   * only if it has the same value. The [[getDigest]] is computed by [[explainTerms(pw)]], so it
+   * should contains window information to identify different WindowAggregate nodes, otherwise
+   * WindowAggregate node can be replaced by any other WindowAggregate node.
+   */
   override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw)
+    super
+      .explainTerms(pw)
       .item("window", window)
-      .item("properties", namedProperties.map(_.getName).mkString(", "))
+      .item("properties", namedProperties.asScala.map(_.getName).mkString(", "))
   }
 }

@@ -18,13 +18,18 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
@@ -52,8 +57,16 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * because runtime doesn't support customized events and the watermark mechanism fully meets
  * mini-batch needs.
  */
+@ExecNodeMetadata(
+        name = "stream-exec-mini-batch-assigner",
+        version = 1,
+        producedTransformations = StreamExecMiniBatchAssigner.MINI_BATCH_ASSIGNER_TRANSFORMATION,
+        minPlanVersion = FlinkVersion.v1_15,
+        minStateVersion = FlinkVersion.v1_15)
 public class StreamExecMiniBatchAssigner extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
+
+    public static final String MINI_BATCH_ASSIGNER_TRANSFORMATION = "mini-batch-assigner";
 
     public static final String FIELD_NAME_MINI_BATCH_INTERVAL = "miniBatchInterval";
 
@@ -61,13 +74,16 @@ public class StreamExecMiniBatchAssigner extends ExecNodeBase<RowData>
     private final MiniBatchInterval miniBatchInterval;
 
     public StreamExecMiniBatchAssigner(
+            ReadableConfig tableConfig,
             MiniBatchInterval miniBatchInterval,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
         this(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(StreamExecMiniBatchAssigner.class),
+                ExecNodeContext.newPersistedConfig(StreamExecMiniBatchAssigner.class, tableConfig),
                 miniBatchInterval,
-                getNewNodeId(),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -75,18 +91,21 @@ public class StreamExecMiniBatchAssigner extends ExecNodeBase<RowData>
 
     @JsonCreator
     public StreamExecMiniBatchAssigner(
-            @JsonProperty(FIELD_NAME_MINI_BATCH_INTERVAL) MiniBatchInterval miniBatchInterval,
             @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
+            @JsonProperty(FIELD_NAME_MINI_BATCH_INTERVAL) MiniBatchInterval miniBatchInterval,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, inputProperties, outputType, description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         this.miniBatchInterval = checkNotNull(miniBatchInterval);
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) getInputEdges().get(0).translateToPlan(planner);
 
@@ -104,10 +123,10 @@ public class StreamExecMiniBatchAssigner extends ExecNodeBase<RowData>
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getOperatorName(planner.getTableConfig()),
-                getOperatorDescription(planner.getTableConfig()),
+                createTransformationMeta(MINI_BATCH_ASSIGNER_TRANSFORMATION, config),
                 operator,
                 InternalTypeInfo.of(getOutputType()),
-                inputTransform.getParallelism());
+                inputTransform.getParallelism(),
+                false);
     }
 }

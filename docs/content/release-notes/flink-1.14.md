@@ -268,7 +268,8 @@ chaining by explicitly setting `python.operator-chaining.enabled` as `false`.
 ##### [FLINK-23652](https://issues.apache.org/jira/browse/FLINK-23652)
 
 Connectors using the unified Source and Sink interface will expose certain standardized metrics
-automatically.
+automatically. Applications that use `RuntimeContext#getMetricGroup` need to be rebuild against
+1.14 before being submitted to a 1.14 cluster.
 
 #### Port KafkaSink to new Unified Sink API (FLIP-143)
 
@@ -466,7 +467,7 @@ older checkpoints over newer savepoints for recovery can lead to data loss.
 
 ### Dependency upgrades
 
-#### Bump up RocksDb version to 6.20.3
+#### Bump up RocksDB version to 6.20.3
 
 ##### [FLINK-14482](https://issues.apache.org/jira/browse/FLINK-14482)
 

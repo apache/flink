@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies
@@ -25,19 +24,19 @@ import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.ConcatDistinctAggFunction
-import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.runtime.utils.{FailingCollectionSource, StreamingWithStateTestBase, TestData, TestingAppendSink}
+import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.utils.AggregatePhaseStrategy
 import org.apache.flink.table.planner.utils.AggregatePhaseStrategy._
 import org.apache.flink.types.Row
 
+import org.junit.{Before, Test}
 import org.junit.Assert.assertEquals
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Before, Test}
 
-import java.util
 import java.time.ZoneId
+import java.util
 
 import scala.collection.JavaConversions._
 
@@ -148,29 +147,27 @@ class WindowAggregateITCase(
 
     tEnv.executeSql(
       s"""
-        |CREATE TABLE T1 (
-        | `ts` ${if (useTimestampLtz) "BIGINT" else "STRING"},
-        | `int` INT,
-        | `double` DOUBLE,
-        | `float` FLOAT,
-        | `bigdec` DECIMAL(10, 2),
-        | `string` STRING,
-        | `name` STRING,
-        | `rowtime` AS
-        | ${if (useTimestampLtz) "TO_TIMESTAMP_LTZ(`ts`, 3)" else "TO_TIMESTAMP(`ts`)"},
-        | WATERMARK for `rowtime` AS `rowtime` - INTERVAL '1' SECOND
-        |) WITH (
-        | 'connector' = 'values',
-        | 'data-id' = '${ if (useTimestampLtz) timestampLtzDataId else timestampDataId}',
-        | 'failing-source' = 'true'
-        |)
-        |""".stripMargin)
+         |CREATE TABLE T1 (
+         | `ts` ${if (useTimestampLtz) "BIGINT" else "STRING"},
+         | `int` INT,
+         | `double` DOUBLE,
+         | `float` FLOAT,
+         | `bigdec` DECIMAL(10, 2),
+         | `string` STRING,
+         | `name` STRING,
+         | `rowtime` AS
+         | ${if (useTimestampLtz) "TO_TIMESTAMP_LTZ(`ts`, 3)" else "TO_TIMESTAMP(`ts`)"},
+         | WATERMARK for `rowtime` AS `rowtime` - INTERVAL '1' SECOND
+         |) WITH (
+         | 'connector' = 'values',
+         | 'data-id' = '${if (useTimestampLtz) timestampLtzDataId else timestampDataId}',
+         | 'failing-source' = 'true'
+         |)
+         |""".stripMargin)
     tEnv.createFunction("concat_distinct_agg", classOf[ConcatDistinctAggFunction])
 
     tEnv.getConfig.setLocalTimeZone(SHANGHAI_ZONE)
-    tEnv.getConfig.getConfiguration.setString(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
-      aggPhase.toString)
+    tEnv.getConfig.set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, aggPhase.toString)
   }
 
   @Test
@@ -202,7 +199,8 @@ class WindowAggregateITCase(
       "b,2020-10-10T00:00:05,2020-10-10T00:00:10,2,6.66,6.0,3.0,2,Hello|Hi",
       "b,2020-10-10T00:00:15,2020-10-10T00:00:20,1,4.44,4.0,4.0,1,Hi",
       "b,2020-10-10T00:00:30,2020-10-10T00:00:35,1,3.33,3.0,3.0,1,Comment#3",
-      "null,2020-10-10T00:00:30,2020-10-10T00:00:35,1,7.77,7.0,7.0,0,null")
+      "null,2020-10-10T00:00:30,2020-10-10T00:00:35,1,7.77,7.0,7.0,0,null"
+    )
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 
@@ -232,7 +230,8 @@ class WindowAggregateITCase(
     val expected = Seq(
       "a,2020-10-09T08:00,2020-10-10T08:00,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2",
       "b,2020-10-09T08:00,2020-10-10T08:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
-      "null,2020-10-09T08:00,2020-10-10T08:00,1,7.77,7.0,7.0,0,null")
+      "null,2020-10-09T08:00,2020-10-10T08:00,1,7.77,7.0,7.0,0,null"
+    )
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 
@@ -262,9 +261,8 @@ class WindowAggregateITCase(
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = Seq(
-      "0,2020-10-09T08:00,2020-10-10T08:00,1",
-      "3,2020-10-09T08:00,2020-10-10T08:00,2")
+    val expected =
+      Seq("0,2020-10-09T08:00,2020-10-10T08:00,1", "3,2020-10-09T08:00,2020-10-10T08:00,2")
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 
@@ -294,7 +292,8 @@ class WindowAggregateITCase(
     val expected = Seq(
       "a,2020-10-09T16:00,2020-10-10T16:00,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2",
       "b,2020-10-09T16:00,2020-10-10T16:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
-      "null,2020-10-09T16:00,2020-10-10T16:00,1,7.77,7.0,7.0,0,null")
+      "null,2020-10-09T16:00,2020-10-10T16:00,1,7.77,7.0,7.0,0,null"
+    )
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 
@@ -420,7 +419,8 @@ class WindowAggregateITCase(
         "b,2020-10-10T00:00:05,2020-10-10T00:00:10,2020-10-10T00:00:09.999,2",
         "b,2020-10-10T00:00:15,2020-10-10T00:00:20,2020-10-10T00:00:19.999,1",
         "b,2020-10-10T00:00:30,2020-10-10T00:00:35,2020-10-10T00:00:34.999,1",
-        "null,2020-10-10T00:00:30,2020-10-10T00:00:35,2020-10-10T00:00:34.999,1")
+        "null,2020-10-10T00:00:30,2020-10-10T00:00:35,2020-10-10T00:00:34.999,1"
+      )
     }
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
@@ -451,7 +451,8 @@ class WindowAggregateITCase(
       "2020-10-10T00:00,2020-10-10T00:00:05,4,11.10,5.0,1.0,2,Hi|Comment#1",
       "2020-10-10T00:00:05,2020-10-10T00:00:10,3,9.99,6.0,3.0,3,Hello|Hi|Comment#2",
       "2020-10-10T00:00:15,2020-10-10T00:00:20,1,4.44,4.0,4.0,1,Hi",
-      "2020-10-10T00:00:30,2020-10-10T00:00:35,2,11.10,7.0,3.0,1,Comment#3")
+      "2020-10-10T00:00:30,2020-10-10T00:00:35,2,11.10,7.0,3.0,1,Comment#3"
+    )
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 
@@ -517,7 +518,8 @@ class WindowAggregateITCase(
       "b,2020-10-10T00:00:25,2020-10-10T00:00:35,1,3.33,3.0,3.0,1,Comment#3",
       "b,2020-10-10T00:00:30,2020-10-10T00:00:40,1,3.33,3.0,3.0,1,Comment#3",
       "null,2020-10-10T00:00:25,2020-10-10T00:00:35,1,7.77,7.0,7.0,0,null",
-      "null,2020-10-10T00:00:30,2020-10-10T00:00:40,1,7.77,7.0,7.0,0,null")
+      "null,2020-10-10T00:00:30,2020-10-10T00:00:40,1,7.77,7.0,7.0,0,null"
+    )
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 
@@ -555,7 +557,8 @@ class WindowAggregateITCase(
       "b,2020-10-09T08:00,2020-10-10T08:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
       "b,2020-10-09T20:00,2020-10-10T20:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
       "null,2020-10-09T08:00,2020-10-10T08:00,1,7.77,7.0,7.0,0,null",
-      "null,2020-10-09T20:00,2020-10-10T20:00,1,7.77,7.0,7.0,0,null")
+      "null,2020-10-09T20:00,2020-10-10T20:00,1,7.77,7.0,7.0,0,null"
+    )
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 
@@ -593,7 +596,8 @@ class WindowAggregateITCase(
       "b,2020-10-09T04:00,2020-10-10T04:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
       "b,2020-10-09T16:00,2020-10-10T16:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
       "null,2020-10-09T04:00,2020-10-10T04:00,1,7.77,7.0,7.0,0,null",
-      "null,2020-10-09T16:00,2020-10-10T16:00,1,7.77,7.0,7.0,0,null")
+      "null,2020-10-09T16:00,2020-10-10T16:00,1,7.77,7.0,7.0,0,null"
+    )
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 
@@ -725,7 +729,8 @@ class WindowAggregateITCase(
       "b,2020-10-10T00:00:30,2020-10-10T00:00:45,1,3.33,3.0,3.0,1,Comment#3",
       "null,2020-10-10T00:00:30,2020-10-10T00:00:35,1,7.77,7.0,7.0,0,null",
       "null,2020-10-10T00:00:30,2020-10-10T00:00:40,1,7.77,7.0,7.0,0,null",
-      "null,2020-10-10T00:00:30,2020-10-10T00:00:45,1,7.77,7.0,7.0,0,null")
+      "null,2020-10-10T00:00:30,2020-10-10T00:00:45,1,7.77,7.0,7.0,0,null"
+    )
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 
@@ -760,7 +765,8 @@ class WindowAggregateITCase(
     val expected = Seq(
       "a,2020-10-09T08:00,2020-10-10T08:00,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2",
       "b,2020-10-09T08:00,2020-10-10T08:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
-      "null,2020-10-09T08:00,2020-10-10T08:00,1,7.77,7.0,7.0,0,null")
+      "null,2020-10-09T08:00,2020-10-10T08:00,1,7.77,7.0,7.0,0,null"
+    )
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 
@@ -798,7 +804,8 @@ class WindowAggregateITCase(
       "b,2020-10-09T16:00,2020-10-10T04:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
       "b,2020-10-09T16:00,2020-10-10T16:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
       "null,2020-10-09T16:00,2020-10-10T04:00,1,7.77,7.0,7.0,0,null",
-      "null,2020-10-09T16:00,2020-10-10T16:00,1,7.77,7.0,7.0,0,null")
+      "null,2020-10-09T16:00,2020-10-10T16:00,1,7.77,7.0,7.0,0,null"
+    )
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 
@@ -923,13 +930,15 @@ class WindowAggregateITCase(
         "2020-10-09T16:00:04.999Z,2020-10-09T16:00:01Z,2020-10-09T16:00:04Z",
         "2020-10-09T16:00:09.999Z,2020-10-09T16:00:06Z,2020-10-09T16:00:08Z",
         "2020-10-09T16:00:19.999Z,2020-10-09T16:00:16Z,2020-10-09T16:00:16Z",
-        "2020-10-09T16:00:34.999Z,2020-10-09T16:00:32Z,2020-10-09T16:00:34Z")
+        "2020-10-09T16:00:34.999Z,2020-10-09T16:00:32Z,2020-10-09T16:00:34Z"
+      )
     } else {
       Seq(
         "2020-10-10T00:00:04.999,2020-10-10T00:00:01,2020-10-10T00:00:04",
         "2020-10-10T00:00:09.999,2020-10-10T00:00:06,2020-10-10T00:00:08",
         "2020-10-10T00:00:19.999,2020-10-10T00:00:16,2020-10-10T00:00:16",
-        "2020-10-10T00:00:34.999,2020-10-10T00:00:32,2020-10-10T00:00:34")
+        "2020-10-10T00:00:34.999,2020-10-10T00:00:32,2020-10-10T00:00:34"
+      )
     }
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
@@ -944,6 +953,7 @@ object WindowAggregateITCase {
       Array(ONE_PHASE, HEAP_BACKEND, java.lang.Boolean.TRUE),
       Array(TWO_PHASE, HEAP_BACKEND, java.lang.Boolean.FALSE),
       Array(ONE_PHASE, ROCKSDB_BACKEND, java.lang.Boolean.FALSE),
-      Array(TWO_PHASE, ROCKSDB_BACKEND, java.lang.Boolean.TRUE))
+      Array(TWO_PHASE, ROCKSDB_BACKEND, java.lang.Boolean.TRUE)
+    )
   }
 }

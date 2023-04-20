@@ -20,15 +20,13 @@ package org.apache.flink.streaming.api.scala
 import org.apache.flink.api.scala.completeness.ScalaAPICompletenessTestBase
 import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream}
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.lang.reflect.Method
 
 import scala.language.existentials
 
-/**
- * This checks whether the streaming Scala API is up to feature parity with the Java API.
- */
+/** This checks whether the streaming Scala API is up to feature parity with the Java API. */
 class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
 
   override def isExcludedByName(method: Method): Boolean = {
@@ -47,17 +45,13 @@ class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
       "org.apache.flink.streaming.api.datastream.ConnectedStreams.getType1",
       "org.apache.flink.streaming.api.datastream.ConnectedStreams.getType2",
       "org.apache.flink.streaming.api.datastream.ConnectedStreams.addGeneralWindowCombine",
-
       "org.apache.flink.streaming.api.datastream.WindowedStream.getType",
       "org.apache.flink.streaming.api.datastream.WindowedStream.getExecutionConfig",
-
       "org.apache.flink.streaming.api.datastream.WindowedStream.getExecutionEnvironment",
       "org.apache.flink.streaming.api.datastream.WindowedStream.getInputType",
       "org.apache.flink.streaming.api.datastream.AllWindowedStream.getExecutionEnvironment",
       "org.apache.flink.streaming.api.datastream.AllWindowedStream.getInputType",
-
       "org.apache.flink.streaming.api.datastream.KeyedStream.getKeySelector",
-
       "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment.isChainingEnabled",
       "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment." +
         "getStateHandleProvider",
@@ -66,7 +60,17 @@ class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
       "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment.getCheckpointingMode",
       "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment.isForceCheckpointing",
       "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment.generateStreamGraph",
-
+      "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment.getTransformations",
+      "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment" +
+        ".areExplicitEnvironmentsAllowed",
+      "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment" +
+        ".registerCollectIterator",
+      "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment" +
+        ".invalidateClusterDataset",
+      "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment" +
+        ".listCompletedClusterDatasets",
+      "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment" +
+        ".registerCacheTransformation",
 
       // TypeHints are only needed for Java API, Scala API doesn't need them
       "org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator.returns",
@@ -101,43 +105,54 @@ class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
     checkMethods("DataStream", "DataStream", classOf[JavaStream[_]], classOf[DataStream[_]])
 
     checkMethods(
-      "StreamExecutionEnvironment", "StreamExecutionEnvironment",
+      "StreamExecutionEnvironment",
+      "StreamExecutionEnvironment",
       classOf[org.apache.flink.streaming.api.environment.StreamExecutionEnvironment],
-      classOf[StreamExecutionEnvironment])
+      classOf[StreamExecutionEnvironment]
+    )
 
     checkMethods(
-      "SingleOutputStreamOperator", "DataStream",
+      "SingleOutputStreamOperator",
+      "DataStream",
       classOf[org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator[_]],
       classOf[DataStream[_]])
 
     checkMethods(
-      "ConnectedStreams", "ConnectedStreams",
-      classOf[org.apache.flink.streaming.api.datastream.ConnectedStreams[_,_]],
-      classOf[ConnectedStreams[_,_]])
+      "ConnectedStreams",
+      "ConnectedStreams",
+      classOf[org.apache.flink.streaming.api.datastream.ConnectedStreams[_, _]],
+      classOf[ConnectedStreams[_, _]])
 
     checkMethods(
-      "WindowedStream", "WindowedStream",
+      "WindowedStream",
+      "WindowedStream",
       classOf[org.apache.flink.streaming.api.datastream.WindowedStream[_, _, _]],
       classOf[WindowedStream[_, _, _]])
 
     checkMethods(
-      "AllWindowedStream", "AllWindowedStream",
+      "AllWindowedStream",
+      "AllWindowedStream",
       classOf[org.apache.flink.streaming.api.datastream.AllWindowedStream[_, _]],
       classOf[AllWindowedStream[_, _]])
 
     checkMethods(
-      "KeyedStream", "KeyedStream",
+      "KeyedStream",
+      "KeyedStream",
       classOf[org.apache.flink.streaming.api.datastream.KeyedStream[_, _]],
       classOf[KeyedStream[_, _]])
 
     checkMethods(
-      "JoinedStreams.WithWindow", "JoinedStreams.WithWindow",
-      classOf[org.apache.flink.streaming.api.datastream.JoinedStreams.WithWindow[_,_,_,_]],
-      classOf[JoinedStreams[_,_]#Where[_]#EqualTo#WithWindow[_]])
+      "JoinedStreams.WithWindow",
+      "JoinedStreams.WithWindow",
+      classOf[org.apache.flink.streaming.api.datastream.JoinedStreams.WithWindow[_, _, _, _]],
+      classOf[JoinedStreams[_, _]#Where[_]#EqualTo#WithWindow[_]]
+    )
 
     checkMethods(
-      "CoGroupedStreams.WithWindow", "CoGroupedStreams.WithWindow",
-      classOf[org.apache.flink.streaming.api.datastream.CoGroupedStreams.WithWindow[_,_,_,_]],
-      classOf[CoGroupedStreams[_, _]#Where[_]#EqualTo#WithWindow[_]])
+      "CoGroupedStreams.WithWindow",
+      "CoGroupedStreams.WithWindow",
+      classOf[org.apache.flink.streaming.api.datastream.CoGroupedStreams.WithWindow[_, _, _, _]],
+      classOf[CoGroupedStreams[_, _]#Where[_]#EqualTo#WithWindow[_]]
+    )
   }
 }

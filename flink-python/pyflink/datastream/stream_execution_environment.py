@@ -18,12 +18,13 @@
 import os
 import tempfile
 
-from typing import List, Any, Optional
+from typing import List, Any, Optional, cast
 
 from py4j.java_gateway import JavaObject
 
 from pyflink.common import Configuration, WatermarkStrategy
 from pyflink.common.execution_config import ExecutionConfig
+from pyflink.common.io import InputFormat
 from pyflink.common.job_client import JobClient
 from pyflink.common.job_execution_result import JobExecutionResult
 from pyflink.common.restart_strategy import RestartStrategies, RestartStrategyConfiguration
@@ -37,10 +38,12 @@ from pyflink.datastream.execution_mode import RuntimeExecutionMode
 from pyflink.datastream.functions import SourceFunction
 from pyflink.datastream.state_backend import _from_j_state_backend, StateBackend
 from pyflink.datastream.time_characteristic import TimeCharacteristic
+from pyflink.datastream.utils import ResultTypeQueryable
 from pyflink.java_gateway import get_gateway
 from pyflink.serializers import PickleSerializer
 from pyflink.util.java_utils import load_java_class, add_jars_to_context_class_loader, \
     invoke_method, get_field_value, is_local_deployment, get_j_env_configuration
+
 
 __all__ = ['StreamExecutionEnvironment']
 
@@ -90,13 +93,13 @@ class StreamExecutionEnvironment(object):
     def set_max_parallelism(self, max_parallelism: int) -> 'StreamExecutionEnvironment':
         """
         Sets the maximum degree of parallelism defined for the program. The upper limit (inclusive)
-        is 32767.
+        is 32768.
 
         The maximum degree of parallelism specifies the upper limit for dynamic scaling. It also
         defines the number of key groups used for partitioned state.
 
         :param max_parallelism: Maximum degree of parallelism to be used for the program,
-                                with 0 < maxParallelism <= 2^15 - 1.
+                                with 0 < maxParallelism <= 2^15.
         :return: This object.
         """
         self._j_stream_execution_environment = \
@@ -576,7 +579,7 @@ class StreamExecutionEnvironment(object):
 
             Please make sure the installation packages matches the platform of the cluster
             and the python version used. These packages will be installed using pip,
-            so also make sure the version of Pip (version >= 7.1.0) and the version of
+            so also make sure the version of Pip (version >= 20.3) and the version of
             SetupTools (version >= 37.0.0).
 
         :param requirements_file_path: The path of "requirements.txt" file.
@@ -680,11 +683,11 @@ class StreamExecutionEnvironment(object):
         .. note::
 
             Please make sure the uploaded python environment matches the platform that the cluster
-            is running on and that the python version must be 3.6 or higher.
+            is running on and that the python version must be 3.7 or higher.
 
         .. note::
 
-            The python udf worker depends on Apache Beam (version == 2.27.0).
+            The python udf worker depends on Apache Beam (version == 2.43.0).
             Please ensure that the specified environment meets the above requirements.
 
         :param python_exec: The path of python interpreter.
@@ -790,19 +793,77 @@ class StreamExecutionEnvironment(object):
         j_stream_graph = self._generate_stream_graph(False)
         return j_stream_graph.getStreamingPlanAsJSON()
 
+    def register_cached_file(self, file_path: str, name: str, executable: bool = False):
+        """
+        Registers a file at the distributed cache under the given name. The file will be accessible
+        from any user-defined function in the (distributed) runtime under a local path. Files may be
+        local files (which will be distributed via BlobServer), or files in a distributed file
+        system. The runtime will copy the files temporarily to a local cache, if needed.
+
+        :param file_path: The path of the file, as a URI (e.g. "file:///some/path" or
+                         hdfs://host:port/and/path").
+        :param name: The name under which the file is registered.
+        :param executable: Flag indicating whether the file should be executable.
+
+        .. versionadded:: 1.16.0
+        """
+        self._j_stream_execution_environment.registerCachedFile(file_path, name, executable)
+
     @staticmethod
-    def get_execution_environment() -> 'StreamExecutionEnvironment':
+    def get_execution_environment(configuration: Configuration = None) \
+            -> 'StreamExecutionEnvironment':
         """
         Creates an execution environment that represents the context in which the
         program is currently executed. If the program is invoked standalone, this
         method returns a local execution environment.
 
+        When executed from the command line the given configuration is stacked on top of the
+        global configuration which comes from the flink-conf.yaml, potentially overriding
+        duplicated options.
+
+        :param configuration: The configuration to instantiate the environment with.
         :return: The execution environment of the context in which the program is executed.
         """
         gateway = get_gateway()
-        j_stream_exection_environment = gateway.jvm.org.apache.flink.streaming.api.environment\
-            .StreamExecutionEnvironment.getExecutionEnvironment()
+        JStreamExecutionEnvironment = gateway.jvm.org.apache.flink.streaming.api.environment \
+            .StreamExecutionEnvironment
+
+        if configuration:
+            j_stream_exection_environment = JStreamExecutionEnvironment.getExecutionEnvironment(
+                configuration._j_configuration)
+        else:
+            j_stream_exection_environment = JStreamExecutionEnvironment.getExecutionEnvironment()
+
         return StreamExecutionEnvironment(j_stream_exection_environment)
+
+    def create_input(self, input_format: InputFormat,
+                     type_info: Optional[TypeInformation] = None):
+        """
+        Create an input data stream with InputFormat.
+
+        If the input_format needs a well-defined type information (e.g. Avro's generic record), you
+        can either explicitly use type_info argument or use InputFormats implementing
+        ResultTypeQueryable.
+
+        :param input_format: The input format to read from.
+        :param type_info: Optional type information to explicitly declare output type.
+
+        .. versionadded:: 1.16.0
+        """
+        input_type_info = type_info
+
+        if input_type_info is None and isinstance(input_format, ResultTypeQueryable):
+            input_type_info = cast(ResultTypeQueryable, input_format).get_produced_type()
+
+        if input_type_info is None:
+            j_data_stream = self._j_stream_execution_environment.createInput(
+                input_format.get_java_object()
+            )
+        else:
+            j_data_stream = self._j_stream_execution_environment.createInput(
+                input_format.get_java_object(), input_type_info.get_java_type_info()
+            )
+        return DataStream(j_data_stream=j_data_stream)
 
     def add_source(self, source_func: SourceFunction, source_name: str = 'Custom Source',
                    type_info: TypeInformation = None) -> 'DataStream':
@@ -904,12 +965,11 @@ class StreamExecutionEnvironment(object):
             else:
                 j_objs = gateway.jvm.PythonBridgeUtils.readPythonObjects(temp_file.name)
                 out_put_type_info = type_info
-            # Since flink python module depends on table module, we can make use of utils of it when
-            # implementing python DataStream API.
-            PythonTableUtils = gateway.jvm\
-                .org.apache.flink.table.utils.python.PythonTableUtils
+
+            PythonTypeUtils = gateway.jvm\
+                .org.apache.flink.streaming.api.utils.PythonTypeUtils
             execution_config = self._j_stream_execution_environment.getConfig()
-            j_input_format = PythonTableUtils.getCollectionInputFormat(
+            j_input_format = PythonTypeUtils.getCollectionInputFormat(
                 j_objs,
                 out_put_type_info.get_java_type_info(),
                 execution_config
@@ -964,7 +1024,7 @@ class StreamExecutionEnvironment(object):
                 BeamFnLoopbackWorkerPoolServicer
             config = Configuration(j_configuration=j_configuration)
             config.set_string(
-                "PYFLINK_LOOPBACK_SERVER_ADDRESS", BeamFnLoopbackWorkerPoolServicer().start())
+                "python.loopback-server.address", BeamFnLoopbackWorkerPoolServicer().start())
 
         python_worker_execution_mode = os.environ.get('_python_worker_execution_mode')
 
@@ -993,3 +1053,12 @@ class StreamExecutionEnvironment(object):
         Returns whether Unaligned Checkpoints are force-enabled.
         """
         return self._j_stream_execution_environment.isForceUnalignedCheckpoints()
+
+    def close(self):
+        """
+        Close and clean up the execution environment. All the cached intermediate results will be
+        released physically.
+
+        .. versionadded:: 1.16.0
+        """
+        self._j_stream_execution_environment.close()

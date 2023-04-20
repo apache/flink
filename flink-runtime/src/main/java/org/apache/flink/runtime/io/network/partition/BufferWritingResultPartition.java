@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
@@ -93,9 +94,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
     }
 
     @Override
-    public void setup() throws IOException {
-        super.setup();
-
+    protected void setupInternal() throws IOException {
         checkState(
                 bufferPool.getNumberOfRequiredMemorySegments() >= getNumberOfSubpartitions(),
                 "Bug in result partition setup logic: Buffer pool has not enough guaranteed buffers for"
@@ -203,6 +202,20 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
                 // Retain the buffer so that it can be recycled by each channel of targetPartition
                 subpartition.add(eventBufferConsumer.copy(), 0);
             }
+        }
+    }
+
+    @Override
+    public void alignedBarrierTimeout(long checkpointId) throws IOException {
+        for (ResultSubpartition subpartition : subpartitions) {
+            subpartition.alignedBarrierTimeout(checkpointId);
+        }
+    }
+
+    @Override
+    public void abortCheckpoint(long checkpointId, CheckpointException cause) {
+        for (ResultSubpartition subpartition : subpartitions) {
+            subpartition.abortCheckpoint(checkpointId, cause);
         }
     }
 
@@ -410,7 +423,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
         final BufferBuilder bufferBuilder = unicastBufferBuilders[targetSubpartition];
         if (bufferBuilder != null) {
             int bytes = bufferBuilder.finish();
-            numBytesProduced.inc(bytes);
+            resultPartitionBytes.inc(targetSubpartition, bytes);
             numBytesOut.inc(bytes);
             numBuffersOut.inc();
             unicastBufferBuilders[targetSubpartition] = null;
@@ -427,7 +440,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
     private void finishBroadcastBufferBuilder() {
         if (broadcastBufferBuilder != null) {
             int bytes = broadcastBufferBuilder.finish();
-            numBytesProduced.inc(bytes);
+            resultPartitionBytes.incAll(bytes);
             numBytesOut.inc(bytes * numSubpartitions);
             numBuffersOut.inc(numSubpartitions);
             broadcastBufferBuilder.close();

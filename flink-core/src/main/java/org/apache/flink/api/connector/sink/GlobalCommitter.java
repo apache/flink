@@ -19,7 +19,7 @@
 
 package org.apache.flink.api.connector.sink;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 
 import java.io.IOException;
 import java.util.List;
@@ -32,8 +32,11 @@ import java.util.List;
  *
  * @param <CommT> The type of information needed to commit data staged by the sink
  * @param <GlobalCommT> The type of the aggregated committable
+ * @deprecated Please use {@code WithPostCommitTopology} with {@code
+ *     StandardSinkTopologies#addGlobalCommitter}.
  */
-@Experimental
+@Deprecated
+@PublicEvolving
 public interface GlobalCommitter<CommT, GlobalCommT> extends AutoCloseable {
 
     /**

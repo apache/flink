@@ -34,9 +34,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-import static junit.framework.TestCase.assertEquals;
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link MapBundleOperator}. */
 public class MapBundleOperatorTest {
@@ -62,13 +60,13 @@ public class MapBundleOperatorTest {
             input.replace(new Tuple2<>("k1", "v2"));
             op.processElement(input);
 
-            assertEquals(0, func.getFinishCount());
+            assertThat(func.getFinishCount()).isEqualTo(0);
 
             input.replace(new Tuple2<>("k2", "v3"));
             op.processElement(input);
 
-            assertEquals(1, func.getFinishCount());
-            assertThat(Arrays.asList("k1=v1,v2", "k2=v3"), is(func.getOutputs()));
+            assertThat(func.getFinishCount()).isEqualTo(1);
+            assertThat(Arrays.asList("k1=v1,v2", "k2=v3")).isEqualTo(func.getOutputs());
 
             input.replace(new Tuple2<>("k3", "v4"));
             op.processElement(input);
@@ -76,11 +74,11 @@ public class MapBundleOperatorTest {
             input.replace(new Tuple2<>("k4", "v5"));
             op.processElement(input);
 
-            assertEquals(1, func.getFinishCount());
+            assertThat(func.getFinishCount()).isEqualTo(1);
 
             op.close();
-            assertEquals(2, func.getFinishCount());
-            assertThat(Arrays.asList("k3=v4", "k4=v5"), is(func.getOutputs()));
+            assertThat(func.getFinishCount()).isEqualTo(2);
+            assertThat(Arrays.asList("k3=v4", "k4=v5")).isEqualTo(func.getOutputs());
         }
     }
 

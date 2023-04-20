@@ -15,11 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.batch.sql
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo.LONG_TYPE_INFO
 import org.apache.flink.api.common.typeinfo.{LocalTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo.LONG_TYPE_INFO
 import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo, RowTypeInfo, TypeExtractor}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.Types
@@ -32,15 +31,14 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.JavaTableFunc0
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.{MyPojo, MyPojoFunc}
+import org.apache.flink.table.planner.utils.{HierarchyTableFunction, PojoTableFunc, RichTableFunc1, RichTableFuncWithFinish, TableFunc0, TableFunc1, TableFunc2, TableFunc3, VarArgsFunc0}
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
-import org.apache.flink.table.planner.utils.{HierarchyTableFunction, PojoTableFunc, RichTableFunc1, TableFunc0, TableFunc1, TableFunc2, TableFunc3, VarArgsFunc0}
 import org.apache.flink.table.runtime.typeutils.StringDataTypeInfo
 import org.apache.flink.types.Row
 
 import org.junit.{Before, Test}
 
 import scala.collection.JavaConversions._
-import scala.collection.Seq
 
 class CorrelateITCase extends BatchTestBase {
 
@@ -64,7 +62,8 @@ class CorrelateITCase extends BatchTestBase {
         row("John#19", "19"),
         row("Anna#44", "Anna"),
         row("Anna#44", "44")
-      ))
+      )
+    )
   }
 
   @Test
@@ -79,7 +78,9 @@ class CorrelateITCase extends BatchTestBase {
         row("John#19", "19", 2),
         row("Anna#44", "Anna", 4),
         row("Anna#44", "44", 2),
-        row("nosharp", null, null)))
+        row("nosharp", null, null)
+      )
+    )
   }
 
   @Test
@@ -87,9 +88,7 @@ class CorrelateITCase extends BatchTestBase {
     registerFunction("func", new TableFunc0)
     checkResult(
       "select c, name, age from inputT, LATERAL TABLE(func(c)) as T(name, age) WHERE T.age > 20",
-      Seq(
-        row("Jack#22", "Jack", 22),
-        row("Anna#44", "Anna", 44)))
+      Seq(row("Jack#22", "Jack", 22), row("Anna#44", "Anna", 44)))
   }
 
   @Test
@@ -100,20 +99,17 @@ class CorrelateITCase extends BatchTestBase {
       Seq(
         row("Jack#22", "Jack", true, 22),
         row("John#19", "John", false, 19),
-        row("Anna#44", "Anna", true, 44)))
+        row("Anna#44", "Anna", true, 44))
+    )
   }
 
-  /**
-    * T(age, name) must have the right order with TypeInfo of PojoUser.
-    */
+  /** T(age, name) must have the right order with TypeInfo of PojoUser. */
   @Test
   def testPojoType(): Unit = {
     registerFunction("func", new PojoTableFunc)
     checkResult(
       "select c, name, age from inputT, LATERAL TABLE(func(c)) as T(age, name) WHERE T.age > 20",
-      Seq(
-        row("Jack#22", "Jack", 22),
-        row("Anna#44", "Anna", 44)))
+      Seq(row("Jack#22", "Jack", 22), row("Anna#44", "Anna", 44)))
   }
 
   @Test
@@ -128,7 +124,8 @@ class CorrelateITCase extends BatchTestBase {
         row("John#19", "19"),
         row("Anna#44", "nna"),
         row("Anna#44", "44")
-      ))
+      )
+    )
   }
 
   @Test
@@ -141,16 +138,21 @@ class CorrelateITCase extends BatchTestBase {
         "where func18(name, 'J') and func1(a) < 3 and func1(age) > 20",
       Seq(
         row("Jack#22", "Jack", 22)
-      ))
+      )
+    )
   }
 
   @Test
   def testLongAndTemporalTypes(): Unit = {
-    registerCollection("myT", Seq(
-      row(localDate("1990-10-14"), 1000L, localDateTime("1990-10-14 12:10:10"))),
-      new RowTypeInfo(LocalTimeTypeInfo.LOCAL_DATE,
-        LONG_TYPE_INFO, LocalTimeTypeInfo.LOCAL_DATE_TIME),
-      "x, y, z")
+    registerCollection(
+      "myT",
+      Seq(row(localDate("1990-10-14"), 1000L, localDateTime("1990-10-14 12:10:10"))),
+      new RowTypeInfo(
+        LocalTimeTypeInfo.LOCAL_DATE,
+        LONG_TYPE_INFO,
+        LocalTimeTypeInfo.LOCAL_DATE_TIME),
+      "x, y, z"
+    )
     registerFunction("func", new JavaTableFunc0)
     checkResult(
       "select s from myT, LATERAL TABLE(func(x, y, z)) as T(s)",
@@ -169,13 +171,7 @@ class CorrelateITCase extends BatchTestBase {
     env.getConfig.setGlobalJobParameters(conf)
     checkResult(
       "select a, s from inputT, LATERAL TABLE(func(c)) as T(s)",
-      Seq(
-        row(1, "Jack"),
-        row(1, "22"),
-        row(2, "John"),
-        row(2, "19"),
-        row(3, "Anna"),
-        row(3, "44")))
+      Seq(row(1, "Jack"), row(1, "22"), row(2, "John"), row(2, "19"), row(3, "Anna"), row(3, "44")))
   }
 
   @Test
@@ -194,7 +190,8 @@ class CorrelateITCase extends BatchTestBase {
         row(2, "Hello"),
         row(2, "test"),
         row(3, "Hello world"),
-        row(3, "test")))
+        row(3, "test"))
+    )
   }
 
   @Test
@@ -211,7 +208,8 @@ class CorrelateITCase extends BatchTestBase {
         row("Anna#44", "Anna", "OneConf_Anna", "TwoConf_Anna", 44, 44, 44),
         row("Jack#22", "Jack", "OneConf_Jack", "TwoConf_Jack", 22, 22, 22),
         row("John#19", "John", "OneConf_John", "TwoConf_John", 19, 19, 19)
-      ))
+      )
+    )
   }
 
   @Test
@@ -223,30 +221,40 @@ class CorrelateITCase extends BatchTestBase {
         row("Jack#22", 1),
         row("Jack#22", 2),
         row("Jack#22", "Jack#22")
-      ))
+      )
+    )
   }
 
   @Test
   def testPojoField(): Unit = {
-    val data = Seq(
-      row(new MyPojo(5, 105)),
-      row(new MyPojo(6, 11)),
-      row(new MyPojo(7, 12)))
-    registerCollection("MyTable", data,
-      new RowTypeInfo(TypeExtractor.createTypeInfo(classOf[MyPojo])), "a")
+    val data = Seq(row(new MyPojo(5, 105)), row(new MyPojo(6, 11)), row(new MyPojo(7, 12)))
+    registerCollection(
+      "MyTable",
+      data,
+      new RowTypeInfo(TypeExtractor.createTypeInfo(classOf[MyPojo])),
+      "a")
 
-    //1. external type for udtf parameter
+    // 1. external type for udtf parameter
     registerFunction("pojoTFunc", new MyPojoTableFunc)
     checkResult(
       "select s from MyTable, LATERAL TABLE(pojoTFunc(a)) as T(s)",
       Seq(row(105), row(11), row(12)))
 
-    //2. external type return in udtf
+    // 2. external type return in udtf
     registerFunction("pojoFunc", MyPojoFunc)
     registerFunction("toPojoTFunc", new MyToPojoTableFunc)
     checkResult(
       "select b from MyTable, LATERAL TABLE(toPojoTFunc(pojoFunc(a))) as T(b, c)",
       Seq(row(105), row(11), row(12)))
+  }
+
+  @Test
+  def testTableFunctionWithFinishMethod(): Unit = {
+    registerTemporarySystemFunction("udtfWithFinish", classOf[RichTableFuncWithFinish])
+    checkResult(
+      "select s from inputT, LATERAL TABLE(udtfWithFinish(c)) as T(s)",
+      Seq(row("Jack#22"), row("John#19"), row("Anna#44"), row("nosharp"))
+    )
   }
 
 // TODO support dynamic type
@@ -327,9 +335,12 @@ class MyPojoTableFunc extends TableFunction[Int] {
 
   override def getParameterTypes(signature: Array[Class[_]]) = {
     val cls = classOf[MyPojo]
-    Array[TypeInformation[_]](new PojoTypeInfo[MyPojo](classOf[MyPojo], Seq(
-      new PojoField(cls.getDeclaredField("f1"), Types.INT),
-      new PojoField(cls.getDeclaredField("f2"), Types.INT))))
+    Array[TypeInformation[_]](
+      new PojoTypeInfo[MyPojo](
+        classOf[MyPojo],
+        Seq(
+          new PojoField(cls.getDeclaredField("f1"), Types.INT),
+          new PojoField(cls.getDeclaredField("f2"), Types.INT))))
   }
 }
 
@@ -339,9 +350,11 @@ class MyToPojoTableFunc extends TableFunction[MyPojo] {
 
   override def getResultType: TypeInformation[MyPojo] = {
     val cls = classOf[MyPojo]
-    new PojoTypeInfo[MyPojo](classOf[MyPojo], Seq(
-      new PojoField(cls.getDeclaredField("f1"), Types.INT),
-      new PojoField(cls.getDeclaredField("f2"), Types.INT)))
+    new PojoTypeInfo[MyPojo](
+      classOf[MyPojo],
+      Seq(
+        new PojoField(cls.getDeclaredField("f1"), Types.INT),
+        new PojoField(cls.getDeclaredField("f2"), Types.INT)))
   }
 }
 

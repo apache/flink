@@ -15,30 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil
 
-import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.plan.RelOptRule.{any, operand}
+import org.apache.calcite.rel.{RelNode, RelShuttleImpl}
 import org.apache.calcite.rel.core.Filter
 import org.apache.calcite.rel.logical.LogicalFilter
-import org.apache.calcite.rel.{RelNode, RelShuttleImpl}
 import org.apache.calcite.rex._
 
 /**
-  * Planner rule that apply various simplifying transformations on filter condition.
-  *
-  * if `simplifySubQuery` is true, this rule will also simplify the filter condition
-  * in [[RexSubQuery]].
-  */
-class SimplifyFilterConditionRule(
-    simplifySubQuery: Boolean,
-    description: String)
-  extends RelOptRule(
-    operand(classOf[Filter], any()),
-    description) {
+ * Planner rule that apply various simplifying transformations on filter condition.
+ *
+ * if `simplifySubQuery` is true, this rule will also simplify the filter condition in
+ * [[RexSubQuery]].
+ */
+class SimplifyFilterConditionRule(simplifySubQuery: Boolean, description: String)
+  extends RelOptRule(operand(classOf[Filter], any()), description) {
 
   override def onMatch(call: RelOptRuleCall): Unit = {
     val filter: Filter = call.rel(0)
@@ -60,10 +55,8 @@ class SimplifyFilterConditionRule(
     }
 
     val rexBuilder = filter.getCluster.getRexBuilder
-    val simplifiedCondition = FlinkRexUtil.simplify(
-      rexBuilder,
-      condition,
-      filter.getCluster.getPlanner.getExecutor)
+    val simplifiedCondition =
+      FlinkRexUtil.simplify(rexBuilder, condition, filter.getCluster.getPlanner.getExecutor)
     val newCondition = RexUtil.pullFactors(rexBuilder, simplifiedCondition)
 
     if (!changed.head && !condition.equals(newCondition)) {
@@ -98,9 +91,8 @@ class SimplifyFilterConditionRule(
 }
 
 object SimplifyFilterConditionRule {
-  val INSTANCE = new SimplifyFilterConditionRule(
-    false, "SimplifyFilterConditionRule")
+  val INSTANCE = new SimplifyFilterConditionRule(false, "SimplifyFilterConditionRule")
 
-  val EXTENDED = new SimplifyFilterConditionRule(
-    true, "SimplifyFilterConditionRule:simplifySubQuery")
+  val EXTENDED =
+    new SimplifyFilterConditionRule(true, "SimplifyFilterConditionRule:simplifySubQuery")
 }

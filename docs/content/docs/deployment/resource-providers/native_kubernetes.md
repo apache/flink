@@ -39,6 +39,10 @@ Kubernetes is a popular container-orchestration system for automating computer a
 Flink's native Kubernetes integration allows you to directly deploy Flink on a running Kubernetes cluster.
 Moreover, Flink is able to dynamically allocate and de-allocate TaskManagers depending on the required resources because it can directly talk to Kubernetes.
 
+Apache Flink also provides a Kubernetes operator for managing Flink clusters on Kubernetes. It supports both standalone and native deployment mode and greatly simplifies deployment, configuration and the life cycle management of Flink resources on Kubernetes.
+
+For more information, please refer to the [Flink Kubernetes Operator documentation](https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-main/docs/concepts/overview/)
+
 ### Preparation
 
 The *Getting Started* section assumes a running Kubernetes cluster fulfilling the following requirements:
@@ -104,7 +108,7 @@ After creating and publishing the Docker image under `custom-image-name`, you ca
 $ ./bin/flink run-application \
     --target kubernetes-application \
     -Dkubernetes.cluster-id=my-first-application-cluster \
-    -Dkubernetes.container.image=custom-image-name \
+    -Dkubernetes.container.image.ref=custom-image-name \
     local:///opt/flink/usrlib/my-flink-job.jar
 ```
 
@@ -113,7 +117,7 @@ $ ./bin/flink run-application \
 The `kubernetes.cluster-id` option specifies the cluster name and must be unique.
 If you do not specify this option, then Flink will generate a random name.
 
-The `kubernetes.container.image` option specifies the image to start the pods with.
+The `kubernetes.container.image.ref` option specifies the image to start the pods with.
 
 Once the application cluster is deployed you can interact with it:
 
@@ -125,14 +129,6 @@ $ ./bin/flink cancel --target kubernetes-application -Dkubernetes.cluster-id=my-
 ```
 
 You can override configurations set in `conf/flink-conf.yaml` by passing key-value pairs `-Dkey=value` to `bin/flink`.
-
-### Per-Job Mode
-
-{{< hint info >}}
-For high-level intuition behind the per-job mode, please refer to the [deployment mode overview]({{< ref "docs/deployment/overview#per-job-mode" >}}).
-{{< /hint >}}
-
-Flink on Kubernetes does not support Per-Job Cluster Mode.
 
 ### Session Mode
 
@@ -259,7 +255,7 @@ $ ./bin/kubernetes-session.sh
 
 ### Custom Docker Image
 
-If you want to use a custom Docker image, then you can specify it via the configuration option `kubernetes.container.image`.
+If you want to use a custom Docker image, then you can specify it via the configuration option `kubernetes.container.image.ref`.
 The Flink community provides a rich [Flink Docker image]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}) which can be a good starting point.
 See [how to customize Flink's Docker image]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#customize-flink-image) for how to enable plugins, add dependencies and other options.
 
@@ -352,7 +348,7 @@ Please refer to the official Kubernetes documentation on [RBAC Authorization](ht
 
 Flink allows users to define the JobManager and TaskManager pods via template files. This allows to support advanced features
 that are not supported by Flink [Kubernetes config options]({{< ref "docs/deployment/config" >}}#kubernetes) directly.
-Use [`kubernetes.pod-template-file`]({{< ref "docs/deployment/config" >}}#kubernetes-pod-template-file)
+Use [`kubernetes.pod-template-file.default`]({{< ref "docs/deployment/config" >}}#kubernetes-pod-template-file-default)
 to specify a local file that contains the pod definition. It will be used to initialize the JobManager and TaskManager.
 The main container should be defined with name `flink-main-container`.
 Please refer to the [pod template example](#example-of-pod-template) for more information.
@@ -493,7 +489,7 @@ All the fields defined in the pod template that are not listed in the tables wil
         <tr>
             <td>image</td>
             <td>Defined by the user</td>
-            <td><a href="{{< ref "docs/deployment/config" >}}#kubernetes-container-image">kubernetes.container.image</a></td>
+            <td><a href="{{< ref "docs/deployment/config" >}}#kubernetes-container-image-ref">kubernetes.container.image.ref</a></td>
             <td>The container image will be resolved with respect to the defined precedence order for user defined values.</td>
         </tr>
         <tr>
@@ -545,7 +541,7 @@ metadata:
 spec:
   initContainers:
     - name: artifacts-fetcher
-      image: artifacts-fetcher:latest
+      image: busybox:latest
       # Use wget or other tools to get user jars from remote storage
       command: [ 'wget', 'https://path/of/StateMachineExample.jar', '-O', '/flink-artifact/myjob.jar' ]
       volumeMounts:
@@ -583,5 +579,13 @@ spec:
     - name: flink-logs
       emptyDir: { }
 ```
+
+### User jars & Classpath
+
+When deploying Flink natively on Kubernetes, the following jars will be recognized as user-jars and included into user classpath:
+- Session Mode: The JAR file specified in startup command.
+- Application Mode: The JAR file specified in startup command and all JAR files in Flink's `usrlib` folder.
+
+Please refer to the [Debugging Classloading Docs]({{< ref "docs/ops/debugging/debugging_classloading" >}}#overview-of-classloading-in-flink) for details.
 
 {{< top >}}

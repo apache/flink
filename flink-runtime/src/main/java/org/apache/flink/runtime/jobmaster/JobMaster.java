@@ -22,12 +22,19 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.core.execution.CheckpointType;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.blob.BlobWriter;
+import org.apache.flink.runtime.blocklist.BlockedNode;
+import org.apache.flink.runtime.blocklist.BlocklistContext;
+import org.apache.flink.runtime.blocklist.BlocklistHandler;
+import org.apache.flink.runtime.blocklist.BlocklistUtils;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -46,11 +53,15 @@ import org.apache.flink.runtime.io.network.partition.PartitionTrackerFactory;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
+import org.apache.flink.runtime.jobmaster.slotpool.BlocklistDeclarativeSlotPoolFactory;
+import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolFactory;
+import org.apache.flink.runtime.jobmaster.slotpool.DefaultDeclarativeSlotPoolFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -70,7 +81,7 @@ import org.apache.flink.runtime.registration.RetryingRegistration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
-import org.apache.flink.runtime.rpc.PermanentlyFencedRpcEndpoint;
+import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcServiceUtils;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
@@ -89,12 +100,14 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation.ResolutionMode;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -114,7 +127,9 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.checkpoint.TaskStateSnapshot.deserializeTaskStateSnapshot;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * JobMaster implementation. The job master is responsible for the execution of a single {@link
@@ -127,7 +142,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *   <li>{@link #updateTaskExecutionState} updates the task execution state for given task
  * </ul>
  */
-public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
+public class JobMaster extends FencedRpcEndpoint<JobMasterId>
         implements JobMasterGateway, JobMasterService {
 
     /** Default names for Flink's distributed components. */
@@ -171,8 +186,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
 
     // --------- TaskManagers --------
 
-    private final Map<ResourceID, Tuple2<TaskManagerLocation, TaskExecutorGateway>>
-            registeredTaskManagers;
+    private final Map<ResourceID, TaskManagerRegistration> registeredTaskManagers;
 
     private final ShuffleMaster<?> shuffleMaster;
 
@@ -206,6 +220,8 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
 
     private HeartbeatManager<Void, Void> resourceManagerHeartbeatManager;
 
+    private final BlocklistHandler blocklistHandler;
+
     // ------------------------------------------------------------------------
 
     public JobMaster(
@@ -226,6 +242,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
             PartitionTrackerFactory partitionTrackerFactory,
             ExecutionDeploymentTracker executionDeploymentTracker,
             ExecutionDeploymentReconciler.Factory executionDeploymentReconcilerFactory,
+            BlocklistHandler.Factory blocklistHandlerFactory,
             long initializationTimestamp)
             throws Exception {
 
@@ -260,10 +277,12 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                                 executionAttemptIds,
                                 host);
                         for (ExecutionAttemptID executionAttemptId : executionAttemptIds) {
-                            Tuple2<TaskManagerLocation, TaskExecutorGateway> taskManagerInfo =
+                            TaskManagerRegistration taskManagerRegistration =
                                     registeredTaskManagers.get(host);
-                            if (taskManagerInfo != null) {
-                                taskManagerInfo.f1.cancelTask(executionAttemptId, rpcTimeout);
+                            if (taskManagerRegistration != null) {
+                                taskManagerRegistration
+                                        .getTaskExecutorGateway()
+                                        .cancelTask(executionAttemptId, rpcTimeout);
                             }
                         }
                     }
@@ -298,22 +317,28 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
         resourceManagerLeaderRetriever =
                 highAvailabilityServices.getResourceManagerLeaderRetriever();
 
-        this.slotPoolService =
-                checkNotNull(slotPoolServiceSchedulerFactory).createSlotPoolService(jid);
+        this.registeredTaskManagers = new HashMap<>();
+        this.blocklistHandler =
+                blocklistHandlerFactory.create(
+                        new JobMasterBlocklistContext(),
+                        this::getNodeIdOfTaskManager,
+                        getMainThreadExecutor(),
+                        log);
 
-        this.registeredTaskManagers = new HashMap<>(4);
+        this.slotPoolService =
+                checkNotNull(slotPoolServiceSchedulerFactory)
+                        .createSlotPoolService(
+                                jid,
+                                createDeclarativeSlotPoolFactory(
+                                        jobMasterConfiguration.getConfiguration()));
+
         this.partitionTracker =
                 checkNotNull(partitionTrackerFactory)
                         .create(
                                 resourceID -> {
-                                    Tuple2<TaskManagerLocation, TaskExecutorGateway>
-                                            taskManagerInfo =
-                                                    registeredTaskManagers.get(resourceID);
-                                    if (taskManagerInfo == null) {
-                                        return Optional.empty();
-                                    }
-
-                                    return Optional.of(taskManagerInfo.f1);
+                                    return Optional.ofNullable(
+                                                    registeredTaskManagers.get(resourceID))
+                                            .map(TaskManagerRegistration::getTaskExecutorGateway);
                                 });
 
         this.shuffleMaster = checkNotNull(shuffleMaster);
@@ -363,7 +388,8 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                         initializationTimestamp,
                         getMainThreadExecutor(),
                         fatalErrorHandler,
-                        jobStatusListener);
+                        jobStatusListener,
+                        blocklistHandler::addNewBlockedNodes);
 
         return scheduler;
     }
@@ -378,6 +404,15 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
             createTaskManagerHeartbeatManager(HeartbeatServices heartbeatServices) {
         return heartbeatServices.createHeartbeatManagerSender(
                 resourceId, new TaskManagerHeartbeatListener(), getMainThreadExecutor(), log);
+    }
+
+    private DeclarativeSlotPoolFactory createDeclarativeSlotPoolFactory(
+            Configuration configuration) {
+        if (BlocklistUtils.isBlocklistEnabled(configuration)) {
+            return new BlocklistDeclarativeSlotPoolFactory(blocklistHandler::isBlockedTaskManager);
+        } else {
+            return new DefaultDeclarativeSlotPoolFactory();
+        }
     }
 
     // ----------------------------------------------------------------------------------------------
@@ -488,30 +523,25 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
     }
 
     @Override
-    public CompletableFuture<Acknowledge> notifyPartitionDataAvailable(
-            final ResultPartitionID partitionID, final Time timeout) {
-
-        schedulerNG.notifyPartitionDataAvailable(partitionID);
-        return CompletableFuture.completedFuture(Acknowledge.get());
-    }
-
-    @Override
     public CompletableFuture<Acknowledge> disconnectTaskManager(
             final ResourceID resourceID, final Exception cause) {
-        log.debug(
+        log.info(
                 "Disconnect TaskExecutor {} because: {}",
                 resourceID.getStringWithMetadata(),
-                cause.getMessage());
+                cause.getMessage(),
+                ExceptionUtils.returnExceptionIfUnexpected(cause.getCause()));
+        ExceptionUtils.logExceptionIfExcepted(cause.getCause(), log);
 
         taskManagerHeartbeatManager.unmonitorTarget(resourceID);
         slotPoolService.releaseTaskManager(resourceID, cause);
         partitionTracker.stopTrackingPartitionsFor(resourceID);
 
-        Tuple2<TaskManagerLocation, TaskExecutorGateway> taskManagerConnection =
-                registeredTaskManagers.remove(resourceID);
+        TaskManagerRegistration taskManagerRegistration = registeredTaskManagers.remove(resourceID);
 
-        if (taskManagerConnection != null) {
-            taskManagerConnection.f1.disconnectJobManager(jobGraph.getJobID(), cause);
+        if (taskManagerRegistration != null) {
+            taskManagerRegistration
+                    .getTaskExecutorGateway()
+                    .disconnectJobManager(jobGraph.getJobID(), cause);
         }
 
         return CompletableFuture.completedFuture(Acknowledge.get());
@@ -524,10 +554,13 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
             final ExecutionAttemptID executionAttemptID,
             final long checkpointId,
             final CheckpointMetrics checkpointMetrics,
-            final TaskStateSnapshot checkpointState) {
-
+            @Nullable final SerializedValue<TaskStateSnapshot> checkpointState) {
         schedulerNG.acknowledgeCheckpoint(
-                jobID, executionAttemptID, checkpointId, checkpointMetrics, checkpointState);
+                jobID,
+                executionAttemptID,
+                checkpointId,
+                checkpointMetrics,
+                deserializeTaskStateSnapshot(checkpointState, getClass().getClassLoader()));
     }
 
     @Override
@@ -557,6 +590,17 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
             final OperatorEvent evt = serializedEvent.deserializeValue(userCodeLoader);
             schedulerNG.deliverOperatorEventToCoordinator(task, operatorID, evt);
             return CompletableFuture.completedFuture(Acknowledge.get());
+        } catch (Exception e) {
+            return FutureUtils.completedExceptionally(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<CoordinationResponse> sendRequestToCoordinator(
+            OperatorID operatorID, SerializedValue<CoordinationRequest> serializedRequest) {
+        try {
+            final CoordinationRequest request = serializedRequest.deserializeValue(userCodeLoader);
+            return schedulerNG.deliverCoordinationRequestToCoordinator(operatorID, request);
         } catch (Exception e) {
             return FutureUtils.completedExceptionally(e);
         }
@@ -618,22 +662,22 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
     public CompletableFuture<Collection<SlotOffer>> offerSlots(
             final ResourceID taskManagerId, final Collection<SlotOffer> slots, final Time timeout) {
 
-        Tuple2<TaskManagerLocation, TaskExecutorGateway> taskManager =
-                registeredTaskManagers.get(taskManagerId);
+        TaskManagerRegistration taskManagerRegistration = registeredTaskManagers.get(taskManagerId);
 
-        if (taskManager == null) {
+        if (taskManagerRegistration == null) {
             return FutureUtils.completedExceptionally(
                     new Exception("Unknown TaskManager " + taskManagerId));
         }
 
-        final TaskManagerLocation taskManagerLocation = taskManager.f0;
-        final TaskExecutorGateway taskExecutorGateway = taskManager.f1;
-
         final RpcTaskManagerGateway rpcTaskManagerGateway =
-                new RpcTaskManagerGateway(taskExecutorGateway, getFencingToken());
+                new RpcTaskManagerGateway(
+                        taskManagerRegistration.getTaskExecutorGateway(), getFencingToken());
 
         return CompletableFuture.completedFuture(
-                slotPoolService.offerSlots(taskManagerLocation, rpcTaskManagerGateway, slots));
+                slotPoolService.offerSlots(
+                        taskManagerRegistration.getTaskManagerLocation(),
+                        rpcTaskManagerGateway,
+                        slots));
     }
 
     @Override
@@ -677,9 +721,8 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
 
     @Override
     public CompletableFuture<RegistrationResponse> registerTaskManager(
-            final String taskManagerRpcAddress,
-            final UnresolvedTaskManagerLocation unresolvedTaskManagerLocation,
             final JobID jobId,
+            final TaskManagerRegistrationInformation taskManagerRegistrationInformation,
             final Time timeout) {
 
         if (!jobGraph.getJobID().equals(jobId)) {
@@ -695,53 +738,81 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
 
         final TaskManagerLocation taskManagerLocation;
         try {
-            if (retrieveTaskManagerHostName) {
-                taskManagerLocation =
-                        TaskManagerLocation.fromUnresolvedLocation(
-                                unresolvedTaskManagerLocation, ResolutionMode.RETRIEVE_HOST_NAME);
+            taskManagerLocation =
+                    resolveTaskManagerLocation(
+                            taskManagerRegistrationInformation.getUnresolvedTaskManagerLocation());
+        } catch (FlinkException exception) {
+            log.error("Could not accept TaskManager registration.", exception);
+            return CompletableFuture.completedFuture(new RegistrationResponse.Failure(exception));
+        }
+
+        final ResourceID taskManagerId = taskManagerLocation.getResourceID();
+        final UUID sessionId = taskManagerRegistrationInformation.getTaskManagerSession();
+        final TaskManagerRegistration taskManagerRegistration =
+                registeredTaskManagers.get(taskManagerId);
+
+        if (taskManagerRegistration != null) {
+            if (taskManagerRegistration.getSessionId().equals(sessionId)) {
+                log.debug(
+                        "Ignoring registration attempt of TaskManager {} with the same session id {}.",
+                        taskManagerId,
+                        sessionId);
+                final RegistrationResponse response = new JMTMRegistrationSuccess(resourceId);
+                return CompletableFuture.completedFuture(response);
             } else {
-                taskManagerLocation =
-                        TaskManagerLocation.fromUnresolvedLocation(
-                                unresolvedTaskManagerLocation, ResolutionMode.USE_IP_ONLY);
+                disconnectTaskManager(
+                        taskManagerId,
+                        new FlinkException(
+                                String.format(
+                                        "A registered TaskManager %s re-registered with a new session id. This indicates a restart of the TaskManager. Closing the old connection.",
+                                        taskManagerId)));
+            }
+        }
+
+        return getRpcService()
+                .connect(
+                        taskManagerRegistrationInformation.getTaskManagerRpcAddress(),
+                        TaskExecutorGateway.class)
+                .handleAsync(
+                        (TaskExecutorGateway taskExecutorGateway, Throwable throwable) -> {
+                            if (throwable != null) {
+                                return new RegistrationResponse.Failure(throwable);
+                            }
+
+                            slotPoolService.registerTaskManager(taskManagerId);
+                            registeredTaskManagers.put(
+                                    taskManagerId,
+                                    TaskManagerRegistration.create(
+                                            taskManagerLocation, taskExecutorGateway, sessionId));
+
+                            // monitor the task manager as heartbeat target
+                            taskManagerHeartbeatManager.monitorTarget(
+                                    taskManagerId,
+                                    new TaskExecutorHeartbeatSender(taskExecutorGateway));
+
+                            return new JMTMRegistrationSuccess(resourceId);
+                        },
+                        getMainThreadExecutor());
+    }
+
+    @Nonnull
+    private TaskManagerLocation resolveTaskManagerLocation(
+            UnresolvedTaskManagerLocation unresolvedTaskManagerLocation) throws FlinkException {
+        try {
+            if (retrieveTaskManagerHostName) {
+                return TaskManagerLocation.fromUnresolvedLocation(
+                        unresolvedTaskManagerLocation, ResolutionMode.RETRIEVE_HOST_NAME);
+            } else {
+                return TaskManagerLocation.fromUnresolvedLocation(
+                        unresolvedTaskManagerLocation, ResolutionMode.USE_IP_ONLY);
             }
         } catch (Throwable throwable) {
             final String errMsg =
                     String.format(
-                            "Could not accept TaskManager registration. TaskManager address %s cannot be resolved. %s",
+                            "TaskManager address %s cannot be resolved. %s",
                             unresolvedTaskManagerLocation.getExternalAddress(),
                             throwable.getMessage());
-            log.error(errMsg);
-            return CompletableFuture.completedFuture(
-                    new RegistrationResponse.Failure(new FlinkException(errMsg, throwable)));
-        }
-
-        final ResourceID taskManagerId = taskManagerLocation.getResourceID();
-
-        if (registeredTaskManagers.containsKey(taskManagerId)) {
-            final RegistrationResponse response = new JMTMRegistrationSuccess(resourceId);
-            return CompletableFuture.completedFuture(response);
-        } else {
-            return getRpcService()
-                    .connect(taskManagerRpcAddress, TaskExecutorGateway.class)
-                    .handleAsync(
-                            (TaskExecutorGateway taskExecutorGateway, Throwable throwable) -> {
-                                if (throwable != null) {
-                                    return new RegistrationResponse.Failure(throwable);
-                                }
-
-                                slotPoolService.registerTaskManager(taskManagerId);
-                                registeredTaskManagers.put(
-                                        taskManagerId,
-                                        Tuple2.of(taskManagerLocation, taskExecutorGateway));
-
-                                // monitor the task manager as heartbeat target
-                                taskManagerHeartbeatManager.monitorTarget(
-                                        taskManagerId,
-                                        new TaskExecutorHeartbeatSender(taskExecutorGateway));
-
-                                return new JMTMRegistrationSuccess(resourceId);
-                            },
-                            getMainThreadExecutor());
+            throw new FlinkException(errMsg, throwable);
         }
     }
 
@@ -786,27 +857,29 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
     }
 
     @Override
-    public CompletableFuture<String> triggerSavepoint(
-            @Nullable final String targetDirectory, final boolean cancelJob, final Time timeout) {
-
-        return schedulerNG.triggerSavepoint(targetDirectory, cancelJob);
+    public CompletableFuture<CompletedCheckpoint> triggerCheckpoint(
+            final CheckpointType checkpointType, final Time timeout) {
+        return schedulerNG.triggerCheckpoint(checkpointType);
     }
 
     @Override
-    public CompletableFuture<String> triggerCheckpoint(Time timeout) {
-        return schedulerNG.triggerCheckpoint();
+    public CompletableFuture<String> triggerSavepoint(
+            @Nullable final String targetDirectory,
+            final boolean cancelJob,
+            final SavepointFormatType formatType,
+            final Time timeout) {
+
+        return schedulerNG.triggerSavepoint(targetDirectory, cancelJob, formatType);
     }
 
     @Override
     public CompletableFuture<String> stopWithSavepoint(
-            @Nullable final String targetDirectory, final boolean terminate, final Time timeout) {
+            @Nullable final String targetDirectory,
+            final SavepointFormatType formatType,
+            final boolean terminate,
+            final Time timeout) {
 
-        return schedulerNG.stopWithSavepoint(targetDirectory, terminate);
-    }
-
-    @Override
-    public void notifyAllocationFailure(AllocationID allocationID, Exception cause) {
-        internalFailAllocation(null, allocationID, cause);
+        return schedulerNG.stopWithSavepoint(targetDirectory, terminate, formatType);
     }
 
     @Override
@@ -843,12 +916,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
             OperatorID operatorId,
             SerializedValue<CoordinationRequest> serializedRequest,
             Time timeout) {
-        try {
-            CoordinationRequest request = serializedRequest.deserializeValue(userCodeLoader);
-            return schedulerNG.deliverCoordinationRequestToCoordinator(operatorId, request);
-        } catch (Exception e) {
-            return FutureUtils.completedExceptionally(e);
-        }
+        return this.sendRequestToCoordinator(operatorId, serializedRequest);
     }
 
     @Override
@@ -862,6 +930,24 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
             future.completeExceptionally(throwable);
         }
         return future;
+    }
+
+    @Override
+    public CompletableFuture<Acknowledge> notifyNewBlockedNodes(Collection<BlockedNode> newNodes) {
+        blocklistHandler.addNewBlockedNodes(newNodes);
+        return CompletableFuture.completedFuture(Acknowledge.get());
+    }
+
+    @Override
+    public CompletableFuture<JobResourceRequirements> requestJobResourceRequirements() {
+        return CompletableFuture.completedFuture(schedulerNG.requestJobResourceRequirements());
+    }
+
+    @Override
+    public CompletableFuture<Acknowledge> updateJobResourceRequirements(
+            JobResourceRequirements jobResourceRequirements) {
+        schedulerNG.updateJobResourceRequirements(jobResourceRequirements);
+        return CompletableFuture.completedFuture(Acknowledge.get());
     }
 
     // ----------------------------------------------------------------------------------------------
@@ -994,22 +1080,42 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
     private void jobStatusChanged(final JobStatus newJobStatus) {
         validateRunsInMainThread();
         if (newJobStatus.isGloballyTerminalState()) {
-            runAsync(
-                    () -> {
-                        Collection<ResultPartitionID> allTracked =
-                                partitionTracker.getAllTrackedPartitions().stream()
-                                        .map(d -> d.getShuffleDescriptor().getResultPartitionID())
-                                        .collect(Collectors.toList());
-                        if (newJobStatus == JobStatus.FINISHED) {
-                            partitionTracker.stopTrackingAndReleaseOrPromotePartitions(allTracked);
-                        } else {
-                            partitionTracker.stopTrackingAndReleasePartitions(allTracked);
-                        }
-                    });
+            CompletableFuture<Void> partitionPromoteFuture;
+            if (newJobStatus == JobStatus.FINISHED) {
+                Collection<ResultPartitionID> jobPartitions =
+                        partitionTracker.getAllTrackedNonClusterPartitions().stream()
+                                .map(d -> d.getShuffleDescriptor().getResultPartitionID())
+                                .collect(Collectors.toList());
+                partitionTracker.stopTrackingAndReleasePartitions(jobPartitions);
+                Collection<ResultPartitionID> clusterPartitions =
+                        partitionTracker.getAllTrackedClusterPartitions().stream()
+                                .map(d -> d.getShuffleDescriptor().getResultPartitionID())
+                                .collect(Collectors.toList());
+                partitionPromoteFuture =
+                        partitionTracker.stopTrackingAndPromotePartitions(clusterPartitions);
+            } else {
+                Collection<ResultPartitionID> allTracked =
+                        partitionTracker.getAllTrackedPartitions().stream()
+                                .map(d -> d.getShuffleDescriptor().getResultPartitionID())
+                                .collect(Collectors.toList());
+                partitionTracker.stopTrackingAndReleasePartitions(allTracked);
+                partitionPromoteFuture = CompletableFuture.completedFuture(null);
+            }
 
             final ExecutionGraphInfo executionGraphInfo = schedulerNG.requestJob();
+
             futureExecutor.execute(
-                    () -> jobCompletionActions.jobReachedGloballyTerminalState(executionGraphInfo));
+                    () -> {
+                        try {
+                            partitionPromoteFuture.get();
+                        } catch (Throwable e) {
+                            // We do not want to fail the job in case of partition releasing and
+                            // promoting fail. The TaskExecutors will release the partitions
+                            // eventually when they find out the JobMaster is closed.
+                            log.warn("Fail to release or promote partitions", e);
+                        }
+                        jobCompletionActions.jobReachedGloballyTerminalState(executionGraphInfo);
+                    });
         }
     }
 
@@ -1091,7 +1197,9 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                     new EstablishedResourceManagerConnection(
                             resourceManagerGateway, resourceManagerResourceId);
 
+            blocklistHandler.registerBlocklistListener(resourceManagerGateway);
             slotPoolService.connectToResourceManager(resourceManagerGateway);
+            partitionTracker.connectToResourceManager(resourceManagerGateway);
 
             resourceManagerHeartbeatManager.monitorTarget(
                     resourceManagerResourceId,
@@ -1140,7 +1248,13 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                 establishedResourceManagerConnection.getResourceManagerGateway();
         resourceManagerGateway.disconnectJobManager(
                 jobGraph.getJobID(), schedulerNG.requestJobStatus(), cause);
+        blocklistHandler.deregisterBlocklistListener(resourceManagerGateway);
         slotPoolService.disconnectResourceManager();
+    }
+
+    private String getNodeIdOfTaskManager(ResourceID taskManagerId) {
+        checkState(registeredTaskManagers.containsKey(taskManagerId));
+        return registeredTaskManagers.get(taskManagerId).getTaskManagerLocation().getNodeId();
     }
 
     // ----------------------------------------------------------------------------------------------
@@ -1412,5 +1526,35 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
         public Void retrievePayload(ResourceID resourceID) {
             return null;
         }
+    }
+
+    private class JobMasterBlocklistContext implements BlocklistContext {
+
+        @Override
+        public void blockResources(Collection<BlockedNode> blockedNodes) {
+            Set<String> blockedNodeIds =
+                    blockedNodes.stream().map(BlockedNode::getNodeId).collect(Collectors.toSet());
+
+            Collection<ResourceID> blockedTaskMangers =
+                    registeredTaskManagers.keySet().stream()
+                            .filter(
+                                    taskManagerId ->
+                                            blockedNodeIds.contains(
+                                                    getNodeIdOfTaskManager(taskManagerId)))
+                            .collect(Collectors.toList());
+
+            blockedTaskMangers.forEach(
+                    taskManagerId -> {
+                        Exception cause =
+                                new FlinkRuntimeException(
+                                        String.format(
+                                                "TaskManager %s is blocked.",
+                                                taskManagerId.getStringWithMetadata()));
+                        slotPoolService.releaseFreeSlotsOnTaskManager(taskManagerId, cause);
+                    });
+        }
+
+        @Override
+        public void unblockResources(Collection<BlockedNode> unblockedNodes) {}
     }
 }

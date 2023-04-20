@@ -28,18 +28,21 @@ process mode. It downloads and installs users' python artifacts, then launches t
 harness of Apache Beam.
 """
 import argparse
-import os
-
-import grpc
 import logging
+import os
 import sys
 
-from apache_beam.portability.api.beam_fn_api_pb2_grpc import BeamFnExternalWorkerPoolStub
-from apache_beam.portability.api.beam_fn_api_pb2 import StartWorkerRequest
-from apache_beam.portability.api.beam_provision_api_pb2_grpc import ProvisionServiceStub
-from apache_beam.portability.api.beam_provision_api_pb2 import GetProvisionInfoRequest
-from apache_beam.portability.api.endpoints_pb2 import ApiServiceDescriptor
-
+import grpc
+from apache_beam.portability.api.org.apache.beam.model.fn_execution.v1.beam_fn_api_pb2 import \
+    StartWorkerRequest
+from apache_beam.portability.api.org.apache.beam.model.fn_execution.v1.beam_fn_api_pb2_grpc import (
+    BeamFnExternalWorkerPoolStub)
+from apache_beam.portability.api.org.apache.beam.model.fn_execution.v1.beam_provision_api_pb2 \
+    import GetProvisionInfoRequest
+from apache_beam.portability.api.org.apache.beam.model.fn_execution.v1.beam_provision_api_pb2_grpc \
+    import ProvisionServiceStub
+from apache_beam.portability.api.org.apache.beam.model.pipeline.v1.endpoints_pb2 import (
+    ApiServiceDescriptor)
 from google.protobuf import json_format, text_format
 
 
@@ -75,18 +78,20 @@ if __name__ == "__main__":
 
     logging.info("Initializing Python harness: %s" % " ".join(sys.argv))
 
-    if 'PYFLINK_LOOPBACK_SERVER_ADDRESS' in os.environ:
+    if 'PYTHON_LOOPBACK_SERVER_ADDRESS' in os.environ:
         logging.info("Starting up Python harness in loopback mode.")
 
         params = dict(os.environ)
         params.update({'SEMI_PERSISTENT_DIRECTORY': semi_persist_dir})
-        with grpc.insecure_channel(os.environ['PYFLINK_LOOPBACK_SERVER_ADDRESS']) as channel:
+        with grpc.insecure_channel(os.environ['PYTHON_LOOPBACK_SERVER_ADDRESS']) as channel:
             client = BeamFnExternalWorkerPoolStub(channel=channel)
             request = StartWorkerRequest(
                 worker_id=worker_id,
                 provision_endpoint=ApiServiceDescriptor(url=provision_endpoint),
                 params=params)
-            client.StartWorker(request)
+            response = client.StartWorker(request)
+            if response.error:
+                raise RuntimeError("Error starting worker: %s" % response.error)
     else:
         logging.info("Starting up Python harness in a standalone process.")
         metadata = [("worker_id", worker_id)]

@@ -114,7 +114,7 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
             randomize(conf, ExecutionCheckpointingOptions.ENABLE_UNALIGNED, true, false);
             randomize(
                     conf,
-                    ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT,
+                    ExecutionCheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT,
                     Duration.ofSeconds(0),
                     Duration.ofMillis(100),
                     Duration.ofSeconds(2));
@@ -123,13 +123,23 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
         // randomize ITTests for enabling state change log
         if (isConfigurationSupportedByChangelog(miniCluster.getConfiguration())) {
             if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(STATE_CHANGE_LOG_CONFIG_ON)) {
-                conf.set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, true);
-                miniCluster.overrideRestoreModeForRandomizedChangelogStateBackend();
+                if (!conf.contains(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)) {
+                    conf.set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, true);
+                    miniCluster.overrideRestoreModeForChangelogStateBackend();
+                }
             } else if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(STATE_CHANGE_LOG_CONFIG_RAND)) {
                 boolean enabled =
                         randomize(conf, StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, true, false);
                 if (enabled) {
-                    miniCluster.overrideRestoreModeForRandomizedChangelogStateBackend();
+                    randomize(
+                            conf,
+                            StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL,
+                            Duration.ofMillis(100),
+                            Duration.ofMillis(500),
+                            Duration.ofSeconds(1),
+                            Duration.ofSeconds(5),
+                            Duration.ofSeconds(-1));
+                    miniCluster.overrideRestoreModeForChangelogStateBackend();
                 }
             }
         }

@@ -45,6 +45,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.time.Duration;
+
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
 import static org.apache.flink.runtime.operators.lifecycle.command.TestCommand.DELAY_SNAPSHOT;
@@ -150,7 +152,8 @@ public class IncrementalStateReuseAfterFailureITCase {
     @Before
     public void before() throws Exception {
         Configuration configuration = new Configuration();
-        FsStateChangelogStorageFactory.configure(configuration, temporaryFolder.newFolder());
+        FsStateChangelogStorageFactory.configure(
+                configuration, temporaryFolder.newFolder(), Duration.ofMinutes(1), 10);
         miniClusterResource =
                 new MiniClusterWithClientResource(
                         new MiniClusterResourceConfiguration.Builder()

@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
@@ -37,7 +38,7 @@ import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
 
 import org.hamcrest.Matchers;
 import org.junit.ClassRule;
@@ -196,7 +197,8 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
                 checkpointsInZooKeeper,
                 zooKeeperCheckpointStoreUtil,
                 Collections.emptyList(),
-                SharedStateRegistry.DEFAULT_FACTORY.create(Executors.directExecutor(), emptyList()),
+                SharedStateRegistry.DEFAULT_FACTORY.create(
+                        Executors.directExecutor(), emptyList(), RestoreMode.DEFAULT),
                 Executors.directExecutor());
     }
 
@@ -254,7 +256,8 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
                             Collections.emptyMap(),
                             Collections.emptyList(),
                             CheckpointProperties.forCheckpoint(NEVER_RETAIN_AFTER_TERMINATION),
-                            new TestCompletedCheckpointStorageLocation());
+                            new TestCompletedCheckpointStorageLocation(),
+                            null);
             // shouldn't fail despite the exception
             store.addCheckpointAndSubsumeOldestOne(
                     checkpointToAdd,

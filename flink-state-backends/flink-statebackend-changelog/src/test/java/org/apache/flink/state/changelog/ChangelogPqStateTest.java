@@ -18,7 +18,7 @@
 package org.apache.flink.state.changelog;
 
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.function.FunctionWithException;
@@ -59,6 +59,22 @@ public class ChangelogPqStateTest {
                 emptyList(),
                 state -> state.add("x"),
                 logger -> assertTrue(logger.stateElementAdded));
+    }
+
+    @Test
+    public void testPollRecorded() throws Exception {
+        testRecorded(
+                singletonList("x"),
+                ChangelogKeyGroupedPriorityQueue::poll,
+                logger -> assertTrue(logger.stateElementRemoved));
+    }
+
+    @Test
+    public void testRemoveRecorded() throws Exception {
+        testRecorded(
+                singletonList("x"),
+                state -> state.remove("x"),
+                logger -> assertTrue(logger.stateElementRemoved));
     }
 
     @Test
@@ -113,17 +129,11 @@ public class ChangelogPqStateTest {
         assertion.accept(logger);
     }
 
-    private static class TestPriorityQueueChangeLogger<T>
-            implements PriorityQueueStateChangeLogger<T> {
+    private static class TestPriorityQueueChangeLogger<T> implements StateChangeLogger<T, Void> {
         public boolean stateElementChanged;
         public boolean stateCleared;
         public boolean stateElementRemoved;
         public boolean stateElementAdded;
-
-        @Override
-        public void stateElementPolled() {
-            stateElementRemoved = true;
-        }
 
         @Override
         public void valueUpdated(T newState, Void ns) {
@@ -147,22 +157,19 @@ public class ChangelogPqStateTest {
 
         @Override
         public void valueElementAdded(
-                ThrowingConsumer<DataOutputViewStreamWrapper, IOException> dataSerializer, Void ns)
-                throws IOException {
+                ThrowingConsumer<DataOutputView, IOException> dataSerializer, Void ns) {
             stateElementAdded = true;
         }
 
         @Override
         public void valueElementAddedOrUpdated(
-                ThrowingConsumer<DataOutputViewStreamWrapper, IOException> dataSerializer,
-                Void ns) {
+                ThrowingConsumer<DataOutputView, IOException> dataSerializer, Void ns) {
             stateElementChanged = true;
         }
 
         @Override
         public void valueElementRemoved(
-                ThrowingConsumer<DataOutputViewStreamWrapper, IOException> dataSerializer,
-                Void ns) {
+                ThrowingConsumer<DataOutputView, IOException> dataSerializer, Void ns) {
             stateElementRemoved = true;
         }
 

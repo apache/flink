@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * Provides a thread local cache with a maximum cache size per thread.
@@ -74,5 +75,14 @@ public abstract class ThreadLocalCache<K, V> {
         protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {
             return this.size() > maxSize;
         }
+    }
+
+    public static <K, V> ThreadLocalCache<K, V> of(Function<K, V> creator) {
+        return new ThreadLocalCache<K, V>() {
+            @Override
+            public V getNewInstance(K key) {
+                return creator.apply(key);
+            }
+        };
     }
 }

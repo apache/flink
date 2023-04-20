@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.batch.sql.join
 
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
@@ -81,14 +80,25 @@ class JoinWithoutKeyITCase extends BatchTestBase {
   def testLeftNullRightJoin(): Unit = {
     checkResult(
       "SELECT d, cnt FROM (SELECT cnt FROM (SELECT COUNT(*) AS cnt FROM SmallTable3) " +
-          "WHERE cnt < 0) RIGHT JOIN Table5 ON d < cnt",
+        "WHERE cnt < 0) RIGHT JOIN Table5 ON d < cnt",
       Seq(
         row(1, null),
-        row(2, null), row(2, null),
-        row(3, null), row(3, null), row(3, null),
-        row(4, null), row(4, null), row(4, null), row(4, null),
-        row(5, null), row(5, null), row(5, null), row(5, null), row(5, null)
-      ))
+        row(2, null),
+        row(2, null),
+        row(3, null),
+        row(3, null),
+        row(3, null),
+        row(4, null),
+        row(4, null),
+        row(4, null),
+        row(4, null),
+        row(5, null),
+        row(5, null),
+        row(5, null),
+        row(5, null),
+        row(5, null)
+      )
+    )
   }
 
   @Test
@@ -97,25 +107,47 @@ class JoinWithoutKeyITCase extends BatchTestBase {
       "SELECT d, cnt FROM (SELECT COUNT(*) AS cnt FROM SmallTable3) RIGHT JOIN Table5 ON cnt = d",
       Seq(
         row(1, null),
-        row(2, null), row(2, null),
-        row(3, 3), row(3, 3), row(3, 3),
-        row(4, null), row(4, null), row(4, null), row(4, null),
-        row(5, null), row(5, null), row(5, null), row(5, null), row(5, null)
-      ))
+        row(2, null),
+        row(2, null),
+        row(3, 3),
+        row(3, 3),
+        row(3, 3),
+        row(4, null),
+        row(4, null),
+        row(4, null),
+        row(4, null),
+        row(5, null),
+        row(5, null),
+        row(5, null),
+        row(5, null),
+        row(5, null)
+      )
+    )
   }
 
   @Test
   def testSingleJoinWithReusePerRecordCode(): Unit = {
     checkResult(
       "SELECT d, cnt FROM (SELECT COUNT(*) AS cnt FROM SmallTable3) " +
-          "RIGHT JOIN Table5 ON d = UNIX_TIMESTAMP(cast(CURRENT_TIMESTAMP as VARCHAR))",
+        "RIGHT JOIN Table5 ON d = UNIX_TIMESTAMP(cast(CURRENT_TIMESTAMP as VARCHAR))",
       Seq(
         row(1, null),
-        row(2, null), row(2, null),
-        row(3, null), row(3, null), row(3, null),
-        row(4, null), row(4, null), row(4, null), row(4, null),
-        row(5, null), row(5, null), row(5, null), row(5, null), row(5, null)
-      ))
+        row(2, null),
+        row(2, null),
+        row(3, null),
+        row(3, null),
+        row(3, null),
+        row(4, null),
+        row(4, null),
+        row(4, null),
+        row(4, null),
+        row(5, null),
+        row(5, null),
+        row(5, null),
+        row(5, null),
+        row(5, null)
+      )
+    )
   }
 
   @Test
@@ -124,21 +156,35 @@ class JoinWithoutKeyITCase extends BatchTestBase {
       "SELECT d, cnt FROM (SELECT COUNT(*) AS cnt FROM SmallTable3) RIGHT JOIN Table5 ON cnt > d",
       Seq(
         row(1, 3),
-        row(2, 3), row(2, 3),
-        row(3, null), row(3, null), row(3, null),
-        row(4, null), row(4, null), row(4, null), row(4, null),
-        row(5, null), row(5, null), row(5, null), row(5, null), row(5, null)
-      ))
+        row(2, 3),
+        row(2, 3),
+        row(3, null),
+        row(3, null),
+        row(3, null),
+        row(4, null),
+        row(4, null),
+        row(4, null),
+        row(4, null),
+        row(5, null),
+        row(5, null),
+        row(5, null),
+        row(5, null),
+        row(5, null)
+      )
+    )
   }
 
   @Test
   def testRightNullLeftJoin(): Unit = {
     checkResult(
       "SELECT a, cnt FROM SmallTable3 LEFT JOIN (SELECT cnt FROM " +
-          "(SELECT COUNT(*) AS cnt FROM Table5) WHERE cnt < 0) ON cnt > a",
+        "(SELECT COUNT(*) AS cnt FROM Table5) WHERE cnt < 0) ON cnt > a",
       Seq(
-        row(1, null), row(2, null), row(3, null)
-      ))
+        row(1, null),
+        row(2, null),
+        row(3, null)
+      )
+    )
   }
 
   @Test
@@ -147,11 +193,22 @@ class JoinWithoutKeyITCase extends BatchTestBase {
       "SELECT d, cnt FROM Table5 LEFT JOIN (SELECT COUNT(*) AS cnt FROM SmallTable3) ON cnt = d",
       Seq(
         row(1, null),
-        row(2, null), row(2, null),
-        row(3, 3), row(3, 3), row(3, 3),
-        row(4, null), row(4, null), row(4, null), row(4, null),
-        row(5, null), row(5, null), row(5, null), row(5, null), row(5, null)
-      ))
+        row(2, null),
+        row(2, null),
+        row(3, 3),
+        row(3, 3),
+        row(3, 3),
+        row(4, null),
+        row(4, null),
+        row(4, null),
+        row(4, null),
+        row(5, null),
+        row(5, null),
+        row(5, null),
+        row(5, null),
+        row(5, null)
+      )
+    )
   }
 
   @Test
@@ -160,26 +217,47 @@ class JoinWithoutKeyITCase extends BatchTestBase {
       "SELECT d, cnt FROM Table5 LEFT JOIN (SELECT COUNT(*) AS cnt FROM SmallTable3) ON cnt < d",
       Seq(
         row(1, null),
-        row(2, null), row(2, null),
-        row(3, null), row(3, null), row(3, null),
-        row(4, 3), row(4, 3), row(4, 3), row(4, 3),
-        row(5, 3), row(5, 3), row(5, 3), row(5, 3), row(5, 3)
-      ))
+        row(2, null),
+        row(2, null),
+        row(3, null),
+        row(3, null),
+        row(3, null),
+        row(4, 3),
+        row(4, 3),
+        row(4, 3),
+        row(4, 3),
+        row(5, 3),
+        row(5, 3),
+        row(5, 3),
+        row(5, 3),
+        row(5, 3)
+      )
+    )
   }
 
   @Test
   def testRightSingleLeftJoinTwoFields(): Unit = {
     checkResult(
       "SELECT d, cnt, cnt2 FROM Table5 LEFT JOIN " +
-          "(SELECT COUNT(*) AS cnt,COUNT(*) AS cnt2 FROM SmallTable3 ) AS x ON d = cnt",
+        "(SELECT COUNT(*) AS cnt,COUNT(*) AS cnt2 FROM SmallTable3 ) AS x ON d = cnt",
       Seq(
         row(1, null, null),
-        row(2, null, null), row(2, null, null),
-        row(3, 3, 3), row(3, 3, 3), row(3, 3, 3),
-        row(4, null, null), row(4, null, null), row(4, null, null), row(4, null, null),
-        row(5, null, null), row(5, null, null), row(5, null, null), row(5, null, null),
+        row(2, null, null),
+        row(2, null, null),
+        row(3, 3, 3),
+        row(3, 3, 3),
+        row(3, 3, 3),
+        row(4, null, null),
+        row(4, null, null),
+        row(4, null, null),
+        row(4, null, null),
+        row(5, null, null),
+        row(5, null, null),
+        row(5, null, null),
+        row(5, null, null),
         row(5, null, null)
-      ))
+      )
+    )
   }
 
   // inner/cross/outer join
@@ -192,7 +270,8 @@ class JoinWithoutKeyITCase extends BatchTestBase {
         row("Hello world", "JKL"),
         row("Hello world", "KLM"),
         row("Hello world", "NullTuple"),
-        row("Hello world", "NullTuple")))
+        row("Hello world", "NullTuple"))
+    )
   }
 
   @Test
@@ -220,11 +299,15 @@ class JoinWithoutKeyITCase extends BatchTestBase {
   def testFullJoin(): Unit = {
     checkResult(
       "SELECT * FROM (SELECT c, g FROM NullTable5 FULL JOIN NullTable3 ON a > d) " +
-          "WHERE c is null or g is null",
+        "WHERE c is null or g is null",
       Seq(
-        row("Hi", null), row("NullTuple", null), row("NullTuple", null),
-        row(null, "NullTuple"), row(null, "NullTuple")
-      ))
+        row("Hi", null),
+        row("NullTuple", null),
+        row("NullTuple", null),
+        row(null, "NullTuple"),
+        row(null, "NullTuple")
+      )
+    )
   }
 
   @Test
@@ -278,33 +361,36 @@ class JoinWithoutKeyITCase extends BatchTestBase {
           SELECT b, c, d FROM testData, testData2 WHERE a = 2
         """.stripMargin,
       row("2", 1, 1) ::
-          row("2", 1, 2) ::
-          row("2", 2, 1) ::
-          row("2", 2, 2) ::
-          row("2", 3, 1) ::
-          row("2", 3, 2) :: Nil)
+        row("2", 1, 2) ::
+        row("2", 2, 1) ::
+        row("2", 2, 2) ::
+        row("2", 3, 1) ::
+        row("2", 3, 2) :: Nil
+    )
 
     checkResult(
       """
           SELECT b, c, d FROM testData, testData2 WHERE a < c
         """.stripMargin,
       row("1", 2, 1) ::
-          row("1", 2, 2) ::
-          row("1", 3, 1) ::
-          row("1", 3, 2) ::
-          row("2", 3, 1) ::
-          row("2", 3, 2) :: Nil)
+        row("1", 2, 2) ::
+        row("1", 3, 1) ::
+        row("1", 3, 2) ::
+        row("2", 3, 1) ::
+        row("2", 3, 2) :: Nil
+    )
 
     checkResult(
       """
           SELECT b, c, d FROM testData JOIN testData2 ON a < c
         """.stripMargin,
       row("1", 2, 1) ::
-          row("1", 2, 2) ::
-          row("1", 3, 1) ::
-          row("1", 3, 2) ::
-          row("2", 3, 1) ::
-          row("2", 3, 2) :: Nil)
+        row("1", 2, 2) ::
+        row("1", 3, 1) ::
+        row("1", 3, 2) ::
+        row("2", 3, 1) ::
+        row("2", 3, 2) :: Nil
+    )
   }
 
   @Test
@@ -333,9 +419,7 @@ class JoinWithoutKeyITCase extends BatchTestBase {
     checkResult(
       "SELECT * FROM testData3 WHERE EXISTS (SELECT * FROM testData2)",
       row(1, null) :: row(2, 2) :: Nil)
-    checkResult(
-      "SELECT * FROM testData3 WHERE NOT EXISTS (SELECT * FROM testData2)",
-      Nil)
+    checkResult("SELECT * FROM testData3 WHERE NOT EXISTS (SELECT * FROM testData2)", Nil)
     checkResult(
       """
         |SELECT e FROM testData3
@@ -343,7 +427,8 @@ class JoinWithoutKeyITCase extends BatchTestBase {
         |  EXISTS (SELECT * FROM testData)
         |OR
         |  EXISTS (SELECT * FROM testData2)""".stripMargin,
-      row(1) :: row(2) :: Nil)
+      row(1) :: row(2) :: Nil
+    )
     checkResult(
       """
         |SELECT a FROM testData
@@ -351,7 +436,8 @@ class JoinWithoutKeyITCase extends BatchTestBase {
         |  a IN (SELECT c FROM testData2)
         |OR
         |  a IN (SELECT e FROM testData3)""".stripMargin,
-      row(1) :: row(2) :: row(3) :: Nil)
+      row(1) :: row(2) :: row(3) :: Nil
+    )
   }
 
   @Test

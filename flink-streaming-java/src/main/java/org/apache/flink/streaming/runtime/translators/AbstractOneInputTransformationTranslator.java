@@ -26,6 +26,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.graph.SimpleTransformationTranslator;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.streaming.api.transformations.PhysicalTransformation;
 
 import javax.annotation.Nullable;
 
@@ -78,7 +79,8 @@ abstract class AbstractOneInputTransformationTranslator<IN, OUT, OP extends Tran
                 transformation.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT
                         ? transformation.getParallelism()
                         : executionConfig.getParallelism();
-        streamGraph.setParallelism(transformationId, parallelism);
+        streamGraph.setParallelism(
+                transformationId, parallelism, transformation.isParallelismConfigured());
         streamGraph.setMaxParallelism(transformationId, transformation.getMaxParallelism());
 
         final List<Transformation<?>> parentTransformations = transformation.getInputs();
@@ -89,6 +91,13 @@ abstract class AbstractOneInputTransformationTranslator<IN, OUT, OP extends Tran
 
         for (Integer inputId : context.getStreamNodeIds(parentTransformations.get(0))) {
             streamGraph.addEdge(inputId, transformationId, 0);
+        }
+
+        if (transformation instanceof PhysicalTransformation) {
+            streamGraph.setSupportsConcurrentExecutionAttempts(
+                    transformationId,
+                    ((PhysicalTransformation<OUT>) transformation)
+                            .isSupportsConcurrentExecutionAttempts());
         }
 
         return Collections.singleton(transformationId);

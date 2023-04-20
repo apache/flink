@@ -20,18 +20,18 @@ package org.apache.flink.table.planner.codegen
 class IndentStringContext(sc: StringContext) {
   def j(args: Any*): String = {
     val sb = new StringBuilder()
-    for ((s, a) <- sc.parts zip args) {
-      sb append s
+    for ((s, a) <- sc.parts.zip(args)) {
+      sb.append(s)
 
       val ind = getindent(s)
       if (ind.nonEmpty) {
-        sb append a.toString.replaceAll("\n", "\n" + ind)
+        sb.append(a.toString.replaceAll("\n", "\n" + ind))
       } else {
-        sb append a.toString
+        sb.append(a.toString)
       }
     }
     if (sc.parts.size > args.size) {
-      sb append sc.parts.last
+      sb.append(sc.parts.last)
     }
 
     sb.toString()

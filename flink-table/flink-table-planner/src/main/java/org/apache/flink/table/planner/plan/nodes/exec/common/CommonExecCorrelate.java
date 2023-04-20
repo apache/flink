@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.CorrelateCodeGenerator;
@@ -26,14 +27,14 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.apache.calcite.rex.RexCall;
@@ -48,9 +49,10 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Base {@link ExecNode} which matches along with join a Java/Scala user defined table function. */
-@JsonIgnoreProperties(ignoreUnknown = true)
 public abstract class CommonExecCorrelate extends ExecNodeBase<RowData>
         implements SingleTransformationTranslator<RowData> {
+
+    public static final String CORRELATE_TRANSFORMATION = "correlate";
 
     public static final String FIELD_NAME_JOIN_TYPE = "joinType";
     public static final String FIELD_NAME_FUNCTION_CALL = "functionCall";
@@ -65,20 +67,22 @@ public abstract class CommonExecCorrelate extends ExecNodeBase<RowData>
     @JsonProperty(FIELD_NAME_CONDITION)
     private final @Nullable RexNode condition;
 
-    @JsonIgnore private final Class<?> operatorBaseClass;
-    @JsonIgnore private final boolean retainHeader;
+    private final Class<?> operatorBaseClass;
+    private final boolean retainHeader;
 
     public CommonExecCorrelate(
+            int id,
+            ExecNodeContext context,
+            ReadableConfig persistedConfig,
             FlinkJoinType joinType,
             RexCall invocation,
             @Nullable RexNode condition,
             Class<?> operatorBaseClass,
             boolean retainHeader,
-            int id,
             List<InputProperty> inputProperties,
             RowType outputType,
             String description) {
-        super(id, inputProperties, outputType, description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.joinType = checkNotNull(joinType);
         this.invocation = checkNotNull(invocation);
@@ -89,15 +93,16 @@ public abstract class CommonExecCorrelate extends ExecNodeBase<RowData>
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
         final CodeGeneratorContext ctx =
-                new CodeGeneratorContext(planner.getTableConfig())
+                new CodeGeneratorContext(config, planner.getFlinkContext().getClassLoader())
                         .setOperatorBaseClass(operatorBaseClass);
         return CorrelateCodeGenerator.generateCorrelateTransformation(
-                planner.getTableConfig(),
+                config,
                 ctx,
                 inputTransform,
                 (RowType) inputEdge.getOutputType(),
@@ -108,7 +113,7 @@ public abstract class CommonExecCorrelate extends ExecNodeBase<RowData>
                 inputTransform.getParallelism(),
                 retainHeader,
                 getClass().getSimpleName(),
-                getOperatorName(planner.getTableConfig()),
-                getOperatorDescription(planner.getTableConfig()));
+                createTransformationMeta(CORRELATE_TRANSFORMATION, config),
+                false);
     }
 }

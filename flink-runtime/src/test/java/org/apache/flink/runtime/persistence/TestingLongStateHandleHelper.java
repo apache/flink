@@ -22,6 +22,7 @@ import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.util.AbstractID;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.StringJoiner;
@@ -52,7 +53,7 @@ public class TestingLongStateHandleHelper
     }
 
     public static int getDiscardCallCountForStateHandleByIndex(int index) {
-        return STATE_STORAGE.get(index).getNumberOfDiscardCalls();
+        return STATE_STORAGE.get(index).getNumberOfSuccessfulDiscardCalls();
     }
 
     public static int getGlobalStorageSize() {
@@ -64,7 +65,19 @@ public class TestingLongStateHandleHelper
     }
 
     public static int getGlobalDiscardCount() {
-        return STATE_STORAGE.stream().mapToInt(LongStateHandle::getNumberOfDiscardCalls).sum();
+        return STATE_STORAGE.stream()
+                .mapToInt(LongStateHandle::getNumberOfSuccessfulDiscardCalls)
+                .sum();
+    }
+
+    /**
+     * Serialized callback that can be used in {@code LongStateHandle} to trigger functionality
+     * within the {@link LongStateHandle#discardState()} call.
+     */
+    @FunctionalInterface
+    public interface PreDiscardCallback extends Serializable {
+
+        void run(int discardIdx) throws Exception;
     }
 
     /**
@@ -77,10 +90,22 @@ public class TestingLongStateHandleHelper
 
         private final Long value;
 
+        private final PreDiscardCallback preDiscardCallback;
+
         private int numberOfDiscardCalls = 0;
+        private int numberOfSuccessfulDiscardCalls = 0;
 
         public LongStateHandle(long value) {
+            this(
+                    value,
+                    ignored -> {
+                        // No-op.
+                    });
+        }
+
+        public LongStateHandle(long value, PreDiscardCallback preDiscardCallback) {
             this.value = value;
+            this.preDiscardCallback = preDiscardCallback;
         }
 
         public long getValue() {
@@ -89,11 +114,26 @@ public class TestingLongStateHandleHelper
 
         @Override
         public void discardState() {
-            numberOfDiscardCalls++;
+            try {
+                preDiscardCallback.run(numberOfDiscardCalls);
+                numberOfSuccessfulDiscardCalls++;
+            } catch (Exception e) {
+                throw new IllegalStateException("Unable to discard.", e);
+            } finally {
+                numberOfDiscardCalls++;
+            }
         }
 
         public int getNumberOfDiscardCalls() {
             return numberOfDiscardCalls;
+        }
+
+        public int getNumberOfSuccessfulDiscardCalls() {
+            return numberOfSuccessfulDiscardCalls;
+        }
+
+        public boolean isDiscarded() {
+            return numberOfSuccessfulDiscardCalls > 0;
         }
 
         @Override

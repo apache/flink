@@ -29,6 +29,7 @@ import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
+import org.apache.flink.runtime.rpc.exceptions.EndpointNotStartedException;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.AutoCloseableAsync;
@@ -255,6 +256,14 @@ public abstract class AbstractHandler<
                     httpRequest,
                     new ErrorResponseBody(truncatedStackTrace),
                     rhe.getHttpResponseStatus(),
+                    responseHeaders);
+        } else if (throwable instanceof EndpointNotStartedException) {
+            log.debug("A queried endpoint was not ready: {}", throwable.getMessage());
+            return HandlerUtils.sendErrorResponse(
+                    ctx,
+                    httpRequest,
+                    new ErrorResponseBody(throwable.getMessage()),
+                    HttpResponseStatus.SERVICE_UNAVAILABLE,
                     responseHeaders);
         } else {
             log.error("Unhandled exception.", throwable);

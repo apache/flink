@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
@@ -30,6 +30,8 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
@@ -56,29 +58,40 @@ public class BatchExecHashAggregate extends ExecNodeBase<RowData>
     private final RowType aggInputRowType;
     private final boolean isMerge;
     private final boolean isFinal;
+    private final boolean supportAdaptiveLocalHashAgg;
 
     public BatchExecHashAggregate(
+            ReadableConfig tableConfig,
             int[] grouping,
             int[] auxGrouping,
             AggregateCall[] aggCalls,
             RowType aggInputRowType,
             boolean isMerge,
             boolean isFinal,
+            boolean supportAdaptiveLocalHashAgg,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
+        super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(BatchExecHashAggregate.class),
+                ExecNodeContext.newPersistedConfig(BatchExecHashAggregate.class, tableConfig),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
         this.grouping = grouping;
         this.auxGrouping = auxGrouping;
         this.aggCalls = aggCalls;
         this.aggInputRowType = aggInputRowType;
         this.isMerge = isMerge;
         this.isFinal = isFinal;
+        this.supportAdaptiveLocalHashAgg = supportAdaptiveLocalHashAgg;
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
@@ -86,11 +99,12 @@ public class BatchExecHashAggregate extends ExecNodeBase<RowData>
         final RowType inputRowType = (RowType) inputEdge.getOutputType();
         final RowType outputRowType = (RowType) getOutputType();
 
-        final TableConfig config = planner.getTableConfig();
-        final CodeGeneratorContext ctx = new CodeGeneratorContext(config);
+        final CodeGeneratorContext ctx =
+                new CodeGeneratorContext(config, planner.getFlinkContext().getClassLoader());
 
         final AggregateInfoList aggInfos =
                 AggregateUtil.transformToBatchAggregateInfoList(
+                        planner.getTypeFactory(),
                         aggInputRowType,
                         JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
                         null, // aggCallNeedRetractions
@@ -103,7 +117,7 @@ public class BatchExecHashAggregate extends ExecNodeBase<RowData>
             generatedOperator =
                     AggWithoutKeysCodeGenerator.genWithoutKeys(
                             ctx,
-                            planner.getRelBuilder(),
+                            planner.createRelBuilder(),
                             aggInfos,
                             inputRowType,
                             outputRowType,
@@ -112,30 +126,37 @@ public class BatchExecHashAggregate extends ExecNodeBase<RowData>
                             "NoGrouping");
         } else {
             managedMemory =
-                    config.getConfiguration()
-                            .get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY)
+                    config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY)
                             .getBytes();
             generatedOperator =
-                    new HashAggCodeGenerator(
-                                    ctx,
-                                    planner.getRelBuilder(),
-                                    aggInfos,
-                                    inputRowType,
-                                    outputRowType,
-                                    grouping,
-                                    auxGrouping,
-                                    isMerge,
-                                    isFinal)
-                            .genWithKeys();
+                    HashAggCodeGenerator.genWithKeys(
+                            ctx,
+                            planner.createRelBuilder(),
+                            aggInfos,
+                            inputRowType,
+                            outputRowType,
+                            grouping,
+                            auxGrouping,
+                            isMerge,
+                            isFinal,
+                            supportAdaptiveLocalHashAgg,
+                            config.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES),
+                            config.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED),
+                            (int)
+                                    config.get(
+                                                    ExecutionConfigOptions
+                                                            .TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
+                                            .getBytes());
         }
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getOperatorName(planner.getTableConfig()),
-                getOperatorDescription(planner.getTableConfig()),
+                createTransformationName(config),
+                createTransformationDescription(config),
                 new CodeGenOperatorFactory<>(generatedOperator),
                 InternalTypeInfo.of(outputRowType),
                 inputTransform.getParallelism(),
-                managedMemory);
+                managedMemory,
+                false);
     }
 }

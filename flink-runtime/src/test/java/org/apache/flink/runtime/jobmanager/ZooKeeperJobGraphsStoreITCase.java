@@ -32,9 +32,10 @@ import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.PathChildrenCache;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cache.PathChildrenCache;
 
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -130,7 +131,7 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
             verifyJobGraphs(jobGraph, jobGraphs.recoverJobGraph(jobId));
 
             // Remove
-            jobGraphs.removeJobGraph(jobGraph.getJobID());
+            jobGraphs.globalCleanupAsync(jobGraph.getJobID(), Executors.directExecutor()).join();
 
             // Empty state
             assertEquals(0, jobGraphs.getJobIds().size());
@@ -140,7 +141,7 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
             verify(listener, never()).onRemovedJobGraph(any(JobID.class));
 
             // Don't fail if called again
-            jobGraphs.removeJobGraph(jobGraph.getJobID());
+            jobGraphs.globalCleanupAsync(jobGraph.getJobID(), Executors.directExecutor()).join();
         } finally {
             jobGraphs.stop();
         }
@@ -193,7 +194,9 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
 
                 verifyJobGraphs(expected.get(jobGraph.getJobID()), jobGraph);
 
-                jobGraphs.removeJobGraph(jobGraph.getJobID());
+                jobGraphs
+                        .globalCleanupAsync(jobGraph.getJobID(), Executors.directExecutor())
+                        .join();
             }
 
             // Empty state
@@ -313,7 +316,9 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
         assertThat(recoveredJobGraph, is(notNullValue()));
 
         try {
-            otherSubmittedJobGraphStore.removeJobGraph(recoveredJobGraph.getJobID());
+            otherSubmittedJobGraphStore
+                    .globalCleanupAsync(recoveredJobGraph.getJobID(), Executors.directExecutor())
+                    .join();
             fail(
                     "It should not be possible to remove the JobGraph since the first store still has a lock on it.");
         } catch (Exception ignored) {
@@ -323,7 +328,9 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
         submittedJobGraphStore.stop();
 
         // now we should be able to delete the job graph
-        otherSubmittedJobGraphStore.removeJobGraph(recoveredJobGraph.getJobID());
+        otherSubmittedJobGraphStore
+                .globalCleanupAsync(recoveredJobGraph.getJobID(), Executors.directExecutor())
+                .join();
 
         assertThat(
                 otherSubmittedJobGraphStore.recoverJobGraph(recoveredJobGraph.getJobID()),

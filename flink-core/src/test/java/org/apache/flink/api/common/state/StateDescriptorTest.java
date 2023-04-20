@@ -19,8 +19,10 @@
 package org.apache.flink.api.common.state;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
@@ -249,6 +251,17 @@ public class StateDescriptorTest {
                 1,
                 serializers.size());
         threads.clear();
+    }
+
+    @Test
+    public void testStateTTlConfig() {
+        ValueStateDescriptor<Integer> stateDescriptor =
+                new ValueStateDescriptor<>("test-state", IntSerializer.INSTANCE);
+        stateDescriptor.enableTimeToLive(StateTtlConfig.newBuilder(Time.minutes(60)).build());
+        assertTrue(stateDescriptor.getTtlConfig().isEnabled());
+
+        stateDescriptor.enableTimeToLive(StateTtlConfig.DISABLED);
+        assertFalse(stateDescriptor.getTtlConfig().isEnabled());
     }
 
     // ------------------------------------------------------------------------

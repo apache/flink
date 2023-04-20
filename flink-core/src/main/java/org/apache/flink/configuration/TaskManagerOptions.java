@@ -501,18 +501,19 @@ public class TaskManagerOptions {
 
     /** Max Network Memory size for TaskExecutors. */
     @Documentation.Section(Documentation.Sections.COMMON_MEMORY)
+    @Documentation.OverrideDefault("infinite")
     public static final ConfigOption<MemorySize> NETWORK_MEMORY_MAX =
             key("taskmanager.memory.network.max")
                     .memoryType()
-                    .defaultValue(MemorySize.parse("1g"))
+                    .defaultValue(MemorySize.MAX_VALUE)
                     .withDeprecatedKeys(
                             NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX.key())
                     .withDescription(
                             "Max Network Memory size for TaskExecutors. Network Memory is off-heap memory reserved for"
                                     + " ShuffleEnvironment (e.g., network buffers). Network Memory size is derived to make up the configured"
                                     + " fraction of the Total Flink Memory. If the derived size is less/greater than the configured min/max"
-                                    + " size, the min/max size will be used. The exact size of Network Memory can be explicitly specified by"
-                                    + " setting the min/max to the same value.");
+                                    + " size, the min/max size will be used. By default, the max limit of Network Memory is Long.MAX_VALUE."
+                                    + " The exact size of Network Memory can be explicitly specified by setting the min/max to the same value.");
 
     /** Fraction of Total Flink Memory to be used as Network Memory. */
     @Documentation.Section(Documentation.Sections.COMMON_MEMORY)
@@ -580,8 +581,8 @@ public class TaskManagerOptions {
                                     + "Can be used to avoid constant back and forth small adjustments.");
 
     /**
-     * Size of direct memory used by blocking shuffle for shuffle data read (currently only used by
-     * sort-shuffle).
+     * Size of direct memory used by batch shuffle for shuffle data read (currently only used by
+     * sort-shuffle and hybrid shuffle).
      */
     @Documentation.Section(Documentation.Sections.COMMON_MEMORY)
     public static final ConfigOption<MemorySize> NETWORK_BATCH_SHUFFLE_READ_MEMORY =
@@ -590,9 +591,9 @@ public class TaskManagerOptions {
                     .defaultValue(MemorySize.parse("64m"))
                     .withDescription(
                             String.format(
-                                    "Size of memory used by blocking shuffle for shuffle data read "
-                                            + "(currently only used by sort-shuffle). Notes: "
-                                            + "1) The memory is cut from '%s' so must be smaller than"
+                                    "Size of memory used by batch shuffle for shuffle data read "
+                                            + "(currently only used by sort-shuffle and hybrid shuffle)."
+                                            + " Notes: 1) The memory is cut from '%s' so must be smaller than"
                                             + " that, which means you may also need to increase '%s' "
                                             + "after you increase this config value; 2) This memory"
                                             + " size can influence the shuffle performance and you "

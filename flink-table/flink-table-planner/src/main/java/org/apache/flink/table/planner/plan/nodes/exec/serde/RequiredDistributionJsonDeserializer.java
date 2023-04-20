@@ -18,30 +18,35 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty.DistributionType;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty.RequiredDistribution;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 
 import java.io.IOException;
 
-/** JSON deserializer for {@link RequiredDistribution}. */
-public class RequiredDistributionJsonDeserializer extends StdDeserializer<RequiredDistribution> {
+/**
+ * JSON deserializer for {@link RequiredDistribution}.
+ *
+ * @see RelDataTypeJsonSerializer for the reverse operation
+ */
+@Internal
+final class RequiredDistributionJsonDeserializer extends StdDeserializer<RequiredDistribution> {
     private static final long serialVersionUID = 1L;
 
-    public RequiredDistributionJsonDeserializer() {
+    RequiredDistributionJsonDeserializer() {
         super(RequiredDistribution.class);
     }
 
     @Override
     public RequiredDistribution deserialize(JsonParser jsonParser, DeserializationContext ctx)
-            throws IOException, JsonProcessingException {
+            throws IOException {
         JsonNode jsonNode = jsonParser.getCodec().readTree(jsonParser);
         DistributionType type =
                 DistributionType.valueOf(jsonNode.get("type").asText().toUpperCase());

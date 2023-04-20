@@ -19,97 +19,66 @@
 package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.connector.sink.Committer;
-import org.apache.flink.api.connector.sink.GlobalCommitter;
-import org.apache.flink.api.connector.sink.Sink;
-import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
+import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
+import org.apache.flink.streaming.api.connector.sink2.WithPostCommitTopology;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 
-import java.io.IOException;
-import java.util.Optional;
-
-import static org.apache.flink.util.Preconditions.checkState;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A {@link org.apache.flink.streaming.api.operators.StreamOperatorFactory} for {@link
  * CommitterOperator}.
  *
  * @param <CommT> the type of the committable
- * @param <GlobalCommT> the type of the global committable
  */
 @Internal
-public final class CommitterOperatorFactory<CommT, GlobalCommT>
-        extends AbstractStreamOperatorFactory<byte[]>
-        implements OneInputStreamOperatorFactory<byte[], byte[]> {
+public final class CommitterOperatorFactory<CommT>
+        extends AbstractStreamOperatorFactory<CommittableMessage<CommT>>
+        implements OneInputStreamOperatorFactory<
+                CommittableMessage<CommT>, CommittableMessage<CommT>> {
 
-    private final Sink<?, CommT, ?, GlobalCommT> sink;
-    private final boolean batch;
+    private final TwoPhaseCommittingSink<?, CommT> sink;
+    private final boolean isBatchMode;
+    private final boolean isCheckpointingEnabled;
 
-    public CommitterOperatorFactory(Sink<?, CommT, ?, GlobalCommT> sink, boolean batch) {
-        this.sink = sink;
-        this.batch = batch;
+    public CommitterOperatorFactory(
+            TwoPhaseCommittingSink<?, CommT> sink,
+            boolean isBatchMode,
+            boolean isCheckpointingEnabled) {
+        this.sink = checkNotNull(sink);
+        this.isBatchMode = isBatchMode;
+        this.isCheckpointingEnabled = isCheckpointingEnabled;
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public <T extends StreamOperator<byte[]>> T createStreamOperator(
-            StreamOperatorParameters<byte[]> parameters) {
+    public <T extends StreamOperator<CommittableMessage<CommT>>> T createStreamOperator(
+            StreamOperatorParameters<CommittableMessage<CommT>> parameters) {
 
-        SimpleVersionedSerializer<CommT> committableSerializer =
-                sink.getCommittableSerializer().orElseThrow(this::noSerializerFound);
         try {
-            CommitterHandler<CommT, GlobalCommT> committerHandler = getGlobalCommitterHandler();
-            if (batch) {
-                Optional<Committer<CommT>> committer = sink.createCommitter();
-                if (committer.isPresent()) {
-                    committerHandler =
-                            new BatchCommitterHandler<>(committer.get(), committerHandler);
-                }
-            }
-
-            checkState(
-                    !(committerHandler instanceof NoopCommitterHandler),
-                    "committer operator without commmitter");
-            final CommitterOperator<CommT, GlobalCommT> committerOperator =
+            final CommitterOperator<CommT> committerOperator =
                     new CommitterOperator<>(
-                            processingTimeService, committableSerializer, committerHandler);
+                            processingTimeService,
+                            sink.getCommittableSerializer(),
+                            sink.createCommitter(),
+                            sink instanceof WithPostCommitTopology,
+                            isBatchMode,
+                            isCheckpointingEnabled);
             committerOperator.setup(
                     parameters.getContainingTask(),
                     parameters.getStreamConfig(),
                     parameters.getOutput());
             return (T) committerOperator;
         } catch (Exception e) {
-            throw new IllegalStateException("Cannot create commit operator of " + sink, e);
+            throw new IllegalStateException(
+                    "Cannot create commit operator for "
+                            + parameters.getStreamConfig().getOperatorName(),
+                    e);
         }
-    }
-
-    private IllegalStateException noSerializerFound() {
-        return new IllegalStateException(
-                sink.getClass()
-                        + " does not implement getCommittableSerializer which is needed for any (global) committer.");
-    }
-
-    private CommitterHandler<CommT, GlobalCommT> getGlobalCommitterHandler() throws IOException {
-        Optional<GlobalCommitter<CommT, GlobalCommT>> globalCommitter =
-                sink.createGlobalCommitter();
-        if (!globalCommitter.isPresent()) {
-            return NoopCommitterHandler.getInstance();
-        }
-        if (batch) {
-            return new GlobalBatchCommitterHandler<>(globalCommitter.get());
-        }
-        SimpleVersionedSerializer<GlobalCommT> serializer =
-                sink.getGlobalCommittableSerializer().orElseThrow(this::noGlobalSerializerFound);
-        return new GlobalStreamingCommitterHandler<>(globalCommitter.get(), serializer);
-    }
-
-    private IllegalStateException noGlobalSerializerFound() {
-        return new IllegalStateException(
-                sink.getClass()
-                        + " does not implement getGlobalCommittableSerializer which is needed for streaming global committers.");
     }
 
     @Override

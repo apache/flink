@@ -19,10 +19,12 @@ package org.apache.flink.runtime.taskexecutor.partition;
 
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.Map;
 import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -56,22 +58,22 @@ public class ClusterPartitionReport implements Serializable {
         private static final long serialVersionUID = -666517548300250601L;
 
         private final IntermediateDataSetID dataSetId;
-        private final Set<ResultPartitionID> hostedPartitions;
+        private final Map<ResultPartitionID, ShuffleDescriptor> shuffleDescriptors;
         private final int numTotalPartitions;
 
         public ClusterPartitionReportEntry(
                 IntermediateDataSetID dataSetId,
-                Set<ResultPartitionID> hostedPartitions,
-                int numTotalPartitions) {
+                int numTotalPartitions,
+                Map<ResultPartitionID, ShuffleDescriptor> shuffleDescriptors) {
             Preconditions.checkNotNull(dataSetId);
-            Preconditions.checkNotNull(hostedPartitions);
-            Preconditions.checkArgument(!hostedPartitions.isEmpty());
+            Preconditions.checkNotNull(shuffleDescriptors);
+            Preconditions.checkArgument(!shuffleDescriptors.isEmpty());
             Preconditions.checkArgument(numTotalPartitions > 0);
-            Preconditions.checkState(hostedPartitions.size() <= numTotalPartitions);
+            Preconditions.checkState(shuffleDescriptors.size() <= numTotalPartitions);
 
             this.dataSetId = dataSetId;
-            this.hostedPartitions = hostedPartitions;
             this.numTotalPartitions = numTotalPartitions;
+            this.shuffleDescriptors = shuffleDescriptors;
         }
 
         public IntermediateDataSetID getDataSetId() {
@@ -79,11 +81,15 @@ public class ClusterPartitionReport implements Serializable {
         }
 
         public Set<ResultPartitionID> getHostedPartitions() {
-            return hostedPartitions;
+            return shuffleDescriptors.keySet();
         }
 
         public int getNumTotalPartitions() {
             return numTotalPartitions;
+        }
+
+        public Map<ResultPartitionID, ShuffleDescriptor> getShuffleDescriptors() {
+            return shuffleDescriptors;
         }
     }
 }

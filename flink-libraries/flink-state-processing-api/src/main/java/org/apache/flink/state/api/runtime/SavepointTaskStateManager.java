@@ -18,6 +18,7 @@
 
 package org.apache.flink.state.api.runtime;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
@@ -26,9 +27,10 @@ import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
-import org.apache.flink.runtime.state.LocalRecoveryDirectoryProvider;
 import org.apache.flink.runtime.state.TaskStateManager;
+import org.apache.flink.runtime.state.changelog.ChangelogStateHandle;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorageView;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
@@ -81,8 +83,7 @@ final class SavepointTaskStateManager implements TaskStateManager {
     @Nonnull
     @Override
     public LocalRecoveryConfig createLocalRecoveryConfig() {
-        LocalRecoveryDirectoryProvider provider = new SavepointLocalRecoveryProvider();
-        return new LocalRecoveryConfig(false, provider);
+        return new LocalRecoveryConfig(null);
     }
 
     @Override
@@ -103,6 +104,13 @@ final class SavepointTaskStateManager implements TaskStateManager {
     @Nullable
     @Override
     public StateChangelogStorage<?> getStateChangelogStorage() {
+        return null;
+    }
+
+    @Nullable
+    @Override
+    public StateChangelogStorageView<?> getStateChangelogStorageView(
+            Configuration configuration, ChangelogStateHandle changelogStateHandle) {
         return null;
     }
 

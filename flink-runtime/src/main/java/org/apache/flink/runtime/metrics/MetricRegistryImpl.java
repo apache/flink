@@ -21,6 +21,7 @@ package org.apache.flink.runtime.metrics;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.MetricOptions;
+import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.View;
@@ -34,6 +35,7 @@ import org.apache.flink.runtime.metrics.groups.ReporterScopedSettings;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
+import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
@@ -41,11 +43,13 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TimeUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.function.QuadConsumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -64,13 +68,14 @@ import java.util.stream.Collectors;
  * A MetricRegistry keeps track of all registered {@link Metric Metrics}. It serves as the
  * connection between {@link MetricGroup MetricGroups} and {@link MetricReporter MetricReporters}.
  */
-public class MetricRegistryImpl implements MetricRegistry {
+public class MetricRegistryImpl implements MetricRegistry, AutoCloseableAsync {
     private static final Logger LOG = LoggerFactory.getLogger(MetricRegistryImpl.class);
 
     private final Object lock = new Object();
 
     private final List<ReporterAndSettings> reporters;
-    private final ScheduledExecutorService executor;
+    private final ScheduledExecutorService reporterScheduledExecutor;
+    private final ScheduledExecutorService viewUpdaterScheduledExecutor;
 
     private final ScopeFormats scopeFormats;
     private final char globalDelimiter;
@@ -98,7 +103,9 @@ public class MetricRegistryImpl implements MetricRegistry {
                 config,
                 reporterConfigurations,
                 Executors.newSingleThreadScheduledExecutor(
-                        new ExecutorThreadFactory("Flink-MetricRegistry")));
+                        new ExecutorThreadFactory("Flink-Metric-Reporter")),
+                Executors.newSingleThreadScheduledExecutor(
+                        new ExecutorThreadFactory("Flink-Metric-View-Updater")));
     }
 
     @VisibleForTesting
@@ -106,6 +113,14 @@ public class MetricRegistryImpl implements MetricRegistry {
             MetricRegistryConfiguration config,
             Collection<ReporterSetup> reporterConfigurations,
             ScheduledExecutorService scheduledExecutor) {
+        this(config, reporterConfigurations, scheduledExecutor, scheduledExecutor);
+    }
+
+    MetricRegistryImpl(
+            MetricRegistryConfiguration config,
+            Collection<ReporterSetup> reporterConfigurations,
+            ScheduledExecutorService reporterScheduledExecutor,
+            ScheduledExecutorService viewUpdaterScheduledExecutor) {
         this.maximumFramesize = config.getQueryServiceMessageSizeLimit();
         this.scopeFormats = config.getScopeFormats();
         this.globalDelimiter = config.getDelimiter();
@@ -115,7 +130,8 @@ public class MetricRegistryImpl implements MetricRegistry {
         // second, instantiate any custom configured reporters
         this.reporters = new ArrayList<>(4);
 
-        this.executor = scheduledExecutor;
+        this.reporterScheduledExecutor = reporterScheduledExecutor;
+        this.viewUpdaterScheduledExecutor = viewUpdaterScheduledExecutor;
 
         this.queryService = null;
         this.metricQueryServiceRpcService = null;
@@ -141,7 +157,7 @@ public class MetricRegistryImpl implements MetricRegistry {
                                 namedReporter,
                                 className);
 
-                        executor.scheduleWithFixedDelay(
+                        reporterScheduledExecutor.scheduleWithFixedDelay(
                                 new MetricRegistryImpl.ReporterTask((Scheduled) reporterInstance),
                                 period.toMillis(),
                                 period.toMillis(),
@@ -170,6 +186,7 @@ public class MetricRegistryImpl implements MetricRegistry {
                                     new ReporterScopedSettings(
                                             reporters.size(),
                                             delimiterForReporter.charAt(0),
+                                            reporterSetup.getFilter(),
                                             reporterSetup.getExcludedVariables(),
                                             reporterSetup.getAdditionalVariables())));
                 } catch (Throwable t) {
@@ -308,7 +325,8 @@ public class MetricRegistryImpl implements MetricRegistry {
      *
      * @return Future which is completed once the {@link MetricRegistryImpl} is shut down.
      */
-    public CompletableFuture<Void> shutdown() {
+    @Override
+    public CompletableFuture<Void> closeAsync() {
         synchronized (lock) {
             if (isShutdown) {
                 return terminationFuture;
@@ -319,7 +337,7 @@ public class MetricRegistryImpl implements MetricRegistry {
 
                 if (metricQueryServiceRpcService != null) {
                     final CompletableFuture<Void> metricQueryServiceRpcServiceTerminationFuture =
-                            metricQueryServiceRpcService.stopService();
+                            metricQueryServiceRpcService.closeAsync();
                     terminationFutures.add(metricQueryServiceRpcServiceTerminationFuture);
                 }
 
@@ -341,11 +359,20 @@ public class MetricRegistryImpl implements MetricRegistry {
                                             throwable)));
                 }
 
-                final CompletableFuture<Void> executorShutdownFuture =
+                final CompletableFuture<Void> reporterExecutorShutdownFuture =
                         ExecutorUtils.nonBlockingShutdown(
-                                gracePeriod.toMilliseconds(), TimeUnit.MILLISECONDS, executor);
+                                gracePeriod.toMilliseconds(),
+                                TimeUnit.MILLISECONDS,
+                                reporterScheduledExecutor);
+                terminationFutures.add(reporterExecutorShutdownFuture);
 
-                terminationFutures.add(executorShutdownFuture);
+                final CompletableFuture<Void> viewUpdaterExecutorShutdownFuture =
+                        ExecutorUtils.nonBlockingShutdown(
+                                gracePeriod.toMilliseconds(),
+                                TimeUnit.MILLISECONDS,
+                                viewUpdaterScheduledExecutor);
+
+                terminationFutures.add(viewUpdaterExecutorShutdownFuture);
 
                 FutureUtils.completeAll(terminationFutures)
                         .whenComplete(
@@ -378,22 +405,14 @@ public class MetricRegistryImpl implements MetricRegistry {
                 LOG.warn(
                         "Cannot register metric, because the MetricRegistry has already been shut down.");
             } else {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(
+                            "Registering metric {}.{}.",
+                            group.getLogicalScope(CharacterFilter.NO_OP_FILTER),
+                            metricName);
+                }
                 if (reporters != null) {
-                    for (int i = 0; i < reporters.size(); i++) {
-                        ReporterAndSettings reporterAndSettings = reporters.get(i);
-                        try {
-                            if (reporterAndSettings != null) {
-                                FrontMetricGroup front =
-                                        new FrontMetricGroup<AbstractMetricGroup<?>>(
-                                                reporterAndSettings.getSettings(), group);
-                                reporterAndSettings
-                                        .getReporter()
-                                        .notifyOfAddedMetric(metric, metricName, front);
-                            }
-                        } catch (Exception e) {
-                            LOG.warn("Error while registering metric: {}.", metricName, e);
-                        }
-                    }
+                    forAllReporters(MetricReporter::notifyOfAddedMetric, metric, metricName, group);
                 }
                 try {
                     if (queryService != null) {
@@ -405,7 +424,7 @@ public class MetricRegistryImpl implements MetricRegistry {
                 try {
                     if (metric instanceof View) {
                         if (viewUpdater == null) {
-                            viewUpdater = new ViewUpdater(executor);
+                            viewUpdater = new ViewUpdater(viewUpdaterScheduledExecutor);
                         }
                         viewUpdater.notifyOfAddedView((View) metric);
                     }
@@ -424,21 +443,8 @@ public class MetricRegistryImpl implements MetricRegistry {
                         "Cannot unregister metric, because the MetricRegistry has already been shut down.");
             } else {
                 if (reporters != null) {
-                    for (int i = 0; i < reporters.size(); i++) {
-                        try {
-                            ReporterAndSettings reporterAndSettings = reporters.get(i);
-                            if (reporterAndSettings != null) {
-                                FrontMetricGroup front =
-                                        new FrontMetricGroup<AbstractMetricGroup<?>>(
-                                                reporterAndSettings.getSettings(), group);
-                                reporterAndSettings
-                                        .getReporter()
-                                        .notifyOfRemovedMetric(metric, metricName, front);
-                            }
-                        } catch (Exception e) {
-                            LOG.warn("Error while unregistering metric: {}.", metricName, e);
-                        }
-                    }
+                    forAllReporters(
+                            MetricReporter::notifyOfRemovedMetric, metric, metricName, group);
                 }
                 try {
                     if (queryService != null) {
@@ -456,6 +462,40 @@ public class MetricRegistryImpl implements MetricRegistry {
                 } catch (Exception e) {
                     LOG.warn("Error while unregistering metric: {}", metricName, e);
                 }
+            }
+        }
+    }
+
+    @GuardedBy("lock")
+    private void forAllReporters(
+            QuadConsumer<MetricReporter, Metric, String, MetricGroup> operation,
+            Metric metric,
+            String metricName,
+            AbstractMetricGroup group) {
+        for (int i = 0; i < reporters.size(); i++) {
+            try {
+                ReporterAndSettings reporterAndSettings = reporters.get(i);
+                if (reporterAndSettings != null) {
+                    final String logicalScope = group.getLogicalScope(CharacterFilter.NO_OP_FILTER);
+                    if (!reporterAndSettings
+                            .settings
+                            .getFilter()
+                            .filter(metric, metricName, logicalScope)) {
+                        LOG.trace(
+                                "Ignoring metric {}.{} for reporter #{} due to filter rules.",
+                                logicalScope,
+                                metricName,
+                                i);
+                        continue;
+                    }
+                    FrontMetricGroup front =
+                            new FrontMetricGroup<AbstractMetricGroup<?>>(
+                                    reporterAndSettings.getSettings(), group);
+
+                    operation.accept(reporterAndSettings.getReporter(), metric, metricName, front);
+                }
+            } catch (Exception e) {
+                LOG.warn("Error while handling metric: {}.", metricName, e);
             }
         }
     }

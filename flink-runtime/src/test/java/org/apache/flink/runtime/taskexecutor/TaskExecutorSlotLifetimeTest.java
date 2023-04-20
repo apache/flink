@@ -44,24 +44,33 @@ import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGate
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
+import org.apache.flink.runtime.security.token.DelegationTokenReceiverRepository;
+import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils;
 import org.apache.flink.runtime.taskmanager.LocalUnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.testutils.TestFileUtils;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.util.Reference;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.function.FunctionUtils;
 
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.hamcrest.CoreMatchers.sameInstance;
 import static org.junit.Assert.assertThat;
@@ -70,12 +79,18 @@ import static org.junit.Assert.assertThat;
 public class TaskExecutorSlotLifetimeTest extends TestLogger {
 
     @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
+
+    @ClassRule
     public static final TestingRpcServiceResource TESTING_RPC_SERVICE_RESOURCE =
             new TestingRpcServiceResource();
 
     @Rule
     public final TestingFatalErrorHandlerResource testingFatalErrorHandlerResource =
             new TestingFatalErrorHandlerResource();
+
+    @Rule public final TemporaryFolder tmp = new TemporaryFolder();
 
     @Before
     public void setup() {
@@ -210,8 +225,11 @@ public class TaskExecutorSlotLifetimeTest extends TestLogger {
                         TestFileUtils.createTempDir()),
                 haServices,
                 new TaskManagerServicesBuilder()
-                        .setTaskSlotTable(TaskSlotUtils.createTaskSlotTable(1))
+                        .setTaskSlotTable(
+                                TaskSlotUtils.createTaskSlotTable(
+                                        1, EXECUTOR_RESOURCE.getExecutor()))
                         .setUnresolvedTaskManagerLocation(unresolvedTaskManagerLocation)
+                        .setTaskStateManager(createTaskExecutorLocalStateStoresManager())
                         .build(),
                 ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
                 new TestingHeartbeatServices(),
@@ -219,7 +237,14 @@ public class TaskExecutorSlotLifetimeTest extends TestLogger {
                 null,
                 NoOpTaskExecutorBlobService.INSTANCE,
                 testingFatalErrorHandlerResource.getFatalErrorHandler(),
-                new TestingTaskExecutorPartitionTracker());
+                new TestingTaskExecutorPartitionTracker(),
+                new DelegationTokenReceiverRepository(configuration, null));
+    }
+
+    private TaskExecutorLocalStateStoresManager createTaskExecutorLocalStateStoresManager()
+            throws IOException {
+        return new TaskExecutorLocalStateStoresManager(
+                false, Reference.owned(new File[] {tmp.newFolder()}), Executors.directExecutor());
     }
 
     public static final class UserClassLoaderExtractingInvokable extends AbstractInvokable {

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.expressions.utils
 
 import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, PrimitiveArrayTypeInfo, Types}
@@ -46,16 +45,16 @@ abstract class ArrayTypeTestBase extends ExpressionTestBase {
 
   override def typeInfo: RowTypeInfo = {
     new RowTypeInfo(
-      /* 0 */  Types.INT,
-      /* 1 */  Types.INT,
-      /* 2 */  PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO,
-      /* 3 */  ObjectArrayTypeInfo.getInfoFor(Types.LOCAL_DATE),
-      /* 4 */  ObjectArrayTypeInfo.getInfoFor(ObjectArrayTypeInfo.getInfoFor(Types.INT)),
-      /* 5 */  ObjectArrayTypeInfo.getInfoFor(PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO),
-      /* 6 */  ObjectArrayTypeInfo.getInfoFor(Types.INT),
-      /* 7 */  PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO,
-      /* 8 */  PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO,
-      /* 9 */  ObjectArrayTypeInfo.getInfoFor(Types.INT),
+      /* 0 */ Types.INT,
+      /* 1 */ Types.INT,
+      /* 2 */ PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO,
+      /* 3 */ ObjectArrayTypeInfo.getInfoFor(Types.LOCAL_DATE),
+      /* 4 */ ObjectArrayTypeInfo.getInfoFor(ObjectArrayTypeInfo.getInfoFor(Types.INT)),
+      /* 5 */ ObjectArrayTypeInfo.getInfoFor(PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO),
+      /* 6 */ ObjectArrayTypeInfo.getInfoFor(Types.INT),
+      /* 7 */ PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO,
+      /* 8 */ PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO,
+      /* 9 */ ObjectArrayTypeInfo.getInfoFor(Types.INT),
       /* 10 */ ObjectArrayTypeInfo.getInfoFor(Types.INT),
       /* 11 */ BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO
     )

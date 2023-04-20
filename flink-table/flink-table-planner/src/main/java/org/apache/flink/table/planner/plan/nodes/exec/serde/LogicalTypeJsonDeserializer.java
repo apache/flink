@@ -29,7 +29,6 @@ import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.dataview.NullSerializer;
 import org.apache.flink.table.runtime.typeutils.ExternalSerializer;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.extraction.ExtractionUtils;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.CharType;
@@ -62,6 +61,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil.loadClass;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_ATTRIBUTES;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_ATTRIBUTE_DESCRIPTION;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_ATTRIBUTE_NAME;
@@ -97,10 +97,10 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJs
  * @see LogicalTypeJsonSerializer for the reverse operation
  */
 @Internal
-public class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalType> {
+final class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalType> {
     private static final long serialVersionUID = 1L;
 
-    public LogicalTypeJsonDeserializer() {
+    LogicalTypeJsonDeserializer() {
         super(LogicalType.class);
     }
 
@@ -112,11 +112,11 @@ public class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalType> {
         return deserialize(logicalTypeNode, serdeContext);
     }
 
-    public static LogicalType deserialize(JsonNode logicalTypeNode, SerdeContext serdeContext) {
+    static LogicalType deserialize(JsonNode logicalTypeNode, SerdeContext serdeContext) {
         if (logicalTypeNode.isTextual()) {
             return deserializeWithCompactSerialization(logicalTypeNode.asText(), serdeContext);
         } else {
-            return deserializeWithGenericSerialization(logicalTypeNode, serdeContext);
+            return deserializeWithExtendedSerialization(logicalTypeNode, serdeContext);
         }
     }
 
@@ -127,7 +127,7 @@ public class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalType> {
         return dataTypeFactory.createLogicalType(serializableString);
     }
 
-    private static LogicalType deserializeWithGenericSerialization(
+    private static LogicalType deserializeWithExtendedSerialization(
             JsonNode logicalTypeNode, SerdeContext serdeContext) {
         final LogicalType logicalType = deserializeFromRoot(logicalTypeNode, serdeContext);
         if (logicalTypeNode.has(FIELD_NAME_NULLABLE)) {
@@ -252,7 +252,7 @@ public class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalType> {
             JsonNode logicalTypeNode, SerdeContext serdeContext) {
         final ObjectIdentifier identifier =
                 ObjectIdentifierJsonDeserializer.deserialize(
-                        logicalTypeNode.get(FIELD_NAME_OBJECT_IDENTIFIER));
+                        logicalTypeNode.get(FIELD_NAME_OBJECT_IDENTIFIER).asText(), serdeContext);
         final CatalogPlanRestore restoreStrategy =
                 serdeContext
                         .getConfiguration()
@@ -294,7 +294,7 @@ public class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalType> {
         // for catalog structured types
         final ObjectIdentifier identifier =
                 ObjectIdentifierJsonDeserializer.deserialize(
-                        logicalTypeNode.get(FIELD_NAME_OBJECT_IDENTIFIER));
+                        logicalTypeNode.get(FIELD_NAME_OBJECT_IDENTIFIER).asText(), serdeContext);
         final CatalogPlanRestore restoreStrategy =
                 serdeContext
                         .getConfiguration()
@@ -327,7 +327,8 @@ public class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalType> {
         if (logicalTypeNode.has(FIELD_NAME_OBJECT_IDENTIFIER)) {
             identifier =
                     ObjectIdentifierJsonDeserializer.deserialize(
-                            logicalTypeNode.get(FIELD_NAME_OBJECT_IDENTIFIER));
+                            logicalTypeNode.get(FIELD_NAME_OBJECT_IDENTIFIER).asText(),
+                            serdeContext);
         } else {
             identifier = null;
         }
@@ -422,15 +423,5 @@ public class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalType> {
         }
 
         return new RawType(clazz, serializer);
-    }
-
-    private static Class<?> loadClass(
-            String className, SerdeContext serdeContext, String explanation) {
-        try {
-            return ExtractionUtils.classForName(className, true, serdeContext.getClassLoader());
-        } catch (ClassNotFoundException e) {
-            throw new TableException(
-                    String.format("Could not load class '%s' for %s.", className, explanation), e);
-        }
     }
 }

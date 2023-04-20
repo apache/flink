@@ -51,7 +51,7 @@ public class JobManagerJobGroupTest extends TestLogger {
 
         assertEquals("theHostName.jobmanager.myJobName.name", jmGroup.getMetricIdentifier("name"));
 
-        registry.shutdown().get();
+        registry.closeAsync().get();
     }
 
     @Test
@@ -71,7 +71,7 @@ public class JobManagerJobGroupTest extends TestLogger {
 
         assertEquals("some-constant.myJobName.name", jmGroup.getMetricIdentifier("name"));
 
-        registry.shutdown().get();
+        registry.closeAsync().get();
     }
 
     @Test
@@ -94,7 +94,7 @@ public class JobManagerJobGroupTest extends TestLogger {
 
         assertEquals("peter.some-constant." + jid + ".name", jmGroup.getMetricIdentifier("name"));
 
-        registry.shutdown().get();
+        registry.closeAsync().get();
     }
 
     @Test

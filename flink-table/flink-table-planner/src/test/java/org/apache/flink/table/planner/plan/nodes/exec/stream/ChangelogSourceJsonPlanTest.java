@@ -37,9 +37,7 @@ public class ChangelogSourceJsonPlanTest extends TableTestBase {
     public void setup() {
         util = streamTestUtil(TableConfig.getDefault());
         tEnv = util.getTableEnv();
-        tEnv.getConfig()
-                .getConfiguration()
-                .setBoolean(ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE, true);
+        tEnv.getConfig().set(ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE, true);
     }
 
     @Test

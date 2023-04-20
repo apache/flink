@@ -29,6 +29,9 @@ import java.util.function.BinaryOperator;
 @PublicEvolving
 public final class ColumnStats {
 
+    /** Unknown definition for column stats. */
+    public static final ColumnStats UNKNOWN = Builder.builder().build();
+
     /** number of distinct values. */
     private final Long ndv;
 
@@ -210,8 +213,17 @@ public final class ColumnStats {
      * @param other The other column stats to merge.
      * @return The merged column stats.
      */
-    public ColumnStats merge(ColumnStats other) {
-        Long ndv = combineIfNonNull(Long::sum, this.ndv, other.ndv);
+    public ColumnStats merge(ColumnStats other, boolean isPartitionKey) {
+        if (this == UNKNOWN || other == UNKNOWN) {
+            return UNKNOWN;
+        }
+        Long ndv;
+        if (isPartitionKey) {
+            ndv = combineIfNonNull(Long::sum, this.ndv, other.ndv);
+        } else {
+            ndv = combineIfNonNull(Long::max, this.ndv, other.ndv);
+        }
+
         Long nullCount = combineIfNonNull(Long::sum, this.nullCount, other.nullCount);
         Double avgLen = combineIfNonNull((a1, a2) -> (a1 + a2) / 2, this.avgLen, other.avgLen);
         Integer maxLen = combineIfNonNull(Math::max, this.maxLen, other.maxLen);

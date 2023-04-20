@@ -19,14 +19,12 @@
 package org.apache.flink.connectors.hive;
 
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.table.factories.TableSinkFactory;
 import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
-import org.apache.flink.util.Preconditions;
 
 import java.util.List;
 import java.util.Map;
@@ -49,7 +47,6 @@ public class HiveTableFactory implements TableSourceFactory, TableSinkFactory {
     @Override
     public TableSource createTableSource(TableSourceFactory.Context context) {
         CatalogTable table = checkNotNull(context.getTable());
-        Preconditions.checkArgument(table instanceof CatalogTableImpl);
 
         boolean isHiveTable = HiveCatalog.isHiveTable(table.getOptions());
 
@@ -65,7 +62,6 @@ public class HiveTableFactory implements TableSourceFactory, TableSinkFactory {
     @Override
     public TableSink createTableSink(TableSinkFactory.Context context) {
         CatalogTable table = checkNotNull(context.getTable());
-        Preconditions.checkArgument(table instanceof CatalogTableImpl);
 
         boolean isHiveTable = HiveCatalog.isHiveTable(table.getOptions());
 

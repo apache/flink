@@ -50,25 +50,26 @@ class BinaryToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<byte
 
     isNull$0 = _myInputIsNull;
     if (!isNull$0) {
-        java.lang.String hexString$0;
-        hexString$0 = org.apache.flink.table.utils.EncodingUtils.hex(_myInput);
-        java.lang.String resultString$152;
-        resultString$152 = hexString$0.toString();
-        if (hexString$0.length() > 3) {
-            resultString$152 = hexString$0.substring(0, java.lang.Math.min(hexString$0.length(), 3));
+        java.lang.String resultString$435;
+        resultString$435 = new java.lang.String(_myInput, java.nio.charset.StandardCharsets.UTF_8);
+        java.lang.String resultPadOrTrim$538;
+        resultPadOrTrim$538 = resultString$435.toString();
+        if (resultString$435.length() > 12) {
+            resultPadOrTrim$538 = resultString$435.substring(0, java.lang.Math.min(resultString$435.length(), 12));
         } else {
-            if (resultString$1.length() < 12) {
-                int padLength$3;
-                padLength$3 = 12 - resultString$152.length();
-                java.lang.StringBuilder sbPadding$4;
-                sbPadding$4 = new java.lang.StringBuilder();
-                for (int i$5 = 0; i$5 < padLength$3; i$5++) {
-                    sbPadding$4.append(" ");
+            if (resultPadOrTrim$538.length() < 12) {
+                int padLength$539;
+                padLength$539 = 12 - resultPadOrTrim$538.length();
+                java.lang.StringBuilder sbPadding$540;
+                sbPadding$540 = new java.lang.StringBuilder();
+                for (int i$541 = 0; i$541 < padLength$539; i$541++) {
+                    sbPadding$540.append(" ");
                 }
-                resultString$152 = resultString$152 + sbPadding$4.toString();
+                resultPadOrTrim$538 = resultPadOrTrim$538 + sbPadding$540.toString();
             }
         }
-        result$1 = org.apache.flink.table.data.binary.BinaryStringData.fromString(resultString$152);
+        resultString$435 = resultPadOrTrim$538;
+        result$1 = org.apache.flink.table.data.binary.BinaryStringData.fromString(resultString$435);
         isNull$0 = result$1 == null;
     } else {
         result$1 = org.apache.flink.table.data.binary.BinaryStringData.EMPTY_UTF8;
@@ -84,29 +85,34 @@ class BinaryToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<byte
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
         final String resultStringTerm = newName("resultString");
-        CastRuleUtils.CodeWriter writer = new CastRuleUtils.CodeWriter();
-        if (context.legacyBehaviour()) {
-            writer.declStmt(String.class, resultStringTerm)
-                    .assignStmt(
-                            resultStringTerm,
-                            constructorCall(
-                                    String.class,
-                                    inputTerm,
-                                    accessStaticField(StandardCharsets.class, "UTF_8")));
-        } else {
-            final int length = LogicalTypeChecks.getLength(targetLogicalType);
+        final CastRuleUtils.CodeWriter writer = new CastRuleUtils.CodeWriter();
 
-            final String hexStringTerm = newName("hexString");
-            writer.declStmt(String.class, hexStringTerm)
-                    .assignStmt(hexStringTerm, staticCall(EncodingUtils.class, "hex", inputTerm));
-            writer =
-                    CharVarCharTrimPadCastRule.padAndTrimStringIfNeeded(
-                            writer,
-                            targetLogicalType,
-                            context.legacyBehaviour(),
-                            length,
-                            resultStringTerm,
-                            hexStringTerm);
+        writer.declStmt(String.class, resultStringTerm);
+        if (context.isPrinting()) {
+            writer.assignStmt(resultStringTerm, "\"x'\"")
+                    .assignPlusStmt(
+                            resultStringTerm, staticCall(EncodingUtils.class, "hex", inputTerm))
+                    .assignPlusStmt(resultStringTerm, "\"'\"");
+        } else {
+            writer.assignStmt(
+                    resultStringTerm,
+                    constructorCall(
+                            String.class,
+                            inputTerm,
+                            accessStaticField(StandardCharsets.class, "UTF_8")));
+        }
+
+        if (!context.legacyBehaviour() && !context.isPrinting()) {
+            final String resultPadOrTrim = newName("resultPadOrTrim");
+            final int length = LogicalTypeChecks.getLength(targetLogicalType);
+            CharVarCharTrimPadCastRule.padAndTrimStringIfNeeded(
+                    writer,
+                    targetLogicalType,
+                    context.legacyBehaviour(),
+                    length,
+                    resultPadOrTrim,
+                    resultStringTerm);
+            writer.assignStmt(resultStringTerm, resultPadOrTrim);
         }
         return writer
                 // Assign the result value

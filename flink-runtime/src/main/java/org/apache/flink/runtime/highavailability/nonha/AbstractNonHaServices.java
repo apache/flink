@@ -23,8 +23,8 @@ import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
-import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneRunningJobsRegistry;
+import org.apache.flink.runtime.highavailability.JobResultStore;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.jobmanager.StandaloneJobGraphStore;
 
@@ -43,14 +43,14 @@ import static org.apache.flink.util.Preconditions.checkState;
 public abstract class AbstractNonHaServices implements HighAvailabilityServices {
     protected final Object lock = new Object();
 
-    private final RunningJobsRegistry runningJobsRegistry;
+    private final JobResultStore jobResultStore;
 
     private final VoidBlobStore voidBlobStore;
 
     private boolean shutdown;
 
     public AbstractNonHaServices() {
-        this.runningJobsRegistry = new StandaloneRunningJobsRegistry();
+        this.jobResultStore = new EmbeddedJobResultStore();
         this.voidBlobStore = new VoidBlobStore();
 
         shutdown = false;
@@ -79,11 +79,11 @@ public abstract class AbstractNonHaServices implements HighAvailabilityServices 
     }
 
     @Override
-    public RunningJobsRegistry getRunningJobsRegistry() throws Exception {
+    public JobResultStore getJobResultStore() throws Exception {
         synchronized (lock) {
             checkNotShutdown();
 
-            return runningJobsRegistry;
+            return jobResultStore;
         }
     }
 

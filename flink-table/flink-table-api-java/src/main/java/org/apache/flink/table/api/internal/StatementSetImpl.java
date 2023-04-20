@@ -20,23 +20,20 @@ package org.apache.flink.table.api.internal;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.ExplainDetail;
+import org.apache.flink.table.api.ExplainFormat;
 import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.TablePipeline;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.catalog.ContextResolvedTable;
-import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.catalog.ResolvedCatalogTable;
-import org.apache.flink.table.catalog.SchemaTranslator;
-import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.operations.SinkModifyOperation;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -48,6 +45,17 @@ public class StatementSetImpl<E extends TableEnvironmentInternal> implements Sta
 
     protected StatementSetImpl(E tableEnvironment) {
         this.tableEnvironment = tableEnvironment;
+    }
+
+    @VisibleForTesting
+    public List<ModifyOperation> getOperations() {
+        return operations;
+    }
+
+    @Override
+    public StatementSet add(TablePipeline tablePipeline) {
+        operations.add(((TablePipelineImpl) tablePipeline).getOperation());
+        return this;
     }
 
     @Override
@@ -69,67 +77,30 @@ public class StatementSetImpl<E extends TableEnvironmentInternal> implements Sta
 
     @Override
     public StatementSet addInsert(String targetPath, Table table) {
-        return addInsert(targetPath, table, false);
+        return add(table.insertInto(targetPath));
     }
 
     @Override
     public StatementSet addInsert(String targetPath, Table table, boolean overwrite) {
-        UnresolvedIdentifier unresolvedIdentifier =
-                tableEnvironment.getParser().parseIdentifier(targetPath);
-        ObjectIdentifier objectIdentifier =
-                tableEnvironment.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
-        ContextResolvedTable contextResolvedTable =
-                tableEnvironment.getCatalogManager().getTableOrError(objectIdentifier);
-
-        operations.add(
-                new SinkModifyOperation(
-                        contextResolvedTable,
-                        table.getQueryOperation(),
-                        Collections.emptyMap(),
-                        overwrite,
-                        Collections.emptyMap()));
-
-        return this;
+        return add(table.insertInto(targetPath, overwrite));
     }
 
     @Override
     public StatementSet addInsert(TableDescriptor targetDescriptor, Table table) {
-        return addInsert(targetDescriptor, table, false);
+        return add(table.insertInto(targetDescriptor));
     }
 
     @Override
     public StatementSet addInsert(
             TableDescriptor targetDescriptor, Table table, boolean overwrite) {
-        final SchemaTranslator.ConsumingResult schemaTranslationResult =
-                SchemaTranslator.createConsumingResult(
-                        tableEnvironment.getCatalogManager().getDataTypeFactory(),
-                        table.getResolvedSchema().toSourceRowDataType(),
-                        targetDescriptor.getSchema().orElse(null),
-                        false);
-        final TableDescriptor updatedDescriptor =
-                targetDescriptor.toBuilder().schema(schemaTranslationResult.getSchema()).build();
-
-        final ResolvedCatalogTable resolvedCatalogBaseTable =
-                tableEnvironment
-                        .getCatalogManager()
-                        .resolveCatalogTable(updatedDescriptor.toCatalogTable());
-
-        operations.add(
-                new SinkModifyOperation(
-                        ContextResolvedTable.anonymous(resolvedCatalogBaseTable),
-                        table.getQueryOperation(),
-                        Collections.emptyMap(),
-                        overwrite,
-                        Collections.emptyMap()));
-
-        return this;
+        return add(table.insertInto(targetDescriptor, overwrite));
     }
 
     @Override
-    public String explain(ExplainDetail... extraDetails) {
+    public String explain(ExplainFormat format, ExplainDetail... extraDetails) {
         List<Operation> operationList =
                 operations.stream().map(o -> (Operation) o).collect(Collectors.toList());
-        return tableEnvironment.explainInternal(operationList, extraDetails);
+        return tableEnvironment.explainInternal(operationList, format, extraDetails);
     }
 
     @Override
@@ -141,22 +112,8 @@ public class StatementSetImpl<E extends TableEnvironmentInternal> implements Sta
         }
     }
 
-    /**
-     * Get the json plan of the all statements and Tables as a batch.
-     *
-     * <p>The json plan is the string json representation of an optimized ExecNode plan for the
-     * statements and Tables. An ExecNode plan can be serialized to json plan, and a json plan can
-     * be deserialized to an ExecNode plan.
-     *
-     * <p>The added statements and Tables will NOT be cleared when executing this method.
-     *
-     * <p><b>NOTES</b>: This is an experimental feature now.
-     *
-     * @return the string json representation of an optimized ExecNode plan for the statements and
-     *     Tables.
-     */
     @Experimental
-    public String getJsonPlan() {
-        return tableEnvironment.getJsonPlan(operations);
+    public CompiledPlan compilePlan() {
+        return tableEnvironment.compilePlan(operations);
     }
 }

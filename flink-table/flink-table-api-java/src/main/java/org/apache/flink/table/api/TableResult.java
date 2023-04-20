@@ -178,7 +178,7 @@ public interface TableResult {
      *
      * <p>This method has slightly different behaviors under different checkpointing settings (to
      * enable checkpointing for a streaming job, set checkpointing properties through {@link
-     * TableConfig#getConfiguration()}).
+     * TableConfig}).
      *
      * <ul>
      *   <li>For batch jobs or streaming jobs without checkpointing, this method has neither
@@ -205,7 +205,7 @@ public interface TableResult {
      *
      * <p>This method has slightly different behaviors under different checkpointing settings (to
      * enable checkpointing for a streaming job, set checkpointing properties through {@link
-     * TableConfig#getConfiguration()}).
+     * TableConfig}).
      *
      * <ul>
      *   <li>For batch jobs or streaming jobs without checkpointing, this method has neither

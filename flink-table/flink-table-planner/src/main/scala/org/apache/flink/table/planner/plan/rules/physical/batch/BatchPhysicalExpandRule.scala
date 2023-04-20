@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
@@ -25,16 +24,10 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalExp
 import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 
-/**
-  * Rule that converts [[FlinkLogicalExpand]] to [[BatchPhysicalExpand]].
-  */
-class BatchPhysicalExpandRule
-  extends ConverterRule(
-    classOf[FlinkLogicalExpand],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.BATCH_PHYSICAL,
-    "BatchPhysicalExpandRule") {
+/** Rule that converts [[FlinkLogicalExpand]] to [[BatchPhysicalExpand]]. */
+class BatchPhysicalExpandRule(config: Config) extends ConverterRule(config) {
 
   def convert(rel: RelNode): RelNode = {
     val expand = rel.asInstanceOf[FlinkLogicalExpand]
@@ -50,5 +43,10 @@ class BatchPhysicalExpandRule
 }
 
 object BatchPhysicalExpandRule {
-  val INSTANCE: RelOptRule = new BatchPhysicalExpandRule
+  val INSTANCE: RelOptRule = new BatchPhysicalExpandRule(
+    Config.INSTANCE.withConversion(
+      classOf[FlinkLogicalExpand],
+      FlinkConventions.LOGICAL,
+      FlinkConventions.BATCH_PHYSICAL,
+      "BatchPhysicalExpandRule"))
 }

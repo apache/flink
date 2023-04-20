@@ -26,183 +26,226 @@ under the License.
 
 # 升级应用程序和 Flink 版本
 
-Flink DataStream programs are typically designed to run for long periods of time such as weeks, months, or even years. As with all long-running services, Flink streaming applications need to be maintained, which includes fixing bugs, implementing improvements, or migrating an application to a Flink cluster of a later version.
+Flink DataStream 程序通常设计为长时间运行，例如数周、数月甚至数年。与所有长时间运行的服务一样，Flink 流式应用程序需要维护，包括修复错误、实施改进或将应用程序迁移到更高版本的 Flink 集群。
 
-This document describes how to update a Flink streaming application and how to migrate a running streaming application to a different Flink cluster.
+本文档介绍了如何更新 Flink 流式应用程序以及如何将正在运行的流式应用程序迁移到不同的 Flink 集群。
 
-## Restarting Streaming Applications
+## API compatibility guarantees
 
-The line of action for upgrading a streaming application or migrating an application to a different cluster is based on Flink's [Savepoint]({{< ref "docs/ops/state/savepoints" >}}) feature. A savepoint is a consistent snapshot of the state of an application at a specific point in time. 
+The classes & methods of the Java/Scala APIs that are intended for users are annotated with the following stability annotations:
+* `Public`
+* `PublicEvolving`
+* `Experimental`
 
-There are two ways of taking a savepoint from a running streaming application.
+{{< hint info>}}
+Annotations on a class also apply to all members of that class, unless otherwise annotated.
+{{< /hint >}}
 
-* Taking a savepoint and continue processing.
+Any API without such an annotation is considered internal to Flink, with no guarantees being provided.
+
+An API that is `source` compatible means that code **written** against the API will continue to **compile** against a later version.  
+An API that is `binary` compatible means that code **compiled** against the API will continue to **run** against a later version.
+
+This table lists the `source` / `binary` compatibility guarantees for each annotation when upgrading to a particular release:
+
+|    Annotation    | Major release<br>(Source / Binary) | Minor release<br>(Source / Binary) | Patch release<br>(Source / Binary) |
+|:----------------:|:----------------------------------:|:----------------------------------:|:----------------------------------:|
+|     `Public`     |    {{< xmark >}}/{{< xmark >}}     |    {{< check >}}/{{< xmark >}}     |    {{< check >}}/{{< check >}}     |
+| `PublicEvolving` |    {{< xmark >}}/{{< xmark >}}     |    {{< xmark >}}/{{< xmark >}}     |    {{< check >}}/{{< check >}}     |
+|  `Experimental`  |    {{< xmark >}}/{{< xmark >}}     |    {{< xmark >}}/{{< xmark >}}     |    {{< xmark >}}/{{< xmark >}}     |
+
+{{< hint info >}}
+{{< label Example >}}  
+Code written against a `PublicEvolving` API in 1.15.2 will continue to run in 1.15.3, without having to recompile the code.  
+That same code would have to be recompiled when upgrading to 1.16.0 though.
+{{< /hint >}}
+
+## 重启流式应用程序
+
+升级流式应用程序或将应用程序迁移到不同集群的操作线基于 Flink 的 [Savepoint]({{< ref "docs/ops/state/savepoints" >}}) 功能。Savepoint 是应用程序在特定时间点的状态的一致快照。
+有两种方法可以从正在运行的流应用程序中获取 savepoint。
+* 获取 Savepoint 并继续处理。
 ```bash
-> ./bin/flink savepoint <jobID> [pathToSavepoint]
+> ./bin/flink savepoint <jobID> [ Savepoint 的路径]
 ```
-It is recommended to periodically take savepoints in order to be able to restart an application from a previous point in time.
+建议定期获取 Savepoint ，以便能够从之前的时间点重新启动应用程序。
 
-* Taking a savepoint and stopping the application as a single action. 
+* 作获取 Savepoint 并停止应用程序。
 ```bash
-> ./bin/flink cancel -s [pathToSavepoint] <jobID>
+> ./bin/flink cancel -s [ Savepoint 的路径] <jobID>
 ```
-This means that the application is canceled immediately after the savepoint completed, i.e., no other checkpoints are taken after the savepoint.
+这意味着应用程序在 Savepoint 完成后立即取消，即在 Savepoint 之后不进行其他 checkpoint。
 
-Given a savepoint taken from an application, the same or a compatible application (see [Application State Compatibility](#application-state-compatibility) section below) can be started from that savepoint. Starting an application from a savepoint means that the state of its operators is initialized with the operator state persisted in the savepoint. This is done by starting an application using a savepoint.
+给定从应用程序获取的 Savepoint ，可以从该 Savepoint 启动相同或兼容的应用程序（请参阅下面的 [应用程序状态兼容性](#application-state-compatibility) 部分）。从 Savepoint 启动应用程序意味着其算子的状态被初始化为 Savepoint 中保存的算子状态。这是通过使用 Savepoint 启动应用程序来完成的。
 ```bash
-> ./bin/flink run -d -s [pathToSavepoint] ~/application.jar
+> ./bin/flink run -d -s [ Savepoint 的路径] ~/application.jar
 ```
+ 
+已启动应用程序的算子在获取 Savepoint 时使用原始应用程序（即获取 Savepoint 的应用程序）的算子状态进行初始化。启动的应用程序从此时开始继续处理。
 
-The operators of the started application are initialized with the operator state of the original application (i.e., the application the savepoint was taken from) at the time when the savepoint was taken. The started application continues processing from exactly this point on. 
+**Note**: 即使 Flink 始终如一地恢复应用程序的状态，它也无法恢复对外部系统的写入。如果您从未停止应用程序的 Savepoint 恢复，这可能是一个问题。在这种情况下，应用程序可能在获取 Savepoint 后发出了数据。重新启动的应用程序可能（取决于您是否更改了应用程序逻辑）再次发出相同的数据。根据 `SinkFunction` 和存储系统，此行为的确切效果可能会有很大不同。在向 Cassandra 等键值存储进行幂等写入的情况下，发出两次的数据可能没问题，但在追加到 Kafka 等持久日志的情况下会出现问题。在任何情况下，您都应该仔细检查和测试重新启动的应用程序的行为。
 
-**Note**: Even though Flink consistently restores the state of an application, it cannot revert writes to external systems. This can be an issue if you resume from a savepoint that was taken without stopping the application. In this case, the application has probably emitted data after the savepoint was taken. The restarted application might (depending on whether you changed the application logic or not) emit the same data again. The exact effect of this behavior can be very different depending on the `SinkFunction` and storage system. Data that is emitted twice might be OK in case of idempotent writes to a key-value store like Cassandra but problematic in case of appends to a durable log such as Kafka. In any case, you should carefully check and test the behavior of a restarted application.
+## 应用程序状态兼容性
 
-## Application State Compatibility
+当升级应用程序以修复错误或改进应用程序时，通常目标是在保留其状态的同时替换正在运行的应用程序的应用程序逻辑。我们通过从原始应用程序获取的 Savepoint 启动升级的应用程序来做到这一点。但是，这只有在两个应用程序状态兼容的情况下才有效，这意味着升级应用程序的算子能够使用原始应用程序的算子的状态初始化他们的状态。
 
-When upgrading an application in order to fix a bug or to improve the application, usually the goal is to replace the application logic of the running application while preserving its state. We do this by starting the upgraded application from a savepoint which was taken from the original application. However, this does only work if both applications are *state compatible*, meaning that the operators of upgraded application are able to initialize their state with the state of the operators of original application. 
+在本节中，我们将讨论如何修改应用程序以保持状态兼容。
 
-In this section, we discuss how applications can be modified to remain state compatible.
+### DataStream API
 
-### Matching Operator State
+#### 匹配算子状态
 
-When an application is restarted from a savepoint, Flink matches the operator state stored in the savepoint to stateful operators of the started application. The matching is done based on operator IDs, which are also stored in the savepoint. Each operator has a default ID that is derived from the operator's position in the application's operator topology. Hence, an unmodified application can always be restarted from one of its own savepoints. However, the default IDs of operators are likely to change if an application is modified. Therefore, modified applications can only be started from a savepoint if the operator IDs have been explicitly specified. Assigning IDs to operators is very simple and done using the `uid(String)` method as follows:
+当应用程序从 Savepoint 重新启动时，Flink 会将 Savepoint 中存储的算子状态与已启动应用程序的有状态算子进行匹配。匹配是基于算子 ID 完成的，算子 ID 也存储在 Savepoint 中。每个算子都有一个默认 ID，该 ID 源自算子在应用程序算子拓扑中的位置。因此，未修改的应用程序始终可以从其自己的 Savepoint 之一重新启动。但是，如果应用程序被修改，运营商的默认 ID 可能会发生变化。因此，只有明确指定了算子 ID，才能从 Savepoint 启动修改后的应用程序。为算子分配 ID 非常简单，使用 uid(String) 方法完成，如下所示：
 
 ```scala
 val mappedEvents: DataStream[(Int, Long)] = events
   .map(new MyStatefulMapFunc()).uid("mapper-1")
 ```
 
-**Note:** Since the operator IDs stored in a savepoint and IDs of operators in the application to start must be equal, it is highly recommended to assign unique IDs to all operators of an application that might be upgraded in the future. This advice applies to all operators, i.e., operators with and without explicitly declared operator state, because some operators have internal state that is not visible to the user. Upgrading an application without assigned operator IDs is significantly more difficult and may only be possible via a low-level workaround using the `setUidHash()` method.
+**Note:** 由于 Savepoint 中存储的算子 ID 和要启动的应用程序中的算子 ID 必须相等，因此强烈建议为将来可能升级的应用程序的所有算子分配唯一 ID。此建议适用于所有算子，即有和没有明确声明算子状态的算子，因为某些算子具有用户不可见的内部状态。在没有分配算子 ID 的情况下升级应用程序要困难得多，并且只能通过使用 `setUidHash()` 方法的低级解决方法来实现。
 
-**Important:** As of 1.3.x this also applies to operators that are part of a chain.
+**Important:** 从 1.3.x 开始，链中的算子也是一样。
 
-By default all state stored in a savepoint must be matched to the operators of a starting application. However, users can explicitly agree to skip (and thereby discard) state that cannot be matched to an operator when starting a application from a savepoint. Stateful operators for which no state is found in the savepoint are initialized with their default state. Users may enforce best practices by calling `ExecutionConfig#disableAutoGeneratedUIDs` which will fail the job submission if any operator does not contain a custom unique ID.
+默认情况下， Savepoint 中存储的所有状态都必须与启动应用程序的算子匹配。但是，当从 Savepoint 启动应用程序时，用户可以明确同意跳过（从而丢弃）无法与算子匹配的状态。在 Savepoint 中未找到状态的有状态算子将使用其默认状态进行初始化。用户可以通过调用 `ExecutionConfig#disableAutoGeneratedUIDs` 来强制执行最佳实践，如果任何算子不包含自定义唯一 ID，则作业提交将失败。
 
-### Stateful Operators and User Functions
+#### 有状态的算子和用户函数
 
-When upgrading an application, user functions and operators can be freely modified with one restriction. It is not possible to change the data type of the state of an operator. This is important because, state from a savepoint can (currently) not be converted into a different data type before it is loaded into an operator. Hence, changing the data type of operator state when upgrading an application breaks application state consistency and prevents the upgraded application from being restarted from the savepoint. 
+升级应用程序时，用户功能和算子可以自由修改，有一个限制。无法更改算子状态的数据类型。这很重要，因为 Savepoint 的状态（当前）在加载到算子之前不能转换为不同的数据类型。因此，在升级应用程序时更改算子状态的数据类型会破坏应用程序状态的一致性，并防止升级后的应用程序从 Savepoint 重新启动。
 
-Operator state can be either user-defined or internal. 
+算子状态可以是用户定义的或内部的。
 
-* **User-defined operator state:** In functions with user-defined operator state the type of the state is explicitly defined by the user. Although it is not possible to change the data type of operator state, a workaround to overcome this limitation can be to define a second state with a different data type and to implement logic to migrate the state from the original state into the new state. This approach requires a good migration strategy and a solid understanding of the behavior of [key-partitioned state]({{< ref "docs/dev/datastream/fault-tolerance/state" >}}).
+* **用户自定义算子状态：** 在具有用户定义算子状态的函数中，状态的类型由用户明确定义。尽管无法更改算子状态的数据类型，但克服此限制的解决方法可以是定义具有不同数据类型的第二个状态，并实现将状态从原始状态迁移到新状态的逻辑。这种方法需要良好的迁移策略和对 [key-partitioned state]({{< ref "docs/dev/datastream/fault-tolerance/state" >}}) 行为的深刻理解。
 
-* **Internal operator state:** Operators such as window or join operators hold internal operator state which is not exposed to the user. For these operators the data type of the internal state depends on the input or output type of the operator. Consequently, changing the respective input or output type breaks application state consistency and prevents an upgrade. The following table lists operators with internal state and shows how the state data type relates to their input and output types. For operators which are applied on a keyed stream, the key type (KEY) is always part of the state data type as well.
+* **内部算子状态：** 诸如窗口或连接算子之类的算子持有不向用户公开的内部算子状态。对于这些算子，内部状态的数据类型取决于算子的输入或输出类型。因此，更改相应的输入或输出类型会破坏应用程序状态的一致性并阻止升级。下表列出了具有内部状态的算子，并显示了状态数据类型与其输入和输出类型的关系。对于应用于 Keyed Stream 的算子，键类型 (KEY) 也始终是状态数据类型的一部分。
 
-| Operator                                            | Data Type of Internal Operator State |
+| 算子                                                 | 内部算子状态的数据类型                   |
 |:----------------------------------------------------|:-------------------------------------|
-| ReduceFunction[IOT]                                 | IOT (Input and output type) [, KEY]  |
-| WindowFunction[IT, OT, KEY, WINDOW]                 | IT (Input type), KEY                 |
-| AllWindowFunction[IT, OT, WINDOW]                   | IT (Input type)                      |
-| JoinFunction[IT1, IT2, OT]                          | IT1, IT2 (Type of 1. and 2. input), KEY |
-| CoGroupFunction[IT1, IT2, OT]                       | IT1, IT2 (Type of 1. and 2. input), KEY |
-| Built-in Aggregations (sum, min, max, minBy, maxBy) | Input Type [, KEY]                   |
+| ReduceFunction[IOT]                                 | IOT (输入输出类型) [, KEY]  |
+| WindowFunction[IT, OT, KEY, WINDOW]                 | IT (输入类型), KEY                 |
+| AllWindowFunction[IT, OT, WINDOW]                   | IT (输入类型)                      |
+| JoinFunction[IT1, IT2, OT]                          | IT1, IT2 (1. 和 2. 输入的类型), KEY |
+| CoGroupFunction[IT1, IT2, OT]                       | IT1, IT2 (1. 和 2. 输入的类型), KEY |
+| 内置聚合 (sum, min, max, minBy, maxBy)                | 输入类型 [, KEY]                   |
 
-### Application Topology
+#### 应用拓扑
 
-Besides changing the logic of one or more existing operators, applications can be upgraded by changing the topology of the application, i.e., by adding or removing operators, changing the parallelism of an operator, or modifying the operator chaining behavior.
+除了改变一个或多个现有算子的逻辑外，还可以通过改变应用程序的拓扑结构来升级应用程序，即添加或删除算子、改变算子的并行度或修改算子链接行为。
 
-When upgrading an application by changing its topology, a few things need to be considered in order to preserve application state consistency.
+通过更改拓扑来升级应用程序时，需要考虑一些事项以保持应用程序状态的一致性。
 
-* **Adding or removing a stateless operator:** This is no problem unless one of the cases below applies.
-* **Adding a stateful operator:** The state of the operator will be initialized with the default state unless it takes over the state of another operator.
-* **Removing a stateful operator:** The state of the removed operator is lost unless another operator takes it over. When starting the upgraded application, you have to explicitly agree to discard the state.
-* **Changing of input and output types of operators:** When adding a new operator before or behind an operator with internal state, you have to ensure that the input or output type of the stateful operator is not modified to preserve the data type of the internal operator state (see above for details).
-* **Changing operator chaining:** Operators can be chained together for improved performance. When restoring from a savepoint taken since 1.3.x it is possible to modify chains while preserving state consistency. It is possible a break the chain such that a stateful operator is moved out of the chain. It is also possible to append or inject a new or existing stateful operator into a chain, or to modify the operator order within a chain. However, when upgrading a savepoint to 1.3.x it is paramount that the topology did not change in regards to chaining. All operators that are part of a chain should be assigned an ID as described in the [Matching Operator State](#matching-operator-state) section above.
+* **添加或删除无状态算子：** 除非是以下情况之一，否则这没有问题。
+* **添加有状态算子：** 除非它接管另一个算子的状态，否则算子的状态将使用默认状态进行初始化。
+* **移除一个有状态的算子：** 除非另一个算子接手，否则已移除算子的状态将丢失。启动升级后的应用程序时，您必须明确同意丢弃该状态。
+* **改变算子的输入输出类型：** 在具有内部状态的算子之前或之后添加新算子时，您必须确保不修改有状态算子的输入或输出类型以保留内部算子状态的数据类型（详见上文）。
+* **更改算子链接：** 算子可以链接在一起以提高性能。从 1.3.x 之后的 Savepoint 恢复时，可以在保持状态一致性的同时修改链。有可能会破坏链，从而将有状态的算子移出链。还可以将新的或现有的有状态算子附加或注入到链中，或者修改链中的算子顺序。但是，当将 Savepoint 升级到 1.3.x 时，最重要的是拓扑在链接方面没有改变。应为链中的所有算子分配一个 ID，如上面 [匹配算子状态](#matching-operator-state) 部分所述。
 
-## Upgrading the Flink Framework Version
+### Table API & SQL
 
-This section describes the general way of upgrading Flink across versions and migrating your jobs between the versions.
+由于 Table API 和 SQL 程序的声明性，底层算子拓扑和状态表示主要由
+表规划器确定和优化。
 
-In a nutshell, this procedure consists of 2 fundamental steps:
+请注意，查询和 Flink 版本的任何更改都可能导致状态不兼容。每个新的大-小 Flink 版本（例如 `1.12` 到 `1.13`）都
+可能引入新的优化器规则或更专业的运行时算子来改变执行计划。
+然而，社区试图保持补丁版本的状态兼容
+（例如 `1.13.1` 到 `1.13.2`）。
 
-1. Take a savepoint in the previous, old Flink version for the jobs you want to migrate.
-2. Resume your jobs under the new Flink version from the previously taken savepoints.
+ 
+有关详细信息，
+ 请参阅 [table state management section]({{< ref "docs/dev/table/concepts/overview" >}}#state-management)。
 
-Besides those two fundamental steps, some additional steps can be required that depend on the way you want to change the
-Flink version. In this guide we differentiate two approaches to upgrade across Flink versions: **in-place** upgrade and 
-**shadow copy** upgrade.
+## 升级 Flink 框架版本
 
-For **in-place** update, after taking savepoints, you need to:
+本节介绍跨版本升级 Flink 以及在版本之间迁移作业的一般方法。
 
-  1. Stop/cancel all running jobs.
-  2. Shutdown the cluster that runs the old Flink version.
-  3. Upgrade Flink to the newer version on the cluster.
-  4. Restart the cluster under the new version.
+简而言之，此过程包括 2 个基本步骤：
 
-For **shadow copy**, you need to:
+1. 在以前的旧 Flink 版本中为您要迁移的作业创建一个 Savepoint 。
+2. 在新的 Flink 版本下从之前使用的 Savepoint 恢复您的工作。
 
-  1. Before resuming from the savepoint, setup a new installation of the new Flink version besides your old Flink installation.
-  2. Resume from the savepoints with the new Flink installation.
-  3. If everything runs ok, stop and shutdown the old Flink cluster.
+除了这两个基本步骤之外，还可能需要一些额外的步骤，具体取决于您想要更改 Flink 版本的方式。
+在本指南中，我们区分了两种跨 Flink 版本升级的方法：
+就地升级和卷影副本升级。
 
-In the following, we will first present the preconditions for successful job migration and then go into more detail 
-about the steps that we outlined before.
+对于**就地更新**，在获取 Savepoint 后，您需要：
 
-#### Preconditions
+  1. 停止/取消所有正在运行的作业。
+  2. 关闭运行旧 Flink 版本的集群。
+  3. 将 Flink 升级到集群上的较新版本。
+  4. 在新版本下重启集群。
 
-Before starting the migration, please check that the jobs you are trying to migrate are following the
-best practices for [savepoints]({{< ref "docs/ops/state/savepoints" >}}).
+对于**卷影副本**，您需要：
 
-In particular, we advise you to check that explicit `uid`s were set for operators in your job. 
+  1. 在从 Savepoint 恢复之前，除了旧的 Flink 安装之外，设置新的 Flink 版本的新安装。
+  2. 使用新的 Flink 安装从 Savepoint 恢复。
+  3. 如果一切正常，停止并关闭旧的 Flink 集群。
 
-This is a *soft* precondition, and restore *should* still work in case you forgot about assigning `uid`s. 
-If you run into a case where this is not working, you can *manually* add the generated legacy vertex ids from previous
-Flink versions to your job using the `setUidHash(String hash)` call. For each operator (in operator chains: only the
-head operator) you must assign the 32 character hex string representing the hash that you can see in the web ui or logs
-for the operator.
+在下文中，我们将首先介绍成功进行作业迁移的先决条件，
+然后详细介绍我们之前概述的步骤。
 
-Besides operator uids, there are currently two *hard* preconditions for job migration that will make migration fail: 
+#### 前提条件
 
-1. We do not support migration for state in RocksDB that was checkpointed using 
-`semi-asynchronous` mode. In case your old job was using this mode, you can still change your job to use 
-`fully-asynchronous` mode before taking the savepoint that is used as the basis for the migration.
+在开始迁移之前，请检查您尝试迁移的作业是否遵循 [savepoints]({{< ref "docs/ops/state/savepoints" >}}) 
+的最佳实践。
 
-2. Another **important** precondition is that all the savepoint data must be accessible from the new installation 
-under the same (absolute) path. 
-This also includes access to any additional files that are referenced from inside the 
-savepoint file (the output from state backend snapshots), including, but not limited to additional referenced 
-savepoints from modifications with the [State Processor API]({{< ref "docs/libs/state_processor_api" >}}).
+特别是，我们建议您检查是否为您的工作中的算子设置了明确的 `uid`。
 
-#### STEP 1: Stop the existing job with a savepoint
+这是一个**软**前提，如果您忘记分配 `uid`，恢复**应该**仍然有效。
+如果您遇到这种情况不起作用，您可以调用 `setUidHash(String hash)` **手动**将以前 Flink 版本中生成的遗留顶点 ID 
+添加到您的作业中。对于每个算子（在算子链中：仅头部算子）
+，您必须分配 32 个字符的十六进制字符串，
+表示您可以在 web ui 或日志中看到的算子的哈希值。
 
-The first major step in version migration is taking a savepoint and stopping your job running on
-the old Flink version.
+除了算子 uid，目前作业迁移还有两个**硬性**前提条件会导致迁移失败：
 
-You can do this with the command:
+1. RocksDB不支持迁移 `semi-asynchronous` 模式 Checkpoint 的状态。如果您的旧作业使用此模式，您仍然可以将作业更改为使用 
+`fully-asynchronous` 模式，然后再将 Savepoint 用作迁移的基础。
+
+2. 另一个**重要**的先决条件是所有 Savepoint 数据必须可以从新安装的相同（绝对）路径下访问。
+这还包括访问从 Savepoint 文件内部引用的任何其他文件
+（状态后端快照的输出），
+包括但不限于使用 
+[State Processor API]({{< ref "docs/libs/state_processor_api" >}})。
+
+#### 第 1 步：使用 Savepoint 停止现有作业
+
+版本迁移的第一个主要步骤是获取 Savepoint 并停止
+在旧 Flink 版本上运行的作业。
+
+您可以使用以下命令执行此操作：
 
 ```shell
 $ bin/flink stop [--savepointPath :savepointPath] :jobId
 ```
 
-For more details, please read the [savepoint documentation]({{< ref "docs/ops/state/savepoints" >}}).
+更多详情，请阅读 [savepoint documentation]({{< ref "docs/ops/state/savepoints" >}}).
 
-#### STEP 2: Update your cluster to the new Flink version.
+#### 第 2 步：将您的集群更新到新的 Flink 版本。
 
-In this step, we update the framework version of the cluster. What this basically means is replacing the content of
-the Flink installation with the new version. This step can depend on how you are running Flink in your cluster (e.g. 
-standalone, ...).
+在这一步中，我们更新集群的框架版本。
+基本上意味着用新版本替换 Flink 安装的内容。
+此步骤可能取决于您在集群中运行 Flink 的方式（例如独立运行，...）。
 
-If you are unfamiliar with installing Flink in your cluster, please read the [deployment and cluster setup documentation]({{< ref "docs/deployment/resource-providers/standalone/overview" >}}).
+如果您对在集群中安装 Flink 不熟悉，请阅读 [deployment and cluster setup documentation]({{< ref "docs/deployment/resource-providers/standalone/overview" >}}).
 
-#### STEP 3: Resume the job under the new Flink version from savepoint.
+#### 第 3 步：从 Savepoint 恢复新 Flink 版本下的作业。
 
-As the last step of job migration, you resume from the savepoint taken above on the updated cluster. You can do
-this with the command:
+作为作业迁移的最后一步，您从上面在更新的集群上采取的 Savepoint 恢复。
+您可以使用以下命令执行此操作：
 
 ```shell
 $ bin/flink run -s :savepointPath [:runArgs]
 ```
 
-For more details, please take a look at the [savepoint documentation]({{< ref "docs/ops/state/savepoints" >}}).
+更多详情，请查看[savepoint documentation]({{< ref "docs/ops/state/savepoints" >}}).
 
-## Compatibility Table
+## 兼容性速查表
 
-Savepoints are compatible across Flink versions as indicated by the table below:
+ Savepoint 在 Flink 版本之间是兼容的，如下表所示：
 
 <table class="table table-bordered" style="font-size:8pt">
   <thead>
     <tr>
-      <th class="text-left" style="width: 25%">Created with \ Resumed with</th>
+      <th class="text-left" style="width: 25%">创建于 \ 恢复于</th>
       <th class="text-center">1.1.x</th>
       <th class="text-center">1.2.x</th>
       <th class="text-center">1.3.x</th>
@@ -216,7 +259,11 @@ Savepoints are compatible across Flink versions as indicated by the table below:
       <th class="text-center">1.11.x</th>
       <th class="text-center">1.12.x</th>
       <th class="text-center">1.13.x</th>
-      <th class="text-center" style="width: 50%">Limitations</th>
+      <th class="text-center">1.14.x</th>
+      <th class="text-center">1.15.x</th>
+      <th class="text-center">1.16.x</th>
+      <th class="text-center">1.17.x</th>
+      <th class="text-center" style="width: 50%">限制</th>
     </tr>
   </thead>
   <tbody>
@@ -235,9 +282,13 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center"></td>
           <td class="text-center"></td>
           <td class="text-center"></td>
-          <td class="text-left">The maximum parallelism of a job that was migrated from Flink 1.1.x to 1.2.x+ is
-          currently fixed as the parallelism of the job. This means that the parallelism can not be increased after
-          migration. This limitation might be removed in a future bugfix release.</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-left">从 Flink 1.1.x 迁移到 1.2.x+ 的作业的最大并行度目前固定为作业的并行度。
+这意味着迁移后无法增加并行度。
+在未来的错误修复版本中可能会删除此限制。</td>
     </tr>
     <tr>
           <td class="text-center"><strong>1.2.x</strong></td>
@@ -254,14 +305,18 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center"></td>
           <td class="text-left">
-          When migrating from Flink 1.2.x to Flink 1.3.x+, changing parallelism at the same
-          time is not supported. Users have to first take a savepoint after migrating to Flink 1.3.x+, and then change
-          parallelism.
-          <br/><br/>Savepoints created for CEP applications cannot be restored in 1.4.x+.
-          <br/><br/>Savepoints from Flink 1.2 that contain a Scala TraversableSerializer are not compatible with Flink 1.8 anymore
-          because of an update in this serializer. You can get around this restriction by first upgrading to a version between Flink 1.3 and
-          Flink 1.7 and then updating to Flink 1.8.
+         从 Flink 1.2.x 迁移到 Flink 1.3.x+ 时，不支持同时更改并行度。
+            迁移到 Flink 1.3.x+ 后，
+            用户必须先获取一个 Savepoint ，然后再更改并行度。
+          <br/><br/>为 CEP 应用程序创建的 Savepoint 无法在 1.4.x+ 中恢复。
+          <br/><br/>Flink 1.2 中包含 Scala TraversableSerializer 的 Savepoint 不再与 Flink 1.8 兼容，
+            因为此序列化程序中的更新。
+            您可以通过首先升级到 Flink 1.3 和 Flink 1.7 之间的版本，然后更新到 Flink 1.8 来绕过这个限制。
           </td>
     </tr>
     <tr>
@@ -279,7 +334,11 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
-          <td class="text-left">Migrating from Flink 1.3.0 to Flink 1.4.[0,1] will fail if the savepoint contains Scala case classes. Users have to directly migrate to 1.4.2+ instead.</td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-left">M如果 Savepoint 包含 Scala 案例类，则从 Flink 1.3.0 迁移到 Flink 1.4.[0,1] 将失败。用户必须直接迁移到 1.4.2+。</td>
     </tr>
     <tr>
           <td class="text-center"><strong>1.4.x</strong></td>
@@ -296,6 +355,10 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
     </tr>
     <tr>
@@ -313,10 +376,13 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
-          <td class="text-left">There is a known issue with resuming broadcast state created with 1.5.x in versions
-          1.6.x up to 1.6.2, and 1.7.0: <a href="https://issues.apache.org/jira/browse/FLINK-11087">FLINK-11087</a>. Users
-          upgrading to 1.6.x or 1.7.x series need to directly migrate to minor versions higher than 1.6.2 and 1.7.0,
-          respectively.</td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-left">在 1.6.x 到 1.6.2 和 1.7.0 版本中恢复使用 1.5.x 创建的广播状态存在一个已知问题：<a href="https://issues.apache.org/jira/browse/FLINK-11087">FLINK-11087</a>. 
+            升级到 1.6.x 或 1.7.x 系列的用户需要
+            直接迁移到次要版本分别高于 1.6.2 和 1.7.0。</td>
     </tr>
     <tr>
           <td class="text-center"><strong>1.6.x</strong></td>
@@ -333,6 +399,10 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
     </tr>
     <tr>
@@ -350,6 +420,10 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
     </tr>
     <tr>
@@ -361,6 +435,10 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center"></td>
           <td class="text-center"></td>
           <td class="text-center"></td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
@@ -384,6 +462,10 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
           <td class="text-left"></td>
     </tr>
     <tr>
@@ -397,6 +479,10 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center"></td>
           <td class="text-center"></td>
           <td class="text-center"></td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
@@ -418,6 +504,10 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
           <td class="text-left"></td>
     </tr>
     <tr>
@@ -433,6 +523,10 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center"></td>
           <td class="text-center"></td>
           <td class="text-center"></td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-left"></td>
@@ -452,7 +546,103 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center"></td>
           <td class="text-center"></td>
           <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
           <td class="text-left">Don't upgrade from 1.12.x to 1.13.x with an unaligned checkpoint. Please use a savepoint for migrating.</td>
+        </tr>
+    <tr>
+          <td class="text-center"><strong>1.14.x</strong></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-left"></td>
+        </tr>
+    <tr>
+          <td class="text-center"><strong>1.15.x</strong></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-left">
+            For Table API: 1.15.0 and 1.15.1 generated non-deterministic UIDs for operators that 
+            make it difficult/impossible to restore state or upgrade to next patch version. A new 
+            table.exec.uid.generation config option (with correct default behavior) disables setting
+            a UID for new pipelines from non-compiled plans. Existing pipelines can set 
+            table.exec.uid.generation=ALWAYS if the 1.15.0/1 behavior was acceptable due to a stable
+            environment. See <a href="https://issues.apache.org/jira/browse/FLINK-28861">FLINK-28861</a>
+            for more information.
+          </td>
+        </tr>
+    <tr>
+          <td class="text-center"><strong>1.16.x</strong></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-left"></td>
+        </tr>
+    <tr>
+          <td class="text-center"><strong>1.17.x</strong></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center">O</td>
+          <td class="text-left"></td>
         </tr>
   </tbody>
 </table>

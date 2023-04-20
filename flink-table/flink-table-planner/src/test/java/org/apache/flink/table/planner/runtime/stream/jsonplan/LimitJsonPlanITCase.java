@@ -42,7 +42,7 @@ public class LimitJsonPlanITCase extends JsonPlanTestBase {
                 "c int");
         createTestNonInsertOnlyValuesSinkTable("`result`", "a int", "b varchar", "c bigint");
         String sql = "insert into `result` select * from MyTable limit 3";
-        executeSqlWithJsonPlanVerified(sql).await();
+        compileSqlAndExecutePlan(sql).await();
 
         List<String> expected = Arrays.asList("+I[2, a, 6]", "+I[4, b, 8]", "+I[6, c, 10]");
         assertResult(expected, TestValuesTableFactory.getResults("result"));

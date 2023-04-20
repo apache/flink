@@ -19,39 +19,43 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.PartialFinalType
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLocalGroupAggregate
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
 import org.apache.flink.table.planner.plan.utils._
+import org.apache.flink.table.planner.utils.ShortcutUtils.{unwrapTableConfig, unwrapTypeFactory}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter}
+import org.apache.calcite.rel.core.AggregateCall
 
 import java.util
 
 /**
  * Stream physical RelNode for unbounded local group aggregate.
  *
- * @see [[StreamPhysicalGroupAggregateBase]] for more info.
+ * @see
+ *   [[StreamPhysicalGroupAggregateBase]] for more info.
  */
 class StreamPhysicalLocalGroupAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
-    val grouping: Array[Int],
-    val aggCalls: Seq[AggregateCall],
+    grouping: Array[Int],
+    aggCalls: Seq[AggregateCall],
     aggCallNeedRetractions: Array[Boolean],
     needRetraction: Boolean,
     val partialFinalType: PartialFinalType)
-  extends StreamPhysicalGroupAggregateBase(cluster, traitSet, inputRel) {
+  extends StreamPhysicalGroupAggregateBase(cluster, traitSet, inputRel, grouping, aggCalls) {
 
   private lazy val aggInfoList = AggregateUtil.transformToStreamAggregateInfoList(
+    unwrapTypeFactory(inputRel),
     FlinkTypeFactory.toLogicalRowType(inputRel.getRowType),
     aggCalls,
     aggCallNeedRetractions,
     needRetraction,
-    isStateBackendDataViews = false)
+    isStateBackendDataViews = false
+  )
 
   override def requireWatermark: Boolean = false
 
@@ -77,27 +81,29 @@ class StreamPhysicalLocalGroupAggregate(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     val inputRowType = getInput.getRowType
-    super.explainTerms(pw)
-      .itemIf("groupBy", RelExplainUtil.fieldToString(grouping, inputRowType),
-        grouping.nonEmpty)
+    super
+      .explainTerms(pw)
+      .itemIf("groupBy", RelExplainUtil.fieldToString(grouping, inputRowType), grouping.nonEmpty)
       .itemIf("partialFinalType", partialFinalType, partialFinalType != PartialFinalType.NONE)
-      .item("select", RelExplainUtil.streamGroupAggregationToString(
-        inputRowType,
-        getRowType,
-        aggInfoList,
-        grouping,
-        isLocal = true))
+      .item(
+        "select",
+        RelExplainUtil.streamGroupAggregationToString(
+          inputRowType,
+          getRowType,
+          aggInfoList,
+          grouping,
+          isLocal = true))
   }
 
   override def translateToExecNode(): ExecNode[_] = {
     new StreamExecLocalGroupAggregate(
+      unwrapTableConfig(this),
       grouping,
       aggCalls.toArray,
       aggCallNeedRetractions,
       needRetraction,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 }

@@ -62,9 +62,7 @@ public class FileSystemTableSinkTest {
         final int parallelism = 5;
         final TableEnvironment tEnv =
                 TableEnvironment.create(EnvironmentSettings.inStreamingMode());
-        tEnv.getConfig()
-                .getConfiguration()
-                .set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 8);
+        tEnv.getConfig().set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 8);
 
         final String testSourceTableName = "test_source_table";
         tEnv.executeSql(buildSourceTableSql(testSourceTableName, false));
@@ -98,9 +96,7 @@ public class FileSystemTableSinkTest {
     public void testFileSystemTableSinkWithParallelismInBatch() {
         final int parallelism = 5;
         final TableEnvironment tEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
-        tEnv.getConfig()
-                .getConfiguration()
-                .set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 8);
+        tEnv.getConfig().set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 8);
 
         final String testSourceTableName = "test_source_table";
         final String testSinkTableName = "test_sink_table";

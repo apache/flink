@@ -24,23 +24,29 @@ import org.apache.flink.api.scala.{CrossDataSet, DataSet}
 import scala.reflect.ClassTag
 
 /**
-  * Wraps a cross data set, allowing to use anonymous partial functions to
-  * perform extraction of items in a tuple, case class instance or collection
-  *
-  * @param ds The wrapped cross data set
-  * @tparam L The type of the left data set items
-  * @tparam R The type of the right data set items
-  */
+ * Wraps a cross data set, allowing to use anonymous partial functions to perform extraction of
+ * items in a tuple, case class instance or collection
+ *
+ * @param ds
+ *   The wrapped cross data set
+ * @tparam L
+ *   The type of the left data set items
+ * @tparam R
+ *   The type of the right data set items
+ */
 class OnCrossDataSet[L, R](ds: CrossDataSet[L, R]) {
 
   /**
-    * Starting from a cross data set, uses the function `fun` to project elements from
-    * both the input data sets in the resulting data set
-    *
-    * @param fun The function that defines the projection of the join
-    * @tparam O The return type of the projection, for which type information must be known
-    * @return A data set of Os
-    */
+   * Starting from a cross data set, uses the function `fun` to project elements from both the input
+   * data sets in the resulting data set
+   *
+   * @param fun
+   *   The function that defines the projection of the join
+   * @tparam O
+   *   The return type of the projection, for which type information must be known
+   * @return
+   *   A data set of Os
+   */
   @PublicEvolving
   def projecting[O: TypeInformation: ClassTag](fun: (L, R) => O): DataSet[O] =
     ds(fun)

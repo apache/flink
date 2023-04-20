@@ -16,27 +16,37 @@
  * limitations under the License.
  */
 
+import { DatePipe, NgForOf, NgIf } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
   Input,
   OnChanges,
+  OnDestroy,
   OnInit,
   SimpleChanges
 } from '@angular/core';
-import { first } from 'rxjs/operators';
+import { RouterModule } from '@angular/router';
+import { forkJoin, of, Subject } from 'rxjs';
+import { catchError, first, takeUntil } from 'rxjs/operators';
 
-import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
-
+import { HumanizeBytesPipe } from '@flink-runtime-web/components/humanize-bytes.pipe';
+import { HumanizeDurationPipe } from '@flink-runtime-web/components/humanize-duration.pipe';
 import {
   CheckpointSubTask,
   CompletedSubTaskCheckpointStatistics,
   JobDetailCorrect,
+  JobVertexSubTaskData,
+  JobVertexSubTaskDetail,
   SubTaskCheckpointStatisticsItem,
   VerticesItem
-} from 'interfaces';
-import { JobService } from 'services';
+} from '@flink-runtime-web/interfaces';
+import { JobService } from '@flink-runtime-web/services';
+import { NzTableModule } from 'ng-zorro-antd/table';
+import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
+
+import { JobLocalService } from '../../job-local.service';
 
 function createSortFn(
   selector: (item: CompletedSubTaskCheckpointStatistics) => number | boolean
@@ -52,9 +62,11 @@ function createSortFn(
   selector: 'flink-job-checkpoints-subtask',
   templateUrl: './job-checkpoints-subtask.component.html',
   styleUrls: ['./job-checkpoints-subtask.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [NzTableModule, HumanizeDurationPipe, HumanizeBytesPipe, NgIf, DatePipe, NgForOf, RouterModule],
+  standalone: true
 })
-export class JobCheckpointsSubtaskComponent implements OnInit, OnChanges {
+export class JobCheckpointsSubtaskComponent implements OnInit, OnChanges, OnDestroy {
   @Input() public vertex: VerticesItem;
   @Input() public checkPointId: number;
 
@@ -64,9 +76,11 @@ export class JobCheckpointsSubtaskComponent implements OnInit, OnChanges {
   public isLoading = true;
   public sortName: string;
   public sortValue: string;
+  public mapOfSubtask: Map<number, JobVertexSubTaskData> = new Map();
 
   public readonly sortAckTimestampFn = createSortFn(item => item.ack_timestamp);
   public readonly sortEndToEndDurationFn = createSortFn(item => item.end_to_end_duration);
+  public readonly sortCheckpointedSizeFn = createSortFn(item => item.checkpointed_size);
   public readonly sortStateSizeFn = createSortFn(item => item.state_size);
   public readonly sortCpSyncFn = createSortFn(item => item.checkpoint?.sync);
   public readonly sortCpAsyncFn = createSortFn(item => item.checkpoint?.async);
@@ -75,13 +89,22 @@ export class JobCheckpointsSubtaskComponent implements OnInit, OnChanges {
   public readonly sortStartDelayFn = createSortFn(item => item.start_delay);
   public readonly sortUnalignedCpFn = createSortFn(item => item.unaligned_checkpoint);
 
-  constructor(private readonly jobService: JobService, private readonly cdr: ChangeDetectorRef) {}
+  private destroy$ = new Subject<void>();
+
+  constructor(
+    private readonly jobService: JobService,
+    private readonly jobLocalService: JobLocalService,
+    private readonly cdr: ChangeDetectorRef
+  ) {}
 
   public ngOnInit(): void {
-    this.jobService.jobDetail$.pipe(first()).subscribe(job => {
-      this.jobDetail = job;
-      this.refresh();
-    });
+    this.jobLocalService
+      .jobDetailChanges()
+      .pipe(first(), takeUntil(this.destroy$))
+      .subscribe(job => {
+        this.jobDetail = job;
+        this.refresh();
+      });
   }
 
   public ngOnChanges(changes: SimpleChanges): void {
@@ -90,20 +113,42 @@ export class JobCheckpointsSubtaskComponent implements OnInit, OnChanges {
     }
   }
 
+  public ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
   public refresh(): void {
     if (this.jobDetail && this.jobDetail.jid) {
-      this.jobService.loadCheckpointSubtaskDetails(this.jobDetail.jid, this.checkPointId, this.vertex.id).subscribe(
-        data => {
-          this.subTaskCheckPoint = data;
-          this.listOfSubTaskCheckPoint = (data && data.subtasks) || [];
+      let subtaskDetails = this.jobService.loadSubTasks(this.jobDetail.jid, this.vertex.id).pipe(
+        catchError(() => {
+          return of({} as JobVertexSubTaskDetail);
+        })
+      );
+      let checkpointDetail = this.jobService
+        .loadCheckpointSubtaskDetails(this.jobDetail.jid, this.checkPointId, this.vertex.id)
+        .pipe(takeUntil(this.destroy$));
+      forkJoin([subtaskDetails, checkpointDetail]).subscribe({
+        next: data => {
+          const [jobVertexSubTaskDetail, checkpointSubTasks] = data;
+          this.mapOfSubtask = jobVertexSubTaskDetail?.subtasks.reduce(function (
+            map: Map<number, JobVertexSubTaskData>,
+            obj
+          ) {
+            map.set(obj.subtask, obj);
+            return map;
+          },
+          new Map());
+          this.subTaskCheckPoint = checkpointSubTasks;
+          this.listOfSubTaskCheckPoint = (checkpointSubTasks && checkpointSubTasks.subtasks) || [];
           this.isLoading = false;
           this.cdr.markForCheck();
         },
-        () => {
+        error: () => {
           this.isLoading = false;
           this.cdr.markForCheck();
         }
-      );
+      });
     }
   }
 }

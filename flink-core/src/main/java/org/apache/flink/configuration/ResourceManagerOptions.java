@@ -35,6 +35,7 @@ public class ResourceManagerOptions {
     /** Timeout for jobs which don't have a job manager as leader assigned. */
     public static final ConfigOption<String> JOB_TIMEOUT =
             ConfigOptions.key("resourcemanager.job.timeout")
+                    .stringType()
                     .defaultValue("5 minutes")
                     .withDescription(
                             "Timeout for jobs which don't have a job manager as leader assigned.");
@@ -43,6 +44,7 @@ public class ResourceManagerOptions {
     @Deprecated
     public static final ConfigOption<Integer> LOCAL_NUMBER_RESOURCE_MANAGER =
             ConfigOptions.key("local.number-resourcemanager")
+                    .intType()
                     .defaultValue(1)
                     .withDescription("The number of resource managers start.");
 
@@ -53,6 +55,7 @@ public class ResourceManagerOptions {
      */
     public static final ConfigOption<Integer> IPC_PORT =
             ConfigOptions.key("resourcemanager.rpc.port")
+                    .intType()
                     .defaultValue(0)
                     .withDescription(
                             "Defines the network port to connect to for communication with the resource manager. By"
@@ -60,6 +63,7 @@ public class ResourceManagerOptions {
                                     + " Its not possible to use this configuration key to define port ranges.");
 
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
+    @Documentation.OverrideDefault("infinite")
     public static final ConfigOption<Integer> MAX_SLOT_NUM =
             ConfigOptions.key("slotmanager.number-of-slots.max")
                     .intType()
@@ -139,6 +143,22 @@ public class ResourceManagerOptions {
                                     + START_WORKER_MAX_FAILURE_RATE.key()
                                     + "') is reached.");
 
+    @Documentation.ExcludeFromDocumentation(
+            "This is an expert option, that we do not want to expose in the documentation")
+    public static final ConfigOption<Duration> REQUIREMENTS_CHECK_DELAY =
+            ConfigOptions.key("slotmanager.requirement-check.delay")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(50))
+                    .withDescription("The delay of the resource requirements check.");
+
+    @Documentation.ExcludeFromDocumentation(
+            "This is an expert option, that we do not want to expose in the documentation")
+    public static final ConfigOption<Duration> DECLARE_NEEDED_RESOURCE_DELAY =
+            ConfigOptions.key("slotmanager.declare-needed-resource.delay")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(50))
+                    .withDescription("The delay of the declare needed resources.");
+
     /**
      * The timeout for a slot request to be discarded, in milliseconds.
      *
@@ -147,6 +167,7 @@ public class ResourceManagerOptions {
     @Deprecated
     public static final ConfigOption<Long> SLOT_REQUEST_TIMEOUT =
             ConfigOptions.key("slotmanager.request-timeout")
+                    .longType()
                     .defaultValue(-1L)
                     .withDescription("The timeout for a slot request to be discarded.");
 
@@ -181,12 +202,14 @@ public class ResourceManagerOptions {
     @Deprecated
     public static final ConfigOption<Long> SLOT_MANAGER_TASK_MANAGER_TIMEOUT =
             ConfigOptions.key("slotmanager.taskmanager-timeout")
+                    .longType()
                     .defaultValue(30000L)
                     .withDescription("The timeout for an idle task manager to be released.");
 
     /** The timeout for an idle task manager to be released, in milliseconds. */
     public static final ConfigOption<Long> TASK_MANAGER_TIMEOUT =
             ConfigOptions.key("resourcemanager.taskmanager-timeout")
+                    .longType()
                     .defaultValue(30000L)
                     .withDeprecatedKeys(SLOT_MANAGER_TASK_MANAGER_TIMEOUT.key())
                     .withDescription(
@@ -206,6 +229,7 @@ public class ResourceManagerOptions {
     @Deprecated
     public static final ConfigOption<Boolean> TASK_MANAGER_RELEASE_WHEN_RESULT_CONSUMED =
             ConfigOptions.key("resourcemanager.taskmanager-release.wait.result.consumed")
+                    .booleanType()
                     .defaultValue(true)
                     .withDescription(
                             Description.builder()
@@ -245,6 +269,17 @@ public class ResourceManagerOptions {
                                     + "fallback to '"
                                     + TaskManagerOptions.REGISTRATION_TIMEOUT.key()
                                     + "'.");
+
+    /** Timeout for ResourceManager to recover all the previous attempts workers. */
+    public static final ConfigOption<Duration> RESOURCE_MANAGER_PREVIOUS_WORKER_RECOVERY_TIMEOUT =
+            ConfigOptions.key("resourcemanager.previous-worker.recovery.timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(0))
+                    .withDescription(
+                            "Timeout for resource manager to recover all the previous attempts workers. If exceeded,"
+                                    + " resource manager will handle new resource requests by requesting new workers."
+                                    + " If you would like to reuse the previous workers as much as possible, you should"
+                                    + " configure a longer timeout time to wait for previous workers to register.");
 
     // ---------------------------------------------------------------------------------------------
 

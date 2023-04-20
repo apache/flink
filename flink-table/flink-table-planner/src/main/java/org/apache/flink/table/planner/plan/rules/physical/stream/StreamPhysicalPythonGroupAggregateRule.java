@@ -43,14 +43,18 @@ import java.util.List;
  */
 public class StreamPhysicalPythonGroupAggregateRule extends ConverterRule {
 
-    public static final RelOptRule INSTANCE = new StreamPhysicalPythonGroupAggregateRule();
+    public static final RelOptRule INSTANCE =
+            new StreamPhysicalPythonGroupAggregateRule(
+                    Config.INSTANCE
+                            .withConversion(
+                                    FlinkLogicalAggregate.class,
+                                    FlinkConventions.LOGICAL(),
+                                    FlinkConventions.STREAM_PHYSICAL(),
+                                    "StreamPhysicalPythonGroupAggregateRule")
+                            .withRuleFactory(StreamPhysicalPythonGroupAggregateRule::new));
 
-    public StreamPhysicalPythonGroupAggregateRule() {
-        super(
-                FlinkLogicalAggregate.class,
-                FlinkConventions.LOGICAL(),
-                FlinkConventions.STREAM_PHYSICAL(),
-                "StreamPhysicalPythonGroupAggregateRule");
+    public StreamPhysicalPythonGroupAggregateRule(Config config) {
+        super(config);
     }
 
     @Override
@@ -58,7 +62,7 @@ public class StreamPhysicalPythonGroupAggregateRule extends ConverterRule {
         FlinkLogicalAggregate agg = call.rel(0);
 
         // check if we have grouping sets
-        if (agg.getGroupType() != Aggregate.Group.SIMPLE || agg.indicator) {
+        if (agg.getGroupType() != Aggregate.Group.SIMPLE) {
             throw new TableException("GROUPING SETS are currently not supported.");
         }
 

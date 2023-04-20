@@ -35,6 +35,7 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 public enum HighAvailabilityMode {
     NONE(false),
     ZOOKEEPER(true),
+    KUBERNETES(true),
     FACTORY_CLASS(true);
 
     private final boolean haActive;

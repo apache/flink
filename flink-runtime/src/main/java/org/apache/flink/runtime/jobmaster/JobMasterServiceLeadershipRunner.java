@@ -21,8 +21,9 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.dispatcher.JobCancellationFailedException;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
-import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
+import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobmaster.factories.JobMasterServiceProcessFactory;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
@@ -81,7 +82,7 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
 
     private final LeaderElectionService leaderElectionService;
 
-    private final RunningJobsRegistry runningJobsRegistry;
+    private final JobResultStore jobResultStore;
 
     private final LibraryCacheManager.ClassLoaderLease classLoaderLease;
 
@@ -111,52 +112,52 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
     public JobMasterServiceLeadershipRunner(
             JobMasterServiceProcessFactory jobMasterServiceProcessFactory,
             LeaderElectionService leaderElectionService,
-            RunningJobsRegistry runningJobsRegistry,
+            JobResultStore jobResultStore,
             LibraryCacheManager.ClassLoaderLease classLoaderLease,
             FatalErrorHandler fatalErrorHandler) {
         this.jobMasterServiceProcessFactory = jobMasterServiceProcessFactory;
         this.leaderElectionService = leaderElectionService;
-        this.runningJobsRegistry = runningJobsRegistry;
+        this.jobResultStore = jobResultStore;
         this.classLoaderLease = classLoaderLease;
         this.fatalErrorHandler = fatalErrorHandler;
     }
 
     @Override
     public CompletableFuture<Void> closeAsync() {
+        final CompletableFuture<Void> processTerminationFuture;
         synchronized (lock) {
-            if (state != State.STOPPED) {
-                state = State.STOPPED;
-
-                LOG.debug("Terminating the leadership runner for job {}.", getJobID());
-
-                jobMasterGatewayFuture.completeExceptionally(
-                        new FlinkException(
-                                "JobMasterServiceLeadershipRunner is closed. Therefore, the corresponding JobMaster will never acquire the leadership."));
-                resultFuture.complete(
-                        JobManagerRunnerResult.forSuccess(
-                                createExecutionGraphInfoWithJobStatus(JobStatus.SUSPENDED)));
-
-                final CompletableFuture<Void> processTerminationFuture =
-                        jobMasterServiceProcess.closeAsync();
-
-                final CompletableFuture<Void> serviceTerminationFuture =
-                        FutureUtils.runAfterwards(
-                                processTerminationFuture,
-                                () -> {
-                                    classLoaderLease.release();
-                                    leaderElectionService.stop();
-                                });
-
-                FutureUtils.forward(serviceTerminationFuture, terminationFuture);
-
-                terminationFuture.whenComplete(
-                        (unused, throwable) ->
-                                LOG.debug(
-                                        "Leadership runner for job {} has been terminated.",
-                                        getJobID()));
+            if (state == State.STOPPED) {
+                return terminationFuture;
             }
+
+            state = State.STOPPED;
+
+            LOG.debug("Terminating the leadership runner for job {}.", getJobID());
+
+            jobMasterGatewayFuture.completeExceptionally(
+                    new FlinkException(
+                            "JobMasterServiceLeadershipRunner is closed. Therefore, the corresponding JobMaster will never acquire the leadership."));
+
+            resultFuture.complete(
+                    JobManagerRunnerResult.forSuccess(
+                            createExecutionGraphInfoWithJobStatus(JobStatus.SUSPENDED)));
+
+            processTerminationFuture = jobMasterServiceProcess.closeAsync();
         }
 
+        final CompletableFuture<Void> serviceTerminationFuture =
+                FutureUtils.runAfterwards(
+                        processTerminationFuture,
+                        () -> {
+                            classLoaderLease.release();
+                            leaderElectionService.stop();
+                        });
+
+        FutureUtils.forward(serviceTerminationFuture, terminationFuture);
+
+        terminationFuture.whenComplete(
+                (unused, throwable) ->
+                        LOG.debug("Leadership runner for job {} has been terminated.", getJobID()));
         return terminationFuture;
     }
 
@@ -192,7 +193,7 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
                     .exceptionally(
                             e -> {
                                 throw new CompletionException(
-                                        new FlinkException(
+                                        new JobCancellationFailedException(
                                                 "Cancellation failed.",
                                                 ExceptionUtils.stripCompletionException(e)));
                             });
@@ -269,33 +270,12 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
     @GuardedBy("lock")
     private void verifyJobSchedulingStatusAndCreateJobMasterServiceProcess(UUID leaderSessionId)
             throws FlinkException {
-        final RunningJobsRegistry.JobSchedulingStatus jobSchedulingStatus =
-                getJobSchedulingStatus();
-
-        if (jobSchedulingStatus == RunningJobsRegistry.JobSchedulingStatus.DONE) {
-            jobAlreadyDone();
-        } else {
-            createNewJobMasterServiceProcess(leaderSessionId);
-        }
-    }
-
-    private ExecutionGraphInfo createExecutionGraphInfoWithJobStatus(JobStatus jobStatus) {
-        return new ExecutionGraphInfo(
-                jobMasterServiceProcessFactory.createArchivedExecutionGraph(jobStatus, null));
-    }
-
-    private void jobAlreadyDone() {
-        resultFuture.complete(
-                JobManagerRunnerResult.forSuccess(
-                        new ExecutionGraphInfo(
-                                jobMasterServiceProcessFactory.createArchivedExecutionGraph(
-                                        JobStatus.FAILED,
-                                        new JobAlreadyDoneException(getJobID())))));
-    }
-
-    private RunningJobsRegistry.JobSchedulingStatus getJobSchedulingStatus() throws FlinkException {
         try {
-            return runningJobsRegistry.getJobSchedulingStatus(getJobID());
+            if (jobResultStore.hasJobResultEntry(getJobID())) {
+                jobAlreadyDone(leaderSessionId);
+            } else {
+                createNewJobMasterServiceProcess(leaderSessionId);
+            }
         } catch (IOException e) {
             throw new FlinkException(
                     String.format(
@@ -304,23 +284,35 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
         }
     }
 
+    private ExecutionGraphInfo createExecutionGraphInfoWithJobStatus(JobStatus jobStatus) {
+        return new ExecutionGraphInfo(
+                jobMasterServiceProcessFactory.createArchivedExecutionGraph(jobStatus, null));
+    }
+
+    private void jobAlreadyDone(UUID leaderSessionId) {
+        LOG.info(
+                "{} for job {} was granted leadership with leader id {}, but job was already done.",
+                getClass().getSimpleName(),
+                getJobID(),
+                leaderSessionId);
+        resultFuture.complete(
+                JobManagerRunnerResult.forSuccess(
+                        new ExecutionGraphInfo(
+                                jobMasterServiceProcessFactory.createArchivedExecutionGraph(
+                                        JobStatus.FAILED,
+                                        new JobAlreadyDoneException(getJobID())))));
+    }
+
     @GuardedBy("lock")
     private void createNewJobMasterServiceProcess(UUID leaderSessionId) throws FlinkException {
         Preconditions.checkState(jobMasterServiceProcess.closeAsync().isDone());
 
-        LOG.debug(
-                "Create new JobMasterServiceProcess because we were granted leadership under {}.",
-                leaderSessionId);
-
-        try {
-            runningJobsRegistry.setJobRunning(getJobID());
-        } catch (IOException e) {
-            throw new FlinkException(
-                    String.format(
-                            "Failed to set the job %s to running in the running jobs registry.",
-                            getJobID()),
-                    e);
-        }
+        LOG.info(
+                "{} for job {} was granted leadership with leader id {}. Creating new {}.",
+                getClass().getSimpleName(),
+                getJobID(),
+                leaderSessionId,
+                JobMasterServiceProcess.class.getSimpleName());
 
         jobMasterServiceProcess = jobMasterServiceProcessFactory.create(leaderSessionId);
 
@@ -382,17 +374,7 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
                             "Could not retrieve JobMasterGateway because the JobMaster failed.",
                             throwable));
         } else {
-            if (jobManagerRunnerResult.isSuccess()) {
-                try {
-                    runningJobsRegistry.setJobFinished(getJobID());
-                } catch (IOException e) {
-                    LOG.error(
-                            "Could not un-register from high-availability services job {}."
-                                    + "Other JobManager's may attempt to recover it and re-execute it.",
-                            getJobID(),
-                            e);
-                }
-            } else {
+            if (!jobManagerRunnerResult.isSuccess()) {
                 jobMasterGatewayFuture.completeExceptionally(
                         new FlinkException(
                                 "Could not retrieve JobMasterGateway because the JobMaster initialization failed.",
@@ -425,7 +407,12 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
 
     @GuardedBy("lock")
     private CompletableFuture<Void> stopJobMasterServiceProcess() {
-        LOG.debug("Stop current JobMasterServiceProcess because the leadership has been revoked.");
+        LOG.info(
+                "{} for job {} was revoked leadership with leader id {}. Stopping current {}.",
+                getClass().getSimpleName(),
+                getJobID(),
+                jobMasterServiceProcess.getLeaderSessionId(),
+                JobMasterServiceProcess.class.getSimpleName());
 
         jobMasterGatewayFuture.completeExceptionally(
                 new FlinkException(

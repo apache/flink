@@ -20,11 +20,9 @@ package org.apache.flink.runtime.dispatcher.runner;
 
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
-import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -40,6 +38,7 @@ import java.util.concurrent.TimeoutException;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Tests for the {@link DefaultDispatcherRunner}. */
@@ -68,6 +67,15 @@ public class DefaultDispatcherRunnerTest extends TestLogger {
             testingFatalErrorHandler.rethrowError();
             testingFatalErrorHandler = null;
         }
+    }
+
+    @Test
+    public void testLeaderElectionLifecycle() throws Exception {
+        assertTrue(testingLeaderElectionService.isStopped());
+        try (final DispatcherRunner unusedDisptacherRunner = createDispatcherRunner()) {
+            assertFalse(testingLeaderElectionService.isStopped());
+        }
+        assertTrue(testingLeaderElectionService.isStopped());
     }
 
     @Test
@@ -377,12 +385,6 @@ public class DefaultDispatcherRunnerTest extends TestLogger {
             return new StartStopDispatcherLeaderProcess(
                     dispatcherLeaderProcess, processStartFuture, processTerminationFuture);
         }
-    }
-
-    private TestingDispatcherGateway createDispatcherGateway(UUID leaderSessionId) {
-        return TestingDispatcherGateway.newBuilder()
-                .setFencingToken(DispatcherId.fromUuid(leaderSessionId))
-                .build();
     }
 
     private DispatcherRunner createDispatcherRunner() throws Exception {

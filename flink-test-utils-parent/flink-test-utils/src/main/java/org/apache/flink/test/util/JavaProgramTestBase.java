@@ -53,7 +53,7 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
     }
 
     public int getParallelism() {
-        return isCollectionExecution ? 1 : miniClusterResource.getNumberSlots();
+        return isCollectionExecution ? 1 : MINI_CLUSTER_RESOURCE.getNumberSlots();
     }
 
     public JobExecutionResult getLatestExecutionResult() {
@@ -99,7 +99,7 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
         // We should fix that we are able to get access to the latest execution result from a
         // different
         // execution environment and how the object reuse mode is enabled
-        TestEnvironment env = miniClusterResource.getTestEnvironment();
+        TestEnvironment env = MINI_CLUSTER_RESOURCE.getTestEnvironment();
         env.getConfig().enableObjectReuse();
 
         // Possibly run the test multiple times
@@ -145,7 +145,7 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
         // We should fix that we are able to get access to the latest execution result from a
         // different
         // execution environment and how the object reuse mode is enabled
-        ExecutionEnvironment env = miniClusterResource.getTestEnvironment();
+        ExecutionEnvironment env = MINI_CLUSTER_RESOURCE.getTestEnvironment();
         env.getConfig().disableObjectReuse();
 
         // Possibly run the test multiple times
@@ -206,7 +206,7 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
             e.printStackTrace();
             Assert.fail("Error while calling the test program: " + e.getMessage());
         } finally {
-            miniClusterResource.getTestEnvironment().setAsContext();
+            MINI_CLUSTER_RESOURCE.getTestEnvironment().setAsContext();
         }
 
         Assert.assertNotNull(

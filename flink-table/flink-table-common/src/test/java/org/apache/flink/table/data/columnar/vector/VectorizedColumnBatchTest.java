@@ -33,23 +33,22 @@ import org.apache.flink.table.data.columnar.vector.heap.HeapLongVector;
 import org.apache.flink.table.data.columnar.vector.heap.HeapShortVector;
 import org.apache.flink.table.utils.DateTimeUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test {@link VectorizedColumnBatch}. */
-public class VectorizedColumnBatchTest {
+class VectorizedColumnBatchTest {
 
     private static final int VECTOR_SIZE = 1024;
     private static final int ARRAY_SIZE = 3;
 
     @Test
-    public void testTyped() throws IOException {
+    void testTyped() throws IOException {
         HeapBooleanVector col0 = new HeapBooleanVector(VECTOR_SIZE);
         for (int i = 0; i < VECTOR_SIZE; i++) {
             col0.vector[i] = i % 2 == 0;
@@ -164,7 +163,7 @@ public class VectorizedColumnBatchTest {
                     @Override
                     public TimestampData getTimestamp(int colId, int precision) {
                         byte[] bytes = vector10.getBytes(colId).getBytes();
-                        assert bytes.length == 12;
+                        assertThat(bytes).hasSize(12);
                         long nanoOfDay = 0;
                         for (int i = 0; i < 8; i++) {
                             nanoOfDay <<= 8;
@@ -235,29 +234,29 @@ public class VectorizedColumnBatchTest {
 
         for (int i = 0; i < batch.getNumRows(); i++) {
             ColumnarRowData row = new ColumnarRowData(batch, i);
-            assertEquals(row.getBoolean(0), i % 2 == 0);
-            assertEquals(row.getString(1).toString(), String.valueOf(i));
-            assertEquals(row.getByte(2), (byte) i);
-            assertEquals(row.getDouble(3), i, 0);
-            assertEquals(row.getFloat(4), (float) i, 0);
-            assertEquals(row.getInt(5), i);
-            assertEquals(row.getLong(6), i);
-            assertEquals(row.getShort(7), (short) i);
-            assertEquals(row.getTimestamp(8, 3).getMillisecond(), i);
-            assertEquals(row.getTimestamp(9, 6).getMillisecond(), i);
-            assertEquals(row.getTimestamp(10, 9).getMillisecond(), i * 1000L + 123);
-            assertEquals(row.getTimestamp(10, 9).getNanoOfMillisecond(), 456789);
-            assertEquals(row.getDecimal(11, 10, 0).toUnscaledLong(), i);
+            assertThat(row.getBoolean(0)).isEqualTo(i % 2 == 0);
+            assertThat(row.getString(1).toString()).isEqualTo(String.valueOf(i));
+            assertThat(row.getByte(2)).isEqualTo((byte) i);
+            assertThat(row.getDouble(3)).isEqualTo(i);
+            assertThat((float) i).isEqualTo(row.getFloat(4));
+            assertThat(row.getInt(5)).isEqualTo(i);
+            assertThat(row.getLong(6)).isEqualTo(i);
+            assertThat(row.getShort(7)).isEqualTo((short) i);
+            assertThat(row.getTimestamp(8, 3).getMillisecond()).isEqualTo(i);
+            assertThat(row.getTimestamp(9, 6).getMillisecond()).isEqualTo(i);
+            assertThat(row.getTimestamp(10, 9).getMillisecond()).isEqualTo(i * 1000L + 123);
+            assertThat(row.getTimestamp(10, 9).getNanoOfMillisecond()).isEqualTo(456789);
+            assertThat(row.getDecimal(11, 10, 0).toUnscaledLong()).isEqualTo(i);
             for (int j = 0; j < ARRAY_SIZE; j++) {
-                assertEquals(row.getArray(12).getInt(j), i * ARRAY_SIZE + j);
+                assertThat(row.getArray(12).getInt(j)).isEqualTo(i * ARRAY_SIZE + j);
             }
         }
 
-        assertEquals(VECTOR_SIZE, batch.getNumRows());
+        assertThat(batch.getNumRows()).isEqualTo(VECTOR_SIZE);
     }
 
     @Test
-    public void testNull() {
+    void testNull() {
         // all null
         HeapIntVector col0 = new HeapIntVector(VECTOR_SIZE);
         for (int i = 0; i < VECTOR_SIZE; i++) {
@@ -278,17 +277,17 @@ public class VectorizedColumnBatchTest {
 
         for (int i = 0; i < VECTOR_SIZE; i++) {
             ColumnarRowData row = new ColumnarRowData(batch, i);
-            assertTrue(row.isNullAt(0));
+            assertThat(row.isNullAt(0)).isTrue();
             if (i % 2 == 0) {
-                assertTrue(row.isNullAt(1));
+                assertThat(row.isNullAt(1)).isTrue();
             } else {
-                assertEquals(row.getInt(1), i);
+                assertThat(i).isEqualTo(row.getInt(1));
             }
         }
     }
 
     @Test
-    public void testDictionary() {
+    void testDictionary() {
         // all null
         HeapIntVector col = new HeapIntVector(VECTOR_SIZE);
         Integer[] dict = new Integer[2];
@@ -305,9 +304,9 @@ public class VectorizedColumnBatchTest {
         for (int i = 0; i < VECTOR_SIZE; i++) {
             ColumnarRowData row = new ColumnarRowData(batch, i);
             if (i % 2 == 0) {
-                assertEquals(row.getInt(0), 1998);
+                assertThat(1998).isEqualTo(row.getInt(0));
             } else {
-                assertEquals(row.getInt(0), 9998);
+                assertThat(9998).isEqualTo(row.getInt(0));
             }
         }
     }

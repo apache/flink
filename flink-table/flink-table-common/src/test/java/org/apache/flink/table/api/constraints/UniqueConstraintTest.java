@@ -18,30 +18,24 @@
 
 package org.apache.flink.table.api.constraints;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.List;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link UniqueConstraint}. */
-public class UniqueConstraintTest {
-
-    @Rule public ExpectedException thrown = ExpectedException.none();
+class UniqueConstraintTest {
 
     @Test
-    public void testCreatingPrimaryKey() {
+    void testCreatingPrimaryKey() {
         String keyName = "pk";
         List<String> columns = Collections.singletonList("f0");
         UniqueConstraint primaryKey = UniqueConstraint.primaryKey(keyName, columns);
 
-        assertThat(primaryKey.getType(), is(Constraint.ConstraintType.PRIMARY_KEY));
-        assertThat(primaryKey.getName(), is(keyName));
-        assertThat(primaryKey.getColumns(), equalTo(columns));
+        assertThat(primaryKey.getType()).isEqualTo(Constraint.ConstraintType.PRIMARY_KEY);
+        assertThat(primaryKey.getName()).isEqualTo(keyName);
+        assertThat(primaryKey.getColumns()).isEqualTo(columns);
     }
 }

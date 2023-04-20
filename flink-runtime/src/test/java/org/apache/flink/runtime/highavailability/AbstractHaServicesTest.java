@@ -24,14 +24,15 @@ import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
-import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.leaderelection.LeaderElectionDriverFactory;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.function.RunnableWithException;
+import org.apache.flink.util.function.ThrowingConsumer;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
@@ -39,22 +40,19 @@ import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.function.Consumer;
 
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link AbstractHaServices}. */
-public class AbstractHaServicesTest extends TestLogger {
+class AbstractHaServicesTest {
 
     /**
      * Tests that we first delete all pointers from the HA services before deleting the blobs. See
      * FLINK-22014 for more details.
      */
     @Test
-    public void testCloseAndCleanupAllDataDeletesBlobsAfterCleaningUpHAData() throws Exception {
+    void testCloseAndCleanupAllDataDeletesBlobsAfterCleaningUpHAData() throws Exception {
         final Queue<CloseOperations> closeOperations = new ArrayDeque<>(3);
 
         final TestingBlobStoreService testingBlobStoreService =
@@ -71,12 +69,11 @@ public class AbstractHaServicesTest extends TestLogger {
 
         haServices.closeAndCleanupAllData();
 
-        assertThat(
-                closeOperations,
-                contains(
+        assertThat(closeOperations)
+                .contains(
                         CloseOperations.HA_CLEANUP,
                         CloseOperations.HA_CLOSE,
-                        CloseOperations.BLOB_CLEANUP_AND_CLOSE));
+                        CloseOperations.BLOB_CLEANUP_AND_CLOSE);
     }
 
     /**
@@ -84,7 +81,7 @@ public class AbstractHaServicesTest extends TestLogger {
      * services. See FLINK-22014 for more details.
      */
     @Test
-    public void testCloseAndCleanupAllDataDoesNotDeleteBlobsIfCleaningUpHADataFails() {
+    void testCloseAndCleanupAllDataDoesNotDeleteBlobsIfCleaningUpHADataFails() {
         final Queue<CloseOperations> closeOperations = new ArrayDeque<>(3);
 
         final TestingBlobStoreService testingBlobStoreService =
@@ -101,18 +98,12 @@ public class AbstractHaServicesTest extends TestLogger {
                         },
                         ignored -> {});
 
-        try {
-            haServices.closeAndCleanupAllData();
-            fail("Expected that the close operation fails.");
-        } catch (Exception expected) {
-
-        }
-
-        assertThat(closeOperations, contains(CloseOperations.HA_CLOSE, CloseOperations.BLOB_CLOSE));
+        assertThatThrownBy(haServices::closeAndCleanupAllData).isInstanceOf(FlinkException.class);
+        assertThat(closeOperations).contains(CloseOperations.HA_CLOSE, CloseOperations.BLOB_CLOSE);
     }
 
     @Test
-    public void testCleanupJobData() throws Exception {
+    void testCleanupJobData() throws Exception {
         final Queue<CloseOperations> closeOperations = new ArrayDeque<>(3);
         final TestingBlobStoreService testingBlobStoreService =
                 new TestingBlobStoreService(closeOperations);
@@ -129,9 +120,9 @@ public class AbstractHaServicesTest extends TestLogger {
                         () -> {},
                         jobCleanupFuture::complete);
 
-        haServices.cleanupJobData(jobID);
+        haServices.globalCleanupAsync(jobID, Executors.directExecutor()).join();
         JobID jobIDCleaned = jobCleanupFuture.get();
-        assertThat(jobIDCleaned, is(jobID));
+        assertThat(jobIDCleaned).isEqualTo(jobID);
     }
 
     private enum CloseOperations {
@@ -184,7 +175,7 @@ public class AbstractHaServicesTest extends TestLogger {
 
         private final Queue<? super CloseOperations> closeOperations;
         private final RunnableWithException internalCleanupRunnable;
-        private final Consumer<JobID> internalJobCleanupConsumer;
+        private final ThrowingConsumer<JobID, Exception> internalJobCleanupConsumer;
 
         private TestingHaServices(
                 Configuration config,
@@ -192,15 +183,25 @@ public class AbstractHaServicesTest extends TestLogger {
                 BlobStoreService blobStoreService,
                 Queue<? super CloseOperations> closeOperations,
                 RunnableWithException internalCleanupRunnable,
-                Consumer<JobID> internalJobCleanupConsumer) {
-            super(config, ioExecutor, blobStoreService);
+                ThrowingConsumer<JobID, Exception> internalJobCleanupConsumer) {
+            super(
+                    config,
+                    ioExecutor,
+                    blobStoreService,
+                    TestingJobResultStore.builder()
+                            .withMarkResultAsCleanConsumer(
+                                    ignoredJobId -> {
+                                        throw new AssertionError(
+                                                "Marking the job as clean shouldn't happen in the HaServices cleanup");
+                                    })
+                            .build());
             this.closeOperations = closeOperations;
             this.internalCleanupRunnable = internalCleanupRunnable;
             this.internalJobCleanupConsumer = internalJobCleanupConsumer;
         }
 
         @Override
-        protected LeaderElectionService createLeaderElectionService(String leaderName) {
+        protected LeaderElectionDriverFactory createLeaderElectionDriverFactory(String leaderName) {
             throw new UnsupportedOperationException("Not supported by this test implementation.");
         }
 
@@ -216,11 +217,6 @@ public class AbstractHaServicesTest extends TestLogger {
 
         @Override
         protected JobGraphStore createJobGraphStore() throws Exception {
-            throw new UnsupportedOperationException("Not supported by this test implementation.");
-        }
-
-        @Override
-        protected RunningJobsRegistry createRunningJobsRegistry() {
             throw new UnsupportedOperationException("Not supported by this test implementation.");
         }
 

@@ -27,7 +27,6 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaDeserializatio
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 
-import kafka.server.KafkaServer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
 import java.util.Collection;
@@ -105,8 +104,6 @@ public abstract class KafkaTestEnvironment {
     public abstract String getBrokerConnectionString();
 
     public abstract String getVersion();
-
-    public abstract List<KafkaServer> getBrokers();
 
     public Properties getIdempotentProducerConfig() {
         Properties props = new Properties();
@@ -205,9 +202,9 @@ public abstract class KafkaTestEnvironment {
 
     public abstract void restartBroker(int leaderId) throws Exception;
 
-    public abstract int getLeaderToShutDown(String topic) throws Exception;
+    public abstract void stopBroker(int brokerId) throws Exception;
 
-    public abstract int getBrokerId(KafkaServer server);
+    public abstract int getLeaderToShutDown(String topic) throws Exception;
 
     public abstract boolean isSecureRunSupported();
 

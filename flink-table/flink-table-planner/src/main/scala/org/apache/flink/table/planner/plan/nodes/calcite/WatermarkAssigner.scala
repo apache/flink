@@ -15,24 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.calcite
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFieldImpl}
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.calcite.rex.RexNode
+import org.apache.calcite.sql.`type`.SqlTypeName
 
 import java.util
 
-import org.apache.calcite.sql.`type`.SqlTypeName
-
 import scala.collection.JavaConversions._
 
-/**
-  * Relational operator that generates [[org.apache.flink.streaming.api.watermark.Watermark]].
-  */
+/** Relational operator that generates [[org.apache.flink.streaming.api.watermark.Watermark]]. */
 abstract class WatermarkAssigner(
     cluster: RelOptCluster,
     traits: RelTraitSet,
@@ -45,15 +42,16 @@ abstract class WatermarkAssigner(
     val inputRowType = inputRel.getRowType
     val typeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
 
-    val newFieldList = inputRowType.getFieldList.map { f =>
-      if (f.getIndex == rowtimeFieldIndex) {
-        val rowtimeIndicatorType = typeFactory.createRowtimeIndicatorType(
-          f.getType.isNullable,
-          f.getType.getSqlTypeName == SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE)
-        new RelDataTypeFieldImpl(f.getName, f.getIndex, rowtimeIndicatorType)
-      } else {
-        f
-      }
+    val newFieldList = inputRowType.getFieldList.map {
+      f =>
+        if (f.getIndex == rowtimeFieldIndex) {
+          val rowtimeIndicatorType = typeFactory.createRowtimeIndicatorType(
+            f.getType.isNullable,
+            f.getType.getSqlTypeName == SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+          new RelDataTypeFieldImpl(f.getName, f.getIndex, rowtimeIndicatorType)
+        } else {
+          f
+        }
     }
 
     val builder = typeFactory.builder
@@ -63,7 +61,8 @@ abstract class WatermarkAssigner(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     val rowtimeFieldName = inputRel.getRowType.getFieldNames.get(rowtimeFieldIndex)
-    super.explainTerms(pw)
+    super
+      .explainTerms(pw)
       .item("rowtime", rowtimeFieldName)
       .item("watermark", watermarkExpr.toString)
   }
@@ -72,9 +71,7 @@ abstract class WatermarkAssigner(
     copy(traitSet, inputs.get(0), rowtimeFieldIndex, watermarkExpr)
   }
 
-  /**
-    * Copies a new WatermarkAssigner.
-    */
+  /** Copies a new WatermarkAssigner. */
   def copy(traitSet: RelTraitSet, input: RelNode, rowtime: Int, watermark: RexNode): RelNode
 
 }

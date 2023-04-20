@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.connector.sink2;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService;
@@ -27,7 +28,9 @@ import org.apache.flink.util.UserCodeClassLoader;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.function.Consumer;
 
 /**
  * Base interface for developing a sink. A basic {@link Sink} is a stateless sink that can flush
@@ -92,6 +95,13 @@ public interface Sink<InputT> extends Serializable {
         /** @return The number of parallel Sink tasks. */
         int getNumberOfParallelSubtasks();
 
+        /**
+         * Gets the attempt number of this parallel subtask. First attempt is numbered 0.
+         *
+         * @return Attempt number of the subtask.
+         */
+        int getAttemptNumber();
+
         /** @return The metric group this writer belongs to. */
         SinkWriterMetricGroup metricGroup();
 
@@ -105,5 +115,18 @@ public interface Sink<InputT> extends Serializable {
          * Provides a view on this context as a {@link SerializationSchema.InitializationContext}.
          */
         SerializationSchema.InitializationContext asSerializationSchemaInitializationContext();
+
+        /**
+         * Returns a metadata consumer, the {@link SinkWriter} can publish metadata events of type
+         * {@link MetaT} to the consumer.
+         *
+         * <p>It is recommended to use a separate thread pool to publish the metadata because
+         * enqueuing a lot of these messages in the mailbox may lead to a performance decrease.
+         * thread, and the {@link Consumer#accept} method is executed very fast.
+         */
+        @Experimental
+        default <MetaT> Optional<Consumer<MetaT>> metadataConsumer() {
+            return Optional.empty();
+        }
     }
 }

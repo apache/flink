@@ -1,37 +1,31 @@
 # Apache Hadoop Docker image with Kerberos enabled
 
-This image is modified version of Knappek/docker-hadoop-secure
- * Knappek/docker-hadoop-secure <https://github.com/Knappek/docker-hadoop-secure>
-
-With bits and pieces added from Lewuathe/docker-hadoop-cluster to extend it to start a proper kerberized Hadoop cluster:
- * Lewuathe/docker-hadoop-cluster <https://github.com/Lewuathe/docker-hadoop-cluster>
-
-And a lot of added stuff for making this an actual, properly configured, kerberized cluster with proper user/permissions structure.
-
-Versions
---------
+Required versions
+-----------------
 
 * JDK8
-* Hadoop 2.8.5
+* Hadoop 2.10.2
 
 Default Environment Variables
 -----------------------------
 
-| Name | Value | Description |
-| ---- | ----  | ---- |
-| `KRB_REALM` | `EXAMPLE.COM` | The Kerberos Realm, more information [here](https://web.mit.edu/kerberos/krb5-1.12/doc/admin/conf_files/krb5_conf.html#) |
-| `DOMAIN_REALM` | `example.com` | The Kerberos Domain Realm, more information [here](https://web.mit.edu/kerberos/krb5-1.12/doc/admin/conf_files/krb5_conf.html#) |
-| `KERBEROS_ADMIN` | `admin/admin` | The KDC admin user |
-| `KERBEROS_ADMIN_PASSWORD` | `admin` | The KDC admin password |
+| Name                      | Value | Description                                                                                                                                     |
+|---------------------------| ----  |-------------------------------------------------------------------------------------------------------------------------------------------------|
+| `KRB_REALM`               | `EXAMPLE.COM` | The Kerberos Realm, more information [here](https://web.mit.edu/kerberos/krb5-1.12/doc/admin/conf_files/krb5_conf.html#)                        |
+| `DOMAIN_REALM`            | `example.com` | The Kerberos Domain Realm, more information [here](https://web.mit.edu/kerberos/krb5-1.12/doc/admin/conf_files/krb5_conf.html#)                 |
+| `KERB_MASTER_KEY`         | `masterkey` | The Kerberos master database password, more information [here](https://web.mit.edu/kerberos/krb5-1.12/doc/admin/admin_commands/kdb5_util.html#) |
+| `KERBEROS_ADMIN_USER`     | `admin/admin` | The KDC admin user                                                                                                                              |
+| `KERBEROS_ADMIN_PASSWORD` | `admin` | The KDC admin password                                                                                                                          |
 
 You can simply define these variables in the `docker-compose.yml`.
 
 Run image
 ---------
 
-Clone the [project](https://git-wip-us.apache.org/repos/asf/flink.git) and run
-
 ```
+cd flink-end-to-end-tests/test-scripts/docker-hadoop-secure-cluster
+wget -O hadoop/hadoop.tar.gz https://archive.apache.org/dist/hadoop/common/hadoop-2.10.2/hadoop-2.10.2.tar.gz
+docker-compose build
 docker-compose up
 ```
 
@@ -44,7 +38,6 @@ Get the container name with `docker ps` and login to the container with
 docker exec -it <container-name> /bin/bash
 ```
 
-
 To obtain a Kerberos ticket, execute
 
 ```
@@ -56,7 +49,6 @@ Afterwards you can use `hdfs` CLI like
 ```
 hdfs dfs -ls /
 ```
-
 
 Known issues
 ------------
@@ -73,17 +65,6 @@ Login failure for nn/hadoop.docker.com@EXAMPLE.COM from keytab /etc/security/key
 #### Solution
 
 Stop the containers with `docker-compose down` and start again with `docker-compose up -d`.
-
-
-### JDK 8
-
-Make sure you use download a JDK version that is still available. Old versions can be deprecated by Oracle and thus the download link won't be able anymore.
-
-Get the latest JDK8 Download URL with
-
-```
-curl -s https://lv.binarybabel.org/catalog-api/java/jdk8.json
-```
 
 ### Java Keystore
 

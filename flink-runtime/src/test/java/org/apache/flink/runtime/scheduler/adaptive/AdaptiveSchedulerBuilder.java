@@ -32,6 +32,7 @@ import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTime
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobmaster.DefaultExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.DefaultAllocatedSlotPool;
@@ -44,12 +45,10 @@ import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotAllocator;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
-import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.FatalExitExceptionHandler;
 
 import javax.annotation.Nullable;
 
-import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 
 /** Builder for {@link AdaptiveScheduler}. */
@@ -60,9 +59,9 @@ public class AdaptiveSchedulerBuilder {
 
     private final ComponentMainThreadExecutor mainThreadExecutor;
 
-    private Executor ioExecutor = TestingUtils.defaultExecutor();
+    @Nullable private JobResourceRequirements jobResourceRequirements;
+
     private Configuration jobMasterConfiguration = new Configuration();
-    private ScheduledExecutorService futureExecutor = TestingUtils.defaultExecutor();
     private ClassLoader userCodeLoader = ClassLoader.getSystemClassLoader();
     private CheckpointsCleaner checkpointsCleaner = new CheckpointsCleaner();
     private CheckpointRecoveryFactory checkpointRecoveryFactory =
@@ -99,20 +98,15 @@ public class AdaptiveSchedulerBuilder {
                         rpcTimeout);
     }
 
-    public AdaptiveSchedulerBuilder setIoExecutor(final Executor ioExecutor) {
-        this.ioExecutor = ioExecutor;
+    public AdaptiveSchedulerBuilder setJobResourceRequirements(
+            JobResourceRequirements jobResourceRequirements) {
+        this.jobResourceRequirements = jobResourceRequirements;
         return this;
     }
 
     public AdaptiveSchedulerBuilder setJobMasterConfiguration(
             final Configuration jobMasterConfiguration) {
         this.jobMasterConfiguration = jobMasterConfiguration;
-        return this;
-    }
-
-    public AdaptiveSchedulerBuilder setFutureExecutor(
-            final ScheduledExecutorService futureExecutor) {
-        this.futureExecutor = futureExecutor;
         return this;
     }
 
@@ -192,14 +186,14 @@ public class AdaptiveSchedulerBuilder {
         return this;
     }
 
-    public AdaptiveScheduler build() throws Exception {
+    public AdaptiveScheduler build(ScheduledExecutorService executorService) throws Exception {
         final ExecutionGraphFactory executionGraphFactory =
                 new DefaultExecutionGraphFactory(
                         jobMasterConfiguration,
                         userCodeLoader,
                         new DefaultExecutionDeploymentTracker(),
-                        futureExecutor,
-                        ioExecutor,
+                        executorService,
+                        executorService,
                         rpcTimeout,
                         jobManagerJobMetricGroup,
                         blobWriter,
@@ -208,13 +202,14 @@ public class AdaptiveSchedulerBuilder {
 
         return new AdaptiveScheduler(
                 jobGraph,
+                jobResourceRequirements,
                 jobMasterConfiguration,
                 declarativeSlotPool,
                 slotAllocator == null
                         ? AdaptiveSchedulerFactory.createSlotSharingSlotAllocator(
                                 declarativeSlotPool)
                         : slotAllocator,
-                ioExecutor,
+                executorService,
                 userCodeLoader,
                 checkpointsCleaner,
                 checkpointRecoveryFactory,

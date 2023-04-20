@@ -30,6 +30,7 @@ import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.runtime.state.PriorityQueueSetFactory;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 
 import org.junit.Assert;
@@ -725,11 +726,6 @@ public class InternalTimerServiceImplTest {
         testSnapshotAndRestore(InternalTimerServiceSerializationProxy.VERSION);
     }
 
-    @Test
-    public void testSnapshotAndRestorePreVersioned() throws Exception {
-        testSnapshotAndRestore(InternalTimersSnapshotReaderWriters.NO_VERSION);
-    }
-
     /**
      * This test checks whether timers are assigned to correct key groups and whether
      * snapshot/restore respects key groups.
@@ -737,11 +733,6 @@ public class InternalTimerServiceImplTest {
     @Test
     public void testSnapshotAndRebalancingRestore() throws Exception {
         testSnapshotAndRebalancingRestore(InternalTimerServiceSerializationProxy.VERSION);
-    }
-
-    @Test
-    public void testSnapshotAndRebalancingRestorePreVersioned() throws Exception {
-        testSnapshotAndRebalancingRestore(InternalTimersSnapshotReaderWriters.NO_VERSION);
     }
 
     private void testSnapshotAndRestore(int snapshotVersion) throws Exception {
@@ -1110,7 +1101,8 @@ public class InternalTimerServiceImplTest {
                 processingTimeService,
                 createTimerQueue(
                         "__test_processing_timers", timerSerializer, priorityQueueSetFactory),
-                createTimerQueue("__test_event_timers", timerSerializer, priorityQueueSetFactory));
+                createTimerQueue("__test_event_timers", timerSerializer, priorityQueueSetFactory),
+                StreamTaskCancellationContext.alwaysRunning());
     }
 
     private static <K, N>

@@ -15,17 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
-import org.apache.flink.table.catalog.ResolvedCatalogTable
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalTableSourceScan
 import org.apache.flink.table.planner.plan.schema.TableSourceTable
-import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
@@ -60,14 +58,12 @@ class StreamPhysicalTableSourceScan(
 
   override def translateToExecNode(): ExecNode[_] = {
     val tableSourceSpec = new DynamicTableSourceSpec(
-      tableSourceTable.contextResolvedTable.getIdentifier,
-      tableSourceTable.contextResolvedTable.getResolvedTable[ResolvedCatalogTable],
+      tableSourceTable.contextResolvedTable,
       util.Arrays.asList(tableSourceTable.abilitySpecs: _*))
     tableSourceSpec.setTableSource(tableSource)
-    val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
-    tableSourceSpec.setReadableConfig(tableConfig.getConfiguration)
 
     new StreamExecTableSourceScan(
+      unwrapTableConfig(this),
       tableSourceSpec,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)

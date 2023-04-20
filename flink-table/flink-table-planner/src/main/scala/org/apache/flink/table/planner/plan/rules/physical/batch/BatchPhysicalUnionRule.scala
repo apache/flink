@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
@@ -25,18 +24,12 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalUni
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 
 import scala.collection.JavaConversions._
 
-/**
-  * Rule that converts [[FlinkLogicalUnion]] to [[BatchPhysicalUnion]].
-  */
-class BatchPhysicalUnionRule
-  extends ConverterRule(
-    classOf[FlinkLogicalUnion],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.BATCH_PHYSICAL,
-    "BatchPhysicalUnionRule") {
+/** Rule that converts [[FlinkLogicalUnion]] to [[BatchPhysicalUnion]]. */
+class BatchPhysicalUnionRule(config: Config) extends ConverterRule(config) {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     call.rel(0).asInstanceOf[FlinkLogicalUnion].all
@@ -47,15 +40,15 @@ class BatchPhysicalUnionRule
     val traitSet = rel.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
     val newInputs = union.getInputs.map(RelOptRule.convert(_, FlinkConventions.BATCH_PHYSICAL))
 
-    new BatchPhysicalUnion(
-      rel.getCluster,
-      traitSet,
-      newInputs,
-      union.all,
-      rel.getRowType)
+    new BatchPhysicalUnion(rel.getCluster, traitSet, newInputs, union.all, rel.getRowType)
   }
 }
 
 object BatchPhysicalUnionRule {
-  val INSTANCE: RelOptRule = new BatchPhysicalUnionRule
+  val INSTANCE: RelOptRule = new BatchPhysicalUnionRule(
+    Config.INSTANCE.withConversion(
+      classOf[FlinkLogicalUnion],
+      FlinkConventions.LOGICAL,
+      FlinkConventions.BATCH_PHYSICAL,
+      "BatchPhysicalUnionRule"))
 }

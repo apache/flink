@@ -25,7 +25,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 /** Message headers for the {@link JobCancellationHandler}. */
 public class JobCancellationHeaders
-        implements MessageHeaders<
+        implements RuntimeMessageHeaders<
                 EmptyRequestBody, EmptyResponseBody, JobCancellationMessageParameters> {
 
     public static final String URL = "/jobs/:jobid";
@@ -71,5 +71,10 @@ public class JobCancellationHeaders
     @Override
     public String getDescription() {
         return "Terminates a job.";
+    }
+
+    @Override
+    public String operationId() {
+        return "cancelJob";
     }
 }

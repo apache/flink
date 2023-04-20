@@ -15,29 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.common
 
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
+import org.apache.flink.table.planner.plan.utils.JoinUtil
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.{preferExpressionDetail, preferExpressionFormat}
-import org.apache.flink.table.planner.plan.utils.JoinUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.{CorrelationId, Join, JoinRelType}
 import org.apache.calcite.rel.{RelNode, RelWriter}
+import org.apache.calcite.rel.core.{CorrelationId, Join, JoinRelType}
 import org.apache.calcite.rex.RexNode
 
 import java.util.Collections
 
 import scala.collection.JavaConversions._
 
-/**
-  * Base physical class for flink [[Join]].
-  */
+/** Base physical class for flink [[Join]]. */
 abstract class CommonPhysicalJoin(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -45,14 +43,22 @@ abstract class CommonPhysicalJoin(
     rightRel: RelNode,
     condition: RexNode,
     joinType: JoinRelType)
-  extends Join(cluster, traitSet, Collections.emptyList(), leftRel, rightRel, condition,
-    Set.empty[CorrelationId], joinType)
+  extends Join(
+    cluster,
+    traitSet,
+    Collections.emptyList(),
+    leftRel,
+    rightRel,
+    condition,
+    Set.empty[CorrelationId],
+    joinType)
   with FlinkPhysicalRel {
 
   if (containsPythonCall(condition)) {
-    throw new TableException("Only inner join condition with equality predicates supports the " +
-      "Python UDF taking the inputs from the left table and the right table at the same time, " +
-      "e.g., ON T1.id = T2.id && pythonUdf(T1.a, T2.b)")
+    throw new TableException(
+      "Only inner join condition with equality predicates supports the " +
+        "Python UDF taking the inputs from the left table and the right table at the same time, " +
+        "e.g., ON T1.id = T2.id && pythonUdf(T1.a, T2.b)")
   }
 
   lazy val joinSpec: JoinSpec = JoinUtil.createJoinSpec(this)
@@ -60,15 +66,29 @@ abstract class CommonPhysicalJoin(
   lazy val inputRowType: RelDataType = JoinUtil.combineJoinInputsRowType(this)
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    pw.input("left", getLeft).input("right", getRight)
+    pw.input("left", getLeft)
+      .input("right", getRight)
       .item("joinType", joinSpec.getJoinType.toString)
-      .item("where", getExpressionString(
-        getCondition,
-        inputRowType.getFieldNames.toList,
-        Option.empty[List[RexNode]],
-        preferExpressionFormat(pw),
-        preferExpressionDetail(pw)))
+      .item(
+        "where",
+        getExpressionString(
+          getCondition,
+          inputRowType.getFieldNames.toList,
+          Option.empty[List[RexNode]],
+          preferExpressionFormat(pw),
+          preferExpressionDetail(pw))
+      )
       .item("select", getRowType.getFieldNames.mkString(", "))
   }
 
+  def getUpsertKeys(input: RelNode, keys: Array[Int]): List[Array[Int]] = {
+    val upsertKeys = FlinkRelMetadataQuery
+      .reuseOrCreate(cluster.getMetadataQuery)
+      .getUpsertKeysInKeyGroupRange(input, keys)
+    if (upsertKeys == null || upsertKeys.isEmpty) {
+      List.empty
+    } else {
+      upsertKeys.map(_.asList.map(_.intValue).toArray).toList
+    }
+  }
 }

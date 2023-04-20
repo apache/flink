@@ -52,7 +52,10 @@ public enum FlinkVersion {
     v1_12("1.12"),
     v1_13("1.13"),
     v1_14("1.14"),
-    v1_15("1.15");
+    v1_15("1.15"),
+    v1_16("1.16"),
+    v1_17("1.17"),
+    v1_18("1.18");
 
     private final String versionStr;
 
@@ -82,5 +85,10 @@ public enum FlinkVersion {
 
     public static Optional<FlinkVersion> byCode(String code) {
         return Optional.ofNullable(CODE_MAP.get(code));
+    }
+
+    /** Returns the current version. */
+    public static FlinkVersion current() {
+        return values()[values().length - 1];
     }
 }

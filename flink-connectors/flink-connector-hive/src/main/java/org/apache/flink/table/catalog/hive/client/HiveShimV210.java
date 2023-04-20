@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog.hive.client;
 
+import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
@@ -25,12 +26,14 @@ import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.EnvironmentContext;
 import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.ql.metadata.Hive;
 import org.apache.thrift.TApplicationException;
 import org.apache.thrift.TException;
 
@@ -40,10 +43,13 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /** Shim for Hive version 2.1.0. */
 public class HiveShimV210 extends HiveShimV201 {
+
+    protected final boolean hasFollowingStatsTask = false;
 
     @Override
     public void alterPartition(
@@ -210,5 +216,73 @@ public class HiveShimV210 extends HiveShimV201 {
             }
         }
         return res;
+    }
+
+    @Override
+    public void loadTable(
+            Hive hive, Path loadPath, String tableName, boolean replace, boolean isSrcLocal) {
+        try {
+            Class hiveClass = Hive.class;
+            Method loadTableMethod =
+                    hiveClass.getDeclaredMethod(
+                            "loadTable",
+                            Path.class,
+                            String.class,
+                            boolean.class,
+                            boolean.class,
+                            boolean.class,
+                            boolean.class,
+                            boolean.class);
+            loadTableMethod.invoke(
+                    hive,
+                    loadPath,
+                    tableName,
+                    replace,
+                    isSrcLocal,
+                    isSkewedStoreAsSubdir,
+                    isAcid,
+                    hasFollowingStatsTask);
+        } catch (Exception e) {
+            throw new FlinkHiveException("Failed to load table", e);
+        }
+    }
+
+    @Override
+    public void loadPartition(
+            Hive hive,
+            Path loadPath,
+            String tableName,
+            Map<String, String> partSpec,
+            boolean isSkewedStoreAsSubdir,
+            boolean replace,
+            boolean isSrcLocal) {
+        try {
+            Class hiveClass = Hive.class;
+            Method loadPartitionMethod =
+                    hiveClass.getDeclaredMethod(
+                            "loadPartition",
+                            Path.class,
+                            String.class,
+                            Map.class,
+                            boolean.class,
+                            boolean.class,
+                            boolean.class,
+                            boolean.class,
+                            boolean.class,
+                            boolean.class);
+            loadPartitionMethod.invoke(
+                    hive,
+                    loadPath,
+                    tableName,
+                    partSpec,
+                    replace,
+                    inheritTableSpecs,
+                    isSkewedStoreAsSubdir,
+                    isSrcLocal,
+                    isAcid,
+                    hasFollowingStatsTask);
+        } catch (Exception e) {
+            throw new FlinkHiveException("Failed to load partition", e);
+        }
     }
 }

@@ -55,19 +55,24 @@ abstract class AbstractReporter<MetricInfo> implements MetricReporter {
     public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
         final MetricInfo metricInfo = metricInfoProvider.getMetricInfo(metricName, group);
         synchronized (this) {
-            if (metric instanceof Counter) {
-                counters.put((Counter) metric, metricInfo);
-            } else if (metric instanceof Gauge) {
-                gauges.put((Gauge<?>) metric, metricInfo);
-            } else if (metric instanceof Histogram) {
-                histograms.put((Histogram) metric, metricInfo);
-            } else if (metric instanceof Meter) {
-                meters.put((Meter) metric, metricInfo);
-            } else {
-                log.warn(
-                        "Cannot add unknown metric type {}. This indicates that the reporter "
-                                + "does not support this metric type.",
-                        metric.getClass().getName());
+            switch (metric.getMetricType()) {
+                case COUNTER:
+                    counters.put((Counter) metric, metricInfo);
+                    break;
+                case GAUGE:
+                    gauges.put((Gauge<?>) metric, metricInfo);
+                    break;
+                case HISTOGRAM:
+                    histograms.put((Histogram) metric, metricInfo);
+                    break;
+                case METER:
+                    meters.put((Meter) metric, metricInfo);
+                    break;
+                default:
+                    log.warn(
+                            "Cannot add unknown metric type {}. This indicates that the reporter "
+                                    + "does not support this metric type.",
+                            metric.getClass().getName());
             }
         }
     }
@@ -75,19 +80,24 @@ abstract class AbstractReporter<MetricInfo> implements MetricReporter {
     @Override
     public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
         synchronized (this) {
-            if (metric instanceof Counter) {
-                counters.remove(metric);
-            } else if (metric instanceof Gauge) {
-                gauges.remove(metric);
-            } else if (metric instanceof Histogram) {
-                histograms.remove(metric);
-            } else if (metric instanceof Meter) {
-                meters.remove(metric);
-            } else {
-                log.warn(
-                        "Cannot remove unknown metric type {}. This indicates that the reporter "
-                                + "does not support this metric type.",
-                        metric.getClass().getName());
+            switch (metric.getMetricType()) {
+                case COUNTER:
+                    counters.remove(metric);
+                    break;
+                case GAUGE:
+                    gauges.remove(metric);
+                    break;
+                case HISTOGRAM:
+                    histograms.remove(metric);
+                    break;
+                case METER:
+                    meters.remove(metric);
+                    break;
+                default:
+                    log.warn(
+                            "Cannot remove unknown metric type {}. This indicates that the reporter "
+                                    + "does not support this metric type.",
+                            metric.getClass().getName());
             }
         }
     }

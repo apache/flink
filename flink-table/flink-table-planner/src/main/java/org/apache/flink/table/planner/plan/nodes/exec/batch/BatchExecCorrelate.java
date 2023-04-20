@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecCorrelate;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
@@ -36,6 +38,7 @@ import java.util.Collections;
 public class BatchExecCorrelate extends CommonExecCorrelate implements BatchExecNode<RowData> {
 
     public BatchExecCorrelate(
+            ReadableConfig tableConfig,
             FlinkJoinType joinType,
             RexCall invocation,
             @Nullable RexNode condition,
@@ -43,12 +46,14 @@ public class BatchExecCorrelate extends CommonExecCorrelate implements BatchExec
             RowType outputType,
             String description) {
         super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(BatchExecCorrelate.class),
+                ExecNodeContext.newPersistedConfig(BatchExecCorrelate.class, tableConfig),
                 joinType,
                 invocation,
                 condition,
                 TableStreamOperator.class,
                 false, // retainHeader
-                getNewNodeId(),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);

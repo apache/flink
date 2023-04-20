@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.logical
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
@@ -24,14 +23,15 @@ import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, LogicalExpand}
 import org.apache.calcite.plan.{Convention, RelOptCluster, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 import org.apache.calcite.rex.RexNode
 
 import java.util
 
 /**
-  * Sub-class of [[Expand]] that is a relational expression
-  * which returns multiple rows expanded from one input row.
-  */
+ * Sub-class of [[Expand]] that is a relational expression which returns multiple rows expanded from
+ * one input row.
+ */
 class FlinkLogicalExpand(
     cluster: RelOptCluster,
     traits: RelTraitSet,
@@ -42,35 +42,27 @@ class FlinkLogicalExpand(
   with FlinkLogicalRel {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new FlinkLogicalExpand(
-      cluster,
-      traitSet,
-      inputs.get(0),
-      projects,
-      expandIdIndex)
+    new FlinkLogicalExpand(cluster, traitSet, inputs.get(0), projects, expandIdIndex)
   }
 
 }
 
-private class FlinkLogicalExpandConverter
-  extends ConverterRule(
-    classOf[LogicalExpand],
-    Convention.NONE,
-    FlinkConventions.LOGICAL,
-    "FlinkLogicalExpandConverter") {
+private class FlinkLogicalExpandConverter(config: Config) extends ConverterRule(config) {
 
   override def convert(rel: RelNode): RelNode = {
     val expand = rel.asInstanceOf[LogicalExpand]
     val newInput = RelOptRule.convert(expand.getInput, FlinkConventions.LOGICAL)
-    FlinkLogicalExpand.create(
-      newInput,
-      expand.projects,
-      expand.expandIdIndex)
+    FlinkLogicalExpand.create(newInput, expand.projects, expand.expandIdIndex)
   }
 }
 
 object FlinkLogicalExpand {
-  val CONVERTER: ConverterRule = new FlinkLogicalExpandConverter()
+  val CONVERTER: ConverterRule = new FlinkLogicalExpandConverter(
+    Config.INSTANCE.withConversion(
+      classOf[LogicalExpand],
+      Convention.NONE,
+      FlinkConventions.LOGICAL,
+      "FlinkLogicalExpandConverter"))
 
   def create(
       input: RelNode,

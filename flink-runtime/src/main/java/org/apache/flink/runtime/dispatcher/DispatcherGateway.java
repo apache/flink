@@ -20,8 +20,10 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
@@ -75,6 +77,7 @@ public interface DispatcherGateway extends FencedRpcGateway<DispatcherId>, Restf
      *
      * @param jobId the job id
      * @param targetDirectory Target directory for the savepoint.
+     * @param formatType Binary format of the savepoint.
      * @param savepointMode context of the savepoint operation
      * @param timeout Timeout for the asynchronous operation
      * @return Future which is completed once the operation is triggered successfully
@@ -82,6 +85,7 @@ public interface DispatcherGateway extends FencedRpcGateway<DispatcherId>, Restf
     default CompletableFuture<String> triggerSavepointAndGetLocation(
             JobID jobId,
             String targetDirectory,
+            SavepointFormatType formatType,
             TriggerSavepointMode savepointMode,
             @RpcTimeout Time timeout) {
         throw new UnsupportedOperationException();
@@ -100,8 +104,33 @@ public interface DispatcherGateway extends FencedRpcGateway<DispatcherId>, Restf
     default CompletableFuture<String> stopWithSavepointAndGetLocation(
             JobID jobId,
             String targetDirectory,
+            SavepointFormatType formatType,
             TriggerSavepointMode savepointMode,
             @RpcTimeout final Time timeout) {
         throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Read current {@link JobResourceRequirements job resource requirements} for a given job.
+     *
+     * @param jobId job to read the resource requirements for
+     * @return Future which that contains current resource requirements.
+     */
+    default CompletableFuture<JobResourceRequirements> requestJobResourceRequirements(JobID jobId) {
+        throw new UnsupportedOperationException("Operation is not yet implemented.");
+    }
+
+    /**
+     * Update {@link JobResourceRequirements job resource requirements} for a given job. When the
+     * returned future is complete the requirements have been updated and were persisted in HA, but
+     * the job may not have been rescaled (yet).
+     *
+     * @param jobId job the given requirements belong to
+     * @param jobResourceRequirements new resource requirements for the job
+     * @return Future which is completed successfully when requirements are updated
+     */
+    default CompletableFuture<Acknowledge> updateJobResourceRequirements(
+            JobID jobId, JobResourceRequirements jobResourceRequirements) {
+        throw new UnsupportedOperationException("Operation is not yet implemented.");
     }
 }

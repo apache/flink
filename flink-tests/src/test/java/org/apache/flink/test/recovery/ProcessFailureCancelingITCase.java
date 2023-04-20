@@ -20,7 +20,6 @@ package org.apache.flink.test.recovery;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -38,7 +37,7 @@ import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
-import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.heartbeat.HeartbeatServicesImpl;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
@@ -48,6 +47,7 @@ import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.rpc.RpcUtils;
+import org.apache.flink.runtime.security.token.NoOpDelegationTokenManager;
 import org.apache.flink.runtime.util.BlobServerResource;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.impl.VoidMetricQueryServiceRetriever;
@@ -56,10 +56,12 @@ import org.apache.flink.test.recovery.utils.TaskExecutorProcessEntryPoint;
 import org.apache.flink.test.util.TestProcessBuilder;
 import org.apache.flink.test.util.TestProcessBuilder.TestProcess;
 import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assume;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -83,6 +85,10 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 
     private static final String TASK_DEPLOYED_MARKER = "deployed";
     private static final Duration TIMEOUT = Duration.ofMinutes(2);
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     @Rule public final BlobServerResource blobServerResource = new BlobServerResource();
 
@@ -126,7 +132,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
                         StandaloneResourceManagerFactory.getInstance());
         DispatcherResourceManagerComponent dispatcherResourceManagerComponent = null;
 
-        final ScheduledExecutorService ioExecutor = TestingUtils.defaultExecutor();
+        final ScheduledExecutorService ioExecutor = EXECUTOR_RESOURCE.getExecutor();
         final HighAvailabilityServices haServices =
                 HighAvailabilityServicesUtils.createHighAvailabilityServices(
                         config,
@@ -146,7 +152,8 @@ public class ProcessFailureCancelingITCase extends TestLogger {
                             rpcService,
                             haServices,
                             blobServerResource.getBlobServer(),
-                            new HeartbeatServices(100L, 10000L, 2),
+                            new HeartbeatServicesImpl(100L, 10000L, 2),
+                            new NoOpDelegationTokenManager(),
                             NoOpMetricRegistry.INSTANCE,
                             new MemoryExecutionGraphInfoStore(),
                             VoidMetricQueryServiceRetriever.INSTANCE,
@@ -231,7 +238,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 
             fatalErrorHandler.rethrowError();
 
-            RpcUtils.terminateRpcService(rpcService, Time.seconds(100L));
+            RpcUtils.terminateRpcService(rpcService);
 
             haServices.closeAndCleanupAllData();
         }

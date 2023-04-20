@@ -216,6 +216,9 @@ tableName
 @init { gParent.pushMsg("table name", state); }
 @after { gParent.popMsg(state); }
     :
+    (identifier DOT identifier DOT identifier) => cat=identifier DOT db=identifier DOT tab=identifier
+    -> ^(TOK_TABNAME $cat $db $tab)
+    |
     db=identifier DOT tab=identifier
     -> ^(TOK_TABNAME $db $tab)
     |
@@ -227,8 +230,14 @@ viewName
 @init { gParent.pushMsg("view name", state); }
 @after { gParent.popMsg(state); }
     :
-    (db=identifier DOT)? view=identifier
-    -> ^(TOK_TABNAME $db? $view)
+    (identifier DOT identifier DOT identifier) => cat=identifier DOT db=identifier DOT view=identifier
+    -> ^(TOK_TABNAME $cat $db $view)
+    |
+    db=identifier DOT view=identifier
+    -> ^(TOK_TABNAME $db $view)
+    |
+    view=identifier
+    -> ^(TOK_TABNAME $view)
     ;
 
 subQuerySource

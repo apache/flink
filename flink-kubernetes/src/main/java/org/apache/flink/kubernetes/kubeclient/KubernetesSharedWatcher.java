@@ -22,7 +22,7 @@ import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient.WatchCallbackHandl
 
 import javax.annotation.Nullable;
 
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 
 /** The interface for the Kubernetes shared watcher. */
 public interface KubernetesSharedWatcher<T> extends AutoCloseable {
@@ -36,13 +36,10 @@ public interface KubernetesSharedWatcher<T> extends AutoCloseable {
      *
      * @param name name to filter the resource to watch
      * @param callbackHandler callbackHandler which reacts to resource events
-     * @param executorService to run callback
+     * @param executor to run callback
      * @return Return a watch for the Kubernetes resource. It needs to be closed after use.
      */
-    Watch watch(
-            String name,
-            WatchCallbackHandler<T> callbackHandler,
-            @Nullable ExecutorService executorService);
+    Watch watch(String name, WatchCallbackHandler<T> callbackHandler, @Nullable Executor executor);
 
     /** The Watch returned after creating watching, which can be used to close the watching. */
     interface Watch extends AutoCloseable {

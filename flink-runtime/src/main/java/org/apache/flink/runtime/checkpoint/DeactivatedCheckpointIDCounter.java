@@ -19,6 +19,9 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.util.concurrent.FutureUtils;
+
+import java.util.concurrent.CompletableFuture;
 
 /**
  * This class represents a {@link CheckpointIDCounter} if checkpointing is deactivated.
@@ -32,7 +35,9 @@ public enum DeactivatedCheckpointIDCounter implements CheckpointIDCounter {
     public void start() throws Exception {}
 
     @Override
-    public void shutdown(JobStatus jobStatus) throws Exception {}
+    public CompletableFuture<Void> shutdown(JobStatus jobStatus) {
+        return FutureUtils.completedVoidFuture();
+    }
 
     @Override
     public long getAndIncrement() throws Exception {

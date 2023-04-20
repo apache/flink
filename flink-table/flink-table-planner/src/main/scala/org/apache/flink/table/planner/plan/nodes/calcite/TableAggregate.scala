@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.calcite
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -23,8 +22,8 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeUtils.getAtomicName
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.util.{ImmutableBitSet, Pair, Util}
 
 import java.util
@@ -33,9 +32,9 @@ import scala.collection.JavaConversions._
 import scala.collection.mutable.ListBuffer
 
 /**
-  * Relational operator that represents a table aggregate. A TableAggregate is similar to the
-  * [[org.apache.calcite.rel.core.Aggregate]] but may output 0 or more records for a group.
-  */
+ * Relational operator that represents a table aggregate. A TableAggregate is similar to the
+ * [[org.apache.calcite.rel.core.Aggregate]] but may output 0 or more records for a group.
+ */
 abstract class TableAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -70,11 +69,14 @@ abstract class TableAggregate(
     val groupNames = new ListBuffer[String]
 
     // group key fields
-    groupSet.asList().foreach(e => {
-      val field = child.getRowType.getFieldList.get(e)
-      groupNames.append(field.getName)
-      builder.add(field)
-    })
+    groupSet
+      .asList()
+      .foreach(
+        e => {
+          val field = child.getRowType.getFieldList.get(e)
+          groupNames.append(field.getName)
+          builder.add(field)
+        })
 
     // agg fields
     val aggCall = aggCalls.get(0)
@@ -96,7 +98,8 @@ abstract class TableAggregate(
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw)
+    super
+      .explainTerms(pw)
       .item("group", groupSet)
       .item("tableAggregate", aggCalls)
   }

@@ -83,7 +83,7 @@ public class RegionPartitionGroupReleaseStrategy
 
         for (SchedulingPipelinedRegion region : newRegions) {
             for (ConsumedPartitionGroup consumedPartitionGroup :
-                    region.getAllBlockingConsumedPartitionGroups()) {
+                    region.getAllReleaseBySchedulerConsumedPartitionGroups()) {
                 partitionGroupConsumerRegions
                         .computeIfAbsent(
                                 consumedPartitionGroup,
@@ -112,7 +112,7 @@ public class RegionPartitionGroupReleaseStrategy
             consumerRegionGroupExecutionViewMaintainer.regionFinished(pipelinedRegion);
 
             return filterReleasablePartitionGroups(
-                    pipelinedRegion.getAllBlockingConsumedPartitionGroups());
+                    pipelinedRegion.getAllReleaseBySchedulerConsumedPartitionGroups());
         }
         return Collections.emptyList();
     }
@@ -147,7 +147,8 @@ public class RegionPartitionGroupReleaseStrategy
         for (ConsumedPartitionGroup consumedPartitionGroup : consumedPartitionGroups) {
             final ConsumerRegionGroupExecutionView consumerRegionGroup =
                     partitionGroupConsumerRegions.get(consumedPartitionGroup);
-            if (consumerRegionGroup.isFinished()) {
+            if (consumerRegionGroup.isFinished()
+                    && !consumedPartitionGroup.getResultPartitionType().isPersistent()) {
                 // At present, there's only one ConsumerVertexGroup for each
                 // ConsumedPartitionGroup, so if a ConsumedPartitionGroup is fully consumed, all
                 // its partitions are releasable.

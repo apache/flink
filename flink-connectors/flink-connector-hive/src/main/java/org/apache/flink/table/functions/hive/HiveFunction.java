@@ -19,38 +19,104 @@
 package org.apache.flink.table.functions.hive;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.ArgumentCount;
+import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.types.inference.ConstantArgumentCount;
+import org.apache.flink.table.types.inference.InputTypeStrategy;
+import org.apache.flink.table.types.inference.Signature;
+import org.apache.flink.table.types.inference.TypeInference;
+import org.apache.flink.table.types.inference.TypeStrategy;
 
-/**
- * Interface for Hive simple udf, generic udf, and generic udtf. TODO: Note: this is only a
- * temporary interface for workaround when Flink type system and udf system rework is not finished.
- * Should adapt to Flink type system and Flink UDF framework later on.
- */
+import org.apache.hadoop.hive.ql.exec.UDFArgumentException;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+
+/** Interface for Hive UDF, UDTF, UDAF. */
 @Internal
-public interface HiveFunction {
+public interface HiveFunction<UDFType> {
+
+    /** Sets input arguments for the function. */
+    void setArguments(CallContext callContext);
 
     /**
-     * Set arguments and argTypes for Function instance. In this way, the correct method can be
-     * really deduced by the function instance.
+     * Infers the return type of the function. This method should be called after {@link
+     * #setArguments(CallContext)} is called.
      *
-     * @param constantArguments arguments of a function call (only literal arguments are passed,
-     *     nulls for non-literal ones)
-     * @param argTypes types of arguments
+     * @return The inferred return type.
+     * @throws UDFArgumentException can be thrown if the input arguments are invalid.
      */
-    void setArgumentTypesAndConstants(Object[] constantArguments, DataType[] argTypes);
+    DataType inferReturnType() throws UDFArgumentException;
 
-    /**
-     * Get result type by arguments and argTypes.
-     *
-     * <p>We can't use getResultType(Object[], Class[]). The Class[] is the classes of what is
-     * defined in eval(), for example, if eval() is "public Integer eval(Double)", the argTypes
-     * would be Class[Double]. However, in our wrapper, the signature of eval() is "public Object
-     * eval(Object... args)", which means we cannot get any info from the interface.
-     *
-     * @param constantArguments arguments of a function call (only literal arguments are passed,
-     *     nulls for non-literal ones)
-     * @param argTypes types of arguments
-     * @return result type.
-     */
-    DataType getHiveResultType(Object[] constantArguments, DataType[] argTypes);
+    /** Gets the wrapper for the Hive function. */
+    HiveFunctionWrapper<UDFType> getFunctionWrapper();
+
+    /** Creates {@link TypeInference} for the function. */
+    default TypeInference createTypeInference() {
+        TypeInference.Builder builder = TypeInference.newBuilder();
+        builder.inputTypeStrategy(new HiveFunctionInputStrategy(this));
+        builder.outputTypeStrategy(new HiveFunctionOutputStrategy(this));
+        return builder.build();
+    }
+
+    /** InputTypeStrategy for Hive UDF, UDTF, UDAF. */
+    class HiveFunctionInputStrategy implements InputTypeStrategy {
+
+        private final HiveFunction<?> hiveFunction;
+
+        public HiveFunctionInputStrategy(HiveFunction<?> hiveFunction) {
+            this.hiveFunction = hiveFunction;
+        }
+
+        @Override
+        public ArgumentCount getArgumentCount() {
+            return ConstantArgumentCount.any();
+        }
+
+        @Override
+        public Optional<List<DataType>> inferInputTypes(
+                CallContext callContext, boolean throwOnFailure) {
+            hiveFunction.setArguments(callContext);
+            try {
+                hiveFunction.inferReturnType();
+            } catch (UDFArgumentException e) {
+                if (throwOnFailure) {
+                    throw callContext.newValidationError(
+                            "Cannot find a suitable Hive function from %s for the input arguments",
+                            hiveFunction.getFunctionWrapper().getUDFClassName());
+                } else {
+                    return Optional.empty();
+                }
+            }
+            return Optional.of(callContext.getArgumentDataTypes());
+        }
+
+        @Override
+        public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
+            return Collections.singletonList(Signature.of(Signature.Argument.of("*")));
+        }
+    }
+
+    /** OutputTypeStrategy for Hive UDF, UDTF, UDAF. */
+    class HiveFunctionOutputStrategy implements TypeStrategy {
+
+        private final HiveFunction<?> hiveFunction;
+
+        public HiveFunctionOutputStrategy(HiveFunction<?> hiveFunction) {
+            this.hiveFunction = hiveFunction;
+        }
+
+        @Override
+        public Optional<DataType> inferType(CallContext callContext) {
+            hiveFunction.setArguments(callContext);
+            try {
+                return Optional.of(hiveFunction.inferReturnType());
+            } catch (UDFArgumentException e) {
+                throw new FlinkHiveUDFException(e);
+            }
+        }
+    }
 }

@@ -26,11 +26,11 @@ import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.StructuredType;
 
-import org.apache.flink.shaded.asm7.org.objectweb.asm.ClassReader;
-import org.apache.flink.shaded.asm7.org.objectweb.asm.ClassVisitor;
-import org.apache.flink.shaded.asm7.org.objectweb.asm.Label;
-import org.apache.flink.shaded.asm7.org.objectweb.asm.MethodVisitor;
-import org.apache.flink.shaded.asm7.org.objectweb.asm.Opcodes;
+import org.apache.flink.shaded.asm9.org.objectweb.asm.ClassReader;
+import org.apache.flink.shaded.asm9.org.objectweb.asm.ClassVisitor;
+import org.apache.flink.shaded.asm9.org.objectweb.asm.Label;
+import org.apache.flink.shaded.asm9.org.objectweb.asm.MethodVisitor;
+import org.apache.flink.shaded.asm9.org.objectweb.asm.Opcodes;
 
 import javax.annotation.Nullable;
 
@@ -61,8 +61,8 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.apache.flink.shaded.asm7.org.objectweb.asm.Type.getConstructorDescriptor;
-import static org.apache.flink.shaded.asm7.org.objectweb.asm.Type.getMethodDescriptor;
+import static org.apache.flink.shaded.asm9.org.objectweb.asm.Type.getConstructorDescriptor;
+import static org.apache.flink.shaded.asm9.org.objectweb.asm.Type.getMethodDescriptor;
 
 /** Utilities for performing reflection tasks. */
 @Internal
@@ -633,7 +633,7 @@ public final class ExtractionUtils {
         for (Constructor<?> constructor : clazz.getDeclaredConstructors()) {
             final boolean qualifyingConstructor =
                     Modifier.isPublic(constructor.getModifiers())
-                            && constructor.getParameterTypes().length == fields.size();
+                            && constructor.getParameterCount() == fields.size();
             if (!qualifyingConstructor) {
                 continue;
             }
@@ -768,7 +768,7 @@ public final class ExtractionUtils {
      */
     private static class ParameterExtractor extends ClassVisitor {
 
-        private static final int OPCODE = Opcodes.ASM7;
+        private static final int OPCODE = Opcodes.ASM9;
 
         private final String methodDescriptor;
 

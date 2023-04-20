@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.common;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.table.api.TableException;
@@ -32,6 +32,8 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
@@ -67,6 +69,9 @@ public abstract class CommonExecLegacySink<T> extends ExecNodeBase<T>
     protected final boolean isStreaming;
 
     public CommonExecLegacySink(
+            int id,
+            ExecNodeContext context,
+            ReadableConfig persistedConfig,
             TableSink<T> tableSink,
             @Nullable String[] upsertKeys,
             boolean needRetraction,
@@ -74,7 +79,13 @@ public abstract class CommonExecLegacySink<T> extends ExecNodeBase<T>
             InputProperty inputProperty,
             LogicalType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
+        super(
+                id,
+                context,
+                persistedConfig,
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
         this.tableSink = tableSink;
         this.upsertKeys = upsertKeys;
         this.needRetraction = needRetraction;
@@ -83,11 +94,12 @@ public abstract class CommonExecLegacySink<T> extends ExecNodeBase<T>
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<T> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<T> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         if (tableSink instanceof StreamTableSink) {
             final Transformation<T> transform;
             if (tableSink instanceof RetractStreamTableSink) {
-                transform = translateToTransformation(planner, true);
+                transform = translateToTransformation(planner, config, true);
             } else if (tableSink instanceof UpsertStreamTableSink) {
                 UpsertStreamTableSink<T> upsertSink = (UpsertStreamTableSink<T>) tableSink;
                 final boolean isAppendOnlyTable = !needRetraction;
@@ -103,21 +115,21 @@ public abstract class CommonExecLegacySink<T> extends ExecNodeBase<T>
                     }
                 }
 
-                transform = translateToTransformation(planner, true);
+                transform = translateToTransformation(planner, config, true);
             } else if (tableSink instanceof AppendStreamTableSink) {
                 // verify table is an insert-only (append-only) table
                 if (needRetraction) {
                     throw new TableException(
                             "AppendStreamTableSink requires that Table has only insert changes.");
                 }
-                transform = translateToTransformation(planner, false);
+                transform = translateToTransformation(planner, config, false);
             } else {
                 if (isStreaming) {
                     throw new TableException(
                             "Stream Tables can only be emitted by AppendStreamTableSink, "
                                     + "RetractStreamTableSink, or UpsertStreamTableSink.");
                 } else {
-                    transform = translateToTransformation(planner, false);
+                    transform = translateToTransformation(planner, config, false);
                 }
             }
 
@@ -140,7 +152,7 @@ public abstract class CommonExecLegacySink<T> extends ExecNodeBase<T>
             // we insert a DataStreamTableSink that wraps the given DataStream as a LogicalSink. It
             // is no real table sink, so we just need translate its input to Transformation.
             return translateToTransformation(
-                    planner, ((DataStreamTableSink<T>) tableSink).withChangeFlag());
+                    planner, config, ((DataStreamTableSink<T>) tableSink).withChangeFlag());
         } else {
             throw new TableException(
                     String.format(
@@ -160,7 +172,7 @@ public abstract class CommonExecLegacySink<T> extends ExecNodeBase<T>
      */
     @SuppressWarnings("unchecked")
     private Transformation<T> translateToTransformation(
-            PlannerBase planner, boolean withChangeFlag) {
+            PlannerBase planner, ExecNodeConfig config, boolean withChangeFlag) {
         // if no change flags are requested, verify table is an insert-only (append-only) table.
         if (!withChangeFlag && needRetraction) {
             throw new TableException(
@@ -189,23 +201,24 @@ public abstract class CommonExecLegacySink<T> extends ExecNodeBase<T>
 
             final CodeGenOperatorFactory<T> converterOperator =
                     SinkCodeGenerator.generateRowConverterOperator(
-                            new CodeGeneratorContext(planner.getTableConfig()),
+                            new CodeGeneratorContext(
+                                    config, planner.getFlinkContext().getClassLoader()),
                             convertedInputRowType,
                             tableSink,
                             physicalOutputType,
                             withChangeFlag,
                             "SinkConversion",
                             rowtimeIndex);
-            final Configuration config = planner.getTableConfig().getConfiguration();
             final String description =
                     "SinkConversion To " + resultDataType.getConversionClass().getSimpleName();
             return ExecNodeUtil.createOneInputTransformation(
                     inputTransform,
-                    getFormattedOperatorName(description, "SinkConversion", config),
-                    getFormattedOperatorDescription(description, config),
+                    createFormattedTransformationName(description, "SinkConversion", config),
+                    createFormattedTransformationDescription(description, config),
                     converterOperator,
                     outputTypeInfo,
-                    inputTransform.getParallelism());
+                    inputTransform.getParallelism(),
+                    false);
         }
     }
 

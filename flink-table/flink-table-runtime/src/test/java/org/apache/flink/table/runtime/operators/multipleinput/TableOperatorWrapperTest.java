@@ -25,12 +25,9 @@ import org.apache.flink.table.runtime.operators.multipleinput.TableOperatorWrapp
 import org.junit.Test;
 
 import java.util.Arrays;
-import java.util.Collections;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link TableOperatorWrapper}. */
 public class TableOperatorWrapperTest extends MultipleInputTestBase {
@@ -51,26 +48,23 @@ public class TableOperatorWrapperTest extends MultipleInputTestBase {
         wrapper3.addInput(wrapper1, 1);
         wrapper3.addInput(wrapper2, 2);
 
-        assertTrue(wrapper1.getInputEdges().isEmpty());
-        assertTrue(wrapper1.getInputWrappers().isEmpty());
-        assertEquals(Collections.singletonList(wrapper3), wrapper1.getOutputWrappers());
-        assertEquals(
-                Collections.singletonList(new Edge(wrapper1, wrapper3, 1)),
-                wrapper1.getOutputEdges());
+        assertThat(wrapper1.getInputEdges()).isEmpty();
+        assertThat(wrapper1.getInputWrappers()).isEmpty();
+        assertThat(wrapper1.getOutputWrappers()).containsExactly(wrapper3);
+        assertThat(wrapper1.getOutputEdges()).containsExactly(new Edge(wrapper1, wrapper3, 1));
 
-        assertTrue(wrapper2.getInputEdges().isEmpty());
-        assertTrue(wrapper2.getInputWrappers().isEmpty());
-        assertEquals(Collections.singletonList(wrapper3), wrapper2.getOutputWrappers());
-        assertEquals(
-                Collections.singletonList(new Edge(wrapper2, wrapper3, 2)),
-                wrapper2.getOutputEdges());
+        assertThat(wrapper2.getInputEdges()).isEmpty();
+        assertThat(wrapper2.getInputWrappers()).isEmpty();
+        assertThat(wrapper2.getOutputWrappers()).containsExactly(wrapper3);
+        assertThat(wrapper2.getOutputEdges()).containsExactly(new Edge(wrapper2, wrapper3, 2));
 
-        assertTrue(wrapper3.getOutputEdges().isEmpty());
-        assertTrue(wrapper3.getOutputWrappers().isEmpty());
-        assertEquals(Arrays.asList(wrapper1, wrapper2), wrapper3.getInputWrappers());
-        assertEquals(
-                Arrays.asList(new Edge(wrapper1, wrapper3, 1), new Edge(wrapper2, wrapper3, 2)),
-                wrapper3.getInputEdges());
+        assertThat(wrapper3.getOutputEdges()).isEmpty();
+        assertThat(wrapper3.getOutputWrappers()).isEmpty();
+        assertThat(wrapper3.getInputWrappers()).isEqualTo(Arrays.asList(wrapper1, wrapper2));
+        assertThat(wrapper3.getInputEdges())
+                .isEqualTo(
+                        Arrays.asList(
+                                new Edge(wrapper1, wrapper3, 1), new Edge(wrapper2, wrapper3, 2)));
     }
 
     @Test
@@ -81,15 +75,11 @@ public class TableOperatorWrapperTest extends MultipleInputTestBase {
         StreamOperatorParameters<RowData> parameters = createStreamOperatorParameters();
         wrapper.createOperator(parameters);
 
-        assertEquals(operator, wrapper.getStreamOperator());
+        assertThat(wrapper.getStreamOperator()).isEqualTo(operator);
 
         // create operator again, will throw exception
-        try {
-            wrapper.createOperator(parameters);
-            fail("This should not happen");
-        } catch (Exception e) {
-            assertTrue(e.getMessage().contains("This operator has been initialized"));
-        }
+        assertThatThrownBy(() -> wrapper.createOperator(parameters))
+                .hasMessageContaining("This operator has been initialized");
     }
 
     @Test
@@ -113,27 +103,27 @@ public class TableOperatorWrapperTest extends MultipleInputTestBase {
         wrapper3.createOperator(parameters);
 
         // initialized status
-        assertFalse(inOperator1.isEnd());
-        assertFalse(inOperator2.isEnd());
-        assertTrue(outOperator.getEndInputs().isEmpty());
+        assertThat(inOperator1.isEnd()).isFalse();
+        assertThat(inOperator2.isEnd()).isFalse();
+        assertThat(outOperator.getEndInputs()).isEmpty();
 
         // end first input
         wrapper1.endOperatorInput(1);
-        assertTrue(inOperator1.isEnd());
-        assertEquals(1, wrapper1.getEndedInputCount());
-        assertFalse(inOperator2.isEnd());
-        assertEquals(0, wrapper2.getEndedInputCount());
-        assertEquals(Collections.singletonList(1), outOperator.getEndInputs());
-        assertEquals(1, wrapper3.getEndedInputCount());
+        assertThat(inOperator1.isEnd()).isTrue();
+        assertThat(wrapper1.getEndedInputCount()).isEqualTo(1);
+        assertThat(inOperator2.isEnd()).isFalse();
+        assertThat(wrapper2.getEndedInputCount()).isEqualTo(0);
+        assertThat(outOperator.getEndInputs()).containsExactly(1);
+        assertThat(wrapper3.getEndedInputCount()).isEqualTo(1);
 
         // end second input
         wrapper2.endOperatorInput(1);
-        assertTrue(inOperator1.isEnd());
-        assertEquals(1, wrapper1.getEndedInputCount());
-        assertTrue(inOperator2.isEnd());
-        assertEquals(1, wrapper2.getEndedInputCount());
-        assertEquals(Arrays.asList(1, 2), outOperator.getEndInputs());
-        assertEquals(2, wrapper3.getEndedInputCount());
+        assertThat(inOperator1.isEnd()).isTrue();
+        assertThat(wrapper1.getEndedInputCount()).isEqualTo(1);
+        assertThat(inOperator2.isEnd()).isTrue();
+        assertThat(wrapper2.getEndedInputCount()).isEqualTo(1);
+        assertThat(outOperator.getEndInputs()).isEqualTo(Arrays.asList(1, 2));
+        assertThat(wrapper3.getEndedInputCount()).isEqualTo(2);
     }
 
     @Test
@@ -143,17 +133,17 @@ public class TableOperatorWrapperTest extends MultipleInputTestBase {
                 createOneInputOperatorWrapper(operator, "test");
         StreamOperatorParameters<RowData> parameters = createStreamOperatorParameters();
         wrapper.createOperator(parameters);
-        assertEquals(operator, wrapper.getStreamOperator());
+        assertThat(wrapper.getStreamOperator()).isEqualTo(operator);
 
-        assertFalse(operator.isClosed());
-        assertFalse(wrapper.isClosed());
+        assertThat(operator.isClosed()).isFalse();
+        assertThat(wrapper.isClosed()).isFalse();
         wrapper.close();
-        assertTrue(wrapper.isClosed());
-        assertTrue(operator.isClosed());
+        assertThat(wrapper.isClosed()).isTrue();
+        assertThat(operator.isClosed()).isTrue();
 
         // close again
         wrapper.close();
-        assertTrue(wrapper.isClosed());
-        assertTrue(operator.isClosed());
+        assertThat(wrapper.isClosed()).isTrue();
+        assertThat(operator.isClosed()).isTrue();
     }
 }

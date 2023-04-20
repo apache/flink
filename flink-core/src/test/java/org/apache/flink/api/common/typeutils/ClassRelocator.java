@@ -18,10 +18,10 @@
 
 package org.apache.flink.api.common.typeutils;
 
-import org.apache.flink.shaded.asm7.org.objectweb.asm.ClassReader;
-import org.apache.flink.shaded.asm7.org.objectweb.asm.ClassWriter;
-import org.apache.flink.shaded.asm7.org.objectweb.asm.commons.ClassRemapper;
-import org.apache.flink.shaded.asm7.org.objectweb.asm.commons.SimpleRemapper;
+import org.apache.flink.shaded.asm9.org.objectweb.asm.ClassReader;
+import org.apache.flink.shaded.asm9.org.objectweb.asm.ClassWriter;
+import org.apache.flink.shaded.asm9.org.objectweb.asm.commons.ClassRemapper;
+import org.apache.flink.shaded.asm9.org.objectweb.asm.commons.SimpleRemapper;
 
 import java.io.IOException;
 import java.io.InputStream;

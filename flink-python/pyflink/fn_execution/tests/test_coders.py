@@ -168,6 +168,10 @@ class CodersTest(PyFlinkTestCase):
         v.set_row_kind(RowKind.DELETE)
         self.check_coder(coder, v)
 
+        coder = RowCoder([BigIntCoder(), CharCoder()], ['f1', 'f0'])
+        v = Row(f0="flink", f1=11)
+        self.check_coder(coder, v)
+
     def test_basic_decimal_coder(self):
         basic_dec_coder = BigDecimalCoder()
         value = decimal.Decimal(1.200)
@@ -184,6 +188,12 @@ class CodersTest(PyFlinkTestCase):
         self.check_coder(coder, TimeWindow(100, 1000))
         coder = CountWindowCoder()
         self.check_coder(coder, CountWindow(100))
+
+    def test_coder_with_unmatched_type(self):
+        from pyflink.common import Row
+        coder = FlattenRowCoder([BigIntCoder()])
+        with self.assertRaises(TypeError, msg='Expected list, got Row'):
+            self.check_coder(coder, Row(1))
 
 
 if __name__ == '__main__':

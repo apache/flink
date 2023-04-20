@@ -48,7 +48,7 @@ class UploadThrottle {
 
     /**
      * Release previously {@link #seizeCapacity(long) seized} capacity. Called by {@link
-     * BatchingStateChangeUploader} (IO thread).
+     * BatchingStateChangeUploadScheduler} (IO thread).
      */
     public void releaseCapacity(long bytes) {
         inFlightBytesCounter -= bytes;

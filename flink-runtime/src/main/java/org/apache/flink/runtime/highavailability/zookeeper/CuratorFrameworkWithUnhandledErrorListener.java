@@ -20,8 +20,8 @@ package org.apache.flink.runtime.highavailability.zookeeper;
 
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.api.UnhandledErrorListener;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.api.UnhandledErrorListener;
 
 import java.io.Closeable;
 

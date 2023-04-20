@@ -15,11 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.schema
 
 import org.apache.flink.table.functions
-import org.apache.flink.table.functions.TableFunction
+import org.apache.flink.table.functions.{BuiltInFunctionDefinitions, TableFunction}
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.DataType
@@ -28,12 +28,18 @@ import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 
 /**
-  * A Deferred Type is a Table Function which the result type hasn't been determined yet.
-  * It will determine the result type after the arguments are passed.
-  *
-  * @param tableFunction The Table Function instance
-  * @param implicitResultType Implicit result type.
-  */
+ * A Deferred Type is a Table Function which the result type hasn't been determined yet. It will
+ * determine the result type after the arguments are passed.
+ *
+ * @param tableFunction
+ *   The Table Function instance
+ * @param implicitResultType
+ *   Implicit result type.
+ * @deprecated
+ *   Use [[BuiltInFunctionDefinitions]] that translates to [[BridgingSqlFunction]].
+ */
+@Deprecated
+@deprecated
 class DeferredTypeFlinkTableFunction(
     val tableFunction: TableFunction[_],
     val implicitResultType: DataType)
@@ -58,6 +64,9 @@ class DeferredTypeFlinkTableFunction(
     val resultType = getExternalResultType(tableFunction, null, null)
     val (fieldNames, fieldIndexes, _) = UserDefinedFunctionUtils.getFieldInfo(resultType)
     UserDefinedFunctionUtils.buildRelDataType(
-      typeFactory, fromDataTypeToLogicalType(resultType), fieldNames, fieldIndexes)
+      typeFactory,
+      fromDataTypeToLogicalType(resultType),
+      fieldNames,
+      fieldIndexes)
   }
 }

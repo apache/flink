@@ -403,6 +403,8 @@ public class EnvironmentInformation {
 
             String inheritedLogs = System.getenv("FLINK_INHERITED_LOGS");
 
+            String arch = System.getProperty("os.arch");
+
             long maxHeapMegabytes = getMaxJvmHeapMemory() >>> 20;
 
             if (inheritedLogs != null) {
@@ -431,6 +433,7 @@ public class EnvironmentInformation {
             log.info(" OS current user: " + System.getProperty("user.name"));
             log.info(" Current Hadoop/Kerberos user: " + getHadoopUser());
             log.info(" JVM: " + jvmVersion);
+            log.info(" Arch: " + arch);
             log.info(" Maximum heap size: " + maxHeapMegabytes + " MiBytes");
             log.info(" JAVA_HOME: " + (javaHome == null ? "(not set)" : javaHome));
 

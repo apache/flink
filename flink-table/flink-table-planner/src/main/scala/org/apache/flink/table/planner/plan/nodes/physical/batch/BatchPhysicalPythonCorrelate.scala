@@ -19,20 +19,19 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecPythonCorrelate
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
 import org.apache.flink.table.planner.plan.utils.JoinTypeUtil
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{Correlate, JoinRelType}
 import org.apache.calcite.rex.{RexCall, RexNode}
 
-/**
-  * Batch physical RelNode for [[Correlate]] (Python user defined table function).
-  */
+/** Batch physical RelNode for [[Correlate]] (Python user defined table function). */
 class BatchPhysicalPythonCorrelate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -50,10 +49,7 @@ class BatchPhysicalPythonCorrelate(
     outputRowType,
     joinType) {
 
-  def copy(
-      traitSet: RelTraitSet,
-      child: RelNode,
-      outputType: RelDataType): RelNode = {
+  def copy(traitSet: RelTraitSet, child: RelNode, outputType: RelDataType): RelNode = {
     new BatchPhysicalPythonCorrelate(
       cluster,
       traitSet,
@@ -67,18 +63,19 @@ class BatchPhysicalPythonCorrelate(
   override def translateToExecNode(): ExecNode[_] = {
     if (condition.orNull != null) {
       if (joinType == JoinRelType.LEFT) {
-        throw new TableException("Currently Python correlate does not support conditions" +
-                                   " in left join.")
+        throw new TableException(
+          "Currently Python correlate does not support conditions" +
+            " in left join.")
       }
       throw new TableException("The condition of BatchPhysicalPythonCorrelate should be null.")
     }
 
     new BatchExecPythonCorrelate(
+      unwrapTableConfig(this),
       JoinTypeUtil.getFlinkJoinType(joinType),
       scan.getCall.asInstanceOf[RexCall],
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 }

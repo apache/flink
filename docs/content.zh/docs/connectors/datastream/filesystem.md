@@ -1,5 +1,5 @@
 ---
-title: FileSystem
+title: 文件系统
 weight: 6
 type: docs
 aliases:
@@ -28,60 +28,70 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# FileSystem
+<a name="filesystem"></a>
 
-This connector provides a unified Source and Sink for `BATCH` and `STREAMING` that reads or writes (partitioned) files to file systems
-supported by the [Flink `FileSystem` abstraction]({{< ref "docs/deployment/filesystems/overview" >}}). This filesystem
-connector provides the same guarantees for both `BATCH` and `STREAMING` and is designed to provide exactly-once semantics for `STREAMING` execution.
+# 文件系统
 
-The connector supports reading and writing a set of files from any (distributed) file system (e.g. POSIX, S3, HDFS)
-with a [format]({{< ref "docs/connectors/datastream/formats/overview" >}}) (e.g., Avro, CSV, Parquet),
-and produces a stream or records.
+连接器提供了 `BATCH` 模式和 `STREAMING` 模式统一的 Source 和 Sink。[Flink `FileSystem` abstraction]({{< ref "docs/deployment/filesystems/overview" >}}) 支持连接器对文件系统进行（分区）文件读写。文件系统连接器为 `BATCH` 和 `STREAMING` 模式提供了相同的保证，而且对 `STREAMING` 模式执行提供了精确一次（exactly-once）语义保证。
+
+连接器支持对任意（分布式的）文件系统（例如，POSIX、 S3、 HDFS）以某种数据格式 [format]({{< ref "docs/connectors/datastream/formats/overview" >}}) (例如，Avro、 CSV、 Parquet) 对文件进行写入，或者读取后生成数据流或一组记录。
+
+<a name="file-source"></a>
 
 ## File Source
 
-The `File Source` is based on the [Source API]({{< ref "docs/dev/datastream/sources" >}}#the-data-source-api),
-a unified data source that reads files - both in batch and in streaming mode.
-It is divided into the following two parts: `SplitEnumerator` and `SourceReader`.
+`File Source` 是基于 [Source API]({{< ref "docs/dev/datastream/sources" >}}#the-data-source-api) 同时支持批模式和流模式文件读取的统一 Source。
+`File Source` 分为以下两个部分：`SplitEnumerator` 和 `SourceReader`。
 
-* `SplitEnumerator` is responsible for discovering and identifying the files to read and assigns them to the `SourceReader`.
-* `SourceReader` requests the files it needs to process and reads the file from the filesystem.
+* `SplitEnumerator` 负责发现和识别需要读取的文件，并将这些文件分配给 `SourceReader` 进行读取。
+* `SourceReader` 请求需要处理的文件，并从文件系统中读取该文件。
 
-You will need to combine the File Source with a [format]({{< ref "docs/connectors/datastream/formats/overview" >}}), which allows you to
-parse CSV, decode AVRO, or read Parquet columnar files.
+可能需要指定某种 [format]({{< ref "docs/connectors/datastream/formats/overview" >}}) 与 `File Source` 联合进行解析 CSV、解码AVRO、或者读取 Parquet 列式文件。
 
-#### Bounded and Unbounded Streams
+<a name="bounded-and-unbounded-streams"></a>
 
-A bounded `File Source` lists all files (via SplitEnumerator - a recursive directory list with filtered-out hidden files) and reads them all.
+#### 有界流和无界流
 
-An unbounded `File Source` is created when configuring the enumerator for periodic file discovery.
-In this case, the `SplitEnumerator` will enumerate like the bounded case but, after a certain interval, repeats the enumeration.
-For any repeated enumeration, the `SplitEnumerator` filters out previously detected files and only sends new ones to the `SourceReader`.
+有界的 `File Source`（通过 SplitEnumerator）列出所有文件（一个过滤出隐藏文件的递归目录列表）并读取。
 
-### Usage
+无界的 `File Source` 由配置定期扫描文件的 enumerator 创建。
+在无界的情况下，`SplitEnumerator` 将像有界的 `File Source` 一样列出所有文件，但是不同的是，经过一个时间间隔之后，重复上述操作。
+对于每一次列举操作，`SplitEnumerator` 会过滤掉之前已经检测过的文件，将新扫描到的文件发送给 `SourceReader`。
 
-You can start building a File Source via one of the following API calls:
+<a name="usage"></a>
+
+### 使用方法
+
+可以通过调用以下 API 建立一个 File Source：
 
 {{< tabs "FileSourceUsage" >}}
 {{< tab "Java" >}}
 ```java
-// reads the contents of a file from a file stream. 
-FileSource.forRecordStreamFormat(StreamFormat,Path...)
+// 从文件流中读取文件内容
+FileSource.forRecordStreamFormat(StreamFormat,Path...);
         
-// reads batches of records from a file at a time
-FileSource.forBulkFileFormat(BulkFormat,Path...)
+// 从文件中一次读取一批记录
+FileSource.forBulkFileFormat(BulkFormat,Path...);
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+# 从文件流中读取文件内容
+FileSource.for_record_stream_format(stream_format, *path)
+
+# 从文件中一次读取一批记录
+FileSource.for_bulk_file_format(bulk_format, *path)
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
-This creates a `FileSource.FileSourceBuilder` on which you can configure all the properties of the File Source.
+可以通过创建 `FileSource.FileSourceBuilder` 设置 File Source 的所有参数。
 
-For the bounded/batch case, the File Source processes all files under the given path(s).
-For the continuous/streaming case, the source periodically checks the paths for new files and will start reading those.
+对于有界/批的使用场景，File Source 需要处理给定路径下的所有文件。
+对于无界/流的使用场景，File Source 会定期检查路径下的新文件并读取。
 
-When you start creating a File Source (via the `FileSource.FileSourceBuilder` created through one of the above-mentioned methods),
-the source is in bounded/batch mode by default. You can call `AbstractFileSource.AbstractFileSourceBuilder.monitorContinuously(Duration)`
-to put the source into continuous streaming mode.
+当创建一个 File Source 时（通过上述任意方法创建的 `FileSource.FileSourceBuilder`），
+默认情况下，Source 为有界/批的模式。可以调用 `AbstractFileSource.AbstractFileSourceBuilder.monitorContinuously(Duration)` 设置 Source 为持续的流模式。
 
 {{< tabs "FileSourceBuilder" >}}
 {{< tab "Java" >}}
@@ -92,35 +102,44 @@ final FileSource<String> source =
         .build();
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+source = FileSource.for_record_stream_format(...) \
+    .monitor_continously(Duration.of_millis(5)) \
+    .build()
+```
+{{< /tab >}}
 {{< /tabs >}}
+
+<a name="source-format-types"></a>
 
 ### Format Types
 
-The reading of each file happens through file readers defined by file formats.
-These define the parsing logic for the contents of the file. There are multiple classes that the source supports.
-The interfaces are a tradeoff between simplicity of implementation and flexibility/efficiency.
+通过 file formats 定义的文件 readers 读取每个文件。
+其中定义了解析和读取文件内容的逻辑。Source 支持多个解析类。
+这些接口是实现简单性和灵活性/效率之间的折衷。
 
-* A `StreamFormat` reads the contents of a file from a file stream. It is the simplest format to implement,
-  and provides many features out-of-the-box (like checkpointing logic) but is limited in the optimizations it can apply
-  (such as object reuse, batching, etc.).
+*  `StreamFormat` 从文件流中读取文件内容。它是最简单的格式实现，
+   并且提供了许多拆箱即用的特性（如 Checkpoint 逻辑），但是限制了可应用的优化（例如对象重用，批处理等等）。
 
-* A `BulkFormat` reads batches of records from a file at a time.
-  It is the most "low level" format to implement, but offers the greatest flexibility to optimize the implementation.
+* `BulkFormat` 从文件中一次读取一批记录。
+  它虽然是最 "底层" 的格式实现，但是提供了优化实现的最大灵活性。
+  
+<a name="textline-format"></a>
 
 #### TextLine Format
 
-A `StreamFormat` reader formats text lines from a file.
-The reader uses Java's built-in `InputStreamReader` to decode the byte stream using
-various supported charset encodings.
-This format does not support optimized recovery from checkpoints. On recovery, it will re-read
-and discard the number of lines that were processed before the last checkpoint. This is due to
-the fact that the offsets of lines in the file cannot be tracked through the charset decoders
-with their internal buffering of stream input and charset decoder state.
+使用 `StreamFormat` 格式化文件中的文本行。
+Java 中内置的 `InputStreamReader` 对使用了支持各种字符集的字节流进行解码。
+此格式不支持从 Checkpoint 进行恢复优化。在恢复时，将重新读取并放弃在最后一个 Checkpoint 之前处理的行数。
+这是由于无法通过字符集解码器追踪文件中的行偏移量，及其内部缓冲输入流和字符集解码器的状态。
 
-#### SimpleStreamFormat Abstract Class
+<a name="simplestreamformat-abstract-class"></a>
 
-This is a simple version of `StreamFormat` for formats that are not splittable.
-Custom reads of Array or File can be done by implementing `SimpleStreamFormat`:
+#### SimpleStreamFormat 抽象类
+
+这是 `StreamFormat` 的简单版本，适用于不可拆分的格式。
+可以通过实现 `SimpleStreamFormat` 接口自定义读取数组或文件：
 
 {{< tabs "SimpleStreamFormat" >}}
 {{< tab "Java" >}}
@@ -146,59 +165,56 @@ final FileSource<byte[]> source =
 {{< /tab >}}
 {{< /tabs >}}
 
-An example of a `SimpleStreamFormat` is `CsvReaderFormat`. It can be initialized like this:
+`CsvReaderFormat` 是一个实现 `SimpleStreamFormat` 接口的例子。类似这样进行初始化：
 ```java
 CsvReaderFormat<SomePojo> csvFormat = CsvReaderFormat.forPojo(SomePojo.class);
 FileSource<SomePojo> source = 
         FileSource.forRecordStreamFormat(csvFormat, Path.fromLocalFile(...)).build();
 ```
 
-The schema for CSV parsing, in this case, is automatically derived based on the fields of the `SomePojo` class using the `Jackson` library. (Note: you might need to add `@JsonPropertyOrder({field1, field2, ...})` annotation to your class definition with the fields order exactly matching those of the CSV file columns).
+对于 CSV Format 的解析，在这个例子中，是根据使用 `Jackson` 库的 `SomePojo` 的字段自动生成的。（注意：可能需要添加 `@JsonPropertyOrder({field1, field2, ...})` 这个注释到自定义的类上，并且字段顺序与 CSV 文件列的顺序完全匹配)。
 
-If you need more fine-grained control over the CSV schema or the parsing options, use the more low-level `forSchema` static factory method of `CsvReaderFormat`:
+如果需要对 CSV 模式或解析选项进行更细粒度的控制，可以使用 `CsvReaderFormat` 的更底层的 `forSchema` 静态工厂方法：
 
 ```java
-CsvReaderFormat<T> forSchema(CsvMapper mapper, 
-                             CsvSchema schema, 
+CsvReaderFormat<T> forSchema(Supplier<CsvMapper> mapperFactory, 
+                             Function<CsvMapper, CsvSchema> schemaGenerator, 
                              TypeInformation<T> typeInformation) 
 ```
 
+<a name="bulk-format"></a>
+
 #### Bulk Format
 
-The BulkFormat reads and decodes batches of records at a time. Examples of bulk formats
-are formats like ORC or Parquet.
-The outer `BulkFormat` class acts mainly as a configuration holder and factory for the
-reader. The actual reading is done by the `BulkFormat.Reader`, which is created in the
-`BulkFormat#createReader(Configuration, FileSourceSplit)` method. If a bulk reader is
-created based on a checkpoint during checkpointed streaming execution, then the reader is
-re-created in the `BulkFormat#restoreReader(Configuration, FileSourceSplit)` method.
+BulkFormat 一次读取并解析一批记录。BulkFormat 的实现包括 ORC Format或 Parquet Format等。
+外部的 `BulkFormat` 类主要充当 reader 的配置持有者和工厂角色。`BulkFormat.Reader` 是在 `BulkFormat#createReader(Configuration, FileSourceSplit)` 方法中创建的，然后完成读取操作。如果在流的 checkpoint 执行期间基于 checkpoint 创建 Bulk reader，那么 reader 是在 `BulkFormat#restoreReader(Configuration, FileSourceSplit)` 方法中重新创建的。
 
-A `SimpleStreamFormat` can be turned into a `BulkFormat` by wrapping it in a `StreamFormatAdapter`:
+可以通过将 `SimpleStreamFormat` 包装在 `StreamFormatAdapter` 中转换为 `BulkFormat`：
 ```java
 BulkFormat<SomePojo, FileSourceSplit> bulkFormat = 
         new StreamFormatAdapter<>(CsvReaderFormat.forPojo(SomePojo.class));
 ```
 
-### Customizing File Enumeration
+<a name="customizing-file-enumeration"></a>
+
+### 自定义文件枚举类
 
 {{< tabs "CustomizingFileEnumeration" >}}
 {{< tab "Java" >}}
 ```java
 /**
- * A FileEnumerator implementation for hive source, which generates splits based on 
- * HiveTablePartition.
+ * 针对 Hive 数据源的 FileEnumerator 实现类，基于 HiveTablePartition 生成拆分文件
  */
 public class HiveSourceFileEnumerator implements FileEnumerator {
     
-    // reference constructor
+    // 构造方法
     public HiveSourceFileEnumerator(...) {
         ...
     }
 
     /***
-     * Generates all file splits for the relevant files under the given paths. The {@code
-     * minDesiredSplits} is an optional hint indicating how many splits would be necessary to
-     * exploit parallelism properly.
+     * 拆分给定路径下的所有相关文件。{@code
+     * minDesiredSplits} 是一个可选项，代表需要多少次拆分才能正确利用并行度
      */
     @Override
     public Collection<FileSourceSplit> enumerateSplits(Path[] paths, int minDesiredSplits)
@@ -210,7 +226,7 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
     ...
 
     /***
-     * A factory to create HiveSourceFileEnumerator.
+     * 创建 HiveSourceFileEnumerator 的工厂
      */
     public static class Provider implements FileEnumerator.Provider {
 
@@ -221,7 +237,7 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
         }
     }
 }
-// use the customizing file enumeration
+// 使用自定义文件枚举类
 new HiveSource<>(
         ...,
         new HiveSourceFileEnumerator.Provider(
@@ -232,71 +248,72 @@ new HiveSource<>(
 {{< /tab >}}
 {{< /tabs >}}
 
-### Current Limitations
+<a name="current-limitations"></a>
 
-Watermarking does not work very well for large backlogs of files. This is because watermarks eagerly advance within a file, and the next file might contain data later than the watermark.
+### 当前限制
 
-For Unbounded File Sources, the enumerator currently remembers paths of all already processed files, which is a state that can, in some cases, grow rather large.
-There are plans to add a compressed form of tracking already processed files in the future (for example, by keeping modification timestamps below boundaries).
+对于大量积压的文件，Watermark 效果不佳。这是因为 Watermark 急于在一个文件中推进，而下一个文件可能包含比 Watermark 更晚的数据。
 
-### Behind the Scenes
+对于无界 File Sources，枚举器会会将当前所有已处理文件的路径记录到 state 中，在某些情况下，这可能会导致状态变得相当大。
+未来计划将引入一种压缩的方式来跟踪已经处理的文件（例如，将修改时间戳保持在边界以下）。
+
+<a name="behind-the-scenes"></a>
+
+### 后记
 {{< hint info >}}
-If you are interested in how File Source works through the new data source API design, you may
-want to read this part as a reference. For details about the new data source API, check out the
-[documentation on data sources]({{< ref "docs/dev/datastream/sources.md" >}}) and
+如果对新设计的 Source API 中的 File Sources 是如何工作的感兴趣，可以阅读本部分作为参考。关于新的 Source API 的更多细节，请参考
+[documentation on data sources]({{< ref "docs/dev/datastream/sources.md" >}}) 和在
 <a href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-27%3A+Refactor+Source+Interface">FLIP-27</a>
-for more descriptive discussions.
+中获取更加具体的讨论详情。
 {{< /hint >}}
+
+<a name="file-sink"></a>
 
 ## File Sink
 
-The file sink writes incoming data into buckets. Given that the incoming streams can be unbounded,
-data in each bucket is organized into part files of finite size. The bucketing behaviour is fully configurable
-with a default time-based bucketing where we start writing a new bucket every hour. This means that each resulting
-bucket will contain files with records received during 1 hour intervals from the stream.
+File Sink 将传入的数据写入存储桶中。考虑到输入流可以是无界的，每个桶中的数据被组织成有限大小的 Part 文件。
+完全可以配置为基于时间的方式往桶中写入数据，比如可以设置每个小时的数据写入一个新桶中。这意味着桶中将包含一个小时间隔内接收到的记录。
 
-Data within the bucket directories is split into part files. Each bucket will contain at least one part file for
-each subtask of the sink that has received data for that bucket. Additional part files will be created according to the configurable
-rolling policy. For `Row-encoded Formats` (see [File Formats](#file-formats)) the default policy rolls part files based
-on size, a timeout that specifies the maximum duration for which a file can be open, and a maximum inactivity
-timeout after which the file is closed. For `Bulk-encoded Formats` we roll on every checkpoint and the user can
-specify additional conditions based on size or time.
+桶目录中的数据被拆分成多个 Part 文件。对于相应的接收数据的桶的 Sink 的每个 Subtask，每个桶将至少包含一个 Part 文件。将根据配置的滚动策略来创建其他 Part 文件。
+对于 `Row-encoded Formats`（参考 [Format Types](#sink-format-types)）默认的策略是根据 Part 文件大小进行滚动，需要指定文件打开状态最长时间的超时以及文件关闭后的非活动状态的超时时间。
+对于 `Bulk-encoded Formats` 在每次创建 Checkpoint 时进行滚动，并且用户也可以添加基于大小或者时间等的其他条件。
 
 {{< hint info >}}
 
-**IMPORTANT**: Checkpointing needs to be enabled when using the `FileSink` in `STREAMING` mode. Part files
-can only be finalized on successful checkpoints. If checkpointing is disabled, part files will forever stay
-in the `in-progress` or the `pending` state, and cannot be safely read by downstream systems.
+**重要**: 在 `STREAMING` 模式下使用 `FileSink` 需要开启 Checkpoint 功能。
+文件只在 Checkpoint 成功时生成。如果没有开启 Checkpoint 功能，文件将永远停留在 `in-progress` 或者 `pending` 的状态，并且下游系统将不能安全读取该文件数据。
 
 {{< /hint >}}
 
 {{< img src="/fig/streamfilesink_bucketing.png"  width="100%" >}}
 
+<a name="sink-format-types"></a>
+
 ### Format Types
 
-The `FileSink` supports both row-wise and bulk encoding formats, such as [Apache Parquet](http://parquet.apache.org).
-These two variants come with their respective builders that can be created with the following static methods:
+`FileSink` 不仅支持 Row-encoded 也支持 Bulk-encoded，例如 [Apache Parquet](http://parquet.apache.org)。
+这两种格式可以通过如下的静态方法进行构造：
 
 - Row-encoded sink: `FileSink.forRowFormat(basePath, rowEncoder)`
 - Bulk-encoded sink: `FileSink.forBulkFormat(basePath, bulkWriterFactory)`
 
-When creating either a row or a bulk encoded sink we have to specify the base path where the buckets will be
-stored and the encoding logic for our data.
+不论创建 Row-encoded Format 或者 Bulk-encoded Format 的 Sink 时，都必须指定桶的路径以及对数据进行编码的逻辑。
 
-Please check out the JavaDoc for {{< javadoc file="org/apache/flink/connector/file/sink/FileSink.html" name="FileSink">}}
-for all the configuration options and more documentation about the implementation of the different data formats.
+请参考 JavaDoc 文档 {{< javadoc file="org/apache/flink/connector/file/sink/FileSink.html" name="FileSink">}}
+来获取所有的配置选项以及更多的不同数据格式实现的详细信息。
+
+<a name="row-encoded-formats"></a>
 
 #### Row-encoded Formats
 
-Row-encoded formats need to specify an `Encoder`
-that is used for serializing individual rows to the `OutputStream` of the in-progress part files.
+Row-encoded Format 需要指定一个 `Encoder`，在输出数据到文件过程中被用来将单个行数据序列化为 `OutputStream`。
 
-In addition to the bucket assigner, the RowFormatBuilder allows the user to specify:
+除了 bucket assigner，RowFormatBuilder 还允许用户指定以下属性：
 
-- Custom RollingPolicy : Rolling policy to override the DefaultRollingPolicy
-- bucketCheckInterval (default = 1 min) : Interval for checking time based rolling policies
+- Custom RollingPolicy ：自定义滚动策略覆盖 DefaultRollingPolicy
+- bucketCheckInterval (默认值 = 1 min) ：基于滚动策略设置的检查时间间隔
 
-Basic usage for writing String elements thus looks like this:
+写入字符串的基本用法如下：
 
 
 {{< tabs "08046394-3912-497d-ab4b-e07a0ef1f519" >}}
@@ -316,9 +333,9 @@ final FileSink<String> sink = FileSink
     .forRowFormat(new Path(outputPath), new SimpleStringEncoder<String>("UTF-8"))
     .withRollingPolicy(
         DefaultRollingPolicy.builder()
-            .withRolloverInterval(Duration.ofSeconds(10))
-            .withInactivityInterval(Duration.ofSeconds(10))
-            .withMaxPartSize(MemorySize.ofMebiBytes(1))
+            .withRolloverInterval(Duration.ofMinutes(15))
+            .withInactivityInterval(Duration.ofMinutes(5))
+            .withMaxPartSize(MemorySize.ofMebiBytes(1024))
             .build())
 	.build();
 
@@ -342,9 +359,9 @@ val sink: FileSink[String] = FileSink
     .forRowFormat(new Path(outputPath), new SimpleStringEncoder[String]("UTF-8"))
     .withRollingPolicy(
         DefaultRollingPolicy.builder()
-            .withRolloverInterval(Duration.ofSeconds(10))
-            .withInactivityInterval(Duration.ofSeconds(10))
-            .withMaxPartSize(MemorySize.ofMebiBytes(1))
+            .withRolloverInterval(Duration.ofMinutes(15))
+            .withInactivityInterval(Duration.ofMinutes(5))
+            .withMaxPartSize(MemorySize.ofMebiBytes(1024))
             .build())
     .build()
 
@@ -352,23 +369,36 @@ input.sinkTo(sink)
 
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+data_stream = ...
+
+sink = FileSink \
+    .for_row_format(OUTPUT_PATH, Encoder.simple_string_encoder("UTF-8")) \
+    .with_rolling_policy(RollingPolicy.default_rolling_policy(
+        part_size=1024 ** 3, rollover_interval=15 * 60 * 1000, inactivity_interval=5 * 60 * 1000)) \
+    .build()
+
+data_stream.sink_to(sink)
+```
+{{< /tab >}}
 {{< /tabs >}}
 
-This example creates a simple sink that assigns records to the default one hour time buckets. It also specifies
-a rolling policy that rolls the in-progress part file on any of the following 3 conditions:
+这个例子中创建了一个简单的 Sink，默认的将记录分配给小时桶。
+例子中还指定了滚动策略，当满足以下三个条件的任何一个时都会将 In-progress 状态文件进行滚动：
 
-- It contains at least 15 minutes worth of data
-- It hasn't received new records for the last 5 minutes
-- The file size has reached 1 GB (after writing the last record)
+- 包含了至少15分钟的数据量
+- 从没接收延时5分钟之外的新纪录
+- 文件大小已经达到 1GB（写入最后一条记录之后）
+
+<a name="bulk-encoded-formats"></a>
 
 #### Bulk-encoded Formats
 
-Bulk-encoded sinks are created similarly to the row-encoded ones, but instead of
-specifying an `Encoder`, we have to specify a {{< javadoc file="org/apache/flink/api/common/serialization/BulkWriter.Factory.html" name="BulkWriter.Factory">}}.
-The `BulkWriter` logic defines how new elements are added and flushed, and how a batch of records
-is finalized for further encoding purposes.
+Bulk-encoded 的 Sink 的创建和 Row-encoded 的相似，但不需要指定 `Encoder`，而是需要指定 `BulkWriter.Factory`，请参考文档{{< javadoc file="org/apache/flink/api/common/serialization/BulkWriter.Factory.html" name="BulkWriter.Factory">}}。
+`BulkWriter` 定义了如何添加和刷新新数据以及如何最终确定一批记录使用哪种编码字符集的逻辑。
 
-Flink comes with four built-in BulkWriter factories:
+Flink 内置了5种 BulkWriter 工厂类：
 
 * ParquetWriterFactory
 * AvroWriterFactory
@@ -377,28 +407,31 @@ Flink comes with four built-in BulkWriter factories:
 * OrcBulkWriterFactory
 
 {{< hint info >}}
-**Important** Bulk Formats can only have a rolling policy that extends the `CheckpointRollingPolicy`.
-The latter rolls on every checkpoint. A policy can roll additionally based on size or processing time.
+**重要** Bulk-encoded Format 仅支持一种继承了 `CheckpointRollingPolicy` 类的滚动策略。
+在每个 Checkpoint 都会滚动。另外也可以根据大小或处理时间进行滚动。
 {{< /hint >}}
 
-##### Parquet format
+<a name="parquet-format"></a>
 
-Flink contains built in convenience methods for creating Parquet writer factories for Avro data. These methods
-and their associated documentation can be found in the ParquetAvroWriters class.
+##### Parquet Format
 
-For writing to other Parquet compatible data formats, users need to create the ParquetWriterFactory with a custom implementation of the ParquetBuilder interface.
+Flink 内置了为 Avro Format 数据创建 Parquet 写入工厂的快捷方法。在 AvroParquetWriters 类中可以发现那些方法以及相关的使用说明。
 
-To use the Parquet bulk encoder in your application you need to add the following dependency:
+为了让 Parquet Format 数据写入更加通用，用户需要创建 ParquetWriterFactory 并且自定义实现 ParquetBuilder 接口。
 
-{{< artifact flink-parquet withScalaVersion >}}
+如果在程序中使用 Parquet 的 Bulk-encoded Format，需要添加如下依赖到项目中：
 
-A `FileSink` that writes Avro data to Parquet format can be created like this:
+{{< artifact flink-parquet >}}
+
+{{< py_download_link "parquet" >}}
+
+类似这样使用 `FileSink` 写入 Parquet Format 的 Avro 数据：
 
 {{< tabs "4ff7b496-3a80-46f4-9b7d-7a9222672927" >}}
 {{< tab "Java" >}}
 ```java
 import org.apache.flink.connector.file.sink.FileSink;
-import org.apache.flink.formats.parquet.avro.ParquetAvroWriters;
+import org.apache.flink.formats.parquet.avro.AvroParquetWriters;
 import org.apache.avro.Schema;
 
 
@@ -406,7 +439,7 @@ Schema schema = ...;
 DataStream<GenericRecord> input = ...;
 
 final FileSink<GenericRecord> sink = FileSink
-	.forBulkFormat(outputBasePath, ParquetAvroWriters.forGenericRecord(schema))
+	.forBulkFormat(outputBasePath, AvroParquetWriters.forGenericRecord(schema))
 	.build();
 
 input.sinkTo(sink);
@@ -416,23 +449,38 @@ input.sinkTo(sink);
 {{< tab "Scala" >}}
 ```scala
 import org.apache.flink.connector.file.sink.FileSink;
-import org.apache.flink.formats.parquet.avro.ParquetAvroWriters
+import org.apache.flink.formats.parquet.avro.AvroParquetWriters
 import org.apache.avro.Schema
 
 val schema: Schema = ...
 val input: DataStream[GenericRecord] = ...
 
 val sink: FileSink[GenericRecord] = FileSink
-    .forBulkFormat(outputBasePath, ParquetAvroWriters.forGenericRecord(schema))
+    .forBulkFormat(outputBasePath, AvroParquetWriters.forGenericRecord(schema))
     .build()
 
 input.sinkTo(sink)
 
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+schema = AvroSchema.parse_string(JSON_SCHEMA)
+# data_stream 的数据类型可以为符合 schema 的原生 Python 数据结构，其类型为默认的 Types.PICKLED_BYTE_ARRAY()
+data_stream = ...
+
+avro_type_info = GenericRecordAvroTypeInfo(schema)
+sink = FileSink \
+    .for_bulk_format(OUTPUT_BASE_PATH, AvroParquetWriters.for_generic_record(schema)) \
+    .build()
+
+# 必须通过 map 操作来指定其 Avro 类型信息，用于数据的序列化
+data_stream.map(lambda e: e, output_type=avro_type_info).sink_to(sink)
+```
+{{< /tab >}}
 {{< /tabs >}}
 
-Similarly, a `FileSink` that writes Protobuf data to Parquet format can be created like this:
+类似这样使用 `FileSink` 写入 Parquet Format 的 Protobuf 数据：
 
 {{< tabs "dd1e3e68-855e-4d93-8f86-74d039591745" >}}
 {{< tab "Java" >}}
@@ -440,7 +488,7 @@ Similarly, a `FileSink` that writes Protobuf data to Parquet format can be creat
 import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.formats.parquet.protobuf.ParquetProtoWriters;
 
-// ProtoRecord is a generated protobuf Message class.
+// ProtoRecord 是一个生成 protobuf 的类
 DataStream<ProtoRecord> input = ...;
 
 final FileSink<ProtoRecord> sink = FileSink
@@ -456,7 +504,7 @@ input.sinkTo(sink);
 import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.formats.parquet.protobuf.ParquetProtoWriters
 
-// ProtoRecord is a generated protobuf Message class.
+// ProtoRecord 是一个生成 protobuf 的类
 val input: DataStream[ProtoRecord] = ...
 
 val sink: FileSink[ProtoRecord] = FileSink
@@ -469,17 +517,38 @@ input.sinkTo(sink)
 {{< /tab >}}
 {{< /tabs >}}
 
-##### Avro format
+PyFlink 用户可以使用 `ParquetBulkWriters` 来创建一个将 `Row` 数据写入 Parquet 文件的 `BulkWriterFactory` 。
 
-Flink also provides built-in support for writing data into Avro files. A list of convenience methods to create
-Avro writer factories and their associated documentation can be found in the
-AvroWriters class.
+```python
+row_type = DataTypes.ROW([
+    DataTypes.FIELD('string', DataTypes.STRING()),
+    DataTypes.FIELD('int_array', DataTypes.ARRAY(DataTypes.INT()))
+])
 
-To use the Avro writers in your application you need to add the following dependency:
+sink = FileSink.for_bulk_format(
+    OUTPUT_DIR, ParquetBulkWriters.for_row_type(
+        row_type,
+        hadoop_config=Configuration(),
+        utc_timestamp=True,
+    )
+).build()
+
+ds.sink_to(sink)
+```
+
+<a name="avro-format"></a>
+
+##### Avro Format
+
+Flink 也支持写入数据到 Avro Format 文件。在 AvroWriters 类中可以发现一系列创建 Avro writer 工厂的便利方法及其相关说明。
+
+如果在程序中使用 AvroWriters，需要添加如下依赖到项目中：
 
 {{< artifact flink-avro >}}
 
-A `FileSink` that writes data to Avro files can be created like this:
+{{< py_download_link "avro" >}}
+
+类似这样使用 `FileSink` 写入数据到 Avro Format 文件中：
 
 {{< tabs "ee5f25e0-180e-43b1-ae91-277bf73d3a6c" >}}
 {{< tab "Java" >}}
@@ -517,10 +586,24 @@ input.sinkTo(sink)
 
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+schema = AvroSchema.parse_string(JSON_SCHEMA)
+# data_stream 的数据类型可以为符合 schema 的原生 Python 数据结构，其类型为默认的 Types.PICKLED_BYTE_ARRAY()
+data_stream = ...
+
+avro_type_info = GenericRecordAvroTypeInfo(schema)
+sink = FileSink \
+    .for_bulk_format(OUTPUT_BASE_PATH, AvroBulkWriters.for_generic_record(schema)) \
+    .build()
+
+# 必须通过 map 操作来指定其 Avro 类型信息，用于数据的序列化
+data_stream.map(lambda e: e, output_type=avro_type_info).sink_to(sink)
+```
+{{< /tab >}}
 {{< /tabs >}}
 
-For creating customized Avro writers, e.g. enabling compression, users need to create the `AvroWriterFactory`
-with a custom implementation of the `AvroBuilder` interface:
+对于自定义创建的 Avro writers，例如，支持压缩功能，用户需要创建 `AvroWriterFactory` 并且自定义实现 `AvroBuilder` 接口:
 
 {{< tabs "3bfe80db-db61-4498-9ec0-8017c64eab5c" >}}
 {{< tab "Java" >}}
@@ -563,20 +646,17 @@ stream.sinkTo(FileSink.forBulkFormat(
 {{< /tab >}}
 {{< /tabs >}}
 
+<a name="orc-format"></a>
+
 ##### ORC Format
 
-To enable the data to be bulk encoded in ORC format, Flink offers `OrcBulkWriterFactory`
-which takes a concrete implementation of Vectorizer.
+ORC Format 的数据采用 Bulk-encoded Format，Flink 提供了 Vectorizer 接口的具体实现类 `OrcBulkWriterFactory`。
 
-Like any other columnar format that encodes data in bulk fashion, Flink's `OrcBulkWriter` writes the input elements in batches. It uses
-ORC's `VectorizedRowBatch` to achieve this.
+像其他列格式一样也是采用 Bulk-encoded Format，Flink 中 `OrcBulkWriter` 是使用 ORC 的 `VectorizedRowBatch` 实现批的方式输出数据的。
 
-Since the input element has to be transformed to a `VectorizedRowBatch`, users have to extend the abstract `Vectorizer`
-class and override the `vectorize(T element, VectorizedRowBatch batch)` method. As you can see, the method provides an
-instance of `VectorizedRowBatch` to be used directly by the users so users just have to write the logic to transform the
-input `element` to `ColumnVectors` and set them in the provided `VectorizedRowBatch` instance.
+由于输入数据已经被转换成了 `VectorizedRowBatch`，所以用户必须继承抽象类 `Vectorizer` 并且覆写类中 `vectorize(T element, VectorizedRowBatch batch)` 这个方法。正如看到的那样，此方法中提供了用户直接使用的 `VectorizedRowBatch` 类的实例，因此，用户不得不编写从输入 `element` 到 `ColumnVectors` 的转换逻辑，然后设置在  `VectorizedRowBatch` 实例中。
 
-For example, if the input element is of type `Person` which looks like:
+例如，如果是 `Person` 类型的输入元素，如下所示：
 
 {{< tabs "5436ac4a-4834-4fb3-9872-2dd5c3145efa" >}}
 {{< tab "Java" >}}
@@ -592,7 +672,7 @@ class Person {
 {{< /tab >}}
 {{< /tabs >}}
 
-Then a child implementation to convert the element of type `Person` and set them in the `VectorizedRowBatch` can be like:
+然后，转换 `Person` 类型元素的实现并在 `VectorizedRowBatch` 中设置，如下所示：
 
 {{< tabs "6eb8e5e8-5177-4c8d-bb5a-96c6333b0b01" >}}
 {{< tab "Java" >}}
@@ -640,12 +720,12 @@ class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
 {{< /tab >}}
 {{< /tabs >}}
 
-To use the ORC bulk encoder in an application, users need to add the following dependency:
+如果在程序中使用 ORC 的 Bulk-encoded Format，需要添加如下依赖到项目中：
 
-{{< artifact flink-orc withScalaVersion >}}
+{{< artifact flink-orc >}}
 
 
-And then a `FileSink` that writes data in ORC format can be created like this:
+然后，类似这样使用 `FileSink` 以 ORC Format 输出数据：
 
 {{< tabs "f948c85a-d236-451d-b24a-612f96507805" >}}
 {{< tab "Java" >}}
@@ -685,8 +765,7 @@ input.sinkTo(sink)
 {{< /tab >}}
 {{< /tabs >}}
 
-OrcBulkWriterFactory can also take Hadoop `Configuration` and `Properties` so that a custom Hadoop configuration and ORC
-writer properties can be provided.
+OrcBulkWriterFactory 还可以采用 Hadoop 的 `Configuration` 和 `Properties`，这样就可以提供自定义的 Hadoop 配置 和 ORC 输出属性。
 
 {{< tabs "eeef2ece-6e21-4bfd-b3ed-3329136f3486" >}}
 {{< tab "Java" >}}
@@ -696,7 +775,7 @@ Configuration conf = ...;
 Properties writerProperties = new Properties();
 
 writerProperties.setProperty("orc.compress", "LZ4");
-// Other ORC supported properties can also be set similarly.
+// 其他 ORC 属性也可以使用类似方式进行设置
 
 final OrcBulkWriterFactory<Person> writerFactory = new OrcBulkWriterFactory<>(
     new PersonVectorizer(schema), writerProperties, conf);
@@ -710,7 +789,7 @@ val conf: Configuration = ...
 val writerProperties: Properties = new Properties()
 
 writerProperties.setProperty("orc.compress", "LZ4")
-// Other ORC supported properties can also be set similarly.
+// 其他 ORC 属性也可以使用类似方式进行设置
 
 val writerFactory = new OrcBulkWriterFactory(
     new PersonVectorizer(schema), writerProperties, conf)
@@ -718,10 +797,9 @@ val writerFactory = new OrcBulkWriterFactory(
 {{< /tab >}}
 {{< /tabs >}}
 
-The complete list of ORC writer properties can be found [here](https://orc.apache.org/docs/hive-config.html).
+完整的 ORC 输出属性列表可以参考 [此文档](https://orc.apache.org/docs/hive-config.html) 。
 
-Users who want to add user metadata to the ORC files can do so by calling `addUserMetadata(...)` inside the overriding
-`vectorize(...)` method.
+用户在重写 `vectorize(...)` 方法时可以调用 `addUserMetadata(...)` 方法来添加自己的元数据到 ORC 文件中。
 
 {{< tabs "9880fed1-b5d7-440e-a5ca-c9b20f10dac2" >}}
 {{< tab "Java" >}}
@@ -757,13 +835,37 @@ class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
 {{< /tab >}}
 {{< /tabs >}}
 
-##### Hadoop SequenceFile format
+PyFlink 用户可以使用 `OrcBulkWriters` 来创建将数据写入 Orc 文件的 `BulkWriterFactory` 。
 
-To use the `SequenceFile` bulk encoder in your application you need to add the following dependency:
+{{< py_download_link "orc" >}}
+
+```python
+row_type = DataTypes.ROW([
+    DataTypes.FIELD('name', DataTypes.STRING()),
+    DataTypes.FIELD('age', DataTypes.INT()),
+])
+
+sink = FileSink.for_bulk_format(
+    OUTPUT_DIR,
+    OrcBulkWriters.for_row_type(
+        row_type=row_type,
+        writer_properties=Configuration(),
+        hadoop_config=Configuration(),
+    )
+).build()
+
+ds.sink_to(sink)
+```
+
+<a name="hadoop-sequencefile-format"></a>
+
+##### Hadoop SequenceFile Format
+
+如果在程序中使用 `SequenceFile` 的 Bulk-encoded Format，需要添加如下依赖到项目中：
 
 {{< artifact flink-sequence-file >}}
 
-A simple `SequenceFile` writer can be created like this:
+类似这样创建一个简单的 `SequenceFile`：
 
 {{< tabs "d707ffcf-7df3-4847-bb01-5eaa9f12de88" >}}
 {{< tab "Java" >}}
@@ -811,53 +913,63 @@ input.sinkTo(sink)
 {{< /tab >}}
 {{< /tabs >}}
 
-The `SequenceFileWriterFactory` supports additional constructor parameters to specify compression settings.
+`SequenceFileWriterFactory` 提供额外的构造参数设置是否开启压缩功能。
 
-### Bucket Assignment
+<a name="bucket-assignment"></a>
 
-The bucketing logic defines how the data will be structured into subdirectories inside the base output directory.
+### 桶分配
 
-Both row and bulk formats (see [File Formats](#file-formats)) use the `DateTimeBucketAssigner` as the default assigner.
-By default the `DateTimeBucketAssigner` creates hourly buckets based on the system default timezone
-with the following format: `yyyy-MM-dd--HH`. Both the date format (*i.e.* bucket size) and timezone can be
-configured manually.
+桶的逻辑定义了如何将数据分配到基本输出目录内的子目录中。
 
-We can specify a custom `BucketAssigner` by calling `.withBucketAssigner(assigner)` on the format builders.
+Row-encoded Format 和 Bulk-encoded Format (参考 [Format Types](#sink-format-types)) 使用了 `DateTimeBucketAssigner` 作为默认的分配器。
+默认的分配器 `DateTimeBucketAssigner` 会基于使用了格式为 `yyyy-MM-dd--HH` 的系统默认时区来创建小时桶。日期格式（ *即* 桶大小）和时区都可以手动配置。
 
-Flink comes with two built-in BucketAssigners:
+还可以在格式化构造器中通过调用 `.withBucketAssigner(assigner)` 方法指定自定义的 `BucketAssigner`。
 
-- `DateTimeBucketAssigner` : Default time based assigner
-- `BasePathBucketAssigner` : Assigner that stores all part files in the base path (single global bucket)
+Flink 内置了两种 BucketAssigners：
 
-### Rolling Policy
+- `DateTimeBucketAssigner` ：默认的基于时间的分配器
+- `BasePathBucketAssigner` ：分配所有文件存储在基础路径上（单个全局桶）
 
-The `RollingPolicy` defines when a given in-progress part file will be closed and moved to the pending and later to finished state.
-Part files in the "finished" state are the ones that are ready for viewing and are guaranteed to contain valid data that will not be reverted in case of failure.
-In `STREAMING` mode, the Rolling Policy in combination with the checkpointing interval (pending files become finished on the next checkpoint) control how quickly
-part files become available for downstream readers and also the size and number of these parts. In `BATCH` mode, part-files become visible at the end of the job but
-the rolling policy can control their maximum size.
+{{< hint info >}}
+PyFlink 只支持 `DateTimeBucketAssigner` 和 `BasePathBucketAssigner` 。
+{{< /hint >}}
 
-Flink comes with two built-in RollingPolicies:
+<a name="rolling-policy"></a>
+
+### 滚动策略
+
+`RollingPolicy` 定义了何时关闭给定的 In-progress Part 文件，并将其转换为 Pending 状态，然后在转换为 Finished 状态。
+Finished 状态的文件，可供查看并且可以保证数据的有效性，在出现故障时不会恢复。
+在 `STREAMING` 模式下，滚动策略结合 Checkpoint 间隔（到下一个 Checkpoint 成功时，文件的 Pending 状态才转换为 Finished 状态）共同控制 Part 文件对下游 readers 是否可见以及这些文件的大小和数量。在 `BATCH` 模式下，Part 文件在 Job 最后对下游才变得可见，滚动策略只控制最大的 Part 文件大小。
+
+Flink 内置了两种 RollingPolicies：
 
 - `DefaultRollingPolicy`
 - `OnCheckpointRollingPolicy`
 
-### Part file lifecycle
+{{< hint info >}}
+PyFlink 只支持 `DefaultRollingPolicy` 和 `OnCheckpointRollingPolicy` 。
+{{< /hint >}}
 
-In order to use the output of the `FileSink` in downstream systems, we need to understand the naming and lifecycle of the output files produced.
+<a name="part-file-lifecycle"></a>
 
-Part files can be in one of three states:
-1. **In-progress** : The part file that is currently being written to is in-progress
-2. **Pending** : Closed (due to the specified rolling policy) in-progress files that are waiting to be committed
-3. **Finished** : On successful checkpoints (`STREAMING`) or at the end of input (`BATCH`) pending files transition to "Finished"
+### Part 文件生命周期
 
-Only finished files are safe to read by downstream systems as those are guaranteed to not be modified later.
+为了在下游使用 `FileSink` 作为输出，需要了解生成的输出文件的命名和生命周期。
 
-Each writer subtask will have a single in-progress part file at any given time for every active bucket, but there can be several pending and finished files.
+Part 文件可以处于以下三种状态中的任意一种：
+1. **In-progress** ：当前正在写入的 Part 文件处于 in-progress 状态
+2. **Pending** ：由于指定的滚动策略）关闭 in-progress 状态文件，并且等待提交 
+3. **Finished** ：流模式(`STREAMING`)下的成功的 Checkpoint 或者批模式(`BATCH`)下输入结束，文件的 Pending 状态转换为 Finished 状态
 
-**Part file example**
+只有 Finished 状态下的文件才能被下游安全读取，并且保证不会被修改。
 
-To better understand the lifecycle of these files let's look at a simple example with 2 sink subtasks:
+对于每个活动的桶，在任何给定时间每个写入 Subtask 中都有一个 In-progress 状态的 Part 文件，但可能有多个 Pending 状态和 Finished 状态的文件。
+
+**Part 文件示例**
+
+为了更好的了解这些文件的生命周期，让我们看一个只有 2 个 Sink Subtask 的简单例子：
 
 ```
 └── 2019-08-25--12
@@ -865,7 +977,7 @@ To better understand the lifecycle of these files let's look at a simple example
     └── part-81fc4980-a6af-41c8-9937-9939408a734b-0.inprogress.ea65a428-a1d0-4a0b-bbc5-7a436a75e575
 ```
 
-When the part file `part-81fc4980-a6af-41c8-9937-9939408a734b-0` is rolled (let's say it becomes too large), it becomes pending but it is not renamed. The sink then opens a new part file: `part-81fc4980-a6af-41c8-9937-9939408a734b-1`:
+当这个 Part 文件 `part-81fc4980-a6af-41c8-9937-9939408a734b-0` 滚动时（比如说此文件变的很大时），此文件将进入 Pending 状态并且不能重命名。Sink 就会打开一个新的 Part 文件： `part-81fc4980-a6af-41c8-9937-9939408a734b-1`：
 
 ```
 └── 2019-08-25--12
@@ -874,7 +986,7 @@ When the part file `part-81fc4980-a6af-41c8-9937-9939408a734b-0` is rolled (let'
     └── part-81fc4980-a6af-41c8-9937-9939408a734b-1.inprogress.bc279efe-b16f-47d8-b828-00ef6e2fbd11
 ```
 
-As `part-81fc4980-a6af-41c8-9937-9939408a734b-0` is now pending completion, after the next successful checkpoint, it is finalized:
+`part-81fc4980-a6af-41c8-9937-9939408a734b-0` 现在是 Pending 状态，并且在下一个 Checkpoint 成功过后，立即成为 Finished 状态：
 
 ```
 └── 2019-08-25--12
@@ -883,7 +995,7 @@ As `part-81fc4980-a6af-41c8-9937-9939408a734b-0` is now pending completion, afte
     └── part-81fc4980-a6af-41c8-9937-9939408a734b-1.inprogress.bc279efe-b16f-47d8-b828-00ef6e2fbd11
 ```
 
-New buckets are created as dictated by the bucketing policy, and this doesn't affect currently in-progress files:
+根据桶策略创建新桶时，不会影响当前 In-progress 状态的文件：
 
 ```
 └── 2019-08-25--12
@@ -894,21 +1006,22 @@ New buckets are created as dictated by the bucketing policy, and this doesn't af
     └── part-4005733d-a830-4323-8291-8866de98b582-0.inprogress.2b475fec-1482-4dea-9946-eb4353b475f1
 ```
 
-Old buckets can still receive new records as the bucketing policy is evaluated on a per-record basis.
+旧桶仍然可以接收新记录，因为桶策略是在每条记录上进行评估的。
 
-#### Part file configuration
+<a name="part-file-configuration"></a>
 
-Finished files can be distinguished from the in-progress ones by their naming scheme only.
+#### Part 文件配置
 
-By default, the file naming strategy is as follows:
-- **In-progress / Pending**: `part-<uid>-<partFileIndex>.inprogress.uid`
-- **Finished:** `part-<uid>-<partFileIndex>`
-  where `uid` is a random id assigned to a subtask of the sink when the subtask is instantiated. This `uid` is not fault-tolerant
-  so it is regenerated when the subtask recovers from a failure.
+Finished 状态与 In-progress 状态的文件只能通过命名来区分。
 
-Flink allows the user to specify a prefix and/or a suffix for his/her part files.
-This can be done using an `OutputFileConfig`.
-For example for a prefix "prefix" and a suffix ".ext" the sink will create the following files:
+默认的，文件命名策略如下:
+- **In-progress / Pending**：`part-<uid>-<partFileIndex>.inprogress.uid`
+- **Finished**：`part-<uid>-<partFileIndex>`
+  当 Sink Subtask 实例化时，这的 `uid` 是一个分配给 Subtask 的随机 ID 值。这个 `uid` 不具有容错机制，所以当 Subtask 从故障恢复时，`uid` 会重新生成。
+
+Flink 允许用户给 Part 文件名添加一个前缀和/或后缀。
+使用 `OutputFileConfig` 来完成上述功能。
+例如，Sink 将在创建文件的文件名上添加前缀 "prefix" 和后缀 ".ext"，如下所示：
 
 ```
 └── 2019-08-25--12
@@ -918,7 +1031,7 @@ For example for a prefix "prefix" and a suffix ".ext" the sink will create the f
     └── prefix-81fc4980-a6af-41c8-9937-9939408a734b-1.ext.inprogress.bc279efe-b16f-47d8-b828-00ef6e2fbd11
 ```
 
-The user can specify an `OutputFileConfig` in the following way:
+用户也可以使用 `OutputFileConfig` 采用如下方式添加前缀和后缀：
 
 {{< tabs "3b8a397e-58d1-4a04-acae-b2dcace9f080" >}}
 {{< tab "Java" >}}
@@ -957,62 +1070,155 @@ val sink = FileSink
 			
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+config = OutputFileConfig \
+    .builder() \
+    .with_part_prefix("prefix") \
+    .with_part_suffix(".ext") \
+    .build()
+
+sink = FileSink \
+    .for_row_format(OUTPUT_PATH, Encoder.simple_string_encoder("UTF-8")) \
+    .with_bucket_assigner(BucketAssigner.base_path_bucket_assigner()) \
+    .with_rolling_policy(RollingPolicy.on_checkpoint_rolling_policy()) \
+    .with_output_file_config(config) \
+    .build()
+```
+{{< /tab >}}
 {{< /tabs >}}
 
-### Important Considerations
+<a name="compaction"></a>
 
-#### General
+### 文件合并
 
-<span class="label label-danger">Important Note 1</span>: When using Hadoop < 2.7, please use
-the `OnCheckpointRollingPolicy` which rolls part files on every checkpoint. The reason is that if part files "traverse"
-the checkpoint interval, then, upon recovery from a failure the `FileSink` may use the `truncate()` method of the
-filesystem to discard uncommitted data from the in-progress file. This method is not supported by pre-2.7 Hadoop versions
-and Flink will throw an exception.
+从 1.15 版本开始 `FileSink` 开始支持已经提交 `pending` 文件的合并，从而允许应用设置一个较小的时间周期并且避免生成大量的小文件。
+尤其是当用户使用 [bulk 格式]({{< ref "docs/connectors/datastream/filesystem#bulk-encoded-formats" >}}) 的时候：
+这种格式要求用户必须在 checkpoint 的时候切换文件。
 
-<span class="label label-danger">Important Note 2</span>: Given that Flink sinks and UDFs in general do not differentiate between
-normal job termination (*e.g.* finite input stream) and termination due to failure, upon normal termination of a job, the last
-in-progress files will not be transitioned to the "finished" state.
+文件合并功能可以通过以下代码打开：
 
-<span class="label label-danger">Important Note 3</span>: Flink and the `FileSink` never overwrites committed data.
-Given this, when trying to restore from an old checkpoint/savepoint which assumes an in-progress file which was committed
-by subsequent successful checkpoints, the `FileSink` will refuse to resume and will throw an exception as it cannot locate the
-in-progress file.
+{{< tabs "enablecompaction" >}}
+{{< tab "Java" >}}
+```java
 
-<span class="label label-danger">Important Note 4</span>: Currently, the `FileSink` only supports three filesystems:
-HDFS, S3, and Local. Flink will throw an exception when using an unsupported filesystem at runtime.
+FileSink<Integer> fileSink=
+        FileSink.forRowFormat(new Path(path),new SimpleStringEncoder<Integer>())
+            .enableCompact(
+                FileCompactStrategy.Builder.newBuilder()
+                    .setNumCompactThreads(1024)
+                    .enableCompactionOnCheckpoint(5)
+                    .build(),
+                new RecordWiseFileCompactor<>(
+                    new DecoderBasedReader.Factory<>(SimpleStringDecoder::new)))
+            .build();
 
-#### BATCH-specific
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
 
-<span class="label label-danger">Important Note 1</span>: Although the `Writer` is executed with the user-specified
-parallelism, the `Committer` is executed with parallelism equal to 1.
+val fileSink: FileSink[Integer] =
+  FileSink.forRowFormat(new Path(path), new SimpleStringEncoder[Integer]())
+          .enableCompact(
+            FileCompactStrategy.Builder.newBuilder()
+                    .setNumCompactThreads(1024)
+                    .enableCompactionOnCheckpoint(5)
+                    .build(),
+            new RecordWiseFileCompactor(
+              new DecoderBasedReader.Factory(() => new SimpleStringDecoder)))
+          .build()
 
-<span class="label label-danger">Important Note 2</span>: Pending files are committed, i.e. transition to `Finished`
-state, after the whole input has been processed.
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+file_sink = FileSink \
+    .for_row_format(PATH, Encoder.simple_string_encoder()) \
+    .enable_compact(
+        FileCompactStrategy.builder()
+            .set_size_threshold(1024)
+            .enable_compaction_on_checkpoint(5)
+            .build(),
+        FileCompactor.concat_file_compactor()) \
+    .build()
+```
+{{< /tab >}}
+{{< /tabs >}}
 
-<span class="label label-danger">Important Note 3</span>: When High-Availability is activated, if a `JobManager`
-failure happens while the `Committers` are committing, then we may have duplicates. This is going to be fixed in  
-future Flink versions
-(see progress in [FLIP-147](https://cwiki.apache.org/confluence/display/FLINK/FLIP-147%3A+Support+Checkpoints+After+Tasks+Finished)).
+这一功能开启后，在文件转为 `pending` 状态与文件最终提交之间会进行文件合并。这些 `pending` 状态的文件将首先被提交为一个以 `.` 开头的
+临时文件。这些文件随后将会按照用户指定的策略和合并方式进行合并并生成合并后的 `pending` 状态的文件。
+然后这些文件将被发送给 Committer 并提交为正式文件，在这之后，原始的临时文件也会被删除掉。
 
-#### S3-specific
+当开启文件合并功能时，用户需要指定 {{< javadoc file="org/apache/flink/connector/file/sink/compactor/FileCompactStrategy.html" name="FileCompactStrategy">}} 与
+{{< javadoc file="org/apache/flink/connector/file/sink/compactor/FileCompactor.html" name="FileCompactor">}} 。
 
-<span class="label label-danger">Important Note 1</span>: For S3, the `FileSink`
-supports only the [Hadoop-based](https://hadoop.apache.org/) FileSystem implementation, not
-the implementation based on [Presto](https://prestodb.io/). In case your job uses the
-`FileSink` to write to S3 but you want to use the Presto-based one for checkpointing,
-it is advised to use explicitly *"s3a://"* (for Hadoop) as the scheme for the target path of
-the sink and *"s3p://"* for checkpointing (for Presto). Using *"s3://"* for both the sink
-and checkpointing may lead to unpredictable behavior, as both implementations "listen" to that scheme.
+{{< javadoc file="org/apache/flink/connector/file/sink/compactor/FileCompactStrategy.html" name="FileCompactStrategy">}} 指定何时以及哪些文件将被合并。
+目前有两个并行的条件：目标文件大小与间隔的 Checkpoint 数量。当目前缓存的文件的总大小达到指定的阈值，或自上次合并后经过的 Checkpoint 次数已经达到指定次数时，
+`FileSink` 将创建一个异步任务来合并当前缓存的文件。
 
-<span class="label label-danger">Important Note 2</span>: To guarantee exactly-once semantics while
-being efficient, the `FileSink` uses the [Multi-part Upload](https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html)
-feature of S3 (MPU from now on). This feature allows to upload files in independent chunks (thus the "multi-part")
-which can be combined into the original file when all the parts of the MPU are successfully uploaded.
-For inactive MPUs, S3 supports a bucket lifecycle rule that the user can use to abort multipart uploads
-that don't complete within a specified number of days after being initiated. This implies that if you set this rule
-aggressively and take a savepoint with some part-files being not fully uploaded, their associated MPUs may time-out
-before the job is restarted. This will result in your job not being able to restore from that savepoint as the
-pending part-files are no longer there and Flink will fail with an exception as it tries to fetch them and fails.
+{{< javadoc file="org/apache/flink/connector/file/sink/compactor/FileCompactor.html" name="FileCompactor">}} 指定如何将给定的路径列表对应的文件进行合并将结果写入到文件中。
+根据如何写文件，它可以分为两类：
+
+- **{{< javadoc file="org/apache/flink/connector/file/sink/compactor/OutputStreamBasedFileCompactor.html" name="OutputStreamBasedFileCompactor">}}** : 
+  用户将合并后的结果写入一个输出流中。通常在用户不希望或者无法从输入文件中读取记录时使用。这种类型的 `CompactingFileWriter` 的一个例子是 {{< javadoc file="org/apache/flink/connector/file/sink/compactor/ConcatFileCompactor.html" name="ConcatFileCompactor">}}，它直接将给定的文件进行合并并将结果写到输出流中。
+- **{{< javadoc file="org/apache/flink/connector/file/sink/compactor/RecordWiseFileCompactor.html" name="RecordWiseFileCompactor">}}** ：
+  这种类型的 `CompactingFileWriter` 会逐条读出输入文件的记录用户，然后和`FileWriter`一样写入输出文件中。`CompactingFileWriter` 的一个例子是 {{< javadoc file="org/apache/flink/connector/file/sink/compactor/RecordWiseFileCompactor.html" name="RecordWiseFileCompactor">}} ，它从给定的文件中读出记录并写出到 `CompactingFileWriter` 中。用户需要指定如何从原始文件中读出记录。
+
+{{< hint info >}}
+**注意事项1** 一旦启用了文件合并功能，此后若需要再关闭，必须在构建`FileSink`时显式调用`disableCompact`方法。
+
+**注意事项2** 如果启用了文件合并功能，文件可见的时间会被延长。
+{{< /hint >}}
+
+{{< hint info >}}
+PyFlink 只支持 `ConcatFileCompactor` 和 `IdenticalFileCompactor` 。
+{{< /hint >}}
+
+<a name="important-considerations"></a>
+
+### 重要注意事项
+
+<a name="general"></a>
+
+#### 通用注意事项
+
+<span class="label label-danger">注意事项 1</span>：当使用的 Hadoop 版本 < 2.7 时，
+当每次 Checkpoint 时请使用 `OnCheckpointRollingPolicy` 滚动 Part 文件。原因是：如果 Part 文件 "穿越" 了 Checkpoint 的时间间隔，
+然后，从失败中恢复过来时，`FileSink` 可能会使用文件系统的 `truncate()` 方法丢弃处于 In-progress 状态文件中的未提交数据。
+这个方法在 Hadoop 2.7 版本之前是不支持的，Flink 将抛出异常。
+
+<span class="label label-danger">注意事项 2</span>：鉴于 Flink 的 Sink 和 UDF 通常不会区分正常作业终止（*例如* 有限输入流）和 由于故障而终止，
+在 Job 正常终止时，最后一个 In-progress 状态文件不会转换为 "Finished" 状态。
+
+<span class="label label-danger">注意事项 3</span>：Flink 和 `FileSink` 永远不会覆盖已提交数据。
+鉴于此，假定一个 In-progress 状态文件被后续成功的 Checkpoint 提交了，当尝试从这个旧的 Checkpoint / Savepoint 进行恢复时，`FileSink` 将拒绝继续执行并将抛出异常，因为程序无法找到 In-progress 状态的文件。
+
+<span class="label label-danger">注意事项 4</span>：目前，`FileSink` 仅支持以下 5 种文件系统：HDFS、 S3、OSS、ABFS 和 Local。如果在运行时使用了不支持的文件系统，Flink 将抛出异常。
+
+<a name="batch-specific"></a>
+
+#### BATCH 注意事项
+
+<span class="label label-danger">注意事项 1</span>：虽然 `Writer` 是以用户指定的 parallelism 执行的，然而 `Committer` 是以 parallelism = 1 执行的。
+
+<span class="label label-danger">注意事项 2</span>：Pending 状态文件被提交并且所有输入数据被处理完后，才转换为 `Finished` 状态。
+
+<span class="label label-danger">注意事项 3</span>：当系统处于高可用状态下，并且正当 `Committers` 进行提交时如果 `JobManager` 发生了故障，那么可能会有副本。这种情况将会在 Flink 的未来版本中进行修复。（可以参考 [FLIP-147](https://cwiki.apache.org/confluence/display/FLINK/FLIP-147%3A+Support+Checkpoints+After+Tasks+Finished) ） 。
+
+<a name="s3-specific"></a>
+
+#### S3 注意事项
+
+<span class="label label-danger">注意事项 1</span>：对于 S3，`FileSink` 仅支持基于 [Hadoop-based](https://hadoop.apache.org/) 文件系统的实现，而不支持基于 [Presto](https://prestodb.io/) 的实现。
+如果 Job 中使用 `FileSink` 写入 S3，但是希望使用基于 Presto 的 Sink 做 Checkpoint，建议明确使用 *"s3a://"* （对于 Hadoop）作为 Sink 目标路径格式并且使用 *"s3p://"* 作为 Checkpoint 的目标路径格式（对于 Presto）。 
+对于 Sink 和  Checkpoint  同时使用 *"s3://"* 可能导致不可控的行为，由于两者的实现 "监听" 同一格式路径。
+
+<span class="label label-danger">注意事项 2</span>：在保证高效的同时还要保证 exactly-once 语义，`FileSink` 使用了 S3 的 [Multi-part Upload](https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html) 功能（MPU 功能开箱即用）。
+此功能允许以独立的块上传文件（因此称为 "multi-part"），当 MPU 的所有块都上传成功时，这些块就可以合并生成原始文件。
+对于非活动的 MPU，S3 支持桶生命周期规则，用户可以使用该规则终止在启动后指定天数内未完成的多块上传操作。
+这意味着，如果设置了这个规则，并在某些文件未完全上传的情况下执行 Savepoint，则其关联的 MPU 可能会在 Job 重启前超时。
+这将导致 Job 无法从该 Savepoint 恢复，因为 Pending 状态的 Part 文件已不存在，那么 Flink Job 将失败并抛出异常，因为程序试图获取那些不存在的文件导致了失败。
 
 {{< top >}}
 

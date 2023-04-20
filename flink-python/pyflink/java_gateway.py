@@ -109,7 +109,11 @@ def launch_gateway():
             time.sleep(0.1)
 
         if not os.path.isfile(conn_info_file):
-            raise Exception("Java gateway process exited before sending its port number")
+            stderr_info = p.stderr.read().decode('utf-8')
+            raise RuntimeError(
+                "Java gateway process exited before sending its port number.\nStderr:\n"
+                + stderr_info
+            )
 
         with open(conn_info_file, "rb") as info:
             gateway_port = struct.unpack("!I", info.read(4))[0]
@@ -132,6 +136,7 @@ def import_flink_view(gateway):
     """
     # Import the classes used by PyFlink
     java_import(gateway.jvm, "org.apache.flink.table.api.*")
+    java_import(gateway.jvm, "org.apache.flink.table.api.config.*")
     java_import(gateway.jvm, "org.apache.flink.table.api.java.*")
     java_import(gateway.jvm, "org.apache.flink.table.api.bridge.java.*")
     java_import(gateway.jvm, "org.apache.flink.table.api.dataview.*")
@@ -156,7 +161,8 @@ def import_flink_view(gateway):
     java_import(gateway.jvm, "org.apache.flink.python.PythonOptions")
     java_import(gateway.jvm, "org.apache.flink.client.python.PythonGatewayServer")
     java_import(gateway.jvm, "org.apache.flink.streaming.api.functions.python.*")
-    java_import(gateway.jvm, "org.apache.flink.streaming.api.operators.python.*")
+    java_import(gateway.jvm, "org.apache.flink.streaming.api.operators.python.process.*")
+    java_import(gateway.jvm, "org.apache.flink.streaming.api.operators.python.embedded.*")
     java_import(gateway.jvm, "org.apache.flink.streaming.api.typeinfo.python.*")
 
 

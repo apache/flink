@@ -40,6 +40,7 @@ import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
@@ -68,6 +69,7 @@ import org.junit.runners.Parameterized;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
@@ -161,8 +163,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
         // Testing HA Scenario / ZKCompletedCheckpointStore with incremental checkpoints
         StateBackendEnum stateBackendEnum = getStateBackend();
         if (ROCKSDB_INCREMENTAL_ZK.equals(stateBackendEnum)) {
-            zkServer = new TestingServer();
-            zkServer.start();
+            zkServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer();
         }
 
         Configuration config = createClusterConfig();
@@ -203,7 +204,8 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
         // ChangelogStateBackend is used.
         // Doing it on cluster level unconditionally as randomization currently happens on the job
         // level (environment); while this factory can only be set on the cluster level.
-        FsStateChangelogStorageFactory.configure(config, tempFolder.newFolder());
+        FsStateChangelogStorageFactory.configure(
+                config, tempFolder.newFolder(), Duration.ofMinutes(1), 10);
 
         return config;
     }
@@ -259,7 +261,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
         }
 
         if (zkServer != null) {
-            zkServer.stop();
+            zkServer.close();
             zkServer = null;
         }
 

@@ -119,6 +119,7 @@ public class RemoteInputChannel extends InputChannel {
             SingleInputGate inputGate,
             int channelIndex,
             ResultPartitionID partitionId,
+            int consumedSubpartitionIndex,
             ConnectionID connectionId,
             ConnectionManager connectionManager,
             int initialBackOff,
@@ -132,6 +133,7 @@ public class RemoteInputChannel extends InputChannel {
                 inputGate,
                 channelIndex,
                 partitionId,
+                consumedSubpartitionIndex,
                 initialBackOff,
                 maxBackoff,
                 numBytesIn,
@@ -170,13 +172,12 @@ public class RemoteInputChannel extends InputChannel {
     /** Requests a remote subpartition. */
     @VisibleForTesting
     @Override
-    public void requestSubpartition(int subpartitionIndex)
-            throws IOException, InterruptedException {
+    public void requestSubpartition() throws IOException, InterruptedException {
         if (partitionRequestClient == null) {
             LOG.debug(
                     "{}: Requesting REMOTE subpartition {} of partition {}. {}",
                     this,
-                    subpartitionIndex,
+                    consumedSubpartitionIndex,
                     partitionId,
                     channelStatePersister);
             // Create a client and request the partition
@@ -189,17 +190,18 @@ public class RemoteInputChannel extends InputChannel {
                 throw new PartitionConnectionException(partitionId, e);
             }
 
-            partitionRequestClient.requestSubpartition(partitionId, subpartitionIndex, this, 0);
+            partitionRequestClient.requestSubpartition(
+                    partitionId, consumedSubpartitionIndex, this, 0);
         }
     }
 
     /** Retriggers a remote subpartition request. */
-    void retriggerSubpartitionRequest(int subpartitionIndex) throws IOException {
+    void retriggerSubpartitionRequest() throws IOException {
         checkPartitionRequestQueueInitialized();
 
         if (increaseBackoff()) {
             partitionRequestClient.requestSubpartition(
-                    partitionId, subpartitionIndex, this, getCurrentBackoff());
+                    partitionId, consumedSubpartitionIndex, this, getCurrentBackoff());
         } else {
             failPartitionRequest();
         }
@@ -797,7 +799,7 @@ public class RemoteInputChannel extends InputChannel {
     }
 
     public void onFailedPartitionRequest() {
-        inputGate.triggerPartitionStateCheck(partitionId);
+        inputGate.triggerPartitionStateCheck(partitionId, consumedSubpartitionIndex);
     }
 
     public void onError(Throwable cause) {

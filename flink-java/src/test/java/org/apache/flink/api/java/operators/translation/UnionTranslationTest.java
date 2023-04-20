@@ -34,18 +34,17 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.StringValue;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for translation of union operation. */
 @SuppressWarnings("serial")
-public class UnionTranslationTest {
+class UnionTranslationTest {
 
     @Test
-    public void translateUnion2Group() {
+    void translateUnion2Group() {
         try {
             final int parallelism = 4;
             ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment(parallelism);
@@ -76,15 +75,16 @@ public class UnionTranslationTest {
             Union unionOperator = (Union) ((SingleInputOperator) sink.getInput()).getInput();
 
             // The key mappers should be added to both of the two input streams for union.
-            assertTrue(unionOperator.getFirstInput() instanceof MapOperatorBase<?, ?, ?>);
-            assertTrue(unionOperator.getSecondInput() instanceof MapOperatorBase<?, ?, ?>);
+            assertThat(unionOperator.getFirstInput()).isInstanceOf(MapOperatorBase.class);
+            assertThat(unionOperator.getSecondInput()).isInstanceOf(MapOperatorBase.class);
 
             // The parallelisms of the key mappers should be equal to those of their inputs.
-            assertEquals(unionOperator.getFirstInput().getParallelism(), 3);
-            assertEquals(unionOperator.getSecondInput().getParallelism(), 2);
+            assertThat(unionOperator.getFirstInput().getParallelism()).isEqualTo(3);
+            assertThat(unionOperator.getSecondInput().getParallelism()).isEqualTo(2);
 
             // The union should always have the default parallelism.
-            assertEquals(unionOperator.getParallelism(), ExecutionConfig.PARALLELISM_DEFAULT);
+            assertThat(unionOperator.getParallelism())
+                    .isEqualTo(ExecutionConfig.PARALLELISM_DEFAULT);
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
@@ -93,7 +93,7 @@ public class UnionTranslationTest {
     }
 
     @Test
-    public void translateUnion3SortedGroup() {
+    void translateUnion3SortedGroup() {
         try {
             final int parallelism = 4;
             ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment(parallelism);
@@ -136,20 +136,22 @@ public class UnionTranslationTest {
             Union firstUnionOperator = (Union) secondUnionOperator.getFirstInput();
 
             // The key mapper should be added to the second input stream of the second union.
-            assertTrue(secondUnionOperator.getSecondInput() instanceof MapOperatorBase<?, ?, ?>);
+            assertThat(secondUnionOperator.getSecondInput()).isInstanceOf(MapOperatorBase.class);
 
             // The key mappers should be added to both of the two input streams for the first union.
-            assertTrue(firstUnionOperator.getFirstInput() instanceof MapOperatorBase<?, ?, ?>);
-            assertTrue(firstUnionOperator.getSecondInput() instanceof MapOperatorBase<?, ?, ?>);
+            assertThat(firstUnionOperator.getFirstInput()).isInstanceOf(MapOperatorBase.class);
+            assertThat(firstUnionOperator.getSecondInput()).isInstanceOf(MapOperatorBase.class);
 
             // The parallelisms of the key mappers should be equal to those of their inputs.
-            assertEquals(firstUnionOperator.getFirstInput().getParallelism(), 2);
-            assertEquals(firstUnionOperator.getSecondInput().getParallelism(), 3);
-            assertEquals(secondUnionOperator.getSecondInput().getParallelism(), -1);
+            assertThat(firstUnionOperator.getFirstInput().getParallelism()).isEqualTo(2);
+            assertThat(firstUnionOperator.getSecondInput().getParallelism()).isEqualTo(3);
+            assertThat(secondUnionOperator.getSecondInput().getParallelism()).isEqualTo(-1);
 
             // The union should always have the default parallelism.
-            assertEquals(secondUnionOperator.getParallelism(), ExecutionConfig.PARALLELISM_DEFAULT);
-            assertEquals(firstUnionOperator.getParallelism(), ExecutionConfig.PARALLELISM_DEFAULT);
+            assertThat(secondUnionOperator.getParallelism())
+                    .isEqualTo(ExecutionConfig.PARALLELISM_DEFAULT);
+            assertThat(firstUnionOperator.getParallelism())
+                    .isEqualTo(ExecutionConfig.PARALLELISM_DEFAULT);
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();

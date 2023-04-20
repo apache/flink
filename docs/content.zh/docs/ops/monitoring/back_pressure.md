@@ -41,7 +41,7 @@ Flink Web 界面提供了一个选项卡来监控正在运行 jobs 的反压行�
 ## Task 性能指标
 
 Task（SubTask）的每个并行实例都可以用三个一组的指标评价：
-- `backPressureTimeMsPerSecond`，subtask 被反压的时间
+- `backPressuredTimeMsPerSecond`，subtask 被反压的时间
 - `idleTimeMsPerSecond`，subtask 等待某类处理的时间
 - `busyTimeMsPerSecond`，subtask 实际工作时间
 在任何时间点，这三个指标相加都约等于`1000ms`。

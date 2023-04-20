@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
@@ -25,13 +24,13 @@ import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink}
+import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.utils.TableTestUtil
 import org.apache.flink.types.Row
 
-import org.junit.Assert.assertEquals
 import org.junit._
+import org.junit.Assert.assertEquals
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
@@ -44,10 +43,10 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
   extends StreamingWithStateTestBase(state) {
 
   /**
-    * Because of nature of the processing time, we can not (or at least it is not that easy)
-    * validate the result here. Instead of that, here we are just testing whether there are no
-    * exceptions in a full blown ITCase. Actual correctness is tested in unit tests.
-    */
+   * Because of nature of the processing time, we can not (or at least it is not that easy) validate
+   * the result here. Instead of that, here we are just testing whether there are no exceptions in a
+   * full blown ITCase. Actual correctness is tested in unit tests.
+   */
   @Test
   def testProcessTimeInnerJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
@@ -86,8 +85,8 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
       .fromCollection(ratesHistoryData)
       .toTable(tEnv, 'currency, 'rate, 'proctime.proctime)
 
-    tEnv.registerTable("Orders", orders)
-    tEnv.registerTable("RatesHistory", ratesHistory)
+    tEnv.createTemporaryView("Orders", orders)
+    tEnv.createTemporaryView("RatesHistory", ratesHistory)
     tEnv.createTemporarySystemFunction(
       "Rates",
       ratesHistory.createTemporalTableFunction($"proctime", $"currency"))
@@ -103,8 +102,11 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     env.setParallelism(1)
     env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
-    val result = tEnv.sqlQuery("SELECT amount, currency, proctime() as proctime " +
-      "FROM (VALUES (1, 2.0)) AS T(amount, currency)").toAppendStream[Row]
+    val result = tEnv
+      .sqlQuery(
+        "SELECT amount, currency, proctime() as proctime " +
+          "FROM (VALUES (1, 2.0)) AS T(amount, currency)")
+      .toAppendStream[Row]
     result.addSink(new TestingAppendSink)
     env.execute()
   }
@@ -150,14 +152,14 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
       .fromCollection(ratesHistoryData)
       .toTable(tEnv, 'currency, 'rate, 'proctime.proctime)
 
-    tEnv.registerTable("Orders1", orders1)
-    tEnv.registerTable("Orders2", orders2)
-    tEnv.registerTable("RatesHistory", ratesHistory)
+    tEnv.createTemporaryView("Orders1", orders1)
+    tEnv.createTemporaryView("Orders2", orders2)
+    tEnv.createTemporaryView("RatesHistory", ratesHistory)
 
     tEnv.registerFunction(
       "Rates",
       ratesHistory.createTemporalTableFunction($"proctime", $"currency"))
-    tEnv.registerTable(
+    tEnv.createTemporaryView(
       "Orders",
       tEnv.sqlQuery("SELECT * FROM Orders1 UNION ALL SELECT * FROM Orders2"))
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
@@ -208,16 +210,17 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
       .assignTimestampsAndWatermarks(new TimestampExtractor[(String, Long, Timestamp)]())
       .toTable(tEnv, 'currency, 'rate, 'rowtime.rowtime)
 
-    tEnv.registerTable("Orders", orders)
-    tEnv.registerTable("RatesHistory", ratesHistory)
-    tEnv.registerTable("FilteredRatesHistory",
+    tEnv.createTemporaryView("Orders", orders)
+    tEnv.createTemporaryView("RatesHistory", ratesHistory)
+    tEnv.createTemporaryView(
+      "FilteredRatesHistory",
       tEnv.sqlQuery("SELECT * FROM RatesHistory WHERE rate > 110"))
     tEnv.createTemporarySystemFunction(
       "Rates",
       tEnv
         .from("FilteredRatesHistory")
         .createTemporalTableFunction($"rowtime", $"currency"))
-    tEnv.registerTable("TemporalJoinResult", tEnv.sqlQuery(sqlQuery))
+    tEnv.createTemporaryView("TemporalJoinResult", tEnv.sqlQuery(sqlQuery))
 
     // Scan from registered table to test for interplay between
     // LogicalCorrelateToTemporalTableJoinRule and TableScanRule
@@ -271,11 +274,11 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
       .toTable(tEnv, 'currency, 'rate, 'rowtime.rowtime)
 
     val pricesHistoryData = new mutable.MutableList[(String, String, Double, Timestamp)]
-    pricesHistoryData.+=(("A2", "US Dollar", 10.2D, new Timestamp(1L)))
-    pricesHistoryData.+=(("A1", "Euro", 11.4D, new Timestamp(1L)))
-    pricesHistoryData.+=(("A4", "Yen", 1D, new Timestamp(1L)))
-    pricesHistoryData.+=(("A1", "Euro", 11.6D, new Timestamp(5L)))
-    pricesHistoryData.+=(("A1", "Euro", 11.9D, new Timestamp(7L)))
+    pricesHistoryData.+=(("A2", "US Dollar", 10.2d, new Timestamp(1L)))
+    pricesHistoryData.+=(("A1", "Euro", 11.4d, new Timestamp(1L)))
+    pricesHistoryData.+=(("A4", "Yen", 1d, new Timestamp(1L)))
+    pricesHistoryData.+=(("A1", "Euro", 11.6d, new Timestamp(5L)))
+    pricesHistoryData.+=(("A1", "Euro", 11.9d, new Timestamp(7L)))
     val pricesHistory = env
       .fromCollection(pricesHistoryData)
       .assignTimestampsAndWatermarks(new TimestampExtractor[(String, String, Double, Timestamp)]())
@@ -309,11 +312,12 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
 }
 
 class TimestampExtractor[T <: Product]
-  extends BoundedOutOfOrdernessTimestampExtractor[T](Time.seconds(10))  {
+  extends BoundedOutOfOrdernessTimestampExtractor[T](Time.seconds(10)) {
   override def extractTimestamp(element: T): Long = element match {
     case (_, _, ts: Timestamp) => ts.getTime
     case (_, _, _, ts: Timestamp) => ts.getTime
-    case _ => throw new IllegalArgumentException(
-      "Expected the last element in a tuple to be of a Timestamp type.")
+    case _ =>
+      throw new IllegalArgumentException(
+        "Expected the last element in a tuple to be of a Timestamp type.")
   }
 }

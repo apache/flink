@@ -42,6 +42,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.runtime.metrics.dump.QueryScopeInfo.INFO_CATEGORY_JM;
+import static org.apache.flink.runtime.metrics.dump.QueryScopeInfo.INFO_CATEGORY_JM_OPERATOR;
 import static org.apache.flink.runtime.metrics.dump.QueryScopeInfo.INFO_CATEGORY_JOB;
 import static org.apache.flink.runtime.metrics.dump.QueryScopeInfo.INFO_CATEGORY_OPERATOR;
 import static org.apache.flink.runtime.metrics.dump.QueryScopeInfo.INFO_CATEGORY_TASK;
@@ -240,6 +241,7 @@ public class MetricDumpSerialization {
                 out.writeUTF(taskInfo.jobID);
                 out.writeUTF(taskInfo.vertexID);
                 out.writeInt(taskInfo.subtaskIndex);
+                out.writeInt(taskInfo.attemptNumber);
                 break;
             case INFO_CATEGORY_OPERATOR:
                 QueryScopeInfo.OperatorQueryScopeInfo operatorInfo =
@@ -247,7 +249,15 @@ public class MetricDumpSerialization {
                 out.writeUTF(operatorInfo.jobID);
                 out.writeUTF(operatorInfo.vertexID);
                 out.writeInt(operatorInfo.subtaskIndex);
+                out.writeInt(operatorInfo.attemptNumber);
                 out.writeUTF(operatorInfo.operatorName);
+                break;
+            case INFO_CATEGORY_JM_OPERATOR:
+                QueryScopeInfo.JobManagerOperatorQueryScopeInfo jmOperatorInfo =
+                        (QueryScopeInfo.JobManagerOperatorQueryScopeInfo) info;
+                out.writeUTF(jmOperatorInfo.jobID);
+                out.writeUTF(jmOperatorInfo.vertexID);
+                out.writeUTF(jmOperatorInfo.operatorName);
                 break;
             default:
                 throw new IOException("Unknown scope category: " + info.getCategory());
@@ -436,6 +446,8 @@ public class MetricDumpSerialization {
         String jobID;
         String vertexID;
         int subtaskIndex;
+        int attemptNumber;
+        String operatorName;
 
         String scope = dis.readUTF();
         byte cat = dis.readByte();
@@ -452,14 +464,23 @@ public class MetricDumpSerialization {
                 jobID = dis.readUTF();
                 vertexID = dis.readUTF();
                 subtaskIndex = dis.readInt();
-                return new QueryScopeInfo.TaskQueryScopeInfo(jobID, vertexID, subtaskIndex, scope);
+                attemptNumber = dis.readInt();
+                return new QueryScopeInfo.TaskQueryScopeInfo(
+                        jobID, vertexID, subtaskIndex, attemptNumber, scope);
             case INFO_CATEGORY_OPERATOR:
                 jobID = dis.readUTF();
                 vertexID = dis.readUTF();
                 subtaskIndex = dis.readInt();
-                String operatorName = dis.readUTF();
+                attemptNumber = dis.readInt();
+                operatorName = dis.readUTF();
                 return new QueryScopeInfo.OperatorQueryScopeInfo(
-                        jobID, vertexID, subtaskIndex, operatorName, scope);
+                        jobID, vertexID, subtaskIndex, attemptNumber, operatorName, scope);
+            case INFO_CATEGORY_JM_OPERATOR:
+                jobID = dis.readUTF();
+                vertexID = dis.readUTF();
+                operatorName = dis.readUTF();
+                return new QueryScopeInfo.JobManagerOperatorQueryScopeInfo(
+                        jobID, vertexID, operatorName, scope);
             default:
                 throw new IOException("Unknown scope category: " + cat);
         }

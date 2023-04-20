@@ -18,17 +18,16 @@
 
 package org.apache.flink.docs.configuration;
 
-import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.docs.util.ConfigurationOptionLocator;
+import org.apache.flink.docs.util.OptionWithMetaInfo;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -45,24 +44,22 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.DEFAULT_PATH_PREFIX;
-import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.LOCATIONS;
-import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.extractConfigOptions;
 import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.getDescription;
-import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.processConfigOptions;
+import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.getDocumentedKey;
 import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.stringifyDefault;
 import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.typeToHtml;
+import static org.assertj.core.api.Fail.fail;
 
 /**
- * This test verifies that all {@link ConfigOption ConfigOptions} in the configured {@link
- * ConfigOptionsDocGenerator#LOCATIONS locations} are documented and well-defined (i.e. no 2 options
- * exist for the same key with different descriptions/default values), and that the documentation
- * does not refer to non-existent options.
+ * This test verifies that all {@link ConfigOption ConfigOptions} found by the {@link
+ * ConfigurationOptionLocator} are documented and well-defined (i.e. no 2 options exist for the same
+ * key with different descriptions/default values), and that the documentation does not refer to
+ * non-existent options.
  */
-public class ConfigOptionsDocsCompletenessITCase {
+class ConfigOptionsDocsCompletenessITCase {
 
     @Test
-    public void testCompleteness() throws IOException, ClassNotFoundException {
+    void testCompleteness() throws Exception {
         final Map<String, List<DocumentedOption>> documentedOptions = parseDocumentedOptions();
         final Map<String, List<ExistingOption>> existingOptions =
                 findExistingOptions(ignored -> true);
@@ -81,59 +78,54 @@ public class ConfigOptionsDocsCompletenessITCase {
                             final List<ExistingOption> existingOptions = entry.getValue();
                             final List<ExistingOption> consolidated;
 
-                            if (existingOptions.stream()
-                                    .allMatch(option -> option.isSuffixOption)) {
-                                consolidated = existingOptions;
-                            } else {
-                                Optional<ExistingOption> deduped =
-                                        existingOptions.stream()
-                                                .reduce(
-                                                        (option1, option2) -> {
-                                                            if (option1.equals(option2)) {
-                                                                // we allow multiple instances of
-                                                                // ConfigOptions with the same key
-                                                                // if they are identical
-                                                                return option1;
+                            Optional<ExistingOption> deduped =
+                                    existingOptions.stream()
+                                            .reduce(
+                                                    (option1, option2) -> {
+                                                        if (option1.equals(option2)) {
+                                                            // we allow multiple instances of
+                                                            // ConfigOptions with the same key
+                                                            // if they are identical
+                                                            return option1;
+                                                        } else {
+                                                            // found a ConfigOption pair with
+                                                            // the same key that aren't equal
+                                                            // we fail here outright as this is
+                                                            // not a documentation-completeness
+                                                            // problem
+                                                            if (!option1.defaultValue.equals(
+                                                                    option2.defaultValue)) {
+                                                                String errorMessage =
+                                                                        String.format(
+                                                                                "Ambiguous option %s due to distinct default values (%s (in %s) vs %s (in %s)).",
+                                                                                option1.key,
+                                                                                option1.defaultValue,
+                                                                                option1
+                                                                                        .containingClass
+                                                                                        .getSimpleName(),
+                                                                                option2.defaultValue,
+                                                                                option2
+                                                                                        .containingClass
+                                                                                        .getSimpleName());
+                                                                throw new AssertionError(
+                                                                        errorMessage);
                                                             } else {
-                                                                // found a ConfigOption pair with
-                                                                // the same key that aren't equal
-                                                                // we fail here outright as this is
-                                                                // not a documentation-completeness
-                                                                // problem
-                                                                if (!option1.defaultValue.equals(
-                                                                        option2.defaultValue)) {
-                                                                    String errorMessage =
-                                                                            String.format(
-                                                                                    "Ambiguous option %s due to distinct default values (%s (in %s) vs %s (in %s)).",
-                                                                                    option1.key,
-                                                                                    option1.defaultValue,
-                                                                                    option1
-                                                                                            .containingClass
-                                                                                            .getSimpleName(),
-                                                                                    option2.defaultValue,
-                                                                                    option2
-                                                                                            .containingClass
-                                                                                            .getSimpleName());
-                                                                    throw new AssertionError(
-                                                                            errorMessage);
-                                                                } else {
-                                                                    String errorMessage =
-                                                                            String.format(
-                                                                                    "Ambiguous option %s due to distinct descriptions (%s vs %s).",
-                                                                                    option1.key,
-                                                                                    option1
-                                                                                            .containingClass
-                                                                                            .getSimpleName(),
-                                                                                    option2
-                                                                                            .containingClass
-                                                                                            .getSimpleName());
-                                                                    throw new AssertionError(
-                                                                            errorMessage);
-                                                                }
+                                                                String errorMessage =
+                                                                        String.format(
+                                                                                "Ambiguous option %s due to distinct descriptions (%s vs %s).",
+                                                                                option1.key,
+                                                                                option1
+                                                                                        .containingClass
+                                                                                        .getSimpleName(),
+                                                                                option2
+                                                                                        .containingClass
+                                                                                        .getSimpleName());
+                                                                throw new AssertionError(
+                                                                        errorMessage);
                                                             }
-                                                        });
-                                consolidated = Collections.singletonList(deduped.get());
-                            }
+                                                        }
+                                                    });
+                            consolidated = Collections.singletonList(deduped.get());
 
                             return new Tuple2<>(entry.getKey(), consolidated);
                         })
@@ -214,7 +206,7 @@ public class ConfigOptionsDocsCompletenessITCase {
                 sb.append("\t\t");
                 sb.append(problem);
             }
-            Assert.fail(sb.toString());
+            fail(sb.toString());
         }
     }
 
@@ -270,65 +262,51 @@ public class ConfigOptionsDocsCompletenessITCase {
     }
 
     private static Map<String, List<ExistingOption>> findExistingOptions(
-            Predicate<ConfigOptionsDocGenerator.OptionWithMetaInfo> predicate)
-            throws IOException, ClassNotFoundException {
+            Predicate<OptionWithMetaInfo> predicate) throws Exception {
         final String rootDir = ConfigOptionsDocGeneratorTest.getProjectRootDir();
-        final Collection<ExistingOption> existingOptions = new ArrayList<>();
 
-        for (OptionsClassLocation location : LOCATIONS) {
-            processConfigOptions(
-                    rootDir,
-                    location.getModule(),
-                    location.getPackage(),
-                    DEFAULT_PATH_PREFIX,
-                    optionsClass ->
-                            extractConfigOptions(optionsClass).stream()
-                                    .filter(predicate)
-                                    .map(
-                                            optionWithMetaInfo ->
-                                                    toExistingOption(
-                                                            optionWithMetaInfo, optionsClass))
-                                    .forEach(existingOptions::add));
-        }
+        final Collection<ExistingOption> existingOptions = new ArrayList<>();
+        new ConfigurationOptionLocator()
+                .discoverOptionsAndApply(
+                        Paths.get(rootDir),
+                        (optionsClass, optionWithMetaInfos) ->
+                                optionWithMetaInfos.stream()
+                                        .filter(
+                                                option ->
+                                                        ConfigOptionsDocGenerator
+                                                                .shouldBeDocumented(option.field))
+                                        .filter(predicate)
+                                        .map(
+                                                optionWithMetaInfo ->
+                                                        toExistingOption(
+                                                                optionWithMetaInfo, optionsClass))
+                                        .forEach(existingOptions::add));
 
         return existingOptions.stream()
                 .collect(Collectors.groupingBy(option -> option.key, Collectors.toList()));
     }
 
     private static ExistingOption toExistingOption(
-            ConfigOptionsDocGenerator.OptionWithMetaInfo optionWithMetaInfo,
-            Class<?> optionsClass) {
-        String key = optionWithMetaInfo.option.key();
+            OptionWithMetaInfo optionWithMetaInfo, Class<?> optionsClass) {
+        String key = getDocumentedKey(optionWithMetaInfo);
         String defaultValue = stringifyDefault(optionWithMetaInfo);
         String typeValue = typeToHtml(optionWithMetaInfo);
         String description = getDescription(optionWithMetaInfo);
-        boolean isSuffixOption = isSuffixOption(optionWithMetaInfo.field);
-        return new ExistingOption(
-                key, defaultValue, typeValue, description, optionsClass, isSuffixOption);
-    }
-
-    private static boolean isSuffixOption(Field field) {
-        final Class<?> containingOptionsClass = field.getDeclaringClass();
-
-        return field.getAnnotation(Documentation.SuffixOption.class) != null
-                || containingOptionsClass.getAnnotation(Documentation.SuffixOption.class) != null;
+        return new ExistingOption(key, defaultValue, typeValue, description, optionsClass);
     }
 
     private static final class ExistingOption extends Option {
 
         private final Class<?> containingClass;
-        private final boolean isSuffixOption;
 
         private ExistingOption(
                 String key,
                 String defaultValue,
                 String typeValue,
                 String description,
-                Class<?> containingClass,
-                boolean isSuffixOption) {
+                Class<?> containingClass) {
             super(key, defaultValue, typeValue, description);
             this.containingClass = containingClass;
-            this.isSuffixOption = isSuffixOption;
         }
     }
 

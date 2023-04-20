@@ -25,6 +25,7 @@ import org.apache.flink.connector.file.table.EmptyMetaStoreFactory;
 import org.apache.flink.connector.file.table.FileSystemFactory;
 import org.apache.flink.connector.file.table.MetastoreCommitPolicy;
 import org.apache.flink.connector.file.table.PartitionCommitPolicy;
+import org.apache.flink.connector.file.table.PartitionCommitPolicyFactory;
 import org.apache.flink.connector.file.table.TableMetaStoreFactory;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.StateInitializationContext;
@@ -115,12 +116,14 @@ public class PartitionCommitter extends AbstractStreamOperator<Void>
                         getUserCodeClassloader(),
                         partitionKeys,
                         getProcessingTimeService());
-        this.policies =
-                PartitionCommitPolicy.createPolicyChain(
-                        getUserCodeClassloader(),
+        PartitionCommitPolicyFactory partitionCommitPolicyFactory =
+                new PartitionCommitPolicyFactory(
                         conf.get(SINK_PARTITION_COMMIT_POLICY_KIND),
                         conf.get(SINK_PARTITION_COMMIT_POLICY_CLASS),
-                        conf.get(SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME),
+                        conf.get(SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME));
+        this.policies =
+                partitionCommitPolicyFactory.createPolicyChain(
+                        getUserCodeClassloader(),
                         () -> {
                             try {
                                 return fsFactory.create(locationPath.toUri());

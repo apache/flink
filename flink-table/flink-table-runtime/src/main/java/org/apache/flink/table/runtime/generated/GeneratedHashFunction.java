@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.generated;
 
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 
 /** Describes a generated {@link HashFunction}. */
 public class GeneratedHashFunction extends GeneratedClass<HashFunction> {
@@ -34,7 +34,7 @@ public class GeneratedHashFunction extends GeneratedClass<HashFunction> {
      * @param conf configuration when generating Function.
      */
     public GeneratedHashFunction(
-            String className, String code, Object[] references, Configuration conf) {
+            String className, String code, Object[] references, ReadableConfig conf) {
         super(className, code, references, conf);
     }
 }

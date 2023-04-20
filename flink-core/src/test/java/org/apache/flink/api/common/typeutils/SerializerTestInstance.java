@@ -20,14 +20,12 @@ package org.apache.flink.api.common.typeutils;
 
 import org.apache.flink.testutils.DeeplyEqualsChecker;
 
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
-@Ignore
-public class SerializerTestInstance<T> extends SerializerTestBase<T> {
+public abstract class SerializerTestInstance<T> extends SerializerTestBase<T> {
 
     private final TypeSerializer<T> serializer;
 

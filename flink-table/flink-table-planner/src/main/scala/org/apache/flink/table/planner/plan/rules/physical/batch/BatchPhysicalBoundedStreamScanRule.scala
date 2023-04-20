@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
@@ -26,20 +25,12 @@ import org.apache.flink.table.planner.plan.schema.DataStreamTable
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 
-/**
-  * Rule that converts [[FlinkLogicalDataStreamTableScan]] to [[BatchPhysicalBoundedStreamScan]].
-  */
-class BatchPhysicalBoundedStreamScanRule
-  extends ConverterRule(
-    classOf[FlinkLogicalDataStreamTableScan],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.BATCH_PHYSICAL,
-    "BatchPhysicalBoundedStreamScanRule") {
+/** Rule that converts [[FlinkLogicalDataStreamTableScan]] to [[BatchPhysicalBoundedStreamScan]]. */
+class BatchPhysicalBoundedStreamScanRule(config: Config) extends ConverterRule(config) {
 
-  /**
-    * If the input is not a DataStreamTable, we want the TableScanRule to match instead
-    */
+  /** If the input is not a DataStreamTable, we want the TableScanRule to match instead */
   override def matches(call: RelOptRuleCall): Boolean = {
     val scan: FlinkLogicalDataStreamTableScan = call.rel(0)
     val dataStreamTable = scan.getTable.unwrap(classOf[DataStreamTable[Any]])
@@ -59,5 +50,10 @@ class BatchPhysicalBoundedStreamScanRule
 }
 
 object BatchPhysicalBoundedStreamScanRule {
-  val INSTANCE: RelOptRule = new BatchPhysicalBoundedStreamScanRule
+  val INSTANCE: RelOptRule = new BatchPhysicalBoundedStreamScanRule(
+    Config.INSTANCE.withConversion(
+      classOf[FlinkLogicalDataStreamTableScan],
+      FlinkConventions.LOGICAL,
+      FlinkConventions.BATCH_PHYSICAL,
+      "BatchPhysicalBoundedStreamScanRule"))
 }

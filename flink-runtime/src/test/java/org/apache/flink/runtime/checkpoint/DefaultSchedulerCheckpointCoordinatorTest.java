@@ -32,15 +32,19 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.scheduler.DefaultScheduler;
+import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
-import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.Matchers;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
@@ -51,15 +55,23 @@ import static org.junit.Assert.assertThat;
  */
 public class DefaultSchedulerCheckpointCoordinatorTest extends TestLogger {
 
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
+
     /** Tests that the checkpoint coordinator is shut down if the execution graph is failed. */
     @Test
     public void testClosingSchedulerShutsDownCheckpointCoordinatorOnFailedExecutionGraph()
             throws Exception {
         final CompletableFuture<JobStatus> counterShutdownFuture = new CompletableFuture<>();
-        CheckpointIDCounter counter = new TestingCheckpointIDCounter(counterShutdownFuture);
+        CheckpointIDCounter counter =
+                TestingCheckpointIDCounter.createStoreWithShutdownCheckAndNoStartAction(
+                        counterShutdownFuture);
 
         final CompletableFuture<JobStatus> storeShutdownFuture = new CompletableFuture<>();
-        CompletedCheckpointStore store = new TestingCompletedCheckpointStore(storeShutdownFuture);
+        CompletedCheckpointStore store =
+                TestingCompletedCheckpointStore
+                        .createStoreWithShutdownCheckAndNoCompletedCheckpoints(storeShutdownFuture);
 
         final SchedulerBase scheduler = createSchedulerAndEnableCheckpointing(counter, store);
         final ExecutionGraph graph = scheduler.getExecutionGraph();
@@ -82,10 +94,14 @@ public class DefaultSchedulerCheckpointCoordinatorTest extends TestLogger {
     public void testClosingSchedulerShutsDownCheckpointCoordinatorOnSuspendedExecutionGraph()
             throws Exception {
         final CompletableFuture<JobStatus> counterShutdownFuture = new CompletableFuture<>();
-        CheckpointIDCounter counter = new TestingCheckpointIDCounter(counterShutdownFuture);
+        CheckpointIDCounter counter =
+                TestingCheckpointIDCounter.createStoreWithShutdownCheckAndNoStartAction(
+                        counterShutdownFuture);
 
         final CompletableFuture<JobStatus> storeShutdownFuture = new CompletableFuture<>();
-        CompletedCheckpointStore store = new TestingCompletedCheckpointStore(storeShutdownFuture);
+        CompletedCheckpointStore store =
+                TestingCompletedCheckpointStore
+                        .createStoreWithShutdownCheckAndNoCompletedCheckpoints(storeShutdownFuture);
 
         final SchedulerBase scheduler = createSchedulerAndEnableCheckpointing(counter, store);
         final ExecutionGraph graph = scheduler.getExecutionGraph();
@@ -108,10 +124,14 @@ public class DefaultSchedulerCheckpointCoordinatorTest extends TestLogger {
     public void testClosingSchedulerShutsDownCheckpointCoordinatorOnFinishedExecutionGraph()
             throws Exception {
         final CompletableFuture<JobStatus> counterShutdownFuture = new CompletableFuture<>();
-        CheckpointIDCounter counter = new TestingCheckpointIDCounter(counterShutdownFuture);
+        CheckpointIDCounter counter =
+                TestingCheckpointIDCounter.createStoreWithShutdownCheckAndNoStartAction(
+                        counterShutdownFuture);
 
         final CompletableFuture<JobStatus> storeShutdownFuture = new CompletableFuture<>();
-        CompletedCheckpointStore store = new TestingCompletedCheckpointStore(storeShutdownFuture);
+        CompletedCheckpointStore store =
+                TestingCompletedCheckpointStore
+                        .createStoreWithShutdownCheckAndNoCompletedCheckpoints(storeShutdownFuture);
 
         final SchedulerBase scheduler = createSchedulerAndEnableCheckpointing(counter, store);
         final ExecutionGraph graph = scheduler.getExecutionGraph();
@@ -143,10 +163,14 @@ public class DefaultSchedulerCheckpointCoordinatorTest extends TestLogger {
     public void testClosingSchedulerSuspendsExecutionGraphAndShutsDownCheckpointCoordinator()
             throws Exception {
         final CompletableFuture<JobStatus> counterShutdownFuture = new CompletableFuture<>();
-        CheckpointIDCounter counter = new TestingCheckpointIDCounter(counterShutdownFuture);
+        CheckpointIDCounter counter =
+                TestingCheckpointIDCounter.createStoreWithShutdownCheckAndNoStartAction(
+                        counterShutdownFuture);
 
         final CompletableFuture<JobStatus> storeShutdownFuture = new CompletableFuture<>();
-        CompletedCheckpointStore store = new TestingCompletedCheckpointStore(storeShutdownFuture);
+        CompletedCheckpointStore store =
+                TestingCompletedCheckpointStore
+                        .createStoreWithShutdownCheckAndNoCompletedCheckpoints(storeShutdownFuture);
 
         final SchedulerBase scheduler = createSchedulerAndEnableCheckpointing(counter, store);
         final ExecutionGraph graph = scheduler.getExecutionGraph();
@@ -184,8 +208,10 @@ public class DefaultSchedulerCheckpointCoordinatorTest extends TestLogger {
                         .setJobCheckpointingSettings(checkpointingSettings)
                         .build();
 
-        return SchedulerTestingUtils.newSchedulerBuilder(
-                        jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread())
+        return new DefaultSchedulerBuilder(
+                        jobGraph,
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                        EXECUTOR_RESOURCE.getExecutor())
                 .setCheckpointRecoveryFactory(new TestingCheckpointRecoveryFactory(store, counter))
                 .setRpcTimeout(timeout)
                 .build();

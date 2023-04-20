@@ -27,21 +27,19 @@ import org.apache.flink.table.sources.CsvTableSource;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.util.TernaryBoolean;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_FIELDS;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for CsvTableSourceFactory and CsvTableSinkFactory. */
-@RunWith(Parameterized.class)
-public class CsvTableSinkFactoryTest {
+class CsvTableSinkFactoryTest {
 
     private static TableSchema testingSchema =
             TableSchema.builder()
@@ -56,54 +54,53 @@ public class CsvTableSinkFactoryTest {
                     .field("myfield5", DataTypes.ARRAY(DataTypes.TINYINT()))
                     .build();
 
-    @Parameterized.Parameter public TernaryBoolean deriveSchema;
-
-    @Parameterized.Parameters(name = "deriveSchema = {0}")
-    public static TernaryBoolean[] getDeriveSchema() {
-        return new TernaryBoolean[] {
-            TernaryBoolean.TRUE, TernaryBoolean.FALSE, TernaryBoolean.UNDEFINED
-        };
+    private static Stream<TernaryBoolean> getDeriveSchema() {
+        return Stream.of(TernaryBoolean.TRUE, TernaryBoolean.FALSE, TernaryBoolean.UNDEFINED);
     }
 
-    @Test
-    public void testAppendTableSinkFactory() {
-        DescriptorProperties descriptor = createDescriptor(testingSchema);
+    @ParameterizedTest(name = "deriveSchema = {0}")
+    @MethodSource("getDeriveSchema")
+    void testAppendTableSinkFactory(TernaryBoolean deriveSchema) {
+        DescriptorProperties descriptor = createDescriptor(testingSchema, deriveSchema);
         descriptor.putString("update-mode", "append");
         TableSink sink = createTableSink(descriptor);
 
-        assertTrue(sink instanceof CsvTableSink);
-        assertEquals(testingSchema.toRowDataType(), sink.getConsumedDataType());
+        assertThat(sink).isInstanceOf(CsvTableSink.class);
+        assertThat(sink.getConsumedDataType()).isEqualTo(testingSchema.toRowDataType());
     }
 
-    @Test
-    public void testBatchTableSinkFactory() {
-        DescriptorProperties descriptor = createDescriptor(testingSchema);
+    @ParameterizedTest(name = "deriveSchema = {0}")
+    @MethodSource("getDeriveSchema")
+    void testBatchTableSinkFactory(TernaryBoolean deriveSchema) {
+        DescriptorProperties descriptor = createDescriptor(testingSchema, deriveSchema);
         TableSink sink = createTableSink(descriptor);
 
-        assertTrue(sink instanceof CsvTableSink);
-        assertEquals(testingSchema.toRowDataType(), sink.getConsumedDataType());
+        assertThat(sink).isInstanceOf(CsvTableSink.class);
+        assertThat(sink.getConsumedDataType()).isEqualTo(testingSchema.toRowDataType());
     }
 
-    @Test
-    public void testAppendTableSourceFactory() {
-        DescriptorProperties descriptor = createDescriptor(testingSchema);
+    @ParameterizedTest(name = "deriveSchema = {0}")
+    @MethodSource("getDeriveSchema")
+    void testAppendTableSourceFactory(TernaryBoolean deriveSchema) {
+        DescriptorProperties descriptor = createDescriptor(testingSchema, deriveSchema);
         descriptor.putString("update-mode", "append");
         TableSource sink = createTableSource(descriptor);
 
-        assertTrue(sink instanceof CsvTableSource);
-        assertEquals(testingSchema.toRowDataType(), sink.getProducedDataType());
+        assertThat(sink).isInstanceOf(CsvTableSource.class);
+        assertThat(sink.getProducedDataType()).isEqualTo(testingSchema.toRowDataType());
     }
 
-    @Test
-    public void testBatchTableSourceFactory() {
-        DescriptorProperties descriptor = createDescriptor(testingSchema);
+    @ParameterizedTest(name = "deriveSchema = {0}")
+    @MethodSource("getDeriveSchema")
+    void testBatchTableSourceFactory(TernaryBoolean deriveSchema) {
+        DescriptorProperties descriptor = createDescriptor(testingSchema, deriveSchema);
         TableSource sink = createTableSource(descriptor);
 
-        assertTrue(sink instanceof CsvTableSource);
-        assertEquals(testingSchema.toRowDataType(), sink.getProducedDataType());
+        assertThat(sink).isInstanceOf(CsvTableSource.class);
+        assertThat(sink.getProducedDataType()).isEqualTo(testingSchema.toRowDataType());
     }
 
-    private DescriptorProperties createDescriptor(TableSchema schema) {
+    private DescriptorProperties createDescriptor(TableSchema schema, TernaryBoolean deriveSchema) {
         Map<String, String> properties = new HashMap<>();
         properties.put("connector.type", "filesystem");
         properties.put("connector.property-version", "1");

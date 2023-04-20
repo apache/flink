@@ -65,6 +65,7 @@ public class CoreOptions {
     @Documentation.Section(Documentation.Sections.EXPERT_CLASS_LOADING)
     public static final ConfigOption<String> CLASSLOADER_RESOLVE_ORDER =
             ConfigOptions.key("classloader.resolve-order")
+                    .stringType()
                     .defaultValue("child-first")
                     .withDescription(
                             "Defines the class resolution strategy when loading classes from user code, meaning whether to"
@@ -151,7 +152,7 @@ public class CoreOptions {
                             "Fail Flink JVM processes if 'OutOfMemoryError: Metaspace' is "
                                     + "thrown while trying to load a user code class.");
 
-    public static String[] getParentFirstLoaderPatterns(Configuration config) {
+    public static String[] getParentFirstLoaderPatterns(ReadableConfig config) {
         List<String> base = config.get(ALWAYS_PARENT_FIRST_LOADER_PATTERNS);
         List<String> append = config.get(ALWAYS_PARENT_FIRST_LOADER_PATTERNS_ADDITIONAL);
         return mergeListsToArray(base, append);
@@ -224,9 +225,10 @@ public class CoreOptions {
     // ------------------------------------------------------------------------
 
     public static final ConfigOption<String> FLINK_JVM_OPTIONS =
-            ConfigOptions.key("env.java.opts")
+            ConfigOptions.key("env.java.opts.all")
                     .stringType()
                     .defaultValue("")
+                    .withDeprecatedKeys("env.java.opts")
                     .withDescription(
                             Description.builder()
                                     .text(
@@ -277,6 +279,7 @@ public class CoreOptions {
     @SuppressWarnings("unused")
     public static final ConfigOption<String> FLINK_LOG_DIR =
             ConfigOptions.key("env.log.dir")
+                    .stringType()
                     .noDefaultValue()
                     .withDescription(
                             "Defines the directory where the Flink logs are saved. It has to be an absolute path."
@@ -288,6 +291,7 @@ public class CoreOptions {
      */
     public static final ConfigOption<String> FLINK_PID_DIR =
             ConfigOptions.key("env.pid.dir")
+                    .stringType()
                     .defaultValue("/tmp")
                     .withDescription(
                             "Defines the directory where the flink-<host>-<process>.pid files are saved.");
@@ -299,7 +303,8 @@ public class CoreOptions {
     @SuppressWarnings("unused")
     public static final ConfigOption<Integer> FLINK_LOG_MAX =
             ConfigOptions.key("env.log.max")
-                    .defaultValue(5)
+                    .intType()
+                    .defaultValue(10)
                     .withDescription("The maximum number of old log files to keep.");
 
     /**
@@ -309,6 +314,7 @@ public class CoreOptions {
     @SuppressWarnings("unused")
     public static final ConfigOption<String> FLINK_SSH_OPTIONS =
             ConfigOptions.key("env.ssh.opts")
+                    .stringType()
                     .noDefaultValue()
                     .withDescription(
                             "Additional command line options passed to SSH clients when starting or stopping JobManager,"
@@ -322,6 +328,7 @@ public class CoreOptions {
     @SuppressWarnings("unused")
     public static final ConfigOption<String> FLINK_HADOOP_CONF_DIR =
             ConfigOptions.key("env.hadoop.conf.dir")
+                    .stringType()
                     .noDefaultValue()
                     .withDescription(
                             "Path to hadoop configuration directory. It is required to read HDFS and/or YARN"
@@ -334,6 +341,7 @@ public class CoreOptions {
     @SuppressWarnings("unused")
     public static final ConfigOption<String> FLINK_YARN_CONF_DIR =
             ConfigOptions.key("env.yarn.conf.dir")
+                    .stringType()
                     .noDefaultValue()
                     .withDescription(
                             "Path to yarn configuration directory. It is required to run flink on YARN. You can also"
@@ -346,6 +354,7 @@ public class CoreOptions {
     @SuppressWarnings("unused")
     public static final ConfigOption<String> FLINK_HBASE_CONF_DIR =
             ConfigOptions.key("env.hbase.conf.dir")
+                    .stringType()
                     .noDefaultValue()
                     .withDescription(
                             "Path to hbase configuration directory. It is required to read HBASE configuration."
@@ -364,6 +373,7 @@ public class CoreOptions {
     @Documentation.Section(Documentation.Sections.COMMON_MISCELLANEOUS)
     public static final ConfigOption<String> TMP_DIRS =
             key("io.tmp.dirs")
+                    .stringType()
                     .defaultValue(System.getProperty("java.io.tmpdir"))
                     .withDeprecatedKeys("taskmanager.tmp.dirs")
                     .withDescription(
@@ -375,6 +385,7 @@ public class CoreOptions {
 
     public static final ConfigOption<Integer> DEFAULT_PARALLELISM =
             ConfigOptions.key("parallelism.default")
+                    .intType()
                     .defaultValue(1)
                     .withDescription("Default parallelism for jobs.");
 
@@ -386,6 +397,7 @@ public class CoreOptions {
     @Documentation.Section(Documentation.Sections.COMMON_MISCELLANEOUS)
     public static final ConfigOption<String> DEFAULT_FILESYSTEM_SCHEME =
             ConfigOptions.key("fs.default-scheme")
+                    .stringType()
                     .noDefaultValue()
                     .withDescription(
                             "The default filesystem scheme, used for paths that do not declare a scheme explicitly."
@@ -404,6 +416,7 @@ public class CoreOptions {
     @Documentation.Section(Documentation.Sections.DEPRECATED_FILE_SINKS)
     public static final ConfigOption<Boolean> FILESYTEM_DEFAULT_OVERRIDE =
             key("fs.overwrite-files")
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription(
                             "Specifies whether file output writers should overwrite existing files by default. Set to"
@@ -416,6 +429,7 @@ public class CoreOptions {
     @Documentation.Section(Documentation.Sections.DEPRECATED_FILE_SINKS)
     public static final ConfigOption<Boolean> FILESYSTEM_OUTPUT_ALWAYS_CREATE_DIRECTORY =
             key("fs.output.always-create-directory")
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription(
                             "File writers running with a parallelism larger than one create a directory for the output"
@@ -430,7 +444,7 @@ public class CoreOptions {
      * open. Unlimited be default.
      */
     public static ConfigOption<Integer> fileSystemConnectionLimit(String scheme) {
-        return ConfigOptions.key("fs." + scheme + ".limit.total").defaultValue(-1);
+        return ConfigOptions.key("fs." + scheme + ".limit.total").intType().defaultValue(-1);
     }
 
     /**
@@ -438,7 +452,7 @@ public class CoreOptions {
      * Unlimited be default.
      */
     public static ConfigOption<Integer> fileSystemConnectionLimitIn(String scheme) {
-        return ConfigOptions.key("fs." + scheme + ".limit.input").defaultValue(-1);
+        return ConfigOptions.key("fs." + scheme + ".limit.input").intType().defaultValue(-1);
     }
 
     /**
@@ -446,7 +460,7 @@ public class CoreOptions {
      * Unlimited be default.
      */
     public static ConfigOption<Integer> fileSystemConnectionLimitOut(String scheme) {
-        return ConfigOptions.key("fs." + scheme + ".limit.output").defaultValue(-1);
+        return ConfigOptions.key("fs." + scheme + ".limit.output").intType().defaultValue(-1);
     }
 
     /**
@@ -455,7 +469,7 @@ public class CoreOptions {
      * connection becomes available. Unlimited timeout be default.
      */
     public static ConfigOption<Long> fileSystemConnectionLimitTimeout(String scheme) {
-        return ConfigOptions.key("fs." + scheme + ".limit.timeout").defaultValue(0L);
+        return ConfigOptions.key("fs." + scheme + ".limit.timeout").longType().defaultValue(0L);
     }
 
     /**
@@ -466,6 +480,8 @@ public class CoreOptions {
      */
     public static ConfigOption<Long> fileSystemConnectionLimitStreamInactivityTimeout(
             String scheme) {
-        return ConfigOptions.key("fs." + scheme + ".limit.stream-timeout").defaultValue(0L);
+        return ConfigOptions.key("fs." + scheme + ".limit.stream-timeout")
+                .longType()
+                .defaultValue(0L);
     }
 }

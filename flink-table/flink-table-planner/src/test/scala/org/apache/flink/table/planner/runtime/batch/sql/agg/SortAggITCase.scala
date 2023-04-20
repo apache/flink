@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.batch.sql.agg
 
 import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, PrimitiveArrayTypeInfo, TypeInformation}
@@ -25,8 +24,10 @@ import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.config.ExecutionConfigOptions.{TABLE_EXEC_DISABLED_OPERATORS, TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM}
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.planner.{JInt, JLong}
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMergeAndReset
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
+import org.apache.flink.table.planner.runtime.utils.TestData
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.{MyPojo, MyToPojoFunc}
 import org.apache.flink.table.planner.utils.{CountAccumulator, CountAggFunction, IntSumAggFunction}
 
@@ -39,14 +40,10 @@ import scala.annotation.varargs
 import scala.collection.JavaConverters._
 import scala.collection.Seq
 
-/**
-  * AggregateITCase using SortAgg Operator.
-  */
-class SortAggITCase
-    extends AggregateITCaseBase("SortAggregate") {
+/** AggregateITCase using SortAgg Operator. */
+class SortAggITCase extends AggregateITCaseBase("SortAggregate") {
   override def prepareAggOp(): Unit = {
-    tEnv.getConfig.getConfiguration.setString(
-      TABLE_EXEC_DISABLED_OPERATORS, "HashAgg")
+    tEnv.getConfig.set(TABLE_EXEC_DISABLED_OPERATORS, "HashAgg")
 
     registerFunction("countFun", new CountAggFunction())
     registerFunction("intSumFun", new IntSumAggFunction())
@@ -64,15 +61,13 @@ class SortAggITCase
 
   @Test
   def testBigDataSimpleArrayUDAF(): Unit = {
-    tEnv.getConfig.getConfiguration.setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1)
+    tEnv.getConfig.set(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(1))
     registerFunction("simplePrimitiveArrayUdaf", new SimplePrimitiveArrayUdaf())
     registerRange("RangeT", 1000000)
     env.setParallelism(1)
-    checkResult(
-      "SELECT simplePrimitiveArrayUdaf(id) FROM RangeT",
-      Seq(row(499999500000L)))
+    checkResult("SELECT simplePrimitiveArrayUdaf(id) FROM RangeT", Seq(row(499999500000L)))
   }
-  
+
   @Test
   def testMultiSetAggBufferGroupBy(): Unit = {
     checkResult(
@@ -110,7 +105,8 @@ class SortAggITCase
 
   @Test
   def testUDAGGNullGroupKeyAggregation(): Unit = {
-    checkResult("SELECT intSumFun(d), d, count(d) FROM NullTable5 GROUP BY d",
+    checkResult(
+      "SELECT intSumFun(d), d, count(d) FROM NullTable5 GROUP BY d",
       Seq(
         row(1, 1, 1),
         row(25, 5, 5),
@@ -118,8 +114,7 @@ class SortAggITCase
         row(16, 4, 4),
         row(4, 2, 2),
         row(9, 3, 3)
-      )
-    )
+      ))
   }
 
   @Test
@@ -166,10 +161,7 @@ class SortAggITCase
 
   @Test
   def testPojoField(): Unit = {
-    val data = Seq(
-      row(1, new MyPojo(5, 105)),
-      row(1, new MyPojo(6, 11)),
-      row(1, new MyPojo(7, 12)))
+    val data = Seq(row(1, new MyPojo(5, 105)), row(1, new MyPojo(6, 11)), row(1, new MyPojo(7, 12)))
     registerCollection(
       "MyTable",
       data,
@@ -177,18 +169,12 @@ class SortAggITCase
       "a, b")
 
     registerFunction("pojoFunc", new MyPojoAggFunction)
-    checkResult(
-      "SELECT pojoFunc(b) FROM MyTable group by a",
-      Seq(
-        row(row(128, 128))))
+    checkResult("SELECT pojoFunc(b) FROM MyTable group by a", Seq(row(row(128, 128))))
   }
 
   @Test
   def testVarArgs(): Unit = {
-    val data = Seq(
-      row(1, 1L, "5", "3"),
-      row(1, 22L, "15", "13"),
-      row(3, 33L, "25", "23"))
+    val data = Seq(row(1, 1L, "5", "3"), row(1, 22L, "15", "13"), row(3, 33L, "25", "23"))
     registerCollection(
       "MyTable",
       data,
@@ -198,16 +184,10 @@ class SortAggITCase
     registerFunction("func", func)
 
     // no group
-    checkResult(
-      "SELECT func(s, s1, s2) FROM MyTable",
-      Seq(row(140)))
+    checkResult("SELECT func(s, s1, s2) FROM MyTable", Seq(row(140)))
 
     // with group
-    checkResult(
-      "SELECT id, func(s, s1, s2) FROM MyTable group by id",
-      Seq(
-        row(1, 59),
-        row(3, 81)))
+    checkResult("SELECT id, func(s, s1, s2) FROM MyTable group by id", Seq(row(1, 59), row(3, 81)))
   }
 
   @Test
@@ -254,10 +234,26 @@ class SortAggITCase
     checkResult(
       "SELECT first_value(c) over () FROM Table3",
       Seq(
-        row("Hi"), row("Hi"), row("Hi"), row("Hi"), row("Hi"),
-        row("Hi"), row("Hi"), row("Hi"), row("Hi"), row("Hi"),
-        row("Hi"), row("Hi"), row("Hi"), row("Hi"), row("Hi"),
-        row("Hi"), row("Hi"), row("Hi"), row("Hi"), row("Hi"),
+        row("Hi"),
+        row("Hi"),
+        row("Hi"),
+        row("Hi"),
+        row("Hi"),
+        row("Hi"),
+        row("Hi"),
+        row("Hi"),
+        row("Hi"),
+        row("Hi"),
+        row("Hi"),
+        row("Hi"),
+        row("Hi"),
+        row("Hi"),
+        row("Hi"),
+        row("Hi"),
+        row("Hi"),
+        row("Hi"),
+        row("Hi"),
+        row("Hi"),
         row("Hi")
       )
     )
@@ -265,7 +261,7 @@ class SortAggITCase
 
   @Test
   def testArrayUdaf(): Unit = {
-    tEnv.getConfig.getConfiguration.setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1)
+    tEnv.getConfig.set(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(1))
     env.setParallelism(1)
     checkResult(
       "SELECT myPrimitiveArrayUdaf(a, b) FROM Table3",
@@ -314,6 +310,59 @@ class SortAggITCase
     checkResult(
       "SELECT myNestedMapUdaf(a, b, c)[3]['Co'] FROM Table3",
       Seq(row("null"))
+    )
+  }
+
+  @Test
+  def testApproximateCountDistinct(): Unit = {
+    val dataId = TestValuesTableFactory.registerData(TestData.fullDataTypesData)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE MyTable (
+         |  `boolean` BOOLEAN,
+         |  `byte` TINYINT,
+         |  `short` SMALLINT,
+         |  `int` INT,
+         |  `long` BIGINT,
+         |  `float` FLOAT,
+         |  `double` DOUBLE,
+         |  `decimal52` DECIMAL(5, 2),
+         |  `decimal3010` DECIMAL(30, 10),
+         |  `string` VARCHAR(5),
+         |  `char` CHAR(5),
+         |  `date` DATE,
+         |  `time` TIME(0),
+         |  `timestamp` TIMESTAMP(9),
+         |  `timestamp_ltz` TIMESTAMP(9) WITH LOCAL TIME ZONE,
+         |  `array` ARRAY<BIGINT>,
+         |  `row` ROW<f1 BIGINT, f2 STRING, f3 DOUBLE>,
+         |  `map` MAP<STRING, INT>
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$dataId',
+         |  'bounded' = 'true'
+         |)
+         |""".stripMargin
+    )
+    checkResult(
+      """
+        |SELECT
+        | APPROX_COUNT_DISTINCT(`byte`),
+        | APPROX_COUNT_DISTINCT(`short`),
+        | APPROX_COUNT_DISTINCT(`int`),
+        | APPROX_COUNT_DISTINCT(`long`),
+        | APPROX_COUNT_DISTINCT(`float`),
+        | APPROX_COUNT_DISTINCT(`double`),
+        | APPROX_COUNT_DISTINCT(`string`),
+        | APPROX_COUNT_DISTINCT(`date`),
+        | APPROX_COUNT_DISTINCT(`time`),
+        | APPROX_COUNT_DISTINCT(`timestamp`),
+        | APPROX_COUNT_DISTINCT(`timestamp_ltz`),
+        | APPROX_COUNT_DISTINCT(`decimal52`),
+        | APPROX_COUNT_DISTINCT(`decimal3010`)
+        | FROM MyTable
+      """.stripMargin,
+      Seq(row(4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L))
     )
   }
 }
@@ -461,8 +510,8 @@ class MyNestedLongArrayUdaf extends AggregateFunction[Array[Array[Long]], Array[
   override def getResultType = getAccumulatorType
 }
 
-class MyNestedStringArrayUdaf extends AggregateFunction[
-    Array[Array[String]], Array[Array[String]]] {
+class MyNestedStringArrayUdaf
+  extends AggregateFunction[Array[Array[String]], Array[Array[String]]] {
 
   override def createAccumulator(): Array[Array[String]] = Array(Array("", ""), Array("", ""))
 
@@ -476,8 +525,8 @@ class MyNestedStringArrayUdaf extends AggregateFunction[
   }
 }
 
-class MyPrimitiveMapUdaf extends AggregateFunction[
-    java.util.Map[Long, Int], java.util.Map[Long, Int]] {
+class MyPrimitiveMapUdaf
+  extends AggregateFunction[java.util.Map[Long, Int], java.util.Map[Long, Int]] {
 
   override def createAccumulator(): java.util.Map[Long, Int] =
     new java.util.HashMap[Long, Int]()
@@ -492,14 +541,14 @@ class MyPrimitiveMapUdaf extends AggregateFunction[
 
   override def getAccumulatorType =
     new MapTypeInfo(Types.LONG, Types.INT)
-        .asInstanceOf[TypeInformation[java.util.Map[Long, Int]]]
+      .asInstanceOf[TypeInformation[java.util.Map[Long, Int]]]
 
   override def getResultType =
     getAccumulatorType
 }
 
-class MyObjectMapUdaf extends AggregateFunction[
-    java.util.Map[String, Int], java.util.Map[String, Int]] {
+class MyObjectMapUdaf
+  extends AggregateFunction[java.util.Map[String, Int], java.util.Map[String, Int]] {
 
   override def createAccumulator(): java.util.Map[String, Int] =
     new java.util.HashMap[String, Int]()
@@ -515,12 +564,13 @@ class MyObjectMapUdaf extends AggregateFunction[
 
   override def getAccumulatorType =
     new MapTypeInfo(Types.STRING, Types.INT)
-        .asInstanceOf[TypeInformation[java.util.Map[String, Int]]]
+      .asInstanceOf[TypeInformation[java.util.Map[String, Int]]]
 
   override def getResultType = getAccumulatorType
 }
 
-class MyNestedMapUdf extends AggregateFunction[
+class MyNestedMapUdf
+  extends AggregateFunction[
     java.util.Map[JLong, java.util.Map[String, JInt]],
     java.util.Map[JLong, java.util.Map[String, JInt]]] {
 
@@ -528,12 +578,14 @@ class MyNestedMapUdf extends AggregateFunction[
     new java.util.HashMap[JLong, java.util.Map[String, JInt]]()
 
   override def getValue(accumulator: java.util.Map[JLong, java.util.Map[String, JInt]])
-  : java.util.Map[JLong, java.util.Map[String, JInt]] =
+      : java.util.Map[JLong, java.util.Map[String, JInt]] =
     accumulator
 
   def accumulate(
       accumulator: java.util.Map[JLong, java.util.Map[String, JInt]],
-      a: JInt, b: JLong, c: String): Unit = {
+      a: JInt,
+      b: JLong,
+      c: String): Unit = {
     val key = c.substring(0, 2)
     accumulator.putIfAbsent(b, new java.util.HashMap[String, JInt]())
     accumulator.get(b).putIfAbsent(key, 0)

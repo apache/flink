@@ -60,11 +60,6 @@ Please read the documentation of each connector to understand the details of the
             <td></td>
         </tr>
         <tr>
-            <td>Twitter Streaming API</td>
-            <td>at most once</td>
-            <td></td>
-        </tr>
-        <tr>
             <td>Google PubSub</td>
             <td>at least once</td>
             <td></td>
@@ -106,6 +101,11 @@ state updates) of Flink coupled with bundled sinks:
         <td></td>
     </tr>
     <tr>
+        <td>Opensearch</td>
+        <td>at least once</td>
+        <td></td>
+    </tr>
+    <tr>
         <td>Kafka producer</td>
         <td>at least once / exactly once</td>
         <td>exactly once with transactional producers (v 0.11+)</td>
@@ -116,7 +116,17 @@ state updates) of Flink coupled with bundled sinks:
         <td>exactly once only for idempotent updates</td>
     </tr>
     <tr>
-        <td>AWS Kinesis Streams</td>
+        <td>Amazon DynamoDB</td>
+        <td>at least once</td>
+        <td></td>
+    </tr>
+    <tr>
+        <td>Amazon Kinesis Data Streams</td>
+        <td>at least once</td>
+        <td></td>
+    </tr>
+    <tr>
+        <td>Amazon Kinesis Data Firehose</td>
         <td>at least once</td>
         <td></td>
     </tr>

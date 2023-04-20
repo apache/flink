@@ -21,6 +21,7 @@ package org.apache.flink.runtime.operators.testutils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestExecutorFactory;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
@@ -61,6 +62,8 @@ public class MockEnvironmentBuilder {
             buildMemoryManager(1024 * MemoryManager.DEFAULT_PAGE_SIZE);
     private ExternalResourceInfoProvider externalResourceInfoProvider =
             ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES;
+    private ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory =
+            new ChannelStateWriteRequestExecutorFactory(jobID);
 
     private MemoryManager buildMemoryManager(long memorySize) {
         return MemoryManagerBuilder.newBuilder().setMemorySize(memorySize).build();
@@ -159,6 +162,12 @@ public class MockEnvironmentBuilder {
         return this;
     }
 
+    public MockEnvironmentBuilder setChannelStateWriteRequestExecutorFactory(
+            ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory) {
+        this.channelStateExecutorFactory = channelStateExecutorFactory;
+        return this;
+    }
+
     public MockEnvironment build() {
         if (ioManager == null) {
             ioManager = new IOManagerAsync();
@@ -181,6 +190,7 @@ public class MockEnvironmentBuilder {
                 taskMetricGroup,
                 taskManagerRuntimeInfo,
                 memoryManager,
-                externalResourceInfoProvider);
+                externalResourceInfoProvider,
+                channelStateExecutorFactory);
     }
 }

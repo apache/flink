@@ -24,7 +24,7 @@ import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
  * Message headers for a web handler request.
  *
  * @param <R> type of the request
- * @param <M> type of the message message parameters
+ * @param <M> type of the message parameters
  */
 public interface UntypedResponseMessageHeaders<R extends RequestBody, M extends MessageParameters>
         extends RestHandlerSpecification {

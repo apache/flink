@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -34,6 +35,7 @@ import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.state.ttl.mock.MockKeyedStateBackend;
+import org.apache.flink.runtime.state.ttl.mock.MockKeyedStateBackend.MockSnapshotSupplier;
 import org.apache.flink.runtime.state.ttl.mock.MockKeyedStateBackendBuilder;
 import org.apache.flink.state.changelog.ChangelogStateBackendTestUtils.DummyCheckpointingStorageAccess;
 
@@ -70,7 +72,7 @@ public class ChangelogKeyedStateBackendTest {
         MockKeyedStateBackend<Integer> mock = createMock();
         ChangelogKeyedStateBackend<Integer> changelog = createChangelog(mock);
         try {
-            changelog.updateChangelogSnapshotState(
+            changelog.handleMaterializationResult(
                     SnapshotResult.empty(), materializationId, SequenceNumber.of(Long.MAX_VALUE));
             checkpoint(changelog, checkpointId).get().discardState();
 
@@ -89,14 +91,14 @@ public class ChangelogKeyedStateBackendTest {
                         IntSerializer.INSTANCE,
                         getClass().getClassLoader(),
                         1,
-                        KeyGroupRange.EMPTY_KEY_GROUP_RANGE,
+                        KeyGroupRange.of(0, 0),
                         new ExecutionConfig(),
                         TtlTimeProvider.DEFAULT,
                         LatencyTrackingStateConfig.disabled(),
                         emptyList(),
                         UncompressedStreamCompressionDecorator.INSTANCE,
                         new CloseableRegistry(),
-                        true)
+                        MockSnapshotSupplier.EMPTY)
                 .build();
     }
 
@@ -107,8 +109,10 @@ public class ChangelogKeyedStateBackendTest {
                 "test",
                 new ExecutionConfig(),
                 TtlTimeProvider.DEFAULT,
+                new ChangelogStateBackendMetricGroup(
+                        UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup()),
                 new InMemoryStateChangelogStorage()
-                        .createWriter("test", KeyGroupRange.EMPTY_KEY_GROUP_RANGE),
+                        .createWriter("test", KeyGroupRange.EMPTY_KEY_GROUP_RANGE, null),
                 emptyList(),
                 new DummyCheckpointingStorageAccess());
     }

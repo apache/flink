@@ -15,14 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.{FlinkConventions, FlinkRelNode}
 import org.apache.flink.table.planner.plan.nodes.exec.spec.IntervalJoinSpec.WindowBounds
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalJoin, FlinkLogicalRel}
-import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, IntervalJoinUtil}
+import org.apache.flink.table.planner.plan.utils.IntervalJoinUtil
+import org.apache.flink.table.planner.utils.ShortcutUtils.{unwrapClassLoader, unwrapTableConfig}
+
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.rel.RelNode
@@ -31,25 +32,27 @@ import org.apache.calcite.rex.RexNode
 import java.util
 
 /**
- * Base implementation for rules match stream-stream join, including
- * regular stream join, interval join and temporal join.
+ * Base implementation for rules match stream-stream join, including regular stream join, interval
+ * join and temporal join.
  */
 abstract class StreamPhysicalJoinRuleBase(description: String)
   extends RelOptRule(
-    operand(classOf[FlinkLogicalJoin],
+    operand(
+      classOf[FlinkLogicalJoin],
       operand(classOf[FlinkLogicalRel], any()),
       operand(classOf[FlinkLogicalRel], any())),
     description) {
 
-  protected def extractWindowBounds(join: FlinkLogicalJoin):
-    (Option[WindowBounds], Option[RexNode]) = {
-    val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(join)
+  protected def extractWindowBounds(
+      join: FlinkLogicalJoin): (Option[WindowBounds], Option[RexNode]) = {
+    val tableConfig = unwrapTableConfig(join)
     IntervalJoinUtil.extractWindowBoundsFromPredicate(
       join.getCondition,
       join.getLeft.getRowType.getFieldCount,
       join.getRowType,
       join.getCluster.getRexBuilder,
-      tableConfig)
+      tableConfig,
+      unwrapClassLoader(join))
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
@@ -66,8 +69,8 @@ abstract class StreamPhysicalJoinRuleBase(description: String)
         FlinkRelDistribution.hash(columns)
       }
       inputTraitSet
-          .replace(FlinkConventions.STREAM_PHYSICAL)
-          .replace(distribution)
+        .replace(FlinkConventions.STREAM_PHYSICAL)
+        .replace(distribution)
     }
 
     def convertInput(input: RelNode, columns: util.Collection[_ <: Number]): RelNode = {

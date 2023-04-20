@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.api.TableException
@@ -28,20 +27,16 @@ import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 
 import scala.collection.JavaConverters._
 
 /**
- * Rule that converts [[FlinkLogicalOverAggregate]] to [[StreamPhysicalOverAggregate]].
- * NOTES: StreamExecOverAggregate only supports one [[org.apache.calcite.rel.core.Window.Group]],
- * else throw exception now
+ * Rule that converts [[FlinkLogicalOverAggregate]] to [[StreamPhysicalOverAggregate]]. NOTES:
+ * StreamExecOverAggregate only supports one [[org.apache.calcite.rel.core.Window.Group]], else
+ * throw exception now
  */
-class StreamPhysicalOverAggregateRule
-  extends ConverterRule(
-    classOf[FlinkLogicalOverAggregate],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.STREAM_PHYSICAL,
-    "StreamPhysicalOverAggregateRule") {
+class StreamPhysicalOverAggregateRule(config: Config) extends ConverterRule(config) {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val logicWindow: FlinkLogicalOverAggregate =
@@ -83,5 +78,10 @@ class StreamPhysicalOverAggregateRule
 }
 
 object StreamPhysicalOverAggregateRule {
-  val INSTANCE: RelOptRule = new StreamPhysicalOverAggregateRule
+  val INSTANCE: RelOptRule = new StreamPhysicalOverAggregateRule(
+    Config.INSTANCE.withConversion(
+      classOf[FlinkLogicalOverAggregate],
+      FlinkConventions.LOGICAL,
+      FlinkConventions.STREAM_PHYSICAL,
+      "StreamPhysicalOverAggregateRule"))
 }

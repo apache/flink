@@ -27,66 +27,64 @@ import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
 
-import org.hamcrest.Matchers;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.runtime.source.coordinator.CoordinatorTestUtils.getSplitsAssignment;
 import static org.apache.flink.runtime.source.coordinator.CoordinatorTestUtils.verifyAssignment;
 import static org.apache.flink.runtime.source.coordinator.CoordinatorTestUtils.verifyException;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit test for {@link SourceCoordinatorContext}. */
-public class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
+class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
 
     @Test
-    public void testRegisterReader() throws Exception {
+    void testRegisterReader() throws Exception {
         sourceReady();
         List<ReaderInfo> readerInfo = registerReaders();
 
-        assertTrue(context.registeredReaders().containsKey(0));
-        assertTrue(context.registeredReaders().containsKey(1));
-        assertEquals(readerInfo.get(0), context.registeredReaders().get(0));
-        assertEquals(readerInfo.get(1), context.registeredReaders().get(1));
+        assertThat(context.registeredReaders()).containsKey(0);
+        assertThat(context.registeredReaders()).containsKey(1);
+        assertThat(context.registeredReaders().get(0)).isEqualTo(readerInfo.get(0));
+        assertThat(context.registeredReaders().get(1)).isEqualTo(readerInfo.get(1));
 
         final TestingSplitEnumerator<?> enumerator = getEnumerator();
-        assertThat(enumerator.getRegisteredReaders(), Matchers.containsInAnyOrder(0, 1, 2));
+        assertThat(enumerator.getRegisteredReaders()).containsExactlyInAnyOrder(0, 1, 2);
     }
 
     @Test
-    public void testTaskFailureUnregistersReader() throws Exception {
+    void testTaskFailureUnregistersReader() throws Exception {
         sourceReady();
         List<ReaderInfo> readerInfo = registerReaders();
 
-        sourceCoordinator.subtaskFailed(0, null);
+        sourceCoordinator.executionAttemptFailed(0, 0, null);
         waitForCoordinatorToProcessActions();
 
-        assertEquals("Only reader 2 should be registered.", 2, context.registeredReaders().size());
-        assertNull(context.registeredReaders().get(0));
-        assertEquals(readerInfo.get(1), context.registeredReaders().get(1));
-        assertEquals(readerInfo.get(2), context.registeredReaders().get(2));
+        assertThat(context.registeredReaders())
+                .as("Only reader 2 should be registered.")
+                .hasSize(2);
+        assertThat(context.registeredReaders().get(0)).isNull();
+        assertThat(context.registeredReaders().get(1)).isEqualTo(readerInfo.get(1));
+        assertThat(context.registeredReaders().get(2)).isEqualTo(readerInfo.get(2));
     }
 
     @Test
-    public void testUnregisterUnregisteredReader() {
-        context.unregisterSourceReader(0);
+    void testUnregisterUnregisteredReader() {
+        context.unregisterSourceReader(0, 0);
     }
 
     @Test
-    public void testAssignSplitsFromCoordinatorExecutor() throws Exception {
+    void testAssignSplitsFromCoordinatorExecutor() throws Exception {
         testAssignSplits(true);
     }
 
     @Test
-    public void testAssignSplitsFromOtherThread() throws Exception {
+    void testAssignSplitsFromOtherThread() throws Exception {
         testAssignSplits(false);
     }
 
@@ -111,28 +109,27 @@ public class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
                 Arrays.asList("1", "2"),
                 splitSplitAssignmentTracker.uncheckpointedAssignments().get(1));
         // The OperatorCoordinatorContext should have received the event sending call.
-        assertEquals(
-                "There should be two events sent to the subtasks.",
-                2,
-                receivingTasks.getNumberOfSentEvents());
+        assertThat(receivingTasks.getNumberOfSentEvents())
+                .as("There should be two events sent to the subtasks.")
+                .isEqualTo(2);
 
         // Assert the events to subtask0.
         List<OperatorEvent> eventsToSubtask0 = receivingTasks.getSentEventsForSubtask(0);
-        assertEquals(1, eventsToSubtask0.size());
+        assertThat(eventsToSubtask0).hasSize(1);
         OperatorEvent event = eventsToSubtask0.get(0);
-        assertTrue(event instanceof AddSplitEvent);
+        assertThat(event).isInstanceOf(AddSplitEvent.class);
         verifyAssignment(
                 Collections.singletonList("0"),
                 ((AddSplitEvent<MockSourceSplit>) event).splits(new MockSourceSplitSerializer()));
     }
 
     @Test
-    public void testAssignSplitToUnregisteredReaderFromCoordinatorExecutor() throws Exception {
+    void testAssignSplitToUnregisteredReaderFromCoordinatorExecutor() throws Exception {
         testAssignSplitToUnregisterdReader(true);
     }
 
     @Test
-    public void testAssignSplitToUnregisteredReaderFromOtherThread() throws Exception {
+    void testAssignSplitToUnregisteredReaderFromOtherThread() throws Exception {
         testAssignSplitToUnregisterdReader(false);
     }
 
@@ -152,11 +149,43 @@ public class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
                     }
                 },
                 "assignSplits() should fail to assign the splits to a reader that is not registered.",
-                "Cannot assign splits");
+                "Cannot assign splits " + splitsAssignment.assignment().get(0));
     }
 
     @Test
-    public void testCallableInterruptedDuringShutdownDoNotFailJob() throws InterruptedException {
+    void testExceptionInRunnableFailsTheJob() throws InterruptedException, ExecutionException {
+        ManuallyTriggeredScheduledExecutorService manualWorkerExecutor =
+                new ManuallyTriggeredScheduledExecutorService();
+        // need the factory to have the exception handler set
+        final ManuallyTriggeredScheduledExecutorService coordinatorExecutorWithExceptionHandler =
+                new ManuallyTriggeredScheduledExecutorService();
+        SourceCoordinatorContext<MockSourceSplit> testingContext =
+                new SourceCoordinatorContext<>(
+                        coordinatorExecutorWithExceptionHandler,
+                        manualWorkerExecutor,
+                        coordinatorThreadFactory,
+                        operatorCoordinatorContext,
+                        new MockSourceSplitSerializer(),
+                        splitSplitAssignmentTracker,
+                        false);
+
+        testingContext.runInCoordinatorThread(
+                () -> {
+                    throw new RuntimeException();
+                });
+
+        manualWorkerExecutor.triggerAll();
+        // shutdown coordinatorExecutor and blocks until tasks are finished
+        testingContext.close();
+        coordinatorExecutorWithExceptionHandler.triggerAll();
+        // blocks until the job is failed: wait that the uncaught exception handler calls
+        // operatorCoordinatorContext#failJob() which completes the future
+        operatorCoordinatorContext.getJobFailedFuture().get();
+        assertThat(operatorCoordinatorContext.isJobFailed()).isTrue();
+    }
+
+    @Test
+    void testCallableInterruptedDuringShutdownDoNotFailJob() throws InterruptedException {
         AtomicReference<Throwable> expectedError = new AtomicReference<>(null);
 
         ManuallyTriggeredScheduledExecutorService manualWorkerExecutor =
@@ -169,10 +198,11 @@ public class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
                         manualCoordinatorExecutor,
                         manualWorkerExecutor,
                         new SourceCoordinatorProvider.CoordinatorExecutorThreadFactory(
-                                TEST_OPERATOR_ID.toHexString(), getClass().getClassLoader()),
+                                TEST_OPERATOR_ID.toHexString(), operatorCoordinatorContext),
                         operatorCoordinatorContext,
                         new MockSourceSplitSerializer(),
-                        splitSplitAssignmentTracker);
+                        splitSplitAssignmentTracker,
+                        false);
 
         testingContext.callAsync(
                 () -> {
@@ -189,8 +219,28 @@ public class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
         testingContext.close();
         manualCoordinatorExecutor.triggerAll();
 
-        assertTrue(expectedError.get() instanceof InterruptedException);
-        assertFalse(operatorCoordinatorContext.isJobFailed());
+        assertThat(expectedError.get()).isInstanceOf(InterruptedException.class);
+        assertThat(operatorCoordinatorContext.isJobFailed()).isFalse();
+    }
+
+    @Test
+    void testSupportsIntermediateNoMoreSplits() throws Exception {
+        sourceReady();
+        registerReaders();
+
+        SplitsAssignment<MockSourceSplit> splitsAssignment = getSplitsAssignment(2, 0);
+        context.assignSplits(splitsAssignment);
+        context.signalIntermediateNoMoreSplits(0);
+        context.signalIntermediateNoMoreSplits(1);
+        assertThat(context.hasNoMoreSplits(0)).isFalse();
+        assertThat(context.hasNoMoreSplits(1)).isFalse();
+        assertThat(context.hasNoMoreSplits(2)).isFalse();
+
+        context.signalNoMoreSplits(0);
+        context.signalNoMoreSplits(1);
+        assertThat(context.hasNoMoreSplits(0)).isTrue();
+        assertThat(context.hasNoMoreSplits(1)).isTrue();
+        assertThat(context.hasNoMoreSplits(2)).isFalse();
     }
 
     // ------------------------
@@ -205,6 +255,7 @@ public class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
         for (ReaderInfo info : infos) {
             sourceCoordinator.handleEventFromOperator(
                     info.getSubtaskId(),
+                    0,
                     new ReaderRegistrationEvent(info.getSubtaskId(), info.getLocation()));
         }
         waitForCoordinatorToProcessActions();

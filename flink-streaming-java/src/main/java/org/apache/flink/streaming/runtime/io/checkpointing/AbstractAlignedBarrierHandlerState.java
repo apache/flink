@@ -36,7 +36,7 @@ abstract class AbstractAlignedBarrierHandlerState implements BarrierHandlerState
     }
 
     @Override
-    public final BarrierHandlerState alignmentTimeout(
+    public final BarrierHandlerState alignedCheckpointTimeout(
             Controller controller, CheckpointBarrier checkpointBarrier)
             throws IOException, CheckpointException {
         throw new IllegalStateException(

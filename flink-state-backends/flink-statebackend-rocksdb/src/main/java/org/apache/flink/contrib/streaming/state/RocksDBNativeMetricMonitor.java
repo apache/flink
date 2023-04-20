@@ -26,10 +26,13 @@ import org.apache.flink.metrics.View;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
+import org.rocksdb.Statistics;
+import org.rocksdb.TickerType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.io.Closeable;
@@ -54,15 +57,32 @@ public class RocksDBNativeMetricMonitor implements Closeable {
     @GuardedBy("lock")
     private RocksDB rocksDB;
 
+    @Nullable
+    @GuardedBy("lock")
+    private Statistics statistics;
+
     public RocksDBNativeMetricMonitor(
             @Nonnull RocksDBNativeMetricOptions options,
             @Nonnull MetricGroup metricGroup,
-            @Nonnull RocksDB rocksDB) {
+            @Nonnull RocksDB rocksDB,
+            @Nullable Statistics statistics) {
         this.options = options;
         this.metricGroup = metricGroup;
         this.rocksDB = rocksDB;
-
+        this.statistics = statistics;
         this.lock = new Object();
+        registerStatistics();
+    }
+
+    /** Register gauges to pull native metrics for the database. */
+    private void registerStatistics() {
+        if (statistics != null) {
+            for (TickerType tickerType : options.getMonitorTickerTypes()) {
+                metricGroup.gauge(
+                        String.format("rocksdb.%s", tickerType.name().toLowerCase()),
+                        new RocksDBNativeStatisticsMetricView(tickerType));
+            }
+        }
     }
 
     /**
@@ -80,27 +100,38 @@ public class RocksDBNativeMetricMonitor implements Closeable {
                         : metricGroup.addGroup(columnFamilyName);
 
         for (String property : options.getProperties()) {
-            RocksDBNativeMetricView gauge = new RocksDBNativeMetricView(handle, property);
+            RocksDBNativePropertyMetricView gauge =
+                    new RocksDBNativePropertyMetricView(handle, property);
             group.gauge(property, gauge);
         }
     }
 
     /** Updates the value of metricView if the reference is still valid. */
-    private void setProperty(
-            ColumnFamilyHandle handle, String property, RocksDBNativeMetricView metricView) {
+    private void setProperty(RocksDBNativePropertyMetricView metricView) {
         if (metricView.isClosed()) {
             return;
         }
         try {
             synchronized (lock) {
                 if (rocksDB != null) {
-                    long value = rocksDB.getLongProperty(handle, property);
+                    long value = rocksDB.getLongProperty(metricView.handle, metricView.property);
                     metricView.setValue(value);
                 }
             }
         } catch (RocksDBException e) {
             metricView.close();
-            LOG.warn("Failed to read native metric {} from RocksDB.", property, e);
+            LOG.warn("Failed to read native metric {} from RocksDB.", metricView.property, e);
+        }
+    }
+
+    private void setStatistics(RocksDBNativeStatisticsMetricView metricView) {
+        if (metricView.isClosed()) {
+            return;
+        }
+        if (statistics != null) {
+            synchronized (lock) {
+                metricView.setValue(statistics.getTickerCount(metricView.tickerType));
+            }
         }
     }
 
@@ -108,31 +139,46 @@ public class RocksDBNativeMetricMonitor implements Closeable {
     public void close() {
         synchronized (lock) {
             rocksDB = null;
+            statistics = null;
+        }
+    }
+
+    abstract static class RocksDBNativeView implements View {
+        private boolean closed;
+
+        RocksDBNativeView() {
+            this.closed = false;
+        }
+
+        void close() {
+            closed = true;
+        }
+
+        boolean isClosed() {
+            return closed;
         }
     }
 
     /**
-     * A gauge which periodically pulls a RocksDB native metric for the specified column family /
-     * metric pair.
+     * A gauge which periodically pulls a RocksDB property-based native metric for the specified
+     * column family / metric pair.
      *
      * <p><strong>Note</strong>: As the returned property is of type {@code uint64_t} on C++ side
      * the returning value can be negative. Because java does not support unsigned long types, this
      * gauge wraps the result in a {@link BigInteger}.
      */
-    class RocksDBNativeMetricView implements Gauge<BigInteger>, View {
+    class RocksDBNativePropertyMetricView extends RocksDBNativeView implements Gauge<BigInteger> {
         private final String property;
 
         private final ColumnFamilyHandle handle;
 
         private BigInteger bigInteger;
 
-        private boolean closed;
-
-        private RocksDBNativeMetricView(ColumnFamilyHandle handle, @Nonnull String property) {
+        private RocksDBNativePropertyMetricView(
+                ColumnFamilyHandle handle, @Nonnull String property) {
             this.handle = handle;
             this.property = property;
             this.bigInteger = BigInteger.ZERO;
-            this.closed = false;
         }
 
         public void setValue(long value) {
@@ -149,14 +195,6 @@ public class RocksDBNativeMetricMonitor implements Closeable {
             }
         }
 
-        public void close() {
-            closed = true;
-        }
-
-        public boolean isClosed() {
-            return closed;
-        }
-
         @Override
         public BigInteger getValue() {
             return bigInteger;
@@ -164,7 +202,33 @@ public class RocksDBNativeMetricMonitor implements Closeable {
 
         @Override
         public void update() {
-            setProperty(handle, property, this);
+            setProperty(this);
+        }
+    }
+
+    /**
+     * A gauge which periodically pulls a RocksDB statistics-based native metric for the database.
+     */
+    class RocksDBNativeStatisticsMetricView extends RocksDBNativeView implements Gauge<Long> {
+        private final TickerType tickerType;
+        private long value;
+
+        private RocksDBNativeStatisticsMetricView(TickerType tickerType) {
+            this.tickerType = tickerType;
+        }
+
+        @Override
+        public Long getValue() {
+            return value;
+        }
+
+        void setValue(long value) {
+            this.value = value;
+        }
+
+        @Override
+        public void update() {
+            setStatistics(this);
         }
     }
 }

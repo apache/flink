@@ -53,9 +53,8 @@ public class WatermarkAssignerJsonPlanITCase extends JsonPlanTestBase {
 
         File sinkPath = createTestCsvSinkTable("MySink", "a int", "b bigint", "ts timestamp(3)");
 
-        String jsonPlan =
-                tableEnv.getJsonPlan("insert into MySink select a, b, ts from MyTable where b = 3");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+        compileSqlAndExecutePlan("insert into MySink select a, b, ts from MyTable where b = 3")
+                .await();
 
         assertResult(
                 Arrays.asList(

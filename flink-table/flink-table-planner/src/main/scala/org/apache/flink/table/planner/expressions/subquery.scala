@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
@@ -27,7 +26,7 @@ import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 
 case class In(expression: PlannerExpression, elements: Seq[PlannerExpression])
-  extends PlannerExpression  {
+  extends PlannerExpression {
 
   override def toString = s"$expression.in(${elements.mkString(", ")})"
 
@@ -46,8 +45,9 @@ case class In(expression: PlannerExpression, elements: Seq[PlannerExpression])
           return ValidationFailure(
             s"The sub-query table '$name' must not have more than one column.")
         }
-        (expression.resultType,
-            fromDataTypeToLegacyInfo(resolvedSchema.getColumnDataTypes.get(0))) match {
+        (
+          expression.resultType,
+          fromDataTypeToLegacyInfo(resolvedSchema.getColumnDataTypes.get(0))) match {
           case (lType, rType) if lType == rType => ValidationSuccess
           case (lType, rType) if isNumeric(lType) && isNumeric(rType) => ValidationSuccess
           case (lType, rType) if isArray(lType) && lType.getTypeClass == rType.getTypeClass =>
@@ -76,4 +76,3 @@ case class In(expression: PlannerExpression, elements: Seq[PlannerExpression])
 
   override private[flink] def resultType: TypeInformation[_] = BOOLEAN_TYPE_INFO
 }
-

@@ -35,6 +35,7 @@ public final class RowTimeIntervalJoin extends TimeIntervalJoin {
             long leftLowerBound,
             long leftUpperBound,
             long allowedLateness,
+            long minCleanUpInterval,
             InternalTypeInfo<RowData> leftType,
             InternalTypeInfo<RowData> rightType,
             IntervalJoinFunction joinFunc,
@@ -45,6 +46,7 @@ public final class RowTimeIntervalJoin extends TimeIntervalJoin {
                 leftLowerBound,
                 leftUpperBound,
                 allowedLateness,
+                minCleanUpInterval,
                 leftType,
                 rightType,
                 joinFunc);

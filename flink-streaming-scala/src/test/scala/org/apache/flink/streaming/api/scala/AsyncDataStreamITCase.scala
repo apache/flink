@@ -15,14 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.streaming.api.scala
 
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.scala.AsyncDataStreamITCase._
-import org.apache.flink.streaming.api.scala.async.{ResultFuture, RichAsyncFunction}
+import org.apache.flink.streaming.api.scala.async.{AsyncRetryStrategies, ResultFuture, RetryPredicates, RichAsyncFunction}
 import org.apache.flink.test.util.AbstractTestBase
+
 import org.junit.Assert._
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -55,10 +55,16 @@ class AsyncDataStreamITCase(ordered: Boolean) extends AbstractTestBase {
     val timeout = 1L
     val asyncMapped = if (ordered) {
       AsyncDataStream.orderedWait(
-        source, new AsyncFunctionWithTimeoutExpired(), timeout, TimeUnit.MILLISECONDS)
+        source,
+        new AsyncFunctionWithTimeoutExpired(),
+        timeout,
+        TimeUnit.MILLISECONDS)
     } else {
       AsyncDataStream.unorderedWait(
-        source, new AsyncFunctionWithTimeoutExpired(), timeout, TimeUnit.MILLISECONDS)
+        source,
+        new AsyncFunctionWithTimeoutExpired(),
+        timeout,
+        TimeUnit.MILLISECONDS)
     }
 
     executeAndValidate(ordered, env, asyncMapped, mutable.ArrayBuffer[Int](3))
@@ -74,16 +80,23 @@ class AsyncDataStreamITCase(ordered: Boolean) extends AbstractTestBase {
     val timeout = 1L
     val asyncMapped = if (ordered) {
       AsyncDataStream.orderedWait(
-        source, new AsyncFunctionWithoutTimeoutExpired(), timeout, TimeUnit.MILLISECONDS)
+        source,
+        new AsyncFunctionWithoutTimeoutExpired(),
+        timeout,
+        TimeUnit.MILLISECONDS)
     } else {
       AsyncDataStream.unorderedWait(
-        source, new AsyncFunctionWithoutTimeoutExpired(), timeout, TimeUnit.MILLISECONDS)
+        source,
+        new AsyncFunctionWithoutTimeoutExpired(),
+        timeout,
+        TimeUnit.MILLISECONDS)
     }
 
     executeAndValidate(ordered, env, asyncMapped, mutable.ArrayBuffer[Int](2))
   }
 
-  private def executeAndValidate(ordered: Boolean,
+  private def executeAndValidate(
+      ordered: Boolean,
       env: StreamExecutionEnvironment,
       dataStream: DataStream[Int],
       expectedResult: mutable.ArrayBuffer[Int]): Unit = {
@@ -132,9 +145,10 @@ class AsyncDataStreamITCase(ordered: Boolean) extends AbstractTestBase {
     val source = env.fromElements(1, 2)
 
     val asyncFunction: (Int, ResultFuture[Int]) => Unit =
-      (input, collector: ResultFuture[Int]) => Future {
+      (input, collector: ResultFuture[Int]) =>
+        Future {
           collector.complete(Seq(input * 2))
-      }(ExecutionContext.global)
+        }(ExecutionContext.global)
 
     val timeout = 10000L
     val asyncMapped = if (ordered) {
@@ -150,6 +164,87 @@ class AsyncDataStreamITCase(ordered: Boolean) extends AbstractTestBase {
     executeAndValidate(ordered, env, asyncMapped, mutable.ArrayBuffer[Int](2, 4))
   }
 
+  @Test
+  def testAsyncWaitWithRetry(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+
+    val source = env.fromElements(1, 2, 3, 4, 5, 6)
+
+    val asyncFunction = new OddInputReturnEmptyAsyncFunc
+
+    val asyncRetryStrategy =
+      new AsyncRetryStrategies.FixedDelayRetryStrategyBuilder(3, 10)
+        .ifResult(RetryPredicates.EMPTY_RESULT_PREDICATE[Int])
+        .ifException(RetryPredicates.HAS_EXCEPTION_PREDICATE)
+        .build()
+
+    val timeout = 10000L
+    val asyncMapped = if (ordered) {
+      AsyncDataStream.orderedWaitWithRetry(
+        source,
+        asyncFunction,
+        timeout,
+        TimeUnit.MILLISECONDS,
+        asyncRetryStrategy)
+    } else {
+      AsyncDataStream.unorderedWaitWithRetry(
+        source,
+        asyncFunction,
+        timeout,
+        TimeUnit.MILLISECONDS,
+        asyncRetryStrategy)
+    }
+
+    executeAndValidate(ordered, env, asyncMapped, mutable.ArrayBuffer[Int](2, 4, 6))
+  }
+
+  @Test
+  def testAsyncWaitWithRetryUsingAnonymousFunction(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+
+    val source = env.fromElements(1, 2, 3, 4, 5, 6)
+
+    val asyncFunction: (Int, ResultFuture[Int]) => Unit =
+      (input, collector: ResultFuture[Int]) => {
+        Thread.sleep(3)
+        if (input % 2 == 1) {
+          Future {
+            collector.complete(List[Int]())
+          }(ExecutionContext.global)
+        } else {
+          Future {
+            collector.complete(List[Int](input))
+          }(ExecutionContext.global)
+        }
+      }
+
+    val timeout = 10000L
+    val asyncRetryStrategy = new AsyncRetryStrategies.FixedDelayRetryStrategyBuilder[Int](3, 10)
+      .build()
+
+    val asyncMapped = if (ordered) {
+      AsyncDataStream.orderedWaitWithRetry(
+        source,
+        timeout,
+        TimeUnit.MILLISECONDS,
+        asyncRetryStrategy) {
+        asyncFunction
+      }
+    } else {
+      AsyncDataStream.unorderedWaitWithRetry(
+        source,
+        timeout,
+        TimeUnit.MILLISECONDS,
+        asyncRetryStrategy) {
+        asyncFunction
+      }
+    }
+
+    executeAndValidate(ordered, env, asyncMapped, mutable.ArrayBuffer[Int](2, 4, 6))
+  }
+
 }
 
 class AsyncFunctionWithTimeoutExpired extends RichAsyncFunction[Int, Int] {
@@ -163,8 +258,9 @@ class AsyncFunctionWithTimeoutExpired extends RichAsyncFunction[Int, Int] {
     Future {
       invokeLatch.await()
       resultFuture.complete(Seq(input * 2))
-    } (ExecutionContext.global)
+    }(ExecutionContext.global)
   }
+
   override def timeout(input: Int, resultFuture: ResultFuture[Int]): Unit = {
     resultFuture.complete(Seq(input * 3))
     invokeLatch.countDown()
@@ -172,11 +268,10 @@ class AsyncFunctionWithTimeoutExpired extends RichAsyncFunction[Int, Int] {
 }
 
 /**
-  * The asyncInvoke and timeout might be invoked at the same time.
-  * The target is checking whether there is a race condition or not between asyncInvoke,
-  * timeout and timer cancellation.
-  * See https://issues.apache.org/jira/browse/FLINK-13605 for more details.
-  */
+ * The asyncInvoke and timeout might be invoked at the same time. The target is checking whether
+ * there is a race condition or not between asyncInvoke, timeout and timer cancellation. See
+ * https://issues.apache.org/jira/browse/FLINK-13605 for more details.
+ */
 class AsyncFunctionWithoutTimeoutExpired extends RichAsyncFunction[Int, Int] {
   @transient var timeoutLatch: CountDownLatch = _
 
@@ -188,8 +283,9 @@ class AsyncFunctionWithoutTimeoutExpired extends RichAsyncFunction[Int, Int] {
     Future {
       resultFuture.complete(Seq(input * 2))
       timeoutLatch.countDown()
-    } (ExecutionContext.global)
+    }(ExecutionContext.global)
   }
+
   override def timeout(input: Int, resultFuture: ResultFuture[Int]): Unit = {
     // this sleeping helps reproducing race condition with cancellation
     Thread.sleep(10)
@@ -207,9 +303,26 @@ class MyRichAsyncFunction extends RichAsyncFunction[Int, Int] {
   override def asyncInvoke(input: Int, resultFuture: ResultFuture[Int]): Unit = {
     Future {
       resultFuture.complete(Seq(input * 2))
-    } (ExecutionContext.global)
+    }(ExecutionContext.global)
   }
+
   override def timeout(input: Int, resultFuture: ResultFuture[Int]): Unit = {
     resultFuture.complete(Seq(input * 3))
+  }
+}
+
+class OddInputReturnEmptyAsyncFunc extends RichAsyncFunction[Int, Int] {
+
+  override def asyncInvoke(input: Int, resultFuture: ResultFuture[Int]): Unit = {
+    Thread.sleep(3)
+    if (input % 2 == 1) {
+      Future {
+        resultFuture.complete(List[Int]())
+      }(ExecutionContext.global)
+    } else {
+      Future {
+        resultFuture.complete(List[Int](input))
+      }(ExecutionContext.global)
+    }
   }
 }

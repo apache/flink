@@ -76,8 +76,12 @@ public class AvroRowDataSerializationSchema implements SerializationSchema<RowDa
 
     @Override
     public void open(InitializationContext context) throws Exception {
-        this.schema = AvroSchemaConverter.convertToSchema(rowType);
         this.nestedSchema.open(context);
+        if (this.nestedSchema instanceof AvroSerializationSchema) {
+            this.schema = ((AvroSerializationSchema<GenericRecord>) this.nestedSchema).getSchema();
+        } else {
+            this.schema = AvroSchemaConverter.convertToSchema(rowType);
+        }
     }
 
     @Override

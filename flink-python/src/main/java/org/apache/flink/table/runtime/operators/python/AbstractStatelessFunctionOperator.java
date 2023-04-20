@@ -108,8 +108,7 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
                 getRuntimeContext().getTaskName(),
                 createPythonEnvironmentManager(),
                 getFunctionUrn(),
-                getUserDefinedFunctionsProto(),
-                jobOptions,
+                createUserDefinedFunctionsProto(),
                 getFlinkMetricContainer(),
                 getContainingTask().getEnvironment().getMemoryManager(),
                 getOperatorConfig()
@@ -136,7 +135,7 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
     public abstract UDFIN getFunctionInput(IN element);
 
     /** Gets the proto representation of the Python user-defined functions to be executed. */
-    public abstract FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto();
+    public abstract FlinkFnApi.UserDefinedFunctions createUserDefinedFunctionsProto();
 
     public abstract String getFunctionUrn();
 

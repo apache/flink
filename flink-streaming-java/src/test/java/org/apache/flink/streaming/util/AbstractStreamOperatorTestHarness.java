@@ -30,6 +30,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.OperatorStateRepartitioner;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.RoundRobinOperatorStateRepartitioner;
+import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
@@ -75,6 +76,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorEventDispatcherImpl;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
@@ -148,7 +150,8 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
                         ClassLoader userClassloader,
                         KeyContext keyContext,
                         ProcessingTimeService processingTimeService,
-                        Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates)
+                        Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates,
+                        StreamTaskCancellationContext cancellationContext)
                         throws Exception {
                     InternalTimeServiceManagerImpl<K> typedTimeServiceManager =
                             InternalTimeServiceManagerImpl.create(
@@ -156,7 +159,8 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
                                     userClassloader,
                                     keyContext,
                                     processingTimeService,
-                                    rawKeyedStates);
+                                    rawKeyedStates,
+                                    cancellationContext);
                     timeServiceManager = typedTimeServiceManager;
                     return typedTimeServiceManager;
                 }
@@ -304,6 +308,13 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
         this.taskMailbox = new TaskMailboxImpl();
 
+        // TODO remove this once we introduce AbstractStreamOperatorTestHarnessBuilder.
+        try {
+            this.checkpointStorageAccess = environment.getCheckpointStorageAccess();
+        } catch (NullPointerException | UnsupportedOperationException e) {
+            // cannot get checkpoint storage from environment, use default one.
+        }
+
         mockTask =
                 new MockStreamTaskBuilder(env)
                         .setCheckpointLock(checkpointLock)
@@ -323,7 +334,11 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
             TtlTimeProvider ttlTimeProvider,
             InternalTimeServiceManager.Provider timeServiceManagerProvider) {
         return new StreamTaskStateInitializerImpl(
-                env, stateBackend, ttlTimeProvider, timeServiceManagerProvider);
+                env,
+                stateBackend,
+                ttlTimeProvider,
+                timeServiceManagerProvider,
+                StreamTaskCancellationContext.alwaysRunning());
     }
 
     public void setStateBackend(StateBackend stateBackend) {
@@ -693,7 +708,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
      * org.apache.flink.runtime.state.CheckpointStreamFactory)}.
      */
     public OperatorSnapshotFinalizer snapshotWithLocalState(
-            long checkpointId, long timestamp, CheckpointType checkpointType) throws Exception {
+            long checkpointId, long timestamp, SnapshotType checkpointType) throws Exception {
 
         CheckpointStorageLocationReference locationReference =
                 CheckpointStorageLocationReference.getDefault();

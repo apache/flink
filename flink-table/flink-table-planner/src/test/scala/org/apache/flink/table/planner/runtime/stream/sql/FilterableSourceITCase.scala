@@ -15,24 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala.createTypeInformation
 import org.apache.flink.table.api.bridge.scala.tableConversions
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestData, TestingAppendSink}
+import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.types.Row
-import org.junit.Assert.assertEquals
+
 import org.junit.{Rule, Test}
+import org.junit.Assert.assertEquals
 
 import java.time.LocalDateTime
 
-/**
- * Tests for pushing filters into a table scan
- */
+/** Tests for pushing filters into a table scan */
 class FilterableSourceITCase extends StreamingTestBase {
 
   @Rule
@@ -144,9 +142,11 @@ class FilterableSourceITCase extends StreamingTestBase {
     tEnv.executeSql(ddl)
 
     val result =
-      tEnv.sqlQuery   (
-        "select a,b from TableWithWatermark WHERE LOWER(c) = 'world'"
-      ).toAppendStream[Row]
+      tEnv
+        .sqlQuery(
+          "select a,b from TableWithWatermark WHERE LOWER(c) = 'world'"
+        )
+        .toAppendStream[Row]
 
     val sink = new TestingAppendSink
     result.addSink(sink)

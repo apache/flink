@@ -15,20 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.rel.core.Sort
 import org.apache.calcite.rex.RexLiteral
 
-/**
-  * Planner rule that rewrites `limit 0` to empty [[org.apache.calcite.rel.core.Values]].
-  */
-class FlinkLimit0RemoveRule extends RelOptRule(
-  operand(classOf[Sort], any()),
-  "FlinkLimit0RemoveRule") {
+/** Planner rule that rewrites `limit 0` to empty [[org.apache.calcite.rel.core.Values]]. */
+class FlinkLimit0RemoveRule
+  extends RelOptRule(operand(classOf[Sort], any()), "FlinkLimit0RemoveRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val sort: Sort = call.rel(0)

@@ -18,9 +18,11 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
 
+import org.assertj.core.api.Assertions;
 import org.junit.Test;
 
 import java.time.Duration;
@@ -30,6 +32,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -46,7 +50,7 @@ import static org.junit.Assert.fail;
 public class ConfigurationTest extends TestLogger {
 
     private static final ConfigOption<String> STRING_OPTION =
-            ConfigOptions.key("test-string-key").noDefaultValue();
+            ConfigOptions.key("test-string-key").stringType().noDefaultValue();
 
     private static final ConfigOption<List<String>> LIST_STRING_OPTION =
             ConfigOptions.key("test-list-key").stringType().asList().noDefaultValue();
@@ -127,8 +131,9 @@ public class ConfigurationTest extends TestLogger {
         cfg.setString("string-key", "abc");
 
         ConfigOption<String> presentStringOption =
-                ConfigOptions.key("string-key").defaultValue("my-beautiful-default");
-        ConfigOption<Integer> presentIntOption = ConfigOptions.key("int-key").defaultValue(87);
+                ConfigOptions.key("string-key").stringType().defaultValue("my-beautiful-default");
+        ConfigOption<Integer> presentIntOption =
+                ConfigOptions.key("int-key").intType().defaultValue(87);
 
         assertEquals("abc", cfg.getString(presentStringOption));
         assertEquals("abc", cfg.getValue(presentStringOption));
@@ -139,8 +144,8 @@ public class ConfigurationTest extends TestLogger {
         // test getting default when no value is present
 
         ConfigOption<String> stringOption =
-                ConfigOptions.key("test").defaultValue("my-beautiful-default");
-        ConfigOption<Integer> intOption = ConfigOptions.key("test2").defaultValue(87);
+                ConfigOptions.key("test").stringType().defaultValue("my-beautiful-default");
+        ConfigOption<Integer> intOption = ConfigOptions.key("test2").intType().defaultValue(87);
 
         // getting strings with default value should work
         assertEquals("my-beautiful-default", cfg.getValue(stringOption));
@@ -160,14 +165,15 @@ public class ConfigurationTest extends TestLogger {
         cfg.setInteger("int-key", 11);
         cfg.setString("string-key", "abc");
 
-        ConfigOption<String> presentStringOption = ConfigOptions.key("string-key").noDefaultValue();
+        ConfigOption<String> presentStringOption =
+                ConfigOptions.key("string-key").stringType().noDefaultValue();
 
         assertEquals("abc", cfg.getString(presentStringOption));
         assertEquals("abc", cfg.getValue(presentStringOption));
 
         // test getting default when no value is present
 
-        ConfigOption<String> stringOption = ConfigOptions.key("test").noDefaultValue();
+        ConfigOption<String> stringOption = ConfigOptions.key("test").stringType().noDefaultValue();
 
         // getting strings for null should work
         assertNull(cfg.getValue(stringOption));
@@ -186,21 +192,25 @@ public class ConfigurationTest extends TestLogger {
 
         ConfigOption<Integer> matchesFirst =
                 ConfigOptions.key("the-key")
+                        .intType()
                         .defaultValue(-1)
                         .withDeprecatedKeys("old-key", "older-key");
 
         ConfigOption<Integer> matchesSecond =
                 ConfigOptions.key("does-not-exist")
+                        .intType()
                         .defaultValue(-1)
                         .withDeprecatedKeys("old-key", "older-key");
 
         ConfigOption<Integer> matchesThird =
                 ConfigOptions.key("does-not-exist")
+                        .intType()
                         .defaultValue(-1)
                         .withDeprecatedKeys("foo", "older-key");
 
         ConfigOption<Integer> notContained =
                 ConfigOptions.key("does-not-exist")
+                        .intType()
                         .defaultValue(-1)
                         .withDeprecatedKeys("not-there", "also-not-there");
 
@@ -219,21 +229,25 @@ public class ConfigurationTest extends TestLogger {
 
         ConfigOption<Integer> matchesFirst =
                 ConfigOptions.key("the-key")
+                        .intType()
                         .defaultValue(-1)
                         .withFallbackKeys("old-key", "older-key");
 
         ConfigOption<Integer> matchesSecond =
                 ConfigOptions.key("does-not-exist")
+                        .intType()
                         .defaultValue(-1)
                         .withFallbackKeys("old-key", "older-key");
 
         ConfigOption<Integer> matchesThird =
                 ConfigOptions.key("does-not-exist")
+                        .intType()
                         .defaultValue(-1)
                         .withFallbackKeys("foo", "older-key");
 
         ConfigOption<Integer> notContained =
                 ConfigOptions.key("does-not-exist")
+                        .intType()
                         .defaultValue(-1)
                         .withFallbackKeys("not-there", "also-not-there");
 
@@ -245,12 +259,15 @@ public class ConfigurationTest extends TestLogger {
 
     @Test
     public void testFallbackAndDeprecatedKeys() {
-        final ConfigOption<Integer> fallback = ConfigOptions.key("fallback").defaultValue(-1);
+        final ConfigOption<Integer> fallback =
+                ConfigOptions.key("fallback").intType().defaultValue(-1);
 
-        final ConfigOption<Integer> deprecated = ConfigOptions.key("deprecated").defaultValue(-1);
+        final ConfigOption<Integer> deprecated =
+                ConfigOptions.key("deprecated").intType().defaultValue(-1);
 
         final ConfigOption<Integer> mainOption =
                 ConfigOptions.key("main")
+                        .intType()
                         .defaultValue(-1)
                         .withFallbackKeys(fallback.key())
                         .withDeprecatedKeys(deprecated.key());
@@ -267,6 +284,7 @@ public class ConfigurationTest extends TestLogger {
         // first
         final ConfigOption<Integer> reversedMainOption =
                 ConfigOptions.key("main")
+                        .intType()
                         .defaultValue(-1)
                         .withDeprecatedKeys(deprecated.key())
                         .withFallbackKeys(fallback.key());
@@ -284,13 +302,13 @@ public class ConfigurationTest extends TestLogger {
         cfg.setInteger("a", 1);
         cfg.setInteger("b", 2);
 
-        ConfigOption<Integer> validOption = ConfigOptions.key("a").defaultValue(-1);
+        ConfigOption<Integer> validOption = ConfigOptions.key("a").intType().defaultValue(-1);
 
         ConfigOption<Integer> deprecatedOption =
-                ConfigOptions.key("c").defaultValue(-1).withDeprecatedKeys("d", "b");
+                ConfigOptions.key("c").intType().defaultValue(-1).withDeprecatedKeys("d", "b");
 
         ConfigOption<Integer> unexistedOption =
-                ConfigOptions.key("e").defaultValue(-1).withDeprecatedKeys("f", "g", "j");
+                ConfigOptions.key("e").intType().defaultValue(-1).withDeprecatedKeys("f", "g", "j");
 
         assertEquals("Wrong expectation about size", cfg.keySet().size(), 2);
         assertTrue("Expected 'validOption' is removed", cfg.removeConfig(validOption));
@@ -298,6 +316,25 @@ public class ConfigurationTest extends TestLogger {
         assertTrue("Expected 'existedOption' is removed", cfg.removeConfig(deprecatedOption));
         assertEquals("Wrong expectation about size", cfg.keySet().size(), 0);
         assertFalse("Expected 'unexistedOption' is not removed", cfg.removeConfig(unexistedOption));
+    }
+
+    @Test
+    public void testRemoveKey() {
+        Configuration cfg = new Configuration();
+        String key1 = "a.b";
+        String key2 = "c.d";
+        cfg.setInteger(key1, 42);
+        cfg.setInteger(key2, 44);
+        cfg.setInteger(key2 + ".f1", 44);
+        cfg.setInteger(key2 + ".f2", 44);
+        cfg.setInteger("e.f", 1337);
+
+        assertFalse(cfg.removeKey("not-existing-key"));
+        assertTrue(cfg.removeKey(key1));
+        assertFalse(cfg.containsKey(key1));
+
+        assertTrue(cfg.removeKey(key2));
+        assertThat(cfg.keySet(), containsInAnyOrder("e.f"));
     }
 
     @Test
@@ -419,6 +456,44 @@ public class ConfigurationTest extends TestLogger {
         assertFalse(cfg.contains(MAP_OPTION));
         assertFalse(cfg.containsKey(MAP_PROPERTY_1));
         assertFalse(cfg.containsKey(MAP_PROPERTY_2));
+    }
+
+    @Test
+    public void testListParserErrorDoesNotLeakSensitiveData() {
+        ConfigOption<List<String>> secret =
+                ConfigOptions.key("secret").stringType().asList().noDefaultValue();
+
+        Assertions.assertThat(GlobalConfiguration.isSensitive(secret.key())).isTrue();
+
+        final Configuration cfg = new Configuration();
+        // missing closing quote
+        cfg.setString(secret.key(), "'secret_value");
+
+        assertThatThrownBy(() -> cfg.get(secret))
+                .isInstanceOf(IllegalArgumentException.class)
+                .satisfies(
+                        e ->
+                                Assertions.assertThat(ExceptionUtils.stringifyException(e))
+                                        .doesNotContain("secret_value"));
+    }
+
+    @Test
+    public void testMapParserErrorDoesNotLeakSensitiveData() {
+        ConfigOption<Map<String, String>> secret =
+                ConfigOptions.key("secret").mapType().noDefaultValue();
+
+        Assertions.assertThat(GlobalConfiguration.isSensitive(secret.key())).isTrue();
+
+        final Configuration cfg = new Configuration();
+        // malformed map representation
+        cfg.setString(secret.key(), "secret_value");
+
+        assertThatThrownBy(() -> cfg.get(secret))
+                .isInstanceOf(IllegalArgumentException.class)
+                .satisfies(
+                        e ->
+                                Assertions.assertThat(ExceptionUtils.stringifyException(e))
+                                        .doesNotContain("secret_value"));
     }
 
     // --------------------------------------------------------------------------------------------

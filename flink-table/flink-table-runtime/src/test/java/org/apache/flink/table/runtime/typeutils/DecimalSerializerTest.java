@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.table.data.DecimalData;
 
 /** A test for the {@link DecimalDataSerializer}. */
-public class DecimalSerializerTest extends SerializerTestBase<DecimalData> {
+class DecimalSerializerTest extends SerializerTestBase<DecimalData> {
 
     @Override
     protected DecimalDataSerializer createSerializer() {

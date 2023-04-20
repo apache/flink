@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.api.ExplainDetail
@@ -23,64 +22,59 @@ import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 
 import org.junit.{Before, Test}
 
-/**
- * Tests for [[WatermarkAssignerChangelogNormalizeTransposeRule]]
- */
+/** Tests for [[WatermarkAssignerChangelogNormalizeTransposeRule]] */
 class WatermarkAssignerChangelogNormalizeTransposeRuleTest extends TableTestBase {
   private val util: StreamTableTestUtil = streamTestUtil()
 
   @Before
   def setup(): Unit = {
-    util.addTable(
-      s"""
-         |CREATE TABLE simple_src (
-         |  currency STRING,
-         |  currency_no STRING,
-         |  rate  BIGINT,
-         |  currency_time TIMESTAMP(3),
-         |  WATERMARK FOR currency_time AS currency_time - interval '5' SECOND,
-         |  PRIMARY KEY(currency) NOT ENFORCED
-         |) WITH (
-         |  'connector' = 'values',
-         |  'changelog-mode' = 'UA,D',
-         |  'enable-watermark-push-down' = 'true'
-         |)
-         |""".stripMargin)
+    util.addTable(s"""
+                     |CREATE TABLE simple_src (
+                     |  currency STRING,
+                     |  currency_no STRING,
+                     |  rate  BIGINT,
+                     |  currency_time TIMESTAMP(3),
+                     |  WATERMARK FOR currency_time AS currency_time - interval '5' SECOND,
+                     |  PRIMARY KEY(currency) NOT ENFORCED
+                     |) WITH (
+                     |  'connector' = 'values',
+                     |  'changelog-mode' = 'UA,D',
+                     |  'enable-watermark-push-down' = 'true'
+                     |)
+                     |""".stripMargin)
 
-    util.addTable(
-      s"""
-         |CREATE TABLE src_with_computed_column (
-         |  currency STRING,
-         |  currency_no STRING,
-         |  rate  BIGINT,
-         |  c STRING,
-         |  currency_time as to_timestamp(c),
-         |  WATERMARK FOR currency_time AS currency_time - interval '5' SECOND,
-         |  PRIMARY KEY(currency) NOT ENFORCED
-         |) WITH (
-         |  'connector' = 'values',
-         |  'changelog-mode' = 'UA,D',
-         |  'enable-watermark-push-down' = 'true'
-         |)
-         |""".stripMargin)
+    util.addTable(s"""
+                     |CREATE TABLE src_with_computed_column (
+                     |  currency STRING,
+                     |  currency_no STRING,
+                     |  rate  BIGINT,
+                     |  c STRING,
+                     |  currency_time as to_timestamp(c),
+                     |  WATERMARK FOR currency_time AS currency_time - interval '5' SECOND,
+                     |  PRIMARY KEY(currency) NOT ENFORCED
+                     |) WITH (
+                     |  'connector' = 'values',
+                     |  'changelog-mode' = 'UA,D',
+                     |  'enable-watermark-push-down' = 'true'
+                     |)
+                     |""".stripMargin)
 
-    util.addTable(
-      s"""
-         |CREATE TABLE src_with_computed_column2 (
-         | currency int,
-         | currency2 as currency + 2,
-         | currency_no STRING,
-         | rate BIGINT,
-         | c STRING,
-         | currency_time as to_timestamp(c),
-         | WATERMARK FOR currency_time AS currency_time - interval '5' SECOND,
-         | PRIMARY KEY(currency) NOT ENFORCED
-         |) WITH (
-         | 'connector' = 'values',
-         | 'changelog-mode' = 'UA,D',
-         | 'enable-watermark-push-down' = 'true'
-         |)
-         |""".stripMargin)
+    util.addTable(s"""
+                     |CREATE TABLE src_with_computed_column2 (
+                     | currency int,
+                     | currency2 as currency + 2,
+                     | currency_no STRING,
+                     | rate BIGINT,
+                     | c STRING,
+                     | currency_time as to_timestamp(c),
+                     | WATERMARK FOR currency_time AS currency_time - interval '5' SECOND,
+                     | PRIMARY KEY(currency) NOT ENFORCED
+                     |) WITH (
+                     | 'connector' = 'values',
+                     | 'changelog-mode' = 'UA,D',
+                     | 'enable-watermark-push-down' = 'true'
+                     |)
+                     |""".stripMargin)
   }
 
   // ----------------------------------------------------------------------------------------
@@ -122,9 +116,9 @@ class WatermarkAssignerChangelogNormalizeTransposeRuleTest extends TableTestBase
     util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
-  /** only push down watermark assigner if satisfy all the following condition:
-   *  1. shuffle keys are not kept after Calc
-   *  2. row time field does not depend on computed column
+  /**
+   * only push down watermark assigner if satisfy all the following condition:
+   *   1. shuffle keys are not kept after Calc 2. row time field does not depend on computed column
    */
   @Test
   def testPushdownWatermarkAssignerWithCalc(): Unit = {
@@ -141,9 +135,9 @@ class WatermarkAssignerChangelogNormalizeTransposeRuleTest extends TableTestBase
   }
 
   /**
-   * push down new calc with all shuffle keys and new watermarkAssigner, then add a top calc
-   * to remove add new added shuffle keys
-    */
+   * push down new calc with all shuffle keys and new watermarkAssigner, then add a top calc to
+   * remove add new added shuffle keys
+   */
   @Test
   def testPushdownNewCalcAndWatermarkAssignerWithCalc(): Unit = {
     val sql =
@@ -169,6 +163,44 @@ class WatermarkAssignerChangelogNormalizeTransposeRuleTest extends TableTestBase
         |  TUMBLE_END(currency_time, INTERVAL '5' SECOND) as w_end
         |FROM src_with_computed_column2
         |GROUP BY currency2, TUMBLE(currency_time, INTERVAL '5' SECOND)
+        |""".stripMargin
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testPushdownCalcNotAffectChangelogNormalizeKey(): Unit = {
+    util.addTable("""
+                    |CREATE TABLE t1 (
+                    |  ingestion_time TIMESTAMP(3) METADATA FROM 'ts',
+                    |  a VARCHAR NOT NULL,
+                    |  b VARCHAR NOT NULL,
+                    |  WATERMARK FOR ingestion_time AS ingestion_time
+                    |) WITH (
+                    | 'connector' = 'values',
+                    | 'readable-metadata' = 'ts:TIMESTAMP(3)'
+                    |)
+      """.stripMargin)
+    util.addTable("""
+                    |CREATE TABLE t2 (
+                    |  k VARBINARY,
+                    |  ingestion_time TIMESTAMP(3) METADATA FROM 'ts',
+                    |  a VARCHAR NOT NULL,
+                    |  f BOOLEAN NOT NULL,
+                    |  WATERMARK FOR `ingestion_time` AS `ingestion_time`,
+                    |  PRIMARY KEY (`a`) NOT ENFORCED
+                    |) WITH (
+                    | 'connector' = 'values',
+                    | 'readable-metadata' = 'ts:TIMESTAMP(3)',
+                    | 'changelog-mode' = 'I,UA,D'
+                    |)
+      """.stripMargin)
+    // After FLINK-28988 applied, the filter will not be pushed down into left input of join and get
+    // a more optimal plan (upsert mode without ChangelogNormalize).
+    val sql =
+      """
+        |SELECT t1.a, t1.b, t2.f
+        |FROM t1 INNER JOIN t2 FOR SYSTEM_TIME AS OF t1.ingestion_time
+        | ON t1.a = t2.a WHERE t2.f = true
         |""".stripMargin
     util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }

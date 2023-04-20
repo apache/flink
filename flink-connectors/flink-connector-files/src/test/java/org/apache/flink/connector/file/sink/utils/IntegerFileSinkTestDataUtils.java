@@ -19,6 +19,7 @@
 package org.apache.flink.connector.file.sink.utils;
 
 import org.apache.flink.api.common.serialization.Encoder;
+import org.apache.flink.connector.file.sink.compactor.DecoderBasedReader.Decoder;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
@@ -28,6 +29,7 @@ import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -35,9 +37,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Utilities for file sinks that writes a sequence of continues integers into files starting from 0.
@@ -53,6 +53,30 @@ public class IntegerFileSinkTestDataUtils {
         public void encode(Integer element, OutputStream stream) throws IOException {
             stream.write(ByteBuffer.allocate(4).putInt(element).array());
             stream.flush();
+        }
+    }
+
+    /** Testing sink {@link Decoder} that reads integer for compaction. */
+    public static class IntDecoder implements Decoder<Integer> {
+
+        private InputStream input;
+
+        @Override
+        public void open(InputStream input) throws IOException {
+            this.input = input;
+        }
+
+        @Override
+        public Integer decodeNext() throws IOException {
+            byte[] bytes = new byte[4];
+            int read = input.read(bytes);
+            return read < 0 ? null : ByteBuffer.wrap(bytes).getInt();
+        }
+
+        @Override
+        public void close() throws IOException {
+            input.close();
+            input = null;
         }
     }
 
@@ -91,25 +115,25 @@ public class IntegerFileSinkTestDataUtils {
             String path, int numRecords, int numBuckets, int numSources) throws Exception {
         File dir = new File(path);
         String[] subDirNames = dir.list();
-        assertNotNull(subDirNames);
+        assertThat(subDirNames).isNotNull();
 
         Arrays.sort(subDirNames, Comparator.comparingInt(Integer::parseInt));
-        assertEquals(numBuckets, subDirNames.length);
+        assertThat(subDirNames).hasSize(numBuckets);
         for (int i = 0; i < numBuckets; ++i) {
-            assertEquals(Integer.toString(i), subDirNames[i]);
+            assertThat(subDirNames[i]).isEqualTo(Integer.toString(i));
 
             // now check its content
             File bucketDir = new File(path, subDirNames[i]);
-            assertTrue(
-                    bucketDir.getAbsolutePath() + " Should be a existing directory",
-                    bucketDir.isDirectory());
+            assertThat(bucketDir)
+                    .as(bucketDir.getAbsolutePath() + " Should be a existing directory")
+                    .isDirectory();
 
             Map<Integer, Integer> counts = new HashMap<>();
             File[] files = bucketDir.listFiles(f -> !f.getName().startsWith("."));
-            assertNotNull(files);
+            assertThat(files).isNotNull();
 
             for (File file : files) {
-                assertTrue(file.isFile());
+                assertThat(file).isFile();
 
                 try (DataInputStream dataInputStream =
                         new DataInputStream(new FileInputStream(file))) {
@@ -123,20 +147,20 @@ public class IntegerFileSinkTestDataUtils {
             }
 
             int expectedCount = numRecords / numBuckets + (i < numRecords % numBuckets ? 1 : 0);
-            assertEquals(expectedCount, counts.size());
+            assertThat(counts).hasSize(expectedCount);
 
             for (int j = i; j < numRecords; j += numBuckets) {
-                assertEquals(
-                        "The record "
-                                + j
-                                + " should occur "
-                                + numSources
-                                + " times, "
-                                + " but only occurs "
-                                + counts.getOrDefault(j, 0)
-                                + "time",
-                        numSources,
-                        counts.getOrDefault(j, 0).intValue());
+                assertThat(counts.getOrDefault(j, 0).intValue())
+                        .as(
+                                "The record "
+                                        + j
+                                        + " should occur "
+                                        + numSources
+                                        + " times, "
+                                        + " but only occurs "
+                                        + counts.getOrDefault(j, 0)
+                                        + "time")
+                        .isEqualTo(numSources);
             }
         }
     }

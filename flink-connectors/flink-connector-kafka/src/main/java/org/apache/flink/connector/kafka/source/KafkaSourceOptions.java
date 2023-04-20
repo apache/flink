@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.kafka.source;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 
@@ -25,6 +26,7 @@ import java.util.Properties;
 import java.util.function.Function;
 
 /** Configurations for KafkaSource. */
+@Internal
 public class KafkaSourceOptions {
 
     public static final ConfigOption<String> CLIENT_ID_PREFIX =

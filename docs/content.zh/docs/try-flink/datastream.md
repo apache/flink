@@ -49,7 +49,13 @@ Flink 支持对状态和时间的细粒度控制，以此来实现复杂的事�
 
 ## 准备条件
 
-这个代码练习假定你对 Java 或 Scala 有一定的了解，当然，如果你之前使用的是其他开发语言，你也应该能够跟随本教程进行学习。
+这个代码练习假定你对 Java 有一定的了解，当然，如果你之前使用的是其他开发语言，你也应该能够跟随本教程进行学习。
+
+### 在 IDE 中运行
+
+在 IDE 中运行该项目可能会遇到 `java.langNoClassDefFoundError` 的异常。这很可能是因为运行所需要的 Flink 的依赖库没有默认被全部加载到类路径（classpath）里。
+
+IntelliJ IDE：前往 运行 > 编辑配置 > 修改选项 > 选中 将带有 "provided" 范围的依赖项添加到类路径。这样的话，运行配置将会包含所有在 IDE 中运行所必须的类。
 
 <a name="help-im-stuck"></a>
 
@@ -64,7 +70,7 @@ Flink 支持对状态和时间的细粒度控制，以此来实现复杂的事�
 
 首先，你需要在你的电脑上准备以下环境：
 
-* Java 8 or 11
+* Java 11
 * Maven
 
 一个准备好的 Flink Maven Archetype 能够快速创建一个包含了必要依赖的 Flink 程序骨架，基于此，你可以把精力集中在编写业务逻辑上即可。
@@ -88,26 +94,13 @@ $ mvn archetype:generate \
     -DinteractiveMode=false
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```bash
-$ mvn archetype:generate \
-    -DarchetypeGroupId=org.apache.flink \
-    -DarchetypeArtifactId=flink-walkthrough-datastream-scala \
-    -DarchetypeVersion={{< version >}} \
-    -DgroupId=frauddetection \
-    -DartifactId=frauddetection \
-    -Dversion=0.1 \
-    -Dpackage=spendreport \
-    -DinteractiveMode=false
-```
-{{< /tab >}}
 {{< /tabs >}}
 
 {{< unstable >}}
 {{< hint warning >}}
-    Maven 3.0 及更高版本，不再支持通过命令行指定仓库（-DarchetypeCatalog）。有关这个改动的详细信息，
-    请参阅 [Maven 官方文档](http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html)
-    如果你希望使用快照仓库，则需要在 settings.xml 文件中添加一个仓库条目。例如：
+Maven 3.0 及更高版本，不再支持通过命令行指定仓库（-DarchetypeCatalog）。有关这个改动的详细信息，
+请参阅 [Maven 官方文档](http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html)
+如果你希望使用快照仓库，则需要在 settings.xml 文件中添加一个仓库条目。例如：
 ```xml
 <settings>
   <activeProfiles>
@@ -131,7 +124,7 @@ $ mvn archetype:generate \
 
 你可以根据自己的情况修改 `groupId`、 `artifactId` 和 `package`。通过这三个参数，
 Maven 将会创建一个名为 `frauddetection` 的文件夹，包含了所有依赖的整个工程项目将会位于该文件夹下。
-将工程目录导入到你的开发环境之后，你可以找到 `FraudDetectionJob.java` （或 `FraudDetectionJob.scala`） 代码文件，文件中的代码如下所示。你可以在 IDE 中直接运行这个文件。
+将工程目录导入到你的开发环境之后，你可以找到 `FraudDetectionJob.java` 代码文件，文件中的代码如下所示。你可以在 IDE 中直接运行这个文件。
 同时，你可以试着在数据流中设置一些断点或者以 DEBUG 模式来运行程序，体验 Flink 是如何运行的。
 
 {{< tabs "812722d9-c880-464a-a39d-749e538a8612" >}}
@@ -207,81 +200,6 @@ public class FraudDetector extends KeyedProcessFunction<Long, Transaction, Alert
 }
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-
-<a name="frauddetectionjobscala"></a>
-
-#### FraudDetectionJob.scala
-
-```scala
-package spendreport
-
-import org.apache.flink.streaming.api.scala._
-import org.apache.flink.walkthrough.common.sink.AlertSink
-import org.apache.flink.walkthrough.common.entity.Alert
-import org.apache.flink.walkthrough.common.entity.Transaction
-import org.apache.flink.walkthrough.common.source.TransactionSource
-
-object FraudDetectionJob {
-
-  @throws[Exception]
-  def main(args: Array[String]): Unit = {
-    val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
-
-    val transactions: DataStream[Transaction] = env
-      .addSource(new TransactionSource)
-      .name("transactions")
-
-    val alerts: DataStream[Alert] = transactions
-      .keyBy(transaction => transaction.getAccountId)
-      .process(new FraudDetector)
-      .name("fraud-detector")
-
-    alerts
-      .addSink(new AlertSink)
-      .name("send-alerts")
-
-    env.execute("Fraud Detection")
-  }
-}
-```
-
-<a name="frauddetectorscala"></a>
-
-#### FraudDetector.scala
-
-```scala
-package spendreport
-
-import org.apache.flink.streaming.api.functions.KeyedProcessFunction
-import org.apache.flink.util.Collector
-import org.apache.flink.walkthrough.common.entity.Alert
-import org.apache.flink.walkthrough.common.entity.Transaction
-
-object FraudDetector {
-  val SMALL_AMOUNT: Double = 1.00
-  val LARGE_AMOUNT: Double = 500.00
-  val ONE_MINUTE: Long     = 60 * 1000L
-}
-
-@SerialVersionUID(1L)
-class FraudDetector extends KeyedProcessFunction[Long, Transaction, Alert] {
-
-  @throws[Exception]
-  def processElement(
-      transaction: Transaction,
-      context: KeyedProcessFunction[Long, Transaction, Alert]#Context,
-      collector: Collector[Alert]): Unit = {
-
-    val alert = new Alert
-    alert.setId(transaction.getAccountId)
-
-    collector.collect(alert)
-  }
-}
-
-```
-{{< /tab >}}
 {{< /tabs >}}
 
 <a name="breaking-down-the-code"></a>
@@ -305,11 +223,6 @@ class FraudDetector extends KeyedProcessFunction[Long, Transaction, Alert] {
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
-```
-{{< /tab >}}
 {{< /tabs >}}
 
 <a name="creating-a-source"></a>
@@ -329,20 +242,13 @@ DataStream<Transaction> transactions = env
     .name("transactions");
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val transactions: DataStream[Transaction] = env
-  .addSource(new TransactionSource)
-  .name("transactions")
-```
-{{< /tab >}}
 {{< /tabs >}}
 
 <a name="partitioning-events--detecting-fraud"></a>
 
 #### 对事件分区 & 欺诈检测
 
-`transactions` 这个数据流包含了大量的用户交易数据，需要被划分到多个并发上进行欺诈检测处理。由于欺诈行为的发生是基于某一个账户的，所以，必须要要保证同一个账户的所有交易行为数据要被同一个并发的 task 进行处理。
+`transactions` 这个数据流包含了大量的用户交易数据，需要被划分到多个并发上进行欺诈检测处理。由于欺诈行为的发生是基于某一个账户的，所以，必须要保证同一个账户的所有交易行为数据要被同一个并发的 task 进行处理。
 
 为了保证同一个 task 处理同一个 key 的所有数据，你可以使用 `DataStream#keyBy` 对流进行分区。
 `process()` 函数对流绑定了一个操作，这个操作将会对流上的每一个消息调用所定义好的函数。
@@ -356,14 +262,6 @@ DataStream<Alert> alerts = transactions
     .keyBy(Transaction::getAccountId)
     .process(new FraudDetector())
     .name("fraud-detector");
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val alerts: DataStream[Alert] = transactions
-  .keyBy(transaction => transaction.getAccountId)
-  .process(new FraudDetector)
-  .name("fraud-detector")
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -381,11 +279,6 @@ sink 会将 `DataStream` 写出到外部系统，例如 Apache Kafka、Cassandra
 alerts.addSink(new AlertSink());
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-alerts.addSink(new AlertSink)
-```
-{{< /tab >}}
 {{< /tabs >}}
 
 <a name="executing-the-job"></a>
@@ -399,11 +292,6 @@ Flink 程序是懒加载的，并且只有在完全搭建好之后，才能够�
 {{< tab "Java" >}}
 ```java
 env.execute("Fraud Detection");
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-env.execute("Fraud Detection")
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -438,31 +326,6 @@ public class FraudDetector extends KeyedProcessFunction<Long, Transaction, Alert
 
         collector.collect(alert);
     }
-}
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-object FraudDetector {
-  val SMALL_AMOUNT: Double = 1.00
-  val LARGE_AMOUNT: Double = 500.00
-  val ONE_MINUTE: Long     = 60 * 1000L
-}
-
-@SerialVersionUID(1L)
-class FraudDetector extends KeyedProcessFunction[Long, Transaction, Alert] {
-
-  @throws[Exception]
-  def processElement(
-      transaction: Transaction,
-      context: KeyedProcessFunction[Long, Transaction, Alert]#Context,
-      collector: Collector[Alert]): Unit = {
-
-    val alert = new Alert
-    alert.setId(transaction.getAccountId)
-
-    collector.collect(alert)
-  }
 }
 ```
 {{< /tab >}}
@@ -522,20 +385,6 @@ public class FraudDetector extends KeyedProcessFunction<Long, Transaction, Alert
     }
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-@SerialVersionUID(1L)
-class FraudDetector extends KeyedProcessFunction[Long, Transaction, Alert] {
-
-  @transient private var flagState: ValueState[java.lang.Boolean] = _
-
-  @throws[Exception]
-  override def open(parameters: Configuration): Unit = {
-    val flagDescriptor = new ValueStateDescriptor("flag", Types.BOOLEAN)
-    flagState = getRuntimeContext.getState(flagDescriptor)
-  }
-```
-{{< /tab >}}
 {{< /tabs >}}
 
 `ValueState` 是一个包装类，类似于 Java 标准库里边的 `AtomicReference` 和 `AtomicLong`。
@@ -576,36 +425,6 @@ public void processElement(
         // Set the flag to true
         flagState.update(true);
     }
-}
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-override def processElement(
-    transaction: Transaction,
-    context: KeyedProcessFunction[Long, Transaction, Alert]#Context,
-    collector: Collector[Alert]): Unit = {
-
-  // Get the current state for the current key
-  val lastTransactionWasSmall = flagState.value
-
-  // Check if the flag is set
-  if (lastTransactionWasSmall != null) {
-    if (transaction.getAmount > FraudDetector.LARGE_AMOUNT) {
-      // Output an alert downstream
-      val alert = new Alert
-      alert.setId(transaction.getAccountId)
-
-      collector.collect(alert)
-    }
-    // Clean up our state
-    flagState.clear()
-  }
-
-  if (transaction.getAmount < FraudDetector.SMALL_AMOUNT) {
-    // set the flag to true
-    flagState.update(true)
-  }
 }
 ```
 {{< /tab >}}
@@ -657,24 +476,6 @@ public void open(Configuration parameters) {
 }
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-@SerialVersionUID(1L)
-class FraudDetector extends KeyedProcessFunction[Long, Transaction, Alert] {
-
-  @transient private var flagState: ValueState[java.lang.Boolean] = _
-  @transient private var timerState: ValueState[java.lang.Long] = _
-
-  @throws[Exception]
-  override def open(parameters: Configuration): Unit = {
-    val flagDescriptor = new ValueStateDescriptor("flag", Types.BOOLEAN)
-    flagState = getRuntimeContext.getState(flagDescriptor)
-
-    val timerDescriptor = new ValueStateDescriptor("timer-state", Types.LONG)
-    timerState = getRuntimeContext.getState(timerDescriptor)
-  }
-```
-{{< /tab >}}
 {{< /tabs >}}
 
 `KeyedProcessFunction#processElement` 需要使用提供了定时器服务的 `Context` 来调用。
@@ -692,19 +493,6 @@ if (transaction.getAmount() < SMALL_AMOUNT) {
     long timer = context.timerService().currentProcessingTime() + ONE_MINUTE;
     context.timerService().registerProcessingTimeTimer(timer);
     timerState.update(timer);
-}
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-if (transaction.getAmount < FraudDetector.SMALL_AMOUNT) {
-  // set the flag to true
-  flagState.update(true)
-
-  // set the timer and timer state
-  val timer = context.timerService.currentProcessingTime + FraudDetector.ONE_MINUTE
-  context.timerService.registerProcessingTimeTimer(timer)
-  timerState.update(timer)
 }
 ```
 {{< /tab >}}
@@ -726,18 +514,6 @@ public void onTimer(long timestamp, OnTimerContext ctx, Collector<Alert> out) {
 }
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-override def onTimer(
-    timestamp: Long,
-    ctx: KeyedProcessFunction[Long, Transaction, Alert]#OnTimerContext,
-    out: Collector[Alert]): Unit = {
-  // remove flag after 1 minute
-  timerState.clear()
-  flagState.clear()
-}
-```
-{{< /tab >}}
 {{< /tabs >}}
 
 最后，如果要取消定时器，你需要删除已经注册的定时器，并同时清空保存定时器的状态。
@@ -754,20 +530,6 @@ private void cleanUp(Context ctx) throws Exception {
     // clean up all state
     timerState.clear();
     flagState.clear();
-}
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-@throws[Exception]
-private def cleanUp(ctx: KeyedProcessFunction[Long, Transaction, Alert]#Context): Unit = {
-  // delete timer
-  val timer = timerState.value
-  ctx.timerService.deleteProcessingTimeTimer(timer)
-
-  // clean up all states
-  timerState.clear()
-  flagState.clear()
 }
 ```
 {{< /tab >}}
@@ -866,92 +628,6 @@ public class FraudDetector extends KeyedProcessFunction<Long, Transaction, Alert
         timerState.clear();
         flagState.clear();
     }
-}
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-package spendreport
-
-import org.apache.flink.api.common.state.{ValueState, ValueStateDescriptor}
-import org.apache.flink.api.scala.typeutils.Types
-import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.functions.KeyedProcessFunction
-import org.apache.flink.util.Collector
-import org.apache.flink.walkthrough.common.entity.Alert
-import org.apache.flink.walkthrough.common.entity.Transaction
-
-object FraudDetector {
-  val SMALL_AMOUNT: Double = 1.00
-  val LARGE_AMOUNT: Double = 500.00
-  val ONE_MINUTE: Long     = 60 * 1000L
-}
-
-@SerialVersionUID(1L)
-class FraudDetector extends KeyedProcessFunction[Long, Transaction, Alert] {
-
-  @transient private var flagState: ValueState[java.lang.Boolean] = _
-  @transient private var timerState: ValueState[java.lang.Long] = _
-
-  @throws[Exception]
-  override def open(parameters: Configuration): Unit = {
-    val flagDescriptor = new ValueStateDescriptor("flag", Types.BOOLEAN)
-    flagState = getRuntimeContext.getState(flagDescriptor)
-
-    val timerDescriptor = new ValueStateDescriptor("timer-state", Types.LONG)
-    timerState = getRuntimeContext.getState(timerDescriptor)
-  }
-
-  override def processElement(
-      transaction: Transaction,
-      context: KeyedProcessFunction[Long, Transaction, Alert]#Context,
-      collector: Collector[Alert]): Unit = {
-
-    // Get the current state for the current key
-    val lastTransactionWasSmall = flagState.value
-
-    // Check if the flag is set
-    if (lastTransactionWasSmall != null) {
-      if (transaction.getAmount > FraudDetector.LARGE_AMOUNT) {
-        // Output an alert downstream
-        val alert = new Alert
-        alert.setId(transaction.getAccountId)
-
-        collector.collect(alert)
-      }
-      // Clean up our state
-      cleanUp(context)
-    }
-
-    if (transaction.getAmount < FraudDetector.SMALL_AMOUNT) {
-      // set the flag to true
-      flagState.update(true)
-      val timer = context.timerService.currentProcessingTime + FraudDetector.ONE_MINUTE
-
-      context.timerService.registerProcessingTimeTimer(timer)
-      timerState.update(timer)
-    }
-  }
-
-  override def onTimer(
-      timestamp: Long,
-      ctx: KeyedProcessFunction[Long, Transaction, Alert]#OnTimerContext,
-      out: Collector[Alert]): Unit = {
-    // remove flag after 1 minute
-    timerState.clear()
-    flagState.clear()
-  }
-
-  @throws[Exception]
-  private def cleanUp(ctx: KeyedProcessFunction[Long, Transaction, Alert]#Context): Unit = {
-    // delete timer
-    val timer = timerState.value
-    ctx.timerService.deleteProcessingTimeTimer(timer)
-
-    // clean up all states
-    timerState.clear()
-    flagState.clear()
-  }
 }
 ```
 {{< /tab >}}

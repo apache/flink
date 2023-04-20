@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.kafka.source.metrics;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.kafka.MetricUtil;
 import org.apache.flink.connector.kafka.source.reader.KafkaSourceReader;
 import org.apache.flink.metrics.Counter;
@@ -62,6 +63,7 @@ import java.util.function.Predicate;
  * can be found at:
  * {some_parent_groups}.operator.KafkaSourceReader.KafkaConsumer.records-consumed-total"
  */
+@PublicEvolving
 public class KafkaSourceReaderMetrics {
 
     private static final Logger LOG = LoggerFactory.getLogger(KafkaSourceReaderMetrics.class);

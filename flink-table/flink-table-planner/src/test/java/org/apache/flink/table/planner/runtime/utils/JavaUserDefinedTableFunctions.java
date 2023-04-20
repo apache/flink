@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.runtime.utils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple12;
+import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.functions.TableFunction;
 
@@ -34,7 +35,10 @@ public class JavaUserDefinedTableFunctions {
 
     /** Emit inputs as long. */
     public static class JavaTableFunc0 extends TableFunction<Long> {
-        public void eval(Integer a, Long b, TimestampData c) {
+        public void eval(
+                @DataTypeHint("DATE") Integer a,
+                Long b,
+                @DataTypeHint("TIMESTAMP(0)") TimestampData c) {
             collect(a.longValue());
             collect(b);
             collect(c.getMillisecond());

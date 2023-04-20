@@ -32,8 +32,11 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 
 import org.hamcrest.CoreMatchers;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -46,6 +49,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -63,6 +67,10 @@ import static org.junit.Assert.fail;
  * calculator behavior.
  */
 public class DefaultCheckpointPlanCalculatorTest {
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     @Test
     public void testComputeAllRunningGraph() throws Exception {
@@ -172,7 +180,7 @@ public class DefaultCheckpointPlanCalculatorTest {
                             .addJobVertex(runningVertex, isRunningVertexSource)
                             .addJobVertex(notRunningVertex, isNotRunningVertexSource)
                             .setTransitToRunning(false)
-                            .build();
+                            .build(EXECUTOR_RESOURCE.getExecutor());
 
             // The first vertex is always RUNNING.
             transitVertexToState(graph, runningVertex, ExecutionState.RUNNING);
@@ -298,7 +306,9 @@ public class DefaultCheckpointPlanCalculatorTest {
                     ResultPartitionType.PIPELINED);
         }
 
-        ExecutionGraph graph = ExecutionGraphTestUtils.createSimpleTestGraph(jobVertices);
+        ExecutionGraph graph =
+                ExecutionGraphTestUtils.createExecutionGraph(
+                        EXECUTOR_RESOURCE.getExecutor(), jobVertices);
         graph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
         graph.transitionToRunning();
         graph.getAllExecutionVertices()

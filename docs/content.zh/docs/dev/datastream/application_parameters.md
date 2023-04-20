@@ -84,7 +84,7 @@ ParameterTool parameters = // ...
 parameter.getRequired("input");
 parameter.get("output", "myDefaultValue");
 parameter.getLong("expectedCount", -1L);
-parameter.getNumberOfParameters()
+parameter.getNumberOfParameters();
 // .. there are more methods available.
 ```
 

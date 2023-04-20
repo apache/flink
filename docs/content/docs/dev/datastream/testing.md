@@ -149,11 +149,8 @@ For this Flink comes with a collection of so called test harnesses, which can be
 * `TwoInputStreamOperatorTestHarness` (for operators of `ConnectedStreams` of two `DataStream`s)
 * `KeyedTwoInputStreamOperatorTestHarness` (for operators on `ConnectedStreams` of two `KeyedStream`s)
 
-To use the test harnesses a set of additional dependencies (test scoped) is needed.
-
-{{< artifact flink-test-utils withTestScope >}}
-{{< artifact flink-runtime withTestScope >}}
-{{< artifact flink-streaming-java withTestScope withTestClassifier >}}
+To use the test harnesses a set of additional dependencies is needed. Refer to the 
+[configuration]({{< ref "docs/dev/configuration/testing" >}}) section for more detail. 
 
 Now, the test harnesses can be used to push records and watermarks into your user-defined functions or custom operators, control processing time and finally assert on the output of the operator (including side outputs).
 
@@ -218,23 +215,23 @@ class StatefulFlatMapFunctionTest extends FlatSpec with Matchers with BeforeAndA
     testHarness = new OneInputStreamOperatorTestHarness[Long, Long](new StreamFlatMap(statefulFlatMap))
 
     // optionally configured the execution environment
-    testHarness.getExecutionConfig().setAutoWatermarkInterval(50);
+    testHarness.getExecutionConfig().setAutoWatermarkInterval(50)
 
     // open the test harness (will also call open() on RichFunctions)
-    testHarness.open();
+    testHarness.open()
   }
 
   "StatefulFlatMap" should "do some fancy stuff with timers and state" in {
 
 
     //push (timestamped) elements into the operator (and hence user defined function)
-    testHarness.processElement(2, 100);
+    testHarness.processElement(2, 100)
 
     //trigger event time timers by advancing the event time of the operator with a watermark
-    testHarness.processWatermark(100);
+    testHarness.processWatermark(100)
 
     //trigger proccesign time timers by advancing the processing time of the operator directly
-    testHarness.setProcessingTime(100);
+    testHarness.setProcessingTime(100)
 
     //retrieve list of emitted records for assertions
     testHarness.getOutput should contain (3)
@@ -291,7 +288,7 @@ class StatefulFlatMapTest extends FlatSpec with Matchers with BeforeAndAfter {
     testHarness = new KeyedOneInputStreamOperatorTestHarness(new StreamFlatMap(statefulFlatMapFunction),new MyStringKeySelector(), Types.STRING())
 
     // open the test harness (will also call open() on RichFunctions)
-    testHarness.open();
+    testHarness.open()
   }
 
   //tests
@@ -304,7 +301,6 @@ class StatefulFlatMapTest extends FlatSpec with Matchers with BeforeAndAfter {
 Many more examples for the usage of these test harnesses can be found in the Flink code base, e.g.:
 
 * `org.apache.flink.streaming.runtime.operators.windowing.WindowOperatorTest` is a good example for testing operators and user-defined functions, which depend on processing or event time.
-* `org.apache.flink.streaming.api.functions.sink.filesystem.LocalStreamingFileSinkTest` shows how to test a custom sink with the `AbstractStreamOperatorTestHarness`. Specifically, it uses `AbstractStreamOperatorTestHarness.snapshot` and `AbstractStreamOperatorTestHarness.initializeState` to tests its interaction with Flink's checkpointing mechanism.
 
 <span class="label label-info">Note</span> Be aware that `AbstractStreamOperatorTestHarness` and its derived classes are currently not part of the public API and can be subject to change.
 

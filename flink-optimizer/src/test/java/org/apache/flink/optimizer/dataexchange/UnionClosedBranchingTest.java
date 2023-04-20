@@ -203,11 +203,11 @@ public class UnionClosedBranchingTest extends CompilerTestBase {
                 if (!executionMode.equals(ExecutionMode.PIPELINED_FORCED)) {
                     assertTrue(
                             "Expected batch exchange, but result type is " + dsType + ".",
-                            dsType.isBlocking());
+                            dsType.isBlockingOrBlockingPersistentResultPartition());
                 } else {
                     assertFalse(
                             "Expected non-batch exchange, but result type is " + dsType + ".",
-                            dsType.isBlocking());
+                            dsType.isBlockingOrBlockingPersistentResultPartition());
                 }
             }
         }

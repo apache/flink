@@ -26,7 +26,7 @@ import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,12 +37,10 @@ import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link HBaseSerde}. */
-public class HBaseSerdeTest {
+class HBaseSerdeTest {
 
     private static final String ROW_KEY = "rowkey";
 
@@ -59,7 +57,7 @@ public class HBaseSerdeTest {
     private static final String F3COL3 = "col3";
 
     @Test
-    public void convertToNewRowTest() {
+    void convertToNewRowTest() {
         HBaseSerde serde = createHBaseSerde();
         List<List<Cell>> cellsList = prepareCells();
         List<RowData> resultRowDatas = new ArrayList<>();
@@ -70,17 +68,17 @@ public class HBaseSerdeTest {
             resultRowDataStr.add(row.toString());
         }
 
-        // this verifies RowData is not reused
-        assertFalse(resultRowDatas.get(0) == resultRowDatas.get(1));
-
-        List<String> expected = new ArrayList<>();
-        expected.add("+I(1,+I(10),+I(Hello-1,100),+I(1.01,false,Welt-1))");
-        expected.add("+I(2,+I(20),+I(Hello-2,200),+I(2.02,true,Welt-2))");
-        assertEquals(expected, resultRowDataStr);
+        assertThat(resultRowDatas.get(0))
+                .as("RowData should not be reused")
+                .isNotSameAs(resultRowDatas.get(1));
+        assertThat(resultRowDataStr)
+                .containsExactly(
+                        "+I(1,+I(10),+I(Hello-1,100),+I(1.01,false,Welt-1))",
+                        "+I(2,+I(20),+I(Hello-2,200),+I(2.02,true,Welt-2))");
     }
 
     @Test
-    public void convertToReusedRowTest() {
+    void convertToReusedRowTest() {
         HBaseSerde serde = createHBaseSerde();
         List<List<Cell>> cellsList = prepareCells();
         List<RowData> resultRowDatas = new ArrayList<>();
@@ -91,13 +89,14 @@ public class HBaseSerdeTest {
             resultRowDataStr.add(row.toString());
         }
 
-        // this verifies RowData is reused
-        assertTrue(resultRowDatas.get(0) == resultRowDatas.get(1));
+        assertThat(resultRowDatas.get(0))
+                .as("RowData should be reused")
+                .isSameAs(resultRowDatas.get(1));
 
-        List<String> expected = new ArrayList<>();
-        expected.add("+I(1,+I(10),+I(Hello-1,100),+I(1.01,false,Welt-1))");
-        expected.add("+I(2,+I(20),+I(Hello-2,200),+I(2.02,true,Welt-2))");
-        assertEquals(expected, resultRowDataStr);
+        assertThat(resultRowDataStr)
+                .containsExactly(
+                        "+I(1,+I(10),+I(Hello-1,100),+I(1.01,false,Welt-1))",
+                        "+I(2,+I(20),+I(Hello-2,200),+I(2.02,true,Welt-2))");
     }
 
     private HBaseSerde createHBaseSerde() {

@@ -399,7 +399,7 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
      * @see org.apache.flink.streaming.api.functions.ProcessFunction.Context#output(OutputTag,
      *     Object)
      */
-    public <X> DataStream<X> getSideOutput(OutputTag<X> sideOutputTag) {
+    public <X> SideOutputDataStream<X> getSideOutput(OutputTag<X> sideOutputTag) {
         sideOutputTag = clean(requireNonNull(sideOutputTag));
 
         // make a defensive copy
@@ -417,7 +417,7 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 
         SideOutputTransformation<X> sideOutputTransformation =
                 new SideOutputTransformation<>(this.getTransformation(), sideOutputTag);
-        return new DataStream<>(this.getExecutionEnvironment(), sideOutputTransformation);
+        return new SideOutputDataStream<>(this.getExecutionEnvironment(), sideOutputTransformation);
     }
 
     /**
@@ -436,5 +436,23 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
     public SingleOutputStreamOperator<T> setDescription(String description) {
         transformation.setDescription(description);
         return this;
+    }
+
+    /**
+     * Cache the intermediate result of the transformation. Only support bounded streams and
+     * currently only block mode is supported. The cache is generated lazily at the first time the
+     * intermediate result is computed. The cache will be clear when {@link
+     * CachedDataStream#invalidate()} called or the {@link StreamExecutionEnvironment} close.
+     *
+     * @return CachedDataStream that can use in later job to reuse the cached intermediate result.
+     */
+    @PublicEvolving
+    public CachedDataStream<T> cache() {
+        if (!(this.transformation instanceof PhysicalTransformation)) {
+            throw new IllegalStateException(
+                    "Cache can only be called with physical transformation or side output transformation");
+        }
+
+        return new CachedDataStream<>(this.environment, this.transformation);
     }
 }

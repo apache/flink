@@ -17,15 +17,15 @@
  */
 package org.apache.flink.api.scala.runtime
 
-import java.lang.{Boolean => JBoolean}
-import java.util.function.BiFunction
-
 import org.apache.flink.api.common.typeutils.{SerializerTestInstance, TypeSerializer}
 import org.apache.flink.testutils.DeeplyEqualsChecker
 import org.apache.flink.testutils.DeeplyEqualsChecker.CustomEqualityChecker
-import org.junit.Assert._
-import org.junit.{Ignore, Test}
 
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.{Disabled, Test}
+
+import java.lang.{Boolean => JBoolean}
+import java.util.function.BiFunction
 
 object TupleSerializerTestInstance {
   val isProduct: BiFunction[AnyRef, AnyRef, JBoolean] =
@@ -36,10 +36,7 @@ object TupleSerializerTestInstance {
 
   val compareProduct: CustomEqualityChecker =
     new CustomEqualityChecker {
-      override def check(
-          o1: AnyRef,
-          o2: AnyRef,
-          checker: DeeplyEqualsChecker): Boolean = {
+      override def check(o1: AnyRef, o2: AnyRef, checker: DeeplyEqualsChecker): Boolean = {
         val p1 = o1.asInstanceOf[Product].productIterator
         val p2 = o2.asInstanceOf[Product].productIterator
 
@@ -55,15 +52,16 @@ object TupleSerializerTestInstance {
     }
 }
 
-@Ignore("Prevents this class from being considered a test class by JUnit.")
-class TupleSerializerTestInstance[T <: Product] (
+@Disabled("Prevents this class from being considered a test class by JUnit.")
+class TupleSerializerTestInstance[T <: Product](
     serializer: TypeSerializer[T],
     typeClass: Class[T],
     length: Int,
     testData: Array[T])
   extends SerializerTestInstance[T](
     new DeeplyEqualsChecker()
-      .withCustomCheck(TupleSerializerTestInstance.isProduct,
+      .withCustomCheck(
+        TupleSerializerTestInstance.isProduct,
         TupleSerializerTestInstance.compareProduct),
     serializer,
     typeClass,
@@ -72,23 +70,13 @@ class TupleSerializerTestInstance[T <: Product] (
 
   @Test
   override def testInstantiate(): Unit = {
-    try {
-      val serializer: TypeSerializer[T] = getSerializer
-      val instance: T = serializer.createInstance
-      assertNotNull("The created instance must not be null.", instance)
-      val tpe: Class[T] = getTypeClass
-      assertNotNull("The test is corrupt: type class is null.", tpe)
-      // We cannot check this because Tuple1 instances are not actually of type Tuple1
-      // but something like Tuple1$mcI$sp
-//      assertEquals("Type of the instantiated object is wrong.", tpe, instance.getClass)
-    }
-    catch {
-      case e: Exception => {
-        System.err.println(e.getMessage)
-        e.printStackTrace()
-        fail("Exception in test: " + e.getMessage)
-      }
-    }
+    val serializer: TypeSerializer[T] = getSerializer
+    val instance: T = serializer.createInstance
+    assertThat(instance).isNotNull().withFailMessage("The created instance must not be null.")
+    val tpe: Class[T] = getTypeClass
+    assertThat(tpe).isNotNull().withFailMessage("The test is corrupt: type class is null.")
+    // We cannot check this because Tuple1 instances are not actually of type Tuple1
+    // but something like Tuple1$mcI$sp
+    //      assertEquals("Type of the instantiated object is wrong.", tpe, instance.getClass)
   }
 }
-

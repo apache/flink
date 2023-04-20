@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.operators.aggregate;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryManager;
@@ -29,12 +28,13 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.Collector;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test hash agg. */
 public class HashAggTest {
@@ -80,11 +80,6 @@ public class HashAggTest {
                     }
 
                     @Override
-                    Configuration getConf() {
-                        return new Configuration();
-                    }
-
-                    @Override
                     public IOManager getIOManager() {
                         return ioManager;
                     }
@@ -98,9 +93,9 @@ public class HashAggTest {
         this.ioManager.close();
 
         if (this.memoryManager != null) {
-            Assert.assertTrue(
-                    "Memory leak: not all segments have been returned to the memory manager.",
-                    this.memoryManager.verifyEmpty());
+            assertThat(this.memoryManager.verifyEmpty())
+                    .as("Memory leak: not all segments have been returned to the memory manager.")
+                    .isTrue();
             this.memoryManager.shutdown();
             this.memoryManager = null;
         }
@@ -135,7 +130,7 @@ public class HashAggTest {
         expected.put(4, 5L);
         expected.put(5, 11L);
         expected.put(10, null);
-        Assert.assertEquals(expected, outputMap);
+        assertThat(outputMap).isEqualTo(expected);
     }
 
     @Test
@@ -148,6 +143,6 @@ public class HashAggTest {
         addRow(GenericRowData.of(null, 5L));
         operator.endInput();
         operator.close();
-        Assert.assertEquals(30002, outputMap.size());
+        assertThat(outputMap).hasSize(30002);
     }
 }

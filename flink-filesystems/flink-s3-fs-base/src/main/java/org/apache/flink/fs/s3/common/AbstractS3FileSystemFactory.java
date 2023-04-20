@@ -25,6 +25,7 @@ import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemFactory;
+import org.apache.flink.fs.s3.common.token.AbstractS3DelegationTokenReceiver;
 import org.apache.flink.fs.s3.common.writer.S3AccessHelper;
 import org.apache.flink.runtime.util.HadoopConfigLoader;
 import org.apache.flink.util.Preconditions;
@@ -42,6 +43,7 @@ public abstract class AbstractS3FileSystemFactory implements FileSystemFactory {
 
     public static final ConfigOption<Long> PART_UPLOAD_MIN_SIZE =
             ConfigOptions.key("s3.upload.min.part.size")
+                    .longType()
                     .defaultValue(FlinkS3FileSystem.S3_MULTIPART_MIN_PART_SIZE)
                     .withDescription(
                             "This option is relevant to the Recoverable Writer and sets the min size of data that "
@@ -50,6 +52,7 @@ public abstract class AbstractS3FileSystemFactory implements FileSystemFactory {
 
     public static final ConfigOption<Integer> MAX_CONCURRENT_UPLOADS =
             ConfigOptions.key("s3.upload.max.concurrent.uploads")
+                    .intType()
                     .defaultValue(Runtime.getRuntime().availableProcessors())
                     .withDescription(
                             "This option is relevant to the Recoverable Writer and limits the number of "
@@ -60,6 +63,7 @@ public abstract class AbstractS3FileSystemFactory implements FileSystemFactory {
     /** The substring to be replaced by random entropy in checkpoint paths. */
     public static final ConfigOption<String> ENTROPY_INJECT_KEY_OPTION =
             ConfigOptions.key("s3.entropy.key")
+                    .stringType()
                     .noDefaultValue()
                     .withDescription(
                             "This option can be used to improve performance due to sharding issues on Amazon S3. "
@@ -69,6 +73,7 @@ public abstract class AbstractS3FileSystemFactory implements FileSystemFactory {
     /** The number of entropy characters, in case entropy injection is configured. */
     public static final ConfigOption<Integer> ENTROPY_INJECT_LENGTH_OPTION =
             ConfigOptions.key("s3.entropy.length")
+                    .intType()
                     .defaultValue(4)
                     .withDescription(
                             "When '"
@@ -119,6 +124,7 @@ public abstract class AbstractS3FileSystemFactory implements FileSystemFactory {
             // create the Hadoop FileSystem
             org.apache.hadoop.conf.Configuration hadoopConfig =
                     hadoopConfigLoader.getOrLoadHadoopConfig();
+            AbstractS3DelegationTokenReceiver.updateHadoopConfig(hadoopConfig);
             org.apache.hadoop.fs.FileSystem fs = createHadoopFileSystem();
             fs.initialize(getInitURI(fsUri, hadoopConfig), hadoopConfig);
 
@@ -148,7 +154,7 @@ public abstract class AbstractS3FileSystemFactory implements FileSystemFactory {
             final int maxConcurrentUploads = flinkConfig.getInteger(MAX_CONCURRENT_UPLOADS);
             final S3AccessHelper s3AccessHelper = getS3AccessHelper(fs);
 
-            return new FlinkS3FileSystem(
+            return createFlinkFileSystem(
                     fs,
                     localTmpDirectory,
                     entropyInjectionKey,
@@ -161,6 +167,24 @@ public abstract class AbstractS3FileSystemFactory implements FileSystemFactory {
         } catch (Exception e) {
             throw new IOException(e.getMessage(), e);
         }
+    }
+
+    protected FileSystem createFlinkFileSystem(
+            org.apache.hadoop.fs.FileSystem fs,
+            String localTmpDirectory,
+            String entropyInjectionKey,
+            int numEntropyChars,
+            S3AccessHelper s3AccessHelper,
+            long s3minPartSize,
+            int maxConcurrentUploads) {
+        return new FlinkS3FileSystem(
+                fs,
+                localTmpDirectory,
+                entropyInjectionKey,
+                numEntropyChars,
+                s3AccessHelper,
+                s3minPartSize,
+                maxConcurrentUploads);
     }
 
     protected abstract org.apache.hadoop.fs.FileSystem createHadoopFileSystem();

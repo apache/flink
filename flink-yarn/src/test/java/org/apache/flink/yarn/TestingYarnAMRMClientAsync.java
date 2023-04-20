@@ -57,6 +57,7 @@ public class TestingYarnAMRMClientAsync extends AMRMClientAsyncImpl<AMRMClient.C
             registerApplicationMasterFunction;
     private final TriConsumer<FinalApplicationStatus, String, String>
             unregisterApplicationMasterConsumer;
+    private final BiConsumer<List<String>, List<String>> updateBlocklistConsumer;
     private final Runnable clientInitRunnable;
     private final Runnable clientStartRunnable;
     private final Runnable clientStopRunnable;
@@ -74,6 +75,7 @@ public class TestingYarnAMRMClientAsync extends AMRMClientAsyncImpl<AMRMClient.C
             TriFunction<String, Integer, String, RegisterApplicationMasterResponse>
                     registerApplicationMasterFunction,
             TriConsumer<FinalApplicationStatus, String, String> unregisterApplicationMasterConsumer,
+            BiConsumer<List<String>, List<String>> updateBlocklistConsumer,
             Runnable clientInitRunnable,
             Runnable clientStartRunnable,
             Runnable clientStopRunnable) {
@@ -90,6 +92,7 @@ public class TestingYarnAMRMClientAsync extends AMRMClientAsyncImpl<AMRMClient.C
         this.getMatchingRequestsFunction = Preconditions.checkNotNull(getMatchingRequestsFunction);
         this.unregisterApplicationMasterConsumer =
                 Preconditions.checkNotNull(unregisterApplicationMasterConsumer);
+        this.updateBlocklistConsumer = Preconditions.checkNotNull(updateBlocklistConsumer);
         this.clientInitRunnable = Preconditions.checkNotNull(clientInitRunnable);
         this.clientStartRunnable = Preconditions.checkNotNull(clientStartRunnable);
         this.clientStopRunnable = Preconditions.checkNotNull(clientStopRunnable);
@@ -132,6 +135,11 @@ public class TestingYarnAMRMClientAsync extends AMRMClientAsyncImpl<AMRMClient.C
     public void unregisterApplicationMaster(
             FinalApplicationStatus appStatus, String appMessage, String appTrackingUrl) {
         unregisterApplicationMasterConsumer.accept(appStatus, appMessage, appTrackingUrl);
+    }
+
+    @Override
+    public void updateBlacklist(List<String> blocklistAdditions, List<String> blocklistRemovals) {
+        updateBlocklistConsumer.accept(blocklistAdditions, blocklistRemovals);
     }
 
     static Builder builder() {
@@ -177,6 +185,8 @@ public class TestingYarnAMRMClientAsync extends AMRMClientAsyncImpl<AMRMClient.C
                                         Collections::emptyList);
         private TriConsumer<FinalApplicationStatus, String, String>
                 unregisterApplicationMasterConsumer = (ignored1, ignored2, ignored3) -> {};
+        private BiConsumer<List<String>, List<String>> updateBlocklistConsumer =
+                (ignored1, ignored2) -> {};
         private Runnable clientInitRunnable = () -> {};
         private Runnable clientStartRunnable = () -> {};
         private Runnable clientStopRunnable = () -> {};
@@ -231,6 +241,12 @@ public class TestingYarnAMRMClientAsync extends AMRMClientAsyncImpl<AMRMClient.C
             return this;
         }
 
+        Builder setUpdateBlocklistConsumer(
+                BiConsumer<List<String>, List<String>> updateBlocklistConsumer) {
+            this.updateBlocklistConsumer = updateBlocklistConsumer;
+            return this;
+        }
+
         Builder setClientInitRunnable(Runnable clientInitRunnable) {
             this.clientInitRunnable = clientInitRunnable;
             return this;
@@ -256,6 +272,7 @@ public class TestingYarnAMRMClientAsync extends AMRMClientAsyncImpl<AMRMClient.C
                     setHeartbeatIntervalConsumer,
                     registerApplicationMasterFunction,
                     unregisterApplicationMasterConsumer,
+                    updateBlocklistConsumer,
                     clientInitRunnable,
                     clientStartRunnable,
                     clientStopRunnable);

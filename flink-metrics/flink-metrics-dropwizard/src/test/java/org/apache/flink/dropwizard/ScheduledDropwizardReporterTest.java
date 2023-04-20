@@ -32,18 +32,17 @@ import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.metrics.util.TestMetricGroup;
 
 import com.codahale.metrics.ScheduledReporter;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the ScheduledDropwizardReporter. */
-public class ScheduledDropwizardReporterTest {
+class ScheduledDropwizardReporterTest {
 
     @Test
-    public void testInvalidCharacterReplacement() {
+    void testInvalidCharacterReplacement() {
         ScheduledDropwizardReporter reporter =
                 new ScheduledDropwizardReporter() {
                     @Override
@@ -52,14 +51,14 @@ public class ScheduledDropwizardReporterTest {
                     }
                 };
 
-        assertEquals("abc", reporter.filterCharacters("abc"));
-        assertEquals("a--b-c-", reporter.filterCharacters("a..b.c."));
-        assertEquals("ab-c", reporter.filterCharacters("a\"b.c"));
+        assertThat(reporter.filterCharacters("abc")).isEqualTo("abc");
+        assertThat(reporter.filterCharacters("a..b.c.")).isEqualTo("a--b-c-");
+        assertThat(reporter.filterCharacters("a\"b.c")).isEqualTo("ab-c");
     }
 
     /** Tests that the registered metrics' names don't contain invalid characters. */
     @Test
-    public void testAddingMetrics() {
+    void testAddingMetrics() {
         final String scope = "scope";
         final char delimiter = '_';
         final String counterName = "testCounter";
@@ -84,17 +83,17 @@ public class ScheduledDropwizardReporterTest {
         reporter.notifyOfAddedMetric(meterWrapper, "meter", metricGroup);
 
         Map<Counter, String> counters = reporter.getCounters();
-        assertTrue(counters.containsKey(myCounter));
+        assertThat(counters).containsKey(myCounter);
 
         Map<Meter, String> meters = reporter.getMeters();
-        assertTrue(meters.containsKey(meterWrapper));
+        assertThat(meters).containsKey(meterWrapper);
 
         String expectedCounterName =
                 reporter.filterCharacters(scope)
                         + delimiter
                         + reporter.filterCharacters(counterName);
 
-        assertEquals(expectedCounterName, counters.get(myCounter));
+        assertThat(counters).containsEntry(myCounter, expectedCounterName);
     }
 
     /**
@@ -102,7 +101,7 @@ public class ScheduledDropwizardReporterTest {
      * ScheduledDropwizardReporter and the underlying Dropwizard MetricRegistry.
      */
     @Test
-    public void testMetricCleanup() {
+    void testMetricCleanup() {
         TestingScheduledDropwizardReporter rep = new TestingScheduledDropwizardReporter();
 
         MetricGroup mp = new UnregisteredMetricsGroup();
@@ -113,36 +112,36 @@ public class ScheduledDropwizardReporterTest {
         Gauge<?> g = () -> null;
 
         rep.notifyOfAddedMetric(c, "counter", mp);
-        assertEquals(1, rep.getCounters().size());
-        assertEquals(1, rep.registry.getCounters().size());
+        assertThat(rep.getCounters()).hasSize(1);
+        assertThat(rep.registry.getCounters()).hasSize(1);
 
         rep.notifyOfAddedMetric(m, "meter", mp);
-        assertEquals(1, rep.getMeters().size());
-        assertEquals(1, rep.registry.getMeters().size());
+        assertThat(rep.getMeters()).hasSize(1);
+        assertThat(rep.registry.getMeters()).hasSize(1);
 
         rep.notifyOfAddedMetric(h, "histogram", mp);
-        assertEquals(1, rep.getHistograms().size());
-        assertEquals(1, rep.registry.getHistograms().size());
+        assertThat(rep.getHistograms()).hasSize(1);
+        assertThat(rep.registry.getHistograms()).hasSize(1);
 
         rep.notifyOfAddedMetric(g, "gauge", mp);
-        assertEquals(1, rep.getGauges().size());
-        assertEquals(1, rep.registry.getGauges().size());
+        assertThat(rep.getGauges()).hasSize(1);
+        assertThat(rep.registry.getGauges()).hasSize(1);
 
         rep.notifyOfRemovedMetric(c, "counter", mp);
-        assertEquals(0, rep.getCounters().size());
-        assertEquals(0, rep.registry.getCounters().size());
+        assertThat(rep.getCounters()).hasSize(0);
+        assertThat(rep.registry.getCounters()).hasSize(0);
 
         rep.notifyOfRemovedMetric(m, "meter", mp);
-        assertEquals(0, rep.getMeters().size());
-        assertEquals(0, rep.registry.getMeters().size());
+        assertThat(rep.getMeters()).hasSize(0);
+        assertThat(rep.registry.getMeters()).hasSize(0);
 
         rep.notifyOfRemovedMetric(h, "histogram", mp);
-        assertEquals(0, rep.getHistograms().size());
-        assertEquals(0, rep.registry.getHistograms().size());
+        assertThat(rep.getHistograms()).hasSize(0);
+        assertThat(rep.registry.getHistograms()).hasSize(0);
 
         rep.notifyOfRemovedMetric(g, "gauge", mp);
-        assertEquals(0, rep.getGauges().size());
-        assertEquals(0, rep.registry.getGauges().size());
+        assertThat(rep.getGauges()).hasSize(0);
+        assertThat(rep.registry.getGauges()).hasSize(0);
     }
 
     /** Dummy test reporter. */

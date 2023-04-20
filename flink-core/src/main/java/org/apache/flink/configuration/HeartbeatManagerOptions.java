@@ -33,6 +33,7 @@ public class HeartbeatManagerOptions {
     @Documentation.Section(Documentation.Sections.EXPERT_FAULT_TOLERANCE)
     public static final ConfigOption<Long> HEARTBEAT_INTERVAL =
             key("heartbeat.interval")
+                    .longType()
                     .defaultValue(10000L)
                     .withDescription(
                             "Time interval between heartbeat RPC requests from the sender to the receiver side.");
@@ -41,12 +42,15 @@ public class HeartbeatManagerOptions {
     @Documentation.Section(Documentation.Sections.EXPERT_FAULT_TOLERANCE)
     public static final ConfigOption<Long> HEARTBEAT_TIMEOUT =
             key("heartbeat.timeout")
+                    .longType()
                     .defaultValue(50000L)
                     .withDescription(
                             "Timeout for requesting and receiving heartbeats for both sender and receiver sides.");
 
     private static final String HEARTBEAT_RPC_FAILURE_THRESHOLD_KEY =
             "heartbeat.rpc-failure-threshold";
+
+    public static final int FAILED_RPC_DETECTION_DISABLED = -1;
 
     @Documentation.Section(Documentation.Sections.EXPERT_FAULT_TOLERANCE)
     public static final ConfigOption<Integer> HEARTBEAT_RPC_FAILURE_THRESHOLD =
@@ -66,7 +70,9 @@ public class HeartbeatManagerOptions {
                                             TextElement.code(HEARTBEAT_RPC_FAILURE_THRESHOLD_KEY),
                                             TextElement.code(HEARTBEAT_TIMEOUT.key()),
                                             TextElement.code(HEARTBEAT_INTERVAL.key()),
-                                            TextElement.code("-1"))
+                                            TextElement.code(
+                                                    Integer.toString(
+                                                            FAILED_RPC_DETECTION_DISABLED)))
                                     .build());
 
     // ------------------------------------------------------------------------

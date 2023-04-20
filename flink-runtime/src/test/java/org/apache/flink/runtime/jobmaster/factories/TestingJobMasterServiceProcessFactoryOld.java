@@ -72,7 +72,7 @@ public class TestingJobMasterServiceProcessFactoryOld implements JobMasterServic
     @Override
     public ArchivedExecutionGraph createArchivedExecutionGraph(
             JobStatus jobStatus, @Nullable Throwable cause) {
-        return ArchivedExecutionGraph.createFromInitializingJob(
+        return ArchivedExecutionGraph.createSparseArchivedExecutionGraph(
                 jobId, "test-job", jobStatus, cause, null, System.currentTimeMillis());
     }
 

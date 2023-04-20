@@ -21,6 +21,7 @@ package org.apache.flink.connectors.hive;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.connector.file.table.PartitionFetcher;
 import org.apache.flink.connector.file.table.PartitionReader;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
@@ -34,8 +35,10 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
 import org.apache.flink.table.runtime.typeutils.InternalSerializers;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
@@ -55,7 +58,7 @@ import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_ENAB
 import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_MONITOR_INTERVAL;
 import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_PARTITION_INCLUDE;
 import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_PARTITION_ORDER;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test lookup join of hive tables. */
 public class HiveLookupJoinITCase {
@@ -149,6 +152,12 @@ public class HiveLookupJoinITCase {
                         STREAMING_SOURCE_ENABLE.key(),
                         STREAMING_SOURCE_PARTITION_INCLUDE.key(),
                         STREAMING_SOURCE_PARTITION_ORDER.key()));
+        // create the hive table with columnar storage.
+        tableEnv.executeSql(
+                String.format(
+                        "create table columnar_table (x string) STORED AS PARQUET "
+                                + "tblproperties ('%s'='5min')",
+                        HiveOptions.LOOKUP_JOIN_CACHE_TTL.key()));
         tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
     }
 
@@ -162,8 +171,8 @@ public class HiveLookupJoinITCase {
         lookupFunction2.open(null);
 
         // verify lookup cache TTL option is properly configured
-        assertEquals(Duration.ofMinutes(5), lookupFunction1.getReloadInterval());
-        assertEquals(Duration.ofMinutes(120), lookupFunction2.getReloadInterval());
+        assertThat(lookupFunction1.getReloadInterval()).isEqualTo(Duration.ofMinutes(5));
+        assertThat(lookupFunction2.getReloadInterval()).isEqualTo(Duration.ofMinutes(120));
     }
 
     @Test
@@ -188,7 +197,7 @@ public class HiveLookupJoinITCase {
         PartitionFetcher.Context<HiveTablePartition> context = lookupFunction.getFetcherContext();
         List<HiveTablePartition> partitions = fetcher.fetch(context);
         // fetch latest partition by partition-name
-        assertEquals(1, partitions.size());
+        assertThat(partitions).hasSize(1);
 
         PartitionReader<HiveTablePartition, RowData> reader = lookupFunction.getPartitionReader();
         reader.open(partitions);
@@ -198,17 +207,23 @@ public class HiveLookupJoinITCase {
                 ObjectIdentifier.of(hiveCatalog.getName(), "default", "partition_table");
         CatalogTable catalogTable =
                 (CatalogTable) hiveCatalog.getTable(tableIdentifier.toObjectPath());
-        GenericRowData reuse = new GenericRowData(catalogTable.getSchema().getFieldCount());
+        GenericRowData reuse =
+                new GenericRowData(catalogTable.getUnresolvedSchema().getColumns().size());
+
         TypeSerializer<RowData> serializer =
                 InternalSerializers.create(
-                        catalogTable.getSchema().toRowDataType().getLogicalType());
+                        DataTypes.ROW(
+                                        catalogTable.getUnresolvedSchema().getColumns().stream()
+                                                .map(HiveTestUtils::getType)
+                                                .toArray(DataType[]::new))
+                                .getLogicalType());
 
         RowData row;
         while ((row = reader.read(reuse)) != null) {
             res.add(serializer.copy(row));
         }
         res.sort(Comparator.comparingInt(o -> o.getInt(0)));
-        assertEquals("[+I(3,c,33,2020,09,31)]", res.toString());
+        assertThat(res.toString()).isEqualTo("[+I(3,c,33,2020,09,31)]");
     }
 
     @Test
@@ -224,7 +239,7 @@ public class HiveLookupJoinITCase {
                                         + " default_catalog.default_database.probe as p "
                                         + " join bounded_table for system_time as of p.p as b on p.x=b.x and p.y=b.y");
         List<Row> results = CollectionUtil.iteratorToList(flinkTable.execute().collect());
-        assertEquals("[+I[1, a, 10], +I[2, b, 22], +I[3, c, 33]]", results.toString());
+        assertThat(results.toString()).isEqualTo("[+I[1, a, 10], +I[2, b, 22], +I[3, c, 33]]");
     }
 
     @Test
@@ -248,9 +263,9 @@ public class HiveLookupJoinITCase {
                                         + " default_catalog.default_database.probe as p"
                                         + " join bounded_partition_table for system_time as of p.p as b on p.x=b.x and p.y=b.y");
         List<Row> results = CollectionUtil.iteratorToList(flinkTable.execute().collect());
-        assertEquals(
-                "[+I[1, a, 8, 2019, 08, 01], +I[1, a, 10, 2020, 08, 31], +I[2, b, 22, 2020, 08, 31]]",
-                results.toString());
+        assertThat(results.toString())
+                .isEqualTo(
+                        "[+I[1, a, 8, 2019, 08, 01], +I[1, a, 10, 2020, 08, 31], +I[2, b, 22, 2020, 08, 31]]");
     }
 
     @Test
@@ -278,9 +293,9 @@ public class HiveLookupJoinITCase {
                                         + " default_catalog.default_database.probe as p"
                                         + " join partition_table_1 for system_time as of p.p as b on p.x=b.x and p.y=b.y");
         List<Row> results = CollectionUtil.iteratorToList(flinkTable.execute().collect());
-        assertEquals(
-                "[+I[1, a, 10, 2020, 09, 31], +I[2, b, 22, 2020, 09, 31], +I[3, c, 33, 2020, 09, 31]]",
-                results.toString());
+        assertThat(results.toString())
+                .isEqualTo(
+                        "[+I[1, a, 10, 2020, 09, 31], +I[2, b, 22, 2020, 09, 31], +I[3, c, 33, 2020, 09, 31]]");
     }
 
     @Test
@@ -308,8 +323,8 @@ public class HiveLookupJoinITCase {
                                         + " default_catalog.default_database.probe as p"
                                         + " join partition_table_2 for system_time as of p.p as b on p.x=b.x and p.y=b.y");
         List<Row> results = CollectionUtil.iteratorToList(flinkTable.execute().collect());
-        assertEquals(
-                "[+I[1, a, 10, 2020, 08, 31], +I[2, b, 22, 2020, 08, 31]]", results.toString());
+        assertThat(results.toString())
+                .isEqualTo("[+I[1, a, 10, 2020, 08, 31], +I[2, b, 22, 2020, 08, 31]]");
     }
 
     @Test
@@ -346,8 +361,61 @@ public class HiveLookupJoinITCase {
                                         + " default_catalog.default_database.probe as p"
                                         + " join partition_table_3 for system_time as of p.p as b on p.x=b.x and p.y=b.y");
         List<Row> results = CollectionUtil.iteratorToList(flinkTable.execute().collect());
-        assertEquals(
-                "[+I[1, a, 101, 2020, 08, 01], +I[2, b, 122, 2020, 08, 01]]", results.toString());
+        assertThat(results.toString())
+                .isEqualTo("[+I[1, a, 101, 2020, 08, 01], +I[2, b, 122, 2020, 08, 01]]");
+    }
+
+    @Test
+    public void testLookupJoinWithLookUpSourceProjectPushDown() throws Exception {
+        TableEnvironment batchEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
+        batchEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+        batchEnv.useCatalog(hiveCatalog.getName());
+        batchEnv.executeSql(
+                        "insert overwrite bounded_table values (1,'a',10),(2,'b',22),(3,'c',33)")
+                .await();
+        tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
+        TableImpl flinkTable =
+                (TableImpl)
+                        tableEnv.sqlQuery(
+                                "select b.x, b.z from "
+                                        + " default_catalog.default_database.probe as p "
+                                        + " join bounded_table for system_time as of p.p as b on p.x=b.x");
+        List<Row> results = CollectionUtil.iteratorToList(flinkTable.execute().collect());
+        assertThat(results.toString())
+                .isEqualTo("[+I[1, 10], +I[1, 10], +I[2, 22], +I[2, 22], +I[3, 33]]");
+    }
+
+    @Test
+    public void testLookupJoinTableWithColumnarStorage() throws Exception {
+        // constructs test data, as the DEFAULT_SIZE of VectorizedColumnBatch is 2048, we should
+        // write as least 2048 records to the test table.
+        List<Row> testData = new ArrayList<>(4096);
+        for (int i = 0; i < 4096; i++) {
+            testData.add(Row.of(String.valueOf(i)));
+        }
+
+        // constructs test data using values table
+        TableEnvironment batchEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.DEFAULT);
+        batchEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+        batchEnv.useCatalog(hiveCatalog.getName());
+        String dataId = TestValuesTableFactory.registerData(testData);
+        batchEnv.executeSql(
+                String.format(
+                        "create table value_source(x string, p as proctime()) with ("
+                                + "'connector' = 'values', 'data-id' = '%s', 'bounded'='true')",
+                        dataId));
+        batchEnv.executeSql("insert overwrite columnar_table select x from value_source").await();
+        TableImpl flinkTable =
+                (TableImpl)
+                        tableEnv.sqlQuery(
+                                "select t.x as x1, c.x as x2 from value_source t "
+                                        + "left join columnar_table for system_time as of t.p c "
+                                        + "on t.x = c.x where c.x is null");
+        List<Row> results = CollectionUtil.iteratorToList(flinkTable.execute().collect());
+        assertThat(results)
+                .as(
+                        "All records should be able to be joined, and the final results should be empty.")
+                .isEmpty();
     }
 
     private FileSystemLookupFunction<HiveTablePartition> getLookupFunction(String tableName)
@@ -368,7 +436,7 @@ public class HiveLookupJoinITCase {
                                 tableEnvInternal
                                         .getCatalogManager()
                                         .resolveCatalogTable(catalogTable),
-                                tableEnv.getConfig().getConfiguration(),
+                                tableEnv.getConfig(),
                                 Thread.currentThread().getContextClassLoader(),
                                 false);
         FileSystemLookupFunction<HiveTablePartition> lookupFunction =

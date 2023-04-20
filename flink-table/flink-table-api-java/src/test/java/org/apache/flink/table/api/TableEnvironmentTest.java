@@ -44,10 +44,10 @@ import static org.assertj.core.api.Assertions.entry;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 /** Tests for {@link TableEnvironment}. */
-public class TableEnvironmentTest {
+class TableEnvironmentTest {
 
     @Test
-    public void testCreateTemporaryTableFromDescriptor() {
+    void testCreateTemporaryTableFromDescriptor() {
         final TableEnvironmentMock tEnv = TableEnvironmentMock.getStreamingInstance();
         final String catalog = tEnv.getCurrentCatalog();
         final String database = tEnv.getCurrentDatabase();
@@ -67,7 +67,7 @@ public class TableEnvironmentTest {
                 tEnv.getCatalogManager().getTable(ObjectIdentifier.of(catalog, database, "T"));
         assertThat(lookupResult.isPresent()).isTrue();
 
-        final CatalogBaseTable catalogTable = lookupResult.get().getTable();
+        final CatalogBaseTable catalogTable = lookupResult.get().getResolvedTable();
         assertThat(catalogTable instanceof CatalogTable).isTrue();
         assertThat(catalogTable.getUnresolvedSchema()).isEqualTo(schema);
         assertThat(catalogTable.getOptions().get("connector")).isEqualTo("fake");
@@ -75,7 +75,7 @@ public class TableEnvironmentTest {
     }
 
     @Test
-    public void testCreateTableFromDescriptor() throws Exception {
+    void testCreateTableFromDescriptor() throws Exception {
         final TableEnvironmentMock tEnv = TableEnvironmentMock.getStreamingInstance();
         final String catalog = tEnv.getCurrentCatalog();
         final String database = tEnv.getCurrentDatabase();
@@ -101,7 +101,7 @@ public class TableEnvironmentTest {
     }
 
     @Test
-    public void testTableFromDescriptor() {
+    void testTableFromDescriptor() {
         final TableEnvironmentMock tEnv = TableEnvironmentMock.getStreamingInstance();
 
         final Schema schema = Schema.newBuilder().column("f0", DataTypes.INT()).build();
@@ -120,7 +120,7 @@ public class TableEnvironmentTest {
                         crs -> {
                             assertThat(crs.isAnonymous()).isTrue();
                             assertThat(crs.getIdentifier().toList()).hasSize(1);
-                            assertThat(crs.getTable().getOptions())
+                            assertThat(crs.getResolvedTable().getOptions())
                                     .containsEntry("connector", "fake");
                         });
 
@@ -128,22 +128,22 @@ public class TableEnvironmentTest {
     }
 
     @Test
-    public void testManagedTable() {
+    void testManagedTable() {
         innerTestManagedTableFromDescriptor(false, false);
     }
 
     @Test
-    public void testManagedTableWithIgnoreExists() {
+    void testManagedTableWithIgnoreExists() {
         innerTestManagedTableFromDescriptor(true, false);
     }
 
     @Test
-    public void testTemporaryManagedTableWithIgnoreExists() {
+    void testTemporaryManagedTableWithIgnoreExists() {
         innerTestManagedTableFromDescriptor(true, true);
     }
 
     @Test
-    public void testTemporaryManagedTable() {
+    void testTemporaryManagedTable() {
         innerTestManagedTableFromDescriptor(true, true);
     }
 
@@ -196,7 +196,7 @@ public class TableEnvironmentTest {
                 tEnv.getCatalogManager().getTable(identifier);
         assertThat(lookupResult.isPresent()).isTrue();
 
-        final CatalogBaseTable catalogTable = lookupResult.get().getTable();
+        final CatalogBaseTable catalogTable = lookupResult.get().getResolvedTable();
         assertThat(catalogTable instanceof CatalogTable).isTrue();
         assertThat(catalogTable.getUnresolvedSchema()).isEqualTo(schema);
         assertThat(catalogTable.getOptions().get("a")).isEqualTo("Test");

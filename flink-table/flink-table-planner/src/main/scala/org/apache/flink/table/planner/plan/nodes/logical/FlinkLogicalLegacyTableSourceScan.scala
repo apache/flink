@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.logical
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
@@ -27,20 +26,21 @@ import org.apache.flink.table.sources._
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.{RelCollation, RelCollationTraitDef, RelNode, RelWriter}
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.logical.LogicalTableScan
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rel.{RelCollation, RelCollationTraitDef, RelNode, RelWriter}
 
 import java.util
 import java.util.function.Supplier
 
 /**
-  * Sub-class of [[TableScan]] that is a relational operator
-  * which returns the contents of a [[TableSource]] in Flink.
-  */
+ * Sub-class of [[TableScan]] that is a relational operator which returns the contents of a
+ * [[TableSource]] in Flink.
+ */
 class FlinkLogicalLegacyTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -76,19 +76,15 @@ class FlinkLogicalLegacyTableSourceScan(
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw)
+    super
+      .explainTerms(pw)
       .item("fields", tableSource.getTableSchema.getFieldNames.mkString(", "))
       .itemIf("hints", RelExplainUtil.hintsToString(getHints), !getHints.isEmpty)
   }
 
 }
 
-class FlinkLogicalLegacyTableSourceScanConverter
-  extends ConverterRule(
-    classOf[LogicalTableScan],
-    Convention.NONE,
-    FlinkConventions.LOGICAL,
-    "FlinkLogicalLegacyTableSourceScanConverter") {
+class FlinkLogicalLegacyTableSourceScanConverter(config: Config) extends ConverterRule(config) {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val scan: TableScan = call.rel(0)
@@ -103,7 +99,12 @@ class FlinkLogicalLegacyTableSourceScanConverter
 }
 
 object FlinkLogicalLegacyTableSourceScan {
-  val CONVERTER = new FlinkLogicalLegacyTableSourceScanConverter
+  val CONVERTER = new FlinkLogicalLegacyTableSourceScanConverter(
+    Config.INSTANCE.withConversion(
+      classOf[LogicalTableScan],
+      Convention.NONE,
+      FlinkConventions.LOGICAL,
+      "FlinkLogicalLegacyTableSourceScanConverter"))
 
   def isTableSourceScan(scan: TableScan): Boolean = {
     val tableSourceTable = scan.getTable.unwrap(classOf[LegacyTableSourceTable[_]])
@@ -115,16 +116,21 @@ object FlinkLogicalLegacyTableSourceScan {
       hints: util.List[RelHint],
       relOptTable: FlinkPreparingTableBase): FlinkLogicalLegacyTableSourceScan = {
     val table = relOptTable.unwrap(classOf[LegacyTableSourceTable[_]])
-    val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).replaceIfs(
-      RelCollationTraitDef.INSTANCE, new Supplier[util.List[RelCollation]]() {
-        def get: util.List[RelCollation] = {
-          if (table != null) {
-            table.getStatistic.getCollations
-          } else {
-            ImmutableList.of[RelCollation]
+    val traitSet = cluster
+      .traitSetOf(FlinkConventions.LOGICAL)
+      .replaceIfs(
+        RelCollationTraitDef.INSTANCE,
+        new Supplier[util.List[RelCollation]]() {
+          def get: util.List[RelCollation] = {
+            if (table != null) {
+              table.getStatistic.getCollations
+            } else {
+              ImmutableList.of[RelCollation]
+            }
           }
         }
-      }).simplify()
+      )
+      .simplify()
     new FlinkLogicalLegacyTableSourceScan(cluster, traitSet, hints, table)
   }
 }

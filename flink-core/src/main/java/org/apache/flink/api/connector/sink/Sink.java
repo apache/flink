@@ -19,7 +19,7 @@
 
 package org.apache.flink.api.connector.sink;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
@@ -52,8 +52,10 @@ import java.util.OptionalLong;
  * @param <CommT> The type of information needed to commit data staged by the sink
  * @param <WriterStateT> The type of the sink writer's state
  * @param <GlobalCommT> The type of the aggregated committable
+ * @deprecated Please use {@link org.apache.flink.api.connector.sink2.Sink} or a derivative.
  */
-@Experimental
+@Deprecated
+@PublicEvolving
 public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> extends Serializable {
 
     /**
@@ -129,7 +131,14 @@ public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> extends Serializ
         return Collections.emptyList();
     }
 
-    /** The interface exposes some runtime info for creating a {@link SinkWriter}. */
+    /**
+     * The interface exposes some runtime info for creating a {@link SinkWriter}.
+     *
+     * @deprecated Please migrate to {@link org.apache.flink.api.connector.sink2.Sink} and use
+     *     {@link org.apache.flink.api.connector.sink2.Sink.InitContext}.
+     */
+    @Deprecated
+    @PublicEvolving
     interface InitContext {
         /**
          * Gets the {@link UserCodeClassLoader} to load classes that are not in system's classpath,
@@ -175,7 +184,12 @@ public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> extends Serializ
     /**
      * A service that allows to get the current processing time and register timers that will
      * execute the given {@link ProcessingTimeCallback} when firing.
+     *
+     * @deprecated Please migrate to {@link org.apache.flink.api.connector.sink2.Sink} and use
+     *     {@link org.apache.flink.api.common.operators.ProcessingTimeService}.
      */
+    @Deprecated
+    @PublicEvolving
     interface ProcessingTimeService {
 
         /** Returns the current processing time. */
@@ -192,7 +206,13 @@ public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> extends Serializ
         /**
          * A callback that can be registered via {@link #registerProcessingTimer(long,
          * ProcessingTimeCallback)}.
+         *
+         * @deprecated Please migrate to {@link org.apache.flink.api.connector.sink2.Sink} and use
+         *     {@link
+         *     org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback}.
          */
+        @Deprecated
+        @PublicEvolving
         interface ProcessingTimeCallback {
 
             /**

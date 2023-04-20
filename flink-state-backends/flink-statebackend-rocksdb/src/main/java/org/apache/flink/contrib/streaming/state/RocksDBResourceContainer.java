@@ -18,6 +18,7 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
@@ -34,6 +35,7 @@ import org.rocksdb.Filter;
 import org.rocksdb.IndexType;
 import org.rocksdb.PlainTableConfig;
 import org.rocksdb.ReadOptions;
+import org.rocksdb.Statistics;
 import org.rocksdb.TableFormatConfig;
 import org.rocksdb.WriteOptions;
 import org.slf4j.Logger;
@@ -73,35 +75,42 @@ public final class RocksDBResourceContainer implements AutoCloseable {
      */
     @Nullable private final OpaqueMemoryResource<RocksDBSharedResources> sharedResources;
 
+    private final boolean enableStatistics;
+
     /** The handles to be closed when the container is closed. */
     private final ArrayList<AutoCloseable> handlesToClose;
 
+    @VisibleForTesting
     public RocksDBResourceContainer() {
-        this(new Configuration(), PredefinedOptions.DEFAULT, null, null);
+        this(new Configuration(), PredefinedOptions.DEFAULT, null, null, false);
     }
 
+    @VisibleForTesting
     public RocksDBResourceContainer(
             PredefinedOptions predefinedOptions, @Nullable RocksDBOptionsFactory optionsFactory) {
-        this(new Configuration(), predefinedOptions, optionsFactory, null);
+        this(new Configuration(), predefinedOptions, optionsFactory, null, false);
     }
 
+    @VisibleForTesting
     public RocksDBResourceContainer(
             PredefinedOptions predefinedOptions,
             @Nullable RocksDBOptionsFactory optionsFactory,
             @Nullable OpaqueMemoryResource<RocksDBSharedResources> sharedResources) {
-        this(new Configuration(), predefinedOptions, optionsFactory, sharedResources);
+        this(new Configuration(), predefinedOptions, optionsFactory, sharedResources, false);
     }
 
     public RocksDBResourceContainer(
             ReadableConfig configuration,
             PredefinedOptions predefinedOptions,
             @Nullable RocksDBOptionsFactory optionsFactory,
-            @Nullable OpaqueMemoryResource<RocksDBSharedResources> sharedResources) {
+            @Nullable OpaqueMemoryResource<RocksDBSharedResources> sharedResources,
+            boolean enableStatistics) {
 
         this.configuration = configuration;
         this.predefinedOptions = checkNotNull(predefinedOptions);
         this.optionsFactory = optionsFactory;
         this.sharedResources = sharedResources;
+        this.enableStatistics = enableStatistics;
         this.handlesToClose = new ArrayList<>();
     }
 
@@ -125,6 +134,12 @@ public final class RocksDBResourceContainer implements AutoCloseable {
         // if sharedResources is non-null, use the write buffer manager from it.
         if (sharedResources != null) {
             opt.setWriteBufferManager(sharedResources.getResourceHandle().getWriteBufferManager());
+        }
+
+        if (enableStatistics) {
+            Statistics statistics = new Statistics();
+            opt.setStatistics(statistics);
+            handlesToClose.add(statistics);
         }
 
         return opt;

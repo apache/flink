@@ -57,6 +57,7 @@ import org.apache.flink.table.operations.ExternalQueryOperation;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
+import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.typeutils.FieldInfoUtils;
@@ -78,34 +79,32 @@ public abstract class AbstractStreamTableEnvironmentImpl extends TableEnvironmen
     public AbstractStreamTableEnvironmentImpl(
             CatalogManager catalogManager,
             ModuleManager moduleManager,
+            ResourceManager resourceManager,
             TableConfig tableConfig,
             Executor executor,
             FunctionCatalog functionCatalog,
             Planner planner,
             boolean isStreamingMode,
-            ClassLoader userClassLoader,
             StreamExecutionEnvironment executionEnvironment) {
         super(
                 catalogManager,
                 moduleManager,
+                resourceManager,
                 tableConfig,
                 executor,
                 functionCatalog,
                 planner,
-                isStreamingMode,
-                userClassLoader);
+                isStreamingMode);
         this.executionEnvironment = executionEnvironment;
     }
 
     public static Executor lookupExecutor(
-            ClassLoader classLoader,
-            String executorIdentifier,
-            StreamExecutionEnvironment executionEnvironment) {
+            ClassLoader classLoader, StreamExecutionEnvironment executionEnvironment) {
         final ExecutorFactory executorFactory;
         try {
             executorFactory =
                     FactoryUtil.discoverFactory(
-                            classLoader, ExecutorFactory.class, executorIdentifier);
+                            classLoader, ExecutorFactory.class, ExecutorFactory.DEFAULT_IDENTIFIER);
         } catch (Exception e) {
             throw new TableException(
                     "Could not instantiate the executor. Make sure a planner module is on the classpath",
@@ -227,7 +226,10 @@ public abstract class AbstractStreamTableEnvironmentImpl extends TableEnvironmen
         final Transformation<T> transformation = getTransformation(table, transformations);
         executionEnvironment.addOperator(transformation);
 
-        // reconfigure whenever planner transformations are added
+        resourceManager.addJarConfiguration(tableConfig);
+
+        // Reconfigure whenever planner transformations are added
+        // We pass only the configuration to avoid reconfiguration with the rootConfiguration
         executionEnvironment.configure(tableConfig.getConfiguration());
 
         return new DataStream<>(executionEnvironment, transformation);

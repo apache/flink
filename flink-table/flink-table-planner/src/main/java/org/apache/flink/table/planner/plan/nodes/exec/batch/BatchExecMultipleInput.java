@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
 import org.apache.flink.table.data.RowData;
@@ -26,9 +28,12 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
+import org.apache.flink.table.planner.plan.nodes.exec.visitor.AbstractExecNodeExactlyOnceVisitor;
 import org.apache.flink.table.runtime.operators.multipleinput.BatchMultipleInputStreamOperatorFactory;
 import org.apache.flink.table.runtime.operators.multipleinput.TableOperatorWrapperGenerator;
 import org.apache.flink.table.runtime.operators.multipleinput.input.InputSpec;
@@ -39,6 +44,8 @@ import org.apache.commons.lang3.tuple.Pair;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Batch {@link ExecNode} for multiple input which contains a sub-graph of {@link ExecNode}s. The
@@ -71,15 +78,29 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
         implements BatchExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
     private final ExecNode<?> rootNode;
+    private final List<ExecEdge> originalEdges;
 
     public BatchExecMultipleInput(
-            List<InputProperty> inputProperties, ExecNode<?> rootNode, String description) {
-        super(inputProperties, rootNode.getOutputType(), description);
+            ReadableConfig tableConfig,
+            List<InputProperty> inputProperties,
+            ExecNode<?> rootNode,
+            List<ExecEdge> originalEdges,
+            String description) {
+        super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(BatchExecMultipleInput.class),
+                ExecNodeContext.newPersistedConfig(BatchExecMultipleInput.class, tableConfig),
+                inputProperties,
+                rootNode.getOutputType(),
+                description);
         this.rootNode = rootNode;
+        checkArgument(inputProperties.size() == originalEdges.size());
+        this.originalEdges = originalEdges;
     }
 
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         final List<Transformation<?>> inputTransforms = new ArrayList<>();
         for (ExecEdge inputEdge : getInputEdges()) {
             inputTransforms.add(inputEdge.translateToPlan(planner));
@@ -100,7 +121,7 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
 
         final MultipleInputTransformation<RowData> multipleInputTransform =
                 new MultipleInputTransformation<>(
-                        getOperatorName(planner.getTableConfig()),
+                        createTransformationName(config),
                         new BatchMultipleInputStreamOperatorFactory(
                                 inputTransformAndInputSpecPairs.stream()
                                         .map(Pair::getValue)
@@ -108,8 +129,9 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
                                 generator.getHeadWrappers(),
                                 generator.getTailWrapper()),
                         InternalTypeInfo.of(getOutputType()),
-                        generator.getParallelism());
-        multipleInputTransform.setDescription(getOperatorDescription(planner.getTableConfig()));
+                        generator.getParallelism(),
+                        false);
+        multipleInputTransform.setDescription(createTransformationDescription(config));
         inputTransformAndInputSpecPairs.forEach(
                 input -> multipleInputTransform.addInput(input.getKey()));
 
@@ -127,5 +149,31 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
         multipleInputTransform.setChainingStrategy(ChainingStrategy.HEAD_WITH_SOURCES);
 
         return multipleInputTransform;
+    }
+
+    @Override
+    public void resetTransformation() {
+        super.resetTransformation();
+        // For BatchExecMultipleInput, we also need to reset transformation for
+        // rootNode in BatchExecMultipleInput.
+        AbstractExecNodeExactlyOnceVisitor visitor =
+                new AbstractExecNodeExactlyOnceVisitor() {
+
+                    @Override
+                    protected void visitNode(ExecNode<?> node) {
+                        ((ExecNodeBase<?>) node).resetTransformation();
+                        visitInputs(node);
+                    }
+                };
+        rootNode.accept(visitor);
+    }
+
+    public List<ExecEdge> getOriginalEdges() {
+        return originalEdges;
+    }
+
+    @VisibleForTesting
+    public ExecNode<?> getRootNode() {
+        return rootNode;
     }
 }

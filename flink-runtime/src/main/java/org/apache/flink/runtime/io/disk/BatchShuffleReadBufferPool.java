@@ -36,6 +36,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Queue;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -49,10 +51,10 @@ public class BatchShuffleReadBufferPool {
     private static final Logger LOG = LoggerFactory.getLogger(BatchShuffleReadBufferPool.class);
 
     /**
-     * Memory size in bytes can be allocated from this buffer pool for a single request (8M is for
+     * Memory size in bytes can be allocated from this buffer pool for a single request (4M is for
      * better sequential read).
      */
-    private static final int NUM_BYTES_PER_REQUEST = 8 * 1024 * 1024;
+    public static final int NUM_BYTES_PER_REQUEST = 4 * 1024 * 1024;
 
     /**
      * Wait for at most 2 seconds before return if there is no enough available buffers currently.
@@ -71,13 +73,16 @@ public class BatchShuffleReadBufferPool {
     /** The number of buffers to be returned for a single request. */
     private final int numBuffersPerRequest;
 
+    /** All requesters which need to request buffers from this pool currently. */
+    private final Set<Object> bufferRequesters = ConcurrentHashMap.newKeySet();
+
     /** All available buffers in this buffer pool currently. */
     @GuardedBy("buffers")
     private final Queue<MemorySegment> buffers = new ArrayDeque<>();
 
     /** The timestamp when the last buffer is recycled or allocated. */
     @GuardedBy("buffers")
-    private long lastBufferOperationTimestamp = System.nanoTime();
+    private long lastBufferOperationTimestamp = System.currentTimeMillis();
 
     /** Whether this buffer pool has been destroyed or not. */
     @GuardedBy("buffers")
@@ -181,6 +186,18 @@ public class BatchShuffleReadBufferPool {
                 bufferSize);
     }
 
+    public void registerRequester(Object requester) {
+        bufferRequesters.add(requester);
+    }
+
+    public void unregisterRequester(Object requester) {
+        bufferRequesters.remove(requester);
+    }
+
+    public int getAverageBuffersPerRequester() {
+        return Math.max(1, numTotalBuffers / Math.max(1, bufferRequesters.size()));
+    }
+
     /**
      * Requests a collection of buffers (determined by {@link #numBuffersPerRequest}) from this
      * buffer pool.
@@ -207,7 +224,7 @@ public class BatchShuffleReadBufferPool {
             while (allocated.size() < numBuffersPerRequest) {
                 allocated.add(buffers.poll());
             }
-            lastBufferOperationTimestamp = System.nanoTime();
+            lastBufferOperationTimestamp = System.currentTimeMillis();
         }
         return allocated;
     }
@@ -240,9 +257,12 @@ public class BatchShuffleReadBufferPool {
                 return;
             }
 
+            boolean shouldNotify =
+                    buffers.size() < numBuffersPerRequest
+                            && buffers.size() + segments.size() >= numBuffersPerRequest;
             buffers.addAll(segments);
-            lastBufferOperationTimestamp = System.nanoTime();
-            if (buffers.size() >= numBuffersPerRequest) {
+            lastBufferOperationTimestamp = System.currentTimeMillis();
+            if (shouldNotify) {
                 buffers.notifyAll();
             }
         }

@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.operations;
 
+import org.apache.flink.table.api.internal.TableResultImpl;
+import org.apache.flink.table.api.internal.TableResultInternal;
+
 /** Operation to describe a USE [catalogName.]dataBaseName statement. */
 public class UseDatabaseOperation implements UseOperation {
 
@@ -40,5 +43,12 @@ public class UseDatabaseOperation implements UseOperation {
     @Override
     public String asSummaryString() {
         return String.format("USE %s.%s", catalogName, databaseName);
+    }
+
+    @Override
+    public TableResultInternal execute(Context ctx) {
+        ctx.getCatalogManager().setCurrentCatalog(catalogName);
+        ctx.getCatalogManager().setCurrentDatabase(databaseName);
+        return TableResultImpl.TABLE_RESULT_OK;
     }
 }

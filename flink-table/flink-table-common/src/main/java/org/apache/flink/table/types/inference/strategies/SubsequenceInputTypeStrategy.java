@@ -77,12 +77,11 @@ public final class SubsequenceInputTypeStrategy implements InputTypeStrategy {
             if (splitDataTypes.isPresent()) {
                 result.addAll(splitDataTypes.get());
             } else {
-                if (throwOnFailure) {
-                    throw callContext.newValidationError(
-                            "Could not infer arguments in range: [%d, %d].",
-                            argumentsSplit.startIndex, argumentsSplit.endIndex);
-                }
-                return Optional.empty();
+                return callContext.fail(
+                        throwOnFailure,
+                        "Could not infer arguments in range: [%d, %d].",
+                        argumentsSplit.startIndex,
+                        argumentsSplit.endIndex);
             }
         }
 

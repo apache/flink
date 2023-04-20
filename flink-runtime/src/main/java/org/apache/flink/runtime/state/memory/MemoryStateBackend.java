@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
@@ -72,7 +73,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * following changes:
  *
  * <pre>{@code
- * state.backend: hashmap
+ * state.backend.type: hashmap
  * state.checkpoint-storage: jobmanager
  * }</pre>
  *
@@ -289,6 +290,11 @@ public class MemoryStateBackend extends AbstractFileStateBackend
     @Override
     public boolean supportsNoClaimRestoreMode() {
         // we never share any files, all snapshots are full
+        return true;
+    }
+
+    @Override
+    public boolean supportsSavepointFormat(SavepointFormatType formatType) {
         return true;
     }
 

@@ -29,8 +29,8 @@ under the License.
 
 The sections below describe how to import the Flink project into an IDE
 for the development of Flink itself. For writing Flink programs, please
-refer to the [Java API]({{< ref "docs/dev/datastream/project-configuration" >}})
-and the [Scala API]({{< ref "docs/dev/datastream/project-configuration" >}})
+refer to the [Java API]({{< ref "docs/dev/configuration/overview" >}})
+and the [Scala API]({{< ref "docs/dev/configuration/overview" >}})
 quickstart guides.
 
 {{< hint info >}}
@@ -62,7 +62,7 @@ git config blame.ignoreRevsFile .git-blame-ignore-revs
 ## IntelliJ IDEA
 
 The following guide has been written for [IntelliJ IDEA](https://www.jetbrains.com/idea/download/)
-2020.3. Some details might differ in other versions. Please make sure to follow all steps
+2021.2. Some details might differ in other versions. Please make sure to follow all steps
 accurately.
 
 ### Importing Flink
@@ -135,17 +135,26 @@ and install it as follows. Make sure to never update this plugin.
 
 Flink uses [Spotless](https://github.com/diffplug/spotless/tree/main/plugin-maven) together with
 [google-java-format](https://github.com/google/google-java-format) to format the Java code.
+For Scala, it uses Spotless with [scalafmt](https://scalameta.org/scalafmt/).
 
 It is recommended to automatically format your code by applying the following settings:
 
 1. Go to "Settings" → "Other Settings" → "google-java-format Settings".
 2. Tick the checkbox to enable the plugin.
 3. Change the code style to "Android Open Source Project (AOSP) style".
-4. Go to "Settings" → "Other Settings" → "Save Actions".
-5. Under "General", enable your preferred settings for when to format the code, e.g.
-   "Activate save actions on save".
-6. Under "Formatting Actions", select "Optimize imports" and "Reformat file".
-7. Under "File Path Inclusions", add an entry for `.*\.java` to avoid formatting other file types.
+4. Go to "Settings" → Editor → Code Style → Scala.
+5. Change the "Formatter" to "scalafmt".
+6. Go to "Settings" → "Tools" → "Actions on Save".
+7. Under "Formatting Actions", select "Optimize imports" and "Reformat file".
+8. From the "All file types list" next to "Reformat code", select Java and Scala.
+
+For earlier IntelliJ IDEA versions:
+6. Go to "Settings" → "Other Settings" → "Save Actions".
+7. Under "General", enable your preferred settings for when to format the code, e.g. "Activate save actions on save".
+8. Under "Formatting Actions", select "Optimize imports" and "Reformat file".
+9. Under "File Path Inclusions", add an entry for `.*\.java` and `.*\.scala` to avoid formatting other file types.
+
+You can also format the whole project (both Java and Scala) via Maven by using `mvn spotless:apply`.
 
 #### Checkstyle For Java
 
@@ -178,16 +187,6 @@ You can now import the Checkstyle configuration for the Java code formatter.
 
 To verify the setup, click "View" → "Tool Windows" → "Checkstyle" and find the "Check Module"
 button in the opened tool window. It should report no violations.
-
-#### Checkstyle For Scala
-
-Enable [Scalastyle](http://www.scalastyle.org/) as follows:
-
-1. Go to "Settings" → "Editor" → "Inspections".
-2. Search for "Scala style inspection" and enable it.
-
-Now copy the file `tools/maven/scalastyle-config.xml` into the `.idea/` or `project/` folder of your
-cloned repository.
 
 #### Python for PyFlink
 

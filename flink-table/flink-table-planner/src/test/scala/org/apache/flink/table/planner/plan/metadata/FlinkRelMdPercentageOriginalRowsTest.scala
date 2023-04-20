@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.metadata
 
 import org.junit.Assert._
@@ -25,38 +24,49 @@ class FlinkRelMdPercentageOriginalRowsTest extends FlinkRelMdHandlerTestBase {
 
   @Test
   def testGetPercentageOriginalRowsOnTableScan(): Unit = {
-    Array(studentLogicalScan, studentBatchScan, studentStreamScan).foreach { scan =>
-      assertEquals(1.0, mq.getPercentageOriginalRows(scan))
+    Array(studentLogicalScan, studentBatchScan, studentStreamScan).foreach {
+      scan => assertEquals(1.0, mq.getPercentageOriginalRows(scan))
     }
 
-    Array(empLogicalScan, empBatchScan, empStreamScan).foreach { scan =>
-      assertEquals(1.0, mq.getPercentageOriginalRows(scan))
+    Array(empLogicalScan, empBatchScan, empStreamScan).foreach {
+      scan => assertEquals(1.0, mq.getPercentageOriginalRows(scan))
     }
   }
 
   @Test
   def testGetPercentageOriginalRowsOnExpand(): Unit = {
-    Array(logicalExpand, flinkLogicalExpand, batchExpand, streamExpand).foreach { expand =>
-      assertEquals(1.0, mq.getPercentageOriginalRows(expand))
+    Array(logicalExpand, flinkLogicalExpand, batchExpand, streamExpand).foreach {
+      expand => assertEquals(1.0, mq.getPercentageOriginalRows(expand))
     }
   }
 
   @Test
   def testGetPercentageOriginalRowsOnRank(): Unit = {
-    Array(logicalRank, flinkLogicalRank, batchLocalRank, batchGlobalRank, streamRank,
-      logicalRowNumber, flinkLogicalRowNumber, streamRowNumber).foreach { rank =>
-      assertEquals(1.0, mq.getPercentageOriginalRows(rank))
-    }
+    Array(
+      logicalRank,
+      flinkLogicalRank,
+      batchLocalRank,
+      batchGlobalRank,
+      streamRank,
+      logicalRowNumber,
+      flinkLogicalRowNumber,
+      streamRowNumber).foreach(rank => assertEquals(1.0, mq.getPercentageOriginalRows(rank)))
   }
 
   @Test
   def testGetPercentageOriginalRowsOnAggregate(): Unit = {
-    Array(logicalAgg, flinkLogicalAgg, batchGlobalAggWithLocal, batchGlobalAggWithoutLocal,
-      streamGlobalAggWithLocal, streamGlobalAggWithoutLocal, logicalAggWithAuxGroup,
-      flinkLogicalAggWithAuxGroup, batchGlobalAggWithLocalWithAuxGroup,
-      batchGlobalAggWithoutLocalWithAuxGroup).foreach { agg =>
-      assertEquals(1.0, mq.getPercentageOriginalRows(agg))
-    }
+    Array(
+      logicalAgg,
+      flinkLogicalAgg,
+      batchGlobalAggWithLocal,
+      batchGlobalAggWithoutLocal,
+      streamGlobalAggWithLocal,
+      streamGlobalAggWithoutLocal,
+      logicalAggWithAuxGroup,
+      flinkLogicalAggWithAuxGroup,
+      batchGlobalAggWithLocalWithAuxGroup,
+      batchGlobalAggWithoutLocalWithAuxGroup
+    ).foreach(agg => assertEquals(1.0, mq.getPercentageOriginalRows(agg)))
   }
 
   @Test

@@ -19,9 +19,11 @@
 package org.apache.flink.table.planner.connectors;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
@@ -35,19 +37,30 @@ import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.ExternalCatalogTable;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.connector.RowLevelModificationScanContext;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
+import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelDelete;
+import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelUpdate;
 import org.apache.flink.table.connector.sink.abilities.SupportsWritingMetadata;
+import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.operations.CollectModifyOperation;
 import org.apache.flink.table.operations.ExternalModifyOperation;
 import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.plan.abilities.sink.OverwriteSpec;
+import org.apache.flink.table.planner.plan.abilities.sink.RowLevelDeleteSpec;
+import org.apache.flink.table.planner.plan.abilities.sink.RowLevelUpdateSpec;
 import org.apache.flink.table.planner.plan.abilities.sink.SinkAbilitySpec;
 import org.apache.flink.table.planner.plan.abilities.sink.WritingMetadataSpec;
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalSink;
+import org.apache.flink.table.planner.plan.schema.TableSourceTable;
+import org.apache.flink.table.planner.utils.RowLevelModificationContextUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeTransformations;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -58,17 +71,29 @@ import org.apache.flink.table.types.utils.TypeConversions;
 
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.Project;
+import org.apache.calcite.rel.core.TableModify;
 import org.apache.calcite.rel.hint.RelHint;
+import org.apache.calcite.rel.logical.LogicalFilter;
+import org.apache.calcite.rel.logical.LogicalTableModify;
+import org.apache.calcite.rel.logical.LogicalTableScan;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.rel.type.RelDataTypeFieldImpl;
+import org.apache.calcite.rel.type.RelRecordType;
+import org.apache.calcite.rel.type.StructKind;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexUtil;
 
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -132,6 +157,7 @@ public final class DynamicSinkUtils {
                 Collections.emptyMap(), // dynamicOptions
                 contextResolvedTable,
                 Collections.emptyMap(), // staticPartitions
+                null, // targetColumns
                 false,
                 tableSink);
     }
@@ -154,6 +180,7 @@ public final class DynamicSinkUtils {
                 Collections.emptyMap(),
                 externalModifyOperation.getContextResolvedTable(),
                 Collections.emptyMap(),
+                null, // targetColumns
                 false,
                 tableSink);
     }
@@ -173,6 +200,7 @@ public final class DynamicSinkUtils {
                 sinkModifyOperation.getDynamicOptions(),
                 sinkModifyOperation.getContextResolvedTable(),
                 sinkModifyOperation.getStaticPartitions(),
+                sinkModifyOperation.getTargetColumns(),
                 sinkModifyOperation.isOverwrite(),
                 sink);
     }
@@ -183,6 +211,7 @@ public final class DynamicSinkUtils {
             Map<String, String> dynamicOptions,
             ContextResolvedTable contextResolvedTable,
             Map<String, String> staticPartitions,
+            int[][] targetColumns,
             boolean isOverwrite,
             DynamicTableSink sink) {
         final DataTypeFactory dataTypeFactory =
@@ -193,6 +222,14 @@ public final class DynamicSinkUtils {
 
         List<SinkAbilitySpec> sinkAbilitySpecs = new ArrayList<>();
 
+        boolean isDelete = false;
+        boolean isUpdate = false;
+        if (input instanceof LogicalTableModify) {
+            LogicalTableModify tableModify = (LogicalTableModify) input;
+            isDelete = tableModify.getOperation() == TableModify.Operation.DELETE;
+            isUpdate = tableModify.getOperation() == TableModify.Operation.UPDATE;
+        }
+
         // 1. prepare table sink
         prepareDynamicSink(
                 tableDebugName,
@@ -201,12 +238,41 @@ public final class DynamicSinkUtils {
                 sink,
                 contextResolvedTable.getResolvedTable(),
                 sinkAbilitySpecs);
+
+        // rewrite rel node for delete
+        if (isDelete) {
+            input =
+                    convertDelete(
+                            (LogicalTableModify) input,
+                            sink,
+                            contextResolvedTable,
+                            tableDebugName,
+                            dataTypeFactory,
+                            typeFactory,
+                            sinkAbilitySpecs);
+        } else if (isUpdate) {
+            input =
+                    convertUpdate(
+                            (LogicalTableModify) input,
+                            sink,
+                            contextResolvedTable,
+                            tableDebugName,
+                            dataTypeFactory,
+                            typeFactory,
+                            sinkAbilitySpecs);
+        }
+
         sinkAbilitySpecs.forEach(spec -> spec.apply(sink));
 
         // 2. validate the query schema to the sink's table schema and apply cast if possible
-        final RelNode query =
-                validateSchemaAndApplyImplicitCast(
-                        input, schema, tableDebugName, dataTypeFactory, typeFactory);
+        RelNode query = input;
+        // skip validate and implicit cast when it's delete/update since it has been done before
+        if (!isDelete && !isUpdate) {
+            query =
+                    validateSchemaAndApplyImplicitCast(
+                            input, schema, tableDebugName, dataTypeFactory, typeFactory);
+        }
+
         relBuilder.push(query);
 
         // 3. convert the sink's table schema to the consumed data type of the sink
@@ -227,29 +293,52 @@ public final class DynamicSinkUtils {
                 contextResolvedTable,
                 sink,
                 staticPartitions,
+                targetColumns,
                 sinkAbilitySpecs.toArray(new SinkAbilitySpec[0]));
     }
 
-    /**
-     * Checks if the given query can be written into the given sink's table schema.
-     *
-     * <p>It checks whether field types are compatible (types should be equal including precisions).
-     * If types are not compatible, but can be implicitly cast, a cast projection will be applied.
-     * Otherwise, an exception will be thrown.
-     */
+    /** Checks if the given query can be written into the given sink's table schema. */
     public static RelNode validateSchemaAndApplyImplicitCast(
             RelNode query,
             ResolvedSchema sinkSchema,
             String tableDebugName,
             DataTypeFactory dataTypeFactory,
             FlinkTypeFactory typeFactory) {
-        final RowType queryType = FlinkTypeFactory.toLogicalRowType(query.getRowType());
-        final List<RowField> queryFields = queryType.getFields();
-
         final RowType sinkType =
                 (RowType)
                         fixSinkDataType(dataTypeFactory, sinkSchema.toSinkRowDataType())
                                 .getLogicalType();
+
+        return validateSchemaAndApplyImplicitCast(query, sinkType, tableDebugName, typeFactory);
+    }
+
+    /** Checks if the given query can be written into the given target types. */
+    public static RelNode validateSchemaAndApplyImplicitCast(
+            RelNode query,
+            List<DataType> targetTypes,
+            String tableDebugName,
+            DataTypeFactory dataTypeFactory,
+            FlinkTypeFactory typeFactory) {
+        final RowType sinkType =
+                (RowType)
+                        fixSinkDataType(
+                                        dataTypeFactory,
+                                        DataTypes.ROW(targetTypes.toArray(new DataType[0])))
+                                .getLogicalType();
+        return validateSchemaAndApplyImplicitCast(query, sinkType, tableDebugName, typeFactory);
+    }
+
+    /**
+     * Checks if the given query can be written into the given sink type.
+     *
+     * <p>It checks whether field types are compatible (types should be equal including precisions).
+     * If types are not compatible, but can be implicitly cast, a cast projection will be applied.
+     * Otherwise, an exception will be thrown.
+     */
+    private static RelNode validateSchemaAndApplyImplicitCast(
+            RelNode query, RowType sinkType, String tableDebugName, FlinkTypeFactory typeFactory) {
+        final RowType queryType = FlinkTypeFactory.toLogicalRowType(query.getRowType());
+        final List<RowField> queryFields = queryType.getFields();
         final List<RowField> sinkFields = sinkType.getFields();
 
         if (queryFields.size() != sinkFields.size()) {
@@ -280,6 +369,446 @@ public final class DynamicSinkUtils {
             return RelOptUtil.createCastRel(query, castRelDataType, true);
         }
         return query;
+    }
+
+    private static RelNode convertDelete(
+            LogicalTableModify tableModify,
+            DynamicTableSink sink,
+            ContextResolvedTable contextResolvedTable,
+            String tableDebugName,
+            DataTypeFactory dataTypeFactory,
+            FlinkTypeFactory typeFactory,
+            List<SinkAbilitySpec> sinkAbilitySpecs) {
+        if (!(sink instanceof SupportsRowLevelDelete)) {
+            throw new UnsupportedOperationException(
+                    String.format(
+                            "Can't perform delete operation of the table %s because the corresponding dynamic table sink has not yet implemented %s.",
+                            tableDebugName, SupportsRowLevelDelete.class.getName()));
+        }
+
+        // get the row-level delete info
+        SupportsRowLevelDelete supportsRowLevelDelete = (SupportsRowLevelDelete) sink;
+        RowLevelModificationScanContext context = RowLevelModificationContextUtils.getScanContext();
+        SupportsRowLevelDelete.RowLevelDeleteInfo rowLevelDeleteInfo =
+                supportsRowLevelDelete.applyRowLevelDelete(context);
+        sinkAbilitySpecs.add(
+                new RowLevelDeleteSpec(rowLevelDeleteInfo.getRowLevelDeleteMode(), context));
+
+        if (rowLevelDeleteInfo.getRowLevelDeleteMode()
+                == SupportsRowLevelDelete.RowLevelDeleteMode.DELETED_ROWS) {
+            // convert the LogicalTableModify node to a rel node representing row-level delete
+            return convertToRowLevelDelete(
+                    tableModify,
+                    contextResolvedTable,
+                    rowLevelDeleteInfo,
+                    tableDebugName,
+                    dataTypeFactory,
+                    typeFactory);
+        } else if (rowLevelDeleteInfo.getRowLevelDeleteMode()
+                == SupportsRowLevelDelete.RowLevelDeleteMode.REMAINING_ROWS) {
+            // if it's for remaining row, convert the predicate in where clause
+            // to the negative predicate
+            convertPredicateToNegative(tableModify);
+            // convert the LogicalTableModify node to a rel node representing row-level delete
+            return convertToRowLevelDelete(
+                    tableModify,
+                    contextResolvedTable,
+                    rowLevelDeleteInfo,
+                    tableDebugName,
+                    dataTypeFactory,
+                    typeFactory);
+        } else {
+            throw new TableException(
+                    "Unknown delete mode: " + rowLevelDeleteInfo.getRowLevelDeleteMode());
+        }
+    }
+
+    private static RelNode convertUpdate(
+            LogicalTableModify tableModify,
+            DynamicTableSink sink,
+            ContextResolvedTable contextResolvedTable,
+            String tableDebugName,
+            DataTypeFactory dataTypeFactory,
+            FlinkTypeFactory typeFactory,
+            List<SinkAbilitySpec> sinkAbilitySpecs) {
+        if (!(sink instanceof SupportsRowLevelUpdate)) {
+            throw new UnsupportedOperationException(
+                    String.format(
+                            "Can't perform update operation of the table %s because the corresponding dynamic table sink has not yet implemented %s.",
+                            tableDebugName, SupportsRowLevelUpdate.class.getName()));
+        }
+        SupportsRowLevelUpdate supportsRowLevelUpdate = (SupportsRowLevelUpdate) sink;
+        ResolvedSchema resolvedSchema = contextResolvedTable.getResolvedSchema();
+        List<Column> updatedColumns = getUpdatedColumns(tableModify, resolvedSchema);
+        RowLevelModificationScanContext context = RowLevelModificationContextUtils.getScanContext();
+        SupportsRowLevelUpdate.RowLevelUpdateInfo updateInfo =
+                supportsRowLevelUpdate.applyRowLevelUpdate(updatedColumns, context);
+        if (updateInfo.getRowLevelUpdateMode()
+                        != SupportsRowLevelUpdate.RowLevelUpdateMode.UPDATED_ROWS
+                && updateInfo.getRowLevelUpdateMode()
+                        != SupportsRowLevelUpdate.RowLevelUpdateMode.ALL_ROWS) {
+            throw new IllegalArgumentException(
+                    "Unknown update mode:" + updateInfo.getRowLevelUpdateMode());
+        }
+        sinkAbilitySpecs.add(
+                new RowLevelUpdateSpec(
+                        updatedColumns, updateInfo.getRowLevelUpdateMode(), context));
+        return convertToRowLevelUpdate(
+                tableModify,
+                contextResolvedTable,
+                updateInfo,
+                tableDebugName,
+                dataTypeFactory,
+                typeFactory);
+    }
+
+    private static List<Column> getUpdatedColumns(
+            LogicalTableModify tableModify, ResolvedSchema resolvedSchema) {
+        List<Column> updatedColumns = new ArrayList<>();
+        List<String> updatedColumnNames = tableModify.getUpdateColumnList();
+        for (Column column : resolvedSchema.getColumns()) {
+            if (updatedColumnNames.contains(column.getName())) {
+                updatedColumns.add(column);
+            }
+        }
+        return updatedColumns;
+    }
+
+    /** Convert tableModify node to a rel node representing for row-level delete. */
+    private static RelNode convertToRowLevelDelete(
+            LogicalTableModify tableModify,
+            ContextResolvedTable contextResolvedTable,
+            SupportsRowLevelDelete.RowLevelDeleteInfo rowLevelDeleteInfo,
+            String tableDebugName,
+            DataTypeFactory dataTypeFactory,
+            FlinkTypeFactory typeFactory) {
+        // get the required columns
+        ResolvedSchema resolvedSchema = contextResolvedTable.getResolvedSchema();
+        Optional<List<Column>> optionalColumns = rowLevelDeleteInfo.requiredColumns();
+        List<Column> requiredColumns = optionalColumns.orElse(resolvedSchema.getColumns());
+        // get the root table scan which we may need rewrite it
+        LogicalTableScan tableScan = getSourceTableScan(tableModify);
+        // get the index for the required columns and extra meta cols if necessary
+        Tuple2<List<Integer>, List<MetadataColumn>> colsIndexAndExtraMetaCols =
+                getRequireColumnsIndexAndExtraMetaCols(tableScan, requiredColumns, resolvedSchema);
+        List<Integer> colIndexes = colsIndexAndExtraMetaCols.f0;
+        List<MetadataColumn> metadataColumns = colsIndexAndExtraMetaCols.f1;
+        // if meta columns size is greater than 0, we need to modify the underlying
+        // LogicalTableScan to make it can read meta column
+        if (metadataColumns.size() > 0) {
+            resolvedSchema =
+                    addExtraMetaCols(
+                            tableModify, tableScan, tableDebugName, metadataColumns, typeFactory);
+        }
+        // create a project only select the required columns for delete
+        return projectColumnsForDelete(
+                tableModify,
+                resolvedSchema,
+                colIndexes,
+                tableDebugName,
+                dataTypeFactory,
+                typeFactory);
+    }
+
+    /** Convert the predicate in WHERE clause to the negative predicate. */
+    private static void convertPredicateToNegative(LogicalTableModify tableModify) {
+        RexBuilder rexBuilder = tableModify.getCluster().getRexBuilder();
+        RelNode input = tableModify.getInput();
+        LogicalFilter newFilter;
+        // if the input is a table scan, there's no predicate which means it's always true
+        // the negative predicate should be false
+        if (input.getInput(0) instanceof LogicalTableScan) {
+            newFilter = LogicalFilter.create(input.getInput(0), rexBuilder.makeLiteral(false));
+        } else {
+            LogicalFilter filter = (LogicalFilter) input.getInput(0);
+            // create a filter with negative predicate
+            RexNode complementFilter =
+                    rexBuilder.makeCall(
+                            filter.getCondition().getType(),
+                            FlinkSqlOperatorTable.NOT,
+                            Collections.singletonList(filter.getCondition()));
+            newFilter = filter.copy(filter.getTraitSet(), filter.getInput(), complementFilter);
+        }
+        // replace with the new filter
+        input.replaceInput(0, newFilter);
+    }
+
+    /** Get the index for the required columns and extra meta cols if necessary. */
+    private static Tuple2<List<Integer>, List<MetadataColumn>>
+            getRequireColumnsIndexAndExtraMetaCols(
+                    LogicalTableScan tableScan,
+                    List<Column> requiredColumns,
+                    ResolvedSchema resolvedSchema) {
+        // index list for the required columns
+        List<Integer> columnIndexList = new ArrayList<>();
+        // extra meta cols
+        List<MetadataColumn> extraMetadataColumns = new ArrayList<>();
+        List<String> fieldNames = resolvedSchema.getColumnNames();
+        final TableSourceTable sourceTable = tableScan.getTable().unwrap(TableSourceTable.class);
+        DynamicTableSource dynamicTableSource = sourceTable.tableSource();
+        int additionCols = 0;
+        // iterate for each required column
+        for (Column column : requiredColumns) {
+            int index = fieldNames.indexOf(column.getName());
+            // if we can't find the column, we may need to add extra column
+            if (index <= -1) {
+                // we only consider add metadata column
+                if (column instanceof Column.MetadataColumn) {
+                    // need to add meta column
+                    columnIndexList.add(fieldNames.size() + additionCols);
+                    if (!(dynamicTableSource instanceof SupportsReadingMetadata)) {
+                        throw new UnsupportedOperationException(
+                                String.format(
+                                        "The table source don't support reading metadata, but the require columns contains the meta columns: %s.",
+                                        column));
+                    }
+                    // list what metas the source supports to read
+                    SupportsReadingMetadata supportsReadingMetadata =
+                            (SupportsReadingMetadata) dynamicTableSource;
+                    Map<String, DataType> readableMetadata =
+                            supportsReadingMetadata.listReadableMetadata();
+                    // check the source can read the meta column
+                    String metaCol =
+                            ((MetadataColumn) column).getMetadataKey().orElse(column.getName());
+                    if (!readableMetadata.containsKey(metaCol)) {
+                        throw new IllegalArgumentException(
+                                String.format(
+                                        "Expect to read the meta column %s, but the table source for table %s doesn't support read the metadata column."
+                                                + "Please make sure the readable metadata for the source contains %s.",
+                                        column,
+                                        UnresolvedIdentifier.of(
+                                                tableScan.getTable().getQualifiedName()),
+                                        metaCol));
+                    }
+                    // mark it as extra col
+                    additionCols += 1;
+                    DataType dataType = readableMetadata.get(metaCol);
+                    if (!dataType.equals(column.getDataType())) {
+                        throw new IllegalArgumentException(
+                                String.format(
+                                        "Un-matched data type: the required column %s has datatype %s, but the data type in readable metadata for the table %s has data type %s. ",
+                                        column,
+                                        column.getDataType(),
+                                        UnresolvedIdentifier.of(
+                                                tableScan.getTable().getQualifiedName()),
+                                        dataType));
+                    }
+                    extraMetadataColumns.add((MetadataColumn) column);
+                } else {
+                    throw new IllegalArgumentException("Unknown required column " + column);
+                }
+            } else {
+                columnIndexList.add(index);
+            }
+        }
+        return Tuple2.of(columnIndexList, extraMetadataColumns);
+    }
+
+    private static LogicalTableScan getSourceTableScan(RelNode relNode) {
+        while (!(relNode instanceof LogicalTableScan)) {
+            relNode = relNode.getInput(0);
+        }
+        return (LogicalTableScan) relNode;
+    }
+
+    /** Convert tableModify node to a RelNode representing for row-level update. */
+    private static RelNode convertToRowLevelUpdate(
+            LogicalTableModify tableModify,
+            ContextResolvedTable contextResolvedTable,
+            SupportsRowLevelUpdate.RowLevelUpdateInfo rowLevelUpdateInfo,
+            String tableDebugName,
+            DataTypeFactory dataTypeFactory,
+            FlinkTypeFactory typeFactory) {
+        // get the required columns
+        ResolvedSchema resolvedSchema = contextResolvedTable.getResolvedSchema();
+        Optional<List<Column>> optionalColumns = rowLevelUpdateInfo.requiredColumns();
+        List<Column> requiredColumns = optionalColumns.orElse(resolvedSchema.getColumns());
+        // get the root table scan which we may need rewrite it
+        LogicalTableScan tableScan = getSourceTableScan(tableModify);
+        Tuple2<List<Integer>, List<MetadataColumn>> colsIndexAndExtraMetaCols =
+                getRequireColumnsIndexAndExtraMetaCols(tableScan, requiredColumns, resolvedSchema);
+        List<Integer> updatedIndexes = colsIndexAndExtraMetaCols.f0;
+        List<MetadataColumn> metadataColumns = colsIndexAndExtraMetaCols.f1;
+        // if meta columns size is greater than 0, we need to modify the underlying
+        // LogicalTableScan to make it can read meta column
+        int originColsCount = resolvedSchema.getColumnCount();
+        if (metadataColumns.size() > 0) {
+            resolvedSchema =
+                    addExtraMetaCols(
+                            tableModify, tableScan, tableDebugName, metadataColumns, typeFactory);
+        }
+
+        return projectColumnsForUpdate(
+                tableModify,
+                originColsCount,
+                resolvedSchema,
+                updatedIndexes,
+                rowLevelUpdateInfo.getRowLevelUpdateMode(),
+                tableDebugName,
+                dataTypeFactory,
+                typeFactory);
+    }
+
+    // create a project only select the required column or expression for update
+    private static RelNode projectColumnsForUpdate(
+            LogicalTableModify tableModify,
+            int originColsCount,
+            ResolvedSchema resolvedSchema,
+            List<Integer> updatedIndexes,
+            SupportsRowLevelUpdate.RowLevelUpdateMode updateMode,
+            String tableDebugName,
+            DataTypeFactory dataTypeFactory,
+            FlinkTypeFactory typeFactory) {
+        RexBuilder rexBuilder = tableModify.getCluster().getRexBuilder();
+        // the updated columns, whose order is same to user's update clause
+        List<String> updatedColumnNames = tableModify.getUpdateColumnList();
+        List<RexNode> newRexNodeList = new ArrayList<>();
+        List<String> newFieldNames = new ArrayList<>();
+        List<DataType> updateTargetDataTypes = new ArrayList<>();
+        Project project = (Project) (tableModify.getInput());
+
+        LogicalFilter filter = null;
+        // if the update mode is all rows, we need to know the filter to rewrite
+        // the update expression to IF(filter, updated_expr, col_expr)
+        if (updateMode == SupportsRowLevelUpdate.RowLevelUpdateMode.ALL_ROWS
+                && project.getInput() instanceof LogicalFilter) {
+            filter = (LogicalFilter) project.getInput();
+        }
+
+        // the rex nodes for the project are like: index for all col, update expressions for the
+        // updated columns
+        List<RexNode> oldRexNodes = project.getProjects();
+        for (int index : updatedIndexes) {
+            String colName = resolvedSchema.getColumnNames().get(index);
+            // if the updated cols contain the col to be selected, the updated expression should
+            // be in the project node
+            if (updatedColumnNames.contains(colName)) {
+                // get the index of the updated column in all updated columns
+                int i = updatedColumnNames.indexOf(colName);
+                // get the update expression
+                RexNode rexNode = oldRexNodes.get(originColsCount + i);
+                if (filter != null) {
+                    rexNode =
+                            rexBuilder.makeCall(
+                                    FlinkSqlOperatorTable.IF,
+                                    Arrays.asList(
+                                            filter.getCondition(),
+                                            rexNode,
+                                            rexBuilder.makeInputRef(project.getInput(), index)));
+                }
+                newRexNodeList.add(rexNode);
+            } else {
+                newRexNodeList.add(rexBuilder.makeInputRef(project.getInput(), index));
+            }
+            newFieldNames.add(colName);
+            updateTargetDataTypes.add(resolvedSchema.getColumnDataTypes().get(index));
+        }
+
+        project =
+                project.copy(
+                        project.getTraitSet(),
+                        // if filter is not null, we need to remove the filter in the plan since we
+                        // have rewritten the expression to IF(filter, updated_expr, col_expr)
+                        filter != null ? filter.getInput() : project.getInput(),
+                        newRexNodeList,
+                        RexUtil.createStructType(typeFactory, newRexNodeList, newFieldNames, null));
+        return validateSchemaAndApplyImplicitCast(
+                project, updateTargetDataTypes, tableDebugName, dataTypeFactory, typeFactory);
+    }
+
+    /**
+     * Add extra meta columns for underlying table scan, return a new resolve schema after adding
+     * extra meta columns.
+     */
+    private static ResolvedSchema addExtraMetaCols(
+            LogicalTableModify tableModify,
+            LogicalTableScan tableScan,
+            String tableDebugName,
+            List<MetadataColumn> metadataColumns,
+            FlinkTypeFactory typeFactory) {
+        final TableSourceTable sourceTable = tableScan.getTable().unwrap(TableSourceTable.class);
+        DynamicTableSource dynamicTableSource = sourceTable.tableSource();
+        // get old schema and new schema after add some cols
+        ResolvedSchema oldSchema = sourceTable.contextResolvedTable().getResolvedSchema();
+        List<Column> newColumns = new ArrayList<>(oldSchema.getColumns());
+        newColumns.addAll(metadataColumns);
+        // get the new resolved schema after adding extra meta columns
+        ResolvedSchema resolvedSchema = ResolvedSchema.of(newColumns);
+
+        List<RelDataTypeField> oldFields = sourceTable.getRowType().getFieldList();
+        List<RelDataTypeField> newFields = new ArrayList<>(sourceTable.getRowType().getFieldList());
+        for (int i = 0; i < metadataColumns.size(); i++) {
+            MetadataColumn column = metadataColumns.get(i);
+            // add a new field
+            newFields.add(
+                    new RelDataTypeFieldImpl(
+                            column.getName(),
+                            oldFields.size() + i,
+                            typeFactory.createFieldTypeFromLogicalType(
+                                    column.getDataType().getLogicalType())));
+        }
+        // create a copy for TableSourceTable with new resolved schema
+        TableSourceTable newTableSourceTab =
+                sourceTable.copy(
+                        dynamicTableSource,
+                        sourceTable.contextResolvedTable().copy(resolvedSchema),
+                        new RelRecordType(StructKind.FULLY_QUALIFIED, newFields, false),
+                        sourceTable.abilitySpecs());
+
+        // create a copy for table scan with new TableSourceTable
+        LogicalTableScan newTableScan =
+                new LogicalTableScan(
+                        tableScan.getCluster(),
+                        tableScan.getTraitSet(),
+                        tableScan.getHints(),
+                        newTableSourceTab);
+        Project project = (Project) tableModify.getInput();
+        // replace with the new table scan
+        if (project.getInput() instanceof LogicalFilter) {
+            LogicalFilter logicalFilter = (LogicalFilter) project.getInput();
+            project.replaceInput(
+                    0,
+                    logicalFilter.copy(
+                            logicalFilter.getTraitSet(),
+                            newTableScan,
+                            logicalFilter.getCondition()));
+        } else {
+            project.replaceInput(0, newTableScan);
+        }
+        // validate and apply metadata
+        DynamicSourceUtils.validateAndApplyMetadata(
+                tableDebugName, resolvedSchema, newTableSourceTab.tableSource());
+        return resolvedSchema;
+    }
+
+    private static RelNode projectColumnsForDelete(
+            LogicalTableModify tableModify,
+            ResolvedSchema resolvedSchema,
+            List<Integer> colIndexes,
+            String tableDebugName,
+            DataTypeFactory dataTypeFactory,
+            FlinkTypeFactory typeFactory) {
+        // now we know which columns we may need
+        List<RexNode> newRexNodeList = new ArrayList<>();
+        List<String> newFieldNames = new ArrayList<>();
+        List<DataType> deleteTargetDataTypes = new ArrayList<>();
+        Project project = (Project) (tableModify.getInput());
+        RexBuilder rexBuilder = tableModify.getCluster().getRexBuilder();
+        // iterate each index for the column, create an input ref node for it.
+        for (int index : colIndexes) {
+            newRexNodeList.add(rexBuilder.makeInputRef(project.getInput(), index));
+            newFieldNames.add(resolvedSchema.getColumnNames().get(index));
+            deleteTargetDataTypes.add(resolvedSchema.getColumnDataTypes().get(index));
+        }
+        // a project to only get specific columns
+        project =
+                project.copy(
+                        project.getTraitSet(),
+                        project.getInput(),
+                        newRexNodeList,
+                        RexUtil.createStructType(typeFactory, newRexNodeList, newFieldNames, null));
+        return validateSchemaAndApplyImplicitCast(
+                project, deleteTargetDataTypes, tableDebugName, dataTypeFactory, typeFactory);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -327,7 +856,8 @@ public final class DynamicSinkUtils {
                                         Function.identity()));
 
         final List<Integer> metadataColumns =
-                createRequiredMetadataKeys(schema, sink).stream()
+                createRequiredMetadataColumns(schema, sink).stream()
+                        .map(col -> col.getMetadataKey().orElse(col.getName()))
                         .map(keyToMetadataColumn::get)
                         .collect(Collectors.toList());
 
@@ -402,28 +932,31 @@ public final class DynamicSinkUtils {
     }
 
     /**
-     * Returns a list of required metadata keys. Ordered by the iteration order of {@link
+     * Returns a list of required metadata columns. Ordered by the iteration order of {@link
      * SupportsWritingMetadata#listWritableMetadata()}.
      *
      * <p>This method assumes that sink and schema have been validated via {@link
      * #prepareDynamicSink}.
      */
-    private static List<String> createRequiredMetadataKeys(
+    private static List<MetadataColumn> createRequiredMetadataColumns(
             ResolvedSchema schema, DynamicTableSink sink) {
         final List<Column> tableColumns = schema.getColumns();
         final List<Integer> metadataColumns = extractPersistedMetadataColumns(schema);
 
-        final Set<String> requiredMetadataKeys =
-                metadataColumns.stream()
-                        .map(tableColumns::get)
-                        .map(MetadataColumn.class::cast)
-                        .map(c -> c.getMetadataKey().orElse(c.getName()))
-                        .collect(Collectors.toSet());
+        Map<String, MetadataColumn> metadataKeysToMetadataColumns = new HashMap<>();
+
+        for (Integer columnIndex : metadataColumns) {
+            MetadataColumn metadataColumn = (MetadataColumn) tableColumns.get(columnIndex);
+            String metadataKey = metadataColumn.getMetadataKey().orElse(metadataColumn.getName());
+            // After resolving, every metadata column has the unique metadata key.
+            metadataKeysToMetadataColumns.put(metadataKey, metadataColumn);
+        }
 
         final Map<String, DataType> metadataMap = extractMetadataMap(sink);
 
         return metadataMap.keySet().stream()
-                .filter(requiredMetadataKeys::contains)
+                .filter(metadataKeysToMetadataColumns::containsKey)
+                .map(metadataKeysToMetadataColumns::get)
                 .collect(Collectors.toList());
     }
 
@@ -623,7 +1156,9 @@ public final class DynamicSinkUtils {
 
         sinkAbilitySpecs.add(
                 new WritingMetadataSpec(
-                        createRequiredMetadataKeys(schema, sink),
+                        createRequiredMetadataColumns(schema, sink).stream()
+                                .map(col -> col.getMetadataKey().orElse(col.getName()))
+                                .collect(Collectors.toList()),
                         createConsumedType(schema, sink)));
     }
 
@@ -641,8 +1176,18 @@ public final class DynamicSinkUtils {
                         .map(c -> new RowField(c.getName(), c.getDataType().getLogicalType()));
 
         final Stream<RowField> metadataFields =
-                createRequiredMetadataKeys(schema, sink).stream()
-                        .map(k -> new RowField(k, metadataMap.get(k).getLogicalType()));
+                createRequiredMetadataColumns(schema, sink).stream()
+                        .map(
+                                column ->
+                                        new RowField(
+                                                // Use alias to ensures that physical and metadata
+                                                // columns don't collide.
+                                                column.getName(),
+                                                metadataMap
+                                                        .get(
+                                                                column.getMetadataKey()
+                                                                        .orElse(column.getName()))
+                                                        .getLogicalType()));
 
         final List<RowField> rowFields =
                 Stream.concat(physicalFields, metadataFields).collect(Collectors.toList());

@@ -40,7 +40,7 @@ import static org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshotReade
  */
 public class OperatorBackendSerializationProxy extends VersionedIOReadableWritable {
 
-    public static final int VERSION = 5;
+    public static final int VERSION = 6;
 
     private static final Map<Integer, Integer> META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER =
             new HashMap<>();
@@ -50,12 +50,15 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
         META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER.put(2, 2);
         META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER.put(3, 3);
         META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER.put(4, 5);
-        META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER.put(5, CURRENT_STATE_META_INFO_SNAPSHOT_VERSION);
+        META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER.put(5, 6);
+        META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER.put(6, CURRENT_STATE_META_INFO_SNAPSHOT_VERSION);
     }
 
     private List<StateMetaInfoSnapshot> operatorStateMetaInfoSnapshots;
     private List<StateMetaInfoSnapshot> broadcastStateMetaInfoSnapshots;
     private ClassLoader userCodeClassLoader;
+    /** This specifies if we use a compressed format write the operator states */
+    private boolean usingStateCompression;
 
     public OperatorBackendSerializationProxy(ClassLoader userCodeClassLoader) {
         this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
@@ -63,7 +66,8 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
 
     public OperatorBackendSerializationProxy(
             List<StateMetaInfoSnapshot> operatorStateMetaInfoSnapshots,
-            List<StateMetaInfoSnapshot> broadcastStateMetaInfoSnapshots) {
+            List<StateMetaInfoSnapshot> broadcastStateMetaInfoSnapshots,
+            boolean compression) {
 
         this.operatorStateMetaInfoSnapshots =
                 Preconditions.checkNotNull(operatorStateMetaInfoSnapshots);
@@ -72,6 +76,11 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
         Preconditions.checkArgument(
                 operatorStateMetaInfoSnapshots.size() <= Short.MAX_VALUE
                         && broadcastStateMetaInfoSnapshots.size() <= Short.MAX_VALUE);
+        this.usingStateCompression = compression;
+    }
+
+    boolean isUsingStateCompression() {
+        return usingStateCompression;
     }
 
     @Override
@@ -81,12 +90,14 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
 
     @Override
     public int[] getCompatibleVersions() {
-        return new int[] {VERSION, 4, 3, 2, 1};
+        return new int[] {VERSION, 5, 4, 3, 2, 1};
     }
 
     @Override
     public void write(DataOutputView out) throws IOException {
         super.write(out);
+        // write the compression format used to write each operator state
+        out.writeBoolean(usingStateCompression);
         writeStateMetaInfoSnapshots(operatorStateMetaInfoSnapshots, out);
         writeStateMetaInfoSnapshots(broadcastStateMetaInfoSnapshots, out);
     }
@@ -112,11 +123,14 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
                     "Cannot determine corresponding meta info snapshot version for operator backend serialization readVersion="
                             + proxyReadVersion);
         }
+        if (metaInfoSnapshotVersion >= 7) {
+            usingStateCompression = in.readBoolean();
+        } else {
+            usingStateCompression = false;
+        }
 
         final StateMetaInfoReader stateMetaInfoReader =
-                StateMetaInfoSnapshotReadersWriters.getReader(
-                        metaInfoSnapshotVersion,
-                        StateMetaInfoSnapshotReadersWriters.StateTypeHint.OPERATOR_STATE);
+                StateMetaInfoSnapshotReadersWriters.getReader(metaInfoSnapshotVersion);
 
         int numOperatorStates = in.readShort();
         operatorStateMetaInfoSnapshots = new ArrayList<>(numOperatorStates);

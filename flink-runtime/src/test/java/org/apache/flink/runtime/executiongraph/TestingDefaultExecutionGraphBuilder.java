@@ -35,19 +35,18 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
-import org.apache.flink.testutils.TestingUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 
 /** Builder of {@link ExecutionGraph} used in testing. */
@@ -60,8 +59,6 @@ public class TestingDefaultExecutionGraphBuilder {
         return new TestingDefaultExecutionGraphBuilder();
     }
 
-    private ScheduledExecutorService futureExecutor = TestingUtils.defaultExecutor();
-    private Executor ioExecutor = TestingUtils.defaultExecutor();
     private Time rpcTimeout = Time.fromDuration(AkkaOptions.ASK_TIMEOUT_DURATION.defaultValue());
     private ClassLoader userClassLoader = DefaultExecutionGraph.class.getClassLoader();
     private BlobWriter blobWriter = VoidBlobWriter.getInstance();
@@ -74,8 +71,15 @@ public class TestingDefaultExecutionGraphBuilder {
     private CheckpointIDCounter checkpointIdCounter = new StandaloneCheckpointIDCounter();
     private ExecutionDeploymentListener executionDeploymentListener =
             NoOpExecutionDeploymentListener.get();
-    private ExecutionStateUpdateListener executionStateUpdateListener = (execution, newState) -> {};
+    private ExecutionStateUpdateListener executionStateUpdateListener =
+            (execution, previousState, newState) -> {};
     private VertexParallelismStore vertexParallelismStore;
+    private ExecutionJobVertex.Factory executionJobVertexFactory = new ExecutionJobVertex.Factory();
+
+    private MarkPartitionFinishedStrategy markPartitionFinishedStrategy =
+            ResultPartitionType::isBlockingOrBlockingPersistentResultPartition;
+
+    private boolean nonFinishedHybridPartitionShouldBeUnknown = false;
 
     private TestingDefaultExecutionGraphBuilder() {}
 
@@ -86,17 +90,6 @@ public class TestingDefaultExecutionGraphBuilder {
 
     public TestingDefaultExecutionGraphBuilder setJobGraph(JobGraph jobGraph) {
         this.jobGraph = jobGraph;
-        return this;
-    }
-
-    public TestingDefaultExecutionGraphBuilder setFutureExecutor(
-            ScheduledExecutorService futureExecutor) {
-        this.futureExecutor = futureExecutor;
-        return this;
-    }
-
-    public TestingDefaultExecutionGraphBuilder setIoExecutor(Executor ioExecutor) {
-        this.ioExecutor = ioExecutor;
         return this;
     }
 
@@ -156,13 +149,32 @@ public class TestingDefaultExecutionGraphBuilder {
         return this;
     }
 
-    private DefaultExecutionGraph build(boolean isDynamicGraph)
+    public TestingDefaultExecutionGraphBuilder setExecutionJobVertexFactory(
+            ExecutionJobVertex.Factory executionJobVertexFactory) {
+        this.executionJobVertexFactory = executionJobVertexFactory;
+        return this;
+    }
+
+    public TestingDefaultExecutionGraphBuilder setMarkPartitionFinishedStrategy(
+            MarkPartitionFinishedStrategy markPartitionFinishedStrategy) {
+        this.markPartitionFinishedStrategy = markPartitionFinishedStrategy;
+        return this;
+    }
+
+    public TestingDefaultExecutionGraphBuilder setNonFinishedHybridPartitionShouldBeUnknown(
+            boolean nonFinishedHybridPartitionShouldBeUnknown) {
+        this.nonFinishedHybridPartitionShouldBeUnknown = nonFinishedHybridPartitionShouldBeUnknown;
+        return this;
+    }
+
+    private DefaultExecutionGraph build(
+            boolean isDynamicGraph, ScheduledExecutorService executorService)
             throws JobException, JobExecutionException {
         return DefaultExecutionGraphBuilder.buildGraph(
                 jobGraph,
                 jobMasterConfig,
-                futureExecutor,
-                ioExecutor,
+                executorService,
+                executorService,
                 userClassLoader,
                 completedCheckpointStore,
                 new CheckpointsCleaner(),
@@ -181,14 +193,19 @@ public class TestingDefaultExecutionGraphBuilder {
                 Optional.ofNullable(vertexParallelismStore)
                         .orElseGet(() -> SchedulerBase.computeVertexParallelismStore(jobGraph)),
                 () -> new CheckpointStatsTracker(0, new UnregisteredMetricsGroup()),
-                isDynamicGraph);
+                isDynamicGraph,
+                executionJobVertexFactory,
+                markPartitionFinishedStrategy,
+                nonFinishedHybridPartitionShouldBeUnknown);
     }
 
-    public DefaultExecutionGraph build() throws JobException, JobExecutionException {
-        return build(false);
+    public DefaultExecutionGraph build(ScheduledExecutorService executorService)
+            throws JobException, JobExecutionException {
+        return build(false, executorService);
     }
 
-    public DefaultExecutionGraph buildDynamicGraph() throws JobException, JobExecutionException {
-        return build(true);
+    public DefaultExecutionGraph buildDynamicGraph(ScheduledExecutorService executorService)
+            throws JobException, JobExecutionException {
+        return build(true, executorService);
     }
 }

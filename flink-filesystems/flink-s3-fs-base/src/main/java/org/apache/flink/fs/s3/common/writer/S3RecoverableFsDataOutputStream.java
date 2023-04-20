@@ -21,9 +21,9 @@ package org.apache.flink.fs.s3.common.writer;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
-import org.apache.flink.fs.s3.common.utils.RefCountedBufferingFileStream;
-import org.apache.flink.fs.s3.common.utils.RefCountedFSOutputStream;
-import org.apache.flink.fs.s3.common.utils.RefCountedFileWithStream;
+import org.apache.flink.core.fs.RefCountedBufferingFileStream;
+import org.apache.flink.core.fs.RefCountedFSOutputStream;
+import org.apache.flink.core.fs.RefCountedFileWithStream;
 import org.apache.flink.util.function.FunctionWithException;
 
 import org.apache.commons.io.IOUtils;

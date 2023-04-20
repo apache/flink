@@ -29,8 +29,7 @@ import org.junit.Test;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests of {@link ProcTimeMiniBatchAssignerOperator}. */
 public class ProcTimeMiniBatchAssignerOperatorTest extends WatermarkAssignerOperatorTestBase {
@@ -61,18 +60,18 @@ public class ProcTimeMiniBatchAssignerOperatorTest extends WatermarkAssignerOper
             while (true) {
                 if (output.size() > 0) {
                     Object next = output.poll();
-                    assertNotNull(next);
+                    assertThat(next).isNotNull();
                     Tuple2<Long, Long> update =
                             validateElement(next, currentElement, lastWatermark);
                     long nextElementValue = update.f0;
                     lastWatermark = update.f1;
                     if (next instanceof Watermark) {
-                        assertEquals(100, lastWatermark);
+                        assertThat(lastWatermark).isEqualTo(100);
                         break;
                     } else {
-                        assertEquals(currentElement, nextElementValue - 1);
+                        assertThat(nextElementValue - 1).isEqualTo(currentElement);
                         currentElement += 1;
-                        assertEquals(0, lastWatermark);
+                        assertThat(lastWatermark).isEqualTo(0);
                     }
                 } else {
                     currentTime = currentTime + 10;
@@ -97,18 +96,18 @@ public class ProcTimeMiniBatchAssignerOperatorTest extends WatermarkAssignerOper
             while (true) {
                 if (output.size() > 0) {
                     Object next = output.poll();
-                    assertNotNull(next);
+                    assertThat(next).isNotNull();
                     Tuple2<Long, Long> update =
                             validateElement(next, currentElement, lastWatermark);
                     long nextElementValue = update.f0;
                     lastWatermark = update.f1;
                     if (next instanceof Watermark) {
-                        assertEquals(200, lastWatermark);
+                        assertThat(lastWatermark).isEqualTo(200);
                         break;
                     } else {
-                        assertEquals(currentElement, nextElementValue - 1);
+                        assertThat(nextElementValue - 1).isEqualTo(currentElement);
                         currentElement += 1;
-                        assertEquals(100, lastWatermark);
+                        assertThat(lastWatermark).isEqualTo(100);
                     }
                 } else {
                     currentTime = currentTime + 10;
@@ -120,6 +119,7 @@ public class ProcTimeMiniBatchAssignerOperatorTest extends WatermarkAssignerOper
         }
 
         testHarness.processWatermark(new Watermark(Long.MAX_VALUE));
-        assertEquals(Long.MAX_VALUE, ((Watermark) testHarness.getOutput().poll()).getTimestamp());
+        assertThat(((Watermark) testHarness.getOutput().poll()).getTimestamp())
+                .isEqualTo(Long.MAX_VALUE);
     }
 }

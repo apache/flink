@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.expressions.utils
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, Types}
@@ -59,16 +58,16 @@ abstract class MapTypeTestBase extends ExpressionTestBase {
 
   override def typeInfo: RowTypeInfo = {
     new RowTypeInfo(
-      /* 0 */  new MapTypeInfo(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO),
-      /* 1 */  new MapTypeInfo(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
-      /* 2 */  new MapTypeInfo(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
-      /* 3 */  new MapTypeInfo(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO),
-      /* 4 */  Types.STRING,
-      /* 5 */  Types.INT,
-      /* 6 */  Types.PRIMITIVE_ARRAY(Types.DOUBLE),
-      /* 7 */  new MapTypeInfo(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO),
-      /* 8 */  new MapTypeInfo(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
-      /* 9 */  new MapTypeInfo(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
+      /* 0 */ new MapTypeInfo(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO),
+      /* 1 */ new MapTypeInfo(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
+      /* 2 */ new MapTypeInfo(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
+      /* 3 */ new MapTypeInfo(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO),
+      /* 4 */ Types.STRING,
+      /* 5 */ Types.INT,
+      /* 6 */ Types.PRIMITIVE_ARRAY(Types.DOUBLE),
+      /* 7 */ new MapTypeInfo(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO),
+      /* 8 */ new MapTypeInfo(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
+      /* 9 */ new MapTypeInfo(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
       /* 10 */ new MapTypeInfo(BasicTypeInfo.INT_TYPE_INFO, Types.PRIMITIVE_ARRAY(Types.INT)),
       /* 11 */ new MapTypeInfo(BasicTypeInfo.INT_TYPE_INFO, Types.PRIMITIVE_ARRAY(Types.INT))
     )

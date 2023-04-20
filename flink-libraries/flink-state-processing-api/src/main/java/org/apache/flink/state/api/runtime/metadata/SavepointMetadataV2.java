@@ -22,12 +22,13 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.state.api.OperatorIdentifier;
 import org.apache.flink.state.api.StateBootstrapTransformation;
-import org.apache.flink.state.api.runtime.OperatorIDGenerator;
 import org.apache.flink.state.api.runtime.StateBootstrapTransformationWithID;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -56,11 +57,12 @@ public class SavepointMetadataV2 {
                         + UPPER_BOUND_MAX_PARALLELISM
                         + ". Found: "
                         + maxParallelism);
+        Preconditions.checkNotNull(masterStates);
+
         this.maxParallelism = maxParallelism;
-
-        this.masterStates = Preconditions.checkNotNull(masterStates);
-
+        this.masterStates = new ArrayList<>(masterStates);
         this.operatorStateIndex = new HashMap<>(initialStates.size());
+
         initialStates.forEach(
                 existingState ->
                         operatorStateIndex.put(
@@ -80,27 +82,38 @@ public class SavepointMetadataV2 {
      * @return Operator state for the given UID.
      * @throws IOException If the savepoint does not contain operator state with the given uid.
      */
-    public OperatorState getOperatorState(String uid) throws IOException {
-        OperatorID operatorID = OperatorIDGenerator.fromUid(uid);
+    public OperatorState getOperatorState(OperatorIdentifier identifier) throws IOException {
+        OperatorID operatorID = identifier.getOperatorId();
 
         OperatorStateSpecV2 operatorState = operatorStateIndex.get(operatorID);
         if (operatorState == null || operatorState.isNewStateTransformation()) {
-            throw new IOException("Savepoint does not contain state with operator uid " + uid);
+            throw new IOException(
+                    "Savepoint does not contain state with operator "
+                            + identifier
+                                    .getUid()
+                                    .map(uid -> "uid " + uid)
+                                    .orElse("hash " + operatorID.toHexString()));
         }
 
         return operatorState.asExistingState();
     }
 
-    public void removeOperator(String uid) {
-        operatorStateIndex.remove(OperatorIDGenerator.fromUid(uid));
+    public void removeOperator(OperatorIdentifier identifier) {
+        operatorStateIndex.remove(identifier.getOperatorId());
     }
 
-    public void addOperator(String uid, StateBootstrapTransformation<?> transformation) {
-        OperatorID id = OperatorIDGenerator.fromUid(uid);
+    public void addOperator(
+            OperatorIdentifier identifier, StateBootstrapTransformation<?> transformation) {
+        OperatorID id = identifier.getOperatorId();
 
         if (operatorStateIndex.containsKey(id)) {
             throw new IllegalArgumentException(
-                    "The savepoint already contains uid " + uid + ". All uid's must be unique");
+                    "The savepoint already contains "
+                            + identifier
+                                    .getUid()
+                                    .map(uid -> "uid " + uid)
+                                    .orElse("hash " + id.toHexString())
+                            + ". All uid's/hashes must be unique.");
         }
 
         operatorStateIndex.put(

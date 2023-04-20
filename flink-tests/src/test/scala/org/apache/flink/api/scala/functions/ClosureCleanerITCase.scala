@@ -17,18 +17,18 @@
  */
 package org.apache.flink.api.scala.functions
 
+import org.apache.flink.api.common.InvalidProgramException
+import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.core.fs.FileSystem.WriteMode
+import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
-import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
+
+import org.junit.{After, Before, Rule, Test}
 import org.junit.Assert.fail
-import org.junit.{After, Before, Test, Rule}
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-
-import org.apache.flink.api.scala._
-import org.apache.flink.api.common.InvalidProgramException
 
 /* The test cases are originally from the Apache Spark project. Like the ClosureCleaner itself. */
 
@@ -182,7 +182,7 @@ object TestObjectWithBogusReturns {
 
     // this return is invalid since it will transfer control outside the closure
     try {
-      nums.map { x => return 1; x * 2}.print()
+      nums.map { x => return 1; x * 2 }.print()
     } catch {
       case inv: ReturnStatementInClosureException => // all good
       case _: Throwable => fail("Bogus return statement not detected.")
@@ -202,9 +202,10 @@ object TestObjectWithNestedReturns {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val nums = env.fromElements(1)
 
-    nums.map { x =>
-      // this return is fine since it will not transfer control outside the closure
-      def foo(): Int = { return 5; 1 }
+    nums.map {
+      x =>
+        // this return is fine since it will not transfer control outside the closure
+        def foo(): Int = { return 5; 1 }
         foo()
     }
 

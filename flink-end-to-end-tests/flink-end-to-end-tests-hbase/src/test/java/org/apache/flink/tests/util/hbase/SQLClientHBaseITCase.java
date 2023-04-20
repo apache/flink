@@ -19,13 +19,13 @@
 package org.apache.flink.tests.util.hbase;
 
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.tests.util.TestUtils;
+import org.apache.flink.test.resources.ResourceTestUtils;
+import org.apache.flink.test.util.SQLJobSubmission;
 import org.apache.flink.tests.util.cache.DownloadCache;
 import org.apache.flink.tests.util.flink.ClusterController;
 import org.apache.flink.tests.util.flink.FlinkResource;
 import org.apache.flink.tests.util.flink.FlinkResourceSetup;
 import org.apache.flink.tests.util.flink.LocalStandaloneFlinkResourceFactory;
-import org.apache.flink.tests.util.flink.SQLJobSubmission;
 import org.apache.flink.testutils.junit.FailsOnJava11;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.TestLogger;
@@ -96,14 +96,15 @@ public class SQLClientHBaseITCase extends TestLogger {
 
     @ClassRule public static final DownloadCache DOWNLOAD_CACHE = DownloadCache.get();
 
-    private static final Path sqlToolBoxJar = TestUtils.getResource(".*SqlToolbox.jar");
-    private static final Path hadoopClasspath = TestUtils.getResource(".*hadoop.classpath");
+    private static final Path sqlToolBoxJar = ResourceTestUtils.getResource(".*SqlToolbox.jar");
+    private static final Path hadoopClasspath = ResourceTestUtils.getResource(".*hadoop.classpath");
     private List<Path> hadoopClasspathJars;
 
     public SQLClientHBaseITCase(String hbaseVersion, String hbaseConnector) {
         this.hbase = HBaseResource.get(hbaseVersion);
         this.hbaseConnector = hbaseConnector;
-        this.sqlConnectorHBaseJar = TestUtils.getResource(".*sql-" + hbaseConnector + ".jar");
+        this.sqlConnectorHBaseJar =
+                ResourceTestUtils.getResource(".*sql-" + hbaseConnector + ".jar");
     }
 
     @Before
@@ -228,7 +229,7 @@ public class SQLClientHBaseITCase extends TestLogger {
     }
 
     private void executeSqlStatements(ClusterController clusterController, List<String> sqlLines)
-            throws IOException {
+            throws Exception {
         LOG.info("Executing SQL: HBase source table -> HBase sink table");
         clusterController.submitSQLJob(
                 new SQLJobSubmission.SQLJobSubmissionBuilder(sqlLines)

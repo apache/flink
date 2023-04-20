@@ -25,12 +25,11 @@ under the License.
 # Top-N
 {{< label Batch >}} {{< label Streaming >}}
 
-Top-N queries ask for the N smallest or largest values ordered by columns. Both smallest and largest values sets are considered Top-N queries. Top-N queries are useful in cases where the need is to display only the N bottom-most or the N top-
-most records from batch/streaming table on a condition. This result set can be used for further analysis.
+Top-N 查询可以根据指定列排序后获得前 N 个最小或最大值。最小值和最大值集都被认为是Top-N查询。在需要从批表或流表中仅显示 N 个底部或 N 个顶部记录时，Top-N 查询是非常有用的。并且该结果集还可用于进一步分析。
 
-Flink uses the combination of a OVER window clause and a filter condition to express a Top-N query. With the power of OVER window `PARTITION BY` clause, Flink also supports per group Top-N. For example, the top five products per category that have the maximum sales in realtime. Top-N queries are supported for SQL on batch and streaming tables.
+Flink 使用 `OVER` 窗口子句和过滤条件的组合来表达一个 Top-N 查询。借助 `OVER` 窗口的 `PARTITION BY` 子句能力，Flink 也能支持分组 Top-N。例如：实时显示每个分类下销售额最高的五个产品。对于批处理和流处理模式的SQL，都支持 Top-N 查询。
 
-The following shows the syntax of the Top-N statement:
+下面展示了 Top-N 的语法：
 
 ```sql
 SELECT [column_list]
@@ -42,26 +41,29 @@ FROM (
 WHERE rownum <= N [AND conditions]
 ```
 
-**Parameter Specification:**
-
-- `ROW_NUMBER()`: Assigns an unique, sequential number to each row, starting with one, according to the ordering of rows within the partition. Currently, we only support `ROW_NUMBER` as the over window function. In the future, we will support `RANK()` and `DENSE_RANK()`.
-- `PARTITION BY col1[, col2...]`: Specifies the partition columns. Each partition will have a Top-N result.
-- `ORDER BY col1 [asc|desc][, col2 [asc|desc]...]`: Specifies the ordering columns. The ordering directions can be different on different columns.
-- `WHERE rownum <= N`: The `rownum <= N` is required for Flink to recognize this query is a Top-N query. The N represents the N smallest or largest records will be retained.
-- `[AND conditions]`: It is free to add other conditions in the where clause, but the other conditions can only be combined with `rownum <= N` using `AND` conjunction.
+**参数说明：**
+- `ROW_NUMBER()`：根据分区数据的排序，为每一行分配一个唯一且连续的序号，从 1 开始。目前，只支持 `ROW_NUMBER` 作为 `OVER` 窗口函数。未来会支持 `RANK()` 和 `DENSE_RANK()`。
+- `PARTITION BY col1[, col2...]`：指定分区字段。每个分区都会有一个 Top-N 的结果。
+- `ORDER BY col1 [asc|desc][, col2 [asc|desc]...]`： 指定排序列。 每个列的排序类型（ASC/DESC）可以不同。
+- `WHERE rownum <= N`: Flink 需要 `rownum <= N` 才能识别此查询是 Top-N 查询。 N 表示将要保留 N 个最大或最小数据。
+- `[AND conditions]`: 可以在 `WHERE` 子句中添加其他条件，但是这些其他条件和 `rownum <= N` 需要使用 `AND` 结合。
 
 {{< hint info >}}
-Note: the above pattern must be followed exactly, otherwise the optimizer won’t be able to translate the query.
+
+注意： 必须严格遵循上述模式，否则优化器无法翻译查询。
+
 {{< /hint >}}
 
 {{< hint info >}}
-The TopN query is <span class="label label-info">Result Updating</span>. Flink SQL will sort the input data stream according to the order key, so if the top N records have been changed, the changed ones will be sent as retraction/update records to downstream.
-It is recommended to use a storage which supports updating as the sink of Top-N query. In addition, if the top N records need to be stored in external storage, the result table should have the same unique key with the Top-N query.
+
+Top-N 查询是<span class="label label-info">结果更新</span>的. Flink SQL会根据`ORDER BY`的字段对输入的数据流进行排序，所以如果前 N 条记录发生了变化，那么变化后的记录将作为回撤/更新记录发送到下游。
+建议使用一个支持更新的存储作为 Top-N 查询的结果表。此外，如果 Top-N 条记录需要存储在外部存储中，结果表应该与Top-N查询的唯一键保持一致。
+
 {{< /hint >}}
 
-The unique keys of Top-N query is the combination of partition columns and rownum column. Top-N query can also derive the unique key of upstream. Take following job as an example, say `product_id` is the unique key of the `ShopSales`, then the unique keys of the Top-N query are [`category`, `rownum`] and [`product_id`].
+Top-N 查询的唯一键是分区字段和 rownum 字段的组合。Top-N 查询也可以获取上游的唯一键。用下面的 job 举例:比如 `product_id` 是 `ShopSales` 的唯一键，这时 Top-N 查询的唯一键是[`category`, `rownum`] 和 [`product_id`]。
 
-The following examples show how to specify SQL queries with Top-N on streaming tables. This is an example to get "the top five products per category that have the maximum sales in realtime" we mentioned above.
+下面的示例展示了在流式表上指定 Top-N SQL 查询。这也是上面提到的 '实时显示每个分类下销售额最高的五个产品' 的示例。
 
 ```sql
 CREATE TABLE ShopSales (
@@ -79,13 +81,13 @@ FROM (
 WHERE row_num <= 5
 ```
 
-#### No Ranking Output Optimization
+#### 无排名输出优化
 
-As described above, the `rownum` field will be written into the result table as one field of the unique key, which may lead to a lot of records being written to the result table. For example, when the record (say `product-1001`) of ranking 9 is updated and its rank is upgraded to 1, all the records from ranking 1 ~ 9 will be output to the result table as update messages. If the result table receives too many data, it will become the bottleneck of the SQL job.
+如上所述， `rownum` 将作为唯一键的一个字段写入到结果表，这可能会导致大量数据写入到结果表。例如，排名第九（比如 `product-1001`）的记录更新为 1，排名 1 到 9 的所有记录都会作为更新信息逐条写入到结果表。如果结果表收到太多的数据，它将会成为这个 SQL 任务的瓶颈。
 
-The optimization way is omitting rownum field in the outer SELECT clause of the Top-N query. This is reasonable because the number of the top N records is usually not large, thus the consumers can sort the records themselves quickly. Without rownum field, in the example above, only the changed record (`product-1001`) needs to be sent to downstream, which can reduce much IO to the result table.
+优化的方法是在 Top-N 查询的外层 `SELECT` 子句中省略 `rownum` 字段。因为通常 Top-N 的数据量不大，消费端就可以快速地排序。下面的示例中就没有 `rownum` 字段，只需要发送变更数据（`product-1001`）到下游，这样可以减少结果表很多 IO。
 
-The following example shows how to optimize the above Top-N example in this way:
+下面的示例展示了用这种方法怎样去优化上面的 Top-N：
 
 ```sql
 CREATE TABLE ShopSales (
@@ -103,8 +105,6 @@ FROM (
   FROM ShopSales)
 WHERE row_num <= 5
 ```
-
-<span class="label label-danger">Attention in Streaming Mode</span> In order to output the above query to an external storage and have a correct result, the external storage must have the same unique key with the Top-N query. In the above example query, if the `product_id` is the unique key of the query, then the external table should also has `product_id` as the unique key.
-
+<span class="label label-danger">Attention in Streaming Mode</span> 为了上面的查询输出到外部存储的正确性，外部存储必须和 Top-N 查询拥有相同的唯一键。在上面的示例中，如果 `product_id` 是查询的唯一键，外部表应该也把 `product_id` 作为唯一键。
 
 {{< top >}}

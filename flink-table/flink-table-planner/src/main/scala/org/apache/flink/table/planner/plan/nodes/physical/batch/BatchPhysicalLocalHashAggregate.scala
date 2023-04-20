@@ -15,21 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecHashAggregate
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelTraitSet}
-import org.apache.calcite.rel.RelDistribution.Type
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter}
+import org.apache.calcite.rel.RelDistribution.Type
+import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.util.ImmutableIntList
 
 import java.util
@@ -39,7 +39,8 @@ import scala.collection.JavaConversions._
 /**
  * Batch physical RelNode for local hash-based aggregate operator.
  *
- * @see [[BatchPhysicalGroupAggregateBase]] for more info.
+ * @see
+ *   [[BatchPhysicalGroupAggregateBase]] for more info.
  */
 class BatchPhysicalLocalHashAggregate(
     cluster: RelOptCluster,
@@ -49,6 +50,7 @@ class BatchPhysicalLocalHashAggregate(
     inputRowType: RelDataType,
     grouping: Array[Int],
     auxGrouping: Array[Int],
+    val supportAdaptiveLocalHashAgg: Boolean,
     aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)])
   extends BatchPhysicalHashAggregateBase(
     cluster,
@@ -70,22 +72,28 @@ class BatchPhysicalLocalHashAggregate(
       inputRowType,
       grouping,
       auxGrouping,
+      supportAdaptiveLocalHashAgg,
       aggCallToAggFunction)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw)
+    super
+      .explainTerms(pw)
       .itemIf("groupBy", RelExplainUtil.fieldToString(grouping, inputRowType), grouping.nonEmpty)
-      .itemIf("auxGrouping", RelExplainUtil.fieldToString(auxGrouping, inputRowType),
+      .itemIf(
+        "auxGrouping",
+        RelExplainUtil.fieldToString(auxGrouping, inputRowType),
         auxGrouping.nonEmpty)
-      .item("select", RelExplainUtil.groupAggregationToString(
-        inputRowType,
-        outputRowType,
-        grouping,
-        auxGrouping,
-        aggCallToAggFunction,
-        isMerge = false,
-        isGlobal = false))
+      .item(
+        "select",
+        RelExplainUtil.groupAggregationToString(
+          inputRowType,
+          outputRowType,
+          grouping,
+          auxGrouping,
+          aggCallToAggFunction,
+          isMerge = false,
+          isGlobal = false))
   }
 
   override def satisfyTraits(requiredTraitSet: RelTraitSet): Option[RelNode] = {
@@ -121,16 +129,17 @@ class BatchPhysicalLocalHashAggregate(
 
   override def translateToExecNode(): ExecNode[_] = {
     new BatchExecHashAggregate(
+      unwrapTableConfig(this),
       grouping,
       auxGrouping,
       getAggCallList.toArray,
       FlinkTypeFactory.toLogicalRowType(inputRowType),
       false, // isMerge is always false
       false, // isFinal is always false
+      supportAdaptiveLocalHashAgg,
       getInputProperty,
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 
   private def getInputProperty: InputProperty = {

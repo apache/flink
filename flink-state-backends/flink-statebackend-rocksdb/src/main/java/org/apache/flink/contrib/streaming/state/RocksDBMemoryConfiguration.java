@@ -18,6 +18,7 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.util.Preconditions;
@@ -239,5 +240,9 @@ public final class RocksDBMemoryConfiguration implements Serializable {
                         : config.get(RocksDBOptions.USE_PARTITIONED_INDEX_FILTERS);
 
         return newConfig;
+    }
+
+    public static RocksDBMemoryConfiguration fromConfiguration(Configuration configuration) {
+        return fromOtherAndConfiguration(new RocksDBMemoryConfiguration(), configuration);
     }
 }

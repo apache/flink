@@ -24,11 +24,13 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
+import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.InputFormatProvider;
 import org.apache.flink.table.connector.source.ScanTableSource;
@@ -39,8 +41,14 @@ import org.apache.flink.table.planner.connectors.TransformationScanProvider;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.TransformationMetadata;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -48,30 +56,37 @@ import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 
 /**
  * Base {@link ExecNode} to read data from an external source defined by a {@link ScanTableSource}.
  */
 public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
         implements MultipleTransformationTranslator<RowData> {
+
+    public static final String SOURCE_TRANSFORMATION = "source";
+
     public static final String FIELD_NAME_SCAN_TABLE_SOURCE = "scanTableSource";
 
     @JsonProperty(FIELD_NAME_SCAN_TABLE_SOURCE)
     private final DynamicTableSourceSpec tableSourceSpec;
 
     protected CommonExecTableSourceScan(
-            DynamicTableSourceSpec tableSourceSpec,
             int id,
+            ExecNodeContext context,
+            ReadableConfig persistedConfig,
+            DynamicTableSourceSpec tableSourceSpec,
+            List<InputProperty> inputProperties,
             LogicalType outputType,
             String description) {
-        super(id, Collections.emptyList(), outputType, description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         this.tableSourceSpec = tableSourceSpec;
     }
 
     @Override
     public String getSimplifiedName() {
-        return tableSourceSpec.getObjectIdentifier().getObjectName();
+        return tableSourceSpec.getContextResolvedTable().getIdentifier().getObjectName();
     }
 
     public DynamicTableSourceSpec getTableSourceSpec() {
@@ -79,13 +94,15 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
     }
 
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         final StreamExecutionEnvironment env = planner.getExecEnv();
-        final String operatorName = getOperatorName(planner.getTableConfig());
+        final TransformationMetadata meta = createTransformationMeta(SOURCE_TRANSFORMATION, config);
         final InternalTypeInfo<RowData> outputTypeInfo =
                 InternalTypeInfo.of((RowType) getOutputType());
         final ScanTableSource tableSource =
-                tableSourceSpec.getScanTableSource(planner.getFlinkContext());
+                tableSourceSpec.getScanTableSource(
+                        planner.getFlinkContext(), ShortcutUtils.unwrapTypeFactory(planner));
         ScanTableSource.ScanRuntimeProvider provider =
                 tableSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
         if (provider instanceof SourceFunctionProvider) {
@@ -96,17 +113,16 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
                             env,
                             function,
                             sourceFunctionProvider.isBounded(),
-                            operatorName,
+                            meta.getName(),
                             outputTypeInfo);
-            transformation.setDescription(getOperatorDescription(planner.getTableConfig()));
-            return transformation;
+            return meta.fill(transformation);
         } else if (provider instanceof InputFormatProvider) {
             final InputFormat<RowData, ?> inputFormat =
                     ((InputFormatProvider) provider).createInputFormat();
             final Transformation<RowData> transformation =
-                    createInputFormatTransformation(env, inputFormat, outputTypeInfo, operatorName);
-            transformation.setDescription(getOperatorDescription(planner.getTableConfig()));
-            return transformation;
+                    createInputFormatTransformation(
+                            env, inputFormat, outputTypeInfo, meta.getName());
+            return meta.fill(transformation);
         } else if (provider instanceof SourceProvider) {
             final Source<RowData, ?, ?> source = ((SourceProvider) provider).createSource();
             // TODO: Push down watermark strategy to source scan
@@ -114,25 +130,38 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
                     env.fromSource(
                                     source,
                                     WatermarkStrategy.noWatermarks(),
-                                    operatorName,
+                                    meta.getName(),
                                     outputTypeInfo)
                             .getTransformation();
-            transformation.setDescription(getOperatorDescription(planner.getTableConfig()));
-            return transformation;
+            return meta.fill(transformation);
         } else if (provider instanceof DataStreamScanProvider) {
             Transformation<RowData> transformation =
-                    ((DataStreamScanProvider) provider).produceDataStream(env).getTransformation();
+                    ((DataStreamScanProvider) provider)
+                            .produceDataStream(createProviderContext(config), env)
+                            .getTransformation();
+            meta.fill(transformation);
             transformation.setOutputType(outputTypeInfo);
             return transformation;
         } else if (provider instanceof TransformationScanProvider) {
             final Transformation<RowData> transformation =
-                    ((TransformationScanProvider) provider).createTransformation();
+                    ((TransformationScanProvider) provider)
+                            .createTransformation(createProviderContext(config));
+            meta.fill(transformation);
             transformation.setOutputType(outputTypeInfo);
             return transformation;
         } else {
             throw new UnsupportedOperationException(
                     provider.getClass().getSimpleName() + " is unsupported now.");
         }
+    }
+
+    private ProviderContext createProviderContext(ExecNodeConfig config) {
+        return name -> {
+            if (this instanceof StreamExecNode && config.shouldSetUid()) {
+                return Optional.of(createTransformationUid(name, config));
+            }
+            return Optional.empty();
+        };
     }
 
     /**
@@ -149,10 +178,12 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
         env.clean(function);
 
         final int parallelism;
+        boolean parallelismConfigured = false;
         if (function instanceof ParallelSourceFunction) {
             parallelism = env.getParallelism();
         } else {
             parallelism = 1;
+            parallelismConfigured = true;
         }
 
         final Boundedness boundedness;
@@ -164,7 +195,12 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
 
         final StreamSource<RowData, ?> sourceOperator = new StreamSource<>(function, !isBounded);
         return new LegacySourceTransformation<>(
-                operatorName, sourceOperator, outputTypeInfo, parallelism, boundedness);
+                operatorName,
+                sourceOperator,
+                outputTypeInfo,
+                parallelism,
+                boundedness,
+                parallelismConfigured);
     }
 
     /**

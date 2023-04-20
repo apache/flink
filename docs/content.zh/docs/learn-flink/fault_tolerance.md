@@ -1,6 +1,6 @@
 ---
 title: 容错处理
-weight: 6
+weight: 7
 type: docs
 ---
 <!--
@@ -89,6 +89,53 @@ Flink 管理的状态存储在 _state backend_ 中。Flink 有两种 state backe
 当使用基于堆的 state backend 保存状态时，访问和更新涉及在堆上读写对象。但是对于保存在 `RocksDBStateBackend` 中的对象，访问和更新涉及序列化和反序列化，所以会有更大的开销。但 RocksDB 的状态量仅受本地磁盘大小的限制。还要注意，只有 `RocksDBStateBackend` 能够进行增量快照，这对于具有大量变化缓慢状态的应用程序来说是大有裨益的。
 
 所有这些 state backends 都能够异步执行快照，这意味着它们可以在不妨碍正在进行的流处理的情况下执行快照。
+
+{{< top >}}
+
+## Checkpoint Storage
+
+Flink 定期对每个算子的所有状态进行持久化快照，并将这些快照复制到更持久的地方，例如分布式文件系统。 如果发生故障，Flink 可以恢复应用程序的完整状态并恢复处理，就好像没有出现任何问题一样。
+
+这些快照的存储位置是通过作业_checkpoint storage_定义的。
+有两种可用检查点存储实现：一种持久保存其状态快照
+到一个分布式文件系统，另一种是使用 JobManager 的堆。
+
+<center>
+  <table class="table table-bordered">
+    <thead>
+      <tr class="book-hint info">
+        <th class="text-left">名称</th>
+        <th class="text-left">状态备份</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th class="text-left">FileSystemCheckpointStorage</th>
+        <td class="text-left">分布式文件系统</td>
+      </tr>
+      <tr>
+        <td colspan="4" class="text-left">
+          <ul>
+            <li>支持非常大的状态大小</li>
+            <li>高度可靠</li>
+            <li>推荐用于生产部署</li>
+          </ul>
+        </td>
+      </tr>
+      <tr>
+        <th class="text-left">JobManagerCheckpointStorage</th>
+        <td class="text-left">JobManager JVM Heap</td>
+      </tr>
+      <tr>
+        <td colspan="4" class="text-left">
+          <ul>
+            <li>适合小状态（本地）的测试和实验</li>
+          </ul>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</center>
 
 {{< top >}}
 

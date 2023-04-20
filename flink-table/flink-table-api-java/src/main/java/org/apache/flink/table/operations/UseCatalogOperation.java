@@ -18,10 +18,13 @@
 
 package org.apache.flink.table.operations;
 
+import org.apache.flink.table.api.internal.TableResultImpl;
+import org.apache.flink.table.api.internal.TableResultInternal;
+
 /** Operation to describe a USE CATALOG statement. */
 public class UseCatalogOperation implements UseOperation {
 
-    private String catalogName;
+    private final String catalogName;
 
     public UseCatalogOperation(String catalogName) {
         this.catalogName = catalogName;
@@ -34,5 +37,11 @@ public class UseCatalogOperation implements UseOperation {
     @Override
     public String asSummaryString() {
         return String.format("USE CATALOG %s", catalogName);
+    }
+
+    @Override
+    public TableResultInternal execute(Context ctx) {
+        ctx.getCatalogManager().setCurrentCatalog(catalogName);
+        return TableResultImpl.TABLE_RESULT_OK;
     }
 }

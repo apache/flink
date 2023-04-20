@@ -42,7 +42,7 @@ public class SortLimitJsonPlanITCase extends JsonPlanTestBase {
                 "c int");
         createTestNonInsertOnlyValuesSinkTable("`result`", "a int", "b varchar", "c bigint");
         String sql = "insert into `result` select * from MyTable order by a limit 3";
-        executeSqlWithJsonPlanVerified(sql).await();
+        compileSqlAndExecutePlan(sql).await();
 
         List<String> expected = Arrays.asList("+I[1, a, 5]", "+I[2, a, 6]", "+I[3, b, 7]");
         assertResult(expected, TestValuesTableFactory.getResults("result"));

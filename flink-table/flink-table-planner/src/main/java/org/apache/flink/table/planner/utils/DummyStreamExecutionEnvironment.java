@@ -24,6 +24,7 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -85,14 +86,20 @@ public class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment 
     }
 
     @Override
+    public ReadableConfig getConfiguration() {
+        return realExecEnv.getConfiguration();
+    }
+
+    @Override
     public List<Tuple2<String, DistributedCache.DistributedCacheEntry>> getCachedFiles() {
         return realExecEnv.getCachedFiles();
     }
 
     @Override
     public StreamExecutionEnvironment setParallelism(int parallelism) {
-        throw new UnsupportedOperationException(
-                "This is a dummy StreamExecutionEnvironment, setParallelism method is unsupported.");
+        // Please always reset the parallelism back to the original one after changed
+        realExecEnv.setParallelism(parallelism);
+        return this;
     }
 
     @Override

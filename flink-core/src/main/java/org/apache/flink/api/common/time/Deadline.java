@@ -42,7 +42,7 @@ public class Deadline {
     }
 
     public Deadline plus(Duration other) {
-        return new Deadline(Math.addExact(timeNanos, other.toNanos()), this.clock);
+        return new Deadline(addHandlingOverflow(timeNanos, other.toNanos()), this.clock);
     }
 
     /**
@@ -72,9 +72,12 @@ public class Deadline {
         return !isOverdue();
     }
 
-    /** Determines whether the deadline is in the past, i.e. whether the time left is negative. */
+    /**
+     * Determines whether the deadline is in the past, i.e. whether the time left is zero or
+     * negative.
+     */
     public boolean isOverdue() {
-        return timeNanos < clock.relativeTimeNanos();
+        return timeNanos <= clock.relativeTimeNanos();
     }
 
     // ------------------------------------------------------------------------
@@ -92,7 +95,8 @@ public class Deadline {
     /** Constructs a Deadline that is a given duration after now. */
     public static Deadline fromNow(Duration duration) {
         return new Deadline(
-                Math.addExact(System.nanoTime(), duration.toNanos()), SystemClock.getInstance());
+                addHandlingOverflow(System.nanoTime(), duration.toNanos()),
+                SystemClock.getInstance());
     }
 
     /**
@@ -103,11 +107,24 @@ public class Deadline {
      * @param clock Time provider for this deadline.
      */
     public static Deadline fromNowWithClock(Duration duration, Clock clock) {
-        return new Deadline(Math.addExact(clock.relativeTimeNanos(), duration.toNanos()), clock);
+        return new Deadline(
+                addHandlingOverflow(clock.relativeTimeNanos(), duration.toNanos()), clock);
     }
 
     @Override
     public String toString() {
         return LocalDateTime.now().plus(timeLeft()).toString();
+    }
+
+    // -------------------- private helper methods ----------------
+
+    private static long addHandlingOverflow(long x, long y) {
+        // The logic is copied over from Math.addExact() in order to handle overflows.
+        long r = x + y;
+        if (((x ^ r) & (y ^ r)) < 0) {
+            return Long.MAX_VALUE;
+        } else {
+            return x + y;
+        }
     }
 }

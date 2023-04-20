@@ -18,7 +18,6 @@
 package org.apache.flink.connector.base.sink;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.connector.base.sink.writer.ElementConverter;
 
 import java.io.Serializable;
 
@@ -36,23 +35,12 @@ public abstract class AsyncSinkBaseBuilder<
         RequestEntryT extends Serializable,
         ConcreteBuilderT extends AsyncSinkBaseBuilder<?, ?, ?>> {
 
-    private ElementConverter<InputT, RequestEntryT> elementConverter;
     private Integer maxBatchSize;
     private Integer maxInFlightRequests;
     private Integer maxBufferedRequests;
     private Long maxBatchSizeInBytes;
     private Long maxTimeInBufferMS;
     private Long maxRecordSizeInBytes;
-
-    /**
-     * @param elementConverter the {@link ElementConverter} to be used for the sink
-     * @return {@link ConcreteBuilderT} itself
-     */
-    public ConcreteBuilderT setElementConverter(
-            ElementConverter<InputT, RequestEntryT> elementConverter) {
-        this.elementConverter = elementConverter;
-        return (ConcreteBuilderT) this;
-    }
 
     /**
      * @param maxBatchSize maximum number of elements that may be passed in a list to be written
@@ -126,10 +114,6 @@ public abstract class AsyncSinkBaseBuilder<
 
     /** Builds the Sink with the settings applied to this builder. */
     public abstract AsyncSinkBase<InputT, RequestEntryT> build();
-
-    protected ElementConverter<InputT, RequestEntryT> getElementConverter() {
-        return elementConverter;
-    }
 
     protected Integer getMaxBatchSize() {
         return maxBatchSize;

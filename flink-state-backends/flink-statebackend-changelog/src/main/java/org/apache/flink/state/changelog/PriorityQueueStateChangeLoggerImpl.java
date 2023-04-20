@@ -18,8 +18,9 @@
 package org.apache.flink.state.changelog;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.RegisteredPriorityQueueStateBackendMetaInfo;
+import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 import org.apache.flink.runtime.state.heap.InternalKeyContext;
 
@@ -27,9 +28,8 @@ import java.io.IOException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-class PriorityQueueStateChangeLoggerImpl<K, T> extends AbstractStateChangeLogger<K, T, Void>
-        implements PriorityQueueStateChangeLogger<T> {
-    private final TypeSerializer<T> serializer;
+class PriorityQueueStateChangeLoggerImpl<K, T> extends AbstractStateChangeLogger<K, T, Void> {
+    private TypeSerializer<T> serializer;
 
     PriorityQueueStateChangeLoggerImpl(
             TypeSerializer<T> serializer,
@@ -42,16 +42,21 @@ class PriorityQueueStateChangeLoggerImpl<K, T> extends AbstractStateChangeLogger
     }
 
     @Override
-    protected void serializeValue(T t, DataOutputViewStreamWrapper out) throws IOException {
+    protected void serializeValue(T t, DataOutputView out) throws IOException {
         serializer.serialize(t, out);
     }
 
     @Override
-    protected void serializeScope(Void unused, DataOutputViewStreamWrapper out)
-            throws IOException {}
+    protected void serializeScope(Void unused, DataOutputView out) throws IOException {}
 
     @Override
-    public void stateElementPolled() throws IOException {
-        log(StateChangeOperation.REMOVE_FIRST_ELEMENT, null);
+    protected PriorityQueueStateChangeLoggerImpl<K, T> setMetaInfo(
+            RegisteredStateMetaInfoBase metaInfo) {
+        super.setMetaInfo(metaInfo);
+        @SuppressWarnings("unchecked")
+        RegisteredPriorityQueueStateBackendMetaInfo<T> pqMetaInfo =
+                (RegisteredPriorityQueueStateBackendMetaInfo<T>) metaInfo;
+        this.serializer = pqMetaInfo.getElementSerializer();
+        return this;
     }
 }

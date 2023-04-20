@@ -15,13 +15,11 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import abc
-import json
-from enum import Enum
-from typing import Callable, Tuple, List
+from abc import ABC, abstractmethod
+from typing import Callable
 
 
-class MetricGroup(abc.ABC):
+class MetricGroup(ABC):
     """
     A MetricGroup is a named container for metrics and further metric subgroups.
 
@@ -33,6 +31,7 @@ class MetricGroup(abc.ABC):
     .. versionadded:: 1.11.0
     """
 
+    @abstractmethod
     def add_group(self, name: str, extra: str = None) -> 'MetricGroup':
         """
         Creates a new MetricGroup and adds it to this groups sub-groups.
@@ -46,6 +45,7 @@ class MetricGroup(abc.ABC):
         """
         pass
 
+    @abstractmethod
     def counter(self, name: str) -> 'Counter':
         """
         Registers a new `Counter` with Flink.
@@ -54,6 +54,7 @@ class MetricGroup(abc.ABC):
         """
         pass
 
+    @abstractmethod
     def gauge(self, name: str, obj: Callable[[], int]) -> None:
         """
         Registers a new `Gauge` with Flink.
@@ -62,15 +63,16 @@ class MetricGroup(abc.ABC):
         """
         pass
 
+    @abstractmethod
     def meter(self, name: str, time_span_in_seconds: int = 60) -> 'Meter':
         """
         Registers a new `Meter` with Flink.
 
         .. versionadded:: 1.11.0
         """
-        # There is no meter type in Beam, use counter to implement meter
         pass
 
+    @abstractmethod
     def distribution(self, name: str) -> 'Distribution':
         """
         Registers a new `Distribution` with Flink.
@@ -80,86 +82,7 @@ class MetricGroup(abc.ABC):
         pass
 
 
-class MetricGroupType(Enum):
-    """
-    Indicate the type of MetricGroup.
-    """
-    generic = 0
-    key = 1
-    value = 2
-
-
-class GenericMetricGroup(MetricGroup):
-
-    def __init__(
-            self,
-            parent,
-            name,
-            metric_group_type=MetricGroupType.generic):
-        self._parent = parent
-        self._sub_groups = []
-        self._name = name
-        self._metric_group_type = metric_group_type
-        self._flink_gauge = {}
-        self._beam_gauge = {}
-
-    def _add_group(self, name: str, metric_group_type: MetricGroupType) \
-            -> 'GenericMetricGroup':
-        for group in self._sub_groups:
-            if name == group._name and metric_group_type == group._metric_group_type:
-                # we don't create same metric group repeatedly
-                return group
-
-        sub_group = GenericMetricGroup(
-            self,
-            name,
-            metric_group_type)
-        self._sub_groups.append(sub_group)
-        return sub_group
-
-    def add_group(self, name: str, extra: str = None) -> 'MetricGroup':
-        if extra is None:
-            return self._add_group(name, MetricGroupType.generic)
-        else:
-            return self._add_group(name, MetricGroupType.key)\
-                ._add_group(extra, MetricGroupType.value)
-
-    def counter(self, name: str) -> 'Counter':
-        from apache_beam.metrics.metric import Metrics
-        return Counter(Metrics.counter(self._get_namespace(), name))
-
-    def gauge(self, name: str, obj: Callable[[], int]) -> None:
-        from apache_beam.metrics.metric import Metrics
-        self._flink_gauge[name] = obj
-        self._beam_gauge[name] = Metrics.gauge(self._get_namespace(), name)
-
-    def meter(self, name: str, time_span_in_seconds: int = 60) -> 'Meter':
-        from apache_beam.metrics.metric import Metrics
-        # There is no meter type in Beam, use counter to implement meter
-        return Meter(Metrics.counter(self._get_namespace(time_span_in_seconds), name))
-
-    def distribution(self, name: str) -> 'Distribution':
-        from apache_beam.metrics.metric import Metrics
-        return Distribution(Metrics.distribution(self._get_namespace(), name))
-
-    def _get_metric_group_names_and_types(self) -> Tuple[List[str], List[str]]:
-        if self._name is None:
-            return [], []
-        else:
-            names, types = self._parent._get_metric_group_names_and_types()
-            names.append(self._name)
-            types.append(str(self._metric_group_type))
-            return names, types
-
-    def _get_namespace(self, time=None) -> str:
-        names, metric_group_type = self._get_metric_group_names_and_types()
-        names.extend(metric_group_type)
-        if time is not None:
-            names.append(str(time))
-        return json.dumps(names)
-
-
-class Metric(object):
+class Metric(ABC):
     """
     Base interface of a metric object.
 
@@ -168,7 +91,7 @@ class Metric(object):
     pass
 
 
-class Counter(Metric):
+class Counter(Metric, ABC):
     """
     Counter metric interface. Allows a count to be incremented/decremented
     during pipeline execution.
@@ -176,37 +99,63 @@ class Counter(Metric):
     .. versionadded:: 1.11.0
     """
 
-    def __init__(self, inner_counter):
-        self._inner_counter = inner_counter
-
+    @abstractmethod
     def inc(self, n: int = 1):
         """
         Increment the current count by the given value.
 
         .. versionadded:: 1.11.0
         """
-        self._inner_counter.inc(n)
+        pass
 
+    @abstractmethod
     def dec(self, n: int = 1):
         """
         Decrement the current count by 1.
 
         .. versionadded:: 1.11.0
         """
-        self.inc(-n)
+        pass
 
+    @abstractmethod
     def get_count(self) -> int:
         """
         Returns the current count.
 
         .. versionadded:: 1.11.0
         """
-        from apache_beam.metrics.execution import MetricsEnvironment
-        container = MetricsEnvironment.current_container()
-        return container.get_counter(self._inner_counter.metric_name).get_cumulative()
+        pass
 
 
-class Distribution(Metric):
+class Meter(Metric, ABC):
+    """
+    Meter Metric interface.
+
+    Metric for measuring throughput.
+
+    .. versionadded:: 1.11.0
+    """
+
+    @abstractmethod
+    def mark_event(self, value: int = 1):
+        """
+        Mark occurrence of the specified number of events.
+
+        .. versionadded:: 1.11.0
+        """
+        pass
+
+    @abstractmethod
+    def get_count(self) -> int:
+        """
+        Get number of events marked on the meter.
+
+        .. versionadded:: 1.11.0
+        """
+        pass
+
+
+class Distribution(Metric, ABC):
     """
     Distribution Metric interface.
 
@@ -216,44 +165,6 @@ class Distribution(Metric):
     .. versionadded:: 1.11.0
     """
 
-    def __init__(self, inner_distribution):
-        self._inner_distribution = inner_distribution
-
+    @abstractmethod
     def update(self, value):
-        """
-        Updates the distribution value.
-
-        .. versionadded:: 1.11.0
-        """
-        self._inner_distribution.update(value)
-
-
-class Meter(Metric):
-    """
-    Meter Metric interface.
-
-    Metric for measuring throughput.
-
-    .. versionadded:: 1.11.0
-    """
-
-    def __init__(self, inner_counter):
-        self._inner_counter = inner_counter
-
-    def mark_event(self, value: int = 1):
-        """
-        Mark occurrence of the specified number of events.
-
-        .. versionadded:: 1.11.0
-        """
-        self._inner_counter.inc(value)
-
-    def get_count(self) -> int:
-        """
-        Get number of events marked on the meter.
-
-        .. versionadded:: 1.11.0
-        """
-        from apache_beam.metrics.execution import MetricsEnvironment
-        container = MetricsEnvironment.current_container()
-        return container.get_counter(self._inner_counter.metric_name).get_cumulative()
+        pass

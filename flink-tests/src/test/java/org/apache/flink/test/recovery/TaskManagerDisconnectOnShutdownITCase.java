@@ -26,6 +26,7 @@ import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.blocklist.BlocklistUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.entrypoint.SessionClusterEntrypoint;
@@ -44,6 +45,7 @@ import org.apache.flink.runtime.resourcemanager.StandaloneResourceManager;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.test.recovery.utils.TaskExecutorProcessEntryPoint;
 import org.apache.flink.test.util.TestProcessBuilder;
@@ -175,6 +177,7 @@ public class TaskManagerDisconnectOnShutdownITCase {
                 RpcService rpcService,
                 UUID leaderSessionId,
                 HeartbeatServices heartbeatServices,
+                DelegationTokenManager delegationTokenManager,
                 FatalErrorHandler fatalErrorHandler,
                 ClusterInformation clusterInformation,
                 @Nullable String webInterfaceUrl,
@@ -190,8 +193,10 @@ public class TaskManagerDisconnectOnShutdownITCase {
                     leaderSessionId,
                     resourceId,
                     heartbeatServices,
+                    delegationTokenManager,
                     resourceManagerRuntimeServices.getSlotManager(),
                     ResourceManagerPartitionTrackerImpl::new,
+                    BlocklistUtils.loadBlocklistHandlerFactory(configuration),
                     resourceManagerRuntimeServices.getJobLeaderIdService(),
                     clusterInformation,
                     fatalErrorHandler,

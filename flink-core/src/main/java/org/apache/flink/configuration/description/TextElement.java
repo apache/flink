@@ -18,6 +18,8 @@
 
 package org.apache.flink.configuration.description;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import org.apache.flink.shaded.guava30.com.google.common.base.Strings;
 
 import java.util.Arrays;
@@ -26,6 +28,7 @@ import java.util.EnumSet;
 import java.util.List;
 
 /** Represents a text block in the {@link Description}. */
+@PublicEvolving
 public class TextElement implements BlockElement, InlineElement {
     private final String format;
     private final List<InlineElement> elements;
@@ -95,6 +98,7 @@ public class TextElement implements BlockElement, InlineElement {
     }
 
     /** Styles that can be applied to {@link TextElement} e.g. code, bold etc. */
+    @PublicEvolving
     public enum TextStyle {
         CODE
     }

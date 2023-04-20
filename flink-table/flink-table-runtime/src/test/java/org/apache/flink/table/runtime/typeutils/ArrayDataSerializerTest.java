@@ -29,10 +29,11 @@ import org.apache.flink.table.data.columnar.vector.heap.HeapBytesVector;
 import org.apache.flink.table.data.writer.BinaryArrayWriter;
 import org.apache.flink.testutils.DeeplyEqualsChecker;
 
+import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 
 /** A test for the {@link ArrayDataSerializer}. */
-public class ArrayDataSerializerTest extends SerializerTestBase<ArrayData> {
+class ArrayDataSerializerTest extends SerializerTestBase<ArrayData> {
 
     public ArrayDataSerializerTest() {
         super(
@@ -88,6 +89,7 @@ public class ArrayDataSerializerTest extends SerializerTestBase<ArrayData> {
             createArray("11", "haa", "ke"),
             createArray("11", "lele", "haa", "ke"),
             createColumnarArray("11", "lele", "haa", "ke"),
+            createCustomTypeArray("11", "lele", "haa", "ke"),
         };
     }
 
@@ -107,5 +109,15 @@ public class ArrayDataSerializerTest extends SerializerTestBase<ArrayData> {
             vector.fill(v.getBytes(StandardCharsets.UTF_8));
         }
         return new ColumnarArrayData(vector, 0, vs.length);
+    }
+
+    static ArrayData createCustomTypeArray(String... vs) {
+        BinaryArrayData binaryArrayData = createArray(vs);
+        Object customArrayData =
+                Proxy.newProxyInstance(
+                        ArrayDataSerializerTest.class.getClassLoader(),
+                        new Class[] {ArrayData.class},
+                        (proxy, method, args) -> method.invoke(binaryArrayData, args));
+        return (ArrayData) customArrayData;
     }
 }

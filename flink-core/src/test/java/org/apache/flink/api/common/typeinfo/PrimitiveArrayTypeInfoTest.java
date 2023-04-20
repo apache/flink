@@ -21,7 +21,7 @@ package org.apache.flink.api.common.typeinfo;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
 /** Test for {@link PrimitiveArrayTypeInfoTest}. */
-public class PrimitiveArrayTypeInfoTest extends TypeInformationTestBase<PrimitiveArrayTypeInfo<?>> {
+class PrimitiveArrayTypeInfoTest extends TypeInformationTestBase<PrimitiveArrayTypeInfo<?>> {
 
     @Override
     protected PrimitiveArrayTypeInfo<?>[] getTestData() {

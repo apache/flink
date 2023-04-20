@@ -150,7 +150,7 @@ public final class MultiInputSortingDataInput<IN, K> implements StreamTaskInput<
             IOManager ioManager,
             boolean objectReuse,
             double managedMemoryFraction,
-            Configuration jobConfiguration,
+            Configuration taskManagerConfiguration,
             ExecutionConfig executionConfig) {
         int keyLength = keySerializer.getLength();
         final TypeComparator<Tuple2<byte[], StreamRecord<Object>>> comparator;
@@ -196,11 +196,11 @@ public final class MultiInputSortingDataInput<IN, K> implements StreamTaskInput<
                                                                         / numberOfInputs)
                                                         .enableSpilling(
                                                                 ioManager,
-                                                                jobConfiguration.get(
+                                                                taskManagerConfiguration.get(
                                                                         AlgorithmOptions
                                                                                 .SORT_SPILLING_THRESHOLD))
                                                         .maxNumFileHandles(
-                                                                jobConfiguration.get(
+                                                                taskManagerConfiguration.get(
                                                                                 AlgorithmOptions
                                                                                         .SPILLING_MAX_FAN)
                                                                         / numberOfInputs)

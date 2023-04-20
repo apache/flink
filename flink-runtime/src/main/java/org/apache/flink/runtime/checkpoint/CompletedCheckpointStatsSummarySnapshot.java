@@ -32,20 +32,24 @@ public class CompletedCheckpointStatsSummarySnapshot implements Serializable {
     private final StatsSummarySnapshot persistedData;
     private final StatsSummarySnapshot processedData;
     private final StatsSummarySnapshot stateSize;
+    private final StatsSummarySnapshot checkpointedSize;
 
     public CompletedCheckpointStatsSummarySnapshot(
             StatsSummarySnapshot duration,
             StatsSummarySnapshot processedData,
             StatsSummarySnapshot persistedData,
-            StatsSummarySnapshot stateSize) {
+            StatsSummarySnapshot stateSize,
+            StatsSummarySnapshot checkpointedSize) {
         this.duration = checkNotNull(duration);
         this.persistedData = checkNotNull(persistedData);
         this.processedData = checkNotNull(processedData);
         this.stateSize = checkNotNull(stateSize);
+        this.checkpointedSize = checkNotNull(checkpointedSize);
     }
 
     public static CompletedCheckpointStatsSummarySnapshot empty() {
         return new CompletedCheckpointStatsSummarySnapshot(
+                StatsSummarySnapshot.empty(),
                 StatsSummarySnapshot.empty(),
                 StatsSummarySnapshot.empty(),
                 StatsSummarySnapshot.empty(),
@@ -66,5 +70,9 @@ public class CompletedCheckpointStatsSummarySnapshot implements Serializable {
 
     public StatsSummarySnapshot getStateSizeStats() {
         return stateSize;
+    }
+
+    public StatsSummarySnapshot getCheckpointedSize() {
+        return checkpointedSize;
     }
 }

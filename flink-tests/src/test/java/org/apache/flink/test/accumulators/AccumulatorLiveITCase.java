@@ -23,7 +23,6 @@ import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.program.ClusterClient;
@@ -43,9 +42,11 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -58,6 +59,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
@@ -66,6 +68,10 @@ import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
 public class AccumulatorLiveITCase extends TestLogger {
 
     private static final Logger LOG = LoggerFactory.getLogger(AccumulatorLiveITCase.class);
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     // name of user accumulator
     private static final String ACCUMULATOR_NAME = "test";
@@ -192,14 +198,14 @@ public class AccumulatorLiveITCase extends TestLogger {
                                 return FutureUtils.completedExceptionally(e);
                             }
                         },
-                        Time.milliseconds(20),
+                        Duration.ofMillis(20),
                         deadline,
                         accumulators ->
                                 accumulators.size() == 1
                                         && accumulators.containsKey(ACCUMULATOR_NAME)
                                         && (int) accumulators.get(ACCUMULATOR_NAME)
                                                 == NUM_ITERATIONS,
-                        TestingUtils.defaultScheduledExecutor())
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()))
                 .get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
     }
 

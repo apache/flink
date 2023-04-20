@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
@@ -35,7 +34,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -107,10 +105,7 @@ public class PermanentBlobCacheTest {
         try (final PermanentBlobCache permanentBlobCache =
                 new PermanentBlobCache(
                         configuration, storageDirectory.toFile(), new VoidBlobStore(), null)) {
-            CommonTestUtils.waitUntilCondition(
-                    () -> !blobFile.exists(),
-                    Deadline.fromNow(Duration.ofSeconds(cleanupInterval * 5L)),
-                    "The permanent blob file was not cleaned up automatically.");
+            CommonTestUtils.waitUntilCondition(() -> !blobFile.exists());
         }
     }
 }

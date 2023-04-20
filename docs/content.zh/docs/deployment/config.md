@@ -76,7 +76,7 @@ These value are configured as memory sizes, for example *1536m* or *2g*.
 
 You can configure checkpointing directly in code within your Flink job or application. Putting these values here in the configuration defines them as defaults in case the application does not configure anything.
 
-  - `state.backend`: The state backend to use. This defines the data structure mechanism for taking snapshots. Common values are `filesystem` or `rocksdb`.
+  - `state.backend.type`: The state backend to use. This defines the data structure mechanism for taking snapshots. Common values are `filesystem` or `rocksdb`.
   - `state.checkpoints.dir`: The directory to write checkpoints to. This takes a path URI like *s3://mybucket/flink-app/checkpoints* or *hdfs://namenode:port/flink/checkpoints*.
   - `state.savepoints.dir`: The default directory for savepoints. Takes a path URI, similar to `state.checkpoints.dir`.
   - `execution.checkpointing.interval`: The base interval setting. To enable checkpointing, you need to set this value larger than 0.
@@ -135,6 +135,20 @@ The default restart strategy will only take effect if no job specific restart st
 
 {{< generated/failure_rate_restart_strategy_configuration >}}
 
+### Retryable Cleanup
+
+After jobs reach a globally-terminal state, a cleanup of all related resources is performed. This cleanup can be retried in case of failure. Different retry strategies can be configured to change this behavior:
+
+{{< generated/cleanup_configuration >}}
+
+**Fixed-Delay Cleanup Retry Strategy**
+
+{{< generated/fixed_delay_cleanup_strategy_configuration >}}
+
+**Exponential-Delay Cleanup Retry Strategy**
+
+{{< generated/exponential_delay_cleanup_strategy_configuration >}}
+
 ### Checkpoints and State Backends
 
 These options control the basic setup of state backends and checkpointing behavior.
@@ -151,6 +165,10 @@ High-availability here refers to the ability of the JobManager process to recove
 The JobManager ensures consistency during recovery across TaskManagers. For the JobManager itself to recover consistently, an external service must store a minimal amount of recovery metadata (like "ID of last committed checkpoint"), as well as help to elect and lock which JobManager is the leader (to avoid split-brain situations).
 
 {{< generated/common_high_availability_section >}}
+
+**Options for the JobResultStore in high-availability setups**
+
+{{< generated/common_high_availability_jrs_section >}}
 
 **Options for high-availability setups with ZooKeeper**
 
@@ -186,8 +204,14 @@ Flink's network connections can be secured via SSL. Please refer to the [SSL Set
 
 {{< generated/security_ssl_section >}}
 
-
 ### Auth with External Systems
+
+**Delegation token**
+
+Flink has a pluggable authentication protocol agnostic delegation token framework.
+Please refer to the [Flink and Delegation Token Docs]({{< ref "docs/deployment/security/security-delegation-token" >}}) for further details.
+
+{{< generated/security_delegation_token_section >}}
 
 **ZooKeeper Authentication / Authorization**
 
@@ -246,7 +270,9 @@ Please refer to the [metrics system documentation]({{< ref "docs/ops/metrics" >}
 ### RocksDB Native Metrics
 
 Flink can report metrics from RocksDB's native code, for applications using the RocksDB state backend.
-The metrics here are scoped to the operators and then further broken down by column family; values are reported as unsigned longs. 
+The metrics here are scoped to the operators with unsigned longs and have two kinds of types：
+1. RocksDB property-based metrics, which is broken down by column family, e.g. number of currently running compactions of one specific column family.
+2. RocksDB statistics-based metrics, which holds at the database level, e.g. total block cache hit count within the DB.
 
 {{< hint warning >}}
 Enabling RocksDB's native metrics may cause degraded performance and should be set carefully. 
@@ -338,6 +364,17 @@ Please refer to the [Debugging Classloading Docs]({{< ref "docs/ops/debugging/de
 Advanced options to tune RocksDB and RocksDB checkpoints.
 
 {{< generated/expert_rocksdb_section >}}
+
+### State Changelog Options
+
+Please refer to [State Backends]({{< ref "docs/ops/state/state_backends#enabling-changelog" >}}) for information on
+using State Changelog. {{< hint warning >}} The feature is in experimental status. {{< /hint >}} {{<
+generated/state_backend_changelog_section >}}
+
+#### FileSystem-based Changelog options
+
+These settings take effect when the `state.backend.changelog.storage`  is set to `filesystem` (see [above](#state-backend-changelog-storage)).
+{{< generated/fs_state_changelog_configuration >}}
 
 **RocksDB Configurable Options**
 

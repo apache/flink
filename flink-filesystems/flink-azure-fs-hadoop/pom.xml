@@ -23,8 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-filesystems</artifactId>
-		<version>1.15-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-azure-fs-hadoop</artifactId>
@@ -68,6 +67,14 @@ under the License.
 				<exclusion>
 					<groupId>org.apache.hadoop</groupId>
 					<artifactId>hadoop-common</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>ch.qos.reload4j</groupId>
+					<artifactId>reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-reload4j</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -116,63 +123,18 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
-							<shadeTestJar>false</shadeTestJar>
 							<artifactSet>
 								<includes>
 									<include>*:*</include>
 								</includes>
 							</artifactSet>
 							<relocations>
-								<!-- relocate the references to Hadoop to match the shaded Hadoop config -->
-								<relocation>
-									<pattern>org.apache.hadoop</pattern>
-									<shadedPattern>org.apache.flink.fs.shaded.hadoop3.org.apache.hadoop</shadedPattern>
-								</relocation>
-
-								<!-- shade dependencies internally used by Hadoop and never exposed downstream -->
-								<relocation>
-									<pattern>org.apache.commons</pattern>
-									<shadedPattern>org.apache.flink.fs.shaded.hadoop3.org.apache.commons</shadedPattern>
-								</relocation>
-
-								<!-- relocate the Azure dependencies -->
-								<relocation>
-									<pattern>com.microsoft.azure</pattern>
-									<shadedPattern>org.apache.flink.fs.azure.shaded.com.microsoft.azure</shadedPattern>
-								</relocation>
-
-								<!-- shade dependencies internally used by Azure and never exposed downstream -->
-								<relocation>
-									<pattern>org.apache.http</pattern>
-									<shadedPattern>org.apache.flink.fs.azure.shaded.org.apache.http</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>commons-logging</pattern>
-									<shadedPattern>org.apache.flink.fs.azure.shaded.commons-logging</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>commons-codec</pattern>
-									<shadedPattern>org.apache.flink.fs.azure.shaded.commons-codec</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>com.fasterxml</pattern>
-									<shadedPattern>org.apache.flink.fs.azure.shaded.com.fasterxml</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>com.google</pattern>
-									<shadedPattern>org.apache.flink.fs.azure.shaded.com.google</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>org.eclipse</pattern>
-									<shadedPattern>org.apache.flink.fs.azure.shaded.org.eclipse</shadedPattern>
-								</relocation>
-
-								<!-- shade Flink's Hadoop FS adapter classes  -->
+								<!-- shade Flink's Hadoop FS adapter classes, forces plugin classloader for them -->
 								<relocation>
 									<pattern>org.apache.flink.runtime.fs.hdfs</pattern>
 									<shadedPattern>org.apache.flink.fs.azure.common.hadoop</shadedPattern>
 								</relocation>
-								<!-- shade Flink's Hadoop FS utility classes -->
+								<!-- shade Flink's Hadoop FS utility classes, forces plugin classloader for them -->
 								<relocation>
 									<pattern>org.apache.flink.runtime.util</pattern>
 									<shadedPattern>org.apache.flink.fs.azure.common</shadedPattern>
@@ -180,22 +142,12 @@ under the License.
 							</relocations>
 							<filters>
 								<filter>
-									<artifact>org.apache.flink:flink-hadoop-fs</artifact>
-									<excludes>
-										<exclude>org/apache/flink/runtime/util/HadoopUtils</exclude>
-										<exclude>org/apache/flink/runtime/fs/hdfs/HadoopRecoverable*</exclude>
-									</excludes>
-								</filter>
-								<filter>
 									<artifact>*</artifact>
 									<excludes>
 										<exclude>properties.dtd</exclude>
 										<exclude>PropertyList-1.0.dtd</exclude>
 										<exclude>mozilla/**</exclude>
 										<exclude>META-INF/LICENSE.txt</exclude>
-										<exclude>META-INF/*.SF</exclude>
-										<exclude>META-INF/*.DSA</exclude>
-										<exclude>META-INF/*.RSA</exclude>
 									</excludes>
 								</filter>
 							</filters>

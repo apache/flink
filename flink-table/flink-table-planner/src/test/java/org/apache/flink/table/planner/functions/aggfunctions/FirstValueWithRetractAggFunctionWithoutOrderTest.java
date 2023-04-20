@@ -262,7 +262,7 @@ public final class FirstValueWithRetractAggFunctionWithoutOrderTest {
 
     /** Test base for {@link FirstValueWithRetractAggFunction} without order. */
     public abstract static class FirstValueWithRetractAggFunctionWithoutOrderTestBase<T>
-            extends AggFunctionTestBase<T, FirstValueWithRetractAccumulator<T>> {
+            extends AggFunctionTestBase<T, T, FirstValueWithRetractAccumulator<T>> {
 
         @Override
         protected Class<?> getAccClass() {

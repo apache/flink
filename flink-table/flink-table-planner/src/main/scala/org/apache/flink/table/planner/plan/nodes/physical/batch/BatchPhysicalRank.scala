@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.api.TableException
@@ -23,17 +22,18 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.nodes.calcite.Rank
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecRank
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalJoinRuleBase
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, RelExplainUtil}
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankRange, RankType}
 
 import org.apache.calcite.plan._
-import org.apache.calcite.rel.RelDistribution.Type
-import org.apache.calcite.rel.RelDistribution.Type.{HASH_DISTRIBUTED, SINGLETON}
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.`type`.RelDataTypeField
+import org.apache.calcite.rel.RelDistribution.Type
+import org.apache.calcite.rel.RelDistribution.Type.{HASH_DISTRIBUTED, SINGLETON}
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.util.{ImmutableBitSet, ImmutableIntList, Util}
 
@@ -42,10 +42,10 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
-  * Batch physical RelNode for [[Rank]].
-  *
-  * This node supports two-stage(local and global) rank to reduce data-shuffling.
-  */
+ * Batch physical RelNode for [[Rank]].
+ *
+ * This node supports two-stage(local and global) rank to reduce data-shuffling.
+ */
 class BatchPhysicalRank(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -134,8 +134,8 @@ class BatchPhysicalRank(
           true
         } else {
           // If partialKey is enabled, try to use partial key to satisfy the required distribution
-          val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
-          val partialKeyEnabled = tableConfig.getConfiguration.getBoolean(
+          val tableConfig = unwrapTableConfig(this)
+          val partialKeyEnabled = tableConfig.get(
             BatchPhysicalJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED)
           partialKeyEnabled && partitionKeyList.containsAll(shuffleKeys)
         }
@@ -206,7 +206,8 @@ class BatchPhysicalRank(
 
         val inputRequiredDistributionKeys = shuffleKeys
         val inputRequiredDistribution = FlinkRelDistribution.hash(
-          inputRequiredDistributionKeys, requiredDistribution.requireStrict)
+          inputRequiredDistributionKeys,
+          requiredDistribution.requireStrict)
 
         // sort by partition keys + orderby keys
         val providedFieldCollations = partitionKey.toArray.map {
@@ -228,15 +229,24 @@ class BatchPhysicalRank(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
+    val requiredDistribution = if (isGlobal) {
+      if (partitionKey.length() == 0) {
+        InputProperty.SINGLETON_DISTRIBUTION
+      } else {
+        InputProperty.hashDistribution(partitionKey.toArray)
+      }
+    } else {
+      InputProperty.UNKNOWN_DISTRIBUTION
+    }
     new BatchExecRank(
+      unwrapTableConfig(this),
       partitionKey.toArray,
       orderKey.getFieldCollations.map(_.getFieldIndex).toArray,
       rankStart,
       rankEnd,
       outputRankNumber,
-      InputProperty.DEFAULT,
+      InputProperty.builder().requiredDistribution(requiredDistribution).build(),
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 }

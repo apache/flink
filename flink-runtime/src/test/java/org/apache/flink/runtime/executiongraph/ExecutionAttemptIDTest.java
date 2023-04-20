@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.io.network.netty.NettyBufferPool;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 
@@ -34,7 +36,9 @@ public class ExecutionAttemptIDTest {
 
     @Test
     public void testByteBufWriteAndRead() {
-        final ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
+        final ExecutionAttemptID executionAttemptID =
+                new ExecutionAttemptID(
+                        new ExecutionGraphID(), new ExecutionVertexID(new JobVertexID(), 123), 456);
         final int byteBufLen = ExecutionAttemptID.getByteBufLength();
         final ByteBuf byteBuf = ALLOCATOR.directBuffer(byteBufLen, byteBufLen);
         executionAttemptID.writeTo(byteBuf);

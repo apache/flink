@@ -15,15 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.data.{GenericRowData, RowData}
+import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenUtils, ExprCodeGenerator, OperatorCodeGenerator}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{DEFAULT_INPUT1_TERM, GENERIC_ROW}
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.generateCollect
-import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext, ExprCodeGenerator, OperatorCodeGenerator}
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
@@ -40,16 +39,14 @@ import java.util
 
 import scala.collection.JavaConversions._
 
-/**
-  * Util for [[TableScan]]s.
-  */
+/** Util for [[TableScan]]s. */
 object ScanUtil {
 
   def hasTimeAttributeField(indexes: Array[Int]) =
-    indexes.contains(TimeIndicatorTypeInfo.ROWTIME_STREAM_MARKER)||
-        indexes.contains(TimeIndicatorTypeInfo.ROWTIME_BATCH_MARKER)||
-        indexes.contains(TimeIndicatorTypeInfo.PROCTIME_STREAM_MARKER)||
-        indexes.contains(TimeIndicatorTypeInfo.PROCTIME_BATCH_MARKER)
+    indexes.contains(TimeIndicatorTypeInfo.ROWTIME_STREAM_MARKER) ||
+      indexes.contains(TimeIndicatorTypeInfo.ROWTIME_BATCH_MARKER) ||
+      indexes.contains(TimeIndicatorTypeInfo.PROCTIME_STREAM_MARKER) ||
+      indexes.contains(TimeIndicatorTypeInfo.PROCTIME_BATCH_MARKER)
 
   private[flink] def needsConversion(source: TableSource[_]): Boolean = {
     needsConversion(source.getProducedDataType)
@@ -82,23 +79,29 @@ object ScanUtil {
       val convertFunc = CodeGenUtils.genToInternalConverter(ctx, inputType)
       internalInType match {
         case rt: RowType => (convertFunc, rt)
-        case _ => ((record: String) => s"$GENERIC_ROW.of(${convertFunc(record)})",
+        case _ =>
+          (
+            (record: String) => s"$GENERIC_ROW.of(${convertFunc(record)})",
             RowType.of(internalInType))
       }
     }
 
     val processCode =
-      if ((inputRowType.getChildren == outputRowType.getChildren) &&
-          (inputRowType.getFieldNames == outputRowType.getFieldNames) &&
-          !hasTimeAttributeField(fieldIndexes)) {
+      if (
+        (inputRowType.getChildren == outputRowType.getChildren) &&
+        (inputRowType.getFieldNames == outputRowType.getFieldNames) &&
+        !hasTimeAttributeField(fieldIndexes)
+      ) {
         s"${generateCollect(inputTerm)}"
       } else {
 
         // field index change (pojo) or has time attribute field
         val conversion = new ExprCodeGenerator(ctx, false)
-            .bindInput(inputRowType, inputTerm = inputTerm, inputFieldMapping = Some(fieldIndexes))
-            .generateConverterResultExpression(
-              outputRowType, classOf[GenericRowData], rowtimeExpression = rowtimeExpr)
+          .bindInput(inputRowType, inputTerm = inputTerm, inputFieldMapping = Some(fieldIndexes))
+          .generateConverterResultExpression(
+            outputRowType,
+            classOf[GenericRowData],
+            rowtimeExpression = rowtimeExpr)
 
         s"""
            |$beforeConvert
@@ -126,36 +129,35 @@ object ScanUtil {
       substituteStreamOperator,
       InternalTypeInfo.of(outputRowType),
       input.getParallelism,
-      0)
+      0,
+      false)
   }
 
-  /**
-    * @param qualifiedName qualified name for table
-    */
+  /** @param qualifiedName qualified name for table */
   private[flink] def getOperatorDescription(
-      qualifiedName: Seq[String], rowType: RowType): String = {
+      qualifiedName: Seq[String],
+      rowType: RowType): String = {
     val tableQualifiedName = qualifiedName.mkString(".")
     val fieldNames = rowType.getFieldNames.mkString(", ")
     s"SourceConversion(table=[$tableQualifiedName], fields=[$fieldNames])"
   }
 
-  /**
-   * Returns the field indices of primary key in given fields.
-   */
+  /** Returns the field indices of primary key in given fields. */
   def getPrimaryKeyIndices(
       fieldNames: util.List[String],
       keyFields: util.List[String]): Array[Int] = {
     // we must use the output field names of scan node instead of the original schema
     // to calculate the primary key indices, because the scan node maybe projection pushed down
-    keyFields.map { k =>
-      val index = fieldNames.indexOf(k)
-      if (index < 0) {
-        // primary key shouldn't be pruned, otherwise it's a bug
-        throw new TableException(
-          s"Can't find primary key field $k in the input fields $fieldNames. " +
-            s"This is a bug, please file an issue.")
-      }
-      index
+    keyFields.map {
+      k =>
+        val index = fieldNames.indexOf(k)
+        if (index < 0) {
+          // primary key shouldn't be pruned, otherwise it's a bug
+          throw new TableException(
+            s"Can't find primary key field $k in the input fields $fieldNames. " +
+              s"This is a bug, please file an issue.")
+        }
+        index
     }.toArray
   }
 }

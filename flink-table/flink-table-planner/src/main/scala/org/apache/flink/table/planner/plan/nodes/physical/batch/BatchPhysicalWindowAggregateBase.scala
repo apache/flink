@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.api.TableException
@@ -26,12 +25,10 @@ import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+import org.apache.calcite.rel.core.AggregateCall
 
-/**
- * Base batch group window aggregate physical node.
- */
+/** Base batch group window aggregate physical node. */
 abstract class BatchPhysicalWindowAggregateBase(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -58,22 +55,30 @@ abstract class BatchPhysicalWindowAggregateBase(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     val inputRowType = getInput.getRowType
-    super.explainTerms(pw)
+    super
+      .explainTerms(pw)
       .itemIf("groupBy", RelExplainUtil.fieldToString(grouping, inputRowType), grouping.nonEmpty)
-      .itemIf("auxGrouping", RelExplainUtil.fieldToString(auxGrouping, inputRowType),
+      .itemIf(
+        "auxGrouping",
+        RelExplainUtil.fieldToString(auxGrouping, inputRowType),
         auxGrouping.nonEmpty)
       .item("window", window)
-      .itemIf("properties",
-        namedWindowProperties.map(_.getName).mkString(", "), namedWindowProperties.nonEmpty)
-      .item("select", RelExplainUtil.windowAggregationToString(
-        inputRowType,
-        grouping,
-        auxGrouping,
-        outputRowType,
-        aggCallToAggFunction,
-        enableAssignPane,
-        isMerge = isMerge,
-        isGlobal = isFinal))
+      .itemIf(
+        "properties",
+        namedWindowProperties.map(_.getName).mkString(", "),
+        namedWindowProperties.nonEmpty)
+      .item(
+        "select",
+        RelExplainUtil.windowAggregationToString(
+          inputRowType,
+          grouping,
+          auxGrouping,
+          outputRowType,
+          aggCallToAggFunction,
+          enableAssignPane,
+          isMerge = isMerge,
+          isGlobal = isFinal)
+      )
   }
 
 }

@@ -26,7 +26,7 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.SimpleChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultFullHttpResponse;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderNames;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion;
 
@@ -68,9 +68,9 @@ public class PipelineErrorHandler extends SimpleChannelInboundHandler<Object> {
                             Unpooled.wrappedBuffer(
                                     error.getBytes(ConfigConstants.DEFAULT_CHARSET)));
 
-            response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/plain");
+            response.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/plain");
             response.headers()
-                    .set(HttpHeaders.Names.CONTENT_LENGTH, response.content().readableBytes());
+                    .set(HttpHeaderNames.CONTENT_LENGTH, response.content().readableBytes());
 
             ctx.writeAndFlush(response);
         }

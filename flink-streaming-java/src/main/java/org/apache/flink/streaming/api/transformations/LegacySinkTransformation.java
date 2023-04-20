@@ -20,13 +20,20 @@ package org.apache.flink.streaming.api.transformations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.SupportsConcurrentExecutionAttempts;
+import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.streaming.api.operators.OutputFormatOperatorFactory;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamSink;
+import org.apache.flink.streaming.api.operators.UserFunctionProvider;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
@@ -58,10 +65,16 @@ public class LegacySinkTransformation<T> extends PhysicalTransformation<T> {
      *     the Log
      * @param operator The sink operator
      * @param parallelism The parallelism of this {@code LegacySinkTransformation}
+     * @param parallelismConfigured If true, the parallelism of the transformation is explicitly set
+     *     and should be respected. Otherwise the parallelism can be changed at runtime.
      */
     public LegacySinkTransformation(
-            Transformation<T> input, String name, StreamSink<T> operator, int parallelism) {
-        this(input, name, SimpleOperatorFactory.of(operator), parallelism);
+            Transformation<T> input,
+            String name,
+            StreamSink<T> operator,
+            int parallelism,
+            boolean parallelismConfigured) {
+        this(input, name, SimpleOperatorFactory.of(operator), parallelism, parallelismConfigured);
     }
 
     public LegacySinkTransformation(
@@ -70,6 +83,17 @@ public class LegacySinkTransformation<T> extends PhysicalTransformation<T> {
             StreamOperatorFactory<Object> operatorFactory,
             int parallelism) {
         super(name, input.getOutputType(), parallelism);
+        this.input = input;
+        this.operatorFactory = operatorFactory;
+    }
+
+    public LegacySinkTransformation(
+            Transformation<T> input,
+            String name,
+            StreamOperatorFactory<Object> operatorFactory,
+            int parallelism,
+            boolean parallelismConfigured) {
+        super(name, input.getOutputType(), parallelism, parallelismConfigured);
         this.input = input;
         this.operatorFactory = operatorFactory;
     }
@@ -127,5 +151,35 @@ public class LegacySinkTransformation<T> extends PhysicalTransformation<T> {
     @Override
     public final void setChainingStrategy(ChainingStrategy strategy) {
         operatorFactory.setChainingStrategy(strategy);
+    }
+
+    @Override
+    public boolean isSupportsConcurrentExecutionAttempts() {
+        // first, check if the feature is disabled in physical transformation
+        if (!super.isSupportsConcurrentExecutionAttempts()) {
+            return false;
+        }
+        // second, check if the feature can be supported
+        if (operatorFactory instanceof SimpleOperatorFactory) {
+            final StreamOperator<Object> operator =
+                    ((SimpleOperatorFactory<Object>) operatorFactory).getOperator();
+            if (operator instanceof UserFunctionProvider) {
+                final Function userFunction =
+                        ((UserFunctionProvider<?>) operator).getUserFunction();
+                if (userFunction instanceof SupportsConcurrentExecutionAttempts) {
+                    return true;
+                }
+
+                if (userFunction instanceof OutputFormatSinkFunction) {
+                    return ((OutputFormatSinkFunction<?>) userFunction).getFormat()
+                            instanceof SupportsConcurrentExecutionAttempts;
+                }
+            }
+        } else if (operatorFactory instanceof OutputFormatOperatorFactory) {
+            final OutputFormat<?> outputFormat =
+                    ((OutputFormatOperatorFactory<?, ?>) operatorFactory).getOutputFormat();
+            return outputFormat instanceof SupportsConcurrentExecutionAttempts;
+        }
+        return false;
     }
 }

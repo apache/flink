@@ -111,15 +111,6 @@ $ ./bin/taskmanager.sh stop
 $ ./bin/standalone-job.sh stop
 ```
 
-
-### Per-Job Mode
-
-{{< hint info >}}
-For high-level intuition behind the per-job mode, please refer to the [deployment mode overview]({{< ref "docs/deployment/overview#per-job-mode" >}}).
-{{< /hint >}}
-
-Per-Job Mode is not supported by the Standalone Cluster.
-
 ### Session Mode
 
 {{< hint info >}}
@@ -133,6 +124,19 @@ Local deployment in Session Mode has already been described in the [introduction
 ### Configuration
 
 All available configuration options are listed on the [configuration page]({{< ref "docs/deployment/config" >}}), in particular the [Basic Setup]({{< ref "docs/deployment/config" >}}#basic-setup) section contains good advise on configuring the ports, memory, parallelism etc.
+
+The following scripts also allow configuration parameters to be set via dynamic properties:
+* `jobmanager.sh`
+* `standalone-job.sh`
+* `taskmanager.sh`
+* `historyserver.sh`
+
+Example:
+```bash
+$ ./bin/jobmanager.sh start -D jobmanager.rpc.address=localhost -D rest.port=8081
+```
+
+Options set via dynamic properties overwrite the options from `flink-conf.yaml`.
 
 ### Debugging
 
@@ -246,7 +250,7 @@ By default, the JobManager will pick a *random port* for inter process communica
 1. Configure high availability mode and ZooKeeper quorum in `conf/flink-conf.yaml`:
 
 ```bash
-high-availability: zookeeper
+high-availability.type: zookeeper
 high-availability.zookeeper.quorum: localhost:2181
 high-availability.zookeeper.path.root: /flink
 high-availability.cluster-id: /cluster_one # important: customize per cluster
@@ -294,5 +298,12 @@ $ ./bin/stop-zookeeper-quorum.sh
 Stopping zookeeper daemon (pid: 7101) on host localhost.
 ```
 
+### User jars & Classpath
+
+In Standalone mode, the following jars will be recognized as user-jars and included into user classpath:
+- Session Mode: The JAR file specified in startup command.
+- Application Mode: The JAR file specified in startup command and all JAR files in Flink's `usrlib` folder.
+
+Please refer to the [Debugging Classloading Docs]({{< ref "docs/ops/debugging/debugging_classloading" >}}#overview-of-classloading-in-flink) for details.
 
 {{< top >}}

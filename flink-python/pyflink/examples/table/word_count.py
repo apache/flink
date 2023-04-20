@@ -65,7 +65,7 @@ word_count_data = ["To be, or not to be,--that is the question:--",
 def word_count(input_path, output_path):
     t_env = TableEnvironment.create(EnvironmentSettings.in_streaming_mode())
     # write all the data to one file
-    t_env.get_config().get_configuration().set_string("parallelism.default", "1")
+    t_env.get_config().set("parallelism.default", "1")
 
     # define the source
     if input_path is not None:

@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.time.LocalDateTime;
 
-public class LocalDateTimeComparatorTest extends ComparatorTestBase<LocalDateTime> {
+class LocalDateTimeComparatorTest extends ComparatorTestBase<LocalDateTime> {
 
     @Override
     protected TypeComparator<LocalDateTime> createComparator(boolean ascending) {

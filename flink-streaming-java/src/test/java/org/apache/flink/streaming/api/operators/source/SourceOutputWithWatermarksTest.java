@@ -24,6 +24,7 @@ import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
+import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import org.junit.Test;
@@ -36,11 +37,31 @@ import static org.junit.Assert.assertThat;
 /** Tests for the {@link SourceOutputWithWatermarks}. */
 public class SourceOutputWithWatermarksTest {
 
+    /**
+     * Creates a new SourceOutputWithWatermarks that emits records to the given DataOutput and
+     * watermarks to the (possibly different) WatermarkOutput.
+     */
+    private static <E> SourceOutputWithWatermarks<E> createWithSameOutputs(
+            PushingAsyncDataInput.DataOutput<E> recordsAndWatermarksOutput,
+            TimestampAssigner<E> timestampAssigner,
+            WatermarkGenerator<E> watermarkGenerator) {
+
+        final WatermarkOutput watermarkOutput =
+                new WatermarkToDataOutput(recordsAndWatermarksOutput);
+
+        return new SourceOutputWithWatermarks<>(
+                recordsAndWatermarksOutput,
+                watermarkOutput,
+                watermarkOutput,
+                timestampAssigner,
+                watermarkGenerator);
+    }
+
     @Test
     public void testNoTimestampValue() {
         final CollectingDataOutput<Integer> dataOutput = new CollectingDataOutput<>();
         final SourceOutputWithWatermarks<Integer> out =
-                SourceOutputWithWatermarks.createWithSameOutputs(
+                createWithSameOutputs(
                         dataOutput, new RecordTimestampAssigner<>(), new NoWatermarksGenerator<>());
 
         out.collect(17);
@@ -54,7 +75,7 @@ public class SourceOutputWithWatermarksTest {
     public void eventsAreBeforeWatermarks() {
         final CollectingDataOutput<Integer> dataOutput = new CollectingDataOutput<>();
         final SourceOutputWithWatermarks<Integer> out =
-                SourceOutputWithWatermarks.createWithSameOutputs(
+                createWithSameOutputs(
                         dataOutput,
                         new RecordTimestampAssigner<>(),
                         new TestWatermarkGenerator<>());

@@ -22,26 +22,23 @@ import org.apache.flink.util.FlinkRuntimeException;
 
 import org.codehaus.janino.ExpressionEvaluator;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Arrays;
 
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertSame;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link CompileUtils}. */
 public class CompileUtilsTest {
 
-    @Rule public ExpectedException thrown = ExpectedException.none();
-
     @Before
     public void before() {
         // cleanup cached class before tests
-        CompileUtils.COMPILED_CACHE.invalidateAll();
+        CompileUtils.COMPILED_CLASS_CACHE.invalidateAll();
+        CompileUtils.COMPILED_EXPRESSION_CACHE.invalidateAll();
     }
 
     @Test
@@ -51,8 +48,8 @@ public class CompileUtilsTest {
         Class<?> class1 = CompileUtils.compile(this.getClass().getClassLoader(), "Main", code);
         Class<?> class2 = CompileUtils.compile(this.getClass().getClassLoader(), "Main", code);
         Class<?> class3 = CompileUtils.compile(new TestClassLoader(), "Main", code);
-        assertSame(class1, class2);
-        assertNotSame(class1, class3);
+        assertThat(class2).isSameAs(class1);
+        assertThat(class3).isNotSameAs(class1);
     }
 
     @Test
@@ -77,16 +74,18 @@ public class CompileUtilsTest {
                         Arrays.asList("a", "b"),
                         Arrays.asList(String.class, String.class),
                         String.class);
-        assertSame(evaluator1, evaluator2);
-        assertNotSame(evaluator1, evaluator3);
+        assertThat(evaluator2).isSameAs(evaluator1);
+        assertThat(evaluator3).isNotSameAs(evaluator1);
     }
 
     @Test
     public void testWrongCode() {
         String code = "public class111 Main {\n" + "  int i;\n" + "  int j;\n" + "}";
-
-        thrown.expect(FlinkRuntimeException.class);
-        CompileUtils.compile(this.getClass().getClassLoader(), "Main", code);
+        assertThatThrownBy(
+                        () -> CompileUtils.compile(this.getClass().getClassLoader(), "Main", code))
+                .isInstanceOf(FlinkRuntimeException.class)
+                .hasMessageContaining(
+                        "Table program cannot be compiled. This is a bug. Please file an issue.");
     }
 
     private static class TestClassLoader extends URLClassLoader {

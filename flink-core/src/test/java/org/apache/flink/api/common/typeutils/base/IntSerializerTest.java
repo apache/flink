@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import java.util.Random;
 
 /** A test for the {@link IntSerializer}. */
-public class IntSerializerTest extends SerializerTestBase<Integer> {
+class IntSerializerTest extends SerializerTestBase<Integer> {
 
     @Override
     protected TypeSerializer<Integer> createSerializer() {

@@ -19,23 +19,24 @@
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
 import org.apache.flink.table.runtime.operators.rank.RankType;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test RankType json ser/de. */
 public class RankTypeSerdeTest {
 
     @Test
     public void testRankType() throws JsonProcessingException {
-        ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = JacksonMapperFactory.createObjectMapper();
         for (RankType type : RankType.values()) {
             RankType result = mapper.readValue(mapper.writeValueAsString(type), RankType.class);
-            assertEquals(type, result);
+            assertThat(result).isEqualTo(type);
         }
     }
 }

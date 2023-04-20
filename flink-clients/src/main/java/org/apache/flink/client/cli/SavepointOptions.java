@@ -18,15 +18,20 @@
 
 package org.apache.flink.client.cli;
 
+import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.core.execution.SavepointFormatType;
+
 import org.apache.commons.cli.CommandLine;
 
 import static org.apache.flink.client.cli.CliFrontendParser.JAR_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.SAVEPOINT_DISPOSE_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.SAVEPOINT_FORMAT_OPTION;
 
 /** Command line options for the SAVEPOINT command. */
 public class SavepointOptions extends CommandLineOptions {
 
     private final String[] args;
+    private final SavepointFormatType formatType;
     private boolean dispose;
     private String disposeSavepointPath;
     private String jarFile;
@@ -37,6 +42,14 @@ public class SavepointOptions extends CommandLineOptions {
         dispose = line.hasOption(SAVEPOINT_DISPOSE_OPTION.getOpt());
         disposeSavepointPath = line.getOptionValue(SAVEPOINT_DISPOSE_OPTION.getOpt());
         jarFile = line.getOptionValue(JAR_OPTION.getOpt());
+        if (line.hasOption(SAVEPOINT_FORMAT_OPTION)) {
+            formatType =
+                    ConfigurationUtils.convertValue(
+                            line.getOptionValue(SAVEPOINT_FORMAT_OPTION),
+                            SavepointFormatType.class);
+        } else {
+            formatType = SavepointFormatType.DEFAULT;
+        }
     }
 
     public String[] getArgs() {
@@ -53,5 +66,9 @@ public class SavepointOptions extends CommandLineOptions {
 
     public String getJarFilePath() {
         return jarFile;
+    }
+
+    public SavepointFormatType getFormatType() {
+        return formatType;
     }
 }

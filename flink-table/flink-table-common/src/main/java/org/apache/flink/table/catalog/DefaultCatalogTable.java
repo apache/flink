@@ -126,4 +126,19 @@ public class DefaultCatalogTable implements CatalogTable {
     public int hashCode() {
         return Objects.hash(schema, comment, partitionKeys, options);
     }
+
+    @Override
+    public String toString() {
+        return "DefaultCatalogTable{"
+                + "schema="
+                + schema
+                + ", comment='"
+                + comment
+                + '\''
+                + ", partitionKeys="
+                + partitionKeys
+                + ", options="
+                + options
+                + '}';
+    }
 }

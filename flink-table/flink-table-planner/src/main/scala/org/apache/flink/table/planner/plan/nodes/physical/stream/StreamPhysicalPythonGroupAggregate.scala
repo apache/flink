@@ -15,34 +15,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonGroupAggregate
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
 import org.apache.flink.table.planner.plan.utils._
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter}
+import org.apache.calcite.rel.core.AggregateCall
 
 import java.util
 
 /**
-  * Stream physical RelNode for Python unbounded group aggregate.
-  *
-  * @see [[StreamPhysicalGroupAggregateBase]] for more info.
-  */
+ * Stream physical RelNode for Python unbounded group aggregate.
+ *
+ * @see
+ *   [[StreamPhysicalGroupAggregateBase]] for more info.
+ */
 class StreamPhysicalPythonGroupAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
     outputRowType: RelDataType,
-    val grouping: Array[Int],
-    val aggCalls: Seq[AggregateCall])
-  extends StreamPhysicalGroupAggregateBase(cluster, traitSet, inputRel) {
+    grouping: Array[Int],
+    aggCalls: Seq[AggregateCall])
+  extends StreamPhysicalGroupAggregateBase(cluster, traitSet, inputRel, grouping, aggCalls) {
 
   private lazy val aggInfoList =
     AggregateUtil.deriveAggregateInfoList(this, grouping.length, aggCalls)
@@ -63,14 +64,13 @@ class StreamPhysicalPythonGroupAggregate(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     val inputRowType = getInput.getRowType
-    super.explainTerms(pw)
-      .itemIf("groupBy",
-        RelExplainUtil.fieldToString(grouping, inputRowType), grouping.nonEmpty)
-      .item("select", RelExplainUtil.streamGroupAggregationToString(
-        inputRowType,
-        getRowType,
-        aggInfoList,
-        grouping))
+    super
+      .explainTerms(pw)
+      .itemIf("groupBy", RelExplainUtil.fieldToString(grouping, inputRowType), grouping.nonEmpty)
+      .item(
+        "select",
+        RelExplainUtil
+          .streamGroupAggregationToString(inputRowType, getRowType, aggInfoList, grouping))
   }
 
   override def translateToExecNode(): ExecNode[_] = {
@@ -79,6 +79,7 @@ class StreamPhysicalPythonGroupAggregate(
     val generateUpdateBefore = ChangelogPlanUtils.generateUpdateBefore(this)
     val needRetraction = !ChangelogPlanUtils.inputInsertOnly(this)
     new StreamExecPythonGroupAggregate(
+      unwrapTableConfig(this),
       grouping,
       aggCalls.toArray,
       aggCallNeedRetractions,
@@ -86,7 +87,6 @@ class StreamPhysicalPythonGroupAggregate(
       needRetraction,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 }

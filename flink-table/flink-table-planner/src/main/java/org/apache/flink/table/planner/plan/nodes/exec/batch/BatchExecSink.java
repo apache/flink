@@ -19,11 +19,14 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecSink;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSinkSpec;
@@ -37,15 +40,18 @@ import java.util.Collections;
  */
 public class BatchExecSink extends CommonExecSink implements BatchExecNode<Object> {
     public BatchExecSink(
+            ReadableConfig tableConfig,
             DynamicTableSinkSpec tableSinkSpec,
             InputProperty inputProperty,
             LogicalType outputType,
             String description) {
         super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(BatchExecSink.class),
+                ExecNodeContext.newPersistedConfig(BatchExecSink.class, tableConfig),
                 tableSinkSpec,
                 ChangelogMode.insertOnly(),
                 true, // isBounded
-                getNewNodeId(),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -53,10 +59,19 @@ public class BatchExecSink extends CommonExecSink implements BatchExecNode<Objec
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<Object> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<Object> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) getInputEdges().get(0).translateToPlan(planner);
         final DynamicTableSink tableSink = tableSinkSpec.getTableSink(planner.getFlinkContext());
-        return createSinkTransformation(planner, inputTransform, tableSink, -1, false);
+        return createSinkTransformation(
+                planner.getExecEnv(),
+                config,
+                planner.getFlinkContext().getClassLoader(),
+                inputTransform,
+                tableSink,
+                -1,
+                false,
+                null);
     }
 }

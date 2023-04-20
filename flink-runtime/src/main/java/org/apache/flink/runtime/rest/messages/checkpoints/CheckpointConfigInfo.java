@@ -65,6 +65,13 @@ public class CheckpointConfigInfo implements ResponseBody {
     public static final String FIELD_NAME_CHECKPOINTS_AFTER_TASKS_FINISH =
             "checkpoints_after_tasks_finish";
 
+    public static final String FIELD_NAME_STATE_CHANGELOG = "state_changelog_enabled";
+
+    public static final String FIELD_NAME_PERIODIC_MATERIALIZATION_INTERVAL =
+            "changelog_periodic_materialization_interval";
+
+    public static final String FIELD_NAME_CHANGELOG_STORAGE = "changelog_storage";
+
     @JsonProperty(FIELD_NAME_PROCESSING_MODE)
     private final ProcessingMode processingMode;
 
@@ -101,6 +108,15 @@ public class CheckpointConfigInfo implements ResponseBody {
     @JsonProperty(FIELD_NAME_CHECKPOINTS_AFTER_TASKS_FINISH)
     private final boolean checkpointsWithFinishedTasks;
 
+    @JsonProperty(FIELD_NAME_STATE_CHANGELOG)
+    private final boolean stateChangelog;
+
+    @JsonProperty(FIELD_NAME_PERIODIC_MATERIALIZATION_INTERVAL)
+    private final long periodicMaterializationInterval;
+
+    @JsonProperty(FIELD_NAME_CHANGELOG_STORAGE)
+    private final String changelogStorage;
+
     @JsonCreator
     public CheckpointConfigInfo(
             @JsonProperty(FIELD_NAME_PROCESSING_MODE) ProcessingMode processingMode,
@@ -116,7 +132,11 @@ public class CheckpointConfigInfo implements ResponseBody {
             @JsonProperty(FIELD_NAME_TOLERABLE_FAILED_CHECKPOINTS) int tolerableFailedCheckpoints,
             @JsonProperty(FIELD_NAME_ALIGNED_CHECKPOINT_TIMEOUT) long alignedCheckpointTimeout,
             @JsonProperty(FIELD_NAME_CHECKPOINTS_AFTER_TASKS_FINISH)
-                    boolean checkpointsWithFinishedTasks) {
+                    boolean checkpointsWithFinishedTasks,
+            @JsonProperty(FIELD_NAME_STATE_CHANGELOG) boolean stateChangelog,
+            @JsonProperty(FIELD_NAME_PERIODIC_MATERIALIZATION_INTERVAL)
+                    long periodicMaterializationInterval,
+            @JsonProperty(FIELD_NAME_CHANGELOG_STORAGE) String changelogStorage) {
         this.processingMode = Preconditions.checkNotNull(processingMode);
         this.checkpointInterval = checkpointInterval;
         this.checkpointTimeout = checkpointTimeout;
@@ -129,6 +149,9 @@ public class CheckpointConfigInfo implements ResponseBody {
         this.tolerableFailedCheckpoints = tolerableFailedCheckpoints;
         this.alignedCheckpointTimeout = alignedCheckpointTimeout;
         this.checkpointsWithFinishedTasks = checkpointsWithFinishedTasks;
+        this.stateChangelog = stateChangelog;
+        this.periodicMaterializationInterval = periodicMaterializationInterval;
+        this.changelogStorage = changelogStorage;
     }
 
     @Override
@@ -151,7 +174,10 @@ public class CheckpointConfigInfo implements ResponseBody {
                 && unalignedCheckpoints == that.unalignedCheckpoints
                 && tolerableFailedCheckpoints == that.tolerableFailedCheckpoints
                 && alignedCheckpointTimeout == that.alignedCheckpointTimeout
-                && checkpointsWithFinishedTasks == that.checkpointsWithFinishedTasks;
+                && checkpointsWithFinishedTasks == that.checkpointsWithFinishedTasks
+                && stateChangelog == that.stateChangelog
+                && periodicMaterializationInterval == that.periodicMaterializationInterval
+                && changelogStorage == that.changelogStorage;
     }
 
     @Override
@@ -168,7 +194,10 @@ public class CheckpointConfigInfo implements ResponseBody {
                 unalignedCheckpoints,
                 tolerableFailedCheckpoints,
                 alignedCheckpointTimeout,
-                checkpointsWithFinishedTasks);
+                checkpointsWithFinishedTasks,
+                stateChangelog,
+                periodicMaterializationInterval,
+                changelogStorage);
     }
 
     /** Contains information about the externalized checkpoint configuration. */

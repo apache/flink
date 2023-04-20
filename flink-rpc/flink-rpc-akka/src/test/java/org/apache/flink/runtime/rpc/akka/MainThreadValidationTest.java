@@ -21,19 +21,18 @@ package org.apache.flink.runtime.rpc.akka;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests that the {@link AkkaRpcService} runs all RPCs in the {@link AkkaRpcActor}'s main thread.
  */
-public class MainThreadValidationTest extends TestLogger {
+class MainThreadValidationTest {
 
     @Test
-    public void failIfNotInMainThread() throws Exception {
+    void failIfNotInMainThread() throws Exception {
         // test if assertions are activated. The test only works if assertions are loaded.
         try {
             assert false;
@@ -56,18 +55,12 @@ public class MainThreadValidationTest extends TestLogger {
             testEndpoint.getSelfGateway(TestGateway.class).someConcurrencyCriticalFunction();
 
             // this fails, because it is executed directly
-            boolean exceptionThrown;
-            try {
-                testEndpoint.someConcurrencyCriticalFunction();
-                exceptionThrown = false;
-            } catch (AssertionError e) {
-                exceptionThrown = true;
-            }
-            assertTrue("should fail with an assertion error", exceptionThrown);
+            assertThatThrownBy(() -> testEndpoint.someConcurrencyCriticalFunction())
+                    .isInstanceOf(AssertionError.class);
 
             testEndpoint.closeAsync();
         } finally {
-            akkaRpcService.stopService().get();
+            akkaRpcService.closeAsync().get();
         }
     }
 

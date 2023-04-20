@@ -19,10 +19,10 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
+import org.apache.flink.runtime.executiongraph.VertexGroupComputeUtil;
 import org.apache.flink.runtime.topology.Result;
 import org.apache.flink.runtime.topology.Vertex;
 
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.Map;
@@ -35,7 +35,7 @@ public final class PipelinedRegionComputeUtil {
     static <V extends Vertex<?, ?, V, R>, R extends Result<?, ?, V, R>>
             Map<V, Set<V>> buildRawRegions(
                     final Iterable<? extends V> topologicallySortedVertices,
-                    final Function<V, Iterable<R>> getNonReconnectableConsumedResults) {
+                    final Function<V, Iterable<R>> getMustBePipelinedConsumedResults) {
 
         final Map<V, Set<V>> vertexToRegion = new IdentityHashMap<>();
 
@@ -45,11 +45,10 @@ public final class PipelinedRegionComputeUtil {
             currentRegion.add(vertex);
             vertexToRegion.put(vertex, currentRegion);
 
-            // Similar to the BLOCKING ResultPartitionType, each vertex connected through
-            // PIPELINED_APPROXIMATE is also considered as a single region. This attribute is
-            // called "reconnectable". Reconnectable will be removed after FLINK-19895, see also
-            // {@link ResultPartitionType#isReconnectable}
-            for (R consumedResult : getNonReconnectableConsumedResults.apply(vertex)) {
+            // Each vertex connected through not mustBePipelined consumingConstraint is considered
+            // as a
+            // single region.
+            for (R consumedResult : getMustBePipelinedConsumedResults.apply(vertex)) {
                 final V producerVertex = consumedResult.getProducer();
                 final Set<V> producerRegion = vertexToRegion.get(producerVertex);
 
@@ -67,39 +66,14 @@ public final class PipelinedRegionComputeUtil {
                 // this check can significantly reduce compute complexity in All-to-All
                 // PIPELINED edge case
                 if (currentRegion != producerRegion) {
-                    currentRegion = mergeRegions(currentRegion, producerRegion, vertexToRegion);
+                    currentRegion =
+                            VertexGroupComputeUtil.mergeVertexGroups(
+                                    currentRegion, producerRegion, vertexToRegion);
                 }
             }
         }
 
         return vertexToRegion;
-    }
-
-    static <V extends Vertex<?, ?, V, ?>> Set<V> mergeRegions(
-            final Set<V> region1, final Set<V> region2, final Map<V, Set<V>> vertexToRegion) {
-
-        // merge the smaller region into the larger one to reduce the cost
-        final Set<V> smallerSet;
-        final Set<V> largerSet;
-        if (region1.size() < region2.size()) {
-            smallerSet = region1;
-            largerSet = region2;
-        } else {
-            smallerSet = region2;
-            largerSet = region1;
-        }
-        for (V v : smallerSet) {
-            vertexToRegion.put(v, largerSet);
-        }
-        largerSet.addAll(smallerSet);
-        return largerSet;
-    }
-
-    static <V extends Vertex<?, ?, V, ?>> Set<Set<V>> uniqueRegions(
-            final Map<V, Set<V>> vertexToRegion) {
-        final Set<Set<V>> distinctRegions = Collections.newSetFromMap(new IdentityHashMap<>());
-        distinctRegions.addAll(vertexToRegion.values());
-        return distinctRegions;
     }
 
     private PipelinedRegionComputeUtil() {}

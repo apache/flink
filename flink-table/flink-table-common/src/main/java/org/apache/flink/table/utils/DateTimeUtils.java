@@ -22,8 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.TimestampData;
-import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.TimestampType;
 
 import org.slf4j.Logger;
@@ -34,6 +34,7 @@ import java.math.RoundingMode;
 import java.sql.Timestamp;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -41,6 +42,7 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.TemporalAccessor;
 import java.util.Collections;
@@ -131,49 +133,29 @@ public class DateTimeUtils {
     /** The valid maximum epoch seconds ('9999-12-31 23:59:59 UTC+0'). */
     private static final long MAX_EPOCH_SECONDS = 253402300799L;
 
-    private static final String[] DEFAULT_DATETIME_FORMATS =
-            new String[] {
-                "yyyy-MM-dd HH:mm:ss",
-                "yyyy-MM-dd HH:mm:ss.S",
-                "yyyy-MM-dd HH:mm:ss.SS",
-                "yyyy-MM-dd HH:mm:ss.SSS",
-                "yyyy-MM-dd HH:mm:ss.SSSS",
-                "yyyy-MM-dd HH:mm:ss.SSSSS",
-                "yyyy-MM-dd HH:mm:ss.SSSSSS",
-                "yyyy-MM-dd HH:mm:ss.SSSSSSS",
-                "yyyy-MM-dd HH:mm:ss.SSSSSSSS",
-                "yyyy-MM-dd HH:mm:ss.SSSSSSSSS"
-            };
+    private static final DateTimeFormatter DEFAULT_TIMESTAMP_FORMATTER =
+            new DateTimeFormatterBuilder()
+                    .appendPattern("yyyy-[MM][M]-[dd][d]")
+                    .optionalStart()
+                    .appendPattern(" [HH][H]:[mm][m]:[ss][s]")
+                    .appendFraction(NANO_OF_SECOND, 0, 9, true)
+                    .optionalEnd()
+                    .toFormatter();
 
     /**
      * A ThreadLocal cache map for SimpleDateFormat, because SimpleDateFormat is not thread-safe.
      * (string_format) => formatter
      */
     private static final ThreadLocalCache<String, SimpleDateFormat> FORMATTER_CACHE =
-            new ThreadLocalCache<String, SimpleDateFormat>() {
-                @Override
-                public SimpleDateFormat getNewInstance(String key) {
-                    return new SimpleDateFormat(key);
-                }
-            };
+            ThreadLocalCache.of(SimpleDateFormat::new);
 
     /** A ThreadLocal cache map for DateTimeFormatter. (string_format) => formatter */
     private static final ThreadLocalCache<String, DateTimeFormatter> DATETIME_FORMATTER_CACHE =
-            new ThreadLocalCache<String, DateTimeFormatter>() {
-                @Override
-                public DateTimeFormatter getNewInstance(String key) {
-                    return DateTimeFormatter.ofPattern(key);
-                }
-            };
+            ThreadLocalCache.of(DateTimeFormatter::ofPattern);
 
     /** A ThreadLocal cache map for TimeZone. (string_zone_id) => TimeZone */
     private static final ThreadLocalCache<String, TimeZone> TIMEZONE_CACHE =
-            new ThreadLocalCache<String, TimeZone>() {
-                @Override
-                public TimeZone getNewInstance(String tz) {
-                    return TimeZone.getTimeZone(tz);
-                }
-            };
+            ThreadLocalCache.of(TimeZone::getTimeZone);
 
     // --------------------------------------------------------------------------------------------
     // java.sql Date/Time/Timestamp --> internal data types
@@ -419,18 +401,24 @@ public class DateTimeUtils {
     // Parsing functions
     // --------------------------------------------------------------------------------------------
 
-    public static TimestampData parseTimestampData(String dateStr) {
-        int length = dateStr.length();
-        String format;
-        if (length == 10) {
-            format = DATE_FORMAT_STRING;
-        } else if (length >= 21 && length <= 29) {
-            format = DEFAULT_DATETIME_FORMATS[length - 20];
-        } else {
-            // otherwise fall back to second's precision
-            format = DEFAULT_DATETIME_FORMATS[0];
-        }
-        return parseTimestampData(dateStr, format);
+    public static TimestampData parseTimestampData(String dateStr) throws DateTimeException {
+        // Precision is hardcoded to match signature of TO_TIMESTAMP
+        //  https://issues.apache.org/jira/browse/FLINK-14925
+        return parseTimestampData(dateStr, 3);
+    }
+
+    public static TimestampData parseTimestampData(String dateStr, int precision)
+            throws DateTimeException {
+        return TimestampData.fromLocalDateTime(
+                fromTemporalAccessor(DEFAULT_TIMESTAMP_FORMATTER.parse(dateStr), precision));
+    }
+
+    public static TimestampData parseTimestampData(String dateStr, int precision, TimeZone timeZone)
+            throws DateTimeException {
+        return TimestampData.fromInstant(
+                fromTemporalAccessor(DEFAULT_TIMESTAMP_FORMATTER.parse(dateStr), precision)
+                        .atZone(timeZone.toZoneId())
+                        .toInstant());
     }
 
     public static TimestampData parseTimestampData(String dateStr, String format) {
@@ -438,24 +426,9 @@ public class DateTimeUtils {
 
         try {
             TemporalAccessor accessor = formatter.parse(dateStr);
-            // complement year with 1970
-            int year = accessor.isSupported(YEAR) ? accessor.get(YEAR) : 1970;
-            // complement month with 1
-            int month = accessor.isSupported(MONTH_OF_YEAR) ? accessor.get(MONTH_OF_YEAR) : 1;
-            // complement day with 1
-            int day = accessor.isSupported(DAY_OF_MONTH) ? accessor.get(DAY_OF_MONTH) : 1;
-            // complement hour with 0
-            int hour = accessor.isSupported(HOUR_OF_DAY) ? accessor.get(HOUR_OF_DAY) : 0;
-            // complement minute with 0
-            int minute = accessor.isSupported(MINUTE_OF_HOUR) ? accessor.get(MINUTE_OF_HOUR) : 0;
-            // complement second with 0
-            int second =
-                    accessor.isSupported(SECOND_OF_MINUTE) ? accessor.get(SECOND_OF_MINUTE) : 0;
-            // complement nano_of_second with 0
-            int nanoOfSecond =
-                    accessor.isSupported(NANO_OF_SECOND) ? accessor.get(NANO_OF_SECOND) : 0;
-            LocalDateTime ldt =
-                    LocalDateTime.of(year, month, day, hour, minute, second, nanoOfSecond);
+            // Precision is hardcoded to match signature of TO_TIMESTAMP
+            //  https://issues.apache.org/jira/browse/FLINK-14925
+            LocalDateTime ldt = fromTemporalAccessor(accessor, 3);
             return TimestampData.fromLocalDateTime(ldt);
         } catch (DateTimeParseException e) {
             // fall back to support cases like '1999-9-10 05:20:10' or '1999-9-10'
@@ -477,28 +450,32 @@ public class DateTimeUtils {
     }
 
     /**
-     * Parse date time string to timestamp based on the given time zone and "yyyy-MM-dd HH:mm:ss"
-     * format. Returns null if parsing failed.
-     *
-     * @param dateStr the date time string
-     * @param tz the time zone
+     * This is similar to {@link LocalDateTime#from(TemporalAccessor)}, but it's less strict and
+     * introduces default values.
      */
-    public static long parseTimestampMillis(String dateStr, TimeZone tz) throws ParseException {
-        int length = dateStr.length();
-        String format;
-        if (length == 10) {
-            format = DATE_FORMAT_STRING;
-        } else if (length == 21) {
-            format = DEFAULT_DATETIME_FORMATS[1];
-        } else if (length == 22) {
-            format = DEFAULT_DATETIME_FORMATS[2];
-        } else if (length == 23) {
-            format = DEFAULT_DATETIME_FORMATS[3];
-        } else {
-            // otherwise fall back to the default
-            format = DEFAULT_DATETIME_FORMATS[0];
+    private static LocalDateTime fromTemporalAccessor(TemporalAccessor accessor, int precision) {
+        // complement year with 1970
+        int year = accessor.isSupported(YEAR) ? accessor.get(YEAR) : 1970;
+        // complement month with 1
+        int month = accessor.isSupported(MONTH_OF_YEAR) ? accessor.get(MONTH_OF_YEAR) : 1;
+        // complement day with 1
+        int day = accessor.isSupported(DAY_OF_MONTH) ? accessor.get(DAY_OF_MONTH) : 1;
+        // complement hour with 0
+        int hour = accessor.isSupported(HOUR_OF_DAY) ? accessor.get(HOUR_OF_DAY) : 0;
+        // complement minute with 0
+        int minute = accessor.isSupported(MINUTE_OF_HOUR) ? accessor.get(MINUTE_OF_HOUR) : 0;
+        // complement second with 0
+        int second = accessor.isSupported(SECOND_OF_MINUTE) ? accessor.get(SECOND_OF_MINUTE) : 0;
+        // complement nano_of_second with 0
+        int nanoOfSecond = accessor.isSupported(NANO_OF_SECOND) ? accessor.get(NANO_OF_SECOND) : 0;
+
+        if (precision == 0) {
+            nanoOfSecond = 0;
+        } else if (precision != 9) {
+            nanoOfSecond = (int) floor(nanoOfSecond, powerX(10, 9 - precision));
         }
-        return parseTimestampMillis(dateStr, format, tz);
+
+        return LocalDateTime.of(year, month, day, hour, minute, second, nanoOfSecond);
     }
 
     /**
@@ -1130,32 +1107,37 @@ public class DateTimeUtils {
             case ISODOW:
             case ISOYEAR:
             case WEEK:
-                if (type instanceof TimestampType) {
+                if (type.is(LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE)) {
                     long d = divide(utcTs, TimeUnit.DAY.multiplier);
                     return extractFromDate(range, d);
-                } else if (type instanceof DateType) {
+                } else if (type.is(LogicalTypeRoot.DATE)) {
                     return divide(utcTs, TimeUnit.DAY.multiplier);
                 } else {
                     // TODO support it
-                    throw new TableException(type + " is unsupported now.");
+                    throw new TableException(startUnit + " for " + type + " is unsupported now.");
                 }
             case EPOCH:
-                // TODO support it
-                throw new TableException("EPOCH is unsupported now.");
+                if (type.isAnyOf(
+                        LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE, LogicalTypeRoot.DATE)) {
+                    return utcTs / 1000;
+                } else {
+                    // TODO support it
+                    throw new TableException(startUnit + " for " + type + " is unsupported now.");
+                }
             case MICROSECOND:
-                if (type instanceof TimestampType) {
+                if (type.is(LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE)) {
                     long millis = divide(mod(utcTs, getFactor(startUnit)), startUnit.multiplier);
                     int micros = nanoOfMillisecond / 1000;
                     return millis + micros;
                 } else {
-                    throw new TableException(type + " is unsupported now.");
+                    throw new TableException(startUnit + " for " + type + " is unsupported now.");
                 }
             case NANOSECOND:
-                if (type instanceof TimestampType) {
+                if (type.is(LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE)) {
                     long millis = divide(mod(utcTs, getFactor(startUnit)), startUnit.multiplier);
                     return millis + nanoOfMillisecond;
                 } else {
-                    throw new TableException(type + " is unsupported now.");
+                    throw new TableException(startUnit + " for " + type + " is unsupported now.");
                 }
             default:
                 // fall through
@@ -1346,6 +1328,9 @@ public class DateTimeUtils {
                     offset -= 7;
                 }
                 return ymdToUnixDate(year, month, day) - offset;
+            case DAY:
+                int res = ymdToUnixDate(year, month, day);
+                return floor ? res : res + 1;
             default:
                 throw new AssertionError(range);
         }

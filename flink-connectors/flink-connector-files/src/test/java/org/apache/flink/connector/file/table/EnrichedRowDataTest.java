@@ -31,10 +31,10 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for {@link JoinedRowData}. */
-public class EnrichedRowDataTest {
+class EnrichedRowDataTest {
 
     @Test
-    public void testEnrichedRow() {
+    void testEnrichedRow() {
         final List<String> completeRowFields =
                 Arrays.asList(
                         "fixedRow1",

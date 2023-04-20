@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.stream.table
 
 import org.apache.flink.api.common.time.Time
@@ -24,9 +23,9 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.planner.utils.{AggregatePhaseStrategy, StreamTableTestUtil, TableTestBase}
 
-import java.time.Duration
-
 import org.junit.{Before, Test}
+
+import java.time.Duration
 
 class TwoStageAggregateTest extends TableTestBase {
 
@@ -36,15 +35,13 @@ class TwoStageAggregateTest extends TableTestBase {
     util = streamTestUtil()
     util.tableEnv.getConfig
       .setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
-    util.tableEnv.getConfig.getConfiguration
+    util.tableEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
-    util.tableEnv.getConfig.getConfiguration
-        .setBoolean(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true)
-    util.tableEnv.getConfig.getConfiguration
-      .setLong(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, 3)
-    util.tableEnv.getConfig.getConfiguration.setString(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
-      AggregatePhaseStrategy.TWO_PHASE.toString)
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, Boolean.box(true))
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, Long.box(3))
+      .set(
+        OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
+        AggregatePhaseStrategy.TWO_PHASE.toString)
   }
 
   @Test
@@ -61,7 +58,7 @@ class TwoStageAggregateTest extends TableTestBase {
   def testGroupAggregateWithConstant1(): Unit = {
     val table = util.addTableSource[(Long, Int, String)]('a, 'b, 'c)
     val resultTable = table
-      .select('a, 4 as 'four, 'b)
+      .select('a, 4.as('four), 'b)
       .groupBy('four, 'a)
       .select('four, 'b.sum)
 
@@ -72,7 +69,7 @@ class TwoStageAggregateTest extends TableTestBase {
   def testGroupAggregateWithConstant2(): Unit = {
     val table = util.addTableSource[(Long, Int, String)]('a, 'b, 'c)
     val resultTable = table
-      .select('b, 4 as 'four, 'a)
+      .select('b, 4.as('four), 'a)
       .groupBy('b, 'four)
       .select('four, 'a.sum)
 
@@ -83,7 +80,7 @@ class TwoStageAggregateTest extends TableTestBase {
   def testGroupAggregateWithExpressionInSelect(): Unit = {
     val table = util.addTableSource[(Long, Int, String)]('a, 'b, 'c)
     val resultTable = table
-      .select('a as 'a, 'b % 3 as 'd, 'c as 'c)
+      .select('a.as('a), ('b % 3).as('d), 'c.as('c))
       .groupBy('d)
       .select('c.min, 'a.avg)
 

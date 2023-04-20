@@ -85,7 +85,7 @@ public class NettyMessageClientDecoderDelegateTest extends TestLogger {
                         inputGate, new TestingPartitionRequestClient(), NUMBER_OF_BUFFER_RESPONSES);
         inputGate.setInputChannels(inputChannel);
         inputGate.setup();
-        inputChannel.requestSubpartition(0);
+        inputChannel.requestSubpartition();
         handler.addInputChannel(inputChannel);
         inputChannelId = inputChannel.getInputChannelId();
 

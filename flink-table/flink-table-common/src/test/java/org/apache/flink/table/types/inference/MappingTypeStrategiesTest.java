@@ -20,21 +20,18 @@ package org.apache.flink.table.types.inference;
 
 import org.apache.flink.table.api.DataTypes;
 
-import org.junit.runners.Parameterized;
-
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.inference.TypeStrategies.explicit;
 
 /** Tests for {@link TypeStrategies#mapping(Map)}. */
-public class MappingTypeStrategiesTest extends TypeStrategiesTestBase {
+class MappingTypeStrategiesTest extends TypeStrategiesTestBase {
 
-    @Parameterized.Parameters(name = "{index}: {0}")
-    public static List<TestSpec> testData() {
-        return Arrays.asList(
+    @Override
+    protected Stream<TestSpec> testData() {
+        return Stream.of(
                 // (INT, BOOLEAN) -> STRING
                 TestSpec.forStrategy(createMappingTypeStrategy())
                         .inputTypes(DataTypes.INT(), DataTypes.BOOLEAN())

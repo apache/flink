@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.BroadcastState;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.core.fs.FSDataOutputStream;
@@ -46,7 +47,7 @@ public class HeapBroadcastState<K, V> implements BackendWritableBroadcastState<K
     private final Map<K, V> backingMap;
 
     /** A serializer that allows to perform deep copies of internal map state. */
-    private final MapSerializer<K, V> internalMapCopySerializer;
+    private MapSerializer<K, V> internalMapCopySerializer;
 
     HeapBroadcastState(RegisteredBroadcastStateBackendMetaInfo<K, V> stateMetaInfo) {
         this(stateMetaInfo, new HashMap<>());
@@ -71,6 +72,9 @@ public class HeapBroadcastState<K, V> implements BackendWritableBroadcastState<K
 
     @Override
     public void setStateMetaInfo(RegisteredBroadcastStateBackendMetaInfo<K, V> stateMetaInfo) {
+        this.internalMapCopySerializer =
+                new MapSerializer<>(
+                        stateMetaInfo.getKeySerializer(), stateMetaInfo.getValueSerializer());
         this.stateMetaInfo = stateMetaInfo;
     }
 
@@ -153,5 +157,10 @@ public class HeapBroadcastState<K, V> implements BackendWritableBroadcastState<K
     @Override
     public Iterable<Map.Entry<K, V>> immutableEntries() {
         return Collections.unmodifiableSet(backingMap.entrySet());
+    }
+
+    @VisibleForTesting
+    public MapSerializer<K, V> getInternalMapCopySerializer() {
+        return internalMapCopySerializer;
     }
 }

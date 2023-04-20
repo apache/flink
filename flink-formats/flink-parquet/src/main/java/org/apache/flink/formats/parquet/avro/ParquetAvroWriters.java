@@ -30,6 +30,7 @@ import org.apache.avro.specific.SpecificRecordBase;
  *
  * @deprecated use {@link AvroParquetWriters} instead.
  */
+@Deprecated
 public class ParquetAvroWriters {
 
     /**

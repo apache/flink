@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.calcite
 
 import org.apache.calcite.plan.{Convention, RelOptCluster, RelTraitSet}
@@ -25,10 +24,9 @@ import org.apache.calcite.rex.RexNode
 import java.util
 
 /**
-  * Sub-class of [[Expand]] that is a relational expression
-  * which returns multiple rows expanded from one input row.
-  * This class corresponds to Calcite logical rel.
-  */
+ * Sub-class of [[Expand]] that is a relational expression which returns multiple rows expanded from
+ * one input row. This class corresponds to Calcite logical rel.
+ */
 final class LogicalExpand(
     cluster: RelOptCluster,
     traits: RelTraitSet,
@@ -52,4 +50,3 @@ object LogicalExpand {
     new LogicalExpand(input.getCluster, traits, input, projects, expandIdIndex)
   }
 }
-

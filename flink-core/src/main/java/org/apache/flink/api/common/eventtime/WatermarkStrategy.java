@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.eventtime;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Public;
 
 import java.io.Serializable;
@@ -73,6 +74,19 @@ public interface WatermarkStrategy<T>
         // for cases where records come out of a source with valid timestamps, for example from
         // Kafka.
         return new RecordTimestampAssigner<>();
+    }
+
+    /**
+     * Provides configuration for watermark alignment of a maximum watermark of multiple
+     * sources/tasks/partitions in the same watermark group. The group may contain completely
+     * independent sources (e.g. File and Kafka).
+     *
+     * <p>Once configured Flink will "pause" consuming from a source/task/partition that is ahead of
+     * the emitted watermark in the group by more than the maxAllowedWatermarkDrift.
+     */
+    @Experimental
+    default WatermarkAlignmentParams getAlignmentParameters() {
+        return WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED;
     }
 
     // ------------------------------------------------------------------------
@@ -136,6 +150,48 @@ public interface WatermarkStrategy<T>
                 !(idleTimeout.isZero() || idleTimeout.isNegative()),
                 "idleTimeout must be greater than zero");
         return new WatermarkStrategyWithIdleness<>(this, idleTimeout);
+    }
+
+    /**
+     * Creates a new {@link WatermarkStrategy} that configures the maximum watermark drift from
+     * other sources/tasks/partitions in the same watermark group. The group may contain completely
+     * independent sources (e.g. File and Kafka).
+     *
+     * <p>Once configured Flink will "pause" consuming from a source/task/partition that is ahead of
+     * the emitted watermark in the group by more than the maxAllowedWatermarkDrift.
+     *
+     * @param watermarkGroup A group of sources to align watermarks
+     * @param maxAllowedWatermarkDrift Maximal drift, before we pause consuming from the
+     *     source/task/partition
+     */
+    @Experimental
+    default WatermarkStrategy<T> withWatermarkAlignment(
+            String watermarkGroup, Duration maxAllowedWatermarkDrift) {
+        return withWatermarkAlignment(
+                watermarkGroup,
+                maxAllowedWatermarkDrift,
+                WatermarksWithWatermarkAlignment.DEFAULT_UPDATE_INTERVAL);
+    }
+
+    /**
+     * Creates a new {@link WatermarkStrategy} that configures the maximum watermark drift from
+     * other sources/tasks/partitions in the same watermark group. The group may contain completely
+     * independent sources (e.g. File and Kafka).
+     *
+     * <p>Once configured Flink will "pause" consuming from a source/task/partition that is ahead of
+     * the emitted watermark in the group by more than the maxAllowedWatermarkDrift.
+     *
+     * @param watermarkGroup A group of sources to align watermarks
+     * @param maxAllowedWatermarkDrift Maximal drift, before we pause consuming from the
+     *     source/task/partition
+     * @param updateInterval How often tasks should notify coordinator about the current watermark
+     *     and how often the coordinator should announce the maximal aligned watermark.
+     */
+    @Experimental
+    default WatermarkStrategy<T> withWatermarkAlignment(
+            String watermarkGroup, Duration maxAllowedWatermarkDrift, Duration updateInterval) {
+        return new WatermarksWithWatermarkAlignment<T>(
+                this, watermarkGroup, maxAllowedWatermarkDrift, updateInterval);
     }
 
     // ------------------------------------------------------------------------

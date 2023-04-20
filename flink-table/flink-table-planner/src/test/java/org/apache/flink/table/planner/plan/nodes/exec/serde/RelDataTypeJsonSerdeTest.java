@@ -19,14 +19,11 @@
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
-import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
+import org.apache.flink.table.planner.typeutils.LogicalRelDataTypeConverterTest.PojoClass;
 import org.apache.flink.table.types.logical.DayTimeIntervalType;
-import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RawType;
-import org.apache.flink.table.types.logical.StructuredType;
-import org.apache.flink.table.types.logical.VarCharType;
 
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.rel.type.RelDataType;
@@ -34,25 +31,29 @@ import org.apache.calcite.rel.type.StructKind;
 import org.apache.calcite.sql.SqlIntervalQualifier;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.runners.Parameterized.Parameters;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeMocks.configuredSerdeContext;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeMocks.toJson;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeMocks.toObject;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.configuredSerdeContext;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.toJson;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.toObject;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 /** Tests for {@link RelDataType} serialization and deserialization. */
+@Execution(CONCURRENT)
 public class RelDataTypeJsonSerdeTest {
 
-    private static final FlinkTypeFactory FACTORY = FlinkTypeFactory.INSTANCE();
+    private static final FlinkTypeFactory FACTORY =
+            new FlinkTypeFactory(
+                    RelDataTypeJsonSerdeTest.class.getClassLoader(), FlinkTypeSystem.INSTANCE);
 
     @ParameterizedTest
     @MethodSource("testRelDataTypeSerde")
@@ -66,7 +67,7 @@ public class RelDataTypeJsonSerdeTest {
     }
 
     @Test
-    public void testMissingPrecisionAndScale() {
+    public void testMissingPrecisionAndScale() throws IOException {
         final SerdeContext serdeContext = configuredSerdeContext();
 
         final String json =
@@ -89,7 +90,7 @@ public class RelDataTypeJsonSerdeTest {
     }
 
     @Test
-    public void testNegativeScale() {
+    public void testNegativeScale() throws IOException {
         final SerdeContext serdeContext = configuredSerdeContext();
 
         final String json = toJson(serdeContext, FACTORY.createSqlType(SqlTypeName.DECIMAL, 5, -1));
@@ -102,7 +103,6 @@ public class RelDataTypeJsonSerdeTest {
     // Test data
     // --------------------------------------------------------------------------------------------
 
-    @Parameters(name = "{0}")
     public static List<RelDataType> testRelDataTypeSerde() {
         // the values in the list do not care about nullable.
         final List<RelDataType> types =
@@ -219,25 +219,7 @@ public class RelDataTypeJsonSerdeTest {
                         FACTORY.createRowtimeIndicatorType(true, false),
                         FACTORY.createRowtimeIndicatorType(true, true),
                         FACTORY.createProctimeIndicatorType(true),
-                        FACTORY.createFieldTypeFromLogicalType(
-                                StructuredType.newBuilder(
-                                                ObjectIdentifier.of("cat", "db", "structuredType"),
-                                                DataTypeJsonSerdeTest.PojoClass.class)
-                                        .attributes(
-                                                Arrays.asList(
-                                                        new StructuredType.StructuredAttribute(
-                                                                "f0", new IntType(true)),
-                                                        new StructuredType.StructuredAttribute(
-                                                                "f1", new BigIntType(true)),
-                                                        new StructuredType.StructuredAttribute(
-                                                                "f2",
-                                                                new VarCharType(200),
-                                                                "desc")))
-                                        .comparison(StructuredType.StructuredComparison.FULL)
-                                        .setFinal(false)
-                                        .setInstantiable(false)
-                                        .description("description for StructuredType")
-                                        .build()));
+                        FACTORY.createFieldTypeFromLogicalType(PojoClass.TYPE_WITH_IDENTIFIER));
 
         final List<RelDataType> mutableTypes = new ArrayList<>(types.size() * 2);
         for (RelDataType type : types) {

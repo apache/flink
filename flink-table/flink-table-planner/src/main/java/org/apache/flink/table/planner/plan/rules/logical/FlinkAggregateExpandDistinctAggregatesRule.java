@@ -331,6 +331,7 @@ public final class FlinkAggregateExpandDistinctAggregatesRule extends RelOptRule
                                 false,
                                 aggCall.getArgList(),
                                 -1,
+                                aggCall.distinctKeys,
                                 RelCollations.EMPTY,
                                 ImmutableBitSet.of(bottomGroupSet).cardinality(),
                                 relBuilder.peek(),
@@ -369,6 +370,7 @@ public final class FlinkAggregateExpandDistinctAggregatesRule extends RelOptRule
                                 false,
                                 newArgList,
                                 -1,
+                                aggCall.distinctKeys,
                                 RelCollations.EMPTY,
                                 originalGroupSet.cardinality(),
                                 relBuilder.peek(),
@@ -389,6 +391,7 @@ public final class FlinkAggregateExpandDistinctAggregatesRule extends RelOptRule
                                     false,
                                     newArgs,
                                     -1,
+                                    aggCall.distinctKeys,
                                     RelCollations.EMPTY,
                                     originalGroupSet.cardinality(),
                                     relBuilder.peek(),
@@ -403,6 +406,7 @@ public final class FlinkAggregateExpandDistinctAggregatesRule extends RelOptRule
                                     false,
                                     newArgs,
                                     -1,
+                                    aggCall.distinctKeys,
                                     RelCollations.EMPTY,
                                     originalGroupSet.cardinality(),
                                     relBuilder.peek(),
@@ -466,7 +470,7 @@ public final class FlinkAggregateExpandDistinctAggregatesRule extends RelOptRule
                                 aggCall.left.filterArg,
                                 aggregate.getGroupCount(),
                                 fullGroupSet.cardinality());
-                distinctAggCalls.add(newAggCall.rename(aggCall.right));
+                distinctAggCalls.add(newAggCall.withName(aggCall.right));
             }
         }
 
@@ -484,6 +488,7 @@ public final class FlinkAggregateExpandDistinctAggregatesRule extends RelOptRule
                         false,
                         ImmutableIntList.copyOf(fullGroupSet),
                         -1,
+                        null,
                         RelCollations.EMPTY,
                         groupSets.size(),
                         relBuilder.peek(),
@@ -565,6 +570,7 @@ public final class FlinkAggregateExpandDistinctAggregatesRule extends RelOptRule
                             false,
                             newArgList,
                             newFilterArg,
+                            aggCall.distinctKeys,
                             RelCollations.EMPTY,
                             aggregate.getGroupCount(),
                             distinct,
@@ -815,6 +821,7 @@ public final class FlinkAggregateExpandDistinctAggregatesRule extends RelOptRule
                             false,
                             newArgs,
                             newFilterArg,
+                            null,
                             RelCollations.EMPTY,
                             aggCall.getType(),
                             aggCall.getName());
@@ -908,6 +915,7 @@ public final class FlinkAggregateExpandDistinctAggregatesRule extends RelOptRule
                             false,
                             newArgs,
                             -1,
+                            null,
                             RelCollations.EMPTY,
                             aggCall.getType(),
                             aggCall.getName());

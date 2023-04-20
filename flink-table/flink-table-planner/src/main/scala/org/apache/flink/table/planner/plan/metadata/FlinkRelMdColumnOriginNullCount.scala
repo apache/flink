@@ -15,13 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.metadata
 
+import org.apache.flink.table.planner.{JArrayList, JBoolean, JDouble}
 import org.apache.flink.table.planner.plan.metadata.FlinkMetadata.ColumnOriginNullCount
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
 import org.apache.flink.table.planner.plan.utils.JoinUtil
-import org.apache.flink.table.planner.{JArrayList, JBoolean, JDouble}
 import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.rel.RelNode
@@ -34,11 +33,11 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
-  * FlinkRelMdColumnOriginNullCount supplies a default implementation of
-  * [[FlinkRelMetadataQuery.getColumnOriginNullCount]] for the standard logical algebra.
-  * If there is null, then return the original stats. If there is no null, then return 0.
-  * If don't know, then return null.
-  */
+ * FlinkRelMdColumnOriginNullCount supplies a default implementation of
+ * [[FlinkRelMetadataQuery.getColumnOriginNullCount]] for the standard logical algebra. If there is
+ * null, then return the original stats. If there is no null, then return 0. If don't know, then
+ * return null.
+ */
 class FlinkRelMdColumnOriginNullCount private extends MetadataHandler[ColumnOriginNullCount] {
 
   override def getDef: MetadataDef[ColumnOriginNullCount] = FlinkMetadata.ColumnOriginNullCount.DEF
@@ -82,7 +81,7 @@ class FlinkRelMdColumnOriginNullCount private extends MetadataHandler[ColumnOrig
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
     projects.get(index) match {
       case inputRef: RexInputRef => fmq.getColumnNullCount(input, inputRef.getIndex)
-      case literal: RexLiteral => if (literal.isNull) 1D else 0D
+      case literal: RexLiteral => if (literal.isNull) 1d else 0d
       case _ => null
     }
   }
@@ -106,7 +105,7 @@ class FlinkRelMdColumnOriginNullCount private extends MetadataHandler[ColumnOrig
       }
 
       if (keys.contains(index) && filterNull) {
-        0D
+        0d
       } else {
         // As same with its children, there may be better ways to estimate it.
         // With JoinNullFilterPushdownRule, we can generate more NotNullFilters.
@@ -129,6 +128,7 @@ object FlinkRelMdColumnOriginNullCount {
   private val INSTANCE = new FlinkRelMdColumnOriginNullCount
 
   val SOURCE: RelMetadataProvider = ReflectiveRelMetadataProvider.reflectiveSource(
-    FlinkMetadata.ColumnOriginNullCount.METHOD, INSTANCE)
+    FlinkMetadata.ColumnOriginNullCount.METHOD,
+    INSTANCE)
 
 }

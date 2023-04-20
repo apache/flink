@@ -21,11 +21,13 @@ package org.apache.flink.runtime.scheduler.adaptive;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 
 import org.slf4j.Logger;
+
+import java.util.List;
 
 /** State which describes a job which is currently being canceled. */
 class Canceling extends StateWithExecutionGraph {
@@ -37,8 +39,17 @@ class Canceling extends StateWithExecutionGraph {
             ExecutionGraph executionGraph,
             ExecutionGraphHandler executionGraphHandler,
             OperatorCoordinatorHandler operatorCoordinatorHandler,
-            Logger logger) {
-        super(context, executionGraph, executionGraphHandler, operatorCoordinatorHandler, logger);
+            Logger logger,
+            ClassLoader userCodeClassLoader,
+            List<ExceptionHistoryEntry> failureCollection) {
+        super(
+                context,
+                executionGraph,
+                executionGraphHandler,
+                operatorCoordinatorHandler,
+                logger,
+                userCodeClassLoader,
+                failureCollection);
         this.context = context;
 
         getExecutionGraph().cancel();
@@ -55,17 +66,8 @@ class Canceling extends StateWithExecutionGraph {
     }
 
     @Override
-    public void handleGlobalFailure(Throwable cause) {
-        getLogger()
-                .debug(
-                        "Ignored global failure because we are already canceling the job {}.",
-                        getJobId(),
-                        cause);
-    }
-
-    @Override
-    boolean updateTaskExecutionState(TaskExecutionStateTransition taskExecutionStateTransition) {
-        return getExecutionGraph().updateState(taskExecutionStateTransition);
+    void onFailure(Throwable failure) {
+        // Execution graph is already cancelling, so there is nothing more we can do.
     }
 
     @Override
@@ -80,18 +82,24 @@ class Canceling extends StateWithExecutionGraph {
         private final ExecutionGraph executionGraph;
         private final ExecutionGraphHandler executionGraphHandler;
         private final OperatorCoordinatorHandler operatorCoordinatorHandler;
+        private final ClassLoader userCodeClassLoader;
+        private final List<ExceptionHistoryEntry> failureCollection;
 
         public Factory(
                 Context context,
                 ExecutionGraph executionGraph,
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
-                Logger log) {
+                Logger log,
+                ClassLoader userCodeClassLoader,
+                List<ExceptionHistoryEntry> failureCollection) {
             this.context = context;
             this.log = log;
             this.executionGraph = executionGraph;
             this.executionGraphHandler = executionGraphHandler;
             this.operatorCoordinatorHandler = operatorCoordinatorHandler;
+            this.userCodeClassLoader = userCodeClassLoader;
+            this.failureCollection = failureCollection;
         }
 
         public Class<Canceling> getStateClass() {
@@ -104,7 +112,9 @@ class Canceling extends StateWithExecutionGraph {
                     executionGraph,
                     executionGraphHandler,
                     operatorCoordinatorHandler,
-                    log);
+                    log,
+                    userCodeClassLoader,
+                    failureCollection);
         }
     }
 }

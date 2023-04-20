@@ -18,15 +18,6 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
-import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.catalog.CatalogManager;
-import org.apache.flink.table.catalog.FunctionCatalog;
-import org.apache.flink.table.catalog.GenericInMemoryCatalog;
-import org.apache.flink.table.module.ModuleManager;
-import org.apache.flink.table.planner.calcite.FlinkContext;
-import org.apache.flink.table.planner.calcite.FlinkContextImpl;
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
 import org.apache.flink.table.types.logical.BigIntType;
 
@@ -38,35 +29,14 @@ import org.junit.Test;
 
 import java.io.IOException;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test LookupKey json ser/de. */
 public class LookupKeySerdeTest {
 
     @Test
     public void testLookupKey() throws IOException {
-        TableConfig tableConfig = TableConfig.getDefault();
-        ModuleManager moduleManager = new ModuleManager();
-        CatalogManager catalogManager =
-                CatalogManager.newBuilder()
-                        .classLoader(Thread.currentThread().getContextClassLoader())
-                        .config(tableConfig.getConfiguration())
-                        .defaultCatalog("default_catalog", new GenericInMemoryCatalog("default_db"))
-                        .build();
-        FlinkContext flinkContext =
-                new FlinkContextImpl(
-                        false,
-                        tableConfig,
-                        moduleManager,
-                        new FunctionCatalog(tableConfig, catalogManager, moduleManager),
-                        catalogManager,
-                        null);
-        SerdeContext serdeCtx =
-                new SerdeContext(
-                        flinkContext,
-                        Thread.currentThread().getContextClassLoader(),
-                        FlinkTypeFactory.INSTANCE(),
-                        FlinkSqlOperatorTable.instance());
+        SerdeContext serdeCtx = JsonSerdeTestUtil.configuredSerdeContext();
         ObjectReader objectReader = JsonSerdeUtil.createObjectReader(serdeCtx);
         ObjectWriter objectWriter = JsonSerdeUtil.createObjectWriter(serdeCtx);
 
@@ -74,7 +44,7 @@ public class LookupKeySerdeTest {
                 new LookupJoinUtil.LookupKey[] {
                     new LookupJoinUtil.ConstantLookupKey(
                             new BigIntType(),
-                            new RexBuilder(FlinkTypeFactory.INSTANCE()).makeLiteral("a")),
+                            new RexBuilder(serdeCtx.getTypeFactory()).makeLiteral("a")),
                     new LookupJoinUtil.FieldRefLookupKey(3)
                 };
         for (LookupJoinUtil.LookupKey lookupKey : lookupKeys) {
@@ -82,7 +52,7 @@ public class LookupKeySerdeTest {
                     objectReader.readValue(
                             objectWriter.writeValueAsString(lookupKey),
                             LookupJoinUtil.LookupKey.class);
-            assertEquals(lookupKey, result);
+            assertThat(result).isEqualTo(lookupKey);
         }
     }
 }

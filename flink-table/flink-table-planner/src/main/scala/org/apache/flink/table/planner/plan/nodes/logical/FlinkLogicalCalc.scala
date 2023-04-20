@@ -15,27 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.logical
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.common.CommonCalc
 
 import org.apache.calcite.plan._
+import org.apache.calcite.rel.{RelCollation, RelCollationTraitDef, RelNode}
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rel.logical.LogicalCalc
 import org.apache.calcite.rel.metadata.RelMdCollation
-import org.apache.calcite.rel.{RelCollation, RelCollationTraitDef, RelNode}
 import org.apache.calcite.rex.RexProgram
 
 import java.util
 import java.util.function.Supplier
 
 /**
-  * Sub-class of [[Calc]] that is a relational expression which computes project expressions
-  * and also filters in Flink.
-  */
+ * Sub-class of [[Calc]] that is a relational expression which computes project expressions and also
+ * filters in Flink.
+ */
 class FlinkLogicalCalc(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -50,12 +50,7 @@ class FlinkLogicalCalc(
 
 }
 
-private class FlinkLogicalCalcConverter
-  extends ConverterRule(
-    classOf[LogicalCalc],
-    Convention.NONE,
-    FlinkConventions.LOGICAL,
-    "FlinkLogicalCalcConverter") {
+private class FlinkLogicalCalcConverter(config: Config) extends ConverterRule(config) {
 
   override def convert(rel: RelNode): RelNode = {
     val calc = rel.asInstanceOf[LogicalCalc]
@@ -65,15 +60,24 @@ private class FlinkLogicalCalcConverter
 }
 
 object FlinkLogicalCalc {
-  val CONVERTER: ConverterRule = new FlinkLogicalCalcConverter()
+  val CONVERTER: ConverterRule = new FlinkLogicalCalcConverter(
+    Config.INSTANCE.withConversion(
+      classOf[LogicalCalc],
+      Convention.NONE,
+      FlinkConventions.LOGICAL,
+      "FlinkLogicalCalcConverter"))
 
   def create(input: RelNode, calcProgram: RexProgram): FlinkLogicalCalc = {
     val cluster = input.getCluster
     val mq = cluster.getMetadataQuery
-    val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).replaceIfs(
-      RelCollationTraitDef.INSTANCE, new Supplier[util.List[RelCollation]]() {
-        def get: util.List[RelCollation] = RelMdCollation.calc(mq, input, calcProgram)
-      }).simplify()
+    val traitSet = cluster
+      .traitSetOf(FlinkConventions.LOGICAL)
+      .replaceIfs(
+        RelCollationTraitDef.INSTANCE,
+        new Supplier[util.List[RelCollation]]() {
+          def get: util.List[RelCollation] = RelMdCollation.calc(mq, input, calcProgram)
+        })
+      .simplify()
     new FlinkLogicalCalc(cluster, traitSet, input, calcProgram)
   }
 }

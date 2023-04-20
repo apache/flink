@@ -18,18 +18,9 @@
 
 package org.apache.flink.runtime.dispatcher;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.heartbeat.HeartbeatServices;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerRunner;
-import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
-import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.Preconditions;
-
-import javax.annotation.Nonnull;
 
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -39,51 +30,39 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Testing implementation of {@link JobManagerRunnerFactory} which returns a {@link
  * TestingJobManagerRunner}.
  */
-public class TestingJobManagerRunnerFactory implements JobManagerRunnerFactory {
+public class TestingJobManagerRunnerFactory {
 
     private final BlockingQueue<TestingJobManagerRunner> createdJobManagerRunner =
             new ArrayBlockingQueue<>(16);
 
     private final AtomicInteger numBlockingJobManagerRunners;
 
-    public TestingJobManagerRunnerFactory() {
-        this(0);
-    }
-
-    public TestingJobManagerRunnerFactory(int numBlockingJobManagerRunners) {
+    protected TestingJobManagerRunnerFactory(int numBlockingJobManagerRunners) {
         this.numBlockingJobManagerRunners = new AtomicInteger(numBlockingJobManagerRunners);
     }
 
-    @Override
-    public TestingJobManagerRunner createJobManagerRunner(
-            JobGraph jobGraph,
-            Configuration configuration,
-            RpcService rpcService,
-            HighAvailabilityServices highAvailabilityServices,
-            HeartbeatServices heartbeatServices,
-            JobManagerSharedServices jobManagerServices,
-            JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
-            FatalErrorHandler fatalErrorHandler,
-            long initializationTimestamp)
-            throws Exception {
+    protected TestingJobManagerRunner offerTestingJobManagerRunner(JobID jobId) {
         final TestingJobManagerRunner testingJobManagerRunner =
-                createTestingJobManagerRunner(jobGraph);
+                createTestingJobManagerRunner(jobId);
         Preconditions.checkState(
                 createdJobManagerRunner.offer(testingJobManagerRunner),
                 "Unable to persist created the new runner.");
         return testingJobManagerRunner;
     }
 
-    @Nonnull
-    private TestingJobManagerRunner createTestingJobManagerRunner(JobGraph jobGraph) {
+    private TestingJobManagerRunner createTestingJobManagerRunner(JobID jobId) {
         final boolean blockingTermination = numBlockingJobManagerRunners.getAndDecrement() > 0;
         return TestingJobManagerRunner.newBuilder()
-                .setJobId(jobGraph.getJobID())
+                .setJobId(jobId)
                 .setBlockingTermination(blockingTermination)
                 .build();
     }
 
     public TestingJobManagerRunner takeCreatedJobManagerRunner() throws InterruptedException {
         return createdJobManagerRunner.take();
+    }
+
+    public int getQueueSize() {
+        return createdJobManagerRunner.size();
     }
 }

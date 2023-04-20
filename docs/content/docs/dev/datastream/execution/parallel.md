@@ -52,7 +52,7 @@ The parallelism of an individual operator, data source, or data sink can be defi
 ```java
 final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-DataStream<String> text = [...]
+DataStream<String> text = [...];
 DataStream<Tuple2<String, Integer>> wordCounts = text
     .flatMap(new LineSplitter())
     .keyBy(value -> value.f0)
@@ -79,6 +79,24 @@ wordCounts.print()
 env.execute("Word Count Example")
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+env = StreamExecutionEnvironment.get_execution_environment()
+
+text = [...]
+word_counts = text 
+    .flat_map(lambda x: x.split(" ")) \
+    .map(lambda i: (i, 1), output_type=Types.TUPLE([Types.STRING(), Types.INT()])) \
+    .key_by(lambda i: i[0]) \
+    .window(TumblingEventTimeWindows.of(Time.seconds(5))) \
+    .reduce(lambda i, j: (i[0], i[1] + j[1])) \
+    .set_parallelism(5)
+word_counts.print()
+
+
+env.execute("Word Count Example")
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 ### Execution Environment Level
@@ -99,8 +117,8 @@ of `3`, set the default parallelism of the execution environment as follows:
 final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 env.setParallelism(3);
 
-DataStream<String> text = [...]
-DataStream<Tuple2<String, Integer>> wordCounts = [...]
+DataStream<String> text = [...];
+DataStream<Tuple2<String, Integer>> wordCounts = [...];
 wordCounts.print();
 
 env.execute("Word Count Example");
@@ -118,6 +136,24 @@ val wordCounts = text
     .window(TumblingEventTimeWindows.of(Time.seconds(5)))
     .sum(1)
 wordCounts.print()
+
+env.execute("Word Count Example")
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+env = StreamExecutionEnvironment.get_execution_environment()
+env.set_parallelism(3)
+
+text = [...]
+word_counts = text
+    .flat_map(lambda x: x.split(" ")) \
+    .map(lambda i: (i, 1), output_type=Types.TUPLE([Types.STRING(), Types.INT()])) \
+    .key_by(lambda i: i[0]) \
+    .window(TumblingEventTimeWindows.of(Time.seconds(5))) \
+    .reduce(lambda i, j: (i[0], i[1] + j[1]))
+word_counts.print()
+
 
 env.execute("Word Count Example")
 ```
@@ -175,6 +211,11 @@ try {
 }
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+Still not supported in Python API.
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 
@@ -198,6 +239,8 @@ Setting the maximum parallelism to a very large
 value can be detrimental to performance because some state backends have to keep internal data
 structures that scale with the number of key-groups (which are the internal implementation mechanism for
 rescalable state).
+
+Changing the maximum parallelism explicitly when recovery from original job will lead to state incompatibility.
 {{< /hint >}}
 
 {{< top >}}

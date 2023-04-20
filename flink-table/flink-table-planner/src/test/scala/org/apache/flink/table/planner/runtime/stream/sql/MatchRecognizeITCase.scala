@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.common.time.Time
@@ -27,15 +26,17 @@ import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.functions.{AggregateFunction, FunctionContext, ScalarFunction}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvg
+import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink, UserDefinedFunctionTestUtils}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.EventTimeSourceFunction
-import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink, UserDefinedFunctionTestUtils}
 import org.apache.flink.table.planner.utils.TableTestUtil
 import org.apache.flink.types.Row
+
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+
 import java.sql.Timestamp
 import java.time.{Instant, ZoneId}
 import java.util.TimeZone
@@ -61,8 +62,8 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     data.+=((8, "c"))
     data.+=((9, "h"))
 
-    val t = env.fromCollection(data).toTable(tEnv,'id, 'name, 'proctime.proctime)
-    tEnv.registerTable("MyTable", t)
+    val t = env.fromCollection(data).toTable(tEnv, 'id, 'name, 'proctime.proctime)
+    tEnv.createTemporaryView("MyTable", t)
 
     val sqlQuery =
       s"""
@@ -107,8 +108,8 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     data.+=((8, "c", null))
     data.+=((9, null, null))
 
-    val t = env.fromCollection(data).toTable(tEnv,'id, 'name, 'nullField, 'proctime.proctime)
-    tEnv.registerTable("MyTable", t)
+    val t = env.fromCollection(data).toTable(tEnv, 'id, 'name, 'nullField, 'proctime.proctime)
+    tEnv.createTemporaryView("MyTable", t)
 
     val sqlQuery =
       s"""
@@ -157,9 +158,10 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     data.+=((8, "c", "key2", "second_key4"))
     data.+=((9, "f", "key", "second_key"))
 
-    val t = env.fromCollection(data)
+    val t = env
+      .fromCollection(data)
       .toTable(tEnv, 'id, 'name, 'key1, 'key2, 'proctime.proctime)
-    tEnv.registerTable("MyTable", t)
+    tEnv.createTemporaryView("MyTable", t)
 
     val sqlQuery =
       s"""
@@ -201,15 +203,15 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     val data = Seq(
       Left(2L, (12, 1, "a", 1)),
       Left(1L, (11, 2, "b", 2)),
-      Left(3L, (10, 3, "c", 3)), //event time order breaks this match
+      Left(3L, (10, 3, "c", 3)), // event time order breaks this match
       Right(3L),
       Left(4L, (8, 4, "a", 4)),
       Left(4L, (9, 5, "b", 5)),
-      Left(5L, (7, 6, "c", 6)), //secondary order breaks this match
+      Left(5L, (7, 6, "c", 6)), // secondary order breaks this match
       Right(5L),
       Left(6L, (6, 8, "a", 7)),
       Left(6L, (6, 7, "b", 8)),
-      Left(8L, (4, 9, "c", 9)), //ternary order breaks this match
+      Left(8L, (4, 9, "c", 9)), // ternary order breaks this match
       Right(8L),
       Left(9L, (3, 10, "a", 10)),
       Left(10L, (2, 11, "b", 11)),
@@ -217,9 +219,10 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
       Right(11L)
     )
 
-    val t = env.addSource(new EventTimeSourceFunction[(Int, Int, String, Int)](data))
+    val t = env
+      .addSource(new EventTimeSourceFunction[(Int, Int, String, Int)](data))
       .toTable(tEnv, 'secondaryOrder, 'ternaryOrder, 'name, 'id, 'rowtime.rowtime)
-    tEnv.registerTable("MyTable", t)
+    tEnv.createTemporaryView("MyTable", t)
 
     val sqlQuery =
       s"""
@@ -256,13 +259,13 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val data = new mutable.MutableList[(String, Long, Int, Int)]
-    //first window
+    // first window
     data.+=(("ACME", Time.seconds(1).toMilliseconds, 1, 1))
     data.+=(("ACME", Time.seconds(2).toMilliseconds, 2, 2))
-    //second window
+    // second window
     data.+=(("ACME", Time.seconds(4).toMilliseconds, 1, 4))
     data.+=(("ACME", Time.seconds(5).toMilliseconds, 1, 3))
-    //third window
+    // third window
     data.+=(("ACME", Time.seconds(7).toMilliseconds, 2, 3))
     data.+=(("ACME", Time.seconds(8).toMilliseconds, 2, 3))
 
@@ -271,10 +274,11 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     data.+=(("ACME1", Time.seconds(1).toMilliseconds, 25, 3))
     data.+=(("ACME1", Time.seconds(1).toMilliseconds, 19, 8))
 
-    val t = env.fromCollection(data)
+    val t = env
+      .fromCollection(data)
       .assignAscendingTimestamps(e => e._2)
       .toTable(tEnv, 'symbol, 'rowtime.rowtime, 'price, 'tax)
-    tEnv.registerTable("Ticker", t)
+    tEnv.createTemporaryView("Ticker", t)
 
     val sqlQuery =
       s"""
@@ -316,19 +320,19 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val data = new mutable.MutableList[(String, Long, Int, Int)]
-    //first window
+    // first window
     data.+=(("ACME", Time.seconds(1).toMilliseconds, 1, 1))
     data.+=(("ACME", Time.seconds(2).toMilliseconds, 2, 2))
-    //second window
+    // second window
     data.+=(("ACME", Time.seconds(4).toMilliseconds, 1, 4))
     data.+=(("ACME", Time.seconds(5).toMilliseconds, 1, 3))
 
-
-    val tickerEvents = env.fromCollection(data)
+    val tickerEvents = env
+      .fromCollection(data)
       .assignAscendingTimestamps(tickerEvent => tickerEvent._2)
       .toTable(tEnv, 'symbol, 'rowtime.rowtime, 'price, 'tax)
 
-    tEnv.registerTable("Ticker", tickerEvents)
+    tEnv.createTemporaryView("Ticker", tickerEvents)
 
     val sqlQuery =
       s"""
@@ -370,10 +374,10 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val data: Seq[Row] = Seq(
-      //first window
+      // first window
       rowOf("ACME", Instant.ofEpochSecond(1), 1, 1),
       rowOf("ACME", Instant.ofEpochSecond(2), 2, 2),
-      //second window
+      // second window
       rowOf("ACME", Instant.ofEpochSecond(3), 1, 4),
       rowOf("ACME", Instant.ofEpochSecond(4), 1, 3)
     )
@@ -381,19 +385,18 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     tEnv.getConfig.setLocalTimeZone(ZoneId.of("Asia/Shanghai"))
 
     val dataId = TestValuesTableFactory.registerData(data)
-    tEnv.executeSql(
-      s"""
-         |CREATE TABLE Ticker (
-         | `symbol` STRING,
-         | `ts_ltz` TIMESTAMP_LTZ(3),
-         | `price` INT,
-         | `tax` INT,
-         | WATERMARK FOR `ts_ltz` AS `ts_ltz` - INTERVAL '1' SECOND
-         |) WITH (
-         | 'connector' = 'values',
-         | 'data-id' = '$dataId'
-         |)
-         |""".stripMargin)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE Ticker (
+                       | `symbol` STRING,
+                       | `ts_ltz` TIMESTAMP_LTZ(3),
+                       | `price` INT,
+                       | `tax` INT,
+                       | WATERMARK FOR `ts_ltz` AS `ts_ltz` - INTERVAL '1' SECOND
+                       |) WITH (
+                       | 'connector' = 'values',
+                       | 'data-id' = '$dataId'
+                       |)
+                       |""".stripMargin)
 
     val sqlQuery =
       s"""
@@ -444,9 +447,10 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     data.+=(("ACME", 7L, 20, 7))
     data.+=(("ACME", 8L, 25, 8))
 
-    val t = env.fromCollection(data)
+    val t = env
+      .fromCollection(data)
       .toTable(tEnv, 'symbol, 'tstamp, 'price, 'tax, 'proctime.proctime)
-    tEnv.registerTable("Ticker", t)
+    tEnv.createTemporaryView("Ticker", t)
 
     val sqlQuery =
       s"""
@@ -489,11 +493,12 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     data.+=(("ACME", 3L, 13, 3))
     data.+=(("ACME", 4L, 20, 4))
 
-    val t = env.fromCollection(data)
+    val t = env
+      .fromCollection(data)
       .assignAscendingTimestamps(tickerEvent => tickerEvent._2)
       .setParallelism(env.getParallelism)
       .toTable(tEnv, 'symbol, 'rowtime.rowtime, 'price, 'tax)
-    tEnv.registerTable("Ticker", t)
+    tEnv.createTemporaryView("Ticker", t)
 
     val sqlQuery =
       s"""
@@ -538,9 +543,10 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     data.+=((7, "ACME", 7L, 14))
     data.+=((8, "ACME", 8L, 20))
 
-    val t = env.fromCollection(data)
+    val t = env
+      .fromCollection(data)
       .toTable(tEnv, 'id, 'symbol, 'tstamp, 'price, 'proctime.proctime)
-    tEnv.registerTable("Ticker", t)
+    tEnv.createTemporaryView("Ticker", t)
 
     val sqlQuery =
       s"""
@@ -594,9 +600,10 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     data.+=(("ACME", 3L, 13, 3))
     data.+=(("ACME", 4L, 20, 4))
 
-    val t = env.fromCollection(data)
+    val t = env
+      .fromCollection(data)
       .toTable(tEnv, 'symbol, 'tstamp, 'price, 'tax, 'proctime.proctime)
-    tEnv.registerTable("Ticker", t)
+    tEnv.createTemporaryView("Ticker", t)
 
     val sqlQuery =
       s"""
@@ -627,13 +634,12 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
   }
 
   /**
-    * This query checks:
-    *
-    * 1. count(D.price) produces 0, because no rows matched to D
-    * 2. sum(D.price) produces null, because no rows matched to D
-    * 3. aggregates that take multiple parameters work
-    * 4. aggregates with expressions work
-    */
+   * This query checks:
+   *
+   *   1. count(D.price) produces 0, because no rows matched to D 2. sum(D.price) produces null,
+   *      because no rows matched to D 3. aggregates that take multiple parameters work 4.
+   *      aggregates with expressions work
+   */
   @Test
   def testAggregates(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
@@ -654,9 +660,10 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     data.+=((11, "h", 2, 0.8, 3))
     data.+=((12, "h", 2, 0.8, 3))
 
-    val t = env.fromCollection(data)
+    val t = env
+      .fromCollection(data)
       .toTable(tEnv, 'id, 'name, 'price, 'rate, 'weight, 'proctime.proctime)
-    tEnv.registerTable("MyTable", t)
+    tEnv.createTemporaryView("MyTable", t)
     tEnv.createTemporarySystemFunction("weightedAvg", classOf[WeightedAvg])
 
     val sqlQuery =
@@ -712,12 +719,14 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     data.+=(Row.of(Int.box(8), "c", Int.box(3)))
     data.+=(Row.of(Int.box(9), "c", Int.box(2)))
 
-    val t = env.fromCollection(data)(Types.ROW(
-      BasicTypeInfo.INT_TYPE_INFO,
-      BasicTypeInfo.STRING_TYPE_INFO,
-      BasicTypeInfo.INT_TYPE_INFO))
+    val t = env
+      .fromCollection(data)(
+        Types.ROW(
+          BasicTypeInfo.INT_TYPE_INFO,
+          BasicTypeInfo.STRING_TYPE_INFO,
+          BasicTypeInfo.INT_TYPE_INFO))
       .toTable(tEnv, 'id, 'name, 'price, 'proctime.proctime)
-    tEnv.registerTable("MyTable", t)
+    tEnv.createTemporaryView("MyTable", t)
     tEnv.registerFunction("weightedAvg", new WeightedAvg)
 
     val sqlQuery =
@@ -758,8 +767,8 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     val data = new mutable.MutableList[(Int, String)]
     data.+=((1, "a"))
 
-    val t = env.fromCollection(data).toTable(tEnv,'id, 'name, 'proctime.proctime)
-    tEnv.registerTable("MyTable", t)
+    val t = env.fromCollection(data).toTable(tEnv, 'id, 'name, 'proctime.proctime)
+    tEnv.createTemporaryView("MyTable", t)
 
     val sqlQuery =
       s"""
@@ -806,9 +815,10 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     data.+=((8, "a", 1))
     data.+=((9, "f", 1))
 
-    val t = env.fromCollection(data)
+    val t = env
+      .fromCollection(data)
       .toTable(tEnv, 'id, 'name, 'price, 'proctime.proctime)
-    tEnv.registerTable("MyTable", t)
+    tEnv.createTemporaryView("MyTable", t)
     tEnv.registerFunction("prefix", new PrefixingScalarFunc)
     tEnv.registerFunction("countFrom", new RichAggFunc)
     val prefix = "PREF"
@@ -869,7 +879,7 @@ private case class CountAcc(var count: Long)
 
 private class RichAggFunc extends AggregateFunction[Long, CountAcc] {
 
-  private var start : Long = 0
+  private var start: Long = 0
 
   override def open(context: FunctionContext): Unit = {
     start = context.getJobParameter("start", "0").toLong

@@ -40,10 +40,18 @@ public class JobExceptionsInfoWithHistoryNoRootTest
                 new ArrayList<>();
         executionTaskExceptionInfoList.add(
                 new JobExceptionsInfo.ExecutionExceptionInfo(
-                        "exception1", "task1", "location1", System.currentTimeMillis()));
+                        "exception1",
+                        "task1",
+                        "location1",
+                        System.currentTimeMillis(),
+                        "taskManagerId1"));
         executionTaskExceptionInfoList.add(
                 new JobExceptionsInfo.ExecutionExceptionInfo(
-                        "exception2", "task2", "location2", System.currentTimeMillis()));
+                        "exception2",
+                        "task2",
+                        "location2",
+                        System.currentTimeMillis(),
+                        "taskManagerId2"));
         return new JobExceptionsInfoWithHistory(
                 null,
                 null,
@@ -61,13 +69,15 @@ public class JobExceptionsInfoWithHistoryNoRootTest
                                                         "stacktrace #2",
                                                         2L,
                                                         "task name #2",
-                                                        "location #2"))),
+                                                        "location #2",
+                                                        "taskManagerId #2"))),
                                 new JobExceptionsInfoWithHistory.RootExceptionInfo(
                                         "local task failure #1",
                                         "stacktrace #1",
                                         1L,
                                         "task name",
                                         "location",
+                                        "taskManagerId",
                                         Collections.emptyList())),
                         false));
     }

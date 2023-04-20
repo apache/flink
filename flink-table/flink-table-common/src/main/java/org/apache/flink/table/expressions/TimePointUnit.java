@@ -24,13 +24,13 @@ import org.apache.flink.annotation.PublicEvolving;
 @PublicEvolving
 public enum TimePointUnit implements TableSymbol {
     YEAR,
+    QUARTER,
     MONTH,
+    WEEK,
     DAY,
     HOUR,
     MINUTE,
     SECOND,
-    QUARTER,
-    WEEK,
     MILLISECOND,
     MICROSECOND
 }

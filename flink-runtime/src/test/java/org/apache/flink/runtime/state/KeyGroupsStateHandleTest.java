@@ -41,6 +41,7 @@ public class KeyGroupsStateHandleTest {
         assertNotNull(newHandle);
         assertEquals(streamHandle, newHandle.getDelegateStateHandle());
         assertEquals(expectedRange, newHandle.getKeyGroupRange());
+        assertEquals(handle.getStateHandleId(), newHandle.getStateHandleId());
     }
 
     @Test

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.deployment.application.DetachedApplicationRunner;
@@ -25,10 +26,13 @@ import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.RestoreMode;
+import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -36,14 +40,17 @@ import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.testutils.ParameterProgram;
 import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -53,36 +60,42 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the parameter handling of the {@link JarRunHandler}. */
-public class JarRunHandlerParameterTest
+class JarRunHandlerParameterTest
         extends JarHandlerParameterTest<JarRunRequestBody, JarRunMessageParameters> {
     private static final boolean ALLOW_NON_RESTORED_STATE_QUERY = true;
     private static final String RESTORE_PATH = "/foo/bar";
+    private static final RestoreMode RESTORE_MODE = RestoreMode.CLAIM;
+
+    @RegisterExtension
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
+            TestingUtils.defaultExecutorExtension();
 
     private static JarRunHandler handler;
 
     private static Path jarWithEagerSink;
 
-    @BeforeClass
-    public static void setup() throws Exception {
-        init();
+    private static final Configuration FLINK_CONFIGURATION =
+            new Configuration()
+                    .set(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, 120000L)
+                    .set(CoreOptions.DEFAULT_PARALLELISM, 57)
+                    .set(SavepointConfigOptions.SAVEPOINT_PATH, "/foo/bar/test")
+                    .set(SavepointConfigOptions.SAVEPOINT_IGNORE_UNCLAIMED_STATE, false)
+                    .set(SavepointConfigOptions.RESTORE_MODE, RESTORE_MODE);
+
+    @BeforeAll
+    static void setup(@TempDir File tempDir) throws Exception {
+        init(tempDir);
         final GatewayRetriever<TestingDispatcherGateway> gatewayRetriever =
                 () -> CompletableFuture.completedFuture(restfulGateway);
         final Time timeout = Time.seconds(10);
         final Map<String, String> responseHeaders = Collections.emptyMap();
-        final Executor executor = TestingUtils.defaultExecutor();
 
         final Path jarLocation = Paths.get(System.getProperty("targetDir"));
         final String parameterProgramWithEagerSink = "parameter-program-with-eager-sink.jar";
@@ -99,7 +112,7 @@ public class JarRunHandlerParameterTest
                         JarRunHeaders.getInstance(),
                         jarDir,
                         new Configuration(),
-                        executor,
+                        EXECUTOR_EXTENSION.getExecutor(),
                         ConfigurationVerifyingDetachedApplicationRunner::new);
     }
 
@@ -115,8 +128,9 @@ public class JarRunHandlerParameterTest
                 DispatcherGateway dispatcherGateway,
                 PackagedProgram program,
                 Configuration configuration) {
-            assertFalse(configuration.get(DeploymentOptions.ATTACHED));
-            assertEquals(EmbeddedExecutor.NAME, configuration.get(DeploymentOptions.TARGET));
+            assertThat(configuration.get(DeploymentOptions.ATTACHED)).isFalse();
+            assertThat(configuration.get(DeploymentOptions.TARGET))
+                    .isEqualTo(EmbeddedExecutor.NAME);
             return super.run(dispatcherGateway, program, configuration);
         }
     }
@@ -184,16 +198,23 @@ public class JarRunHandlerParameterTest
                 null,
                 ALLOW_NON_RESTORED_STATE_QUERY,
                 RESTORE_PATH,
-                RestoreMode.CLAIM);
+                RESTORE_MODE,
+                FLINK_CONFIGURATION.toMap());
     }
 
     @Override
     JarRunRequestBody getJarRequestBodyWithJobId(JobID jobId) {
-        return new JarRunRequestBody(null, null, null, null, jobId, null, null, null);
+        return new JarRunRequestBody(null, null, null, null, jobId, null, null, null, null);
+    }
+
+    @Override
+    JarRunRequestBody getJarRequestWithConfiguration() {
+        return new JarRunRequestBody(
+                null, null, null, null, null, null, null, null, FLINK_CONFIGURATION.toMap());
     }
 
     @Test
-    public void testRestHandlerExceptionThrownWithEagerSinks() throws Exception {
+    void testRestHandlerExceptionThrownWithEagerSinks() throws Exception {
         final HandlerRequest<JarRunRequestBody> request =
                 createRequest(
                         getDefaultJarRequestBody(),
@@ -201,30 +222,30 @@ public class JarRunHandlerParameterTest
                         getUnresolvedJarMessageParameters(),
                         jarWithEagerSink);
 
-        try {
-            handler.handleRequest(request, restfulGateway).get();
-        } catch (final ExecutionException e) {
-            final Throwable throwable = ExceptionUtils.stripCompletionException(e.getCause());
-            assertThat(throwable, instanceOf(RestHandlerException.class));
+        assertThatThrownBy(() -> handler.handleRequest(request, restfulGateway).get())
+                .matches(
+                        e -> {
+                            final Throwable throwable =
+                                    ExceptionUtils.stripCompletionException(e.getCause());
+                            assertThat(throwable).isInstanceOf(RestHandlerException.class);
 
-            final RestHandlerException restHandlerException = (RestHandlerException) throwable;
-            assertThat(
-                    restHandlerException.getHttpResponseStatus(),
-                    equalTo(HttpResponseStatus.BAD_REQUEST));
+                            final RestHandlerException restHandlerException =
+                                    (RestHandlerException) throwable;
+                            assertThat(restHandlerException.getHttpResponseStatus())
+                                    .isEqualTo(HttpResponseStatus.BAD_REQUEST);
 
-            final Optional<ProgramInvocationException> invocationException =
-                    ExceptionUtils.findThrowable(
-                            restHandlerException, ProgramInvocationException.class);
+                            final Optional<ProgramInvocationException> invocationException =
+                                    ExceptionUtils.findThrowable(
+                                            restHandlerException, ProgramInvocationException.class);
 
-            if (!invocationException.isPresent()) {
-                fail();
-            }
+                            assertThat(invocationException).isPresent();
 
-            final String exceptionMsg = invocationException.get().getMessage();
-            assertThat(exceptionMsg, containsString("Job was submitted in detached mode."));
-            return;
-        }
-        fail("The test should have failed.");
+                            final String exceptionMsg = invocationException.get().getMessage();
+                            assertThat(exceptionMsg)
+                                    .contains("Job was submitted in detached mode.");
+
+                            return true;
+                        });
     }
 
     @Override
@@ -237,8 +258,8 @@ public class JarRunHandlerParameterTest
         JobGraph jobGraph = super.validateDefaultGraph();
         final SavepointRestoreSettings savepointRestoreSettings =
                 jobGraph.getSavepointRestoreSettings();
-        assertFalse(savepointRestoreSettings.allowNonRestoredState());
-        Assert.assertNull(savepointRestoreSettings.getRestorePath());
+        assertThat(savepointRestoreSettings.allowNonRestoredState()).isFalse();
+        assertThat(savepointRestoreSettings.getRestorePath()).isNull();
         return jobGraph;
     }
 
@@ -247,8 +268,34 @@ public class JarRunHandlerParameterTest
         JobGraph jobGraph = super.validateGraph();
         final SavepointRestoreSettings savepointRestoreSettings =
                 jobGraph.getSavepointRestoreSettings();
-        Assert.assertTrue(savepointRestoreSettings.allowNonRestoredState());
-        assertEquals(RESTORE_PATH, savepointRestoreSettings.getRestorePath());
+        this.validateSavepointJarRunMessageParameters(savepointRestoreSettings);
         return jobGraph;
+    }
+
+    @Override
+    void validateGraphWithFlinkConfig(JobGraph jobGraph) {
+        final ExecutionConfig executionConfig = getExecutionConfig(jobGraph);
+        assertThat(executionConfig.getParallelism())
+                .isEqualTo(FLINK_CONFIGURATION.get(CoreOptions.DEFAULT_PARALLELISM));
+        assertThat(executionConfig.getTaskCancellationTimeout())
+                .isEqualTo(FLINK_CONFIGURATION.get(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT));
+
+        final SavepointRestoreSettings savepointRestoreSettings =
+                jobGraph.getSavepointRestoreSettings();
+        assertThat(savepointRestoreSettings.getRestoreMode())
+                .isEqualTo(FLINK_CONFIGURATION.get(SavepointConfigOptions.RESTORE_MODE));
+        assertThat(savepointRestoreSettings.getRestorePath())
+                .isEqualTo(FLINK_CONFIGURATION.get(SavepointConfigOptions.SAVEPOINT_PATH));
+        assertThat(savepointRestoreSettings.allowNonRestoredState())
+                .isEqualTo(
+                        FLINK_CONFIGURATION.get(
+                                SavepointConfigOptions.SAVEPOINT_IGNORE_UNCLAIMED_STATE));
+    }
+
+    private void validateSavepointJarRunMessageParameters(
+            final SavepointRestoreSettings savepointRestoreSettings) {
+        assertThat(savepointRestoreSettings.allowNonRestoredState())
+                .isEqualTo(ALLOW_NON_RESTORED_STATE_QUERY);
+        assertThat(savepointRestoreSettings.getRestorePath()).isEqualTo(RESTORE_PATH);
     }
 }

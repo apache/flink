@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.codegen.agg.batch
 
 import org.apache.flink.core.memory.ManagedMemoryUseCase
@@ -30,45 +29,50 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.runtime.util.RowDataTestUtil
 import org.apache.flink.table.types.logical._
 import org.apache.flink.util.function.FunctionWithException
+
 import org.junit.Assert
 
 import java.util
 
 import scala.collection.JavaConverters._
 
-/**
-  * Base agg test.
-  */
+/** Base agg test. */
 abstract class BatchAggTestBase extends AggTestBase(isBatchMode = true) {
 
   val globalOutputType = RowType.of(
     Array[LogicalType](
-      VarCharType.STRING_TYPE, VarCharType.STRING_TYPE,
+      VarCharType.STRING_TYPE,
+      VarCharType.STRING_TYPE,
       new BigIntType(),
       new DoubleType(),
       new BigIntType()),
-    Array(
-      "f0", "f4",
-      "agg1Output",
-      "agg2Output",
-      "agg3Output"))
+    Array("f0", "f4", "agg1Output", "agg2Output", "agg3Output")
+  )
 
   def row(args: Any*): GenericRowData = {
-    GenericRowData.of(args.map {
-      case str: String => StringData.fromString(str)
-      case l: Long => Long.box(l)
-      case d: Double => Double.box(d)
-      case o: AnyRef => o
-    }.toArray[AnyRef]: _*)
+    GenericRowData.of(
+      args
+        .map {
+          case str: String => StringData.fromString(str)
+          case l: Long => Long.box(l)
+          case d: Double => Double.box(d)
+          case o: AnyRef => o
+        }
+        .toArray[AnyRef]: _*)
   }
 
   def testOperator(
       args: (CodeGenOperatorFactory[RowData], RowType, RowType),
-      input: Array[RowData], expectedOutput: Array[GenericRowData]): Unit = {
+      input: Array[RowData],
+      expectedOutput: Array[GenericRowData]): Unit = {
     val testHarness = new OneInputStreamTaskTestHarness[RowData, RowData](
       new FunctionWithException[Environment, OneInputStreamTask[RowData, RowData], Exception] {
         override def apply(t: Environment) = new OneInputStreamTask(t)
-      }, 1, 1, InternalTypeInfo.of(args._2), InternalTypeInfo.of(args._3))
+      },
+      1,
+      1,
+      InternalTypeInfo.of(args._2),
+      InternalTypeInfo.of(args._3))
     testHarness.memorySize = 32 * 100 * 1024
 
     testHarness.setupOutputForSingletonOperatorChain()
@@ -92,8 +96,10 @@ abstract class BatchAggTestBase extends AggTestBase(isBatchMode = true) {
     val outputs = new util.ArrayList[GenericRowData]()
     val outQueue = testHarness.getOutput
     while (!outQueue.isEmpty) {
-      outputs.add(RowDataTestUtil.toGenericRowDeeply(
-        outQueue.poll().asInstanceOf[StreamRecord[RowData]].getValue, args._3.getChildren))
+      outputs.add(
+        RowDataTestUtil.toGenericRowDeeply(
+          outQueue.poll().asInstanceOf[StreamRecord[RowData]].getValue,
+          args._3.getChildren))
     }
     Assert.assertArrayEquals(expectedOutput.toArray[AnyRef], outputs.asScala.toArray[AnyRef])
   }

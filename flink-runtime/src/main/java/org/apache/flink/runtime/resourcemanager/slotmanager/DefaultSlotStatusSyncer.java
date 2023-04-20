@@ -308,6 +308,18 @@ public class DefaultSlotStatusSyncer implements SlotStatusSyncer {
         }
     }
 
+    @Override
+    public void freeInactiveSlots(JobID jobId) {
+        checkStarted();
+        for (TaskManagerInfo taskManagerInfo :
+                taskManagerTracker.getTaskManagersWithAllocatedSlotsForJob(jobId)) {
+            taskManagerInfo
+                    .getTaskExecutorConnection()
+                    .getTaskExecutorGateway()
+                    .freeInactiveSlots(jobId, taskManagerRequestTimeout);
+        }
+    }
+
     private void checkStarted() {
         Preconditions.checkState(started);
         Preconditions.checkNotNull(taskManagerTracker);

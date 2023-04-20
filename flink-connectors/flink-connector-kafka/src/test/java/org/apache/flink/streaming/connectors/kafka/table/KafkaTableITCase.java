@@ -24,11 +24,16 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CloseableIterator;
 
 import org.apache.kafka.clients.consumer.NoOffsetForPartitionException;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.common.TopicPartition;
 import org.assertj.core.api.Assertions;
 import org.junit.Before;
 import org.junit.Test;
@@ -36,27 +41,32 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.core.testutils.CommonTestUtils.waitUtil;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.collectRows;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.readLines;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SOURCE_IDLE_TIMEOUT;
 import static org.apache.flink.table.utils.TableTestMatchers.deepEqualTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.apache.flink.util.CollectionUtil.entry;
+import static org.apache.flink.util.CollectionUtil.map;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Basic IT cases for the Kafka table source and sink. */
 @RunWith(Parameterized.class)
@@ -84,7 +94,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
     public void testKafkaSourceSink() throws Exception {
         // we always use a different topic name for each parameterized topic,
         // in order to make sure the topic can be created.
-        final String topic = "tstopic_" + format;
+        final String topic = "tstopic_" + format + "_" + UUID.randomUUID();
         createTestTopic(topic, 1, 1);
 
         // ---------- Produce an event time stream into Kafka -------------------
@@ -164,7 +174,130 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                         "+I(2019-12-12 00:00:05.000,2019-12-12,00:00:03,2019-12-12 00:00:04.004,3,50.00)",
                         "+I(2019-12-12 00:00:10.000,2019-12-12,00:00:05,2019-12-12 00:00:06.006,2,5.33)");
 
-        assertEquals(expected, TestingSinkFunction.rows);
+        assertThat(TestingSinkFunction.rows).isEqualTo(expected);
+
+        // ------------- cleanup -------------------
+
+        deleteTestTopic(topic);
+    }
+
+    @Test
+    public void testKafkaSourceSinkWithBoundedSpecificOffsets() throws Exception {
+        // we always use a different topic name for each parameterized topic,
+        // in order to make sure the topic can be created.
+        final String topic = "bounded_" + format + "_" + UUID.randomUUID();
+        createTestTopic(topic, 1, 1);
+
+        // ---------- Produce an event time stream into Kafka -------------------
+        String groupId = getStandardProps().getProperty("group.id");
+        String bootstraps = getBootstrapServers();
+
+        final String createTable =
+                String.format(
+                        "CREATE TABLE kafka (\n"
+                                + "  `user_id` INT,\n"
+                                + "  `item_id` INT,\n"
+                                + "  `behavior` STRING\n"
+                                + ") WITH (\n"
+                                + "  'connector' = '%s',\n"
+                                + "  'topic' = '%s',\n"
+                                + "  'properties.bootstrap.servers' = '%s',\n"
+                                + "  'properties.group.id' = '%s',\n"
+                                + "  'scan.startup.mode' = 'earliest-offset',\n"
+                                + "  'scan.bounded.mode' = 'specific-offsets',\n"
+                                + "  'scan.bounded.specific-offsets' = 'partition:0,offset:2',\n"
+                                + "  %s\n"
+                                + ")\n",
+                        KafkaDynamicTableFactory.IDENTIFIER,
+                        topic,
+                        bootstraps,
+                        groupId,
+                        formatOptions());
+
+        tEnv.executeSql(createTable);
+
+        List<Row> values =
+                Arrays.asList(
+                        Row.of(1, 1102, "behavior 1"),
+                        Row.of(2, 1103, "behavior 2"),
+                        Row.of(3, 1104, "behavior 3"));
+        tEnv.fromValues(values).insertInto("kafka").execute().await();
+
+        // ---------- Consume stream from Kafka -------------------
+
+        List<Row> results = new ArrayList<>();
+        try (CloseableIterator<Row> resultsItr =
+                tEnv.sqlQuery("SELECT * from kafka").execute().collect()) {
+            while (resultsItr.hasNext()) {
+                results.add(resultsItr.next());
+            }
+        }
+
+        assertThat(results)
+                .containsExactly(Row.of(1, 1102, "behavior 1"), Row.of(2, 1103, "behavior 2"));
+
+        // ------------- cleanup -------------------
+
+        deleteTestTopic(topic);
+    }
+
+    @Test
+    public void testKafkaSourceSinkWithBoundedTimestamp() throws Exception {
+        // we always use a different topic name for each parameterized topic,
+        // in order to make sure the topic can be created.
+        final String topic = "bounded_" + format + "_" + UUID.randomUUID();
+        createTestTopic(topic, 1, 1);
+
+        // ---------- Produce an event time stream into Kafka -------------------
+        String groupId = getStandardProps().getProperty("group.id");
+        String bootstraps = getBootstrapServers();
+
+        final String createTable =
+                String.format(
+                        "CREATE TABLE kafka (\n"
+                                + "  `user_id` INT,\n"
+                                + "  `item_id` INT,\n"
+                                + "  `behavior` STRING,\n"
+                                + "  `event_time` TIMESTAMP_LTZ(3) METADATA FROM 'timestamp'"
+                                + ") WITH (\n"
+                                + "  'connector' = '%s',\n"
+                                + "  'topic' = '%s',\n"
+                                + "  'properties.bootstrap.servers' = '%s',\n"
+                                + "  'properties.group.id' = '%s',\n"
+                                + "  'scan.startup.mode' = 'earliest-offset',\n"
+                                + "  'scan.bounded.mode' = 'timestamp',\n"
+                                + "  'scan.bounded.timestamp-millis' = '5',\n"
+                                + "  %s\n"
+                                + ")\n",
+                        KafkaDynamicTableFactory.IDENTIFIER,
+                        topic,
+                        bootstraps,
+                        groupId,
+                        formatOptions());
+
+        tEnv.executeSql(createTable);
+
+        List<Row> values =
+                Arrays.asList(
+                        Row.of(1, 1102, "behavior 1", Instant.ofEpochMilli(0L)),
+                        Row.of(2, 1103, "behavior 2", Instant.ofEpochMilli(3L)),
+                        Row.of(3, 1104, "behavior 3", Instant.ofEpochMilli(7L)));
+        tEnv.fromValues(values).insertInto("kafka").execute().await();
+
+        // ---------- Consume stream from Kafka -------------------
+
+        List<Row> results = new ArrayList<>();
+        try (CloseableIterator<Row> resultsItr =
+                tEnv.sqlQuery("SELECT * from kafka").execute().collect()) {
+            while (resultsItr.hasNext()) {
+                results.add(resultsItr.next());
+            }
+        }
+
+        assertThat(results)
+                .containsExactly(
+                        Row.of(1, 1102, "behavior 1", Instant.ofEpochMilli(0L)),
+                        Row.of(2, 1103, "behavior 2", Instant.ofEpochMilli(3L)));
 
         // ------------- cleanup -------------------
 
@@ -190,7 +323,10 @@ public class KafkaTableITCase extends KafkaTableTestBase {
         List<String> currencies = Arrays.asList("Euro", "Dollar", "Yen", "Dummy");
         List<String> topics =
                 currencies.stream()
-                        .map(currency -> String.format("%s_%s", currency, format))
+                        .map(
+                                currency ->
+                                        String.format(
+                                                "%s_%s_%s", currency, format, UUID.randomUUID()))
                         .collect(Collectors.toList());
         // Because kafka connector currently doesn't support write data into multiple topic
         // together,
@@ -255,7 +391,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
         }
         List<String> expected = Arrays.asList("+I(Dollar)", "+I(Dummy)", "+I(Euro)", "+I(Yen)");
         TestingSinkFunction.rows.sort(Comparator.naturalOrder());
-        assertEquals(expected, TestingSinkFunction.rows);
+        assertThat(TestingSinkFunction.rows).isEqualTo(expected);
 
         // ------------- cleanup -------------------
         topics.forEach(super::deleteTestTopic);
@@ -265,7 +401,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
     public void testKafkaSourceSinkWithMetadata() throws Exception {
         // we always use a different topic name for each parameterized topic,
         // in order to make sure the topic can be created.
-        final String topic = "metadata_topic_" + format;
+        final String topic = "metadata_topic_" + format + "_" + UUID.randomUUID();
         createTestTopic(topic, 1, 1);
 
         // ---------- Produce an event time stream into Kafka -------------------
@@ -295,28 +431,19 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                                 + "  %s\n"
                                 + ")",
                         topic, bootstraps, groupId, formatOptions());
-
         tEnv.executeSql(createTable);
 
         String initialValues =
                 "INSERT INTO kafka\n"
                         + "VALUES\n"
-                        + " ('data 1', 1, TIMESTAMP '2020-03-08 13:12:11.123', MAP['k1', X'C0FFEE', 'k2', X'BABE'], TRUE),\n"
+                        + " ('data 1', 1, TIMESTAMP '2020-03-08 13:12:11.123', MAP['k1', X'C0FFEE', 'k2', X'BABE01'], TRUE),\n"
                         + " ('data 2', 2, TIMESTAMP '2020-03-09 13:12:11.123', CAST(NULL AS MAP<STRING, BYTES>), FALSE),\n"
-                        + " ('data 3', 3, TIMESTAMP '2020-03-10 13:12:11.123', MAP['k1', X'10', 'k2', X'20'], TRUE)";
+                        + " ('data 3', 3, TIMESTAMP '2020-03-10 13:12:11.123', MAP['k1', X'102030', 'k2', X'203040'], TRUE)";
         tEnv.executeSql(initialValues).await();
 
         // ---------- Consume stream from Kafka -------------------
 
         final List<Row> result = collectRows(tEnv.sqlQuery("SELECT * FROM kafka"), 3);
-
-        final Map<String, byte[]> headers1 = new HashMap<>();
-        headers1.put("k1", new byte[] {(byte) 0xC0, (byte) 0xFF, (byte) 0xEE});
-        headers1.put("k2", new byte[] {(byte) 0xBA, (byte) 0xBE});
-
-        final Map<String, byte[]> headers3 = new HashMap<>();
-        headers3.put("k1", new byte[] {(byte) 0x10});
-        headers3.put("k2", new byte[] {(byte) 0x20});
 
         final List<Row> expected =
                 Arrays.asList(
@@ -326,7 +453,9 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                                 "CreateTime",
                                 LocalDateTime.parse("2020-03-08T13:12:11.123"),
                                 0,
-                                headers1,
+                                map(
+                                        entry("k1", EncodingUtils.decodeHex("C0FFEE")),
+                                        entry("k2", EncodingUtils.decodeHex("BABE01"))),
                                 0,
                                 topic,
                                 true),
@@ -346,12 +475,14 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                                 "CreateTime",
                                 LocalDateTime.parse("2020-03-10T13:12:11.123"),
                                 0,
-                                headers3,
+                                map(
+                                        entry("k1", EncodingUtils.decodeHex("102030")),
+                                        entry("k2", EncodingUtils.decodeHex("203040"))),
                                 0,
                                 topic,
                                 true));
 
-        assertThat(result, deepEqualTo(expected, true));
+        assertThat(result).satisfies(matching(deepEqualTo(expected, true)));
 
         // ------------- cleanup -------------------
 
@@ -362,7 +493,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
     public void testKafkaSourceSinkWithKeyAndPartialValue() throws Exception {
         // we always use a different topic name for each parameterized topic,
         // in order to make sure the topic can be created.
-        final String topic = "key_partial_value_topic_" + format;
+        final String topic = "key_partial_value_topic_" + format + "_" + UUID.randomUUID();
         createTestTopic(topic, 1, 1);
 
         // ---------- Produce an event time stream into Kafka -------------------
@@ -432,7 +563,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                                 43,
                                 "payload 3"));
 
-        assertThat(result, deepEqualTo(expected, true));
+        assertThat(result).satisfies(matching(deepEqualTo(expected, true)));
 
         // ------------- cleanup -------------------
 
@@ -443,7 +574,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
     public void testKafkaSourceSinkWithKeyAndFullValue() throws Exception {
         // we always use a different topic name for each parameterized topic,
         // in order to make sure the topic can be created.
-        final String topic = "key_full_value_topic_" + format;
+        final String topic = "key_full_value_topic_" + format + "_" + UUID.randomUUID();
         createTestTopic(topic, 1, 1);
 
         // ---------- Produce an event time stream into Kafka -------------------
@@ -510,7 +641,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                                 102L,
                                 "payload 3"));
 
-        assertThat(result, deepEqualTo(expected, true));
+        assertThat(result).satisfies(matching(deepEqualTo(expected, true)));
 
         // ------------- cleanup -------------------
 
@@ -523,14 +654,15 @@ public class KafkaTableITCase extends KafkaTableTestBase {
         // 'value.source.timestamp'` DDL
         // will use the session time zone when convert the changelog time from milliseconds to
         // timestamp
-        tEnv.getConfig().getConfiguration().setString("table.local-time-zone", "UTC");
+        tEnv.getConfig().set(TableConfigOptions.LOCAL_TIME_ZONE, "UTC");
 
         // we always use a different topic name for each parameterized topic,
         // in order to make sure the topic can be created.
-        final String orderTopic = "temporal_join_topic_order_" + format;
+        final String orderTopic = "temporal_join_topic_order_" + format + "_" + UUID.randomUUID();
         createTestTopic(orderTopic, 1, 1);
 
-        final String productTopic = "temporal_join_topic_product_" + format;
+        final String productTopic =
+                "temporal_join_topic_product_" + format + "_" + UUID.randomUUID();
         createTestTopic(productTopic, 1, 1);
 
         // ---------- Produce an event time stream into Kafka -------------------
@@ -625,7 +757,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                         "+I[o_005, 2020-10-01T18:00, p_001, 2020-10-01T18:00, 11.9900, Leonard, scooter, 10, 119.9000]",
                         "+I[o_006, 2020-10-01T18:00, null, null, null, Leonard, null, 10, null]");
 
-        assertEquals(expected, result);
+        assertThat(result).isEqualTo(expected);
 
         // ------------- cleanup -------------------
 
@@ -663,7 +795,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
     public void testPerPartitionWatermarkKafka() throws Exception {
         // we always use a different topic name for each parameterized topic,
         // in order to make sure the topic can be created.
-        final String topic = "per_partition_watermark_topic_" + format;
+        final String topic = "per_partition_watermark_topic_" + format + "_" + UUID.randomUUID();
         createTestTopic(topic, 4, 1);
 
         // ---------- Produce an event time stream into Kafka -------------------
@@ -753,15 +885,13 @@ public class KafkaTableITCase extends KafkaTableTestBase {
     public void testPerPartitionWatermarkWithIdleSource() throws Exception {
         // we always use a different topic name for each parameterized topic,
         // in order to make sure the topic can be created.
-        final String topic = "idle_partition_watermark_topic_" + format;
+        final String topic = "idle_partition_watermark_topic_" + format + "_" + UUID.randomUUID();
         createTestTopic(topic, 4, 1);
 
         // ---------- Produce an event time stream into Kafka -------------------
         String groupId = getStandardProps().getProperty("group.id");
         String bootstraps = getBootstrapServers();
-        tEnv.getConfig()
-                .getConfiguration()
-                .set(TABLE_EXEC_SOURCE_IDLE_TIMEOUT, Duration.ofMillis(100));
+        tEnv.getConfig().set(TABLE_EXEC_SOURCE_IDLE_TIMEOUT, Duration.ofMillis(100));
 
         final String createTable =
                 String.format(
@@ -842,8 +972,20 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                 .satisfies(FlinkAssertions.anyCauseMatches(NoOffsetForPartitionException.class));
     }
 
-    private List<String> appendNewData(String tableName)
-            throws ExecutionException, InterruptedException {
+    private List<String> appendNewData(
+            String topic, String tableName, String groupId, int targetNum) throws Exception {
+        waitUtil(
+                () -> {
+                    Map<TopicPartition, OffsetAndMetadata> offsets = getConsumerOffset(groupId);
+                    long sum =
+                            offsets.entrySet().stream()
+                                    .filter(e -> e.getKey().topic().contains(topic))
+                                    .mapToLong(e -> e.getValue().offset())
+                                    .sum();
+                    return sum == targetNum;
+                },
+                Duration.ofMillis(20000),
+                "Can not reach the expected offset before adding new data.");
         String appendValues =
                 "INSERT INTO "
                         + tableName
@@ -865,9 +1007,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
 
         // ---------- Produce an event time stream into Kafka -------------------
         String bootstraps = getBootstrapServers();
-        tEnv.getConfig()
-                .getConfiguration()
-                .set(TABLE_EXEC_SOURCE_IDLE_TIMEOUT, Duration.ofMillis(100));
+        tEnv.getConfig().set(TABLE_EXEC_SOURCE_IDLE_TIMEOUT, Duration.ofMillis(100));
 
         final String createTableSql =
                 "CREATE TABLE %s (\n"
@@ -880,6 +1020,8 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                         + "  'properties.group.id' = '%s',\n"
                         + "  'scan.startup.mode' = 'group-offsets',\n"
                         + "  'properties.auto.offset.reset' = '%s',\n"
+                        + "  'properties.enable.auto.commit' = 'true',\n"
+                        + "  'properties.auto.commit.interval.ms' = '1000',\n"
                         + "  'format' = '%s'\n"
                         + ")";
         tEnv.executeSql(
@@ -926,7 +1068,8 @@ public class KafkaTableITCase extends KafkaTableTestBase {
         // we always use a different topic name for each parameterized topic,
         // in order to make sure the topic can be created.
         final String tableName = "Table" + format + resetStrategy;
-        final String topic = "groupOffset_" + format + resetStrategy;
+        final String topic =
+                "groupOffset_" + format + resetStrategy + ThreadLocalRandom.current().nextLong();
         String groupId = format + resetStrategy;
         String sinkName = "mySink" + format + resetStrategy;
         List<String> expected =
@@ -937,9 +1080,9 @@ public class KafkaTableITCase extends KafkaTableTestBase {
         try {
             tableResult = startFromGroupOffset(tableName, topic, groupId, resetStrategy, sinkName);
             if ("latest".equals(resetStrategy)) {
-                expected = appendNewData(tableName);
+                expected = appendNewData(topic, tableName, groupId, expected.size());
             }
-            KafkaTableTestUtils.waitingExpectedResults(sinkName, expected, Duration.ofSeconds(5));
+            KafkaTableTestUtils.waitingExpectedResults(sinkName, expected, Duration.ofSeconds(15));
         } finally {
             // ------------- cleanup -------------------
             if (tableResult != null) {
@@ -955,7 +1098,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
         // in order to make sure the topic can be created.
         final String resetStrategy = "none";
         final String tableName = resetStrategy + "Table";
-        final String topic = "groupOffset_" + format;
+        final String topic = "groupOffset_" + format + "_" + UUID.randomUUID();
         String groupId = resetStrategy + (new Random()).nextInt();
 
         TableResult tableResult = null;

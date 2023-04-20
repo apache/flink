@@ -19,13 +19,17 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec;
@@ -44,7 +48,7 @@ import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
@@ -58,35 +62,48 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>Regular joins are the most generic type of join in which any new records or changes to either
  * side of the join input are visible and are affecting the whole join result.
  */
-@JsonIgnoreProperties(ignoreUnknown = true)
+@ExecNodeMetadata(
+        name = "stream-exec-join",
+        version = 1,
+        producedTransformations = StreamExecJoin.JOIN_TRANSFORMATION,
+        minPlanVersion = FlinkVersion.v1_15,
+        minStateVersion = FlinkVersion.v1_15)
 public class StreamExecJoin extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
+
+    public static final String JOIN_TRANSFORMATION = "join";
+
     public static final String FIELD_NAME_JOIN_SPEC = "joinSpec";
-    public static final String FIELD_NAME_LEFT_UNIQUE_KEYS = "leftUniqueKeys";
-    public static final String FIELD_NAME_RIGHT_UNIQUE_KEYS = "rightUniqueKeys";
+    public static final String FIELD_NAME_LEFT_UPSERT_KEYS = "leftUpsertKeys";
+    public static final String FIELD_NAME_RIGHT_UPSERT_KEYS = "rightUpsertKeys";
 
     @JsonProperty(FIELD_NAME_JOIN_SPEC)
     private final JoinSpec joinSpec;
 
-    @JsonProperty(FIELD_NAME_LEFT_UNIQUE_KEYS)
-    private final List<int[]> leftUniqueKeys;
+    @JsonProperty(FIELD_NAME_LEFT_UPSERT_KEYS)
+    @JsonInclude(JsonInclude.Include.NON_DEFAULT)
+    private final List<int[]> leftUpsertKeys;
 
-    @JsonProperty(FIELD_NAME_RIGHT_UNIQUE_KEYS)
-    private final List<int[]> rightUniqueKeys;
+    @JsonProperty(FIELD_NAME_RIGHT_UPSERT_KEYS)
+    @JsonInclude(JsonInclude.Include.NON_DEFAULT)
+    private final List<int[]> rightUpsertKeys;
 
     public StreamExecJoin(
+            ReadableConfig tableConfig,
             JoinSpec joinSpec,
-            List<int[]> leftUniqueKeys,
-            List<int[]> rightUniqueKeys,
+            List<int[]> leftUpsertKeys,
+            List<int[]> rightUpsertKeys,
             InputProperty leftInputProperty,
             InputProperty rightInputProperty,
             RowType outputType,
             String description) {
         this(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(StreamExecJoin.class),
+                ExecNodeContext.newPersistedConfig(StreamExecJoin.class, tableConfig),
                 joinSpec,
-                leftUniqueKeys,
-                rightUniqueKeys,
-                getNewNodeId(),
+                leftUpsertKeys,
+                rightUpsertKeys,
                 Lists.newArrayList(leftInputProperty, rightInputProperty),
                 outputType,
                 description);
@@ -94,23 +111,26 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
 
     @JsonCreator
     public StreamExecJoin(
-            @JsonProperty(FIELD_NAME_JOIN_SPEC) JoinSpec joinSpec,
-            @JsonProperty(FIELD_NAME_LEFT_UNIQUE_KEYS) List<int[]> leftUniqueKeys,
-            @JsonProperty(FIELD_NAME_RIGHT_UNIQUE_KEYS) List<int[]> rightUniqueKeys,
             @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
+            @JsonProperty(FIELD_NAME_JOIN_SPEC) JoinSpec joinSpec,
+            @JsonProperty(FIELD_NAME_LEFT_UPSERT_KEYS) List<int[]> leftUpsertKeys,
+            @JsonProperty(FIELD_NAME_RIGHT_UPSERT_KEYS) List<int[]> rightUpsertKeys,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, inputProperties, outputType, description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 2);
         this.joinSpec = checkNotNull(joinSpec);
-        this.leftUniqueKeys = leftUniqueKeys;
-        this.rightUniqueKeys = rightUniqueKeys;
+        this.leftUpsertKeys = leftUpsertKeys;
+        this.rightUpsertKeys = rightUpsertKeys;
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         final ExecEdge leftInputEdge = getInputEdges().get(0);
         final ExecEdge rightInputEdge = getInputEdges().get(1);
 
@@ -128,17 +148,29 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
 
         final InternalTypeInfo<RowData> leftTypeInfo = InternalTypeInfo.of(leftType);
         final JoinInputSideSpec leftInputSpec =
-                JoinUtil.analyzeJoinInput(leftTypeInfo, leftJoinKey, leftUniqueKeys);
+                JoinUtil.analyzeJoinInput(
+                        planner.getFlinkContext().getClassLoader(),
+                        leftTypeInfo,
+                        leftJoinKey,
+                        leftUpsertKeys);
 
         final InternalTypeInfo<RowData> rightTypeInfo = InternalTypeInfo.of(rightType);
         final JoinInputSideSpec rightInputSpec =
-                JoinUtil.analyzeJoinInput(rightTypeInfo, rightJoinKey, rightUniqueKeys);
+                JoinUtil.analyzeJoinInput(
+                        planner.getFlinkContext().getClassLoader(),
+                        rightTypeInfo,
+                        rightJoinKey,
+                        rightUpsertKeys);
 
-        final TableConfig tableConfig = planner.getTableConfig();
         GeneratedJoinCondition generatedCondition =
-                JoinUtil.generateConditionFunction(tableConfig, joinSpec, leftType, rightType);
+                JoinUtil.generateConditionFunction(
+                        config,
+                        planner.getFlinkContext().getClassLoader(),
+                        joinSpec,
+                        leftType,
+                        rightType);
 
-        long minRetentionTime = tableConfig.getMinIdleStateRetentionTime();
+        long minRetentionTime = config.getStateRetentionTime();
 
         AbstractStreamingJoinOperator operator;
         FlinkJoinType joinType = joinSpec.getJoinType();
@@ -175,17 +207,19 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
                 ExecNodeUtil.createTwoInputTransformation(
                         leftTransform,
                         rightTransform,
-                        getOperatorName(tableConfig),
-                        getOperatorDescription(tableConfig),
+                        createTransformationMeta(JOIN_TRANSFORMATION, config),
                         operator,
                         InternalTypeInfo.of(returnType),
-                        leftTransform.getParallelism());
+                        leftTransform.getParallelism(),
+                        false);
 
         // set KeyType and Selector for state
         RowDataKeySelector leftSelect =
-                KeySelectorUtil.getRowDataSelector(leftJoinKey, leftTypeInfo);
+                KeySelectorUtil.getRowDataSelector(
+                        planner.getFlinkContext().getClassLoader(), leftJoinKey, leftTypeInfo);
         RowDataKeySelector rightSelect =
-                KeySelectorUtil.getRowDataSelector(rightJoinKey, rightTypeInfo);
+                KeySelectorUtil.getRowDataSelector(
+                        planner.getFlinkContext().getClassLoader(), rightJoinKey, rightTypeInfo);
         transform.setStateKeySelectors(leftSelect, rightSelect);
         transform.setStateKeyType(leftSelect.getProducedType());
         return transform;

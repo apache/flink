@@ -25,8 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.15-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-libraries</artifactId>
@@ -34,9 +33,6 @@ under the License.
 	<packaging>pom</packaging>
 
 	<modules>
-		<module>flink-gelly</module>
-		<module>flink-gelly-scala</module>
-		<module>flink-gelly-examples</module>
 		<module>flink-cep</module>
 		<module>flink-cep-scala</module>
 		<module>flink-state-processing-api</module>

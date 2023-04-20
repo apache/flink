@@ -29,9 +29,9 @@ class MyPojo() {
 
   override def equals(other: Any): Boolean = other match {
     case that: MyPojo =>
-      (that canEqual this) &&
-        f1 == that.f1 &&
-        f2 == that.f2
+      (that.canEqual(this)) &&
+      f1 == that.f1 &&
+      f2 == that.f2
     case _ => false
   }
 

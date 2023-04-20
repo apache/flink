@@ -61,6 +61,7 @@ import org.apache.flink.runtime.rpc.RpcSystemUtils;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.runtime.security.token.DelegationTokenReceiverRepository;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorageLoader;
 import org.apache.flink.runtime.taskmanager.MemoryLogger;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
@@ -113,7 +114,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
     private static final long FATAL_ERROR_SHUTDOWN_TIMEOUT_MS = 10000L;
 
     private static final int SUCCESS_EXIT_CODE = 0;
-    @VisibleForTesting static final int FAILURE_EXIT_CODE = 1;
+    @VisibleForTesting public static final int FAILURE_EXIT_CODE = 1;
 
     private final Thread shutdownHook;
 
@@ -224,7 +225,10 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
             final RpcService metricQueryServiceRpcService =
                     MetricUtils.startRemoteMetricsRpcService(
-                            configuration, rpcService.getAddress(), rpcSystem);
+                            configuration,
+                            rpcService.getAddress(),
+                            configuration.getString(TaskManagerOptions.BIND_HOST),
+                            rpcSystem);
             metricRegistry.startQueryService(metricQueryServiceRpcService, resourceId.unwrap());
 
             blobCacheService =
@@ -238,6 +242,9 @@ public class TaskManagerRunner implements FatalErrorHandler {
                     ExternalResourceUtils.createStaticExternalResourceInfoProviderFromConfig(
                             configuration, pluginManager);
 
+            final DelegationTokenReceiverRepository delegationTokenReceiverRepository =
+                    new DelegationTokenReceiverRepository(configuration, pluginManager);
+
             taskExecutorService =
                     taskExecutorServiceFactory.createTaskExecutor(
                             this.configuration,
@@ -250,7 +257,8 @@ public class TaskManagerRunner implements FatalErrorHandler {
                             false,
                             externalResourceInfoProvider,
                             workingDirectory.unwrap(),
-                            this);
+                            this,
+                            delegationTokenReceiverRepository);
 
             handleUnexpectedTaskExecutorServiceTermination();
 
@@ -377,7 +385,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
             if (metricRegistry != null) {
                 try {
-                    metricRegistry.shutdown();
+                    terminationFutures.add(metricRegistry.closeAsync());
                 } catch (Exception e) {
                     exception = ExceptionUtils.firstOrSuppressed(e, exception);
                 }
@@ -392,7 +400,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
             }
 
             if (rpcService != null) {
-                terminationFutures.add(rpcService.stopService());
+                terminationFutures.add(rpcService.closeAsync());
             }
 
             if (executor != null) {
@@ -431,7 +439,12 @@ public class TaskManagerRunner implements FatalErrorHandler {
             closeAsync(Result.FAILURE);
 
             FutureUtils.orTimeout(
-                    terminationFuture, FATAL_ERROR_SHUTDOWN_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+                    terminationFuture,
+                    FATAL_ERROR_SHUTDOWN_TIMEOUT_MS,
+                    TimeUnit.MILLISECONDS,
+                    String.format(
+                            "Waiting for TaskManager shutting down timed out after %s ms.",
+                            FATAL_ERROR_SHUTDOWN_TIMEOUT_MS));
         }
     }
 
@@ -549,7 +562,8 @@ public class TaskManagerRunner implements FatalErrorHandler {
             boolean localCommunicationOnly,
             ExternalResourceInfoProvider externalResourceInfoProvider,
             WorkingDirectory workingDirectory,
-            FatalErrorHandler fatalErrorHandler)
+            FatalErrorHandler fatalErrorHandler,
+            DelegationTokenReceiverRepository delegationTokenReceiverRepository)
             throws Exception {
 
         final TaskExecutor taskExecutor =
@@ -564,7 +578,8 @@ public class TaskManagerRunner implements FatalErrorHandler {
                         localCommunicationOnly,
                         externalResourceInfoProvider,
                         workingDirectory,
-                        fatalErrorHandler);
+                        fatalErrorHandler,
+                        delegationTokenReceiverRepository);
 
         return TaskExecutorToServiceAdapter.createFor(taskExecutor);
     }
@@ -580,7 +595,8 @@ public class TaskManagerRunner implements FatalErrorHandler {
             boolean localCommunicationOnly,
             ExternalResourceInfoProvider externalResourceInfoProvider,
             WorkingDirectory workingDirectory,
-            FatalErrorHandler fatalErrorHandler)
+            FatalErrorHandler fatalErrorHandler,
+            DelegationTokenReceiverRepository delegationTokenReceiverRepository)
             throws Exception {
 
         checkNotNull(configuration);
@@ -622,7 +638,8 @@ public class TaskManagerRunner implements FatalErrorHandler {
                         taskExecutorBlobService.getPermanentBlobService(),
                         taskManagerMetricGroup.f1,
                         ioExecutor,
-                        fatalErrorHandler);
+                        fatalErrorHandler,
+                        workingDirectory);
 
         MetricUtils.instantiateFlinkMemoryMetricGroup(
                 taskManagerMetricGroup.f1,
@@ -649,7 +666,8 @@ public class TaskManagerRunner implements FatalErrorHandler {
                 metricQueryServiceAddress,
                 taskExecutorBlobService,
                 fatalErrorHandler,
-                new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()));
+                new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()),
+                delegationTokenReceiverRepository);
     }
 
     /**
@@ -772,7 +790,8 @@ public class TaskManagerRunner implements FatalErrorHandler {
                 boolean localCommunicationOnly,
                 ExternalResourceInfoProvider externalResourceInfoProvider,
                 WorkingDirectory workingDirectory,
-                FatalErrorHandler fatalErrorHandler)
+                FatalErrorHandler fatalErrorHandler,
+                DelegationTokenReceiverRepository delegationTokenReceiverRepository)
                 throws Exception;
     }
 

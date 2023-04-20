@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators.sorted.state;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
@@ -35,6 +36,7 @@ import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.KeyContext;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.util.TestLogger;
 
@@ -89,7 +91,8 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
                 this.getClass().getClassLoader(),
                 new DummyKeyContext(),
                 new TestProcessingTimeService(),
-                Collections.emptyList());
+                Collections.emptyList(),
+                StreamTaskCancellationContext.alwaysRunning());
     }
 
     @Test
@@ -125,14 +128,16 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
     @Test
     public void testFiringEventTimeTimers() throws Exception {
         BatchExecutionKeyedStateBackend<Integer> keyedStatedBackend =
-                new BatchExecutionKeyedStateBackend<>(KEY_SERIALIZER, new KeyGroupRange(0, 1));
+                new BatchExecutionKeyedStateBackend<>(
+                        KEY_SERIALIZER, new KeyGroupRange(0, 1), new ExecutionConfig());
         InternalTimeServiceManager<Integer> timeServiceManager =
                 BatchExecutionInternalTimeServiceManager.create(
                         keyedStatedBackend,
                         this.getClass().getClassLoader(),
                         new DummyKeyContext(),
                         new TestProcessingTimeService(),
-                        Collections.emptyList());
+                        Collections.emptyList(),
+                        StreamTaskCancellationContext.alwaysRunning());
 
         List<Long> timers = new ArrayList<>();
         InternalTimerService<VoidNamespace> timerService =
@@ -159,14 +164,16 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
     @Test
     public void testSettingSameKeyDoesNotFireTimers() {
         BatchExecutionKeyedStateBackend<Integer> keyedStatedBackend =
-                new BatchExecutionKeyedStateBackend<>(KEY_SERIALIZER, new KeyGroupRange(0, 1));
+                new BatchExecutionKeyedStateBackend<>(
+                        KEY_SERIALIZER, new KeyGroupRange(0, 1), new ExecutionConfig());
         InternalTimeServiceManager<Integer> timeServiceManager =
                 BatchExecutionInternalTimeServiceManager.create(
                         keyedStatedBackend,
                         this.getClass().getClassLoader(),
                         new DummyKeyContext(),
                         new TestProcessingTimeService(),
-                        Collections.emptyList());
+                        Collections.emptyList(),
+                        StreamTaskCancellationContext.alwaysRunning());
 
         List<Long> timers = new ArrayList<>();
         InternalTimerService<VoidNamespace> timerService =
@@ -186,14 +193,16 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
     @Test
     public void testCurrentWatermark() throws Exception {
         BatchExecutionKeyedStateBackend<Integer> keyedStatedBackend =
-                new BatchExecutionKeyedStateBackend<>(KEY_SERIALIZER, new KeyGroupRange(0, 1));
+                new BatchExecutionKeyedStateBackend<>(
+                        KEY_SERIALIZER, new KeyGroupRange(0, 1), new ExecutionConfig());
         InternalTimeServiceManager<Integer> timeServiceManager =
                 BatchExecutionInternalTimeServiceManager.create(
                         keyedStatedBackend,
                         this.getClass().getClassLoader(),
                         new DummyKeyContext(),
                         new TestProcessingTimeService(),
-                        Collections.emptyList());
+                        Collections.emptyList(),
+                        StreamTaskCancellationContext.alwaysRunning());
 
         List<Long> timers = new ArrayList<>();
         TriggerWithTimerServiceAccess<Integer, VoidNamespace> eventTimeTrigger =
@@ -230,7 +239,8 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
     @Test
     public void testProcessingTimeTimers() {
         BatchExecutionKeyedStateBackend<Integer> keyedStatedBackend =
-                new BatchExecutionKeyedStateBackend<>(KEY_SERIALIZER, new KeyGroupRange(0, 1));
+                new BatchExecutionKeyedStateBackend<>(
+                        KEY_SERIALIZER, new KeyGroupRange(0, 1), new ExecutionConfig());
         TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
         InternalTimeServiceManager<Integer> timeServiceManager =
                 BatchExecutionInternalTimeServiceManager.create(
@@ -238,7 +248,8 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
                         this.getClass().getClassLoader(),
                         new DummyKeyContext(),
                         processingTimeService,
-                        Collections.emptyList());
+                        Collections.emptyList(),
+                        StreamTaskCancellationContext.alwaysRunning());
 
         List<Long> timers = new ArrayList<>();
         InternalTimerService<VoidNamespace> timerService =
@@ -263,7 +274,8 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
     @Test
     public void testIgnoringEventTimeTimersFromWithinCallback() {
         BatchExecutionKeyedStateBackend<Integer> keyedStatedBackend =
-                new BatchExecutionKeyedStateBackend<>(KEY_SERIALIZER, new KeyGroupRange(0, 1));
+                new BatchExecutionKeyedStateBackend<>(
+                        KEY_SERIALIZER, new KeyGroupRange(0, 1), new ExecutionConfig());
         TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
         InternalTimeServiceManager<Integer> timeServiceManager =
                 BatchExecutionInternalTimeServiceManager.create(
@@ -271,7 +283,8 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
                         this.getClass().getClassLoader(),
                         new DummyKeyContext(),
                         processingTimeService,
-                        Collections.emptyList());
+                        Collections.emptyList(),
+                        StreamTaskCancellationContext.alwaysRunning());
 
         List<Long> timers = new ArrayList<>();
         TriggerWithTimerServiceAccess<Integer, VoidNamespace> trigger =
@@ -301,7 +314,8 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
     @Test
     public void testIgnoringProcessingTimeTimersFromWithinCallback() {
         BatchExecutionKeyedStateBackend<Integer> keyedStatedBackend =
-                new BatchExecutionKeyedStateBackend<>(KEY_SERIALIZER, new KeyGroupRange(0, 1));
+                new BatchExecutionKeyedStateBackend<>(
+                        KEY_SERIALIZER, new KeyGroupRange(0, 1), new ExecutionConfig());
         TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
         InternalTimeServiceManager<Integer> timeServiceManager =
                 BatchExecutionInternalTimeServiceManager.create(
@@ -309,7 +323,8 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
                         this.getClass().getClassLoader(),
                         new DummyKeyContext(),
                         processingTimeService,
-                        Collections.emptyList());
+                        Collections.emptyList(),
+                        StreamTaskCancellationContext.alwaysRunning());
 
         List<Long> timers = new ArrayList<>();
         TriggerWithTimerServiceAccess<Integer, VoidNamespace> trigger =

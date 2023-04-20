@@ -50,8 +50,8 @@ In particular, Apache Flink's [user mailing list](https://flink.apache.org/commu
 
 If you want to follow along, you will require a computer with: 
 
-* Java 8 or 11
-* Python 3.6, 3.7 or 3.8
+* Java 11
+* Python 3.7, 3.8, 3.9 or 3.10
 
 Using Python Table API requires installing PyFlink, which is available on [PyPI](https://pypi.org/project/apache-flink/) and can be easily installed using `pip`. 
 
@@ -70,7 +70,7 @@ The table config allows setting Table API specific configurations.
 
 ```python
 t_env = TableEnvironment.create(EnvironmentSettings.in_streaming_mode())
-t_env.get_config().get_configuration().set_string("parallelism.default", "1")
+t_env.get_config().set("parallelism.default", "1")
 ```
 
 You can now create the source and sink tables:
@@ -204,7 +204,7 @@ word_count_data = ["To be, or not to be,--that is the question:--",
 def word_count(input_path, output_path):
     t_env = TableEnvironment.create(EnvironmentSettings.in_streaming_mode())
     # write all the data to one file
-    t_env.get_config().get_configuration().set_string("parallelism.default", "1")
+    t_env.get_config().set("parallelism.default", "1")
 
     # define the source
     if input_path is not None:

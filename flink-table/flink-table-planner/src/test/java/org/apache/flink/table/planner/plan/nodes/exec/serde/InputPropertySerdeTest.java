@@ -20,41 +20,28 @@ package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
-import java.io.StringWriter;
-import java.util.Arrays;
-import java.util.List;
+import java.util.stream.Stream;
 
-import static org.junit.Assert.assertEquals;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.testJsonRoundTrip;
 
 /** Tests for {@link InputProperty} serialization and deserialization. */
-@RunWith(Parameterized.class)
-public class InputPropertySerdeTest {
-    @Parameterized.Parameter public InputProperty inputProperty;
+@Execution(ExecutionMode.CONCURRENT)
+class InputPropertySerdeTest {
 
-    @Test
-    public void testExecEdgeSerde() throws IOException {
-        ObjectMapper mapper = JsonSerdeUtil.getObjectMapper();
-
-        StringWriter writer = new StringWriter(100);
-        try (JsonGenerator gen = mapper.getFactory().createGenerator(writer)) {
-            gen.writeObject(inputProperty);
-        }
-        String json = writer.toString();
-        InputProperty actual = mapper.readValue(json, InputProperty.class);
-        assertEquals(inputProperty, actual);
+    @ParameterizedTest
+    @MethodSource("testExecEdgeSerde")
+    void testExecEdgeSerde(InputProperty inputProperty) throws IOException {
+        testJsonRoundTrip(inputProperty, InputProperty.class);
     }
 
-    @Parameterized.Parameters(name = "{0}")
-    public static List<InputProperty> testData() {
-        return Arrays.asList(
+    public static Stream<InputProperty> testExecEdgeSerde() {
+        return Stream.of(
                 InputProperty.DEFAULT,
                 InputProperty.builder()
                         .requiredDistribution(InputProperty.hashDistribution(new int[] {0, 1}))

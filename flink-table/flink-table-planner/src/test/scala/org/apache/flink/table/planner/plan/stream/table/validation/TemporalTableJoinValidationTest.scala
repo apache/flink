@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.stream.table.validation
 
 import org.apache.flink.api.scala._
@@ -30,20 +29,26 @@ class TemporalTableJoinValidationTest extends TableTestBase {
 
   val util: TableTestUtil = streamTestUtil()
 
-  val orders: Table = util.addDataStream[(Long, String, Timestamp)](
-    "Orders", 'o_amount, 'o_currency, 'o_rowtime.rowtime)
+  val orders: Table = util
+    .addDataStream[(Long, String, Timestamp)]("Orders", 'o_amount, 'o_currency, 'o_rowtime.rowtime)
 
-  val ordersProctime: Table = util.addDataStream[(Long, String)](
-    "OrdersProctime", 'o_amount, 'o_currency, 'o_rowtime.proctime)
+  val ordersProctime: Table = util
+    .addDataStream[(Long, String)]("OrdersProctime", 'o_amount, 'o_currency, 'o_rowtime.proctime)
 
   val ordersWithoutTimeAttribute: Table = util.addDataStream[(Long, String, Timestamp)](
-    "OrdersWithoutTimeAttribute", 'o_amount, 'o_currency, 'o_rowtime)
+    "OrdersWithoutTimeAttribute",
+    'o_amount,
+    'o_currency,
+    'o_rowtime)
 
-  val ratesHistory: Table = util.addDataStream[(String, Int, Timestamp)](
-    "RatesHistory", 'currency, 'rate, 'rowtime.rowtime)
+  val ratesHistory: Table =
+    util.addDataStream[(String, Int, Timestamp)]("RatesHistory", 'currency, 'rate, 'rowtime.rowtime)
 
   val ratesHistoryWithoutTimeAttribute: Table = util.addDataStream[(String, Int, Timestamp)](
-    "ratesHistoryWithoutTimeAttribute", 'currency, 'rate, 'rowtime)
+    "ratesHistoryWithoutTimeAttribute",
+    'currency,
+    'rate,
+    'rowtime)
 
   @Test
   def testInvalidFieldReference(): Unit = {
@@ -71,7 +76,8 @@ class TemporalTableJoinValidationTest extends TableTestBase {
 
     val result = orders
       .joinLateral(rates('o_rowtime), 'currency === 'o_currency)
-      .select($"o_amount" * $"rate").as("rate")
+      .select($"o_amount" * $"rate")
+      .as("rate")
 
     util.verifyExplain(result)
   }
@@ -86,7 +92,8 @@ class TemporalTableJoinValidationTest extends TableTestBase {
 
     val result = ordersWithoutTimeAttribute
       .joinLateral(rates('o_rowtime), 'currency === 'o_currency)
-      .select($"o_amount" * $"rate").as("rate")
+      .select($"o_amount" * $"rate")
+      .as("rate")
 
     util.verifyExplain(result)
   }
@@ -102,7 +109,8 @@ class TemporalTableJoinValidationTest extends TableTestBase {
 
     val result = ordersProctime
       .joinLateral(rates('o_rowtime), 'currency === 'o_currency)
-      .select($"o_amount" * $"rate").as("rate")
+      .select($"o_amount" * $"rate")
+      .as("rate")
 
     util.verifyExplain(result)
   }

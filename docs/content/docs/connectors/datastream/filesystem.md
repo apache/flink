@@ -65,10 +65,19 @@ You can start building a File Source via one of the following API calls:
 {{< tab "Java" >}}
 ```java
 // reads the contents of a file from a file stream. 
-FileSource.forRecordStreamFormat(StreamFormat,Path...)
+FileSource.forRecordStreamFormat(StreamFormat,Path...);
         
 // reads batches of records from a file at a time
-FileSource.forBulkFileFormat(BulkFormat,Path...)
+FileSource.forBulkFileFormat(BulkFormat,Path...);
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+# reads the contents of a file from a file stream.
+FileSource.for_record_stream_format(stream_format, *path)
+
+# reads batches of records from a file at a time
+FileSource.for_bulk_file_format(bulk_format, *path)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -89,6 +98,13 @@ final FileSource<String> source =
         FileSource.forRecordStreamFormat(...)
         .monitorContinuously(Duration.ofMillis(5))  
         .build();
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+source = FileSource.for_record_stream_format(...) \
+    .monitor_continously(Duration.of_millis(5)) \
+    .build()
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -157,8 +173,8 @@ The schema for CSV parsing, in this case, is automatically derived based on the 
 If you need more fine-grained control over the CSV schema or the parsing options, use the more low-level `forSchema` static factory method of `CsvReaderFormat`:
 
 ```java
-CsvReaderFormat<T> forSchema(CsvMapper mapper, 
-                             CsvSchema schema, 
+CsvReaderFormat<T> forSchema(Supplier<CsvMapper> mapperFactory, 
+                             Function<CsvMapper, CsvSchema> schemaGenerator, 
                              TypeInformation<T> typeInformation) 
 ```
 
@@ -315,9 +331,9 @@ final FileSink<String> sink = FileSink
     .forRowFormat(new Path(outputPath), new SimpleStringEncoder<String>("UTF-8"))
     .withRollingPolicy(
         DefaultRollingPolicy.builder()
-            .withRolloverInterval(Duration.ofSeconds(10))
-            .withInactivityInterval(Duration.ofSeconds(10))
-            .withMaxPartSize(MemorySize.ofMebiBytes(1))
+            .withRolloverInterval(Duration.ofMinutes(15))
+            .withInactivityInterval(Duration.ofMinutes(5))
+            .withMaxPartSize(MemorySize.ofMebiBytes(1024))
             .build())
 	.build();
 
@@ -341,14 +357,27 @@ val sink: FileSink[String] = FileSink
     .forRowFormat(new Path(outputPath), new SimpleStringEncoder[String]("UTF-8"))
     .withRollingPolicy(
         DefaultRollingPolicy.builder()
-            .withRolloverInterval(Duration.ofSeconds(10))
-            .withInactivityInterval(Duration.ofSeconds(10))
-            .withMaxPartSize(MemorySize.ofMebiBytes(1))
+            .withRolloverInterval(Duration.ofMinutes(15))
+            .withInactivityInterval(Duration.ofMinutes(5))
+            .withMaxPartSize(MemorySize.ofMebiBytes(1024))
             .build())
     .build()
 
 input.sinkTo(sink)
 
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+data_stream = ...
+
+sink = FileSink \
+    .for_row_format(OUTPUT_PATH, Encoder.simple_string_encoder("UTF-8")) \
+    .with_rolling_policy(RollingPolicy.default_rolling_policy(
+        part_size=1024 ** 3, rollover_interval=15 * 60 * 1000, inactivity_interval=5 * 60 * 1000)) \
+    .build()
+
+data_stream.sink_to(sink)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -367,7 +396,7 @@ specifying an `Encoder`, we have to specify a {{< javadoc file="org/apache/flink
 The `BulkWriter` logic defines how new elements are added and flushed, and how a batch of records
 is finalized for further encoding purposes.
 
-Flink comes with four built-in BulkWriter factories:
+Flink comes with five built-in BulkWriter factories:
 
 * ParquetWriterFactory
 * AvroWriterFactory
@@ -383,13 +412,15 @@ The latter rolls on every checkpoint. A policy can roll additionally based on si
 ##### Parquet format
 
 Flink contains built in convenience methods for creating Parquet writer factories for Avro data. These methods
-and their associated documentation can be found in the ParquetAvroWriters class.
+and their associated documentation can be found in the AvroParquetWriters class.
 
 For writing to other Parquet compatible data formats, users need to create the ParquetWriterFactory with a custom implementation of the ParquetBuilder interface.
 
 To use the Parquet bulk encoder in your application you need to add the following dependency:
 
-{{< artifact flink-parquet withScalaVersion >}}
+{{< artifact flink-parquet >}}
+
+{{< py_download_link "parquet" >}}
 
 A `FileSink` that writes Avro data to Parquet format can be created like this:
 
@@ -397,7 +428,7 @@ A `FileSink` that writes Avro data to Parquet format can be created like this:
 {{< tab "Java" >}}
 ```java
 import org.apache.flink.connector.file.sink.FileSink;
-import org.apache.flink.formats.parquet.avro.ParquetAvroWriters;
+import org.apache.flink.formats.parquet.avro.AvroParquetWriters;
 import org.apache.avro.Schema;
 
 
@@ -405,7 +436,7 @@ Schema schema = ...;
 DataStream<GenericRecord> input = ...;
 
 final FileSink<GenericRecord> sink = FileSink
-	.forBulkFormat(outputBasePath, ParquetAvroWriters.forGenericRecord(schema))
+	.forBulkFormat(outputBasePath, AvroParquetWriters.forGenericRecord(schema))
 	.build();
 
 input.sinkTo(sink);
@@ -415,18 +446,34 @@ input.sinkTo(sink);
 {{< tab "Scala" >}}
 ```scala
 import org.apache.flink.connector.file.sink.FileSink;
-import org.apache.flink.formats.parquet.avro.ParquetAvroWriters
+import org.apache.flink.formats.parquet.avro.AvroParquetWriters
 import org.apache.avro.Schema
 
 val schema: Schema = ...
 val input: DataStream[GenericRecord] = ...
 
 val sink: FileSink[GenericRecord] = FileSink
-    .forBulkFormat(outputBasePath, ParquetAvroWriters.forGenericRecord(schema))
+    .forBulkFormat(outputBasePath, AvroParquetWriters.forGenericRecord(schema))
     .build()
 
 input.sinkTo(sink)
 
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+schema = AvroSchema.parse_string(JSON_SCHEMA)
+# The element could be vanilla Python data structure matching the schema,
+# which is annotated with default Types.PICKLED_BYTE_ARRAY()
+data_stream = ...
+
+avro_type_info = GenericRecordAvroTypeInfo(schema)
+sink = FileSink \
+    .for_bulk_format(OUTPUT_BASE_PATH, AvroParquetWriters.for_generic_record(schema)) \
+    .build()
+
+# A map to indicate its Avro type info is necessary for serialization
+data_stream.map(lambda e: e, output_type=avro_type_info).sink_to(sink)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -468,6 +515,25 @@ input.sinkTo(sink)
 {{< /tab >}}
 {{< /tabs >}}
 
+For PyFlink users, `ParquetBulkWriters` could be used to create a `BulkWriterFactory` that writes `Row`s into Parquet files.
+
+```python
+row_type = DataTypes.ROW([
+    DataTypes.FIELD('string', DataTypes.STRING()),
+    DataTypes.FIELD('int_array', DataTypes.ARRAY(DataTypes.INT()))
+])
+
+sink = FileSink.for_bulk_format(
+    OUTPUT_DIR, ParquetBulkWriters.for_row_type(
+        row_type,
+        hadoop_config=Configuration(),
+        utc_timestamp=True,
+    )
+).build()
+
+ds.sink_to(sink)
+```
+
 ##### Avro format
 
 Flink also provides built-in support for writing data into Avro files. A list of convenience methods to create
@@ -477,6 +543,8 @@ AvroWriters class.
 To use the Avro writers in your application you need to add the following dependency:
 
 {{< artifact flink-avro >}}
+
+{{< py_download_link "avro" >}}
 
 A `FileSink` that writes data to Avro files can be created like this:
 
@@ -514,6 +582,22 @@ val sink: FileSink[GenericRecord] = FileSink
 
 input.sinkTo(sink)
 
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+schema = AvroSchema.parse_string(JSON_SCHEMA)
+# The element could be vanilla Python data structure matching the schema,
+# which is annotated with default Types.PICKLED_BYTE_ARRAY()
+data_stream = ...
+
+avro_type_info = GenericRecordAvroTypeInfo(schema)
+sink = FileSink \
+    .for_bulk_format(OUTPUT_BASE_PATH, AvroBulkWriters.for_generic_record(schema)) \
+    .build()
+
+# A map to indicate its Avro type info is necessary for serialization
+data_stream.map(lambda e: e, output_type=avro_type_info).sink_to(sink)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -641,7 +725,7 @@ class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
 
 To use the ORC bulk encoder in an application, users need to add the following dependency:
 
-{{< artifact flink-orc withScalaVersion >}}
+{{< artifact flink-orc >}}
 
 
 And then a `FileSink` that writes data in ORC format can be created like this:
@@ -756,6 +840,28 @@ class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
 {{< /tab >}}
 {{< /tabs >}}
 
+For PyFlink users, `OrcBulkWriters` could be used to create `BulkWriterFactory` to write records to files in Orc format.
+
+{{< py_download_link "orc" >}}
+
+```python
+row_type = DataTypes.ROW([
+    DataTypes.FIELD('name', DataTypes.STRING()),
+    DataTypes.FIELD('age', DataTypes.INT()),
+])
+
+sink = FileSink.for_bulk_format(
+    OUTPUT_DIR,
+    OrcBulkWriters.for_row_type(
+        row_type=row_type,
+        writer_properties=Configuration(),
+        hadoop_config=Configuration(),
+    )
+).build()
+
+ds.sink_to(sink)
+```
+
 ##### Hadoop SequenceFile format
 
 To use the `SequenceFile` bulk encoder in your application you need to add the following dependency:
@@ -828,6 +934,10 @@ Flink comes with two built-in BucketAssigners:
  - `DateTimeBucketAssigner` : Default time based assigner
  - `BasePathBucketAssigner` : Assigner that stores all part files in the base path (single global bucket)
 
+{{< hint info >}}
+Note: PyFlink only supports `DateTimeBucketAssigner` and `BasePathBucketAssigner`.
+{{< /hint >}}
+
 ### Rolling Policy
 
 The `RollingPolicy` defines when a given in-progress part file will be closed and moved to the pending and later to finished state.
@@ -840,6 +950,10 @@ Flink comes with two built-in RollingPolicies:
 
  - `DefaultRollingPolicy`
  - `OnCheckpointRollingPolicy`
+
+{{< hint info >}}
+Note: PyFlink only supports `DefaultRollingPolicy` and `OnCheckpointRollingPolicy`.
+{{< /hint >}}
 
 ### Part file lifecycle
 
@@ -956,7 +1070,113 @@ val sink = FileSink
 			
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+config = OutputFileConfig \
+    .builder() \
+    .with_part_prefix("prefix") \
+    .with_part_suffix(".ext") \
+    .build()
+
+sink = FileSink \
+    .for_row_format(OUTPUT_PATH, Encoder.simple_string_encoder("UTF-8")) \
+    .with_bucket_assigner(BucketAssigner.base_path_bucket_assigner()) \
+    .with_rolling_policy(RollingPolicy.on_checkpoint_rolling_policy()) \
+    .with_output_file_config(config) \
+    .build()
+```
+{{< /tab >}}
 {{< /tabs >}}
+
+### Compaction
+
+Since version 1.15 `FileSink` supports compaction of the `pending` files,
+which allows the application to have smaller checkpoint interval without generating a lot of small files,
+especially when using the [bulk encoded formats]({{< ref "docs/connectors/datastream/filesystem#bulk-encoded-formats" >}})
+that have to rolling on taking checkpoints.
+
+Compaction could be enabled with
+
+{{< tabs "enablecompaction" >}}
+{{< tab "Java" >}}
+```java
+
+FileSink<Integer> fileSink=
+	FileSink.forRowFormat(new Path(path),new SimpleStringEncoder<Integer>())
+	    .enableCompact(
+	        FileCompactStrategy.Builder.newBuilder()
+	            .setSizeThreshold(1024)
+	            .enableCompactionOnCheckpoint(5)
+	            .build(),
+	        new RecordWiseFileCompactor<>(
+	            new DecoderBasedReader.Factory<>(SimpleStringDecoder::new)))
+	    .build();
+
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+
+val fileSink: FileSink[Integer] =
+  FileSink.forRowFormat(new Path(path), new SimpleStringEncoder[Integer]())
+    .enableCompact(
+      FileCompactStrategy.Builder.newBuilder()
+        .setSizeThreshold(1024)
+        .enableCompactionOnCheckpoint(5)
+        .build(),
+      new RecordWiseFileCompactor(
+        new DecoderBasedReader.Factory(() => new SimpleStringDecoder)))
+    .build()
+
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+file_sink = FileSink \
+    .for_row_format(PATH, Encoder.simple_string_encoder()) \
+    .enable_compact(
+        FileCompactStrategy.builder()
+            .set_size_threshold(1024)
+            .enable_compaction_on_checkpoint(5)
+            .build(),
+        FileCompactor.concat_file_compactor()) \
+    .build()
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+Once enabled, the compaction happens between the files become `pending` and get committed. The pending files will
+be first committed to temporary files whose path starts with `.`. Then these files will be compacted according to
+the strategy by the compactor specified by the users, and the new compacted pending files will be generated.
+Then these pending files will be emitted to the committer to be committed to the formal files. After that, the source files will be removed.
+
+When enabling compaction, you need to specify the {{< javadoc file="org/apache/flink/connector/file/sink/compactor/FileCompactStrategy.html" name="FileCompactStrategy">}}
+and the {{< javadoc file="org/apache/flink/connector/file/sink/compactor/FileCompactor.html" name="FileCompactor">}}.
+
+The {{< javadoc file="org/apache/flink/connector/file/sink/compactor/FileCompactStrategy.html" name="FileCompactStrategy">}} specifies
+when and which files get compacted. Currently, there are two parallel conditions: the target file size and the number of checkpoints get passed.
+Once the total size of the cached files has reached the size threshold or the number of checkpoints since the last compaction has reached the specified number, 
+the cached files will be scheduled to compact.
+
+The {{< javadoc file="org/apache/flink/connector/file/sink/compactor/FileCompactor.html" name="FileCompactor">}} specifies how to compact
+the give list of `Path` and write the result file. It could be classified into two types according to how to write the file:
+
+- **{{< javadoc file="org/apache/flink/connector/file/sink/compactor/OutputStreamBasedFileCompactor.html" name="OutputStreamBasedFileCompactor">}}**: 
+  The users can write the compacted results into an output stream. This is useful when the users don't want to or can't read records from the input files. 
+  An example is the {{< javadoc file="org/apache/flink/connector/file/sink/compactor/ConcatFileCompactor.html" name="ConcatFileCompactor">}} that concats the list of files directly.
+- **{{< javadoc file="org/apache/flink/connector/file/sink/compactor/RecordWiseFileCompactor.html" name="RecordWiseFileCompactor">}}**: 
+  The compactor can read records one-by-one from the input files and write into the result file similar to the `FileWriter`. 
+  An example is the {{< javadoc file="org/apache/flink/connector/file/sink/compactor/RecordWiseFileCompactor.html" name="RecordWiseFileCompactor">}} that reads records from the source files and then writes them with the `CompactingFileWriter`. Users need to specify how to read records from the source files.
+
+{{< hint info >}}
+**Important Note 1** Once the compaction is enabled, you must explicitly call `disableCompact` when building the `FileSink` if you want to disable compaction.
+
+**Important Note 2** When the compaction is enabled, the written files need to wait for longer time before they get visible.
+{{< /hint >}}
+
+{{< hint info >}}
+Note: PyFlink only supports `ConcatFileCompactor` and `IdenticalFileCompactor`.
+{{< /hint >}}
 
 ### Important Considerations
 
@@ -977,8 +1197,8 @@ Given this, when trying to restore from an old checkpoint/savepoint which assume
 by subsequent successful checkpoints, the `FileSink` will refuse to resume and will throw an exception as it cannot locate the 
 in-progress file.
 
-<span class="label label-danger">Important Note 4</span>: Currently, the `FileSink` only supports three filesystems: 
-HDFS, S3, and Local. Flink will throw an exception when using an unsupported filesystem at runtime.
+<span class="label label-danger">Important Note 4</span>: Currently, the `FileSink` only supports five filesystems: 
+HDFS, S3, OSS, ABFS and Local. Flink will throw an exception when using an unsupported filesystem at runtime.
 
 #### BATCH-specific
 
@@ -1012,6 +1232,12 @@ that don't complete within a specified number of days after being initiated. Thi
 aggressively and take a savepoint with some part-files being not fully uploaded, their associated MPUs may time-out
 before the job is restarted. This will result in your job not being able to restore from that savepoint as the
 pending part-files are no longer there and Flink will fail with an exception as it tries to fetch them and fails.
+
+#### OSS-specific
+
+<span class="label label-danger">Important Note</span>: To guarantee exactly-once semantics while
+being efficient, the `FileSink` also uses the [Multi-part Upload](https://help.aliyun.com/document_detail/155825.html)
+feature of OSS(similar with S3).
 
 {{< top >}}
 

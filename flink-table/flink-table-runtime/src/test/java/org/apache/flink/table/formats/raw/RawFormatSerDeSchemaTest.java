@@ -57,8 +57,7 @@ import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.apache.flink.table.api.DataTypes.VARCHAR;
 import static org.apache.flink.util.StringUtils.hexStringToByte;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 /** Tests for {@link RawFormatDeserializationSchema} {@link RawFormatSerializationSchema}. */
@@ -162,11 +161,11 @@ public class RawFormatSerDeSchemaTest {
         RowData originalRowData = (RowData) converter.toInternal(row);
 
         byte[] serializedBytes = serializationSchema.serialize(originalRowData);
-        assertArrayEquals(testSpec.binary, serializedBytes);
+        assertThat(serializedBytes).isEqualTo(testSpec.binary);
 
         RowData deserializeRowData = deserializationSchema.deserialize(serializedBytes);
         Row actual = (Row) converter.toExternal(deserializeRowData);
-        assertEquals(row, actual);
+        assertThat(actual).isEqualTo(row);
     }
 
     private static byte[] serializeLocalDateTime(LocalDateTime localDateTime) {

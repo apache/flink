@@ -17,36 +17,39 @@
  */
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
-import org.apache.flink.table.planner.calcite.FlinkContext
+import org.apache.flink.table.api.TableException
+import org.apache.flink.table.planner.hint.JoinStrategy
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalNestedLoopJoin
-import org.apache.flink.table.planner.plan.utils.OperatorType
-import org.apache.flink.table.planner.utils.TableConfigUtils.isOperatorDisabled
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
-import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{Join, JoinRelType}
 
+import scala.collection.JavaConversions._
+
 /**
-  * Rule that converts [[FlinkLogicalJoin]] to [[BatchPhysicalNestedLoopJoin]]
-  * if NestedLoopJoin is enabled.
-  */
+ * Rule that converts [[FlinkLogicalJoin]] to [[BatchPhysicalNestedLoopJoin]] if NestedLoopJoin is
+ * enabled.
+ */
 class BatchPhysicalNestedLoopJoinRule
   extends RelOptRule(
-    operand(classOf[FlinkLogicalJoin],
-      operand(classOf[RelNode], any)),
+    operand(classOf[FlinkLogicalJoin], operand(classOf[RelNode], any)),
     "BatchPhysicalNestedLoopJoinRule")
   with BatchPhysicalJoinRuleBase
   with BatchPhysicalNestedLoopJoinRuleBase {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
-    !isOperatorDisabled(tableConfig, OperatorType.NestedLoopJoin)
+    val join: Join = call.rel(0)
+    val tableConfig = unwrapTableConfig(join)
+    canUseJoinStrategy(join, tableConfig, JoinStrategy.NEST_LOOP)
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
     val join: Join = call.rel(0)
+    val tableConfig = unwrapTableConfig(join)
     val left = join.getLeft
     val right = join.getJoinType match {
       case JoinRelType.SEMI | JoinRelType.ANTI =>
@@ -60,26 +63,33 @@ class BatchPhysicalNestedLoopJoinRule
         }
       case _ => join.getRight
     }
-    val leftIsBuild = isLeftBuild(join, left, right)
-    val newJoin = createNestedLoopJoin(join, left, right, leftIsBuild, singleRowJoin = false)
-    call.transformTo(newJoin)
-  }
 
-  private def isLeftBuild(join: Join, left: RelNode, right: RelNode): Boolean = {
-    join.getJoinType match {
-      case JoinRelType.LEFT => false
-      case JoinRelType.RIGHT => true
-      case JoinRelType.INNER | JoinRelType.FULL =>
-        val leftSize = binaryRowRelNodeSize(left)
-        val rightSize = binaryRowRelNodeSize(right)
-        // use left as build size if leftSize or rightSize is unknown.
-        if (leftSize == null || rightSize == null) {
-          true
-        } else {
-          leftSize <= rightSize
+    val firstValidJoinHintOp = getFirstValidJoinHint(join, tableConfig)
+
+    val temJoin = join.copy(join.getTraitSet, List(left, right))
+
+    val isLeftToBuild = firstValidJoinHintOp match {
+      case Some(firstValidJoinHint) =>
+        firstValidJoinHint match {
+          case JoinStrategy.NEST_LOOP =>
+            val (_, isLeft) = checkNestLoopJoin(temJoin, tableConfig, withNestLoopHint = true)
+            isLeft
+          case _ =>
+            // this should not happen
+            throw new TableException(String.format(
+              "The planner is trying to convert the " +
+                "`FlinkLogicalJoin` using NEST_LOOP, but the valid join hint is not NEST_LOOP: %s",
+              firstValidJoinHint
+            ))
         }
-      case JoinRelType.SEMI | JoinRelType.ANTI => false
+      case None =>
+        // treat as non-join-hints
+        val (_, isLeft) = checkNestLoopJoin(temJoin, tableConfig, withNestLoopHint = false)
+        isLeft
     }
+
+    val newJoin = createNestedLoopJoin(join, left, right, isLeftToBuild, singleRowJoin = false)
+    call.transformTo(newJoin)
   }
 }
 

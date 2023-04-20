@@ -27,9 +27,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.kafka.source.KafkaSourceOptions;
+import org.apache.flink.streaming.connectors.kafka.config.BoundedMode;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
+import org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.BoundedOptions;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.format.DecodingFormat;
@@ -60,6 +62,8 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.DELIVERY_GUARANTEE;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FIELDS;
@@ -67,6 +71,9 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOp
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FORMAT;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.PROPS_BOOTSTRAP_SERVERS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.PROPS_GROUP_ID;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_BOUNDED_MODE;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_BOUNDED_SPECIFIC_OFFSETS;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_BOUNDED_TIMESTAMP_MILLIS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_STARTUP_MODE;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_STARTUP_SPECIFIC_OFFSETS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_STARTUP_TIMESTAMP_MILLIS;
@@ -83,6 +90,7 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOp
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.autoCompleteSchemaRegistrySubject;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.createKeyFormatProjection;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.createValueFormatProjection;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.getBoundedOptions;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.getFlinkKafkaPartitioner;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.getKafkaProperties;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.getSourceTopicPattern;
@@ -141,19 +149,27 @@ public class KafkaDynamicTableFactory
         options.add(DELIVERY_GUARANTEE);
         options.add(TRANSACTIONAL_ID_PREFIX);
         options.add(SINK_SEMANTIC);
+        options.add(SCAN_BOUNDED_MODE);
+        options.add(SCAN_BOUNDED_SPECIFIC_OFFSETS);
+        options.add(SCAN_BOUNDED_TIMESTAMP_MILLIS);
         return options;
     }
 
     @Override
     public Set<ConfigOption<?>> forwardOptions() {
-        final Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(TOPIC);
-        options.add(TOPIC_PATTERN);
-        options.add(SCAN_STARTUP_MODE);
-        options.add(SCAN_STARTUP_SPECIFIC_OFFSETS);
-        options.add(SCAN_TOPIC_PARTITION_DISCOVERY);
-        options.add(SCAN_STARTUP_TIMESTAMP_MILLIS);
-        return options;
+        return Stream.of(
+                        PROPS_BOOTSTRAP_SERVERS,
+                        PROPS_GROUP_ID,
+                        TOPIC,
+                        TOPIC_PATTERN,
+                        SCAN_STARTUP_MODE,
+                        SCAN_STARTUP_SPECIFIC_OFFSETS,
+                        SCAN_TOPIC_PARTITION_DISCOVERY,
+                        SCAN_STARTUP_TIMESTAMP_MILLIS,
+                        SINK_PARTITIONER,
+                        SINK_PARALLELISM,
+                        TRANSACTIONAL_ID_PREFIX)
+                .collect(Collectors.toSet());
     }
 
     @Override
@@ -179,6 +195,8 @@ public class KafkaDynamicTableFactory
                 valueDecodingFormat);
 
         final StartupOptions startupOptions = getStartupOptions(tableOptions);
+
+        final BoundedOptions boundedOptions = getBoundedOptions(tableOptions);
 
         final Properties properties = getKafkaProperties(context.getCatalogTable().getOptions());
 
@@ -210,6 +228,9 @@ public class KafkaDynamicTableFactory
                 startupOptions.startupMode,
                 startupOptions.specificOffsets,
                 startupOptions.startupTimestampMillis,
+                boundedOptions.boundedMode,
+                boundedOptions.specificOffsets,
+                boundedOptions.boundedTimestampMillis,
                 context.getObjectIdentifier().asSummaryString());
     }
 
@@ -371,6 +392,9 @@ public class KafkaDynamicTableFactory
             StartupMode startupMode,
             Map<KafkaTopicPartition, Long> specificStartupOffsets,
             long startupTimestampMillis,
+            BoundedMode boundedMode,
+            Map<KafkaTopicPartition, Long> specificEndOffsets,
+            long endTimestampMillis,
             String tableIdentifier) {
         return new KafkaDynamicSource(
                 physicalDataType,
@@ -385,6 +409,9 @@ public class KafkaDynamicTableFactory
                 startupMode,
                 specificStartupOffsets,
                 startupTimestampMillis,
+                boundedMode,
+                specificEndOffsets,
+                endTimestampMillis,
                 false,
                 tableIdentifier);
     }

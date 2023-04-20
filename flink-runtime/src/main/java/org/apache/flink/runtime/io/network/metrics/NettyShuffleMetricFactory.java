@@ -18,7 +18,9 @@
 
 package org.apache.flink.runtime.io.network.metrics;
 
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.View;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
@@ -53,6 +55,8 @@ public class NettyShuffleMetricFactory {
 
     private static final String METRIC_USED_MEMORY_SEGMENT = "UsedMemorySegments";
     private static final String METRIC_USED_MEMORY = "UsedMemory";
+
+    private static final String METRIC_REQUESTED_MEMORY_USAGE = "RequestedMemoryUsage";
 
     // task level metric group structure: Shuffle.Netty.<Input|Output>.Buffers
 
@@ -117,6 +121,9 @@ public class NettyShuffleMetricFactory {
         networkGroup.gauge(
                 METRIC_USED_MEMORY_SEGMENT, networkBufferPool::getNumberOfUsedMemorySegments);
         networkGroup.gauge(METRIC_USED_MEMORY, networkBufferPool::getUsedMemory);
+
+        networkGroup.gauge(
+                METRIC_REQUESTED_MEMORY_USAGE, new RequestedMemoryUsageMetric(networkBufferPool));
     }
 
     public static MetricGroup createShuffleIOOwnerMetricGroup(MetricGroup parentGroup) {
@@ -222,5 +229,27 @@ public class NettyShuffleMetricFactory {
             SingleInputGate[] inputGates, MetricGroup taskGroup) {
         taskGroup.gauge(
                 MetricNames.ESTIMATED_TIME_TO_CONSUME_BUFFERS, new TimeToConsumeGauge(inputGates));
+    }
+
+    /**
+     * This is a small hack. Instead of spawning a custom thread to monitor {@link
+     * NetworkBufferPool} usage, we are re-using {@link View#update()} method for this purpose.
+     */
+    private static class RequestedMemoryUsageMetric implements Gauge<Integer>, View {
+        private final NetworkBufferPool networkBufferPool;
+
+        public RequestedMemoryUsageMetric(NetworkBufferPool networkBufferPool) {
+            this.networkBufferPool = networkBufferPool;
+        }
+
+        @Override
+        public Integer getValue() {
+            return networkBufferPool.getRequestedSegmentsUsage();
+        }
+
+        @Override
+        public void update() {
+            networkBufferPool.maybeLogUsageWarning();
+        }
     }
 }

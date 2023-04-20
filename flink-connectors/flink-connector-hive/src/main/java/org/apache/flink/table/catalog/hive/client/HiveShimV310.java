@@ -26,10 +26,12 @@ import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.RetryingMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.ql.metadata.Hive;
 import org.apache.hadoop.io.Writable;
 
 import java.lang.reflect.Constructor;
@@ -41,14 +43,16 @@ import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
 /** Shim for Hive version 3.1.0. */
-public class HiveShimV310 extends HiveShimV235 {
+public class HiveShimV310 extends HiveShimV239 {
 
     // timestamp classes
     private static Class hiveTimestampClz;
@@ -62,7 +66,14 @@ public class HiveShimV310 extends HiveShimV235 {
     private static Field hiveDateLocalDate;
     private static Constructor dateWritableConstructor;
 
-    private static boolean hiveClassesInited;
+    private static volatile boolean hiveClassesInited;
+
+    // LoadFileType class
+    private static volatile boolean loadFileClassInited;
+    private static Class clazzLoadFileType;
+
+    protected final long writeIdInLoadTableOrPartition = 0L;
+    protected final int stmtIdInLoadTableOrPartition = 0;
 
     private static void initDateTimeClasses() {
         if (!hiveClassesInited) {
@@ -97,6 +108,23 @@ public class HiveShimV310 extends HiveShimV235 {
                                 "Failed to get Hive timestamp class and constructor", e);
                     }
                     hiveClassesInited = true;
+                }
+            }
+        }
+    }
+
+    private static void initLoadFileTypeClass() {
+        if (!loadFileClassInited) {
+            synchronized (HiveShimV310.class) {
+                if (!loadFileClassInited) {
+                    try {
+                        clazzLoadFileType =
+                                Class.forName(
+                                        "org.apache.hadoop.hive.ql.plan.LoadTableDesc$LoadFileType");
+                    } catch (ClassNotFoundException e) {
+                        throw new FlinkHiveException("Failed to get Hive LoadFileType class", e);
+                    }
+                    loadFileClassInited = true;
                 }
             }
         }
@@ -140,9 +168,21 @@ public class HiveShimV310 extends HiveShimV235 {
     }
 
     @Override
+    public Class<?> getDateWritableClass() {
+        initDateTimeClasses();
+        return dateWritableConstructor.getDeclaringClass();
+    }
+
+    @Override
     public Class<?> getTimestampDataTypeClass() {
         initDateTimeClasses();
         return hiveTimestampClz;
+    }
+
+    @Override
+    public Class<?> getTimestampWritableClass() {
+        initDateTimeClasses();
+        return timestampWritableConstructor.getDeclaringClass();
     }
 
     @Override
@@ -307,6 +347,91 @@ public class HiveShimV310 extends HiveShimV235 {
         }
     }
 
+    @Override
+    public void loadTable(
+            Hive hive, Path loadPath, String tableName, boolean replace, boolean isSrcLocal) {
+        try {
+            Class hiveClass = Hive.class;
+            initLoadFileTypeClass();
+            Method loadTableMethod =
+                    hiveClass.getDeclaredMethod(
+                            "loadTable",
+                            Path.class,
+                            String.class,
+                            clazzLoadFileType,
+                            boolean.class,
+                            boolean.class,
+                            boolean.class,
+                            boolean.class,
+                            Long.class,
+                            int.class,
+                            boolean.class);
+            loadTableMethod.invoke(
+                    hive,
+                    loadPath,
+                    tableName,
+                    getLoadFileType(clazzLoadFileType, replace),
+                    isSrcLocal,
+                    isSkewedStoreAsSubdir,
+                    isAcid,
+                    hasFollowingStatsTask,
+                    writeIdInLoadTableOrPartition,
+                    stmtIdInLoadTableOrPartition,
+                    replace);
+        } catch (Exception e) {
+            throw new FlinkHiveException("Failed to load table", e);
+        }
+    }
+
+    @Override
+    public void loadPartition(
+            Hive hive,
+            Path loadPath,
+            String tableName,
+            Map<String, String> partSpec,
+            boolean isSkewedStoreAsSubdir,
+            boolean replace,
+            boolean isSrcLocal) {
+        try {
+            initLoadFileTypeClass();
+            Class hiveClass = Hive.class;
+            Method loadPartitionMethod =
+                    hiveClass.getDeclaredMethod(
+                            "loadPartition",
+                            Path.class,
+                            org.apache.hadoop.hive.ql.metadata.Table.class,
+                            Map.class,
+                            clazzLoadFileType,
+                            boolean.class,
+                            boolean.class,
+                            boolean.class,
+                            boolean.class,
+                            boolean.class,
+                            Long.class,
+                            int.class,
+                            boolean.class);
+            org.apache.hadoop.hive.ql.metadata.Table table = hive.getTable(tableName);
+            long writeIdInLoadTableOrPartition = 0L;
+            int stmtIdInLoadTableOrPartition = 0;
+            loadPartitionMethod.invoke(
+                    hive,
+                    loadPath,
+                    table,
+                    partSpec,
+                    getLoadFileType(clazzLoadFileType, replace),
+                    inheritTableSpecs,
+                    isSkewedStoreAsSubdir,
+                    isSrcLocal,
+                    isAcid,
+                    hasFollowingStatsTask,
+                    writeIdInLoadTableOrPartition,
+                    stmtIdInLoadTableOrPartition,
+                    replace);
+        } catch (Exception e) {
+            throw new FlinkHiveException("Failed to load partition", e);
+        }
+    }
+
     List<Object> createHiveNNs(
             Table table, Configuration conf, List<String> nnCols, List<Byte> traits)
             throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException,
@@ -365,5 +490,23 @@ public class HiveShimV310 extends HiveShimV235 {
                         "getDefaultCatalog",
                         new Class[] {Configuration.class},
                         new Object[] {conf});
+    }
+
+    Object getLoadFileType(Class clazzLoadFileType, boolean replace) {
+        Object loadFileType;
+        if (replace) {
+            loadFileType =
+                    Arrays.stream(clazzLoadFileType.getEnumConstants())
+                            .filter(s -> s.toString().equals("REPLACE_ALL"))
+                            .findFirst()
+                            .get();
+        } else {
+            loadFileType =
+                    Arrays.stream(clazzLoadFileType.getEnumConstants())
+                            .filter(s -> s.toString().equals("KEEP_EXISTING"))
+                            .findFirst()
+                            .get();
+        }
+        return loadFileType;
     }
 }

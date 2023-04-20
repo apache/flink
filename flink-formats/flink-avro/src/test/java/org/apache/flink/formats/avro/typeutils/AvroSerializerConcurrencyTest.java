@@ -23,11 +23,11 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.testutils.BlockerSync;
 import org.apache.flink.core.testutils.CheckedThread;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * This tests that the {@link AvroSerializer} properly fails when accessed by two threads
@@ -36,10 +36,10 @@ import static org.junit.Assert.fail;
  * <p><b>Important:</b> This test only works if assertions are activated (-ea) on the JVM when
  * running tests.
  */
-public class AvroSerializerConcurrencyTest {
+class AvroSerializerConcurrencyTest {
 
     @Test
-    public void testConcurrentUseOfSerializer() throws Exception {
+    void testConcurrentUseOfSerializer() throws Exception {
         final AvroSerializer<String> serializer = new AvroSerializer<>(String.class);
 
         final BlockerSync sync = new BlockerSync();

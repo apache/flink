@@ -31,32 +31,30 @@ import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraph
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.util.SerializedThrowable;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
 import org.junit.jupiter.api.Test;
 
-import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link DefaultJobMasterServiceProcess}. */
-public class DefaultJobMasterServiceProcessTest extends TestLogger {
-    private static final Duration TIMEOUT = Duration.ofSeconds(10);
+class DefaultJobMasterServiceProcessTest {
     private static final JobID jobId = new JobID();
     private static final Function<Throwable, ArchivedExecutionGraph>
             failedArchivedExecutionGraphFactory =
                     (throwable ->
-                            ArchivedExecutionGraph.createFromInitializingJob(
+                            ArchivedExecutionGraph.createSparseArchivedExecutionGraph(
                                     jobId, "test", JobStatus.FAILED, throwable, null, 1337));
 
     @Test
-    public void testInitializationFailureCompletesResultFuture() {
+    void testInitializationFailureCompletesResultFuture() {
         final CompletableFuture<JobMasterService> jobMasterServiceFuture =
                 new CompletableFuture<>();
         DefaultJobMasterServiceProcess serviceProcess = createTestInstance(jobMasterServiceFuture);
@@ -74,7 +72,7 @@ public class DefaultJobMasterServiceProcessTest extends TestLogger {
     }
 
     @Test
-    public void testInitializationFailureSetsFailureInfoProperly()
+    void testInitializationFailureSetsFailureInfoProperly()
             throws ExecutionException, InterruptedException {
         final CompletableFuture<JobMasterService> jobMasterServiceFuture =
                 new CompletableFuture<>();
@@ -99,7 +97,7 @@ public class DefaultJobMasterServiceProcessTest extends TestLogger {
     }
 
     @Test
-    public void testInitializationFailureSetsExceptionHistoryProperly()
+    void testInitializationFailureSetsExceptionHistoryProperly()
             throws ExecutionException, InterruptedException {
         final CompletableFuture<JobMasterService> jobMasterServiceFuture =
                 new CompletableFuture<>();
@@ -146,7 +144,7 @@ public class DefaultJobMasterServiceProcessTest extends TestLogger {
     }
 
     @Test
-    public void testCloseAfterInitializationFailure() throws Exception {
+    void testCloseAfterInitializationFailure() throws Exception {
         final CompletableFuture<JobMasterService> jobMasterServiceFuture =
                 new CompletableFuture<>();
         DefaultJobMasterServiceProcess serviceProcess = createTestInstance(jobMasterServiceFuture);
@@ -159,7 +157,7 @@ public class DefaultJobMasterServiceProcessTest extends TestLogger {
     }
 
     @Test
-    public void testCloseAfterInitializationSuccess() throws Exception {
+    void testCloseAfterInitializationSuccess() throws Exception {
         final CompletableFuture<JobMasterService> jobMasterServiceFuture =
                 new CompletableFuture<>();
         DefaultJobMasterServiceProcess serviceProcess = createTestInstance(jobMasterServiceFuture);
@@ -168,15 +166,14 @@ public class DefaultJobMasterServiceProcessTest extends TestLogger {
 
         serviceProcess.closeAsync().get();
         assertThat(testingJobMasterService.isClosed()).isTrue();
-        assertThat(serviceProcess.getResultFuture())
-                .failsWithin(TIMEOUT)
-                .withThrowableOfType(ExecutionException.class)
+        assertThatFuture(serviceProcess.getResultFuture())
+                .eventuallyFailsWith(ExecutionException.class)
                 .extracting(FlinkAssertions::chainOfCauses, FlinkAssertions.STREAM_THROWABLE)
                 .anySatisfy(t -> assertThat(t).isInstanceOf(JobNotFinishedException.class));
     }
 
     @Test
-    public void testJobMasterTerminationIsHandled() {
+    void testJobMasterTerminationIsHandled() {
         final CompletableFuture<JobMasterService> jobMasterServiceFuture =
                 new CompletableFuture<>();
         DefaultJobMasterServiceProcess serviceProcess = createTestInstance(jobMasterServiceFuture);
@@ -188,15 +185,14 @@ public class DefaultJobMasterServiceProcessTest extends TestLogger {
         RuntimeException testException = new RuntimeException("Fake exception from JobMaster");
         jobMasterTerminationFuture.completeExceptionally(testException);
 
-        assertThat(serviceProcess.getResultFuture())
-                .failsWithin(TIMEOUT)
-                .withThrowableOfType(ExecutionException.class)
+        assertThatFuture(serviceProcess.getResultFuture())
+                .eventuallyFailsWith(ExecutionException.class)
                 .extracting(FlinkAssertions::chainOfCauses, FlinkAssertions.STREAM_THROWABLE)
                 .anySatisfy(t -> assertThat(t).isEqualTo(testException));
     }
 
     @Test
-    public void testJobMasterGatewayGetsForwarded() {
+    void testJobMasterGatewayGetsForwarded() {
         final CompletableFuture<JobMasterService> jobMasterServiceFuture =
                 new CompletableFuture<>();
         DefaultJobMasterServiceProcess serviceProcess = createTestInstance(jobMasterServiceFuture);
@@ -209,7 +205,7 @@ public class DefaultJobMasterServiceProcessTest extends TestLogger {
     }
 
     @Test
-    public void testLeaderAddressGetsForwarded() throws Exception {
+    void testLeaderAddressGetsForwarded() throws Exception {
         final CompletableFuture<JobMasterService> jobMasterServiceFuture =
                 new CompletableFuture<>();
         DefaultJobMasterServiceProcess serviceProcess = createTestInstance(jobMasterServiceFuture);
@@ -222,14 +218,14 @@ public class DefaultJobMasterServiceProcessTest extends TestLogger {
     }
 
     @Test
-    public void testIsNotInitialized() {
+    void testIsNotInitialized() {
         DefaultJobMasterServiceProcess serviceProcess =
                 createTestInstance(new CompletableFuture<>());
         assertThat(serviceProcess.isInitializedAndRunning()).isFalse();
     }
 
     @Test
-    public void testIsInitialized() {
+    void testIsInitialized() {
         final CompletableFuture<JobMasterService> jobMasterServiceFuture =
                 new CompletableFuture<>();
         DefaultJobMasterServiceProcess serviceProcess = createTestInstance(jobMasterServiceFuture);
@@ -240,7 +236,7 @@ public class DefaultJobMasterServiceProcessTest extends TestLogger {
     }
 
     @Test
-    public void testIsNotInitializedAfterClosing() {
+    void testIsNotInitializedAfterClosing() {
         final CompletableFuture<JobMasterService> jobMasterServiceFuture =
                 new CompletableFuture<>();
         DefaultJobMasterServiceProcess serviceProcess = createTestInstance(jobMasterServiceFuture);
@@ -253,7 +249,7 @@ public class DefaultJobMasterServiceProcessTest extends TestLogger {
     }
 
     @Test
-    public void testSuccessOnTerminalState() throws Exception {
+    void testSuccessOnTerminalState() throws Exception {
         final CompletableFuture<JobMasterService> jobMasterServiceFuture =
                 new CompletableFuture<>();
         DefaultJobMasterServiceProcess serviceProcess = createTestInstance(jobMasterServiceFuture);

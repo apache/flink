@@ -20,6 +20,8 @@ package org.apache.flink.table.planner.plan.rules.logical;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
+
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -370,7 +372,10 @@ public class FlinkAggregateJoinTransposeRule extends RelOptRule {
                         relBuilder
                                 .push(joinInput)
                                 .aggregate(
-                                        relBuilder.groupKey(belowAggregateKey, null), belowAggCalls)
+                                        relBuilder.groupKey(
+                                                belowAggregateKey,
+                                                ImmutableList.of(belowAggregateKey)),
+                                        belowAggCalls)
                                 .build();
             }
             offset += fieldCount;
@@ -483,7 +488,6 @@ public class FlinkAggregateJoinTransposeRule extends RelOptRule {
                     aggregate.copy(
                             aggregate.getTraitSet(),
                             aggregate.getInput(),
-                            aggregate.indicator,
                             newGroupSet,
                             com.google.common.collect.ImmutableList.of(newGroupSet),
                             aggCalls);

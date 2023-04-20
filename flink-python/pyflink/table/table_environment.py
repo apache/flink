@@ -15,6 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import atexit
 import os
 import sys
 import tempfile
@@ -23,13 +24,13 @@ from typing import Union, List, Tuple, Iterable
 
 from py4j.java_gateway import get_java_class, get_method
 
+from pyflink.common.configuration import Configuration
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.table.sources import TableSource
 
 from pyflink.common.typeinfo import TypeInformation
 from pyflink.datastream.data_stream import DataStream
 
-from pyflink.common import JobExecutionResult
 from pyflink.java_gateway import get_gateway
 from pyflink.serializers import BatchedSerializer, PickleSerializer
 from pyflink.table import Table, EnvironmentSettings, Expression, ExplainDetail, \
@@ -40,7 +41,7 @@ from pyflink.table.statement_set import StatementSet
 from pyflink.table.table_config import TableConfig
 from pyflink.table.table_descriptor import TableDescriptor
 from pyflink.table.table_result import TableResult
-from pyflink.table.types import _to_java_type, _create_type_verifier, RowType, DataType, \
+from pyflink.table.types import _create_type_verifier, RowType, DataType, \
     _infer_schema_from_data, _create_converter, from_arrow_type, RowField, create_arrow_schema, \
     _to_java_data_type
 from pyflink.table.udf import UserDefinedFunctionWrapper, AggregateFunction, udaf, \
@@ -99,18 +100,24 @@ class TableEnvironment(object):
         self._open()
 
     @staticmethod
-    def create(environment_settings: EnvironmentSettings) -> 'TableEnvironment':
+    def create(environment_settings: Union[EnvironmentSettings, Configuration]) \
+            -> 'TableEnvironment':
         """
         Creates a table environment that is the entry point and central context for creating Table
         and SQL API programs.
 
-        :param environment_settings: The environment settings used to instantiate the
-                                     :class:`~pyflink.table.TableEnvironment`.
+        :param environment_settings: The configuration or environment settings used to instantiate
+            the :class:`~pyflink.table.TableEnvironment`, the name is for backward compatibility.
         :return: The :class:`~pyflink.table.TableEnvironment`.
         """
         gateway = get_gateway()
-        j_tenv = gateway.jvm.TableEnvironment.create(
-            environment_settings._j_environment_settings)
+        if isinstance(environment_settings, Configuration):
+            environment_settings = EnvironmentSettings.new_instance() \
+                .with_configuration(environment_settings).build()
+        elif not isinstance(environment_settings, EnvironmentSettings):
+            raise TypeError("argument should be EnvironmentSettings or Configuration")
+
+        j_tenv = gateway.jvm.TableEnvironment.create(environment_settings._j_environment_settings)
         return TableEnvironment(j_tenv)
 
     def from_table_source(self, table_source: 'TableSource') -> 'Table':
@@ -636,34 +643,6 @@ class TableEnvironment(object):
         """
         return Table(get_method(self._j_tenv, "from")(descriptor._j_table_descriptor), self)
 
-    def insert_into(self, target_path: str, table: Table):
-        """
-        Instructs to write the content of a :class:`~pyflink.table.Table` API object into a table.
-
-        See the documentation of :func:`use_database` or :func:`use_catalog` for the rules on the
-        path resolution.
-
-        Example:
-        ::
-
-            >>> tab = table_env.scan("tableName")
-            >>> table_env.insert_into("sink", tab)
-
-        :param target_path: The path of the registered :class:`~pyflink.table.TableSink` to which
-                            the :class:`~pyflink.table.Table` is written.
-        :param table: The Table to write to the sink.
-
-        .. versionchanged:: 1.10.0
-            The signature is changed, e.g. the parameter *table_path_continued* was removed and
-            the parameter *target_path* is moved before the parameter *table*.
-
-        .. note:: Deprecated in 1.11. Use :func:`execute_insert` for single sink,
-                  use :func:`create_statement_set` for multiple sinks.
-        """
-        warnings.warn("Deprecated in 1.11. Use Table#execute_insert for single sink,"
-                      "use create_statement_set for multiple sinks.", DeprecationWarning)
-        self._j_tenv.insertInto(target_path, table._j_table)
-
     def list_catalogs(self) -> List[str]:
         """
         Gets the names of all catalogs registered in this environment.
@@ -801,25 +780,6 @@ class TableEnvironment(object):
         """
         return self._j_tenv.dropTemporaryView(view_path)
 
-    def explain(self, table: Table = None, extended: bool = False) -> str:
-        """
-        Returns the AST of the specified Table API and SQL queries and the execution plan to compute
-        the result of the given :class:`~pyflink.table.Table` or multi-sinks plan.
-
-        :param table: The table to be explained. If table is None, explain for multi-sinks plan,
-                      else for given table.
-        :param extended: If the plan should contain additional properties.
-                         e.g. estimated cost, traits
-        :return: The table for which the AST and execution plan will be returned.
-
-        .. note:: Deprecated in 1.11. Use :class:`Table`#:func:`explain` instead.
-        """
-        warnings.warn("Deprecated in 1.11. Use Table#explain instead.", DeprecationWarning)
-        if table is None:
-            return self._j_tenv.explain(extended)
-        else:
-            return self._j_tenv.explain(table._j_table, extended)
-
     def explain_sql(self, stmt: str, *extra_details: ExplainDetail) -> str:
         """
         Returns the AST of the specified statement and the execution plan.
@@ -832,8 +792,9 @@ class TableEnvironment(object):
         .. versionadded:: 1.11.0
         """
 
+        JExplainFormat = get_gateway().jvm.org.apache.flink.table.api.ExplainFormat
         j_extra_details = to_j_explain_detail_arr(extra_details)
-        return self._j_tenv.explainSql(stmt, j_extra_details)
+        return self._j_tenv.explainSql(stmt, JExplainFormat.TEXT, j_extra_details)
 
     def sql_query(self, query: str) -> Table:
         """
@@ -887,83 +848,6 @@ class TableEnvironment(object):
         """
         _j_statement_set = self._j_tenv.createStatementSet()
         return StatementSet(_j_statement_set, self)
-
-    def sql_update(self, stmt: str):
-        """
-        Evaluates a SQL statement such as INSERT, UPDATE or DELETE or a DDL statement
-
-        .. note::
-
-            Currently only SQL INSERT statements and CREATE TABLE statements are supported.
-
-        All tables referenced by the query must be registered in the TableEnvironment.
-        A :class:`~pyflink.table.Table` is automatically registered when its
-        :func:`~Table.__str__` method is called, for example when it is embedded into a String.
-        Hence, SQL queries can directly reference a :class:`~pyflink.table.Table` as follows:
-        ::
-
-            # register the table sink into which the result is inserted.
-            >>> table_env.register_table_sink("sink_table", table_sink)
-            >>> source_table = ...
-            # source_table is not registered to the table environment
-            >>> table_env.sql_update("INSERT INTO sink_table SELECT * FROM %s" % source_table)
-
-        A DDL statement can also be executed to create/drop a table:
-        For example, the below DDL statement would create a CSV table named `tbl1`
-        into the current catalog::
-
-            create table tbl1(
-                a int,
-                b bigint,
-                c varchar
-            ) with (
-                'connector.type' = 'filesystem',
-                'format.type' = 'csv',
-                'connector.path' = 'xxx'
-            )
-
-        SQL queries can directly execute as follows:
-        ::
-
-            >>> source_ddl = \\
-            ... '''
-            ... create table sourceTable(
-            ...     a int,
-            ...     b varchar
-            ... ) with (
-            ...     'connector.type' = 'kafka',
-            ...     'update-mode' = 'append',
-            ...     'connector.topic' = 'xxx',
-            ...     'connector.properties.bootstrap.servers' = 'localhost:9092'
-            ... )
-            ... '''
-
-            >>> sink_ddl = \\
-            ... '''
-            ... create table sinkTable(
-            ...     a int,
-            ...     b varchar
-            ... ) with (
-            ...     'connector.type' = 'filesystem',
-            ...     'format.type' = 'csv',
-            ...     'connector.path' = 'xxx'
-            ... )
-            ... '''
-
-            >>> query = "INSERT INTO sinkTable SELECT FROM sourceTable"
-            >>> table_env.sql(source_ddl)
-            >>> table_env.sql(sink_ddl)
-            >>> table_env.sql(query)
-            >>> table_env.execute("MyJob")
-
-        :param stmt: The SQL statement to evaluate.
-
-        .. note:: Deprecated in 1.11. Use :func:`execute_sql` for single statement,
-                  use :func:`create_statement_set` for multiple DML statements.
-        """
-        warnings.warn("Deprecated in 1.11. Use execute_sql for single statement, "
-                      "use create_statement_set for multiple DML statements.", DeprecationWarning)
-        self._j_tenv.sqlUpdate(stmt)
 
     def get_current_catalog(self) -> str:
         """
@@ -1281,27 +1165,32 @@ class TableEnvironment(object):
         """
         if isinstance(table_or_data_stream, Table):
             self._j_tenv.createTemporaryView(view_path, table_or_data_stream._j_table)
-        elif len(fields_or_schema) == 0:
-            self._j_tenv.createTemporaryView(view_path, table_or_data_stream._j_data_stream)
-        elif len(fields_or_schema) == 1 and isinstance(fields_or_schema[0], str):
-            self._j_tenv.createTemporaryView(
-                view_path,
-                table_or_data_stream._j_data_stream,
-                fields_or_schema[0])
-        elif len(fields_or_schema) == 1 and isinstance(fields_or_schema[0], Schema):
-            self._j_tenv.createTemporaryView(
-                view_path,
-                table_or_data_stream._j_data_stream,
-                fields_or_schema[0]._j_schema)
-        elif (len(fields_or_schema) > 0 and
-              all(isinstance(elem, Expression) for elem in fields_or_schema)):
-            self._j_tenv.createTemporaryView(
-                view_path,
-                table_or_data_stream._j_data_stream,
-                to_expression_jarray(fields_or_schema))
         else:
-            raise ValueError("Invalid arguments for 'fields': %r" %
-                             ','.join([repr(item) for item in fields_or_schema]))
+            j_data_stream = table_or_data_stream._j_data_stream
+            JPythonConfigUtil = get_gateway().jvm.org.apache.flink.python.util.PythonConfigUtil
+            JPythonConfigUtil.configPythonOperator(j_data_stream.getExecutionEnvironment())
+
+            if len(fields_or_schema) == 0:
+                self._j_tenv.createTemporaryView(view_path, j_data_stream)
+            elif len(fields_or_schema) == 1 and isinstance(fields_or_schema[0], str):
+                self._j_tenv.createTemporaryView(
+                    view_path,
+                    j_data_stream,
+                    fields_or_schema[0])
+            elif len(fields_or_schema) == 1 and isinstance(fields_or_schema[0], Schema):
+                self._j_tenv.createTemporaryView(
+                    view_path,
+                    j_data_stream,
+                    fields_or_schema[0]._j_schema)
+            elif (len(fields_or_schema) > 0 and
+                  all(isinstance(elem, Expression) for elem in fields_or_schema)):
+                self._j_tenv.createTemporaryView(
+                    view_path,
+                    j_data_stream,
+                    to_expression_jarray(fields_or_schema))
+            else:
+                raise ValueError("Invalid arguments for 'fields': %r" %
+                                 ','.join([repr(item) for item in fields_or_schema]))
 
     def add_python_file(self, file_path: str):
         """
@@ -1314,14 +1203,12 @@ class TableEnvironment(object):
         .. versionadded:: 1.10.0
         """
         jvm = get_gateway().jvm
-        python_files = self.get_config().get_configuration().get_string(
-            jvm.PythonOptions.PYTHON_FILES.key(), None)
+        python_files = self.get_config().get(jvm.PythonOptions.PYTHON_FILES.key(), None)
         if python_files is not None:
             python_files = jvm.PythonDependencyUtils.FILE_DELIMITER.join([file_path, python_files])
         else:
             python_files = file_path
-        self.get_config().get_configuration().set_string(
-            jvm.PythonOptions.PYTHON_FILES.key(), python_files)
+        self.get_config().set(jvm.PythonOptions.PYTHON_FILES.key(), python_files)
 
     def set_python_requirements(self,
                                 requirements_file_path: str,
@@ -1350,7 +1237,7 @@ class TableEnvironment(object):
 
             Please make sure the installation packages matches the platform of the cluster
             and the python version used. These packages will be installed using pip,
-            so also make sure the version of Pip (version >= 7.1.0) and the version of
+            so also make sure the version of Pip (version >= 20.3) and the version of
             SetupTools (version >= 37.0.0).
 
         :param requirements_file_path: The path of "requirements.txt" file.
@@ -1364,7 +1251,7 @@ class TableEnvironment(object):
         if requirements_cache_dir is not None:
             python_requirements = jvm.PythonDependencyUtils.PARAM_DELIMITER.join(
                 [python_requirements, requirements_cache_dir])
-        self.get_config().get_configuration().set_string(
+        self.get_config().set(
             jvm.PythonOptions.PYTHON_REQUIREMENTS.key(), python_requirements)
 
     def add_python_archive(self, archive_path: str, target_dir: str = None):
@@ -1422,43 +1309,13 @@ class TableEnvironment(object):
         if target_dir is not None:
             archive_path = jvm.PythonDependencyUtils.PARAM_DELIMITER.join(
                 [archive_path, target_dir])
-        python_archives = self.get_config().get_configuration().get_string(
-            jvm.PythonOptions.PYTHON_ARCHIVES.key(), None)
+        python_archives = self.get_config().get(jvm.PythonOptions.PYTHON_ARCHIVES.key(), None)
         if python_archives is not None:
             python_files = jvm.PythonDependencyUtils.FILE_DELIMITER.join(
                 [python_archives, archive_path])
         else:
             python_files = archive_path
-        self.get_config().get_configuration().set_string(
-            jvm.PythonOptions.PYTHON_ARCHIVES.key(), python_files)
-
-    def execute(self, job_name: str) -> JobExecutionResult:
-        """
-        Triggers the program execution. The environment will execute all parts of
-        the program.
-
-        The program execution will be logged and displayed with the provided name.
-
-        .. note::
-
-            It is highly advised to set all parameters in the :class:`~pyflink.table.TableConfig`
-            on the very beginning of the program. It is undefined what configurations values will
-            be used for the execution if queries are mixed with config changes. It depends on
-            the characteristic of the particular parameter. For some of them the value from the
-            point in time of query construction (e.g. the current catalog) will be used. On the
-            other hand some values might be evaluated according to the state from the time when
-            this method is called (e.g. timezone).
-
-        :param job_name: Desired name of the job.
-        :return: The result of the job execution, containing elapsed time and accumulators.
-
-        .. note:: Deprecated in 1.11. Use :func:`execute_sql` for single sink,
-                  use :func:`create_statement_set` for multiple sinks.
-        """
-        warnings.warn("Deprecated in 1.11. Use execute_sql for single sink, "
-                      "use create_statement_set for multiple sinks.", DeprecationWarning)
-        self._before_execute()
-        return JobExecutionResult(self._j_tenv.execute(job_name))
+        self.get_config().set(jvm.PythonOptions.PYTHON_ARCHIVES.key(), python_files)
 
     def from_elements(self, elements: Iterable, schema: Union[DataType, List[str]] = None,
                       verify_schema: bool = True) -> Table:
@@ -1571,7 +1428,7 @@ class TableEnvironment(object):
         elements = [schema.to_sql_type(element) for element in elements]
         return self._from_elements(elements, schema)
 
-    def _from_elements(self, elements: List, schema: Union[DataType, List[str]]) -> Table:
+    def _from_elements(self, elements: List, schema: DataType) -> Table:
         """
         Creates a table from a collection of elements.
 
@@ -1584,22 +1441,15 @@ class TableEnvironment(object):
         try:
             with temp_file:
                 serializer.serialize(elements, temp_file)
-            row_type_info = _to_java_type(schema)
-            execution_config = self._get_j_env().getConfig()
+            j_schema = _to_java_data_type(schema)
             gateway = get_gateway()
-            j_objs = gateway.jvm.PythonBridgeUtils.readPythonObjects(temp_file.name, True)
             PythonTableUtils = gateway.jvm \
                 .org.apache.flink.table.utils.python.PythonTableUtils
-            PythonInputFormatTableSource = gateway.jvm \
-                .org.apache.flink.table.utils.python.PythonInputFormatTableSource
-            j_input_format = PythonTableUtils.getInputFormat(
-                j_objs, row_type_info, execution_config)
-            j_table_source = PythonInputFormatTableSource(
-                j_input_format, row_type_info)
-
-            return Table(self._j_tenv.fromTableSource(j_table_source), self)
+            j_table = PythonTableUtils.createTableFromElement(
+                self._j_tenv, temp_file.name, j_schema, True)
+            return Table(j_table, self)
         finally:
-            os.unlink(temp_file.name)
+            atexit.register(lambda: os.unlink(temp_file.name))
 
     def from_pandas(self, pdf,
                     schema: Union[RowType, List[str], Tuple[str], List[DataType],
@@ -1671,8 +1521,7 @@ class TableEnvironment(object):
                 serializer.serialize(data, temp_file)
             jvm = get_gateway().jvm
 
-            data_type = jvm.org.apache.flink.table.types.utils.TypeConversions\
-                .fromLegacyInfoToDataType(_to_java_type(result_type)).notNull()
+            data_type = _to_java_data_type(result_type).notNull()
             data_type = data_type.bridgedTo(
                 load_java_class('org.apache.flink.table.data.RowData'))
 
@@ -1692,10 +1541,14 @@ class TableEnvironment(object):
 
     def _add_jars_to_j_env_config(self, config_key):
         jvm = get_gateway().jvm
-        jar_urls = self.get_config().get_configuration().get_string(config_key, None)
+        jar_urls = self.get_config().get(config_key, None)
         if jar_urls is not None:
             # normalize
-            jar_urls_list = [jvm.java.net.URL(url).toString() for url in jar_urls.split(";")]
+            jar_urls_list = []
+            for url in jar_urls.split(";"):
+                url = url.strip()
+                if url != "":
+                    jar_urls_list.append(jvm.java.net.URL(url).toString())
             j_configuration = get_j_env_configuration(self._get_j_env())
             if j_configuration.containsKey(config_key):
                 for url in j_configuration.getString(config_key, "").split(";"):
@@ -1773,14 +1626,10 @@ class TableEnvironment(object):
     def _open(self):
         # start BeamFnLoopbackWorkerPoolServicer when executed in MiniCluster
         def startup_loopback_server():
-            from pyflink.common import Configuration
             from pyflink.fn_execution.beam.beam_worker_pool_service import \
                 BeamFnLoopbackWorkerPoolServicer
-
-            j_configuration = get_j_env_configuration(self._get_j_env())
-            config = Configuration(j_configuration=j_configuration)
-            config.set_string(
-                "PYFLINK_LOOPBACK_SERVER_ADDRESS", BeamFnLoopbackWorkerPoolServicer().start())
+            self.get_config().set("python.loopback-server.address",
+                                  BeamFnLoopbackWorkerPoolServicer().start())
 
         python_worker_execution_mode = os.environ.get('_python_worker_execution_mode')
 
@@ -1806,7 +1655,6 @@ class StreamTableEnvironment(TableEnvironment):
 
     @staticmethod
     def create(stream_execution_environment: StreamExecutionEnvironment = None,  # type: ignore
-               table_config: TableConfig = None,
                environment_settings: EnvironmentSettings = None) -> 'StreamTableEnvironment':
         """
         Creates a :class:`~pyflink.table.StreamTableEnvironment`.
@@ -1817,12 +1665,14 @@ class StreamTableEnvironment(TableEnvironment):
             # create with StreamExecutionEnvironment.
             >>> env = StreamExecutionEnvironment.get_execution_environment()
             >>> table_env = StreamTableEnvironment.create(env)
-            # create with StreamExecutionEnvironment and TableConfig.
-            >>> table_config = TableConfig()
-            >>> table_config.set_null_check(False)
-            >>> table_env = StreamTableEnvironment.create(env, table_config)
             # create with StreamExecutionEnvironment and EnvironmentSettings.
-            >>> environment_settings = EnvironmentSettings.in_streaming_mode()
+            >>> configuration = Configuration()
+            >>> configuration.set_string('execution.buffer-timeout', '1 min')
+            >>> environment_settings = EnvironmentSettings \\
+            ...     .new_instance() \\
+            ...     .in_streaming_mode() \\
+            ...     .with_configuration(configuration) \\
+            ...     .build()
             >>> table_env = StreamTableEnvironment.create(
             ...     env, environment_settings=environment_settings)
             # create with EnvironmentSettings.
@@ -1832,27 +1682,15 @@ class StreamTableEnvironment(TableEnvironment):
         :param stream_execution_environment: The
                                              :class:`~pyflink.datastream.StreamExecutionEnvironment`
                                              of the TableEnvironment.
-        :param table_config: The configuration of the TableEnvironment, optional.
         :param environment_settings: The environment settings used to instantiate the
                                      TableEnvironment.
         :return: The StreamTableEnvironment created from given StreamExecutionEnvironment and
                  configuration.
         """
         if stream_execution_environment is None and \
-                table_config is None and \
                 environment_settings is None:
             raise ValueError("No argument found, the param 'stream_execution_environment' "
                              "or 'environment_settings' is required.")
-        elif stream_execution_environment is None and \
-                table_config is not None and \
-                environment_settings is None:
-            raise ValueError("Only the param 'table_config' is found, "
-                             "the param 'stream_execution_environment' is also required.")
-        if table_config is not None and \
-                environment_settings is not None:
-            raise ValueError("The param 'table_config' and "
-                             "'environment_settings' cannot be used at the same time")
-
         gateway = get_gateway()
         if environment_settings is not None:
             if stream_execution_environment is None:
@@ -1863,20 +1701,16 @@ class StreamTableEnvironment(TableEnvironment):
                     stream_execution_environment._j_stream_execution_environment,
                     environment_settings._j_environment_settings)
         else:
-            if table_config is not None:
-                j_tenv = gateway.jvm.StreamTableEnvironment.create(
-                    stream_execution_environment._j_stream_execution_environment,
-                    table_config._j_table_config)
-            else:
-                j_tenv = gateway.jvm.StreamTableEnvironment.create(
-                    stream_execution_environment._j_stream_execution_environment)
+            j_tenv = gateway.jvm.StreamTableEnvironment.create(
+                stream_execution_environment._j_stream_execution_environment)
+
         return StreamTableEnvironment(j_tenv)
 
     def from_data_stream(self,
                          data_stream: DataStream,
-                         *fields_or_schema: Union[str, Expression, Schema]) -> Table:
+                         *fields_or_schema: Union[Expression, Schema]) -> Table:
         """
-        1. When fields_or_schema is a str or a sequence of Expression:
+        1. When fields_or_schema is a sequence of Expression:
 
             Converts the given DataStream into a Table with specified field names.
 
@@ -1993,12 +1827,6 @@ class StreamTableEnvironment(TableEnvironment):
         elif all(isinstance(f, Expression) for f in fields_or_schema):
             return Table(j_table=self._j_tenv.fromDataStream(
                 j_data_stream, to_expression_jarray(fields_or_schema)), t_env=self)
-        elif len(fields_or_schema) == 1 and isinstance(fields_or_schema[0], str):
-            warnings.warn(
-                "Deprecated in 1.12. Use from_data_stream(DataStream, *Expression) instead.",
-                DeprecationWarning)
-            return Table(j_table=self._j_tenv.fromDataStream(
-                j_data_stream, fields_or_schema[0]), t_env=self)
         elif len(fields_or_schema) == 1 and isinstance(fields_or_schema[0], Schema):
             return Table(j_table=self._j_tenv.fromDataStream(
                 j_data_stream, fields_or_schema[0]._j_schema), t_env=self)
@@ -2107,7 +1935,7 @@ class StreamTableEnvironment(TableEnvironment):
             ...         .column("id", DataTypes.BIGINT())
             ...         .column("payload", DataTypes.ROW(
             ...                                     [DataTypes.FIELD("name", DataTypes.STRING()),
-            ...                                     DataTypes.FIELD("age", DataTypes.INT())]))
+            ...                                      DataTypes.FIELD("age", DataTypes.INT())]))
             ...         .build())
 
         Note that the type system of the table ecosystem is richer than the one of the DataStream

@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.plan.optimize.program.FlinkHepRuleSetProgr
 import org.apache.flink.table.planner.plan.optimize.program.FlinkVolcanoProgramBuilder;
 import org.apache.flink.table.planner.plan.optimize.program.HEP_RULES_EXECUTION_TYPE;
 import org.apache.flink.table.planner.plan.optimize.program.StreamOptimizeContext;
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc5;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
@@ -48,7 +49,7 @@ import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXE
  * PushWatermarkIntoTableSourceScanRule}.
  */
 public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
-    private final StreamTableTestUtil util = streamTestUtil(new TableConfig());
+    private final StreamTableTestUtil util = streamTestUtil(TableConfig.getDefault());
 
     @Before
     public void setup() {
@@ -237,10 +238,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
 
     @Test
     public void testWatermarkWithIdleSource() {
-        util.tableEnv()
-                .getConfig()
-                .getConfiguration()
-                .set(TABLE_EXEC_SOURCE_IDLE_TIMEOUT, Duration.ofMillis(1000));
+        util.tableEnv().getConfig().set(TABLE_EXEC_SOURCE_IDLE_TIMEOUT, Duration.ofMillis(1000));
         String ddl =
                 "CREATE TABLE MyTable("
                         + "  a INT,\n"
@@ -255,5 +253,26 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
                         + ")";
         util.tableEnv().executeSql(ddl);
         util.verifyRelPlan("select a, c from MyTable");
+    }
+
+    @Test
+    public void testWatermarkWithPythonFunctionInComputedColumn() {
+        util.tableEnv()
+                .createTemporaryFunction(
+                        "parse_ts",
+                        new JavaUserDefinedScalarFunctions.PythonTimestampScalarFunction());
+        String ddl =
+                "CREATE TABLE MyTable("
+                        + "  a INT,\n"
+                        + "  b AS parse_ts(a),\n"
+                        + "  WATERMARK FOR b AS b\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'enable-watermark-push-down' = 'true',\n"
+                        + " 'bounded' = 'false',\n"
+                        + " 'disable-lookup' = 'true'"
+                        + ")";
+        util.tableEnv().executeSql(ddl);
+        util.verifyRelPlan("SELECT * FROM MyTable");
     }
 }

@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.plan.schema;
 
-import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.Catalog;
@@ -118,7 +117,7 @@ public final class CatalogSourceTable extends FlinkPreparingTableBase {
         // prepare table source and convert to RelNode
         return DynamicSourceUtils.convertSourceToRel(
                 !schemaTable.isStreamingMode(),
-                context.getTableConfig().getConfiguration(),
+                context.getTableConfig(),
                 relBuilder,
                 schemaTable.getContextResolvedTable(),
                 schemaTable.getStatistic(),
@@ -132,8 +131,7 @@ public final class CatalogSourceTable extends FlinkPreparingTableBase {
         if (hintedOptions.isEmpty()) {
             return contextResolvedTable;
         }
-        final ReadableConfig config = context.getTableConfig().getConfiguration();
-        if (!config.get(TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED)) {
+        if (!context.getTableConfig().get(TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED)) {
             throw new ValidationException(
                     String.format(
                             "The '%s' hint is allowed only when the config option '%s' is set to true.",
@@ -154,7 +152,6 @@ public final class CatalogSourceTable extends FlinkPreparingTableBase {
 
     private DynamicTableSource createDynamicTableSource(
             FlinkContext context, ResolvedCatalogTable catalogTable) {
-        final ReadableConfig config = context.getTableConfig().getConfiguration();
 
         final Optional<DynamicTableSourceFactory> factoryFromCatalog =
                 schemaTable
@@ -179,8 +176,8 @@ public final class CatalogSourceTable extends FlinkPreparingTableBase {
                 factory,
                 schemaTable.getContextResolvedTable().getIdentifier(),
                 catalogTable,
-                config,
-                Thread.currentThread().getContextClassLoader(),
+                context.getTableConfig(),
+                context.getClassLoader(),
                 schemaTable.isTemporary());
     }
 

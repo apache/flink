@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.api.scala._
@@ -29,9 +28,7 @@ import org.apache.flink.table.planner.utils.{TableFunc2, TableTestBase}
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.junit.{Before, Test}
 
-/**
-  * Test for [[SplitPythonConditionFromCorrelateRule]].
-  */
+/** Test for [[SplitPythonConditionFromCorrelateRule]]. */
 class SplitPythonConditionFromCorrelateRuleTest extends TableTestBase {
 
   private val util = batchTestUtil()
@@ -46,14 +43,16 @@ class SplitPythonConditionFromCorrelateRuleTest extends TableTestBase {
       FlinkVolcanoProgramBuilder.newBuilder
         .add(FlinkBatchRuleSets.LOGICAL_OPT_RULES)
         .setRequiredOutputTraits(Array(FlinkConventions.LOGICAL))
-        .build())
+        .build()
+    )
     programs.addLast(
       "logical_rewrite",
       FlinkHepRuleSetProgramBuilder.newBuilder
         .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
         .add(FlinkBatchRuleSets.LOGICAL_REWRITE)
-        .build())
+        .build()
+    )
     util.replaceBatchProgram(programs)
 
     util.addTableSource[(Int, Int, String)]("MyTable", 'a, 'b, 'c)

@@ -209,7 +209,9 @@ dataStream
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-Python 中尚不支持此特性。
+```python
+data_stream.key_by(lambda x: x[1]).window(TumblingEventTimeWindows.of(Time.seconds(5)))
+```
 {{< /tab >}}
 {{< /tabs>}}
 
@@ -236,7 +238,9 @@ dataStream
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-Python 中尚不支持此特性。
+```python
+data_stream.window_all(TumblingEventTimeWindows.of(Time.seconds(5)))
+```
 {{< /tab >}}
 {{< /tabs>}}
 
@@ -289,7 +293,30 @@ allWindowedStream.apply { AllWindowFunction }
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-Python 中尚不支持此特性。
+```python
+class MyWindowFunction(WindowFunction[tuple, int, int, TimeWindow]):
+
+    def apply(self, key: int, window: TimeWindow, inputs: Iterable[tuple]) -> Iterable[int]:
+        sum = 0
+        for input in inputs:
+            sum += input[1]
+        yield sum
+
+
+class MyAllWindowFunction(AllWindowFunction[tuple, int, TimeWindow]):
+
+    def apply(self, window: TimeWindow, inputs: Iterable[tuple]) -> Iterable[int]:
+        sum = 0
+        for input in inputs:
+            sum += input[1]
+        yield sum
+
+
+windowed_stream.apply(MyWindowFunction())
+
+# 在 non-keyed 窗口流上应用 AllWindowFunction
+all_windowed_stream.apply(MyAllWindowFunction())
+```
 {{< /tab >}}
 {{< /tabs>}}
 
@@ -314,7 +341,15 @@ windowedStream.reduce { _ + _ }
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-Python 中尚不支持此特性。
+```python
+class MyReduceFunction(ReduceFunction):
+
+    def reduce(self, value1, value2):
+        return value1[0], value1[1] + value2[1]
+
+
+windowed_stream.reduce(MyReduceFunction())
+```
 {{< /tab >}}
 {{< /tabs>}}
 
@@ -331,7 +366,7 @@ dataStream.union(otherStream1, otherStream2, ...);
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-dataStream.union(otherStream1, otherStream2, ...);
+dataStream.union(otherStream1, otherStream2, ...)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -572,6 +607,51 @@ Python 中尚不支持此特性。
 {{< /tab >}}
 {{< /tabs>}}
 
+### Cache
+#### DataStream &rarr; CachedDataStream
+
+把算子的结果缓存起来。目前只支持批执行模式下运行的作业。算子的结果在算子第一次执行的时候会被缓存起来，之后的
+作业中会复用该算子缓存的结果。如果算子的结果丢失了，它会被原来的算子重新计算并缓存。
+
+{{< tabs cache >}}
+{{< tab "Java" >}}
+```java
+DataStream<Integer> dataStream = //...
+CachedDataStream<Integer> cachedDataStream = dataStream.cache();
+cachedDataStream.print(); // Do anything with the cachedDataStream
+...
+env.execute(); // Execute and create cache.
+        
+cachedDataStream.print(); // Consume cached result.
+env.execute();
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+val dataStream : DataStream[Int] = //...
+val cachedDataStream = dataStream.cache()
+cachedDataStream.print() // Do anything with the cachedDataStream
+...
+env.execute() // Execute and create cache.
+
+cachedDataStream.print() // Consume cached result.
+env.execute()
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+data_stream = ... # DataStream
+cached_data_stream = data_stream.cache()
+cached_data_stream.print()
+# ...
+env.execute() # Execute and create cache.
+
+cached_data_stream.print() # Consume cached result.
+env.execute()
+```
+{{< /tab >}}
+{{< /tabs>}}
+
 ## 物理分区
 
 Flink 也提供以下方法让用户根据需要在数据转换完成后对数据分区进行更细粒度的配置。
@@ -680,6 +760,8 @@ data_stream.broadcast()
 {{< /tab >}}
 {{< /tabs>}}
 
+<a name="task-chaining-and-resource-groups"></a>
+
 ## 算子链和资源组
 
 将两个算子链接在一起能使得它们在同一个线程中执行，从而提升性能。Flink 默认会将能链接的算子尽可能地进行链接(例如， 两个 map 转换操作)。此外， Flink 还提供了对链接更细粒度控制的 API 以满足更多需求：
@@ -755,3 +837,39 @@ some_stream.filter(...).slot_sharing_group("name")
 ```
 {{< /tab >}}
 {{< /tabs>}}
+
+## 名字和描述
+
+Flink里的算子和作业节点会有一个名字和一个描述。名字和描述。名字和描述都是用来介绍一个算子或者节点是在做什么操作，但是他们会被用在不同地方。
+
+名字会用在用户界面、线程名、日志、指标等场景。节点的名字会根据节点中算子的名字来构建。
+名字需要尽可能的简洁，避免对外部系统产生大的压力。
+
+描述主要用在执行计划展示，以及用户界面展示。节点的描述同样是根据节点中算子的描述来构建。
+描述可以包括详细的算子行为的信息，以便我们在运行时进行debug分析。
+
+{{< tabs namedescription>}}
+{{< tab "Java" >}}
+```java
+someStream.filter(...).name("filter").setDescription("x in (1, 2, 3, 4) and y > 1");
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+someStream.filter(...).name("filter").setDescription("x in (1, 2, 3, 4) and y > 1")
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+some_stream.filter(...).name("filter").set_description("x in (1, 2, 3, 4) and y > 1")
+```
+{{< /tab >}}
+{{< /tabs>}}
+
+节点的描述默认是按照一个多行的树形结构来构建的，用户可以通过把`pipeline.vertex-description-mode`设为`CASCADING`, 实现将描述改为老版本的单行递归模式。
+
+Flink SQL框架生成的算子默认会有一个由算子的类型以及id构成的名字，以及一个带有详细信息的描述。
+用户可以通过将`table.exec.simplify-operator-name-enabled`设为`false`，将名字改为和以前的版本一样的详细描述。
+
+当一个作业的拓扑很复杂时，用户可以把`pipeline.vertex-name-include-index-prefix`设为`true`，在节点的名字前增加一个拓扑序的前缀，这样就可以很容易根据指标以及日志的信息快速找到拓扑图中对应节点。
+

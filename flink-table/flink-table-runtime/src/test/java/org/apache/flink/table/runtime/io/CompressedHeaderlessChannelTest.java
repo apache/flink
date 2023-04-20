@@ -19,7 +19,6 @@
 package org.apache.flink.table.runtime.io;
 
 import org.apache.flink.runtime.io.compression.BlockCompressionFactory;
-import org.apache.flink.runtime.io.compression.Lz4BlockCompressionFactory;
 import org.apache.flink.runtime.io.disk.iomanager.BufferFileWriter;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -27,22 +26,34 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 
 import org.junit.After;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.util.Random;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link CompressedHeaderlessChannelReaderInputView} and {@link
  * CompressedHeaderlessChannelWriterOutputView}.
  */
+@RunWith(Parameterized.class)
 public class CompressedHeaderlessChannelTest {
     private static final int BUFFER_SIZE = 256;
 
     private IOManager ioManager;
 
-    private BlockCompressionFactory compressionFactory = new Lz4BlockCompressionFactory();
+    @Parameterized.Parameter public static BlockCompressionFactory compressionFactory;
+
+    @Parameterized.Parameters(name = "compressionFactory = {0}")
+    public static BlockCompressionFactory[] compressionFactory() {
+        return new BlockCompressionFactory[] {
+            BlockCompressionFactory.createBlockCompressionFactory("LZ4"),
+            BlockCompressionFactory.createBlockCompressionFactory("LZO"),
+            BlockCompressionFactory.createBlockCompressionFactory("ZSTD")
+        };
+    }
 
     public CompressedHeaderlessChannelTest() {
         ioManager = new IOManagerAsync();
@@ -74,7 +85,7 @@ public class CompressedHeaderlessChannelTest {
                             channel, ioManager, compressionFactory, BUFFER_SIZE, blockCount);
 
             for (int i = 0; i < testRounds; i++) {
-                assertEquals(i, inputView.readInt());
+                assertThat(inputView.readInt()).isEqualTo(i);
             }
             inputView.close();
         }

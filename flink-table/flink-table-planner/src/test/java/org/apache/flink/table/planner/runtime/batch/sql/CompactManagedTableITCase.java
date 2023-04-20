@@ -71,7 +71,7 @@ public class CompactManagedTableITCase extends BatchTestBase {
 
     @Override
     @Before
-    public void before() {
+    public void before() throws Exception {
         super.before();
         MANAGED_TABLES.put(tableIdentifier, new AtomicReference<>());
         referenceOfManagedTableFileEntries = new AtomicReference<>();
@@ -384,7 +384,7 @@ public class CompactManagedTableITCase extends BatchTestBase {
     }
 
     private LinkedHashMap<String, String> of(String... kvs) {
-        assert kvs != null && kvs.length % 2 == 0;
+        assertThat(kvs != null && kvs.length % 2 == 0).isTrue();
         LinkedHashMap<String, String> map = new LinkedHashMap<>();
         for (int i = 0; i < kvs.length - 1; i += 2) {
             map.put(kvs[i], kvs[i + 1]);

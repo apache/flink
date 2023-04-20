@@ -33,12 +33,14 @@ import org.apache.flink.state.api.input.operator.window.PassThroughReader;
 import org.apache.flink.state.api.input.operator.window.ProcessEvictingWindowReader;
 import org.apache.flink.state.api.input.operator.window.ReduceEvictingWindowReaderFunction;
 import org.apache.flink.state.api.runtime.MutableConfig;
-import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
+import org.apache.flink.state.api.runtime.metadata.SavepointMetadataV2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 
@@ -58,26 +60,25 @@ public class EvictingWindowSavepointReader<W extends Window> {
      * The savepoint metadata, which maintains the current set of existing / newly added operator
      * states.
      */
-    private final SavepointMetadata metadata;
+    private final SavepointMetadataV2 metadata;
 
     /**
      * The state backend that was previously used to write existing operator states in this
-     * savepoint. This is also the state backend that will be used when writing again this existing
-     * savepoint.
+     * savepoint. If null, the reader will use the state backend defined via the cluster
+     * configuration.
      */
-    private final StateBackend stateBackend;
+    @Nullable private final StateBackend stateBackend;
 
     /** The window serializer used to write the window operator. */
     private final TypeSerializer<W> windowSerializer;
 
     EvictingWindowSavepointReader(
             StreamExecutionEnvironment env,
-            SavepointMetadata metadata,
-            StateBackend stateBackend,
+            SavepointMetadataV2 metadata,
+            @Nullable StateBackend stateBackend,
             TypeSerializer<W> windowSerializer) {
         Preconditions.checkNotNull(env, "The execution environment must not be null");
         Preconditions.checkNotNull(metadata, "The savepoint metadata must not be null");
-        Preconditions.checkNotNull(stateBackend, "The state backend must not be null");
         Preconditions.checkNotNull(windowSerializer, "The window serializer must not be null");
 
         this.env = env;
@@ -249,7 +250,7 @@ public class EvictingWindowSavepointReader<W extends Window> {
             throws IOException {
         KeyedStateInputFormat<K, W, OUT> format =
                 new KeyedStateInputFormat<>(
-                        metadata.getOperatorState(uid),
+                        metadata.getOperatorState(OperatorIdentifier.forUid(uid)),
                         stateBackend,
                         MutableConfig.of(env.getConfiguration()),
                         operator);

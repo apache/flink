@@ -49,6 +49,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *     client to the target cluster.
  */
 @Internal
+@Deprecated
 public class AbstractJobClusterExecutor<
                 ClusterID, ClientFactory extends ClusterClientFactory<ClusterID>>
         implements PipelineExecutor {
@@ -67,7 +68,8 @@ public class AbstractJobClusterExecutor<
             @Nonnull final Configuration configuration,
             @Nonnull final ClassLoader userCodeClassloader)
             throws Exception {
-        final JobGraph jobGraph = PipelineExecutorUtils.getJobGraph(pipeline, configuration);
+        final JobGraph jobGraph =
+                PipelineExecutorUtils.getJobGraph(pipeline, configuration, userCodeClassloader);
 
         try (final ClusterDescriptor<ClusterID> clusterDescriptor =
                 clusterClientFactory.createClusterDescriptor(configuration)) {

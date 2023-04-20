@@ -34,7 +34,8 @@ public class StateChangelogOptions {
                     .defaultValue(Duration.ofMinutes(10))
                     .withDescription(
                             "Defines the interval in milliseconds to perform "
-                                    + "periodic materialization for state backend.");
+                                    + "periodic materialization for state backend. "
+                                    + "The periodic materialization will be disabled when the value is negative");
 
     @Documentation.Section(Documentation.Sections.STATE_BACKEND_CHANGELOG)
     public static final ConfigOption<Integer> MATERIALIZATION_MAX_FAILURES_ALLOWED =

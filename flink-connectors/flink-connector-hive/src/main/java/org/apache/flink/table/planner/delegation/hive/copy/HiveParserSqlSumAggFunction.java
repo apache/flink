@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.delegation.hive.copy;
 
+import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -35,6 +36,7 @@ import org.apache.calcite.sql.type.SqlOperandTypeInference;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.ImmutableIntList;
+import org.apache.calcite.util.Optionality;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -61,11 +63,15 @@ public class HiveParserSqlSumAggFunction extends SqlAggFunction
             SqlOperandTypeChecker operandTypeChecker) {
         super(
                 "sum",
+                null,
                 SqlKind.SUM,
                 returnTypeInference,
                 operandTypeInference,
                 operandTypeChecker,
-                SqlFunctionCategory.NUMERIC);
+                SqlFunctionCategory.NUMERIC,
+                false,
+                false,
+                Optionality.FORBIDDEN);
         this.returnTypeInference = returnTypeInference;
         this.operandTypeChecker = operandTypeChecker;
         this.operandTypeInference = operandTypeInference;
@@ -100,8 +106,12 @@ public class HiveParserSqlSumAggFunction extends SqlAggFunction
                             operandTypeInference,
                             operandTypeChecker),
                     false,
+                    false,
+                    false,
                     ImmutableIntList.of(),
                     -1,
+                    null,
+                    RelCollations.EMPTY,
                     countRetType,
                     "count");
         }
@@ -145,8 +155,12 @@ public class HiveParserSqlSumAggFunction extends SqlAggFunction
                             operandTypeInference,
                             operandTypeChecker),
                     false,
+                    false,
+                    false,
                     Collections.singletonList(ordinal),
                     -1,
+                    null,
+                    RelCollations.EMPTY,
                     aggregateCall.type,
                     aggregateCall.name);
         }

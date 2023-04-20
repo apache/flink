@@ -3,7 +3,7 @@ title: "SET 语句"
 weight: 14
 type: docs
 aliases:
-  - /dev/table/sql/set.html
+  - /zh/dev/table/sql/set.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

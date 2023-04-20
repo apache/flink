@@ -15,23 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.catalog
 
-import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.api.{DataTypes, EnvironmentSettings, TableEnvironment}
+import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.catalog.{Column, ResolvedSchema}
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/**
-  * Unit tests around catalog table and DDL.
-  */
+/** Unit tests around catalog table and DDL. */
 class CatalogTableTest {
 
-  val tEnv: TableEnvironment = TableEnvironmentImpl.create(
-    EnvironmentSettings.newInstance().inStreamingMode().build())
+  val tEnv: TableEnvironment =
+    TableEnvironmentImpl.create(EnvironmentSettings.newInstance().inStreamingMode().build())
 
   @Test
   def testDDLSchema(): Unit = {

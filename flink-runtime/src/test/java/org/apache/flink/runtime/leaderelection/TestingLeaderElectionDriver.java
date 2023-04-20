@@ -22,6 +22,7 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 
 import javax.annotation.Nullable;
 
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -71,7 +72,7 @@ public class TestingLeaderElectionDriver implements LeaderElectionDriver {
     public void isLeader() {
         synchronized (lock) {
             isLeader.set(true);
-            leaderElectionEventHandler.onGrantLeadership();
+            leaderElectionEventHandler.onGrantLeadership(UUID.randomUUID());
         }
     }
 
@@ -99,8 +100,7 @@ public class TestingLeaderElectionDriver implements LeaderElectionDriver {
         @Override
         public LeaderElectionDriver createLeaderElectionDriver(
                 LeaderElectionEventHandler leaderEventHandler,
-                FatalErrorHandler fatalErrorHandler,
-                String leaderContenderDescription) {
+                FatalErrorHandler fatalErrorHandler) {
             currentLeaderDriver =
                     new TestingLeaderElectionDriver(leaderEventHandler, fatalErrorHandler);
             return currentLeaderDriver;

@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator.CheckpointTriggerRequest;
 import org.apache.flink.util.clock.ManualClock;
 
@@ -311,7 +312,9 @@ public class CheckpointRequestDeciderTest {
 
     private static CheckpointTriggerRequest savepointRequest(boolean force, boolean periodic) {
         return new CheckpointTriggerRequest(
-                CheckpointProperties.forSavepoint(force), null, periodic);
+                CheckpointProperties.forSavepoint(force, SavepointFormatType.CANONICAL),
+                null,
+                periodic);
     }
 
     private static CheckpointTriggerRequest checkpointRequest(boolean periodic) {

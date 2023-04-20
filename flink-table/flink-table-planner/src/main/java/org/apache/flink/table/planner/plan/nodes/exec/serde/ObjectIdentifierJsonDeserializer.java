@@ -18,39 +18,54 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 
 import java.io.IOException;
 
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.ObjectIdentifierJsonSerializer.FIELD_NAME_CATALOG_NAME;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.ObjectIdentifierJsonSerializer.FIELD_NAME_DATABASE_NAME;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.ObjectIdentifierJsonSerializer.FIELD_NAME_TABLE_NAME;
-
-/** JSON deserializer for {@link ObjectIdentifier}. */
-public class ObjectIdentifierJsonDeserializer extends StdDeserializer<ObjectIdentifier> {
+/**
+ * JSON deserializer for {@link ObjectIdentifier}.
+ *
+ * @see ObjectIdentifierJsonSerializer for the reverse operation
+ */
+@Internal
+final class ObjectIdentifierJsonDeserializer extends StdDeserializer<ObjectIdentifier> {
     private static final long serialVersionUID = 1L;
 
-    public ObjectIdentifierJsonDeserializer() {
+    ObjectIdentifierJsonDeserializer() {
         super(ObjectIdentifier.class);
     }
 
     @Override
     public ObjectIdentifier deserialize(JsonParser jsonParser, DeserializationContext ctx)
-            throws IOException, JsonProcessingException {
-        final JsonNode identifierNode = jsonParser.readValueAsTree();
-        return deserialize(identifierNode);
+            throws IOException {
+        return deserialize(jsonParser.getValueAsString(), SerdeContext.get(ctx));
     }
 
-    public static ObjectIdentifier deserialize(JsonNode identifierNode) {
+    static ObjectIdentifier deserialize(String identifierStr, SerdeContext ctx) {
+        final UnresolvedIdentifier unresolvedIdentifier =
+                ctx.getParser().parseIdentifier(identifierStr);
+
         return ObjectIdentifier.of(
-                identifierNode.get(FIELD_NAME_CATALOG_NAME).asText(),
-                identifierNode.get(FIELD_NAME_DATABASE_NAME).asText(),
-                identifierNode.get(FIELD_NAME_TABLE_NAME).asText());
+                unresolvedIdentifier
+                        .getCatalogName()
+                        .orElseThrow(() -> incompleteIdentifier(identifierStr, "catalogName")),
+                unresolvedIdentifier
+                        .getDatabaseName()
+                        .orElseThrow(() -> incompleteIdentifier(identifierStr, "databaseName")),
+                unresolvedIdentifier.getObjectName());
+    }
+
+    static ValidationException incompleteIdentifier(String identifierString, String part) {
+        return new ValidationException(
+                String.format(
+                        "The serialized ObjectIdentifier '%s' is incomplete, as it doesn't contain the '%s' part.",
+                        identifierString, part));
     }
 }

@@ -15,73 +15,67 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.stream.sql
 
-import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc5
+import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.{Before, Test}
 
-/**
- * Tests for watermark push down.
- */
+/** Tests for watermark push down. */
 class SourceWatermarkTest extends TableTestBase {
 
   private val util = streamTestUtil()
 
   @Before
   def setup(): Unit = {
-    util.tableEnv.executeSql(
-      s"""
-         | CREATE TABLE VirtualTable (
-         |   a INT,
-         |   b BIGINT,
-         |   c TIMESTAMP(3),
-         |   d AS c + INTERVAL '5' SECOND,
-         |   WATERMARK FOR d AS d - INTERVAL '5' SECOND
-         | ) WITH (
-         |   'connector' = 'values',
-         |   'enable-watermark-push-down' = 'true',
-         |   'bounded' = 'false',
-         |   'disable-lookup' = 'true'
-         | )
+    util.tableEnv.executeSql(s"""
+                                | CREATE TABLE VirtualTable (
+                                |   a INT,
+                                |   b BIGINT,
+                                |   c TIMESTAMP(3),
+                                |   d AS c + INTERVAL '5' SECOND,
+                                |   WATERMARK FOR d AS d - INTERVAL '5' SECOND
+                                | ) WITH (
+                                |   'connector' = 'values',
+                                |   'enable-watermark-push-down' = 'true',
+                                |   'bounded' = 'false',
+                                |   'disable-lookup' = 'true'
+                                | )
          """.stripMargin)
-    
-    util.tableEnv.executeSql(
-      s"""
-         | CREATE TABLE NestedTable (
-         |   a INT,
-         |   b BIGINT,
-         |   c ROW<name STRING, d ROW<e STRING, f TIMESTAMP(3)>>,
-         |   g AS c.d.f,
-         |   WATERMARK FOR g AS g - INTERVAL '5' SECOND
-         | ) WITH (
-         |   'connector' = 'values',
-         |   'enable-watermark-push-down' = 'true',
-         |   'nested-projection-supported' = 'true',
-         |   'bounded' = 'false',
-         |   'disable-lookup' = 'true'
-         | )
+
+    util.tableEnv.executeSql(s"""
+                                | CREATE TABLE NestedTable (
+                                |   a INT,
+                                |   b BIGINT,
+                                |   c ROW<name STRING, d ROW<e STRING, f TIMESTAMP(3)>>,
+                                |   g AS c.d.f,
+                                |   WATERMARK FOR g AS g - INTERVAL '5' SECOND
+                                | ) WITH (
+                                |   'connector' = 'values',
+                                |   'enable-watermark-push-down' = 'true',
+                                |   'nested-projection-supported' = 'true',
+                                |   'bounded' = 'false',
+                                |   'disable-lookup' = 'true'
+                                | )
          """.stripMargin)
 
     JavaFunc5.closeCalled = false
     JavaFunc5.openCalled = false
     util.tableEnv.createTemporarySystemFunction("func", new JavaFunc5)
-    util.tableEnv.executeSql(
-      s"""
-         | CREATE Table UdfTable (
-         |   a INT,
-         |   b BIGINT,
-         |   c timestamp(3),
-         |   d as func(c, a),
-         |   WATERMARK FOR c as func(func(d, a), a)
-         | ) with (
-         |   'connector' = 'values',
-         |   'bounded' = 'false',
-         |   'enable-watermark-push-down' = 'true',
-         |   'disable-lookup' = 'true'
-         | )
+    util.tableEnv.executeSql(s"""
+                                | CREATE Table UdfTable (
+                                |   a INT,
+                                |   b BIGINT,
+                                |   c timestamp(3),
+                                |   d as func(c, a),
+                                |   WATERMARK FOR c as func(func(d, a), a)
+                                | ) with (
+                                |   'connector' = 'values',
+                                |   'bounded' = 'false',
+                                |   'enable-watermark-push-down' = 'true',
+                                |   'disable-lookup' = 'true'
+                                | )
          """.stripMargin)
 
     util.tableEnv.executeSql(
@@ -102,37 +96,35 @@ class SourceWatermarkTest extends TableTestBase {
          | )
          """.stripMargin)
 
-    util.tableEnv.executeSql(
-      s"""
-         | CREATE TABLE MyLtzTable(
-         |   a INT,
-         |   b BIGINT,
-         |   c TIMESTAMP(3),
-         |   originTime BIGINT METADATA,
-         |   rowtime AS TO_TIMESTAMP_LTZ(originTime, 3),
-         |   WATERMARK FOR rowtime AS rowtime
-         | ) WITH (
-         |   'connector' = 'values',
-         |   'enable-watermark-push-down' = 'true',
-         |   'bounded' = 'false',
-         |   'disable-lookup' = 'true',
-         |   'readable-metadata' = 'originTime:BIGINT'
-         | )
+    util.tableEnv.executeSql(s"""
+                                | CREATE TABLE MyLtzTable(
+                                |   a INT,
+                                |   b BIGINT,
+                                |   c TIMESTAMP(3),
+                                |   originTime BIGINT METADATA,
+                                |   rowtime AS TO_TIMESTAMP_LTZ(originTime, 3),
+                                |   WATERMARK FOR rowtime AS rowtime
+                                | ) WITH (
+                                |   'connector' = 'values',
+                                |   'enable-watermark-push-down' = 'true',
+                                |   'bounded' = 'false',
+                                |   'disable-lookup' = 'true',
+                                |   'readable-metadata' = 'originTime:BIGINT'
+                                | )
          """.stripMargin)
 
-    util.tableEnv.executeSql(
-      s"""
-         | CREATE TABLE timeTestTable(
-         |   a INT,
-         |   b BIGINT,
-         |   rowtime AS TO_TIMESTAMP_LTZ(b, 0),
-         |   WATERMARK FOR rowtime AS rowtime
-         | ) WITH (
-         |   'connector' = 'values',
-         |   'enable-watermark-push-down' = 'true',
-         |   'bounded' = 'false',
-         |   'disable-lookup' = 'true'
-         | )
+    util.tableEnv.executeSql(s"""
+                                | CREATE TABLE timeTestTable(
+                                |   a INT,
+                                |   b BIGINT,
+                                |   rowtime AS TO_TIMESTAMP_LTZ(b, 0),
+                                |   WATERMARK FOR rowtime AS rowtime
+                                | ) WITH (
+                                |   'connector' = 'values',
+                                |   'enable-watermark-push-down' = 'true',
+                                |   'bounded' = 'false',
+                                |   'disable-lookup' = 'true'
+                                | )
          """.stripMargin)
   }
 

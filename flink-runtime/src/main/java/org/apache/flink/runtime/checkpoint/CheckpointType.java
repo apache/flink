@@ -18,75 +18,32 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.annotation.Internal;
+
+import java.util.Objects;
+
 /** The type of checkpoint to perform. */
-public enum CheckpointType {
+@Internal
+public final class CheckpointType implements SnapshotType {
 
     /** A checkpoint, full or incremental. */
-    CHECKPOINT(
-            false, PostCheckpointAction.NONE, "Checkpoint", SharingFilesStrategy.FORWARD_BACKWARD),
+    public static final CheckpointType CHECKPOINT =
+            new CheckpointType("Checkpoint", SharingFilesStrategy.FORWARD_BACKWARD);
 
-    /** A regular savepoint. */
-    SAVEPOINT(true, PostCheckpointAction.NONE, "Savepoint", SharingFilesStrategy.NO_SHARING),
-
-    /** A savepoint taken while suspending the job. */
-    SAVEPOINT_SUSPEND(
-            true,
-            PostCheckpointAction.SUSPEND,
-            "Suspend Savepoint",
-            SharingFilesStrategy.NO_SHARING),
-
-    /** A savepoint taken while terminating the job. */
-    SAVEPOINT_TERMINATE(
-            true,
-            PostCheckpointAction.TERMINATE,
-            "Terminate Savepoint",
-            SharingFilesStrategy.NO_SHARING),
-
-    FULL_CHECKPOINT(
-            false, PostCheckpointAction.NONE, "Full Checkpoint", SharingFilesStrategy.FORWARD);
-
-    private final boolean isSavepoint;
-
-    private final PostCheckpointAction postCheckpointAction;
+    public static final CheckpointType FULL_CHECKPOINT =
+            new CheckpointType("Full Checkpoint", SharingFilesStrategy.FORWARD);
 
     private final String name;
 
     private final SharingFilesStrategy sharingFilesStrategy;
 
-    CheckpointType(
-            final boolean isSavepoint,
-            final PostCheckpointAction postCheckpointAction,
-            final String name,
-            SharingFilesStrategy sharingFilesStrategy) {
-
-        this.isSavepoint = isSavepoint;
-        this.postCheckpointAction = postCheckpointAction;
+    private CheckpointType(final String name, SharingFilesStrategy sharingFilesStrategy) {
         this.name = name;
         this.sharingFilesStrategy = sharingFilesStrategy;
     }
 
     public boolean isSavepoint() {
-        return isSavepoint;
-    }
-
-    public boolean isSynchronous() {
-        return postCheckpointAction != PostCheckpointAction.NONE;
-    }
-
-    public PostCheckpointAction getPostCheckpointAction() {
-        return postCheckpointAction;
-    }
-
-    public boolean shouldAdvanceToEndOfTime() {
-        return shouldDrain();
-    }
-
-    public boolean shouldDrain() {
-        return getPostCheckpointAction() == PostCheckpointAction.TERMINATE;
-    }
-
-    public boolean shouldIgnoreEndOfInput() {
-        return getPostCheckpointAction() == PostCheckpointAction.SUSPEND;
+        return false;
     }
 
     public String getName() {
@@ -97,22 +54,31 @@ public enum CheckpointType {
         return sharingFilesStrategy;
     }
 
-    /** What's the intended action after the checkpoint (relevant for stopping with savepoint). */
-    public enum PostCheckpointAction {
-        NONE,
-        SUSPEND,
-        TERMINATE
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        CheckpointType type = (CheckpointType) o;
+        return name.equals(type.name) && sharingFilesStrategy == type.sharingFilesStrategy;
     }
 
-    /** Defines what files can be shared across snapshots. */
-    public enum SharingFilesStrategy {
-        // current snapshot can share files with previous snapshots.
-        // new snapshots can use files of the current snapshot
-        FORWARD_BACKWARD,
-        // later snapshots can share files with the current snapshot
-        FORWARD,
-        // current snapshot can not use files of older ones, future snapshots can
-        // not use files of the current one.
-        NO_SHARING;
+    @Override
+    public int hashCode() {
+        return Objects.hash(name, sharingFilesStrategy);
+    }
+
+    @Override
+    public String toString() {
+        return "CheckpointType{"
+                + "name='"
+                + name
+                + '\''
+                + ", sharingFilesStrategy="
+                + sharingFilesStrategy
+                + '}';
     }
 }

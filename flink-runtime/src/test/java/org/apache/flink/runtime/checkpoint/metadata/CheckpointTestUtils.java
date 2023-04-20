@@ -247,10 +247,15 @@ public class CheckpointTestUtils {
 
     public static IncrementalRemoteKeyedStateHandle createDummyIncrementalKeyedStateHandle(
             Random rnd) {
+        return createDummyIncrementalKeyedStateHandle(42L, rnd);
+    }
+
+    public static IncrementalRemoteKeyedStateHandle createDummyIncrementalKeyedStateHandle(
+            long checkpointId, Random rnd) {
         return new IncrementalRemoteKeyedStateHandle(
                 createRandomUUID(rnd),
                 new KeyGroupRange(1, 1),
-                42L,
+                checkpointId,
                 createRandomStateHandleMap(rnd),
                 createRandomStateHandleMap(rnd),
                 createDummyStreamStateHandle(rnd, null));

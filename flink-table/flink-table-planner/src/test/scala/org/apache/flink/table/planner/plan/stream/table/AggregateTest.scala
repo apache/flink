@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.stream.table
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
@@ -71,7 +70,7 @@ class AggregateTest extends TableTestBase {
     val table = util.addTableSource[(Long, Int, String)]('a, 'b, 'c)
 
     val resultTable = table
-      .select('a, 4 as 'four, 'b)
+      .select('a, 4.as('four), 'b)
       .groupBy('four, 'a)
       .select('four, 'b.sum)
 
@@ -84,7 +83,7 @@ class AggregateTest extends TableTestBase {
     val table = util.addTableSource[(Long, Int, String)]('a, 'b, 'c)
 
     val resultTable = table
-      .select('b, 4 as 'four, 'a)
+      .select('b, 4.as('four), 'a)
       .groupBy('b, 'four)
       .select('four, 'a.sum)
 
@@ -97,7 +96,7 @@ class AggregateTest extends TableTestBase {
     val table = util.addTableSource[(Long, Int, String)]('a, 'b, 'c)
 
     val resultTable = table
-      .select('a as 'a, 'b % 3 as 'd, 'c as 'c)
+      .select('a.as('a), ('b % 3).as('d), 'c.as('c))
       .groupBy('d)
       .select('c.min, 'a.avg)
 
@@ -132,10 +131,9 @@ class AggregateTest extends TableTestBase {
   @Test
   def testDistinctAggregateOnTumbleWindow(): Unit = {
     val util = streamTestUtil()
-    val table = util.addDataStream[(Int, Long, String)](
-      "MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
+    val table = util.addDataStream[(Int, Long, String)]("MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
     val result = table
-      .window(Tumble over 15.minute on 'rowtime as 'w)
+      .window(Tumble.over(15.minute).on('rowtime).as('w))
       .groupBy('w)
       .select('a.count.distinct, 'a.sum)
 
@@ -145,10 +143,9 @@ class AggregateTest extends TableTestBase {
   @Test
   def testMultiDistinctAggregateSameFieldOnHopWindow(): Unit = {
     val util = streamTestUtil()
-    val table = util.addDataStream[(Int, Long, String)](
-      "MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
+    val table = util.addDataStream[(Int, Long, String)]("MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
     val result = table
-      .window(Slide over 1.hour every 15.minute on 'rowtime as 'w)
+      .window(Slide.over(1.hour).every(15.minute).on('rowtime).as('w))
       .groupBy('w)
       .select('a.count.distinct, 'a.sum.distinct, 'a.max.distinct)
 
@@ -158,10 +155,9 @@ class AggregateTest extends TableTestBase {
   @Test
   def testDistinctAggregateWithGroupingOnSessionWindow(): Unit = {
     val util = streamTestUtil()
-    val table = util.addDataStream[(Int, Long, String)](
-      "MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
+    val table = util.addDataStream[(Int, Long, String)]("MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
     val result = table
-      .window(Session withGap 15.minute on 'rowtime as 'w)
+      .window(Session.withGap(15.minute).on('rowtime).as('w))
       .groupBy('a, 'w)
       .select('a, 'a.count, 'c.count.distinct)
 
@@ -171,8 +167,7 @@ class AggregateTest extends TableTestBase {
   @Test
   def testSimpleAggregate(): Unit = {
     val util = streamTestUtil()
-    val table = util.addTableSource[(Int, Long, String)](
-      "MyTable", 'a, 'b, 'c)
+    val table = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
     val testAgg = new CountMinMax
     val resultTable = table
@@ -186,8 +181,7 @@ class AggregateTest extends TableTestBase {
   @Test
   def testSelectStar(): Unit = {
     val util = streamTestUtil()
-    val table = util.addTableSource[(Int, Long, String)](
-      "MyTable", 'a, 'b, 'c)
+    val table = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
     val testAgg = new CountMinMax
     val resultTable = table
@@ -201,8 +195,7 @@ class AggregateTest extends TableTestBase {
   @Test
   def testAggregateWithScalarResult(): Unit = {
     val util = streamTestUtil()
-    val table = util.addTableSource[(Int, Long, String)](
-      "MyTable", 'a, 'b, 'c)
+    val table = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
     val resultTable = table
       .groupBy('b)
@@ -215,13 +208,12 @@ class AggregateTest extends TableTestBase {
   @Test
   def testAggregateWithAlias(): Unit = {
     val util = streamTestUtil()
-    val table = util.addTableSource[(Int, Long, String)](
-      "MyTable", 'a, 'b, 'c)
+    val table = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
     val testAgg = new CountMinMax
     val resultTable = table
       .groupBy('b)
-      .aggregate(testAgg('a) as ('x, 'y, 'z))
+      .aggregate(testAgg('a).as('x, 'y, 'z))
       .select('b, 'x, 'y)
 
     util.verifyExecPlan(resultTable)

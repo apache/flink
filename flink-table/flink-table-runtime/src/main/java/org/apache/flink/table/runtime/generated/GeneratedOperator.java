@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.generated;
 
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 
 /**
@@ -39,7 +39,7 @@ public class GeneratedOperator<C extends StreamOperator<?>> extends GeneratedCla
      * @param conf configuration when generating StreamOperator.
      */
     public GeneratedOperator(
-            String className, String code, Object[] references, Configuration conf) {
+            String className, String code, Object[] references, ReadableConfig conf) {
         super(className, code, references, conf);
     }
 }

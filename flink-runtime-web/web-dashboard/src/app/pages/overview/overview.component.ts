@@ -17,24 +17,33 @@
  */
 
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit } from '@angular/core';
+import { Router } from '@angular/router';
 import { Observable, Subject } from 'rxjs';
 import { mergeMap, share, takeUntil } from 'rxjs/operators';
 
-import { JobsItem } from 'interfaces';
-import { JobService, StatusService } from 'services';
+import { JobListComponent } from '@flink-runtime-web/components/job-list/job-list.component';
+import { JobsItem } from '@flink-runtime-web/interfaces';
+import { OverviewStatisticComponent } from '@flink-runtime-web/pages/overview/statistic/overview-statistic.component';
+import { JobService, StatusService } from '@flink-runtime-web/services';
 
 @Component({
   selector: 'flink-overview',
   templateUrl: './overview.component.html',
   styleUrls: ['./overview.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [OverviewStatisticComponent, JobListComponent],
+  standalone: true
 })
 export class OverviewComponent implements OnInit, OnDestroy {
   public jobData$: Observable<JobsItem[]>;
 
   private readonly destroy$ = new Subject<void>();
 
-  constructor(private readonly statusService: StatusService, private readonly jobService: JobService) {}
+  constructor(
+    private readonly statusService: StatusService,
+    private readonly jobService: JobService,
+    private router: Router
+  ) {}
 
   public ngOnInit(): void {
     this.jobData$ = this.statusService.refresh$.pipe(
@@ -47,5 +56,9 @@ export class OverviewComponent implements OnInit, OnDestroy {
   public ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  public navigateToJob(commands: string[]): void {
+    this.router.navigate(commands).then();
   }
 }

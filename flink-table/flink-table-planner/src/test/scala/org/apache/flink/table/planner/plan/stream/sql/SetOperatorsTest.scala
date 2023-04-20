@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -118,7 +117,8 @@ class SetOperatorsTest extends TableTestBase {
   @Test
   def testUnionAnyType(): Unit = {
     val util = batchTestUtil()
-    util.addTableSource("A",
+    util.addTableSource(
+      "A",
       Array[TypeInformation[_]](
         new GenericTypeInfo(classOf[NonPojo]),
         new GenericTypeInfo(classOf[NonPojo])),

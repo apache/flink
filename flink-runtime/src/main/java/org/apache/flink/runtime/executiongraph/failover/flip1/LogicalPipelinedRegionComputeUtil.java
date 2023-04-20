@@ -27,8 +27,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.apache.flink.runtime.executiongraph.VertexGroupComputeUtil.uniqueVertexGroups;
 import static org.apache.flink.runtime.executiongraph.failover.flip1.PipelinedRegionComputeUtil.buildRawRegions;
-import static org.apache.flink.runtime.executiongraph.failover.flip1.PipelinedRegionComputeUtil.uniqueRegions;
 
 /** Utils for computing {@link LogicalPipelinedRegion}s. */
 public final class LogicalPipelinedRegionComputeUtil {
@@ -39,22 +39,21 @@ public final class LogicalPipelinedRegionComputeUtil {
         final Map<LogicalVertex, Set<LogicalVertex>> vertexToRegion =
                 buildRawRegions(
                         topologicallySortedVertices,
-                        LogicalPipelinedRegionComputeUtil::getNonReconnectableConsumedResults);
+                        LogicalPipelinedRegionComputeUtil::getMustBePipelinedConsumedResults);
 
         // Since LogicalTopology is a DAG, there is no need to do cycle detection nor to merge
         // regions on cycles.
-        return uniqueRegions(vertexToRegion);
+        return uniqueVertexGroups(vertexToRegion);
     }
 
-    private static Iterable<LogicalResult> getNonReconnectableConsumedResults(
-            LogicalVertex vertex) {
-        List<LogicalResult> nonReconnectableConsumedResults = new ArrayList<>();
+    private static Iterable<LogicalResult> getMustBePipelinedConsumedResults(LogicalVertex vertex) {
+        List<LogicalResult> mustBePipelinedConsumedResults = new ArrayList<>();
         for (LogicalResult consumedResult : vertex.getConsumedResults()) {
-            if (!consumedResult.getResultType().isReconnectable()) {
-                nonReconnectableConsumedResults.add(consumedResult);
+            if (consumedResult.getResultType().mustBePipelinedConsumed()) {
+                mustBePipelinedConsumedResults.add(consumedResult);
             }
         }
-        return nonReconnectableConsumedResults;
+        return mustBePipelinedConsumedResults;
     }
 
     private LogicalPipelinedRegionComputeUtil() {}

@@ -24,8 +24,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.15-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
@@ -101,7 +100,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-tests</artifactId>
+			<artifactId>flink-scala_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
@@ -133,6 +132,23 @@ under the License.
 						</configuration>
 					</execution>
 				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>com.diffplug.spotless</groupId>
+				<artifactId>spotless-maven-plugin</artifactId>
+				<configuration>
+					<scala>
+						<scalafmt>
+							<version>${spotless.scalafmt.version}</version>
+							<file>${project.basedir}/../.scalafmt.conf</file>
+						</scalafmt>
+						<licenseHeader>
+							<content>${spotless.license.header}</content>
+							<delimiter>${spotless.delimiter}</delimiter>
+						</licenseHeader>
+					</scala>
+				</configuration>
 			</plugin>
 
 			<!-- Scala Compiler -->
@@ -204,12 +220,13 @@ under the License.
 				</configuration>
 			</plugin>
 
-			<!-- Adding scala source directories to build path -->
+			<!-- Adding scala source directories to build path
+			 	 This is required for the source jar -->
 			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>build-helper-maven-plugin</artifactId>
 				<executions>
-					<!-- Add src/main/scala to eclipse build path -->
+					<!-- Add src/main/scala to build path -->
 					<execution>
 						<id>add-source</id>
 						<phase>generate-sources</phase>
@@ -222,7 +239,7 @@ under the License.
 							</sources>
 						</configuration>
 					</execution>
-					<!-- Add src/test/scala to eclipse build path -->
+					<!-- Add src/test/scala to build path -->
 					<execution>
 						<id>add-test-source</id>
 						<phase>generate-test-sources</phase>
@@ -238,18 +255,8 @@ under the License.
 				</executions>
 			</plugin>
 
-			<!-- Scala Code Style, most of the configuration done via plugin management -->
 			<plugin>
-				<groupId>org.scalastyle</groupId>
-				<artifactId>scalastyle-maven-plugin</artifactId>
-				<configuration>
-					<configLocation>${project.basedir}/../tools/maven/scalastyle-config.xml</configLocation>
-				</configuration>
-			</plugin>
-
-			<!-- activate API compatibility checks -->
-			<plugin>
-				<groupId>com.github.siom79.japicmp</groupId>
+				<groupId>io.github.zentol.japicmp</groupId>
 				<artifactId>japicmp-maven-plugin</artifactId>
 				<configuration>
 					<parameter>
@@ -262,38 +269,9 @@ under the License.
 							<exclude>org.apache.flink.streaming.api.scala.DataStream#iterate\$default\$3()</exclude>
 							<exclude>org.apache.flink.streaming.api.scala.DataStream#assignTimestamps(org.apache.flink.streaming.api.functions.TimestampExtractor)</exclude>
 							<exclude>org.apache.flink.streaming.api.scala.ConnectedStreams#keyBy(scala.Function1,scala.Function1,org.apache.flink.api.common.typeinfo.TypeInformation,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
-
-							<!-- DataStream#fold was removed in 1.12 -->
-							<exlcude>org.apache.flink.streaming.api.scala.AllWindowedStream#apply(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.streaming.api.scala.function.AllWindowFunction,org.apache.flink.api.common.typeinfo.TypeInformation)</exlcude>
-							<exclude>org.apache.flink.streaming.api.scala.AllWindowedStream#apply(java.lang.Object,scala.Function2,scala.Function3,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
-							<exclude>org.apache.flink.streaming.api.scala.AllWindowedStream#fold(java.lang.Object,scala.Function2,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
-							<exclude>org.apache.flink.streaming.api.scala.AllWindowedStream#fold(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.streaming.api.scala.function.AllWindowFunction,org.apache.flink.api.common.typeinfo.TypeInformation,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
-							<exclude>org.apache.flink.streaming.api.scala.AllWindowedStream#fold(java.lang.Object,scala.Function2,scala.Function3,org.apache.flink.api.common.typeinfo.TypeInformation,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
-							<exclude>org.apache.flink.streaming.api.scala.KeyedStream#fold(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
-							<exclude>org.apache.flink.streaming.api.scala.KeyedStream#fold(java.lang.Object,scala.Function2,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
-							<exclude>org.apache.flink.streaming.api.scala.WindowedStream#apply(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.streaming.api.scala.function.WindowFunction,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
-							<exclude>org.apache.flink.streaming.api.scala.WindowedStream#apply(java.lang.Object,scala.Function2,scala.Function4,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
-							<exclude>org.apache.flink.streaming.api.scala.WindowedStream#fold(java.lang.Object,scala.Function2,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
-							<exclude>org.apache.flink.streaming.api.scala.WindowedStream#fold(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.streaming.api.scala.function.WindowFunction,org.apache.flink.api.common.typeinfo.TypeInformation,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
-							<exclude>org.apache.flink.streaming.api.scala.WindowedStream#fold(java.lang.Object,scala.Function2,scala.Function4,org.apache.flink.api.common.typeinfo.TypeInformation,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
-							<exclude>org.apache.flink.streaming.api.scala.AllWindowedStream#fold(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
-							<exclude>org.apache.flink.streaming.api.scala.WindowedStream#fold(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
-
-							<!-- DataStream#split was removed in 1.12 -->
-							<exclude>org.apache.flink.streaming.api.scala.DataStream#split(org.apache.flink.streaming.api.collector.selector.OutputSelector)</exclude>
-							<exclude>org.apache.flink.streaming.api.scala.DataStream#split(scala.Function1)</exclude>
-							<exclude>org.apache.flink.streaming.api.scala.SplitStream</exclude>
 						</excludes>
 					</parameter>
 				</configuration>
-				<executions>
-					<execution>
-						<phase>verify</phase>
-						<goals>
-							<goal>cmp</goal>
-						</goals>
-					</execution>
-				</executions>
 			</plugin>
 
 			<!-- Generate the test-jar -->

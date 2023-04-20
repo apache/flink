@@ -2,7 +2,6 @@
 title: "REST API"
 weight: 7
 type: docs
-bookToc: false
 aliases:
   - /ops/rest_api.html
   - /internals/monitoring_rest_api.html
@@ -73,9 +72,18 @@ This allow you to safely* retry such operations without triggering multiple save
 The retry is only safe until the [async operation store duration]({{< ref "docs/deployment/config#rest-async-store-duration" >}}) has elapsed.
 {{</ hint >}}
 
+### JobManager
+
+[OpenAPI specification]({{< ref_static "generated/rest_v1_dispatcher.yml" >}})
+
+{{< hint warning >}}
+The OpenAPI specification is still experimental.
+{{< /hint >}}
+
+#### API reference
+
 {{< tabs "f00ed142-b05f-44f0-bafc-799080c1d40d" >}}
 {{< tab "v1" >}}
-#### JobManager
 
 {{< generated/rest_v1_dispatcher >}}
 

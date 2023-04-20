@@ -25,6 +25,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.NullType;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
@@ -76,6 +77,14 @@ public class CastRuleProvider {
                 .addRule(StringToTimeCastRule.INSTANCE)
                 .addRule(StringToTimestampCastRule.INSTANCE)
                 .addRule(StringToBinaryCastRule.INSTANCE)
+                // Date/Time/Timestamp rules
+                .addRule(TimestampToTimestampCastRule.INSTANCE)
+                .addRule(TimestampToDateCastRule.INSTANCE)
+                .addRule(TimestampToTimeCastRule.INSTANCE)
+                .addRule(DateToTimestampCastRule.INSTANCE)
+                .addRule(TimeToTimestampCastRule.INSTANCE)
+                .addRule(NumericToTimestampCastRule.INSTANCE)
+                .addRule(TimestampToNumericCastRule.INSTANCE)
                 // To binary rules
                 .addRule(BinaryToBinaryCastRule.INSTANCE)
                 .addRule(RawToBinaryCastRule.INSTANCE)
@@ -105,6 +114,16 @@ public class CastRuleProvider {
      */
     public static boolean exists(LogicalType inputType, LogicalType targetType) {
         return resolve(inputType, targetType) != null;
+    }
+
+    /**
+     * Resolves the rule and returns the result of {@link CastRule#canFail(LogicalType,
+     * LogicalType)}. Fails with {@link NullPointerException} if the rule cannot be resolved.
+     */
+    public static boolean canFail(LogicalType inputType, LogicalType targetType) {
+        return Preconditions.checkNotNull(
+                        resolve(inputType, targetType), "Cast rule cannot be resolved")
+                .canFail(inputType, targetType);
     }
 
     /**
@@ -147,12 +166,35 @@ public class CastRuleProvider {
     }
 
     /**
+     * Create a {@link CastExecutor} and execute the cast on the provided {@code value}. Fails with
+     * {@link IllegalArgumentException} if the rule cannot be resolved, or with an exception from
+     * the {@link CastExecutor} itself if the rule can fail.
+     */
+    @SuppressWarnings("unchecked")
+    public static @Nullable Object cast(
+            CastRule.Context context,
+            LogicalType inputLogicalType,
+            LogicalType targetLogicalType,
+            Object value) {
+        CastExecutor<Object, Object> castExecutor =
+                (CastExecutor<Object, Object>)
+                        CastRuleProvider.create(context, inputLogicalType, targetLogicalType);
+
+        if (castExecutor == null) {
+            throw new NullPointerException(
+                    "Unsupported casting from " + inputLogicalType + " to " + targetLogicalType);
+        }
+
+        return castExecutor.cast(value);
+    }
+
+    /**
      * This method wraps {@link #generateCodeBlock(CodeGeneratorCastRule.Context, String, String,
      * LogicalType, LogicalType)}, but adding the assumption that the inputTerm is always non-null.
      * Used by {@link CodeGeneratorCastRule}s which checks for nullability, rather than deferring
      * the check to the rules.
      */
-    static @Nullable CastCodeBlock generateAlwaysNonNullCodeBlock(
+    static CastCodeBlock generateAlwaysNonNullCodeBlock(
             CodeGeneratorCastRule.Context context,
             String inputTerm,
             LogicalType inputLogicalType,
@@ -205,7 +247,7 @@ public class CastRuleProvider {
             }
         }
 
-        if (predicate.getCustomPredicate() != null) {
+        if (predicate.getCustomPredicate().isPresent()) {
             rulesWithCustomPredicate.add(rule);
         }
 
@@ -217,7 +259,7 @@ public class CastRuleProvider {
         LogicalType targetType = unwrapDistinct(target);
 
         final Iterator<Object> targetTypeRootFamilyIterator =
-                Stream.<Object>concat(
+                Stream.concat(
                                 Stream.of(targetType),
                                 Stream.<Object>concat(
                                         Stream.of(targetType.getTypeRoot()),
@@ -253,7 +295,8 @@ public class CastRuleProvider {
                         r ->
                                 r.getPredicateDefinition()
                                         .getCustomPredicate()
-                                        .test(inputType, targetType))
+                                        .map(p -> p.test(inputType, targetType))
+                                        .orElse(false))
                 .findFirst()
                 .orElse(null);
     }

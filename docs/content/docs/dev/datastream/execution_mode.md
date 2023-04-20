@@ -96,7 +96,7 @@ programmatically when creating/configuring the `StreamExecutionEnvironment`.
 Here's how you can configure the execution mode via the command line:
 
 ```bash
-$ bin/flink run -Dexecution.runtime-mode=BATCH examples/streaming/WordCount.jar
+$ bin/flink run -Dexecution.runtime-mode=BATCH <jarFile>
 ```
 
 This example shows how you can configure the execution mode in code:
@@ -343,15 +343,14 @@ others are not supported.
 Behavior Change in BATCH mode:
 
 * "Rolling" operations such as [reduce()]({{< ref "docs/dev/datastream/operators/overview" >}}#reduce) 
-  or [sum()]({{< ref "docs/dev/datastream/operators/overview" >}}#aggregations)
-  emit an incremental update for every new record that arrives in `STREAMING`
+  or sum() emit an incremental update for every new record that arrives in `STREAMING`
   mode. In `BATCH` mode, these operations are not "rolling". They emit only the
   final result.
 
 
 Unsupported in BATCH mode:
 
-* [Checkpointing]({{< ref "docs/concepts/stateful-stream-processing" >}}#stateful-stream-processing) 
+* [Checkpointing]({{< ref "docs/concepts/stateful-stream-processing" >}}#checkpointing) 
   and any operations that depend on checkpointing do not work.
 * [Iterations]({{< ref "docs/dev/datastream/operators/overview" >}}#iterate)
 

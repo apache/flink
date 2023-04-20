@@ -33,6 +33,7 @@ import org.apache.flink.util.concurrent.FutureUtils;
 
 import javax.annotation.Nonnull;
 
+import java.io.Serializable;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
@@ -87,7 +88,8 @@ import java.util.concurrent.CompletableFuture;
  * @param <K> type of the operation key under which the result future is stored
  * @param <R> type of the operation result
  */
-public abstract class AbstractAsynchronousOperationHandlers<K extends OperationKey, R> {
+public abstract class AbstractAsynchronousOperationHandlers<
+        K extends OperationKey, R extends Serializable> {
 
     private final CompletedOperationCache<K, R> completedOperationCache;
 

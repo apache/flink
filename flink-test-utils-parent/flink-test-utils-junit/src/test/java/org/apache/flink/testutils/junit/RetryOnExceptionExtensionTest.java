@@ -19,16 +19,23 @@
 package org.apache.flink.testutils.junit;
 
 import org.apache.flink.testutils.junit.extensions.retry.RetryExtension;
+import org.apache.flink.testutils.junit.extensions.retry.strategy.RetryOnExceptionStrategy;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.opentest4j.TestAbortedException;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import java.util.stream.Stream;
 
-/** Tests for the RetryOnException annotation. */
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+/** Tests for the {@link RetryOnException} annotation on JUnit5 {@link RetryExtension}. */
 @ExtendWith(RetryExtension.class)
-public class RetryOnExceptionExtensionTest {
+class RetryOnExceptionExtensionTest {
 
     private static final int NUMBER_OF_RUNS = 3;
 
@@ -41,22 +48,22 @@ public class RetryOnExceptionExtensionTest {
     private static int runsForPassAfterOneFailure = 0;
 
     @AfterAll
-    public static void verify() {
-        assertEquals(NUMBER_OF_RUNS + 1, runsForTestWithMatchingException);
-        assertEquals(NUMBER_OF_RUNS + 1, runsForTestWithSubclassException);
-        assertEquals(1, runsForSuccessfulTest);
-        assertEquals(2, runsForPassAfterOneFailure);
+    static void verify() {
+        assertThat(runsForTestWithMatchingException).isEqualTo(NUMBER_OF_RUNS + 1);
+        assertThat(runsForTestWithSubclassException).isEqualTo(NUMBER_OF_RUNS + 1);
+        assertThat(runsForSuccessfulTest).isOne();
+        assertThat(runsForPassAfterOneFailure).isEqualTo(2);
     }
 
     @TestTemplate
     @RetryOnException(times = NUMBER_OF_RUNS, exception = IllegalArgumentException.class)
-    public void testSuccessfulTest() {
+    void testSuccessfulTest() {
         runsForSuccessfulTest++;
     }
 
     @TestTemplate
     @RetryOnException(times = NUMBER_OF_RUNS, exception = IllegalArgumentException.class)
-    public void testMatchingException() {
+    void testMatchingException() {
         runsForTestWithMatchingException++;
         if (runsForTestWithMatchingException <= NUMBER_OF_RUNS) {
             throw new IllegalArgumentException();
@@ -65,7 +72,7 @@ public class RetryOnExceptionExtensionTest {
 
     @TestTemplate
     @RetryOnException(times = NUMBER_OF_RUNS, exception = RuntimeException.class)
-    public void testSubclassException() {
+    void testSubclassException() {
         runsForTestWithSubclassException++;
         if (runsForTestWithSubclassException <= NUMBER_OF_RUNS) {
             throw new IllegalArgumentException();
@@ -74,10 +81,48 @@ public class RetryOnExceptionExtensionTest {
 
     @TestTemplate
     @RetryOnException(times = NUMBER_OF_RUNS, exception = IllegalArgumentException.class)
-    public void testPassAfterOneFailure() {
+    void testPassAfterOneFailure() {
         runsForPassAfterOneFailure++;
         if (runsForPassAfterOneFailure == 1) {
             throw new IllegalArgumentException();
         }
+    }
+
+    @ParameterizedTest(name = "Retrying with {0}")
+    @MethodSource("retryTestProvider")
+    void testRetryFailsWithExpectedExceptionAfterNumberOfRetries(
+            final Throwable expectedException) {
+        final int numberOfRetries = 1;
+        RetryOnExceptionStrategy retryOnExceptionStrategy =
+                new RetryOnExceptionStrategy(numberOfRetries, expectedException.getClass());
+        // All attempts that permit a retry should be a TestAbortedException.  When retries are no
+        // longer permitted, the handled exception should be propagated.
+        for (int j = 0; j <= numberOfRetries; j++) {
+            final int attemptIndex = j;
+            assertThatThrownBy(
+                            () ->
+                                    retryOnExceptionStrategy.handleException(
+                                            "Any test name", attemptIndex, expectedException))
+                    .isInstanceOf(
+                            j == numberOfRetries
+                                    ? expectedException.getClass()
+                                    : TestAbortedException.class);
+        }
+    }
+
+    static class RetryTestError extends Error {}
+
+    static class RetryTestException extends Exception {}
+
+    static class RetryTestRuntimeException extends RuntimeException {}
+
+    static class RetryTestThrowable extends Throwable {}
+
+    static Stream<Throwable> retryTestProvider() {
+        return Stream.of(
+                new RetryTestError(),
+                new RetryTestException(),
+                new RetryTestRuntimeException(),
+                new RetryTestThrowable());
     }
 }

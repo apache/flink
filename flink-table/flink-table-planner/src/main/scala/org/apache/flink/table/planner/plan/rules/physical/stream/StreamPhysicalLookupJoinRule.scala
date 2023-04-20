@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
+import org.apache.flink.table.planner.hint.JoinStrategy
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
@@ -24,17 +25,18 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalL
 import org.apache.flink.table.planner.plan.rules.physical.common.{BaseSnapshotOnCalcTableScanRule, BaseSnapshotOnTableScanRule}
 
 import org.apache.calcite.plan.{RelOptRule, RelOptTable}
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rex.RexProgram
 
 /**
-  * Rules that convert [[FlinkLogicalJoin]] on a [[FlinkLogicalSnapshot]]
-  * into [[StreamPhysicalLookupJoin]]
-  *
-  * There are 2 conditions for this rule:
-  * 1. the root parent of [[FlinkLogicalSnapshot]] should be a TableSource which implements
-  *   [[org.apache.flink.table.sources.LookupableTableSource]].
-  * 2. the period of [[FlinkLogicalSnapshot]] must be left table's proctime attribute.
-  */
+ * Rules that convert [[FlinkLogicalJoin]] on a [[FlinkLogicalSnapshot]] into
+ * [[StreamPhysicalLookupJoin]]
+ *
+ * There are 2 conditions for this rule:
+ *   1. the root parent of [[FlinkLogicalSnapshot]] should be a TableSource which implements
+ *      [[org.apache.flink.table.sources.LookupableTableSource]]. 2. the period of
+ *      [[FlinkLogicalSnapshot]] must be left table's proctime attribute.
+ */
 object StreamPhysicalLookupJoinRule {
   val SNAPSHOT_ON_TABLESCAN: RelOptRule = new SnapshotOnTableScanRule
   val SNAPSHOT_ON_CALC_TABLESCAN: RelOptRule = new SnapshotOnCalcTableScanRule
@@ -64,10 +66,10 @@ object StreamPhysicalLookupJoinRule {
   }
 
   private def doTransform(
-    join: FlinkLogicalJoin,
-    input: FlinkLogicalRel,
-    temporalTable: RelOptTable,
-    calcProgram: Option[RexProgram]): StreamPhysicalLookupJoin = {
+      join: FlinkLogicalJoin,
+      input: FlinkLogicalRel,
+      temporalTable: RelOptTable,
+      calcProgram: Option[RexProgram]): StreamPhysicalLookupJoin = {
 
     val joinInfo = join.analyzeCondition
 
@@ -77,6 +79,18 @@ object StreamPhysicalLookupJoinRule {
     val requiredTrait = input.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
 
     val convInput = RelOptRule.convert(input, requiredTrait)
+
+    val lookupRelHint = join.getHints
+      .stream()
+      .filter(hint => JoinStrategy.isLookupHint(hint.hintName))
+      .findFirst()
+
+    val lookupHint = if (lookupRelHint.isPresent) {
+      Option.apply(lookupRelHint.get())
+    } else {
+      Option.empty[RelHint]
+    }
+
     new StreamPhysicalLookupJoin(
       cluster,
       providedTrait,
@@ -84,6 +98,8 @@ object StreamPhysicalLookupJoinRule {
       temporalTable,
       calcProgram,
       joinInfo,
-      join.getJoinType)
+      join.getJoinType,
+      lookupHint,
+      false)
   }
 }

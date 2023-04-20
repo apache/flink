@@ -19,10 +19,17 @@
 package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.dispatcher.cleanup.GloballyCleanableResource;
+import org.apache.flink.runtime.dispatcher.cleanup.LocallyCleanableResource;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
+import org.apache.flink.util.concurrent.FutureUtils;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 /** Allows to store and remove job graphs. */
-public interface JobGraphWriter {
+public interface JobGraphWriter extends LocallyCleanableResource, GloballyCleanableResource {
     /**
      * Adds the {@link JobGraph} instance.
      *
@@ -30,17 +37,23 @@ public interface JobGraphWriter {
      */
     void putJobGraph(JobGraph jobGraph) throws Exception;
 
-    /** Removes the {@link JobGraph} with the given {@link JobID} if it exists. */
-    void removeJobGraph(JobID jobId) throws Exception;
-
     /**
-     * Releases the locks on the specified {@link JobGraph}.
+     * Persist {@link JobResourceRequirements job resource requirements} for the given job.
      *
-     * <p>Releasing the locks allows that another instance can delete the job from the {@link
-     * JobGraphStore}.
-     *
-     * @param jobId specifying the job to release the locks for
-     * @throws Exception if the locks cannot be released
+     * @param jobId job the given requirements belong to
+     * @param jobResourceRequirements requirements to persist
+     * @throws Exception in case we're not able to persist the requirements for some reason
      */
-    void releaseJobGraph(JobID jobId) throws Exception;
+    void putJobResourceRequirements(JobID jobId, JobResourceRequirements jobResourceRequirements)
+            throws Exception;
+
+    @Override
+    default CompletableFuture<Void> localCleanupAsync(JobID jobId, Executor executor) {
+        return FutureUtils.completedVoidFuture();
+    }
+
+    @Override
+    default CompletableFuture<Void> globalCleanupAsync(JobID jobId, Executor executor) {
+        return FutureUtils.completedVoidFuture();
+    }
 }

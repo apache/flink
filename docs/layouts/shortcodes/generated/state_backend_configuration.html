@@ -9,12 +9,6 @@
     </thead>
     <tbody>
         <tr>
-            <td><h5>state.backend</h5></td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>String</td>
-            <td>The state backend to be used to store state.<br />The implementation can be specified either via their shortcut  name, or via the class name of a <code class="highlighter-rouge">StateBackendFactory</code>. If a factory is specified it is instantiated via its zero argument constructor and its <code class="highlighter-rouge">StateBackendFactory#createFromConfig(ReadableConfig, ClassLoader)</code> method is called.<br />Recognized shortcut names are 'hashmap' and 'rocksdb'.</td>
-        </tr>
-        <tr>
             <td><h5>state.backend.latency-track.history-size</h5></td>
             <td style="word-wrap: break-word;">128</td>
             <td>Integer</td>
@@ -37,6 +31,12 @@
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>
             <td>Whether to expose state name as a variable if tracking latency.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.type</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The state backend to be used to store state.<br />The implementation can be specified either via their shortcut  name, or via the class name of a <code class="highlighter-rouge">StateBackendFactory</code>. If a factory is specified it is instantiated via its zero argument constructor and its <code class="highlighter-rouge">StateBackendFactory#createFromConfig(ReadableConfig, ClassLoader)</code> method is called.<br />Recognized shortcut names are 'hashmap' and 'rocksdb'.</td>
         </tr>
     </tbody>
 </table>

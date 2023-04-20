@@ -100,6 +100,11 @@ class YarnApplicationFileUploader implements AutoCloseable {
 
         this.localResources = new HashMap<>();
         this.applicationDir = getApplicationDir(applicationId);
+        checkArgument(
+                !isUsrLibDirIncludedInProvidedLib(providedLibDirs),
+                "Provided lib directories, configured via %s, should not include %s.",
+                YarnConfigOptions.PROVIDED_LIB_DIRS.key(),
+                ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR);
         this.providedSharedLibs = getAllFilesInProvidedLibDirs(providedLibDirs);
 
         this.remotePaths = new ArrayList<>();
@@ -504,6 +509,16 @@ class YarnApplicationFileUploader implements AutoCloseable {
                                     }
                                 }));
         return Collections.unmodifiableMap(allFiles);
+    }
+
+    private boolean isUsrLibDirIncludedInProvidedLib(final List<Path> providedLibDirs)
+            throws IOException {
+        for (Path path : providedLibDirs) {
+            if (Utils.isUsrLibDirectory(fileSystem, path)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void addToRemotePaths(boolean add, Path path) {

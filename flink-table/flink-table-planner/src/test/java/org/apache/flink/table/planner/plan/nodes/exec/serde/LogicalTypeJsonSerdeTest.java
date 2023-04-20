@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
 import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.ValidationException;
@@ -65,15 +64,14 @@ import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.runners.Parameterized.Parameters;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -86,14 +84,16 @@ import java.util.Optional;
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.api.config.TableConfigOptions.CatalogPlanCompilation.ALL;
 import static org.apache.flink.table.api.config.TableConfigOptions.CatalogPlanCompilation.IDENTIFIER;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeMocks.configuredSerdeContext;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeMocks.toJson;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeMocks.toObject;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.configuredSerdeContext;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.toJson;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.toObject;
 import static org.apache.flink.table.utils.CatalogManagerMocks.preparedCatalogManager;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 /** Tests for {@link LogicalType} serialization and deserialization. */
+@Execution(CONCURRENT)
 public class LogicalTypeJsonSerdeTest {
 
     @ParameterizedTest
@@ -108,21 +108,20 @@ public class LogicalTypeJsonSerdeTest {
     }
 
     @Test
-    public void testIdentifierSerde() throws JsonProcessingException {
+    public void testIdentifierSerde() throws IOException {
         final DataTypeFactoryMock dataTypeFactoryMock = new DataTypeFactoryMock();
         final TableConfig tableConfig = TableConfig.getDefault();
-        final Configuration config = tableConfig.getConfiguration();
         final CatalogManager catalogManager =
                 preparedCatalogManager().dataTypeFactory(dataTypeFactoryMock).build();
         final SerdeContext serdeContext = configuredSerdeContext(catalogManager, tableConfig);
 
         // minimal plan content
-        config.set(TableConfigOptions.PLAN_COMPILE_CATALOG_OBJECTS, IDENTIFIER);
+        tableConfig.set(TableConfigOptions.PLAN_COMPILE_CATALOG_OBJECTS, IDENTIFIER);
         final String minimalJson = toJson(serdeContext, STRUCTURED_TYPE);
         assertThat(minimalJson).isEqualTo("\"`default_catalog`.`default_database`.`MyType`\"");
 
         // catalog lookup with miss
-        config.set(
+        tableConfig.set(
                 TableConfigOptions.PLAN_RESTORE_CATALOG_OBJECTS,
                 TableConfigOptions.CatalogPlanRestore.IDENTIFIER);
         dataTypeFactoryMock.logicalType = Optional.empty();
@@ -130,7 +129,7 @@ public class LogicalTypeJsonSerdeTest {
                 .satisfies(anyCauseMatches(ValidationException.class, "No type found."));
 
         // catalog lookup
-        config.set(
+        tableConfig.set(
                 TableConfigOptions.PLAN_RESTORE_CATALOG_OBJECTS,
                 TableConfigOptions.CatalogPlanRestore.IDENTIFIER);
         dataTypeFactoryMock.logicalType = Optional.of(STRUCTURED_TYPE);
@@ -138,17 +137,17 @@ public class LogicalTypeJsonSerdeTest {
                 .isEqualTo(STRUCTURED_TYPE);
 
         // maximum plan content
-        config.set(TableConfigOptions.PLAN_COMPILE_CATALOG_OBJECTS, ALL);
+        tableConfig.set(TableConfigOptions.PLAN_COMPILE_CATALOG_OBJECTS, ALL);
         final String maximumJson = toJson(serdeContext, STRUCTURED_TYPE);
-        final ObjectMapper mapper = new ObjectMapper();
-        final JsonNode maximumJsonNode = mapper.readTree(maximumJson);
+        final JsonNode maximumJsonNode =
+                JacksonMapperFactory.createObjectMapper().readTree(maximumJson);
         assertThat(maximumJsonNode.get(LogicalTypeJsonSerializer.FIELD_NAME_ATTRIBUTES))
                 .isNotNull();
         assertThat(maximumJsonNode.get(LogicalTypeJsonSerializer.FIELD_NAME_DESCRIPTION).asText())
                 .isEqualTo("My original type.");
 
         // catalog lookup with miss
-        config.set(
+        tableConfig.set(
                 TableConfigOptions.PLAN_RESTORE_CATALOG_OBJECTS,
                 TableConfigOptions.CatalogPlanRestore.IDENTIFIER);
         dataTypeFactoryMock.logicalType = Optional.empty();
@@ -156,7 +155,7 @@ public class LogicalTypeJsonSerdeTest {
                 .satisfies(anyCauseMatches(ValidationException.class, "No type found."));
 
         // catalog lookup
-        config.set(
+        tableConfig.set(
                 TableConfigOptions.PLAN_RESTORE_CATALOG_OBJECTS,
                 TableConfigOptions.CatalogPlanRestore.IDENTIFIER);
         dataTypeFactoryMock.logicalType = Optional.of(UPDATED_STRUCTURED_TYPE);
@@ -164,7 +163,7 @@ public class LogicalTypeJsonSerdeTest {
                 .isEqualTo(UPDATED_STRUCTURED_TYPE);
 
         // no lookup
-        config.set(
+        tableConfig.set(
                 TableConfigOptions.PLAN_RESTORE_CATALOG_OBJECTS,
                 TableConfigOptions.CatalogPlanRestore.ALL);
         dataTypeFactoryMock.logicalType = Optional.of(UPDATED_STRUCTURED_TYPE);
@@ -194,7 +193,6 @@ public class LogicalTypeJsonSerdeTest {
                     .description("My original type with update description.")
                     .build();
 
-    @Parameters(name = "{0}")
     private static List<LogicalType> testLogicalTypeSerde() {
         final List<LogicalType> types =
                 Arrays.asList(

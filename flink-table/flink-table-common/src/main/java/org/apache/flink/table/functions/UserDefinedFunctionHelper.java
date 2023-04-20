@@ -25,9 +25,13 @@ import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogFunction;
+import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.functions.SpecializedFunction.ExpressionEvaluator;
+import org.apache.flink.table.functions.SpecializedFunction.ExpressionEvaluatorFactory;
 import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
 import org.apache.flink.table.functions.python.utils.PythonFunctionUtils;
 import org.apache.flink.table.types.DataType;
@@ -190,7 +194,6 @@ public final class UserDefinedFunctionHelper {
      *
      * <p>Requires access to {@link ReadableConfig} if Python functions should be supported.
      */
-    @SuppressWarnings({"unchecked", "rawtypes"})
     public static UserDefinedFunction instantiateFunction(
             ClassLoader classLoader,
             @Nullable ReadableConfig config,
@@ -210,7 +213,7 @@ public final class UserDefinedFunctionHelper {
                 case SCALA:
                     final Class<?> functionClass =
                             classLoader.loadClass(catalogFunction.getClassName());
-                    return UserDefinedFunctionHelper.instantiateFunction((Class) functionClass);
+                    return UserDefinedFunctionHelper.instantiateFunction(functionClass);
                 default:
                     throw new IllegalArgumentException(
                             "Unknown function language: " + catalogFunction.getFunctionLanguage());
@@ -224,11 +227,17 @@ public final class UserDefinedFunctionHelper {
     /**
      * Instantiates a {@link UserDefinedFunction} assuming a JVM function with default constructor.
      */
-    public static UserDefinedFunction instantiateFunction(
-            Class<? extends UserDefinedFunction> functionClass) {
-        validateClass(functionClass, true);
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public static UserDefinedFunction instantiateFunction(Class<?> functionClass) {
+        if (!UserDefinedFunction.class.isAssignableFrom(functionClass)) {
+            throw new ValidationException(
+                    String.format(
+                            "Function '%s' does not extend from '%s'.",
+                            functionClass.getName(), UserDefinedFunction.class.getName()));
+        }
+        validateClass((Class) functionClass, true);
         try {
-            return functionClass.newInstance();
+            return (UserDefinedFunction) functionClass.newInstance();
         } catch (Exception e) {
             throw new ValidationException(
                     String.format(
@@ -247,6 +256,9 @@ public final class UserDefinedFunctionHelper {
     /**
      * Returns whether a {@link UserDefinedFunction} can be easily serialized and identified by only
      * a fully qualified class name. It must have a default constructor and no serializable fields.
+     *
+     * <p>Other properties (such as checks for abstract classes) are validated at the entry points
+     * of the API, see {@link #prepareInstance(ReadableConfig, UserDefinedFunction)}.
      */
     public static boolean isClassNameSerializable(UserDefinedFunction function) {
         final Class<?> functionClass = function.getClass();
@@ -330,7 +342,8 @@ public final class UserDefinedFunctionHelper {
             FunctionDefinition definition,
             CallContext callContext,
             ClassLoader builtInClassLoader,
-            @Nullable ReadableConfig configuration) {
+            @Nullable ReadableConfig configuration,
+            @Nullable ExpressionEvaluatorFactory evaluatorFactory) {
         if (definition instanceof SpecializedFunction) {
             final SpecializedFunction specialized = (SpecializedFunction) definition;
             final SpecializedContext specializedContext =
@@ -352,6 +365,47 @@ public final class UserDefinedFunctionHelper {
                         @Override
                         public ClassLoader getBuiltInClassLoader() {
                             return builtInClassLoader;
+                        }
+
+                        @Override
+                        public ExpressionEvaluator createEvaluator(
+                                Expression expression,
+                                DataType outputDataType,
+                                DataTypes.Field... args) {
+                            if (evaluatorFactory == null) {
+                                throw new TableException(
+                                        "Access to expression evaluation is currently not supported "
+                                                + "for all kinds of calls.");
+                            }
+                            return evaluatorFactory.createEvaluator(
+                                    expression, outputDataType, args);
+                        }
+
+                        @Override
+                        public ExpressionEvaluator createEvaluator(
+                                String sqlExpression,
+                                DataType outputDataType,
+                                DataTypes.Field... args) {
+                            if (evaluatorFactory == null) {
+                                throw new TableException(
+                                        "Access to expression evaluation is currently not supported "
+                                                + "for all kinds of calls.");
+                            }
+                            return evaluatorFactory.createEvaluator(
+                                    sqlExpression, outputDataType, args);
+                        }
+
+                        @Override
+                        public ExpressionEvaluator createEvaluator(
+                                BuiltInFunctionDefinition function,
+                                DataType outputDataType,
+                                DataType... args) {
+                            if (evaluatorFactory == null) {
+                                throw new TableException(
+                                        "Access to expression evaluation is currently not supported "
+                                                + "for all kinds of calls.");
+                            }
+                            return evaluatorFactory.createEvaluator(function, outputDataType, args);
                         }
                     };
             final UserDefinedFunction udf = specialized.specialize(specializedContext);

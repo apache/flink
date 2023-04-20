@@ -22,4 +22,8 @@ import org.apache.flink.annotation.Public;
 
 /** Common super interface for all metrics. */
 @Public
-public interface Metric {}
+public interface Metric {
+    default MetricType getMetricType() {
+        throw new UnsupportedOperationException("Custom metric types are not supported.");
+    }
+}

@@ -15,14 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestData, TestingRetractSink}
+import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
@@ -41,18 +40,15 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       .toTable(tEnv, 'a1, 'a2, 'a3)
     val tableB = failingDataSource(TestData.tupleData3)
       .toTable(tEnv, 'b1, 'b2, 'b3)
-    tEnv.registerTable("A", tableA)
-    tEnv.registerTable("B", tableB)
+    tEnv.createTemporaryView("A", tableA)
+    tEnv.createTemporaryView("B", tableB)
 
     val sqlQuery = "SELECT a1, a2, a3 from A INTERSECT SELECT b1, b2, b3 from B"
 
     val sink = new TestingRetractSink
     tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
-    val expected = mutable.MutableList(
-      "1,1,Hi",
-      "2,2,Hello",
-      "3,2,Hello world")
+    val expected = mutable.MutableList("1,1,Hi", "2,2,Hello", "3,2,Hello world")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
@@ -75,8 +71,8 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
 
     val t1 = failingDataSource(data1).toTable(tEnv, 'a1, 'a2, 'a3)
     val t2 = failingDataSource(data2).toTable(tEnv, 'b1, 'b2, 'b3)
-    tEnv.registerTable("T1", t1)
-    tEnv.registerTable("T2", t2)
+    tEnv.createTemporaryView("T1", t1)
+    tEnv.createTemporaryView("T2", t2)
 
     val sqlQuery = "SELECT a3 from T1 EXCEPT SELECT b3 from T2"
 
@@ -84,7 +80,10 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
     val expected = mutable.MutableList(
-      "Hi5", "Hi6", "Hi8", "Hi9"
+      "Hi5",
+      "Hi6",
+      "Hi8",
+      "Hi9"
     )
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
@@ -93,8 +92,8 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
   def testIntersectAll(): Unit = {
     val t1 = failingDataSource(Seq(1, 1, 1, 2, 2)).toTable(tEnv, 'c)
     val t2 = failingDataSource(Seq(1, 2, 2, 2, 3)).toTable(tEnv, 'c)
-    tEnv.registerTable("T1", t1)
-    tEnv.registerTable("T2", t2)
+    tEnv.createTemporaryView("T1", t1)
+    tEnv.createTemporaryView("T2", t2)
 
     val sqlQuery = "SELECT c FROM T1 INTERSECT ALL SELECT c FROM T2"
 
@@ -108,9 +107,9 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
   @Test
   def testMinusAll(): Unit = {
     val tableA = failingDataSource(TestData.smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
-    tEnv.registerTable("tableA", tableA)
+    tEnv.createTemporaryView("tableA", tableA)
     val tableB = failingDataSource(Seq((1, 1L, "Hi"), (1, 1L, "Hi"))).toTable(tEnv, 'a, 'b, 'c)
-    tEnv.registerTable("tableB", tableB)
+    tEnv.createTemporaryView("tableB", tableB)
 
     val t1 = "SELECT * FROM tableA"
     val t2 = "SELECT * FROM tableB"

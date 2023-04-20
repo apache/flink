@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.rpc.messages;
 
-import java.io.IOException;
-
 /**
  * Interface for rpc invocation messages. The interface allows to request all necessary information
  * to lookup a method and call it with the corresponding arguments.
@@ -30,34 +28,22 @@ public interface RpcInvocation extends Message {
      * Returns the method's name.
      *
      * @return Method name
-     * @throws IOException if the rpc invocation message is a remote message and could not be
-     *     deserialized
-     * @throws ClassNotFoundException if the rpc invocation message is a remote message and contains
-     *     serialized classes which cannot be found on the receiving side
      */
-    String getMethodName() throws IOException, ClassNotFoundException;
+    String getMethodName();
 
     /**
      * Returns the method's parameter types.
      *
      * @return Method's parameter types
-     * @throws IOException if the rpc invocation message is a remote message and could not be
-     *     deserialized
-     * @throws ClassNotFoundException if the rpc invocation message is a remote message and contains
-     *     serialized classes which cannot be found on the receiving side
      */
-    Class<?>[] getParameterTypes() throws IOException, ClassNotFoundException;
+    Class<?>[] getParameterTypes();
 
     /**
      * Returns the arguments of the remote procedure call.
      *
      * @return Arguments of the remote procedure call
-     * @throws IOException if the rpc invocation message is a remote message and could not be
-     *     deserialized
-     * @throws ClassNotFoundException if the rpc invocation message is a remote message and contains
-     *     serialized classes which cannot be found on the receiving side
      */
-    Object[] getArgs() throws IOException, ClassNotFoundException;
+    Object[] getArgs();
 
     /**
      * Converts a rpc call into its string representation.

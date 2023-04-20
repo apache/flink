@@ -17,23 +17,24 @@
  */
 package org.apache.flink.table.planner.runtime.batch.sql.agg
 
+import org.apache.flink.api.common.BatchShuffleMode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
-import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.java.typeutils.{RowTypeInfo, TupleTypeInfoBase}
 import org.apache.flink.api.scala._
+import org.apache.flink.configuration.{ExecutionOptions, JobManagerOptions}
+import org.apache.flink.configuration.JobManagerOptions.SchedulerType
 import org.apache.flink.table.api.{DataTypes, TableException, Types}
 import org.apache.flink.table.data.DecimalDataUtils
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.types.Row
+
 import org.junit.{Before, Test}
 
-import scala.collection.Seq
-
-/**
-  * Aggregate IT case base class.
-  */
+/** Aggregate IT case base class. */
 abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
 
   def prepareAggOp(): Unit
@@ -48,9 +49,17 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     registerCollection("NullTable3", nullData3, type3, "a, b, c", nullablesOfNullData3)
     registerCollection("AllNullTable3", allNullData3, type3, "a, b, c", allNullablesOfNullData3)
     registerCollection("NullTable5", nullData5, type5, "d, e, f, g, h", nullablesOfNullData5)
-    registerCollection("DuplicateTable5", duplicateData5, type5, "d, e, f, g, h",
+    registerCollection(
+      "DuplicateTable5",
+      duplicateData5,
+      type5,
+      "d, e, f, g, h",
       nullablesOfDuplicateData5)
-    registerCollection("GenericTypedTable3", genericData3, genericType3, "i, j, k",
+    registerCollection(
+      "GenericTypedTable3",
+      genericData3,
+      genericType3,
+      "i, j, k",
       nullablesOfData3)
 
     prepareAggOp()
@@ -93,8 +102,7 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
       for (i <- 0 until 100000) yield row(new JTuple2(i, i), 1L, 10, "Hallo", 1L)
     registerCollection("LargeTypedTable5", largeTypedData5, genericType5, "d, e, f, g, h")
     val expectedTypedData5 =
-      for (i <- 0 until 100000) yield
-        row(row(i, i), "Hallo", 1L, 10, 1L)
+      for (i <- 0 until 100000) yield row(row(i, i), "Hallo", 1L, 10, 1L)
     checkResult(
       "SELECT d, g, sum(e), avg(f), min(h) FROM LargeTypedTable5 GROUP BY d, g",
       expectedTypedData5
@@ -136,9 +144,9 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     checkResult(
       sql,
       Seq(
-        row(1,4,1,4),
-        row(2,7,0,7),
-        row(3,3,0,3)
+        row(1, 4, 1, 4),
+        row(2, 7, 0, 7),
+        row(3, 3, 0, 3)
       )
     )
   }
@@ -167,7 +175,8 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
 
   @Test
   def testNullGroupKeyAggregation(): Unit = {
-    checkResult("SELECT sum(d), d, count(d) FROM NullTable5 GROUP BY d",
+    checkResult(
+      "SELECT sum(d), d, count(d) FROM NullTable5 GROUP BY d",
       Seq(
         row(1, 1, 1),
         row(25, 5, 5),
@@ -175,8 +184,7 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
         row(16, 4, 4),
         row(4, 2, 2),
         row(9, 3, 3)
-      )
-    )
+      ))
   }
 
   @Test
@@ -246,17 +254,9 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
 
   @Test
   def testUV(): Unit = {
-    val data = (0 until 100).map { i => row("1", "1", s"${i % 10}", "1") }.toList
-    val type4 = new RowTypeInfo(
-      Types.STRING,
-      Types.STRING,
-      Types.STRING,
-      Types.STRING)
-    registerCollection(
-      "src",
-      data,
-      type4,
-      "a, b, c, d")
+    val data = (0 until 100).map(i => row("1", "1", s"${i % 10}", "1")).toList
+    val type4 = new RowTypeInfo(Types.STRING, Types.STRING, Types.STRING, Types.STRING)
+    registerCollection("src", data, type4, "a, b, c, d")
 
     val sql =
       s"""
@@ -288,21 +288,26 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
 
   private var newTableId = 0
 
-  def checkQuery[T <: Product : TypeInformation](
+  def checkQuery[T <: Product: TypeInformation](
       tableData: Seq[T],
       sqlQuery: String,
       expected: Seq[_ <: Product],
-      tableName: String = "t")
-  : Unit = {
+      tableName: String = "t"): Unit = {
 
-    val toRow = (p: Product) =>
-      Row.of(p.productIterator.map(_.asInstanceOf[AnyRef]).toArray: _*)
+    val toRow = (p: Product) => Row.of(p.productIterator.map(_.asInstanceOf[AnyRef]).toArray: _*)
     val tableRows = tableData.map(toRow)
 
     val tupleTypeInfo = implicitly[TypeInformation[T]]
-    val fieldInfos = tupleTypeInfo.getGenericParameters.values()
-    import scala.collection.JavaConverters._
-    val rowTypeInfo = new RowTypeInfo(fieldInfos.asScala.toArray: _*)
+    val rowTypeInfo: RowTypeInfo = if (tupleTypeInfo.isTupleType) {
+      new RowTypeInfo(
+        tupleTypeInfo
+          .asInstanceOf[TupleTypeInfoBase[T]]
+          .getFieldTypes: _*)
+    } else {
+      val fieldInfos = tupleTypeInfo.getGenericParameters.values()
+      import scala.collection.JavaConverters._
+      new RowTypeInfo(fieldInfos.asScala.toArray: _*)
+    }
 
     newTableId += 1
     val tableName = "TestTableX" + newTableId
@@ -323,8 +328,8 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
   val (b1, b2, b3) = (big(1), big(2), big(3))
 
   // with default scale for BigDecimal.class
-  def bigX(i: Int): java.math.BigDecimal = big(i).setScale(
-    DecimalDataUtils.DECIMAL_SYSTEM_DEFAULT.getScale)
+  def bigX(i: Int): java.math.BigDecimal =
+    big(i).setScale(DecimalDataUtils.DECIMAL_SYSTEM_DEFAULT.getScale)
 
   val (b1x, b2x, b3x) = (bigX(1), bigX(2), bigX(3))
 
@@ -499,15 +504,34 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     checkQuery(
       Seq((1, 1), (1, 2), (2, 1), (2, 2), (3, 1), (3, 2)),
       "select f0+f1, f1, sum(f0-f1) from TableName group by rollup(f0+f1, f1)",
-      Seq((2, 1, 0), (3, 2, -1), (3, 1, 1), (4, 2, 0), (4, 1, 2), (5, 2, 1),
-        (2, null, 0), (3, null, 0), (4, null, 2), (5, null, 1), (null, null, 3))
+      Seq(
+        (2, 1, 0),
+        (3, 2, -1),
+        (3, 1, 1),
+        (4, 2, 0),
+        (4, 1, 2),
+        (5, 2, 1),
+        (2, null, 0),
+        (3, null, 0),
+        (4, null, 2),
+        (5, null, 1),
+        (null, null, 3))
     )
 
     checkQuery(
       Seq((1, 1), (1, 2), (2, 1), (2, 2), (3, 1), (3, 2)),
       "select f0, f1, sum(f1) from TableName group by rollup(f0, f1)",
-      Seq((1, 1, 1), (1, 2, 2), (2, 1, 1), (2, 2, 2), (3, 1, 1), (3, 2, 2),
-        (1, null, 3), (2, null, 3), (3, null, 3), (null, null, 9))
+      Seq(
+        (1, 1, 1),
+        (1, 2, 2),
+        (2, 1, 1),
+        (2, 2, 2),
+        (3, 1, 1),
+        (3, 2, 2),
+        (1, null, 3),
+        (2, null, 3),
+        (3, null, 3),
+        (null, null, 9))
     )
   }
 
@@ -516,16 +540,37 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     checkQuery(
       Seq((1, 1), (1, 2), (2, 1), (2, 2), (3, 1), (3, 2)),
       "select f0+f1, f1, sum(f0-f1) from TableName group by cube(f0+f1, f1)",
-      Seq((2, 1, 0), (3, 2, -1), (3, 1, 1), (4, 2, 0), (4, 1, 2), (5, 2, 1),
-        (2, null, 0), (3, null, 0), (4, null, 2), (5, null, 1), (null, 1, 3),
-        (null, 2, 0), (null, null, 3))
+      Seq(
+        (2, 1, 0),
+        (3, 2, -1),
+        (3, 1, 1),
+        (4, 2, 0),
+        (4, 1, 2),
+        (5, 2, 1),
+        (2, null, 0),
+        (3, null, 0),
+        (4, null, 2),
+        (5, null, 1),
+        (null, 1, 3),
+        (null, 2, 0),
+        (null, null, 3))
     )
 
     checkQuery(
       Seq((1, 1), (1, 2), (2, 1), (2, 2), (3, 1), (3, 2)),
       "select f0, f1, sum(f1) from TableName group by cube(f0, f1)",
-      Seq((1, 1, 1), (1, 2, 2), (2, 1, 1), (2, 2, 2), (3, 1, 1), (3, 2, 2),
-        (1, null, 3), (2, null, 3), (3, null, 3), (null, 1, 3), (null, 2, 6),
+      Seq(
+        (1, 1, 1),
+        (1, 2, 2),
+        (2, 1, 1),
+        (2, 2, 2),
+        (3, 1, 1),
+        (3, 2, 2),
+        (1, null, 3),
+        (2, null, 3),
+        (3, null, 3),
+        (null, 1, 3),
+        (null, 2, 6),
         (null, null, 9))
     )
   }
@@ -663,7 +708,7 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     checkQuery(
       Seq[(Integer, Integer)]((1, null), (2, 2)),
       "select count(f0), count(f1), count(1), " +
-          "count(distinct f0), count(distinct f1) from TableName",
+        "count(distinct f0), count(distinct f1) from TableName",
       Seq((2L, 1L, 2L, 2L, 1L))
     )
     checkQuery(
@@ -727,26 +772,26 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
 
   @Test
   def test1RowStdDev(): Unit = {
-    checkQuery(Seq((1.0, 1)),
+    checkQuery(
+      Seq((1.0, 1)),
       "select stddev_pop(f0), stddev_samp(f0), stddev(f0) from TableName",
-      Seq((0.0, null, null))
-    )
+      Seq((0.0, null, null)))
   }
 
   @Test
   def testVariance(): Unit = {
-    checkQuery(Seq((1.0, 1), (2.0, 1)),
+    checkQuery(
+      Seq((1.0, 1), (2.0, 1)),
       "select var_pop(f0), var_samp(f0), variance(f0) from TableName",
-      Seq((0.25, 0.5, 0.5))
-    )
+      Seq((0.25, 0.5, 0.5)))
   }
 
   @Test
   def test1RowVariance(): Unit = {
-    checkQuery(Seq((1.0, 1)),
+    checkQuery(
+      Seq((1.0, 1)),
       "select var_pop(f0), var_samp(f0), variance(f0) from TableName",
-      Seq((0.0, null, null))
-    )
+      Seq((0.0, null, null)))
   }
 
   @Test
@@ -831,7 +876,9 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
       Seq((b1, b1), (b1, b2), (b2, b1), (b2, b2), (b3, b1), (b3, b2)),
       "select cast (f0 as decimal(10,2)), avg(cast (f1 as decimal(10,2))) " +
         " from TableName group by cast (f0 as decimal(10,2))",
-      Seq((big("1.00"), big("1.500000")), (big("2.00"), big("1.500000")),
+      Seq(
+        (big("1.00"), big("1.500000")),
+        (big("2.00"), big("1.500000")),
         (big("3.00"), big("1.500000")))
     )
   }
@@ -867,6 +914,9 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
 
   @Test
   def testLeadLag(): Unit = {
+    tEnv.getConfig.set(JobManagerOptions.SCHEDULER, SchedulerType.Default)
+    tEnv.getConfig
+      .set(ExecutionOptions.BATCH_SHUFFLE_MODE, BatchShuffleMode.ALL_EXCHANGES_PIPELINED)
 
     val testAllDataTypeCardinality = tEnv.fromValues(
       DataTypes.ROW(
@@ -885,12 +935,37 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
         DataTypes.FIELD("m", DataTypes.TIMESTAMP()),
         DataTypes.FIELD("n", DataTypes.DECIMAL(3, 2))
       ),
-      row("Alice", 1, 1, 2, 9223, -2.3F, 9.9D, "true", "varchar", "char", 
-        "2021-8-3", "20:8:17", "2021-8-3 20:8:29", 9.99),
-      row("Alice", null, null, null, null, null, null, null, null, 
-        null, null, null, null, null),
-      row("Alice", 1, 1, 2, 9223, -2.3F, 9.9D, "true", "varchar", "char",
-        "2021-8-3", "20:8:17", "2021-8-3 20:8:29", 9.99)
+      row(
+        "Alice",
+        1,
+        1,
+        2,
+        9223,
+        -2.3f,
+        9.9d,
+        "true",
+        "varchar",
+        "char",
+        "2021-8-3",
+        "20:8:17",
+        "2021-8-3 20:8:29",
+        9.99),
+      row("Alice", null, null, null, null, null, null, null, null, null, null, null, null, null),
+      row(
+        "Alice",
+        1,
+        1,
+        2,
+        9223,
+        -2.3f,
+        9.9d,
+        "true",
+        "varchar",
+        "char",
+        "2021-8-3",
+        "20:8:17",
+        "2021-8-3 20:8:29",
+        9.99)
     )
 
     checkResult(
@@ -911,24 +986,202 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
          |  m, LEAD(m, 1) over (order by a)  AS mLead, LAG(m, 1) over (order by a)  AS mLag,
          |  n, LEAD(n, 1) over (order by a)  AS nLead, LAG(n, 1) over (order by a)  AS nLag
          |
-         |FROM ${testAllDataTypeCardinality}
+         |FROM $testAllDataTypeCardinality
          |order by a
          |""".stripMargin,
       Seq(
-        row("Alice", 1, 1, null, 1, 1, null, 2, 2, null, 9223, 9223, null, -2.3, -2.3, null, 
-          9.9, 9.9, null, true, true, null, "varchar", "varchar", null, "char                ", 
-          "char                ", null, "2021-08-03", "2021-08-03", null, "20:08:17", "20:08:17", 
-          null, "2021-08-03T20:08:29", "2021-08-03T20:08:29", null, 9.99, 9.99, null),
-        row("Alice", 1, null, 1, 1, null, 1, 2, null, 2, 9223, null, 9223,
-          -2.3, null, -2.3, 9.9, null, 9.9, true, null, true, "varchar", null, 
-          "varchar", "char                ", null, "char                ", "2021-08-03", null, 
-          "2021-08-03", "20:08:17", null, "20:08:17", "2021-08-03T20:08:29", null, 
-          "2021-08-03T20:08:29", 9.99, null, 9.99),
-        row("Alice", null, null, 1, null, null, 1, null, null, 2, null, null, 9223, null,
-          null, -2.3, null, null, 9.9, null, null, true, null, null, "varchar", null, null,
-          "char                ", null, null, "2021-08-03", null, null, "20:08:17", null, null,
-          "2021-08-03T20:08:29", null, null, 9.99)
+        row(
+          "Alice",
+          1,
+          1,
+          null,
+          1,
+          1,
+          null,
+          2,
+          2,
+          null,
+          9223,
+          9223,
+          null,
+          -2.3,
+          -2.3,
+          null,
+          9.9,
+          9.9,
+          null,
+          true,
+          true,
+          null,
+          "varchar",
+          "varchar",
+          null,
+          "char                ",
+          "char                ",
+          null,
+          "2021-08-03",
+          "2021-08-03",
+          null,
+          "20:08:17",
+          "20:08:17",
+          null,
+          "2021-08-03T20:08:29",
+          "2021-08-03T20:08:29",
+          null,
+          9.99,
+          9.99,
+          null
+        ),
+        row(
+          "Alice",
+          1,
+          null,
+          1,
+          1,
+          null,
+          1,
+          2,
+          null,
+          2,
+          9223,
+          null,
+          9223,
+          -2.3,
+          null,
+          -2.3,
+          9.9,
+          null,
+          9.9,
+          true,
+          null,
+          true,
+          "varchar",
+          null,
+          "varchar",
+          "char                ",
+          null,
+          "char                ",
+          "2021-08-03",
+          null,
+          "2021-08-03",
+          "20:08:17",
+          null,
+          "20:08:17",
+          "2021-08-03T20:08:29",
+          null,
+          "2021-08-03T20:08:29",
+          9.99,
+          null,
+          9.99
+        ),
+        row(
+          "Alice",
+          null,
+          null,
+          1,
+          null,
+          null,
+          1,
+          null,
+          null,
+          2,
+          null,
+          null,
+          9223,
+          null,
+          null,
+          -2.3,
+          null,
+          null,
+          9.9,
+          null,
+          null,
+          true,
+          null,
+          null,
+          "varchar",
+          null,
+          null,
+          "char                ",
+          null,
+          null,
+          "2021-08-03",
+          null,
+          null,
+          "20:08:17",
+          null,
+          null,
+          "2021-08-03T20:08:29",
+          null,
+          null,
+          9.99
+        )
+      )
+    )
+  }
+
+  @Test
+  def testGroupByArrayType(): Unit = {
+    checkResult(
+      "SELECT sum(a) FROM (" +
+        "VALUES (1, array[1, 2]), (2, array[1, 2]), (5, array[3, 4])) T(a, b) GROUP BY b",
+      Seq(
+        row(3),
+        row(5)
+      )
+    )
+  }
+
+  @Test
+  def testDistinctArrayType(): Unit = {
+    val sql =
+      s"""
+         |SELECT DISTINCT b FROM (
+         |VALUES (2, array[1, 2]), (2, array[2, 3]), (2, array[1, 2]), (5, array[3, 4])) T(a, b)
+         |""".stripMargin
+    checkResult(
+      sql,
+      Seq(
+        row("[1, 2]"),
+        row("[2, 3]"),
+        row("[3, 4]")
       ))
+  }
+
+  @Test
+  def testCountDistinctArrayType(): Unit = {
+    val sql =
+      s"""
+         |SELECT a, COUNT(DISTINCT b) FROM (
+         |VALUES (2, array[1, 2]), (2, array[2, 3]), (2, array[1, 2]), (5, array[3, 4])) T(a, b)
+         |GROUP BY a
+         |""".stripMargin
+    checkResult(
+      sql,
+      Seq(
+        row(2, 2),
+        row(5, 1)
+      ))
+  }
+
+  @Test
+  def testCountStar(): Unit = {
+    val data =
+      List(rowOf(2L, 15, "Hello"), rowOf(8L, 11, "Hello world"), rowOf(9L, 12, "Hello world!"))
+    val dataId = TestValuesTableFactory.registerData(data)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE src(
+                       |  `id` BIGINT,
+                       |  `len` INT,
+                       |  `content` STRING,
+                       |  `proctime` AS PROCTIME()
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'bounded' = 'true',
+                       |  'data-id' = '$dataId'
+                       |)
+                       |""".stripMargin)
+    checkResult("select count(*) from src", Seq(row(3)))
   }
 
   // TODO support csv

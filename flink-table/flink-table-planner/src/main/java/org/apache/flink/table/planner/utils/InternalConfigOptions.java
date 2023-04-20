@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.utils;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
 
@@ -50,4 +51,24 @@ public final class InternalConfigOptions {
                                     + " as UTC+0 milliseconds since epoch for simplification, this config will be used by"
                                     + " some temporal functions like LOCAL_TIMESTAMP in batch job to make sure these"
                                     + " temporal functions has query-start semantics.");
+
+    public static final ConfigOption<String> TABLE_QUERY_CURRENT_DATABASE =
+            key("__table.query-start.current-database__")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The config used to save the current database at query start."
+                                    + " Currently, it's only used for the function CURRENT_DATABASE.");
+
+    @Experimental
+    public static final ConfigOption<Boolean> TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED =
+            key("__table.exec.sort.non-temporal.enabled__")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Set whether to enable universal sort for streaming. When false, "
+                                    + "universal sort can't be used for streaming. Currently, it's "
+                                    + "used using only for testing, to help verify that streaming "
+                                    + "SQL can generate the same result (with changelog events) "
+                                    + "as batch SQL.");
 }

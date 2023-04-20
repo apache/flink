@@ -181,6 +181,11 @@ public class DefaultJobMasterServiceProcess
     }
 
     @Override
+    public UUID getLeaderSessionId() {
+        return leaderSessionId;
+    }
+
+    @Override
     public boolean isInitializedAndRunning() {
         synchronized (lock) {
             return jobMasterServiceFuture.isDone()

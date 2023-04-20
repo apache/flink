@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.api.TableException
@@ -24,12 +23,10 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.schema.IntermediateRelTable
 
 import org.apache.calcite.plan._
-import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.RelNode
 
-/**
- * Batch physical TableScan that wraps [[IntermediateRelTable]]
- */
+/** Batch physical TableScan that wraps [[IntermediateRelTable]] */
 class BatchPhysicalIntermediateTableScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,

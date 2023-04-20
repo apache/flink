@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest.messages.job.savepoints.stop;
 
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.TriggerId;
 
@@ -34,6 +35,8 @@ public class StopWithSavepointRequestBody implements RequestBody {
 
     public static final String FIELD_NAME_TARGET_DIRECTORY = "targetDirectory";
 
+    public static final String FIELD_NAME_FORMAT_TYPE = "formatType";
+
     private static final String FIELD_NAME_DRAIN = "drain";
 
     private static final String FIELD_NAME_TRIGGER_ID = "triggerId";
@@ -49,14 +52,20 @@ public class StopWithSavepointRequestBody implements RequestBody {
     @Nullable
     private final TriggerId triggerId;
 
+    @JsonProperty(FIELD_NAME_FORMAT_TYPE)
+    @Nullable
+    private final SavepointFormatType formatType;
+
     @JsonCreator
     public StopWithSavepointRequestBody(
             @Nullable @JsonProperty(FIELD_NAME_TARGET_DIRECTORY) final String targetDirectory,
             @Nullable @JsonProperty(FIELD_NAME_DRAIN) final Boolean drain,
+            @Nullable @JsonProperty(FIELD_NAME_FORMAT_TYPE) final SavepointFormatType formatType,
             @Nullable @JsonProperty(FIELD_NAME_TRIGGER_ID) TriggerId triggerId) {
         this.targetDirectory = targetDirectory;
         this.drain = drain != null ? drain : false;
         this.triggerId = triggerId;
+        this.formatType = formatType != null ? formatType : SavepointFormatType.DEFAULT;
     }
 
     @JsonIgnore
@@ -71,5 +80,10 @@ public class StopWithSavepointRequestBody implements RequestBody {
     @JsonIgnore
     public Optional<TriggerId> getTriggerId() {
         return Optional.ofNullable(triggerId);
+    }
+
+    @JsonIgnore
+    public SavepointFormatType getFormatType() {
+        return formatType;
     }
 }

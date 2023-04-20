@@ -15,32 +15,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.batch.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.DataTypes._
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.DataTypes._
+import org.apache.flink.table.catalog.CatalogDatabaseImpl
 import org.apache.flink.table.data.DecimalDataUtils
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.expressions.utils._
-import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase, CollectionBatchExecTable, UserDefinedFunctionTestUtils}
+import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.localDateTime
 import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.test.util.TestBaseUtils.compareResultAsText
 import org.apache.flink.types.Row
 
-import org.junit.Assert.assertEquals
 import org.junit.{Before, Rule, Test}
+import org.junit.Assert.assertEquals
 
 import java.sql.{Date, Time, Timestamp}
 import java.time.LocalDateTime
 import java.util
 
+import scala.collection.{mutable, Seq}
 import scala.collection.JavaConverters._
-import scala.collection.{Seq, mutable}
 
 class CalcITCase extends BatchTestBase {
 
@@ -83,8 +83,9 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testSimpleSelectWithNaming(): Unit = {
-    val t = CollectionBatchExecTable.get3TupleDataSet(tEnv)
-      .select('_1 as 'a, '_2 as 'b, '_1 as 'c)
+    val t = CollectionBatchExecTable
+      .get3TupleDataSet(tEnv)
+      .select('_1.as('a), '_2.as('b), '_1.as('c))
       .select('a, 'b)
 
     val expected = "1,1\n" + "2,2\n" + "3,2\n" + "4,3\n" + "5,3\n" + "6,3\n" + "7,4\n" +
@@ -96,8 +97,9 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testSimpleSelectRenameAll(): Unit = {
-    val t = CollectionBatchExecTable.get3TupleDataSet(tEnv)
-      .select('_1 as 'a, '_2 as 'b, '_3 as 'c)
+    val t = CollectionBatchExecTable
+      .get3TupleDataSet(tEnv)
+      .select('_1.as('a), '_2.as('b), '_3.as('c))
       .select('a, 'b)
 
     val expected = "1,1\n" + "2,2\n" + "3,2\n" + "4,3\n" + "5,3\n" + "6,3\n" + "7,4\n" +
@@ -184,7 +186,6 @@ class CalcITCase extends BatchTestBase {
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-
   @Test
   def testDisjunctivePredicate(): Unit = {
     val ds = CollectionBatchExecTable.get3TupleDataSet(tEnv, "a, b, c")
@@ -220,7 +221,8 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testFilterOnCustomType(): Unit = {
-    val filterDs = CollectionBatchExecTable.getCustomTypeDataSet(tEnv)
+    val filterDs = CollectionBatchExecTable
+      .getCustomTypeDataSet(tEnv)
       .filter('myString.like("%a%"))
     val expected = "3,3,Hello world, how are you?\n" + "3,4,I am fine.\n" + "3,5,Luke Skywalker\n"
     val results = executeQuery(filterDs)
@@ -229,7 +231,8 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testSimpleCalc(): Unit = {
-    val t = CollectionBatchExecTable.get3TupleDataSet(tEnv)
+    val t = CollectionBatchExecTable
+      .get3TupleDataSet(tEnv)
       .select('_1, '_2, '_3)
       .where('_1 < 7)
       .select('_1, '_3)
@@ -242,7 +245,8 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testCalcWithTwoFilters(): Unit = {
-    val t = CollectionBatchExecTable.get3TupleDataSet(tEnv)
+    val t = CollectionBatchExecTable
+      .get3TupleDataSet(tEnv)
       .select('_1, '_2, '_3)
       .where('_1 < 7 && '_2 === 3)
       .select('_1, '_3)
@@ -256,11 +260,12 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testCalcWithAggregation(): Unit = {
-    val t = CollectionBatchExecTable.get3TupleDataSet(tEnv)
+    val t = CollectionBatchExecTable
+      .get3TupleDataSet(tEnv)
       .select('_1, '_2, '_3)
       .where('_1 < 15)
       .groupBy('_2)
-      .select('_1.min, '_2.count as 'cnt)
+      .select('_1.min, '_2.count.as('cnt))
       .where('cnt > 3)
 
     val expected = "7,4\n" + "11,4\n"
@@ -273,8 +278,14 @@ class CalcITCase extends BatchTestBase {
     val ds1 = CollectionBatchExecTable.getSmall3TupleDataSet(tEnv, "a, b, c")
     val ds2 = CollectionBatchExecTable.get5TupleDataSet(tEnv, "d, e, f, g, h")
 
-    val joinT = ds1.select('a, 'b).join(ds2).where('b === 'e).select('a, 'b, 'd, 'e, 'f)
-      .where('b > 1).select('a, 'd).where('d === 2)
+    val joinT = ds1
+      .select('a, 'b)
+      .join(ds2)
+      .where('b === 'e)
+      .select('a, 'b, 'd, 'e, 'f)
+      .where('b > 1)
+      .select('a, 'd)
+      .where('d === 2)
 
     val expected = "2,2\n" + "3,2\n"
     val results = executeQuery(joinT)
@@ -287,13 +298,29 @@ class CalcITCase extends BatchTestBase {
     val bd1 = BigDecimal("78.454654654654654").bigDecimal
     val bd2 = BigDecimal("4E+16").bigDecimal
 
-    val t = BatchTableEnvUtil.fromCollection(tEnv,
-      Seq((bd1, bd2, Date.valueOf("1984-07-12"),
-          Time.valueOf("14:34:24"),
-          Timestamp.valueOf("1984-07-12 14:34:24"))), "_1, _2, _3, _4, _5")
-        .select('_1, '_2, '_3, '_4, '_5, BigDecimal("11.2"), BigDecimal("11.2").bigDecimal,
-          Date.valueOf("1984-07-12"), Time.valueOf("14:34:24"),
-          Timestamp.valueOf("1984-07-12 14:34:24"))
+    val t = BatchTableEnvUtil
+      .fromCollection(
+        tEnv,
+        Seq(
+          (
+            bd1,
+            bd2,
+            Date.valueOf("1984-07-12"),
+            Time.valueOf("14:34:24"),
+            Timestamp.valueOf("1984-07-12 14:34:24"))),
+        "_1, _2, _3, _4, _5")
+      .select(
+        '_1,
+        '_2,
+        '_3,
+        '_4,
+        '_5,
+        BigDecimal("11.2"),
+        BigDecimal("11.2").bigDecimal,
+        Date.valueOf("1984-07-12"),
+        Time.valueOf("14:34:24"),
+        Timestamp.valueOf("1984-07-12 14:34:24")
+      )
 
     // inferred Decimal(p,s) from BigDecimal.class
     val bd1x = bd1.setScale(DecimalDataUtils.DECIMAL_SYSTEM_DEFAULT.getScale)
@@ -307,9 +334,8 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testUserDefinedScalarFunction() {
-    registerFunction("hashCode", HashCode)
     val table = BatchTableEnvUtil.fromElements(tEnv, "a", "b", "c")
-    val result = table.select("f0.hashCode()")
+    val result = table.select(HashCode($"f0"))
     val results = executeQuery(result)
     val expected = "97\n98\n99"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
@@ -317,10 +343,9 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testNumericAutocastInArithmetic() {
-    val table = BatchTableEnvUtil.fromElements(tEnv,
-      (1.toByte, 1.toShort, 1, 1L, 1.0f, 1.0d, 1L, 1001.1))
-      .select('_1 + 1, '_2 + 1, '_3 + 1L, '_4 + 1.0f,
-        '_5 + 1.0d, '_6 + 1, '_7 + 1.0d, '_8 + '_1)
+    val table = BatchTableEnvUtil
+      .fromElements(tEnv, (1.toByte, 1.toShort, 1, 1L, 1.0f, 1.0d, 1L, 1001.1))
+      .select('_1 + 1, '_2 + 1, '_3 + 1L, '_4 + 1.0f, '_5 + 1.0d, '_6 + 1, '_7 + 1.0d, '_8 + '_1)
 
     val results = executeQuery(table)
     val expected = "2,2,2,2.0,2.0,2.0,2.0,1002.1"
@@ -329,12 +354,12 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testNumericAutocastInComparison() {
-    val table = BatchTableEnvUtil.fromCollection(tEnv,
-      Seq(
-        (1.toByte, 1.toShort, 1, 1L, 1.0f, 1.0d),
-        (2.toByte, 2.toShort, 2, 2L, 2.0f, 2.0d)),
-      "a, b, c, d, e, f"
-    ).filter('a > 1 && 'b > 1 && 'c > 1L && 'd > 1.0f && 'e > 1.0d && 'f > 1)
+    val table = BatchTableEnvUtil
+      .fromCollection(
+        tEnv,
+        Seq((1.toByte, 1.toShort, 1, 1L, 1.0f, 1.0d), (2.toByte, 2.toShort, 2, 2L, 2.0f, 2.0d)),
+        "a, b, c, d, e, f")
+      .filter('a > 1 && 'b > 1 && 'c > 1L && 'd > 1.0f && 'e > 1.0d && 'f > 1)
 
     val results = executeQuery(table)
     val expected: String = "2,2,2,2,2.0,2.0"
@@ -347,7 +372,7 @@ class CalcITCase extends BatchTestBase {
     UserDefinedFunctionTestUtils.setJobParameters(env, Map("string.value" -> "ABC"))
 
     val ds = CollectionBatchExecTable.getSmall3TupleDataSet(tEnv, "a, b, c")
-    tEnv.registerTable("t1", ds)
+    tEnv.createTemporaryView("t1", ds)
 
     val sqlQuery = "SELECT c FROM t1 where RichFunc2(c)='ABC#Hello'"
 
@@ -366,7 +391,7 @@ class CalcITCase extends BatchTestBase {
     registerFunction("RichFunc3", new RichFunc3)
 
     val ds = CollectionBatchExecTable.getSmall3TupleDataSet(tEnv, "a, b, c")
-    tEnv.registerTable("t1", ds)
+    tEnv.createTemporaryView("t1", ds)
 
     val sqlQuery = "SELECT c FROM t1 where RichFunc3(c)=true"
 
@@ -384,7 +409,7 @@ class CalcITCase extends BatchTestBase {
     UserDefinedFunctionTestUtils.setJobParameters(env, Map("string.value" -> "Abc"))
 
     val ds = CollectionBatchExecTable.getSmall3TupleDataSet(tEnv, "a, b, c")
-    tEnv.registerTable("t1", ds)
+    tEnv.createTemporaryView("t1", ds)
 
     val sqlQuery = "SELECT c FROM t1 where " +
       "RichFunc2(c)='Abc#Hello' or RichFunc1(a)=3 and b=2"
@@ -398,11 +423,7 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testScalarFunctionConstructorWithParams(): Unit = {
-    val data = List(
-      (1, 1L, "Jack#22"),
-      (2, 2L, "John#19"),
-      (3, 2L, "Anna#44"),
-      (4, 3L, "nosharp"))
+    val data = List((1, 1L, "Jack#22"), (2, 2L, "John#19"), (3, 2L, "Anna#44"), (4, 3L, "nosharp"))
     val in = BatchTableEnvUtil.fromCollection(tEnv, data, "a, b, c")
 
     val func0 = new Func13("default")
@@ -431,30 +452,33 @@ class CalcITCase extends BatchTestBase {
 
     // literals
     val result1 = in.select(row(1, "Hi", true))
-    executeQuery(result1).foreach { record =>
-      val row = record.getField(0).asInstanceOf[Row]
-      assertEquals(1, row.getField(0))
-      assertEquals("Hi", row.getField(1))
-      assertEquals(true, row.getField(2))
+    executeQuery(result1).foreach {
+      record =>
+        val row = record.getField(0).asInstanceOf[Row]
+        assertEquals(1, row.getField(0))
+        assertEquals("Hi", row.getField(1))
+        assertEquals(true, row.getField(2))
     }
 
     // primitive type
     val result2 = in.select(row(1, 'a, 'b))
-    executeQuery(result2).zipWithIndex.foreach { case (record, idx) =>
-      val row = record.getField(0).asInstanceOf[Row]
-      assertEquals(1, row.getField(0))
-      assertEquals(data(idx)._1, row.getField(1))
-      assertEquals(data(idx)._2, row.getField(2))
+    executeQuery(result2).zipWithIndex.foreach {
+      case (record, idx) =>
+        val row = record.getField(0).asInstanceOf[Row]
+        assertEquals(1, row.getField(0))
+        assertEquals(data(idx)._1, row.getField(1))
+        assertEquals(data(idx)._2, row.getField(2))
     }
 
     // non-primitive type
     val d = DecimalDataUtils.castFrom(2.0002, 5, 4)
     val result3 = in.select(row(BigDecimal(2.0002), 'a, 'c))
-    executeQuery(result3).zipWithIndex.foreach { case (record, idx) =>
-      val row = record.getField(0).asInstanceOf[Row]
-      assertEquals(d.toBigDecimal, row.getField(0))
-      assertEquals(data(idx)._1, row.getField(1))
-      assertEquals(data(idx)._3, row.getField(2))
+    executeQuery(result3).zipWithIndex.foreach {
+      case (record, idx) =>
+        val row = record.getField(0).asInstanceOf[Row]
+        assertEquals(d.toBigDecimal, row.getField(0))
+        assertEquals(data(idx)._1, row.getField(1))
+        assertEquals(data(idx)._3, row.getField(2))
     }
   }
 
@@ -519,7 +543,8 @@ class CalcITCase extends BatchTestBase {
     data.+=(("AAA", BigDecimal.valueOf(123.45), "BBB", BigDecimal.valueOf(234.56)))
     data.+=(("CCC", BigDecimal.valueOf(345.67), "DDD", BigDecimal.valueOf(456.78)))
     data.+=(("EEE", BigDecimal.valueOf(567.89), "FFF", BigDecimal.valueOf(678.99)))
-    val t4 = BatchTableEnvUtil.fromCollection(tEnv, data, "a, b, c, d")
+    val t4 = BatchTableEnvUtil
+      .fromCollection(tEnv, data, "a, b, c, d")
       .select(map('a, 'b, 'c, 'd))
     val result4 = executeQuery(t4)
     val expected4 = "{AAA=123.45, BBB=234.56}\n" +
@@ -532,10 +557,9 @@ class CalcITCase extends BatchTestBase {
   def testValueConstructor(): Unit = {
     val data = new mutable.MutableList[(String, Int, LocalDateTime)]
     data.+=(("foo", 12, localDateTime("1984-07-12 14:34:24")))
-    val t = BatchTableEnvUtil.fromCollection(tEnv, data, "a, b, c").select(
-      row('a, 'b, 'c),
-      array(12, 'b),
-      map('a, 'c))
+    val t = BatchTableEnvUtil
+      .fromCollection(tEnv, data, "a, b, c")
+      .select(row('a, 'b, 'c), array(12, 'b), map('a, 'c))
 
     val result = executeQuery(t)
 
@@ -555,11 +579,15 @@ class CalcITCase extends BatchTestBase {
   @Test
   def testSelectStarFromNestedTable(): Unit = {
 
-    val table = BatchTableEnvUtil.fromCollection(tEnv, Seq(
-      ((0, 0), "0"),
-      ((1, 1), "1"),
-      ((2, 2), "2")
-    )).select('*)
+    val table = BatchTableEnvUtil
+      .fromCollection(
+        tEnv,
+        Seq(
+          ((0, 0), "0"),
+          ((1, 1), "1"),
+          ((2, 2), "2")
+        ))
+      .select('*)
 
     val results = executeQuery(table)
     results.zipWithIndex.foreach {
@@ -582,14 +610,16 @@ class CalcITCase extends BatchTestBase {
     val splitUDF1 = new SplitUDF(deterministic = false)
 
     // uses Java/Scala escaping
-    val ds = BatchTableEnvUtil.fromCollection(tEnv, data, "a, b, c")
+    val ds = BatchTableEnvUtil
+      .fromCollection(tEnv, data, "a, b, c")
       .select(
-        splitUDF0('a, "\u0001", 0) as 'a0,
-        splitUDF1('a, "\u0001", 0) as 'a1,
-        splitUDF0('b, "\"", 1) as 'b0,
-        splitUDF1('b, "\"", 1) as 'b1,
-        splitUDF0('c, "\\\"\u0004", 0) as 'c0,
-        splitUDF1('c, "\\\"\u0004", 0) as 'c1)
+        splitUDF0('a, "\u0001", 0).as('a0),
+        splitUDF1('a, "\u0001", 0).as('a1),
+        splitUDF0('b, "\"", 1).as('b0),
+        splitUDF1('b, "\"", 1).as('b1),
+        splitUDF0('c, "\\\"\u0004", 0).as('c0),
+        splitUDF1('c, "\\\"\u0004", 0).as('c1)
+      )
 
     val results = executeQuery(ds)
 
@@ -601,7 +631,8 @@ class CalcITCase extends BatchTestBase {
   def testSplitFieldsOnCustomType(): Unit = {
     tEnv.getConfig.setMaxGeneratedCodeLength(1) // splits fields
 
-    val ds = CollectionBatchExecTable.getCustomTypeDataSet(tEnv, "myInt, myLong, myString")
+    val ds = CollectionBatchExecTable
+      .getCustomTypeDataSet(tEnv, "myInt, myLong, myString")
       .filter('myString.like("%a%") && 'myString.charLength() > 12)
       .select('myInt, 'myLong, 'myString.charLength())
 
@@ -610,6 +641,31 @@ class CalcITCase extends BatchTestBase {
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
+  @Test
+  def testCurrentDatabase(): Unit = {
+    val result1 = executeQuery(
+      tEnv
+        .from("Table3")
+        .limit(1)
+        .select(currentDatabase()))
+    TestBaseUtils.compareResultAsText(result1.asJava, "default_database")
+
+    // switch to another database
+    tEnv
+      .getCatalog(tEnv.getCurrentCatalog)
+      .get()
+      .createDatabase(
+        "db1",
+        new CatalogDatabaseImpl(new util.HashMap[String, String](), "db1"),
+        false)
+    tEnv.useDatabase("db1")
+    val result2 = executeQuery(
+      tEnv
+        .from("default_database.Table3")
+        .limit(1)
+        .select(currentDatabase()))
+    TestBaseUtils.compareResultAsText(result1.asJava, "default_database")
+  }
 }
 
 @SerialVersionUID(1L)

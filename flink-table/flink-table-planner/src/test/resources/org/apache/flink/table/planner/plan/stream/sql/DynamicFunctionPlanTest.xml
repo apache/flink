@@ -1,0 +1,123 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testAggregateReduceConstants">
+    <Resource name="sql">
+      <![CDATA[SELECT
+     cat, gmt_date, SUM(cnt), count(*)
+FROM src
+WHERE gmt_date = current_date
+GROUP BY cat, gmt_date]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1}], EXPR$2=[SUM($2)], EXPR$3=[COUNT()])
++- LogicalProject(cat=[$2], gmt_date=[$3], cnt=[$4])
+   +- LogicalFilter(condition=[=($3, CURRENT_DATE)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupAggregate(groupBy=[cat, gmt_date], select=[cat, gmt_date, SUM(cnt) AS EXPR$2, COUNT(*) AS EXPR$3])
++- Exchange(distribution=[hash[cat, gmt_date]])
+   +- Calc(select=[cat, gmt_date, cnt], where=[(gmt_date = CURRENT_DATE())])
+      +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[], project=[cat, gmt_date, cnt], metadata=[]]], fields=[cat, gmt_date, cnt])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCalcMerge">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM ( 
+   SELECT *, SUBSTR(CAST(LOCALTIME AS VARCHAR), 1, 2) hh
+   FROM src
+ ) t1 WHERE hh > 12 AND cat LIKE 'fruit%'
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], cat=[$2], gmt_date=[$3], cnt=[$4], ts=[$5], hh=[$6])
++- LogicalFilter(condition=[AND(>(CAST($6):BIGINT, 12), LIKE($2, _UTF-16LE'fruit%'))])
+   +- LogicalProject(a=[$0], b=[$1], cat=[$2], gmt_date=[$3], cnt=[$4], ts=[$5], hh=[SUBSTR(CAST(LOCALTIME):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL, 1, 2)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, cat, gmt_date, cnt, ts, hh], where=[((CAST(hh AS BIGINT) > 12) AND LIKE(cat, 'fruit%'))])
++- Calc(select=[a, b, cat, gmt_date, cnt, ts, SUBSTR(CAST(LOCALTIME() AS VARCHAR(2147483647)), 1, 2) AS hh])
+   +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[a, b, cat, gmt_date, cnt, ts])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateReduceConstants2">
+    <Resource name="sql">
+      <![CDATA[SELECT
+cat, hh, SUM(cnt), COUNT(*)
+FROM (SELECT *, SUBSTR(CAST(LOCALTIME AS VARCHAR), 1, 2) hh FROM src)
+WHERE SUBSTR(CAST(ts AS VARCHAR), 1, 2) = hh
+GROUP BY cat, hh]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1}], EXPR$2=[SUM($2)], EXPR$3=[COUNT()])
++- LogicalProject(cat=[$2], hh=[$6], cnt=[$4])
+   +- LogicalFilter(condition=[=(SUBSTR(CAST($5):VARCHAR(2147483647) CHARACTER SET "UTF-16LE", 1, 2), $6)])
+      +- LogicalProject(a=[$0], b=[$1], cat=[$2], gmt_date=[$3], cnt=[$4], ts=[$5], hh=[SUBSTR(CAST(LOCALTIME):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL, 1, 2)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupAggregate(groupBy=[cat, hh], select=[cat, hh, SUM(cnt) AS EXPR$2, COUNT(*) AS EXPR$3])
++- Exchange(distribution=[hash[cat, hh]])
+   +- Calc(select=[cat, hh, cnt], where=[(SUBSTR(CAST(ts AS VARCHAR(2147483647)), 1, 2) = hh)])
+      +- Calc(select=[cat, cnt, ts, SUBSTR(CAST(LOCALTIME() AS VARCHAR(2147483647)), 1, 2) AS hh])
+         +- TableSourceScan(table=[[default_catalog, default_database, src, project=[cat, cnt, ts], metadata=[]]], fields=[cat, cnt, ts])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateReduceConstants3">
+    <Resource name="sql">
+      <![CDATA[SELECT
+     gmt_date, ts, cat, SUBSTR(CAST(ts AS VARCHAR), 1, 2), SUM(cnt)
+FROM src
+WHERE gmt_date = CURRENT_DATE
+  AND cat = 'fruit' AND ts = CURRENT_TIME
+GROUP BY gmt_date, ts, cat]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(gmt_date=[$0], ts=[$1], cat=[$2], EXPR$3=[SUBSTR(CAST($1):VARCHAR(2147483647) CHARACTER SET "UTF-16LE", 1, 2)], EXPR$4=[$3])
++- LogicalAggregate(group=[{0, 1, 2}], EXPR$4=[SUM($3)])
+   +- LogicalProject(gmt_date=[$3], ts=[$5], cat=[$2], cnt=[$4])
+      +- LogicalFilter(condition=[AND(=($3, CURRENT_DATE), =($2, _UTF-16LE'fruit'), =($5, CURRENT_TIME))])
+         +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[gmt_date, ts, 'fruit' AS cat, SUBSTR(CAST(ts AS VARCHAR(2147483647)), 1, 2) AS EXPR$3, EXPR$4])
++- GroupAggregate(groupBy=[gmt_date, ts], select=[gmt_date, ts, SUM(cnt) AS EXPR$4])
+   +- Exchange(distribution=[hash[gmt_date, ts]])
+      +- Calc(select=[gmt_date, ts, cnt], where=[((gmt_date = CURRENT_DATE()) AND (cat = 'fruit') AND (ts = CURRENT_TIME()))])
+         +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[], project=[cat, gmt_date, cnt, ts], metadata=[]]], fields=[cat, gmt_date, cnt, ts])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

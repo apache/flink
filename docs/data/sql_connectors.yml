@@ -62,6 +62,12 @@ parquet:
     category: format
     sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-parquet/$version/flink-sql-parquet-$version.jar
 
+protobuf:
+  name: Protobuf
+  maven: flink-protobuf
+  category: format
+  sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-protobuf/$version/flink-sql-protobuf-$version.jar
+
 debezium-avro-confluent:
     name: Debezium
     maven: flink-avro-confluent-registry
@@ -84,6 +90,12 @@ maxwell:
     name: Maxwell
     maven: flink-json
     category: format
+    builtin: true
+
+ogg-json:
+    name: Ogg
+    maven: flink-json
+    catagory: format
     builtin: true
 
 csv:
@@ -116,10 +128,10 @@ elastic:
     versions:
         - version: 6.x
           maven: flink-connector-elasticsearch6
-          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-elasticsearch6/$version/flink-sql-connector-elasticsearch6-$version.jar
+          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-elasticsearch6/3.0.0-1.16/flink-sql-connector-elasticsearch6-3.0.0-1.16.jar
         - version: 7.x and later versions
           maven: flink-connector-elasticsearch7
-          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-elasticsearch7/$version/flink-sql-connector-elasticsearch7-$version.jar
+          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-elasticsearch7/3.0.0-1.16/flink-sql-connector-elasticsearch7-3.0.0-1.16.jar
 
 hbase:
     name: HBase
@@ -136,7 +148,7 @@ jdbc:
     name: JDBC
     category: connector
     maven: flink-connector-jdbc
-    sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-jdbc/$version/flink-connector-jdbc-$version.jar
+    sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-jdbc/3.0.0-1.16/flink-connector-jdbc-3.0.0-1.16.jar
 
 kafka:
     name: Kafka
@@ -155,8 +167,51 @@ upsert-kafka:
           sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka/$version/flink-sql-connector-kafka-$version.jar
 
 kinesis:
-    name: Kinesis
+    name: Amazon Kinesis Data Streams
     category: connector
-    maven: flink-connector-kinesis
-    sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kinesis/$version/flink-sql-connector-kinesis-$version.jar
+    versions:
+        - versions: universal
+          maven: flink-connector-kinesis
+          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kinesis/4.1.0-1.16/flink-sql-connector-kinesis-4.1.0-1.16.jar
 
+aws-kinesis-firehose:
+    name: Amazon Kinesis Data Firehose
+    category: connector
+    versions:
+        - version: universal
+          maven: flink-connector-aws-kinesis-firehose
+          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-aws-kinesis-firehose/4.1.0-1.16/flink-sql-connector-aws-kinesis-firehose-4.1.0-1.16.jar
+
+dynamodb:
+    name: Amazon DynamoDB
+    category: connector
+    versions:
+        - version: universal
+          maven: flink-connector-dynamodb
+          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-dynamodb/4.1.0-1.16/flink-sql-connector-dynamodb-4.1.0-1.16.jar
+
+pulsar:
+    name: Pulsar
+    category: connector
+    maven: flink-connector-pulsar
+    sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-pulsar/3.0.0-1.16/flink-sql-connector-pulsar-3.0.0-1.16.jar
+
+rabbitmq:
+    name: RabbitMQ
+    category: connector
+    maven: flink-connector-rabbitmq
+    sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-rabbitmq/3.0.0-1.16/flink-sql-connector-rabbitmq-3.0.0-1.16.jar
+
+opensearch:
+  name: Opensearch
+  category: connector
+  versions:
+    - version: 1.0.0
+      maven: flink-connector-opensearch
+      sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-opensearch/1.0.0-1.16/flink-sql-connector-opensearch-1.0.0-1.16.jar
+      
+mongodb:
+    name: MongoDB
+    category: connector
+    maven: flink-connector-mongodb
+    sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-mongodb/1.0.0-1.16/flink-sql-connector-mongodb-1.0.0-1.16.jar

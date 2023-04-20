@@ -35,6 +35,6 @@ public class DashboardConfigurationTest
                 42,
                 "version",
                 "revision",
-                new DashboardConfiguration.Features(true, true));
+                new DashboardConfiguration.Features(true, true, true, false));
     }
 }

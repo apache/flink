@@ -21,16 +21,18 @@ package org.apache.flink.runtime.testutils;
 import org.apache.flink.core.testutils.CustomExtension;
 import org.apache.flink.runtime.entrypoint.WorkingDirectory;
 
-import org.junit.jupiter.api.io.TempDir;
-
 import java.io.File;
 import java.io.IOException;
 
 /** Extension to generate {@link WorkingDirectory}. */
 public class WorkingDirectoryExtension implements CustomExtension {
-    @TempDir File tmpDirectory;
+    private final File tmpDirectory;
 
     private int counter = 0;
+
+    public WorkingDirectoryExtension(File tmpDirectory) {
+        this.tmpDirectory = tmpDirectory;
+    }
 
     public WorkingDirectory createNewWorkingDirectory() throws IOException {
         return WorkingDirectory.create(new File(tmpDirectory, "working_directory_" + counter++));

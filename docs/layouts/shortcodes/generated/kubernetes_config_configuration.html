@@ -21,28 +21,22 @@
             <td>The size of the IO executor pool used by the Kubernetes client to execute blocking IO operations (e.g. start/stop TaskManager pods, update leader related ConfigMaps, etc.). Increasing the pool size allows to run more IO operations concurrently.</td>
         </tr>
         <tr>
+            <td><h5>kubernetes.client.user-agent</h5></td>
+            <td style="word-wrap: break-word;">"flink"</td>
+            <td>String</td>
+            <td>The user agent to be used for contacting with Kubernetes APIServer.</td>
+        </tr>
+        <tr>
             <td><h5>kubernetes.cluster-id</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>The cluster-id, which should be no more than 45 characters, is used for identifying a unique Flink cluster. The id must only contain lowercase alphanumeric characters and "-". The required format is <code class="highlighter-rouge">[a-z]([-a-z0-9]*[a-z0-9])</code>. If not set, the client will automatically generate it with a random ID.</td>
         </tr>
         <tr>
-            <td><h5>kubernetes.hostnetwork.enabled</h5></td>
-            <td style="word-wrap: break-word;">false</td>
-            <td>Boolean</td>
-            <td>Whether to enable HostNetwork mode. The HostNetwork allows the pod could use the node network namespace instead of the individual pod network namespace. Please note that the JobManager service account should have the permission to update Kubernetes service.</td>
-        </tr>
-        <tr>
             <td><h5>kubernetes.config.file</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>The kubernetes config file will be used to create the client. The default is located at ~/.kube/config</td>
-        </tr>
-        <tr>
-            <td><h5>kubernetes.container.image</h5></td>
-            <td style="word-wrap: break-word;">The default value depends on the actually running version. In general it looks like "flink:&lt;FLINK_VERSION&gt;-scala_&lt;SCALA_VERSION&gt;"</td>
-            <td>String</td>
-            <td>Image to use for Flink containers. The specified image must be based upon the same Apache Flink and Scala versions as used by the application. Visit <a href="https://hub.docker.com/_/flink?tab=tags">here</a> for the official docker images provided by the Flink project. The Flink project also publishes docker images to <a href="https://hub.docker.com/r/apache/flink/tags">apache/flink DockerHub repository</a>.</td>
         </tr>
         <tr>
             <td><h5>kubernetes.container.image.pull-policy</h5></td>
@@ -57,10 +51,28 @@
             <td>A semicolon-separated list of the Kubernetes secrets used to access private image registries.</td>
         </tr>
         <tr>
+            <td><h5>kubernetes.container.image.ref</h5></td>
+            <td style="word-wrap: break-word;">The default value depends on the actually running version. In general it looks like "flink:&lt;FLINK_VERSION&gt;-scala_&lt;SCALA_VERSION&gt;"</td>
+            <td>String</td>
+            <td>Image to use for Flink containers. The specified image must be based upon the same Apache Flink and Scala versions as used by the application. Visit <a href="https://hub.docker.com/_/flink?tab=tags">here</a> for the official docker images provided by the Flink project. The Flink project also publishes docker images to <a href="https://hub.docker.com/r/apache/flink/tags">apache/flink DockerHub repository</a>.</td>
+        </tr>
+        <tr>
             <td><h5>kubernetes.context</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>The desired context from your Kubernetes config file used to configure the Kubernetes client for interacting with the cluster. This could be helpful if one has multiple contexts configured and wants to administrate different Flink clusters on different Kubernetes clusters/contexts.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.decorator.hadoop-conf-mount.enabled</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Whether to enable Hadoop configuration mount decorator. This must be set to false when Hadoop config is mounted outside of Flink. A typical use-case is when one uses Flink Kubernetes Operator.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.decorator.kerberos-mount.enabled</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Whether to enable Kerberos mount decorator. This must be set to false when Kerberos config and keytab is mounted outside of Flink. A typical use-case is when one uses Flink Kubernetes Operator.</td>
         </tr>
         <tr>
             <td><h5>kubernetes.entry.path</h5></td>
@@ -93,13 +105,19 @@
             <td>Specify the name of an existing ConfigMap that contains custom Hadoop configuration to be mounted on the JobManager(s) and TaskManagers.</td>
         </tr>
         <tr>
+            <td><h5>kubernetes.hostnetwork.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to enable HostNetwork mode. The HostNetwork allows the pod could use the node network namespace instead of the individual pod network namespace. Please note that the JobManager service account should have the permission to update Kubernetes service.</td>
+        </tr>
+        <tr>
             <td><h5>kubernetes.jobmanager.annotations</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>Map</td>
             <td>The user-specified annotations that are set to the JobManager pod. The value could be in the form of a1:v1,a2:v2</td>
         </tr>
         <tr>
-            <td><h5>kubernetes.jobmanager.cpu</h5></td>
+            <td><h5>kubernetes.jobmanager.cpu.amount</h5></td>
             <td style="word-wrap: break-word;">1.0</td>
             <td>Double</td>
             <td>The number of cpu used by job manager</td>
@@ -109,6 +127,12 @@
             <td style="word-wrap: break-word;">1.0</td>
             <td>Double</td>
             <td>The limit factor of cpu used by job manager. The resources limit cpu will be set to cpu * limit-factor.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.jobmanager.entrypoint.args</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Extra arguments used when starting the job manager.</td>
         </tr>
         <tr>
             <td><h5>kubernetes.jobmanager.labels</h5></td>
@@ -159,7 +183,7 @@
             <td>The namespace that will be used for running the jobmanager and taskmanager pods.</td>
         </tr>
         <tr>
-            <td><h5>kubernetes.pod-template-file</h5></td>
+            <td><h5>kubernetes.pod-template-file.default</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>Specify a local file that contains the pod template definition. It will be used to initialize the jobmanager and taskmanager pod. The main container should be defined with name 'flink-main-container'. Notice that this can be overwritten by config options 'kubernetes.pod-template-file.jobmanager' and 'kubernetes.pod-template-file.taskmanager' for jobmanager and taskmanager respectively.</td>
@@ -168,13 +192,13 @@
             <td><h5>kubernetes.pod-template-file.jobmanager</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>Specify a local file that contains the jobmanager pod template definition. It will be used to initialize the jobmanager pod. The main container should be defined with name 'flink-main-container'. If not explicitly configured, config option 'kubernetes.pod-template-file' will be used.</td>
+            <td>Specify a local file that contains the jobmanager pod template definition. It will be used to initialize the jobmanager pod. The main container should be defined with name 'flink-main-container'. If not explicitly configured, config option 'kubernetes.pod-template-file.default' will be used.</td>
         </tr>
         <tr>
             <td><h5>kubernetes.pod-template-file.taskmanager</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>Specify a local file that contains the taskmanager pod template definition. It will be used to initialize the taskmanager pod. The main container should be defined with name 'flink-main-container'. If not explicitly configured, config option 'kubernetes.pod-template-file' will be used.</td>
+            <td>Specify a local file that contains the taskmanager pod template definition. It will be used to initialize the taskmanager pod. The main container should be defined with name 'flink-main-container'. If not explicitly configured, config option 'kubernetes.pod-template-file.default' will be used.</td>
         </tr>
         <tr>
             <td><h5>kubernetes.rest-service.annotations</h5></td>
@@ -192,7 +216,7 @@
             <td><h5>kubernetes.rest-service.exposed.type</h5></td>
             <td style="word-wrap: break-word;">ClusterIP</td>
             <td><p>Enum</p></td>
-            <td>The exposed type of the rest service. The exposed rest service could be used to access the Flink’s Web UI and REST endpoint.<br /><br />Possible values:<ul><li>"ClusterIP"</li><li>"NodePort"</li><li>"LoadBalancer"</li></ul></td>
+            <td>The exposed type of the rest service. The exposed rest service could be used to access the Flink’s Web UI and REST endpoint.<br /><br />Possible values:<ul><li>"ClusterIP"</li><li>"NodePort"</li><li>"LoadBalancer"</li><li>"Headless_ClusterIP"</li></ul></td>
         </tr>
         <tr>
             <td><h5>kubernetes.secrets</h5></td>
@@ -213,7 +237,7 @@
             <td>The user-specified annotations that are set to the TaskManager pod. The value could be in the form of a1:v1,a2:v2</td>
         </tr>
         <tr>
-            <td><h5>kubernetes.taskmanager.cpu</h5></td>
+            <td><h5>kubernetes.taskmanager.cpu.amount</h5></td>
             <td style="word-wrap: break-word;">-1.0</td>
             <td>Double</td>
             <td>The number of cpu used by task manager. By default, the cpu is set to the number of slots per TaskManager</td>
@@ -223,6 +247,12 @@
             <td style="word-wrap: break-word;">1.0</td>
             <td>Double</td>
             <td>The limit factor of cpu used by task manager. The resources limit cpu will be set to cpu * limit-factor.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.taskmanager.entrypoint.args</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Extra arguments used when starting the task manager.</td>
         </tr>
         <tr>
             <td><h5>kubernetes.taskmanager.labels</h5></td>

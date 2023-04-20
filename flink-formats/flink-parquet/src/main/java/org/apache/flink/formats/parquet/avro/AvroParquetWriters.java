@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.parquet.avro;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.formats.parquet.ParquetBuilder;
 import org.apache.flink.formats.parquet.ParquetWriterFactory;
 
@@ -37,6 +38,7 @@ import java.io.IOException;
  * Convenience builder to create {@link ParquetWriterFactory} instances for the different Avro
  * types.
  */
+@Experimental
 public class AvroParquetWriters {
     /**
      * Creates a ParquetWriterFactory for an Avro specific type. The Parquet writers will use the
@@ -61,7 +63,15 @@ public class AvroParquetWriters {
     public static ParquetWriterFactory<GenericRecord> forGenericRecord(Schema schema) {
         final String schemaString = schema.toString();
         final ParquetBuilder<GenericRecord> builder =
-                (out) -> createAvroParquetWriter(schemaString, GenericData.get(), out);
+                // Must override the lambda representation because of a bug in shading lambda
+                // serialization, see similar issue FLINK-28043 for more details.
+                new ParquetBuilder<GenericRecord>() {
+                    @Override
+                    public ParquetWriter<GenericRecord> createWriter(OutputFile out)
+                            throws IOException {
+                        return createAvroParquetWriter(schemaString, GenericData.get(), out);
+                    }
+                };
         return new ParquetWriterFactory<>(builder);
     }
 

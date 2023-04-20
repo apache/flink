@@ -15,22 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase
 import org.apache.flink.api.scala.typeutils.AlternateEnumeration.AlternateEnumeration
 import org.apache.flink.api.scala.typeutils.TestEnumeration.TestEnumeration
 
-/**
-  * Test for [[EnumValueTypeInfo]].
-  */
+/** Test for [[EnumValueTypeInfo]]. */
 class EnumValueTypeInfoTest extends TypeInformationTestBase[EnumValueTypeInfo[_]] {
 
   override protected def getTestData: Array[EnumValueTypeInfo[_]] = Array(
-    new EnumValueTypeInfo[TestEnumeration.type](
-      TestEnumeration,
-      classOf[TestEnumeration]),
+    new EnumValueTypeInfo[TestEnumeration.type](TestEnumeration, classOf[TestEnumeration]),
     new EnumValueTypeInfo[AlternateEnumeration.type](
       AlternateEnumeration,
       classOf[AlternateEnumeration])

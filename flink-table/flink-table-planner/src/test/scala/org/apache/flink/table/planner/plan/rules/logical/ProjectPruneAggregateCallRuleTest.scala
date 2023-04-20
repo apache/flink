@@ -24,9 +24,7 @@ import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.rel.rules.CoreRules
 import org.apache.calcite.tools.RuleSets
 
-/**
-  * Test for [[PruneAggregateCallRule]]#PROJECT_ON_AGGREGATE.
-  */
+/** Test for [[PruneAggregateCallRule]]#PROJECT_ON_AGGREGATE. */
 class ProjectPruneAggregateCallRuleTest extends PruneAggregateCallRuleTestBase {
 
   override def setup(): Unit = {
@@ -35,15 +33,18 @@ class ProjectPruneAggregateCallRuleTest extends PruneAggregateCallRuleTestBase {
 
     var calciteConfig = TableConfigUtils.getCalciteConfig(util.tableEnv.getConfig)
     val programs = calciteConfig.getBatchProgram.get
-    programs.addLast("rules",
+    programs.addLast(
+      "rules",
       FlinkHepRuleSetProgramBuilder.newBuilder
         .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-        .add(RuleSets.ofList(
-          AggregateReduceGroupingRule.INSTANCE,
-          CoreRules.PROJECT_FILTER_TRANSPOSE,
-          PruneAggregateCallRule.PROJECT_ON_AGGREGATE)
-        ).build())
+        .add(
+          RuleSets.ofList(
+            AggregateReduceGroupingRule.INSTANCE,
+            CoreRules.PROJECT_FILTER_TRANSPOSE,
+            PruneAggregateCallRule.PROJECT_ON_AGGREGATE))
+        .build()
+    )
 
     util.replaceBatchProgram(programs)
   }

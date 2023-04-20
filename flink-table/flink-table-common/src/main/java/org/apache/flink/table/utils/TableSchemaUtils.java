@@ -24,6 +24,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.WatermarkSpec;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.types.utils.DataTypeUtils;
@@ -31,6 +32,8 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /** Utilities to {@link TableSchema}. */
 @Internal
@@ -46,13 +49,30 @@ public class TableSchemaUtils {
      * additional columns.
      */
     public static TableSchema getPhysicalSchema(TableSchema tableSchema) {
+        return getTableSchema(tableSchema, TableColumn::isPhysical);
+    }
+
+    /**
+     * Return {@link TableSchema} which consists of all persisted columns. That means, the virtual
+     * computed columns and metadata columns are filtered out.
+     *
+     * <p>Its difference from {@link TableSchemaUtils#getPhysicalSchema(TableSchema)} is that it
+     * includes of all physical columns and metadata columns without virtual keyword.
+     */
+    public static TableSchema getPersistedSchema(TableSchema tableSchema) {
+        return getTableSchema(tableSchema, TableColumn::isPersisted);
+    }
+
+    /** Build a {@link TableSchema} with columns filtered by a given columnFilter. */
+    private static TableSchema getTableSchema(
+            TableSchema tableSchema, Function<TableColumn, Boolean> columnFilter) {
         Preconditions.checkNotNull(tableSchema);
         TableSchema.Builder builder = new TableSchema.Builder();
         tableSchema
                 .getTableColumns()
                 .forEach(
                         tableColumn -> {
-                            if (tableColumn.isPhysical()) {
+                            if (columnFilter.apply(tableColumn)) {
                                 builder.field(tableColumn.getName(), tableColumn.getType());
                             }
                         });
@@ -96,6 +116,17 @@ public class TableSchemaUtils {
         } else {
             return new int[0];
         }
+    }
+
+    /** Removes time attributes from the {@link ResolvedSchema}. */
+    public static ResolvedSchema removeTimeAttributeFromResolvedSchema(
+            ResolvedSchema resolvedSchema) {
+        return new ResolvedSchema(
+                resolvedSchema.getColumns().stream()
+                        .map(col -> col.copy(DataTypeUtils.removeTimeAttribute(col.getDataType())))
+                        .collect(Collectors.toList()),
+                resolvedSchema.getWatermarkSpecs(),
+                resolvedSchema.getPrimaryKey().orElse(null));
     }
 
     /**

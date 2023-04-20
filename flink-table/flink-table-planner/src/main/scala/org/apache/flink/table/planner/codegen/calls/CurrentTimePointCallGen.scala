@@ -15,18 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.codegen.calls
 
-import org.apache.flink.table.planner.codegen.GenerateUtils.generateNonNullField
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression}
+import org.apache.flink.table.planner.codegen.GenerateUtils.generateNonNullField
 import org.apache.flink.table.types.logical.LogicalType
-import org.apache.flink.table.types.logical.LogicalTypeRoot.{DATE, TIMESTAMP_WITHOUT_TIME_ZONE,TIMESTAMP_WITH_LOCAL_TIME_ZONE, TIME_WITHOUT_TIME_ZONE}
+import org.apache.flink.table.types.logical.LogicalTypeRoot.{DATE, TIME_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE}
 
 /**
-  * Generates function call to determine current time point (as date/time/timestamp) in
-  * local timezone or not.
-  */
+ * Generates function call to determine current time point (as date/time/timestamp) in local
+ * timezone or not.
+ */
 class CurrentTimePointCallGen(local: Boolean, isStreaming: Boolean) extends CallGenerator {
 
   override def generate(

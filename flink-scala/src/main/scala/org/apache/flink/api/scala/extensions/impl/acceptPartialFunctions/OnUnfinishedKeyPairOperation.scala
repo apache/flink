@@ -22,25 +22,32 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.{HalfUnfinishedKeyPairOperation, UnfinishedKeyPairOperation}
 
 /**
-  * Wraps an unfinished key pair operation, allowing to use anonymous partial functions to
-  * perform extraction of items in a tuple, case class instance or collection
-  *
-  * @param ds The wrapped unfinished key pair operation data set
-  * @tparam L The type of the left data set items
-  * @tparam R The type of the right data set items
-  * @tparam O The type of the output data set items
-  */
+ * Wraps an unfinished key pair operation, allowing to use anonymous partial functions to perform
+ * extraction of items in a tuple, case class instance or collection
+ *
+ * @param ds
+ *   The wrapped unfinished key pair operation data set
+ * @tparam L
+ *   The type of the left data set items
+ * @tparam R
+ *   The type of the right data set items
+ * @tparam O
+ *   The type of the output data set items
+ */
 class OnUnfinishedKeyPairOperation[L, R, O](ds: UnfinishedKeyPairOperation[L, R, O]) {
 
   /**
-    * Initiates a join or co-group operation, defining the first half of
-    * the where clause with the items of the left data set that will be
-    * checked for equality with the ones provided by the second half.
-    *
-    * @param fun The function that defines the comparing item of the where clause
-    * @tparam K The type of the key, for which type information must be known
-    * @return A data set of Os
-    */
+   * Initiates a join or co-group operation, defining the first half of the where clause with the
+   * items of the left data set that will be checked for equality with the ones provided by the
+   * second half.
+   *
+   * @param fun
+   *   The function that defines the comparing item of the where clause
+   * @tparam K
+   *   The type of the key, for which type information must be known
+   * @return
+   *   A data set of Os
+   */
   @PublicEvolving
   def whereClause[K: TypeInformation](fun: (L) => K): HalfUnfinishedKeyPairOperation[L, R, O] =
     ds.where(fun)

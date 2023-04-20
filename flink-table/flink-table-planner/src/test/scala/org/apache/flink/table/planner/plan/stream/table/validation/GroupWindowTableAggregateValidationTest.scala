@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.stream.table.validation
 
 import org.apache.flink.api.scala._
@@ -24,17 +23,17 @@ import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.planner.utils.{TableTestBase, Top3}
 
-import java.time.Duration
-
 import org.junit.Test
+
+import java.time.Duration
 
 class GroupWindowTableAggregateValidationTest extends TableTestBase {
 
   val top3 = new Top3
   val weightedAvg = new WeightedAvgWithMerge
   val util = streamTestUtil()
-  val table = util.addTableSource[(Long, Int, String)](
-    'long, 'int, 'string, 'rowtime.rowtime, 'proctime.proctime)
+  val table = util
+    .addTableSource[(Long, Int, String)]('long, 'int, 'string, 'rowtime.rowtime, 'proctime.proctime)
 
   @Test
   def testTumbleUdAggWithInvalidArgs(): Unit = {
@@ -42,7 +41,7 @@ class GroupWindowTableAggregateValidationTest extends TableTestBase {
     expectedException.expectMessage("Invalid function call:\nTop3(BIGINT)")
 
     table
-      .window(Slide over 2.hours every 30.minutes on 'rowtime as 'w)
+      .window(Slide.over(2.hours).every(30.minutes).on('rowtime).as('w))
       .groupBy('string, 'w)
       .flatAggregate(call(top3, 'long)) // invalid args
       .select('string, 'f0)
@@ -57,7 +56,7 @@ class GroupWindowTableAggregateValidationTest extends TableTestBase {
     val table = util.addTableSource[(Long, Int, String)]('long, 'int, 'string, 'proctime.proctime)
 
     table
-      .window(Tumble over 2.rows on 'proctime as 'w)
+      .window(Tumble.over(2.rows).on('proctime).as('w))
       .groupBy('string, 'w)
       .flatAggregate(top3('int))
       .select('*)
@@ -72,11 +71,11 @@ class GroupWindowTableAggregateValidationTest extends TableTestBase {
     val table = util.addTableSource[(Long, Int, String)]('long, 'int, 'string, 'proctime.proctime)
 
     val tableConf = util.getTableEnv.getConfig
-    tableConf.getConfiguration.setBoolean(TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED, true)
-    tableConf.getConfiguration.set(TABLE_EXEC_EMIT_EARLY_FIRE_DELAY, Duration.ofMillis(10))
+    tableConf.set(TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED, Boolean.box(true))
+    tableConf.set(TABLE_EXEC_EMIT_EARLY_FIRE_DELAY, Duration.ofMillis(10))
 
     val result = table
-      .window(Tumble over 2.hours on 'proctime as 'w)
+      .window(Tumble.over(2.hours).on('proctime).as('w))
       .groupBy('string, 'w)
       .flatAggregate(top3('int))
       .select('string, 'f0, 'w.start)

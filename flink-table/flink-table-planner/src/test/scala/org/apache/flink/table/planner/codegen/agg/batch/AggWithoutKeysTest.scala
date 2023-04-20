@@ -15,51 +15,44 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.codegen.agg.batch
 
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.types.logical.{BigIntType, DoubleType, LogicalType, RowType}
+
 import org.junit.Test
 
-/**
-  * Test for [[AggWithoutKeysCodeGenerator]].
-  */
+/** Test for [[AggWithoutKeysCodeGenerator]]. */
 class AggWithoutKeysTest extends BatchAggTestBase {
 
   val localOutputType = RowType.of(
     Array[LogicalType](
-      new BigIntType(), new BigIntType(),
-      new DoubleType(), new BigIntType(),
-      fromTypeInfoToLogicalType(imperativeAggFunc.getAccumulatorType)),
-    Array(
-      "agg1Buffer1", "agg1Buffer2",
-      "agg2Buffer1", "agg2Buffer2",
-      "agg3Buffer"))
-
-  override val globalOutputType = RowType.of(
-    Array[LogicalType](
+      new BigIntType(),
       new BigIntType(),
       new DoubleType(),
-      new BigIntType()),
-    Array(
-      "agg1Output",
-      "agg2Output",
-      "agg3Output"))
+      new BigIntType(),
+      fromTypeInfoToLogicalType(imperativeAggFunc.getAccumulatorType)),
+    Array("agg1Buffer1", "agg1Buffer2", "agg2Buffer1", "agg2Buffer2", "agg3Buffer")
+  )
+
+  override val globalOutputType = RowType.of(
+    Array[LogicalType](new BigIntType(), new DoubleType(), new BigIntType()),
+    Array("agg1Output", "agg2Output", "agg3Output"))
 
   @Test
   def testLocal(): Unit = {
     testOperator(
       getOperatorWithoutKey(isMerge = false, isFinal = false),
       Array(
-        row("key1", 8L, 8D, 8L, "aux1"),
-        row("key1", 4L, 4D, 4L, "aux1"),
-        row("key1", 2L, 2D, 2L, "aux1"),
-        row("key2", 3L, 3D, 3L, "aux1")
+        row("key1", 8L, 8d, 8L, "aux1"),
+        row("key1", 4L, 4d, 4L, "aux1"),
+        row("key1", 2L, 2d, 2L, "aux1"),
+        row("key2", 3L, 3d, 3L, "aux1")
       ),
-      Array(row(17L, 4L, 17D, 4L, row(17L, 4L))))
+      Array(row(17L, 4L, 17d, 4L, row(17L, 4L)))
+    )
   }
 
   @Test
@@ -67,11 +60,12 @@ class AggWithoutKeysTest extends BatchAggTestBase {
     testOperator(
       getOperatorWithoutKey(isMerge = true, isFinal = true),
       Array(
-        row(8L, 2L, 8D, 2L, row(8L, 2L)),
-        row(4L, 2L, 4D, 2L, row(4L, 2L)),
-        row(6L, 2L, 6D, 2L, row(6L, 2L))
+        row(8L, 2L, 8d, 2L, row(8L, 2L)),
+        row(4L, 2L, 4d, 2L, row(4L, 2L)),
+        row(6L, 2L, 6d, 2L, row(6L, 2L))
       ),
-      Array(row(3L, 3.0D, 3L)))
+      Array(row(3L, 3.0d, 3L))
+    )
   }
 
   @Test
@@ -79,16 +73,18 @@ class AggWithoutKeysTest extends BatchAggTestBase {
     testOperator(
       getOperatorWithoutKey(isMerge = false, isFinal = true),
       Array(
-        row("key1", 8L, 8D, 8L, "aux1"),
-        row("key1", 4L, 4D, 4L, "aux1"),
-        row("key1", 4L, 4D, 4L, "aux1"),
-        row("key1", 4L, 4D, 4L, "aux1")
+        row("key1", 8L, 8d, 8L, "aux1"),
+        row("key1", 4L, 4d, 4L, "aux1"),
+        row("key1", 4L, 4d, 4L, "aux1"),
+        row("key1", 4L, 4d, 4L, "aux1")
       ),
-      Array(row(5L, 5.0D, 5L)))
+      Array(row(5L, 5.0d, 5L))
+    )
   }
 
-  private def getOperatorWithoutKey(isMerge: Boolean, isFinal: Boolean)
-    : (CodeGenOperatorFactory[RowData], RowType, RowType) = {
+  private def getOperatorWithoutKey(
+      isMerge: Boolean,
+      isFinal: Boolean): (CodeGenOperatorFactory[RowData], RowType, RowType) = {
     val (iType, oType) = if (isMerge && isFinal) {
       (localOutputType, globalOutputType)
     } else if (!isMerge && isFinal) {
@@ -97,7 +93,14 @@ class AggWithoutKeysTest extends BatchAggTestBase {
       (inputType, localOutputType)
     }
     val genOp = AggWithoutKeysCodeGenerator.genWithoutKeys(
-      ctx, relBuilder, aggInfoList, iType, oType, isMerge, isFinal, "Without")
+      ctx,
+      relBuilder,
+      aggInfoList,
+      iType,
+      oType,
+      isMerge,
+      isFinal,
+      "Without")
     (new CodeGenOperatorFactory[RowData](genOp), iType, oType)
   }
 }

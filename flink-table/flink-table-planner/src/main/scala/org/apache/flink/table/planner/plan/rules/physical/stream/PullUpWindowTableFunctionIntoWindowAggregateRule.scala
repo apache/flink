@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
@@ -26,8 +25,8 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysical
 import org.apache.flink.table.planner.plan.utils.WindowUtil
 import org.apache.flink.table.planner.plan.utils.WindowUtil.buildNewProgramWithoutWindowColumns
 
-import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.rel.{RelCollations, RelNode}
 import org.apache.calcite.util.ImmutableBitSet
 
@@ -39,11 +38,15 @@ import scala.collection.JavaConversions._
  */
 class PullUpWindowTableFunctionIntoWindowAggregateRule
   extends RelOptRule(
-    operand(classOf[StreamPhysicalWindowAggregate],
-      operand(classOf[StreamPhysicalExchange],
-        operand(classOf[StreamPhysicalCalc],
-          operand(classOf[StreamPhysicalWindowTableFunction], any())))),
-    "PullUpWindowTableFunctionIntoWindowAggregateRule"){
+    operand(
+      classOf[StreamPhysicalWindowAggregate],
+      operand(
+        classOf[StreamPhysicalExchange],
+        operand(
+          classOf[StreamPhysicalCalc],
+          operand(classOf[StreamPhysicalWindowTableFunction], any())))
+    ),
+    "PullUpWindowTableFunctionIntoWindowAggregateRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val windowAgg: StreamPhysicalWindowAggregate = call.rel(0)
@@ -59,8 +62,8 @@ class PullUpWindowTableFunctionIntoWindowAggregateRule
     val aggInputWindowProps = fmq.getRelWindowProperties(calc).getWindowColumns
     // aggregate call shouldn't be on window columns
     // TODO: this can be supported in the future by referencing them as a RexFieldVariable
-    windowAgg.aggCalls.forall { call =>
-      aggInputWindowProps.intersect(ImmutableBitSet.of(call.getArgList)).isEmpty
+    windowAgg.aggCalls.forall {
+      call => aggInputWindowProps.intersect(ImmutableBitSet.of(call.getArgList)).isEmpty
     }
   }
 
@@ -117,18 +120,19 @@ class PullUpWindowTableFunctionIntoWindowAggregateRule
       windowTVF.windowing.getTimeAttributeType,
       timeAttributeIndex)
     val providedTraitSet = windowAgg.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
-    val newAggCalls = windowAgg.aggCalls.map { call =>
-      val newArgList = call.getArgList.map(arg => Int.box(aggInputFieldsShift(arg)))
-      val newFilterArg = if (call.hasFilter) {
-        aggInputFieldsShift(call.filterArg)
-      } else {
-        call.filterArg
-      }
-      val newFiledCollations = call.getCollation.getFieldCollations.map { field =>
-        field.withFieldIndex(aggInputFieldsShift(field.getFieldIndex))
-      }
-      val newCollation = RelCollations.of(newFiledCollations)
-      call.copy(newArgList, newFilterArg, newCollation)
+    val newAggCalls = windowAgg.aggCalls.map {
+      call =>
+        val newArgList = call.getArgList.map(arg => Int.box(aggInputFieldsShift(arg)))
+        val newFilterArg = if (call.hasFilter) {
+          aggInputFieldsShift(call.filterArg)
+        } else {
+          call.filterArg
+        }
+        val newFiledCollations = call.getCollation.getFieldCollations.map {
+          field => field.withFieldIndex(aggInputFieldsShift(field.getFieldIndex))
+        }
+        val newCollation = RelCollations.of(newFiledCollations)
+        call.copy(newArgList, newFilterArg, newCollation)
     }
 
     val newWindowAgg = new StreamPhysicalWindowAggregate(

@@ -53,10 +53,9 @@ import org.apache.orc.CompressionKind;
 import org.apache.orc.OrcFile;
 import org.apache.orc.Reader;
 import org.apache.orc.RecordReader;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
@@ -69,18 +68,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit test for the ORC BulkWriter write RowData with nested type. */
-public class OrcBulkRowDataWriterTest {
-
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+class OrcBulkRowDataWriterTest {
 
     @SuppressWarnings("FieldCanBeLocal")
-    private String schema =
+    private final String schema =
             "struct<_col0:string,_col1:int,_col2:array<struct<_col2_col0:string>>,"
                     + "_col3:map<string,struct<_col3_col0:string,_col3_col1:timestamp>>>";
 
@@ -88,8 +82,7 @@ public class OrcBulkRowDataWriterTest {
     private List<RowData> input;
 
     @Test
-    public void testOrcBulkWriterWithRowData() throws Exception {
-        final File outDir = TEMPORARY_FOLDER.newFolder();
+    void testOrcBulkWriterWithRowData(@TempDir File outDir) throws Exception {
         final Properties writerProps = new Properties();
         writerProps.setProperty("orc.compress", "LZ4");
 
@@ -123,8 +116,8 @@ public class OrcBulkRowDataWriterTest {
         }
     }
 
-    @Before
-    public void initInput() {
+    @BeforeEach
+    void initInput() {
         input = new ArrayList<>();
         fieldTypes = new LogicalType[4];
         fieldTypes[0] = new VarCharType();
@@ -192,28 +185,26 @@ public class OrcBulkRowDataWriterTest {
 
     private void validate(File files, List<RowData> expected) throws IOException {
         final File[] buckets = files.listFiles();
-        assertNotNull(buckets);
-        assertEquals(1, buckets.length);
+        assertThat(buckets).hasSize(1);
 
         final File[] partFiles = buckets[0].listFiles();
-        assertNotNull(partFiles);
+        assertThat(partFiles).isNotNull();
 
         for (File partFile : partFiles) {
-            assertTrue(partFile.length() > 0);
+            assertThat(partFile.length()).isGreaterThan(0);
 
             OrcFile.ReaderOptions readerOptions = OrcFile.readerOptions(new Configuration());
             Reader reader =
                     OrcFile.createReader(
                             new org.apache.hadoop.fs.Path(partFile.toURI()), readerOptions);
 
-            assertEquals(2, reader.getNumberOfRows());
-            assertEquals(4, reader.getSchema().getFieldNames().size());
-            assertSame(reader.getCompressionKind(), CompressionKind.LZ4);
+            assertThat(reader.getNumberOfRows()).isEqualTo(2);
+            assertThat(reader.getSchema().getFieldNames()).hasSize(4);
+            assertThat(reader.getCompressionKind()).isSameAs(CompressionKind.LZ4);
 
             List<RowData> results = getResults(reader);
 
-            assertEquals(2, results.size());
-            assertEquals(results, expected);
+            assertThat(results).hasSize(2).isEqualTo(expected);
         }
     }
 

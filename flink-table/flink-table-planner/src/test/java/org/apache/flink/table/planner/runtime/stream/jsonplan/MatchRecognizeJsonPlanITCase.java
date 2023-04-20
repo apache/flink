@@ -63,7 +63,7 @@ public class MatchRecognizeJsonPlanITCase extends JsonPlanTestBase {
                         + "                 \u006C AS name = 'b',\n"
                         + "                 C AS name = 'c'\n"
                         + "     ) AS T";
-        executeSqlWithJsonPlanVerified(sql).await();
+        compileSqlAndExecutePlan(sql).await();
 
         List<String> expected = Collections.singletonList("+I[6, 7, 8]");
         assertResult(expected, TestValuesTableFactory.getResults("MySink"));
@@ -101,7 +101,7 @@ public class MatchRecognizeJsonPlanITCase extends JsonPlanTestBase {
                         + "    DOWN AS price < LAST(DOWN.price, 1) OR LAST(DOWN.price, 1) IS NULL,\n"
                         + "    UP AS price > LAST(DOWN.price)\n"
                         + ") AS T";
-        executeSqlWithJsonPlanVerified(sql).await();
+        compileSqlAndExecutePlan(sql).await();
 
         List<String> expected = Collections.singletonList("+I[19, 13, null]");
         assertResult(expected, TestValuesTableFactory.getResults("MySink"));

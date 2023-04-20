@@ -50,6 +50,7 @@ public class BulkBucketWriter<IN, BucketID>
     public InProgressFileWriter<IN, BucketID> resumeFrom(
             final BucketID bucketId,
             final RecoverableFsDataOutputStream stream,
+            final Path path,
             final RecoverableWriter.ResumeRecoverable resumable,
             final long creationTime)
             throws IOException {
@@ -58,7 +59,7 @@ public class BulkBucketWriter<IN, BucketID>
         Preconditions.checkNotNull(resumable);
 
         final BulkWriter<IN> writer = writerFactory.create(stream);
-        return new BulkPartWriter<>(bucketId, stream, writer, creationTime);
+        return new BulkPartWriter<>(bucketId, path, stream, writer, creationTime);
     }
 
     @Override
@@ -73,6 +74,6 @@ public class BulkBucketWriter<IN, BucketID>
         Preconditions.checkNotNull(path);
 
         final BulkWriter<IN> writer = writerFactory.create(stream);
-        return new BulkPartWriter<>(bucketId, stream, writer, creationTime);
+        return new BulkPartWriter<>(bucketId, path, stream, writer, creationTime);
     }
 }

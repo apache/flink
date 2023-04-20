@@ -22,8 +22,12 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.tuple.Tuple6;
+import org.apache.flink.core.execution.CheckpointType;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.queryablestate.KvStateID;
+import org.apache.flink.runtime.blocklist.BlockedNode;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -31,11 +35,13 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
+import org.apache.flink.runtime.jobmaster.TaskManagerRegistrationInformation;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
@@ -52,7 +58,6 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorToJobManagerHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
-import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.TriConsumer;
@@ -61,9 +66,9 @@ import org.apache.flink.util.function.TriFunction;
 import java.net.InetSocketAddress;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -89,9 +94,6 @@ public class TestingJobMasterGatewayBuilder {
             requestPartitionStateFunction =
                     (ignoredA, ignoredB) ->
                             CompletableFuture.completedFuture(ExecutionState.RUNNING);
-    private Function<ResultPartitionID, CompletableFuture<Acknowledge>>
-            notifyPartitionDataAvailableFunction =
-                    ignored -> CompletableFuture.completedFuture(Acknowledge.get());
     private Function<ResourceID, CompletableFuture<Acknowledge>> disconnectTaskManagerFunction =
             ignored -> CompletableFuture.completedFuture(Acknowledge.get());
     private Consumer<ResourceManagerId> disconnectResourceManagerConsumer = ignored -> {};
@@ -101,13 +103,12 @@ public class TestingJobMasterGatewayBuilder {
                             CompletableFuture.completedFuture(Collections.emptyList());
     private TriConsumer<ResourceID, AllocationID, Throwable> failSlotConsumer =
             (ignoredA, ignoredB, ignoredC) -> {};
-    private TriFunction<
-                    String,
-                    UnresolvedTaskManagerLocation,
+    private BiFunction<
                     JobID,
+                    TaskManagerRegistrationInformation,
                     CompletableFuture<RegistrationResponse>>
             registerTaskManagerFunction =
-                    (ignoredA, ignoredB, ignoredC) ->
+                    (ignoredA, ignoredB) ->
                             CompletableFuture.completedFuture(
                                     new JMTMRegistrationSuccess(RESOURCE_MANAGER_ID));
     private BiFunction<
@@ -120,22 +121,22 @@ public class TestingJobMasterGatewayBuilder {
             () -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
     private Supplier<CompletableFuture<ExecutionGraphInfo>> requestJobSupplier =
             () -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
-    private BiFunction<String, Boolean, CompletableFuture<String>> triggerSavepointFunction =
-            (targetDirectory, ignoredB) ->
-                    CompletableFuture.completedFuture(
-                            targetDirectory != null
-                                    ? targetDirectory
-                                    : UUID.randomUUID().toString());
-    private Supplier<CompletableFuture<String>> triggerCheckpointFunction =
-            () -> CompletableFuture.completedFuture(UUID.randomUUID().toString());
-    private BiFunction<String, Boolean, CompletableFuture<String>> stopWithSavepointFunction =
-            (targetDirectory, ignoredB) ->
-                    CompletableFuture.completedFuture(
-                            targetDirectory != null
-                                    ? targetDirectory
-                                    : UUID.randomUUID().toString());
-    private BiConsumer<AllocationID, Throwable> notifyAllocationFailureConsumer =
-            (ignoredA, ignoredB) -> {};
+    private TriFunction<String, Boolean, SavepointFormatType, CompletableFuture<String>>
+            triggerSavepointFunction =
+                    (targetDirectory, ignoredB, formatType) ->
+                            CompletableFuture.completedFuture(
+                                    targetDirectory != null
+                                            ? targetDirectory
+                                            : UUID.randomUUID().toString());
+    private Function<CheckpointType, CompletableFuture<CompletedCheckpoint>>
+            triggerCheckpointFunction = (prop) -> new CompletableFuture<>();
+    private TriFunction<String, Boolean, SavepointFormatType, CompletableFuture<String>>
+            stopWithSavepointFunction =
+                    (targetDirectory, ignoredB, formatType) ->
+                            CompletableFuture.completedFuture(
+                                    targetDirectory != null
+                                            ? targetDirectory
+                                            : UUID.randomUUID().toString());
     private Consumer<Tuple5<JobID, ExecutionAttemptID, Long, CheckpointMetrics, TaskStateSnapshot>>
             acknowledgeCheckpointConsumer = ignored -> {};
     private Consumer<DeclineCheckpoint> declineCheckpointConsumer = ignored -> {};
@@ -172,6 +173,21 @@ public class TestingJobMasterGatewayBuilder {
                             FutureUtils.completedExceptionally(new UnsupportedOperationException());
     private Consumer<Collection<ResourceRequirement>> notifyNotEnoughResourcesConsumer =
             ignored -> {};
+
+    private Function<Collection<BlockedNode>, CompletableFuture<Acknowledge>>
+            notifyNewBlockedNodesFunction =
+                    ignored -> CompletableFuture.completedFuture(Acknowledge.get());
+
+    private Supplier<CompletableFuture<Map<JobVertexID, Integer>>> maxParallelismPerVertexSupplier =
+            () -> CompletableFuture.completedFuture(Collections.emptyMap());
+
+    private Supplier<CompletableFuture<JobResourceRequirements>>
+            requestJobResourceRequirementsSupplier =
+                    () -> CompletableFuture.completedFuture(JobResourceRequirements.empty());
+
+    private Function<JobResourceRequirements, CompletableFuture<Acknowledge>>
+            updateJobResourceRequirementsFunction =
+                    ignored -> CompletableFuture.completedFuture(Acknowledge.get());
 
     public TestingJobMasterGatewayBuilder setAddress(String address) {
         this.address = address;
@@ -210,13 +226,6 @@ public class TestingJobMasterGatewayBuilder {
         return this;
     }
 
-    public TestingJobMasterGatewayBuilder setNotifyPartitionDataAvailableFunction(
-            Function<ResultPartitionID, CompletableFuture<Acknowledge>>
-                    notifyPartitionDataAvailableFunction) {
-        this.notifyPartitionDataAvailableFunction = notifyPartitionDataAvailableFunction;
-        return this;
-    }
-
     public TestingJobMasterGatewayBuilder setDisconnectTaskManagerFunction(
             Function<ResourceID, CompletableFuture<Acknowledge>> disconnectTaskManagerFunction) {
         this.disconnectTaskManagerFunction = disconnectTaskManagerFunction;
@@ -243,10 +252,9 @@ public class TestingJobMasterGatewayBuilder {
     }
 
     public TestingJobMasterGatewayBuilder setRegisterTaskManagerFunction(
-            TriFunction<
-                            String,
-                            UnresolvedTaskManagerLocation,
+            BiFunction<
                             JobID,
+                            TaskManagerRegistrationInformation,
                             CompletableFuture<RegistrationResponse>>
                     registerTaskManagerFunction) {
         this.registerTaskManagerFunction = registerTaskManagerFunction;
@@ -282,26 +290,23 @@ public class TestingJobMasterGatewayBuilder {
     }
 
     public TestingJobMasterGatewayBuilder setTriggerSavepointFunction(
-            BiFunction<String, Boolean, CompletableFuture<String>> triggerSavepointFunction) {
+            TriFunction<String, Boolean, SavepointFormatType, CompletableFuture<String>>
+                    triggerSavepointFunction) {
         this.triggerSavepointFunction = triggerSavepointFunction;
         return this;
     }
 
     public TestingJobMasterGatewayBuilder setTriggerCheckpointFunction(
-            Supplier<CompletableFuture<String>> triggerCheckpointFunction) {
+            Function<CheckpointType, CompletableFuture<CompletedCheckpoint>>
+                    triggerCheckpointFunction) {
         this.triggerCheckpointFunction = triggerCheckpointFunction;
         return this;
     }
 
     public TestingJobMasterGatewayBuilder setStopWithSavepointSupplier(
-            BiFunction<String, Boolean, CompletableFuture<String>> stopWithSavepointFunction) {
+            TriFunction<String, Boolean, SavepointFormatType, CompletableFuture<String>>
+                    stopWithSavepointFunction) {
         this.stopWithSavepointFunction = stopWithSavepointFunction;
-        return this;
-    }
-
-    public TestingJobMasterGatewayBuilder setNotifyAllocationFailureConsumer(
-            BiConsumer<AllocationID, Throwable> notifyAllocationFailureConsumer) {
-        this.notifyAllocationFailureConsumer = notifyAllocationFailureConsumer;
         return this;
     }
 
@@ -389,6 +394,34 @@ public class TestingJobMasterGatewayBuilder {
         return this;
     }
 
+    public TestingJobMasterGatewayBuilder setNotifyNewBlockedNodesFunction(
+            Function<Collection<BlockedNode>, CompletableFuture<Acknowledge>>
+                    notifyNewBlockedNodesFunction) {
+        this.notifyNewBlockedNodesFunction = notifyNewBlockedNodesFunction;
+        return this;
+    }
+
+    public TestingJobMasterGatewayBuilder setMaxParallelismPerVertexSupplier(
+            Supplier<CompletableFuture<Map<JobVertexID, Integer>>>
+                    maxParallelismPerVertexSupplier) {
+        this.maxParallelismPerVertexSupplier = maxParallelismPerVertexSupplier;
+        return this;
+    }
+
+    public TestingJobMasterGatewayBuilder setRequestJobResourceRequirementsSupplier(
+            Supplier<CompletableFuture<JobResourceRequirements>>
+                    requestJobResourceRequirementsSupplier) {
+        this.requestJobResourceRequirementsSupplier = requestJobResourceRequirementsSupplier;
+        return this;
+    }
+
+    public TestingJobMasterGatewayBuilder setUpdateJobResourceRequirementsFunction(
+            Function<JobResourceRequirements, CompletableFuture<Acknowledge>>
+                    updateJobResourceRequirementsFunction) {
+        this.updateJobResourceRequirementsFunction = updateJobResourceRequirementsFunction;
+        return this;
+    }
+
     public TestingJobMasterGateway build() {
         return new TestingJobMasterGateway(
                 address,
@@ -397,7 +430,6 @@ public class TestingJobMasterGatewayBuilder {
                 updateTaskExecutionStateFunction,
                 requestNextInputSplitFunction,
                 requestPartitionStateFunction,
-                notifyPartitionDataAvailableFunction,
                 disconnectTaskManagerFunction,
                 disconnectResourceManagerConsumer,
                 offerSlotsFunction,
@@ -410,7 +442,6 @@ public class TestingJobMasterGatewayBuilder {
                 triggerSavepointFunction,
                 triggerCheckpointFunction,
                 stopWithSavepointFunction,
-                notifyAllocationFailureConsumer,
                 acknowledgeCheckpointConsumer,
                 declineCheckpointConsumer,
                 fencingTokenSupplier,
@@ -420,6 +451,9 @@ public class TestingJobMasterGatewayBuilder {
                 updateAggregateFunction,
                 operatorEventSender,
                 deliverCoordinationRequestFunction,
-                notifyNotEnoughResourcesConsumer);
+                notifyNotEnoughResourcesConsumer,
+                notifyNewBlockedNodesFunction,
+                requestJobResourceRequirementsSupplier,
+                updateJobResourceRequirementsFunction);
     }
 }

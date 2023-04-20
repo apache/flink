@@ -18,11 +18,11 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.metrics.jmx.JMXReporter;
+import org.apache.flink.metrics.jmx.JMXReporterFactory;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
@@ -57,7 +57,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import scala.concurrent.duration.FiniteDuration;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * The base for the Kafka tests. It brings up:
@@ -82,7 +82,7 @@ public abstract class KafkaTestBase extends TestLogger {
 
     public static final Logger LOG = LoggerFactory.getLogger(KafkaTestBase.class);
 
-    public static final int NUMBER_OF_KAFKA_SERVERS = 3;
+    public static final int NUMBER_OF_KAFKA_SERVERS = 1;
 
     public static String brokerConnectionStrings;
 
@@ -130,11 +130,8 @@ public abstract class KafkaTestBase extends TestLogger {
     public static Configuration getFlinkConfiguration() {
         Configuration flinkConfig = new Configuration();
         flinkConfig.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("16m"));
-        flinkConfig.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "my_reporter."
-                        + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
-                JMXReporter.class.getName());
+        MetricOptions.forReporter(flinkConfig, "my_reporter")
+                .set(MetricOptions.REPORTER_FACTORY_CLASS, JMXReporterFactory.class.getName());
         return flinkConfig;
     }
 
@@ -152,7 +149,7 @@ public abstract class KafkaTestBase extends TestLogger {
 
     public static void startClusters(KafkaTestEnvironment.Config environmentConfig)
             throws Exception {
-        kafkaServer = constructKafkaTestEnvionment();
+        kafkaServer = constructKafkaTestEnvironment();
 
         LOG.info("Starting KafkaTestBase.prepare() for Kafka " + kafkaServer.getVersion());
 
@@ -171,7 +168,7 @@ public abstract class KafkaTestBase extends TestLogger {
         }
     }
 
-    public static KafkaTestEnvironment constructKafkaTestEnvionment() throws Exception {
+    public static KafkaTestEnvironment constructKafkaTestEnvironment() throws Exception {
         Class<?> clazz =
                 Class.forName(
                         "org.apache.flink.streaming.connectors.kafka.KafkaTestEnvironmentImpl");

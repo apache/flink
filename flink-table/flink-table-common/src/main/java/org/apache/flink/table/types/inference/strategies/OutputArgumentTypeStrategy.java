@@ -22,7 +22,7 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.CallContext;
-import org.apache.flink.table.types.inference.Signature;
+import org.apache.flink.table.types.inference.Signature.Argument;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import java.util.Optional;
@@ -45,9 +45,8 @@ public final class OutputArgumentTypeStrategy implements ArgumentTypeStrategy {
     }
 
     @Override
-    public Signature.Argument getExpectedArgument(
-            FunctionDefinition functionDefinition, int argumentPos) {
-        return Signature.Argument.of("<OUTPUT>");
+    public Argument getExpectedArgument(FunctionDefinition functionDefinition, int argumentPos) {
+        return Argument.ofGroup("OUTPUT");
     }
 
     @Override

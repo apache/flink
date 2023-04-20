@@ -95,6 +95,7 @@ import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.state.FullSnapshotUtil.END_OF_KEY_GROUP_MARK;
 import static org.apache.flink.runtime.state.FullSnapshotUtil.FIRST_BIT_IN_BYTE_MASK;
 import static org.apache.flink.runtime.state.FullSnapshotUtil.clearMetaDataFollowsFlag;
@@ -204,7 +205,7 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
                 };
 
         JobID jobID = new JobID();
-        ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
+        ExecutionAttemptID executionAttemptID = createExecutionAttemptId();
         TestTaskStateManager taskStateManagerTestMock =
                 new TestTaskStateManager(
                         jobID,

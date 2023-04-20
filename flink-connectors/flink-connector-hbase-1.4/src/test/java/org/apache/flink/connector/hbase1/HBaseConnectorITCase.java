@@ -152,7 +152,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 
         tEnv.executeSql(
                 "CREATE TABLE hTable ("
-                        + " rowkey INT PRIMARY KEY,"
+                        + " rowkey INT PRIMARY KEY NOT ENFORCED,"
                         + " family2 ROW<col1 STRING, col2 BIGINT>,"
                         + " family3 ROW<col1 DOUBLE, col2 BOOLEAN, col3 STRING>,"
                         + " family1 ROW<col1 INT>"
@@ -380,7 +380,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
         String srcTableName = "src";
         DataStream<Row> srcDs = execEnv.fromCollection(testData).returns(testTypeInfo);
         Table in = tEnv.fromDataStream(srcDs, $("a"), $("b"), $("c"), $("proc").proctime());
-        tEnv.registerTable(srcTableName, in);
+        tEnv.createTemporaryView(srcTableName, in);
 
         // perform a temporal table join query
         String dimJoinQuery =

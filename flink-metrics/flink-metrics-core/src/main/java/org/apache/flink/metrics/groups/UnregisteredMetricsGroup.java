@@ -108,6 +108,14 @@ public class UnregisteredMetricsGroup implements MetricGroup {
         return new UnregisteredSplitEnumeratorMetricGroup();
     }
 
+    public static CacheMetricGroup createCacheMetricGroup() {
+        return new UnregisteredCacheMetricGroup();
+    }
+
+    public static SinkWriterMetricGroup createSinkWriterMetricGroup() {
+        return new UnregisteredSinkWriterMetricGroup();
+    }
+
     private static class UnregisteredOperatorMetricGroup extends UnregisteredMetricsGroup
             implements OperatorMetricGroup {
         @Override
@@ -177,5 +185,60 @@ public class UnregisteredMetricsGroup implements MetricGroup {
         public <G extends Gauge<Long>> G setUnassignedSplitsGauge(G unassignedSplitsGauge) {
             return null;
         }
+    }
+
+    private static class UnregisteredCacheMetricGroup extends UnregisteredMetricsGroup
+            implements CacheMetricGroup {
+        @Override
+        public void hitCounter(Counter hitCounter) {}
+
+        @Override
+        public void missCounter(Counter missCounter) {}
+
+        @Override
+        public void loadCounter(Counter loadCounter) {}
+
+        @Override
+        public void numLoadFailuresCounter(Counter numLoadFailuresCounter) {}
+
+        @Override
+        public void latestLoadTimeGauge(Gauge<Long> latestLoadTimeGauge) {}
+
+        @Override
+        public void numCachedRecordsGauge(Gauge<Long> numCachedRecordsGauge) {}
+
+        @Override
+        public void numCachedBytesGauge(Gauge<Long> numCachedBytesGauge) {}
+    }
+
+    private static class UnregisteredSinkWriterMetricGroup extends UnregisteredMetricsGroup
+            implements SinkWriterMetricGroup {
+        @Override
+        public OperatorIOMetricGroup getIOMetricGroup() {
+            return new UnregisteredOperatorIOMetricGroup();
+        }
+
+        @Override
+        public Counter getNumRecordsOutErrorsCounter() {
+            return new SimpleCounter();
+        }
+
+        @Override
+        public Counter getNumRecordsSendErrorsCounter() {
+            return new SimpleCounter();
+        }
+
+        @Override
+        public Counter getNumRecordsSendCounter() {
+            return new SimpleCounter();
+        }
+
+        @Override
+        public Counter getNumBytesSendCounter() {
+            return new SimpleCounter();
+        }
+
+        @Override
+        public void setCurrentSendTimeGauge(Gauge<Long> currentSendTimeGauge) {}
     }
 }

@@ -40,6 +40,8 @@ Upsert Kafka 连接器支持以 upsert 方式从 Kafka topic 中读取数据并�
 
 {{< sql_download_table "upsert-kafka" >}}
 
+Upsert Kafka 连接器不是二进制发行版的一部分，请查阅[这里]({{< ref "docs/dev/configuration/overview" >}})了解如何在集群运行中引用 Upsert Kafka 连接器。
+
 完整示例
 ----------------
 

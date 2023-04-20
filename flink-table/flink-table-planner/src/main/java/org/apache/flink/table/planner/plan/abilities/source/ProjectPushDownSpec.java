@@ -28,6 +28,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCre
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
 
+import java.util.Arrays;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -37,7 +38,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * to/from JSON, but also can push the projection into a {@link SupportsProjectionPushDown}.
  */
 @JsonTypeName("ProjectPushDown")
-public class ProjectPushDownSpec extends SourceAbilitySpecBase {
+public final class ProjectPushDownSpec extends SourceAbilitySpecBase {
     public static final String FIELD_NAME_PROJECTED_FIELDS = "projectedFields";
 
     @JsonProperty(FIELD_NAME_PROJECTED_FIELDS)
@@ -72,5 +73,27 @@ public class ProjectPushDownSpec extends SourceAbilitySpecBase {
                         .getFieldNames();
 
         return String.format("project=[%s]", String.join(", ", fieldNames));
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
+        ProjectPushDownSpec that = (ProjectPushDownSpec) o;
+        return Arrays.deepEquals(projectedFields, that.projectedFields);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = super.hashCode();
+        result = 31 * result + Arrays.deepHashCode(projectedFields);
+        return result;
     }
 }

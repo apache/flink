@@ -37,21 +37,6 @@
 			<fileMode>0644</fileMode>
 		</file>
 
-		<!-- Gelly -->
-		<file>
-			<source>../flink-libraries/flink-gelly/target/flink-gelly-${project.version}.jar</source>
-			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-gelly-${project.version}.jar</destName>
-			<fileMode>0644</fileMode>
-		</file>
-
-		<file>
-			<source>../flink-libraries/flink-gelly-scala/target/flink-gelly-scala_${scala.binary.version}-${project.version}-jar-with-dependencies.jar</source>
-			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-gelly-scala_${scala.binary.version}-${project.version}.jar</destName>
-			<fileMode>0644</fileMode>
-		</file>
-
 		<!-- Table/SQL dependencies -->
 		<file>
 			<source>../flink-table/flink-table-planner/target/flink-table-planner_${scala.binary.version}-${project.version}.jar</source>
@@ -63,6 +48,12 @@
 			<source>../flink-table/flink-sql-client/target/flink-sql-client-${project.version}.jar</source>
 			<outputDirectory>opt/</outputDirectory>
 			<destName>flink-sql-client-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+		<file>
+			<source>../flink-table/flink-sql-gateway/target/flink-sql-gateway-${project.version}.jar</source>
+			<outputDirectory>opt/</outputDirectory>
+			<destName>flink-sql-gateway-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 
@@ -102,6 +93,13 @@
 			<fileMode>0644</fileMode>
 		</file>
 
+		<file>
+			<source>../flink-filesystems/flink-gs-fs-hadoop/target/flink-gs-fs-hadoop-${project.version}.jar</source>
+			<outputDirectory>opt/</outputDirectory>
+			<destName>flink-gs-fs-hadoop-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
 		<!-- Queryable State -->
 		<file>
 			<source>../flink-queryable-state/flink-queryable-state-runtime/target/flink-queryable-state-runtime-${project.version}.jar</source>
@@ -112,16 +110,9 @@
 
 		<!-- Python -->
 		<file>
-			<source>../flink-python/target/flink-python_${scala.binary.version}-${project.version}.jar</source>
+			<source>../flink-python/target/flink-python-${project.version}.jar</source>
 			<outputDirectory>opt</outputDirectory>
-			<destName>flink-python_${scala.binary.version}-${project.version}.jar</destName>
-			<fileMode>0644</fileMode>
-		</file>
-
-		<file>
-			<source>target/temporary/flink-shaded-zookeeper-3-${zookeeper.optional.version}-${flink.shaded.version}.jar</source>
-			<outputDirectory>opt</outputDirectory>
-			<destName>flink-shaded-zookeeper-${zookeeper.optional.version}.jar</destName>
+			<destName>flink-python-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 	</files>

@@ -30,6 +30,7 @@ import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
+import org.apache.flink.streaming.runtime.tasks.StreamTask.CanEmitBatchOfRecordsChecker;
 import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
 
 import java.io.IOException;
@@ -62,12 +63,15 @@ public abstract class AbstractStreamTaskNetworkInput<
     private InputChannelInfo lastChannel = null;
     private R currentRecordDeserializer = null;
 
+    protected final CanEmitBatchOfRecordsChecker canEmitBatchOfRecords;
+
     public AbstractStreamTaskNetworkInput(
             CheckpointedInputGate checkpointedInputGate,
             TypeSerializer<T> inputSerializer,
             StatusWatermarkValve statusWatermarkValve,
             int inputIndex,
-            Map<InputChannelInfo, R> recordDeserializers) {
+            Map<InputChannelInfo, R> recordDeserializers,
+            CanEmitBatchOfRecordsChecker canEmitBatchOfRecords) {
         super();
         this.checkpointedInputGate = checkpointedInputGate;
         deserializationDelegate =
@@ -82,6 +86,7 @@ public abstract class AbstractStreamTaskNetworkInput<
         this.statusWatermarkValve = checkNotNull(statusWatermarkValve);
         this.inputIndex = inputIndex;
         this.recordDeserializers = checkNotNull(recordDeserializers);
+        this.canEmitBatchOfRecords = checkNotNull(canEmitBatchOfRecords);
     }
 
     @Override
@@ -103,6 +108,9 @@ public abstract class AbstractStreamTaskNetworkInput<
 
                 if (result.isFullRecord()) {
                     processElement(deserializationDelegate.getInstance(), output);
+                    if (canEmitBatchOfRecords.check()) {
+                        continue;
+                    }
                     return DataInputStatus.MORE_AVAILABLE;
                 }
             }
@@ -115,7 +123,11 @@ public abstract class AbstractStreamTaskNetworkInput<
                 if (bufferOrEvent.get().isBuffer()) {
                     processBuffer(bufferOrEvent.get());
                 } else {
-                    return processEvent(bufferOrEvent.get());
+                    DataInputStatus status = processEvent(bufferOrEvent.get());
+                    if (status == DataInputStatus.MORE_AVAILABLE && canEmitBatchOfRecords.check()) {
+                        continue;
+                    }
+                    return status;
                 }
             } else {
                 if (checkpointedInputGate.isFinished()) {

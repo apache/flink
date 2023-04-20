@@ -15,15 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.batch.table.validation
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.Assert._
 import org.junit._
+import org.junit.Assert._
 
 class CalcValidationTest extends TableTestBase {
 
@@ -32,7 +31,8 @@ class CalcValidationTest extends TableTestBase {
     expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage("Cannot resolve field [foo], input field list:[a, b, c].")
     val util = batchTestUtil()
-    util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    util
+      .addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
       // must fail. Field 'foo does not exist
       .select('a, 'foo)
   }
@@ -40,16 +40,16 @@ class CalcValidationTest extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testFilterInvalidFieldName(): Unit = {
     val util = batchTestUtil()
-    val t = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     // must fail. Field 'foo does not exist
-    t.filter( 'foo === 2 )
+    t.filter('foo === 2)
   }
 
   @Test(expected = classOf[ValidationException])
   def testSelectInvalidField() {
     val util = batchTestUtil()
-    val t = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     // Must fail. Field foo does not exist
     t.select($"a" + 1, $"foo" + 2)
@@ -58,16 +58,16 @@ class CalcValidationTest extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testSelectAmbiguousFieldNames() {
     val util = batchTestUtil()
-    val t = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     // Must fail. Field foo does not exist
-    t.select($"a" + 1 as "foo", $"b" + 2 as "foo")
+    t.select(($"a" + 1).as("foo"), ($"b" + 2).as("foo"))
   }
 
   @Test(expected = classOf[ValidationException])
   def testFilterInvalidField() {
     val util = batchTestUtil()
-    val t = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     // Must fail. Field foo does not exist.
     t.filter($"foo" === 17)
@@ -81,20 +81,20 @@ class CalcValidationTest extends TableTestBase {
       util.addTableSource[(Int, Long, String)]("Table1", '*, 'b, 'c)
       fail("TableException expected")
     } catch {
-      case _: ValidationException => //ignore
+      case _: ValidationException => // ignore
     }
 
     try {
       util.addTableSource[(Int, Long, String)]("Table3").as("*", "b", "c")
       fail("ValidationException expected")
     } catch {
-      case _: ValidationException => //ignore
+      case _: ValidationException => // ignore
     }
     try {
       util.addTableSource[(Int, Long, String)]("Table4", 'a, 'b, 'c).select('*, 'b)
       fail("ValidationException expected")
     } catch {
-      case _: ValidationException => //ignore
+      case _: ValidationException => // ignore
     }
   }
 

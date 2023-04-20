@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.buffer;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemorySegment;
@@ -44,6 +45,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
@@ -61,6 +63,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class NetworkBufferPool
         implements BufferPoolFactory, MemorySegmentProvider, AvailabilityProvider {
 
+    public static final int UNBOUNDED_POOL_SIZE = Integer.MAX_VALUE;
+
+    private static final int USAGE_WARNING_THRESHOLD = 100;
+
     private static final Logger LOG = LoggerFactory.getLogger(NetworkBufferPool.class);
 
     private final int totalNumberOfMemorySegments;
@@ -77,11 +83,15 @@ public class NetworkBufferPool
 
     private final Set<LocalBufferPool> allBufferPools = new HashSet<>();
 
+    private final Set<LocalBufferPool> resizableBufferPools = new HashSet<>();
+
     private int numTotalRequiredBuffers;
 
     private final Duration requestSegmentsTimeout;
 
     private final AvailabilityHelper availabilityHelper = new AvailabilityHelper();
+
+    private int lastCheckedUsage = -1;
 
     @VisibleForTesting
     public NetworkBufferPool(int numberOfSegmentsToAllocate, int segmentSize) {
@@ -129,11 +139,11 @@ public class NetworkBufferPool
 
             throw new OutOfMemoryError(
                     "Could not allocate enough memory segments for NetworkBufferPool "
-                            + "(required (Mb): "
+                            + "(required (MB): "
                             + requiredMb
-                            + ", allocated (Mb): "
+                            + ", allocated (MB): "
                             + allocatedMb
-                            + ", missing (Mb): "
+                            + ", missing (MB): "
                             + missingMb
                             + "). Cause: "
                             + err.getMessage());
@@ -356,6 +366,66 @@ public class NetworkBufferPool
         }
     }
 
+    public long getNumberOfRequestedMemorySegments() {
+        long requestedSegments = 0;
+        synchronized (factoryLock) {
+            for (LocalBufferPool bufferPool : allBufferPools) {
+                requestedSegments += bufferPool.getNumberOfRequestedMemorySegments();
+            }
+        }
+        return requestedSegments;
+    }
+
+    public long getRequestedMemory() {
+        return getNumberOfRequestedMemorySegments() * memorySegmentSize;
+    }
+
+    public int getRequestedSegmentsUsage() {
+        int totalNumberOfMemorySegments = getTotalNumberOfMemorySegments();
+        return totalNumberOfMemorySegments == 0
+                ? 0
+                : Math.toIntExact(
+                        100L * getNumberOfRequestedMemorySegments() / totalNumberOfMemorySegments);
+    }
+
+    @VisibleForTesting
+    Optional<String> getUsageWarning() {
+        int currentUsage = getRequestedSegmentsUsage();
+        Optional<String> message = Optional.empty();
+        // do not log warning if the value hasn't changed to avoid spamming warnings.
+        if (currentUsage >= USAGE_WARNING_THRESHOLD && lastCheckedUsage != currentUsage) {
+            long totalMemory = getTotalMemory();
+            long requestedMemory = getRequestedMemory();
+            long missingMemory = requestedMemory - totalMemory;
+            message =
+                    Optional.of(
+                            String.format(
+                                    "Memory usage [%d%%] is too high to satisfy all of the requests. "
+                                            + "This can severely impact network throughput. "
+                                            + "Please consider increasing available network memory, "
+                                            + "or decreasing configured size of network buffer pools. "
+                                            + "(totalMemory=%s, requestedMemory=%s, missingMemory=%s)",
+                                    currentUsage,
+                                    new MemorySize(totalMemory).toHumanReadableString(),
+                                    new MemorySize(requestedMemory).toHumanReadableString(),
+                                    new MemorySize(missingMemory).toHumanReadableString()));
+        } else if (currentUsage < USAGE_WARNING_THRESHOLD
+                && lastCheckedUsage >= USAGE_WARNING_THRESHOLD) {
+            message =
+                    Optional.of(
+                            String.format("Memory usage [%s%%] went back to normal", currentUsage));
+        }
+        lastCheckedUsage = currentUsage;
+        return message;
+    }
+
+    public void maybeLogUsageWarning() {
+        Optional<String> usageWarning = getUsageWarning();
+        if (usageWarning.isPresent()) {
+            LOG.warn(usageWarning.get());
+        }
+    }
+
     public int countBuffers() {
         int buffers = 0;
 
@@ -381,7 +451,8 @@ public class NetworkBufferPool
     @Override
     public BufferPool createBufferPool(int numRequiredBuffers, int maxUsedBuffers)
             throws IOException {
-        return internalCreateBufferPool(numRequiredBuffers, maxUsedBuffers, 0, Integer.MAX_VALUE);
+        return internalCreateBufferPool(
+                numRequiredBuffers, maxUsedBuffers, 0, Integer.MAX_VALUE, 0);
     }
 
     @Override
@@ -389,17 +460,23 @@ public class NetworkBufferPool
             int numRequiredBuffers,
             int maxUsedBuffers,
             int numSubpartitions,
-            int maxBuffersPerChannel)
+            int maxBuffersPerChannel,
+            int maxOverdraftBuffersPerGate)
             throws IOException {
         return internalCreateBufferPool(
-                numRequiredBuffers, maxUsedBuffers, numSubpartitions, maxBuffersPerChannel);
+                numRequiredBuffers,
+                maxUsedBuffers,
+                numSubpartitions,
+                maxBuffersPerChannel,
+                maxOverdraftBuffersPerGate);
     }
 
     private BufferPool internalCreateBufferPool(
             int numRequiredBuffers,
             int maxUsedBuffers,
             int numSubpartitions,
-            int maxBuffersPerChannel)
+            int maxBuffersPerChannel,
+            int maxOverdraftBuffersPerGate)
             throws IOException {
 
         // It is necessary to use a separate lock from the one used for buffer
@@ -431,9 +508,14 @@ public class NetworkBufferPool
                             numRequiredBuffers,
                             maxUsedBuffers,
                             numSubpartitions,
-                            maxBuffersPerChannel);
+                            maxBuffersPerChannel,
+                            maxOverdraftBuffersPerGate);
 
             allBufferPools.add(localBufferPool);
+
+            if (numRequiredBuffers < maxUsedBuffers) {
+                resizableBufferPools.add(localBufferPool);
+            }
 
             redistributeBuffers();
 
@@ -450,6 +532,7 @@ public class NetworkBufferPool
         synchronized (factoryLock) {
             if (allBufferPools.remove(bufferPool)) {
                 numTotalRequiredBuffers -= bufferPool.getNumberOfRequiredMemorySegments();
+                resizableBufferPools.remove(bufferPool);
 
                 redistributeBuffers();
             }
@@ -471,7 +554,9 @@ public class NetworkBufferPool
             }
 
             // some sanity checks
-            if (allBufferPools.size() > 0 || numTotalRequiredBuffers > 0) {
+            if (allBufferPools.size() > 0
+                    || numTotalRequiredBuffers > 0
+                    || resizableBufferPools.size() > 0) {
                 throw new IllegalStateException(
                         "NetworkBufferPool is not empty after destroying all LocalBufferPools");
             }
@@ -508,12 +593,16 @@ public class NetworkBufferPool
     private void redistributeBuffers() {
         assert Thread.holdsLock(factoryLock);
 
+        if (resizableBufferPools.isEmpty()) {
+            return;
+        }
+
         // All buffers, which are not among the required ones
         final int numAvailableMemorySegment = totalNumberOfMemorySegments - numTotalRequiredBuffers;
 
         if (numAvailableMemorySegment == 0) {
             // in this case, we need to redistribute buffers so that every pool gets its minimum
-            for (LocalBufferPool bufferPool : allBufferPools) {
+            for (LocalBufferPool bufferPool : resizableBufferPools) {
                 bufferPool.setNumBuffers(bufferPool.getNumberOfRequiredMemorySegments());
             }
             return;
@@ -529,7 +618,7 @@ public class NetworkBufferPool
 
         long totalCapacity = 0; // long to avoid int overflow
 
-        for (LocalBufferPool bufferPool : allBufferPools) {
+        for (LocalBufferPool bufferPool : resizableBufferPools) {
             int excessMax =
                     bufferPool.getMaxNumberOfMemorySegments()
                             - bufferPool.getNumberOfRequiredMemorySegments();
@@ -549,7 +638,7 @@ public class NetworkBufferPool
 
         long totalPartsUsed = 0; // of totalCapacity
         int numDistributedMemorySegment = 0;
-        for (LocalBufferPool bufferPool : allBufferPools) {
+        for (LocalBufferPool bufferPool : resizableBufferPools) {
             int excessMax =
                     bufferPool.getMaxNumberOfMemorySegments()
                             - bufferPool.getNumberOfRequiredMemorySegments();

@@ -20,7 +20,7 @@ package org.apache.flink.runtime.leaderretrieval;
 
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
 
 /** {@link LeaderRetrievalDriverFactory} implementation for Zookeeper. */
 public class ZooKeeperLeaderRetrievalDriverFactory implements LeaderRetrievalDriverFactory {

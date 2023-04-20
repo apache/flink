@@ -15,24 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rex.RexProgram
 
 import scala.collection.JavaConversions._
 
-/**
- * Stream physical RelNode for [[Calc]].
- */
+/** Stream physical RelNode for [[Calc]]. */
 class StreamPhysicalCalc(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -54,6 +52,7 @@ class StreamPhysicalCalc(
     }
 
     new StreamExecCalc(
+      unwrapTableConfig(this),
       projection,
       condition,
       InputProperty.DEFAULT,

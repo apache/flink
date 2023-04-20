@@ -20,6 +20,7 @@ package org.apache.flink.table.connector.sink;
 
 import org.apache.flink.api.common.serialization.Encoder;
 import org.apache.flink.api.connector.sink.Committer;
+import org.apache.flink.api.connector.sink.GlobalCommitter;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -41,8 +42,11 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Managed {@link Committer} for testing compaction. */
-public class TestManagedSinkCommitter implements Committer<TestManagedCommittable> {
+public class TestManagedSinkCommitter
+        implements GlobalCommitter<TestManagedCommittable, TestManagedCommittable> {
 
     private final ObjectIdentifier tableIdentifier;
     private final Path basePath;
@@ -54,24 +58,35 @@ public class TestManagedSinkCommitter implements Committer<TestManagedCommittabl
     }
 
     @Override
+    public List<TestManagedCommittable> filterRecoveredCommittables(
+            List<TestManagedCommittable> globalCommittables) throws IOException {
+        return null;
+    }
+
+    @Override
+    public TestManagedCommittable combine(List<TestManagedCommittable> committables)
+            throws IOException {
+        // combine files to add/delete
+        return TestManagedCommittable.combine(committables);
+    }
+
+    @Override
     public List<TestManagedCommittable> commit(List<TestManagedCommittable> committables)
             throws IOException, InterruptedException {
-        // combine files to add/delete
-        TestManagedCommittable combinedCommittable = TestManagedCommittable.combine(committables);
+        for (final TestManagedCommittable combinedCommittable : committables) {
+            AtomicReference<Map<CatalogPartitionSpec, List<Path>>> reference =
+                    TestManagedTableFactory.MANAGED_TABLE_FILE_ENTRIES.get(tableIdentifier);
+            assertThat(reference).isNotNull();
+            Map<CatalogPartitionSpec, List<Path>> managedTableFileEntries = reference.get();
 
-        AtomicReference<Map<CatalogPartitionSpec, List<Path>>> reference =
-                TestManagedTableFactory.MANAGED_TABLE_FILE_ENTRIES.get(tableIdentifier);
-        assert reference != null;
-        Map<CatalogPartitionSpec, List<Path>> managedTableFileEntries = reference.get();
+            // commit new files
+            commitAdd(combinedCommittable.getToAdd(), managedTableFileEntries);
 
-        // commit new files
-        commitAdd(combinedCommittable.getToAdd(), managedTableFileEntries);
+            // cleanup old files
+            commitDelete(combinedCommittable.getToDelete(), managedTableFileEntries);
 
-        // cleanup old files
-        commitDelete(combinedCommittable.getToDelete(), managedTableFileEntries);
-
-        reference.set(managedTableFileEntries);
-
+            reference.set(managedTableFileEntries);
+        }
         return Collections.emptyList();
     }
 
@@ -130,6 +145,9 @@ public class TestManagedSinkCommitter implements Committer<TestManagedCommittabl
             managedTableFileEntries.put(partitionSpec, paths);
         }
     }
+
+    @Override
+    public void endOfInput() throws IOException, InterruptedException {}
 
     /** An {@link Encoder} implementation to encode records. */
     private static class RowDataEncoder implements Encoder<RowData> {

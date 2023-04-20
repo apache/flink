@@ -43,6 +43,10 @@ final class CastRuleUtils {
         return legacyBehaviour ? strLiteral("null") : strLiteral("NULL");
     }
 
+    static String operator(Object left, String operator, Object right) {
+        return left + operator + right;
+    }
+
     static String staticCall(Class<?> clazz, String methodName, Object... args) {
         return methodCall(className(clazz), methodName, args);
     }
@@ -206,6 +210,10 @@ final class CastRuleUtils {
 
         public CodeWriter assignStmt(String varName, String value) {
             return stmt(varName + " = " + value);
+        }
+
+        public CodeWriter assignPlusStmt(String varName, String value) {
+            return stmt(varName + " += " + value);
         }
 
         public CodeWriter assignArrayStmt(String varName, String index, String value) {

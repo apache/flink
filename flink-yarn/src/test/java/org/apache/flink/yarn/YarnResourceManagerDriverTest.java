@@ -21,7 +21,6 @@ package org.apache.flink.yarn;
 import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
@@ -54,27 +53,31 @@ import org.apache.hadoop.yarn.client.api.AMRMClient;
 import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
 import org.apache.hadoop.yarn.client.api.async.NMClientAsync;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.junit.Assume;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.nio.file.Files;
-import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
 import static org.apache.flink.configuration.GlobalConfiguration.FLINK_CONF_FILENAME;
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_APP_ID;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_CLIENT_HOME_DIR;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_CLIENT_SHIP_FILES;
@@ -83,17 +86,16 @@ import static org.apache.flink.yarn.YarnConfigKeys.ENV_HADOOP_USER_NAME;
 import static org.apache.flink.yarn.YarnConfigKeys.FLINK_DIST_JAR;
 import static org.apache.flink.yarn.YarnConfigKeys.FLINK_YARN_FILES;
 import static org.apache.flink.yarn.YarnResourceManagerDriver.ERROR_MESSAGE_ON_SHUTDOWN_REQUEST;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Tests for {@link YarnResourceManagerDriver}. */
 public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase<YarnWorkerNode> {
+
+    private static final Logger log = LoggerFactory.getLogger(YarnResourceManagerDriverTest.class);
+
     private static final Resource testingResource =
             Resource.newInstance(
                     YarnConfiguration.DEFAULT_RM_SCHEDULER_MINIMUM_ALLOCATION_MB,
@@ -114,7 +116,7 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
                     MemorySize.ZERO,
                     Collections.emptyList());
 
-    @Rule public TemporaryFolder folder = new TemporaryFolder();
+    @TempDir private java.nio.file.Path tmpFolder;
 
     @Override
     protected Context createContext() {
@@ -122,7 +124,7 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
     }
 
     @Test
-    public void testRunAsyncCausesFatalError() throws Exception {
+    void testRunAsyncCausesFatalError() throws Exception {
         new Context() {
             {
                 final String exceptionMessage = "runAsyncCausesFatalError";
@@ -153,15 +155,15 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
                             final Optional<RuntimeException> optionalCause =
                                     ExceptionUtils.findThrowable(t, RuntimeException.class);
 
-                            assertTrue(optionalCause.isPresent());
-                            assertThat(optionalCause.get().getMessage(), is(exceptionMessage));
+                            assertThat(optionalCause).isPresent();
+                            assertThat(optionalCause.get()).hasMessage(exceptionMessage);
                         });
             }
         };
     }
 
     @Test
-    public void testShutdownRequestCausesFatalError() throws Exception {
+    void testShutdownRequestCausesFatalError() throws Exception {
         new Context() {
             {
                 final CompletableFuture<Throwable> throwableCompletableFuture =
@@ -174,23 +176,64 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
 
                             Throwable throwable =
                                     throwableCompletableFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
-                            assertThat(
-                                    ExceptionUtils.findThrowable(
-                                                    throwable, ResourceManagerException.class)
-                                            .isPresent(),
-                                    is(true));
-                            assertThat(
-                                    ExceptionUtils.findThrowableWithMessage(
-                                                    throwable, ERROR_MESSAGE_ON_SHUTDOWN_REQUEST)
-                                            .isPresent(),
-                                    is(true));
+                            assertThat(throwable)
+                                    .satisfies(anyCauseMatches(ResourceManagerException.class))
+                                    .satisfies(anyCauseMatches(ERROR_MESSAGE_ON_SHUTDOWN_REQUEST));
                         });
             }
         };
     }
 
     @Test
-    public void testTerminationDoesNotBlock() throws Exception {
+    void testOnErrorCausesFatalError() throws Exception {
+        new Context() {
+            {
+                final CompletableFuture<Throwable> throwableCompletableFuture =
+                        new CompletableFuture<>();
+                resourceEventHandlerBuilder.setOnErrorConsumer(
+                        throwableCompletableFuture::complete);
+
+                Throwable expectedThrowable = new Exception("test");
+                runTest(
+                        () -> {
+                            resourceManagerClientCallbackHandler.onError(expectedThrowable);
+
+                            Throwable actualThrowable =
+                                    throwableCompletableFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
+                            assertThat(actualThrowable).isEqualTo(expectedThrowable);
+                        });
+            }
+        };
+    }
+
+    @Test
+    void testOnErrorAfterTerminationIgnored() throws Exception {
+        new Context() {
+            {
+                final CompletableFuture<Throwable> throwableCompletableFuture =
+                        new CompletableFuture<>();
+                resourceEventHandlerBuilder.setOnErrorConsumer(
+                        throwableCompletableFuture::complete);
+
+                Throwable expectedThrowable = new Exception("test");
+                runTest(
+                        () -> {
+                            getDriver().terminate();
+                            resourceManagerClientCallbackHandler.onError(expectedThrowable);
+
+                            assertThatThrownBy(
+                                            () ->
+                                                    throwableCompletableFuture.get(
+                                                            TIMEOUT_SHOULD_NOT_HAPPEN_MS,
+                                                            TimeUnit.MILLISECONDS))
+                                    .isInstanceOf(TimeoutException.class);
+                        });
+            }
+        };
+    }
+
+    @Test
+    void testTerminationDoesNotBlock() throws Exception {
         new Context() {
             {
                 runTest(
@@ -207,7 +250,7 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
     }
 
     @Test
-    public void testTerminationWaitsOnContainerStopSuccess() throws Exception {
+    void testTerminationWaitsOnContainerStopSuccess() throws Exception {
         new Context() {
             {
                 final CompletableFuture<ContainerId> containerIdFuture = new CompletableFuture<>();
@@ -242,9 +285,11 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
                                                 getDriver().terminate();
                                             });
 
-                            assertThat(
-                                    driverHasTerminatedFuture,
-                                    FlinkMatchers.willNotComplete(Duration.ofMillis(20L)));
+                            assertThatThrownBy(
+                                            () ->
+                                                    driverHasTerminatedFuture.get(
+                                                            20, TimeUnit.MILLISECONDS))
+                                    .isInstanceOf(TimeoutException.class);
 
                             nodeManagerClientCallbackHandler.onContainerStopped(
                                     containerIdFuture.get());
@@ -258,7 +303,7 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
     }
 
     @Test
-    public void testTerminationWaitsOnContainerStopError() throws Exception {
+    void testTerminationWaitsOnContainerStopError() throws Exception {
         new Context() {
             {
                 final CompletableFuture<ContainerId> containerIdFuture = new CompletableFuture<>();
@@ -292,10 +337,11 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
                                                 getDriver().releaseResource(worker);
                                                 getDriver().terminate();
                                             });
-
-                            assertThat(
-                                    driverHasTerminatedFuture,
-                                    FlinkMatchers.willNotComplete(Duration.ofMillis(20L)));
+                            assertThatThrownBy(
+                                            () ->
+                                                    driverHasTerminatedFuture.get(
+                                                            20, TimeUnit.MILLISECONDS))
+                                    .isInstanceOf(TimeoutException.class);
 
                             nodeManagerClientCallbackHandler.onStopContainerError(
                                     containerIdFuture.get(), null);
@@ -312,25 +358,23 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
      * Tests that application files are deleted when the YARN application master is de-registered.
      */
     @Test
-    public void testDeleteApplicationFiles() throws Exception {
+    void testDeleteApplicationFiles() throws Exception {
         new Context() {
             {
-                final File applicationDir = folder.newFolder(".flink");
+                final File applicationDir = Files.createTempDirectory(tmpFolder, ".flink").toFile();
                 env.put(FLINK_YARN_FILES, applicationDir.getCanonicalPath());
 
                 runTest(
                         () -> {
                             getDriver().deregisterApplication(ApplicationStatus.SUCCEEDED, null);
-                            assertFalse(
-                                    "YARN application directory was not removed",
-                                    Files.exists(applicationDir.toPath()));
+                            assertThat(applicationDir.toPath()).doesNotExist();
                         });
             }
         };
     }
 
     @Test
-    public void testOnContainerAllocated() throws Exception {
+    void testOnContainerAllocated() throws Exception {
         new Context() {
             {
                 addContainerRequestFutures.add(new CompletableFuture<>());
@@ -362,37 +406,113 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
     }
 
     @Test
-    public void testOnSuccessfulContainerCompleted() throws Exception {
+    void testCancelRequestedResource() throws Exception {
+        new Context() {
+            {
+                addContainerRequestFutures.add(new CompletableFuture<>());
+
+                testingYarnAMRMClientAsyncBuilder.setAddContainerRequestConsumer(
+                        (ignored1, ignored2) ->
+                                addContainerRequestFutures
+                                        .get(
+                                                addContainerRequestFuturesNumCompleted
+                                                        .getAndIncrement())
+                                        .complete(null));
+
+                runTest(
+                        () -> {
+                            runInMainThread(
+                                    () -> {
+                                        CompletableFuture<YarnWorkerNode> requestFuture =
+                                                getDriver()
+                                                        .requestResource(
+                                                                testingTaskExecutorProcessSpec);
+                                        requestFuture.cancel(true);
+                                    });
+
+                            verifyFutureCompleted(addContainerRequestFutures.get(0));
+                            verifyFutureCompleted(removeContainerRequestFuture);
+                            assertThat(startContainerAsyncFuture.isDone()).isFalse();
+                        });
+            }
+        };
+    }
+
+    @Test
+    void testUpdateBlocklist() throws Exception {
+        new Context() {
+            {
+                final Set<String> yarnReceivedBlocklist = new HashSet<>();
+                testingYarnAMRMClientAsyncBuilder.setUpdateBlocklistConsumer(
+                        (additions, removals) -> {
+                            if (additions != null) {
+                                yarnReceivedBlocklist.addAll(additions);
+                            }
+
+                            if (removals != null) {
+                                yarnReceivedBlocklist.removeAll(removals);
+                            }
+                        });
+
+                final Set<String> blockedNodes = new HashSet<>();
+                setBlockedNodeRetriever(() -> blockedNodes);
+                runTest(
+                        () -> {
+                            blockedNodes.addAll(Arrays.asList("node1", "node2", "node3"));
+                            runInMainThread(
+                                            () ->
+                                                    getDriver()
+                                                            .requestResource(
+                                                                    TASK_EXECUTOR_PROCESS_SPEC))
+                                    .get();
+                            assertThat(yarnReceivedBlocklist)
+                                    .containsExactlyInAnyOrder("node1", "node2", "node3");
+
+                            blockedNodes.remove("node1");
+                            runInMainThread(
+                                            () ->
+                                                    getDriver()
+                                                            .requestResource(
+                                                                    TASK_EXECUTOR_PROCESS_SPEC))
+                                    .get();
+                            assertThat(yarnReceivedBlocklist)
+                                    .containsExactlyInAnyOrder("node2", "node3");
+                        });
+            }
+        };
+    }
+
+    @Test
+    void testOnSuccessfulContainerCompleted() throws Exception {
         runTestOnContainerCompleted(createSuccessfulCompletedContainerStatus());
     }
 
     @Test
-    public void testOnContainerCompletedBecauseDisksFailed() throws Exception {
+    void testOnContainerCompletedBecauseDisksFailed() throws Exception {
         runTestOnContainerCompleted(createCompletedContainerStatusBecauseDisksFailed());
     }
 
     @Test
-    public void testOnContainerCompletedBecauseItWasAborted() throws Exception {
+    void testOnContainerCompletedBecauseItWasAborted() throws Exception {
         runTestOnContainerCompleted(createCompletedContainerStatusBecauseItWasAborted());
     }
 
     @Test
-    public void testOnContainerCompletedBecauseItWasInvalid() throws Exception {
+    void testOnContainerCompletedBecauseItWasInvalid() throws Exception {
         runTestOnContainerCompleted(createCompletedContainerStatusBecauseItWasInvalid());
     }
 
     @Test
-    public void testOnContainerCompletedForUnknownCause() throws Exception {
+    void testOnContainerCompletedForUnknownCause() throws Exception {
         runTestOnContainerCompleted(createCompletedContainerStatusForUnknownCause());
     }
 
     @Test
-    public void testOnContainerCompletedBecauseItWasPreempted() throws Exception {
+    void testOnContainerCompletedBecauseItWasPreempted() throws Exception {
         runTestOnContainerCompleted(createCompletedContainerStatusBecauseItWasPreempted());
     }
 
-    public void runTestOnContainerCompleted(ContainerStatus completedContainerStatus)
-            throws Exception {
+    void runTestOnContainerCompleted(ContainerStatus completedContainerStatus) throws Exception {
         new Context() {
             {
                 addContainerRequestFutures.add(new CompletableFuture<>());
@@ -428,7 +548,7 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
     }
 
     @Test
-    public void testOnStartContainerError() throws Exception {
+    void testOnStartContainerError() throws Exception {
         new Context() {
             {
                 addContainerRequestFutures.add(new CompletableFuture<>());
@@ -465,7 +585,7 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
     }
 
     @Test
-    public void testStartWorkerVariousSpec() throws Exception {
+    void testStartWorkerVariousSpec() throws Exception {
         final TaskExecutorProcessSpec taskExecutorProcessSpec1 =
                 new TaskExecutorProcessSpec(
                         new CPUResource(1),
@@ -518,7 +638,7 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
                                 final AMRMClient.ContainerRequest request =
                                         addContainerRequestFuture.getNow(null);
                                 if (request != null && priority.equals(request.getPriority())) {
-                                    assertThat(tuple.f2, is(request.getCapability()));
+                                    assertThat(tuple.f2).isEqualTo(request.getCapability());
                                     matchingRequests.add(request);
                                 }
                             }
@@ -537,7 +657,7 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
                                             .get();
                             // Make sure two worker resource spec will be normalized to different
                             // container resources
-                            assertNotEquals(containerResource1, containerResource2);
+                            assertThat(containerResource2).isNotEqualTo(containerResource1);
 
                             runInMainThread(
                                     () -> getDriver().requestResource(taskExecutorProcessSpec1));
@@ -556,7 +676,7 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
 
                             // Verify that only worker with spec1 is started.
                             verifyFutureCompleted(startContainerAsyncCommandFuture1);
-                            assertFalse(startContainerAsyncCommandFuture2.isDone());
+                            assertThat(startContainerAsyncCommandFuture2.isDone()).isFalse();
 
                             // Mock that container 1 is completed, while the worker is still pending
                             ContainerStatus testingContainerStatus =
@@ -566,10 +686,9 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
 
                             // Verify that only container 1 is requested again
                             verifyFutureCompleted(addContainerRequestFutures.get(2));
-                            assertThat(
-                                    addContainerRequestFutures.get(2).get().getCapability(),
-                                    is(containerResource1));
-                            assertFalse(addContainerRequestFutures.get(3).isDone());
+                            assertThat(addContainerRequestFutures.get(2).get().getCapability())
+                                    .isEqualTo(containerResource1);
+                            assertThat(addContainerRequestFutures.get(3).isDone()).isFalse();
                         });
             }
         };
@@ -596,8 +715,7 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
                 new CompletableFuture<>();
         private final CompletableFuture<Resource> createTaskManagerContainerFuture =
                 new CompletableFuture<>();
-        protected final CompletableFuture<Void> stopContainerAsyncFuture =
-                new CompletableFuture<>();
+        final CompletableFuture<Void> stopContainerAsyncFuture = new CompletableFuture<>();
         final List<CompletableFuture<AMRMClient.ContainerRequest>> addContainerRequestFutures =
                 new ArrayList<>();
         final AtomicInteger addContainerRequestFuturesNumCompleted = new AtomicInteger(0);
@@ -679,7 +797,7 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
 
         private int containerIdx = 0;
 
-        protected void resetYarnNodeManagerClientFactory() {
+        void resetYarnNodeManagerClientFactory() {
             testingYarnNodeManagerClientFactory =
                     new TestingYarnNodeManagerClientFactory(
                             (handler -> {
@@ -692,10 +810,7 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
 
         @Override
         protected void prepareRunTest() throws Exception {
-            File root = folder.getRoot();
-            File home = new File(root, "home");
-            boolean created = home.mkdir();
-            assertTrue(created);
+            File home = Files.createTempDirectory(tmpFolder, "home").toFile();
 
             env.put(ENV_APP_ID, "foo");
             env.put(ENV_CLIENT_HOME_DIR, home.getAbsolutePath());
@@ -738,8 +853,8 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
 
         @Override
         protected void validateInitialization() throws Exception {
-            assertNotNull(testingYarnAMRMClientAsync);
-            assertNotNull(testingYarnNMClientAsync);
+            assertThat(testingYarnAMRMClientAsync).isNotNull();
+            assertThat(testingYarnNMClientAsync).isNotNull();
             verifyFutureCompleted(nodeManagerClientInitFuture);
             verifyFutureCompleted(nodeManagerClientStartFuture);
             verifyFutureCompleted(resourceManagerClientInitFuture);
@@ -749,11 +864,11 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
         @Override
         protected void validateWorkersRecoveredFromPreviousAttempt(
                 Collection<YarnWorkerNode> workers) {
-            Assume.assumeTrue(HadoopUtils.isMinHadoopVersion(2, 2));
-            assertThat(workers.size(), is(1));
+            assumeThat(HadoopUtils.isMinHadoopVersion(2, 2)).isTrue();
+            assertThat(workers).hasSize(1);
 
             final ResourceID resourceId = workers.iterator().next().getResourceID();
-            assertThat(resourceId.toString(), is(testingContainer.getId().toString()));
+            assertThat(resourceId).hasToString(testingContainer.getId().toString());
         }
 
         @Override
@@ -770,26 +885,24 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
         @Override
         protected void validateRequestedResources(
                 Collection<TaskExecutorProcessSpec> taskExecutorProcessSpecs) throws Exception {
-            assertThat(taskExecutorProcessSpecs.size(), is(1));
+            assertThat(taskExecutorProcessSpecs).hasSize(1);
             final TaskExecutorProcessSpec taskExecutorProcessSpec =
                     taskExecutorProcessSpecs.iterator().next();
 
             final Resource resource =
                     createTaskManagerContainerFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
 
-            assertThat(
-                    resource.getMemory(),
-                    is(taskExecutorProcessSpec.getTotalProcessMemorySize().getMebiBytes()));
-            assertThat(
-                    resource.getVirtualCores(),
-                    is(taskExecutorProcessSpec.getCpuCores().getValue().intValue()));
+            assertThat(resource.getMemorySize())
+                    .isEqualTo(taskExecutorProcessSpec.getTotalProcessMemorySize().getMebiBytes());
+            assertThat(resource.getVirtualCores())
+                    .isEqualTo(taskExecutorProcessSpec.getCpuCores().getValue().intValue());
             verifyFutureCompleted(removeContainerRequestFuture);
         }
 
         @Override
         protected void validateReleaseResources(Collection<YarnWorkerNode> workerNodes)
                 throws Exception {
-            assertThat(workerNodes.size(), is(1));
+            assertThat(workerNodes).hasSize(1);
             verifyFutureCompleted(stopContainerAsyncFuture);
             verifyFutureCompleted(releaseAssignedContainerFuture);
         }
@@ -838,7 +951,7 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
     }
 
     @Test
-    public void testGetContainerCompletedCauseForSuccess() {
+    void testGetContainerCompletedCauseForSuccess() {
         ContainerStatus containerStatus = createSuccessfulCompletedContainerStatus();
         testingGetContainerCompletedCause(
                 containerStatus,
@@ -854,7 +967,7 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
     }
 
     @Test
-    public void testGetContainerCompletedCauseForPreempted() {
+    void testGetContainerCompletedCauseForPreempted() {
         ContainerStatus containerStatus = createCompletedContainerStatusBecauseItWasPreempted();
         testingGetContainerCompletedCause(
                 containerStatus,
@@ -871,7 +984,7 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
     }
 
     @Test
-    public void testGetContainerCompletedCauseForInvalid() {
+    void testGetContainerCompletedCauseForInvalid() {
         ContainerStatus containerStatus = createCompletedContainerStatusBecauseItWasInvalid();
         testingGetContainerCompletedCause(
                 containerStatus,
@@ -887,7 +1000,7 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
     }
 
     @Test
-    public void testGetContainerCompletedCauseForAborted() {
+    void testGetContainerCompletedCauseForAborted() {
         ContainerStatus containerStatus = createCompletedContainerStatusBecauseItWasAborted();
         testingGetContainerCompletedCause(
                 containerStatus,
@@ -905,7 +1018,7 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
     }
 
     @Test
-    public void testGetContainerCompletedCauseForDiskFailed() {
+    void testGetContainerCompletedCauseForDiskFailed() {
         ContainerStatus containerStatus = createCompletedContainerStatusBecauseDisksFailed();
         testingGetContainerCompletedCause(
                 containerStatus,
@@ -924,7 +1037,7 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
     }
 
     @Test
-    public void testGetContainerCompletedCauseForUnknown() {
+    void testGetContainerCompletedCauseForUnknown() {
         ContainerStatus containerStatus = createCompletedContainerStatusForUnknownCause();
         testingGetContainerCompletedCause(
                 containerStatus,
@@ -938,11 +1051,11 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
                 testingContainer.getId(), ContainerState.COMPLETE, "unknown exit code", -1);
     }
 
-    public void testingGetContainerCompletedCause(
+    void testingGetContainerCompletedCause(
             ContainerStatus containerStatus, String expectedCompletedCause) {
         final String containerCompletedCause =
                 YarnResourceManagerDriver.getContainerCompletedCause(containerStatus);
-        assertThat(containerCompletedCause, containsString(expectedCompletedCause));
-        assertThat(containerCompletedCause, containsString(containerStatus.getDiagnostics()));
+        assertThat(containerCompletedCause)
+                .contains(expectedCompletedCause, containerStatus.getDiagnostics());
     }
 }

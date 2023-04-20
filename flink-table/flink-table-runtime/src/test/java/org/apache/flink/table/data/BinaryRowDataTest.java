@@ -53,7 +53,6 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.types.RowKind;
 
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.EOFException;
@@ -81,13 +80,8 @@ import static org.apache.flink.table.data.StringData.fromString;
 import static org.apache.flink.table.data.util.DataFormatTestUtil.MyObj;
 import static org.apache.flink.table.data.util.MapDataUtil.convertToJavaMap;
 import static org.apache.flink.table.utils.RawValueDataAsserter.equivalent;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Test of {@link BinaryRowData} and {@link BinaryRowWriter}. */
 public class BinaryRowDataTest {
@@ -95,15 +89,15 @@ public class BinaryRowDataTest {
     @Test
     public void testBasic() {
         // consider header 1 byte.
-        assertEquals(8, new BinaryRowData(0).getFixedLengthPartSize());
-        assertEquals(16, new BinaryRowData(1).getFixedLengthPartSize());
-        assertEquals(536, new BinaryRowData(65).getFixedLengthPartSize());
-        assertEquals(1048, new BinaryRowData(128).getFixedLengthPartSize());
+        assertThat(new BinaryRowData(0).getFixedLengthPartSize()).isEqualTo(8);
+        assertThat(new BinaryRowData(1).getFixedLengthPartSize()).isEqualTo(16);
+        assertThat(new BinaryRowData(65).getFixedLengthPartSize()).isEqualTo(536);
+        assertThat(new BinaryRowData(128).getFixedLengthPartSize()).isEqualTo(1048);
 
         MemorySegment segment = MemorySegmentFactory.wrap(new byte[100]);
         BinaryRowData row = new BinaryRowData(2);
         row.pointTo(segment, 10, 48);
-        assertSame(row.getSegments()[0], segment);
+        assertThat(segment).isSameAs(row.getSegments()[0]);
         row.setInt(0, 5);
         row.setDouble(1, 5.8D);
     }
@@ -122,14 +116,14 @@ public class BinaryRowDataTest {
         row.setByte(6, (byte) 66);
         row.setFloat(7, 77f);
 
-        assertEquals(33d, (long) row.getDouble(3), 0);
-        assertEquals(11, row.getInt(1));
-        assertTrue(row.isNullAt(0));
-        assertEquals(55, row.getShort(5));
-        assertEquals(22, row.getLong(2));
-        assertTrue(row.getBoolean(4));
-        assertEquals((byte) 66, row.getByte(6));
-        assertEquals(77f, row.getFloat(7), 0);
+        assertThat((long) row.getDouble(3)).isEqualTo(33L);
+        assertThat(row.getInt(1)).isEqualTo(11);
+        assertThat(row.isNullAt(0)).isTrue();
+        assertThat(row.getShort(5)).isEqualTo((short) 55);
+        assertThat(row.getLong(2)).isEqualTo(22L);
+        assertThat(row.getBoolean(4)).isTrue();
+        assertThat(row.getByte(6)).isEqualTo((byte) 66);
+        assertThat(row.getFloat(7)).isEqualTo(77f);
     }
 
     @Test
@@ -167,7 +161,7 @@ public class BinaryRowDataTest {
 
         BinaryRowData toCopy = new BinaryRowData(arity);
         toCopy.pointTo(new MemorySegment[] {subMs1, subMs2}, 0, row.getSizeInBytes());
-        assertEquals(row, toCopy);
+        assertThat(toCopy).isEqualTo(row);
         assertTestWriterRow(toCopy);
         assertTestWriterRow(toCopy.copy(new BinaryRowData(arity)));
     }
@@ -185,8 +179,8 @@ public class BinaryRowDataTest {
             writer.complete();
 
             String str = row.getString(0).toString();
-            assertEquals(chars[0], str.charAt(0));
-            assertEquals(chars[1], str.charAt(1));
+            assertThat(str.charAt(0)).isEqualTo(chars[0]);
+            assertThat(str.charAt(1)).isEqualTo(chars[1]);
         }
 
         {
@@ -198,8 +192,8 @@ public class BinaryRowDataTest {
             writer.writeString(1, fromBytes(str.getBytes(StandardCharsets.UTF_8)));
             writer.complete();
 
-            assertEquals(str, row.getString(0).toString());
-            assertEquals(str, row.getString(1).toString());
+            assertThat(row.getString(0).toString()).isEqualTo(str);
+            assertThat(row.getString(1).toString()).isEqualTo(str);
         }
     }
 
@@ -231,7 +225,7 @@ public class BinaryRowDataTest {
             writer.reset();
             writer.writeString(0, mapRow.getString(0));
             writer.complete();
-            assertEquals(str, row.getString(0).toString());
+            assertThat(row.getString(0).toString()).isEqualTo(str);
 
             BinaryRowData deserRow =
                     serializer.deserializeFromPages(
@@ -239,7 +233,7 @@ public class BinaryRowDataTest {
             writer.reset();
             writer.writeString(0, deserRow.getString(0));
             writer.complete();
-            assertEquals(str, row.getString(0).toString());
+            assertThat(row.getString(0).toString()).isEqualTo(str);
         }
 
         {
@@ -265,8 +259,8 @@ public class BinaryRowDataTest {
             writer.writeString(0, mapRow.getString(0));
             writer.writeString(1, mapRow.getString(1));
             writer.complete();
-            assertEquals(str1, row.getString(0).toString());
-            assertEquals(str2, row.getString(1).toString());
+            assertThat(row.getString(0).toString()).isEqualTo(str1);
+            assertThat(row.getString(1).toString()).isEqualTo(str2);
 
             in = new RandomAccessInputView(memorySegmentList, 64);
             in.skipBytesToRead(40);
@@ -275,25 +269,25 @@ public class BinaryRowDataTest {
             writer.writeString(0, deserRow.getString(0));
             writer.writeString(1, deserRow.getString(1));
             writer.complete();
-            assertEquals(str1, row.getString(0).toString());
-            assertEquals(str2, row.getString(1).toString());
+            assertThat(row.getString(0).toString()).isEqualTo(str1);
+            assertThat(row.getString(1).toString()).isEqualTo(str2);
         }
     }
 
     private void assertTestWriterRow(BinaryRowData row) {
-        assertEquals("1", row.getString(0).toString());
-        assertEquals(88, row.getInt(8));
-        assertEquals((short) 292, row.getShort(11));
-        assertEquals(284, row.getLong(10));
-        assertEquals((byte) 99, row.getByte(2));
-        assertEquals(87.1d, row.getDouble(6), 0);
-        assertEquals(26.1f, row.getFloat(7), 0);
-        assertTrue(row.getBoolean(1));
-        assertEquals("1234567", row.getString(3).toString());
-        assertEquals("12345678", row.getString(5).toString());
-        assertEquals("啦啦啦啦啦我是快乐的粉刷匠", row.getString(9).toString());
-        assertEquals(fromString("啦啦啦啦啦我是快乐的粉刷匠").hashCode(), row.getString(9).hashCode());
-        assertTrue(row.isNullAt(12));
+        assertThat(row.getString(0).toString()).isEqualTo("1");
+        assertThat(row.getInt(8)).isEqualTo(88);
+        assertThat(row.getShort(11)).isEqualTo((short) 292);
+        assertThat(row.getLong(10)).isEqualTo(284);
+        assertThat(row.getByte(2)).isEqualTo((byte) 99);
+        assertThat(row.getDouble(6)).isEqualTo(87.1d);
+        assertThat(row.getFloat(7)).isEqualTo(26.1f);
+        assertThat(row.getBoolean(1)).isTrue();
+        assertThat(row.getString(3).toString()).isEqualTo("1234567");
+        assertThat(row.getString(5).toString()).isEqualTo("12345678");
+        assertThat(row.getString(9).toString()).isEqualTo("啦啦啦啦啦我是快乐的粉刷匠");
+        assertThat(row.getString(9).hashCode()).isEqualTo(fromString("啦啦啦啦啦我是快乐的粉刷匠").hashCode());
+        assertThat(row.isNullAt(12)).isTrue();
     }
 
     @Test
@@ -303,15 +297,15 @@ public class BinaryRowDataTest {
         writer.writeString(0, fromString("01234567"));
         writer.writeString(1, fromString("012345678"));
         writer.complete();
-        assertEquals("01234567", row.getString(0).toString());
-        assertEquals("012345678", row.getString(1).toString());
+        assertThat(row.getString(0).toString()).isEqualTo("01234567");
+        assertThat(row.getString(1).toString()).isEqualTo("012345678");
 
         writer.reset();
         writer.writeString(0, fromString("1"));
         writer.writeString(1, fromString("0123456789"));
         writer.complete();
-        assertEquals("1", row.getString(0).toString());
-        assertEquals("0123456789", row.getString(1).toString());
+        assertThat(row.getString(0).toString()).isEqualTo("1");
+        assertThat(row.getString(1).toString()).isEqualTo("0123456789");
     }
 
     @Test
@@ -319,21 +313,21 @@ public class BinaryRowDataTest {
         {
             BinaryRowData row = new BinaryRowData(3);
             BinaryRowWriter writer = new BinaryRowWriter(row);
-            assertFalse(row.anyNull());
+            assertThat(row.anyNull()).isFalse();
 
             // test header should not compute by anyNull
             row.setRowKind(RowKind.UPDATE_BEFORE);
-            assertFalse(row.anyNull());
+            assertThat(row.anyNull()).isFalse();
 
             writer.setNullAt(2);
-            assertTrue(row.anyNull());
+            assertThat(row.anyNull()).isTrue();
 
             writer.setNullAt(0);
-            assertTrue(row.anyNull(new int[] {0, 1, 2}));
-            assertFalse(row.anyNull(new int[] {1}));
+            assertThat(row.anyNull(new int[] {0, 1, 2})).isTrue();
+            assertThat(row.anyNull(new int[] {1})).isFalse();
 
             writer.setNullAt(1);
-            assertTrue(row.anyNull());
+            assertThat(row.anyNull()).isTrue();
         }
 
         int numFields = 80;
@@ -341,9 +335,9 @@ public class BinaryRowDataTest {
             BinaryRowData row = new BinaryRowData(numFields);
             BinaryRowWriter writer = new BinaryRowWriter(row);
             row.setRowKind(RowKind.DELETE);
-            assertFalse(row.anyNull());
+            assertThat(row.anyNull()).isFalse();
             writer.setNullAt(i);
-            assertTrue(row.anyNull());
+            assertThat(row.anyNull()).isTrue();
         }
     }
 
@@ -369,7 +363,7 @@ public class BinaryRowDataTest {
             writer.setNullAt(12);
             writer.complete();
             BinaryRowData copy = row.copy();
-            assertEquals(row.hashCode(), copy.hashCode());
+            assertThat(copy.hashCode()).isEqualTo(row.hashCode());
         }
 
         // test hash distribution
@@ -379,7 +373,7 @@ public class BinaryRowDataTest {
             row.setInt(8, i);
             hashCodes.add(row.hashCode());
         }
-        assertEquals(count, hashCodes.size());
+        assertThat(hashCodes).hasSize(count);
         hashCodes.clear();
         row = new BinaryRowData(1);
         writer = new BinaryRowWriter(row);
@@ -389,15 +383,15 @@ public class BinaryRowDataTest {
             writer.complete();
             hashCodes.add(row.hashCode());
         }
-        Assert.assertTrue(hashCodes.size() > count * 0.997);
+        assertThat(hashCodes.size()).isGreaterThan((int) (count * 0.997));
     }
 
     @Test
     public void testHeaderSize() {
-        assertEquals(8, BinaryRowData.calculateBitSetWidthInBytes(56));
-        assertEquals(16, BinaryRowData.calculateBitSetWidthInBytes(57));
-        assertEquals(16, BinaryRowData.calculateBitSetWidthInBytes(120));
-        assertEquals(24, BinaryRowData.calculateBitSetWidthInBytes(121));
+        assertThat(BinaryRowData.calculateBitSetWidthInBytes(56)).isEqualTo(8);
+        assertThat(BinaryRowData.calculateBitSetWidthInBytes(57)).isEqualTo(16);
+        assertThat(BinaryRowData.calculateBitSetWidthInBytes(120)).isEqualTo(16);
+        assertThat(BinaryRowData.calculateBitSetWidthInBytes(121)).isEqualTo(24);
     }
 
     @Test
@@ -411,11 +405,11 @@ public class BinaryRowDataTest {
         writer.complete();
 
         BinaryRowData newRow = row.copy();
-        assertEquals(row, newRow);
-        assertEquals(RowKind.UPDATE_BEFORE, newRow.getRowKind());
+        assertThat(newRow).isEqualTo(row);
+        assertThat(newRow.getRowKind()).isEqualTo(RowKind.UPDATE_BEFORE);
 
         newRow.setRowKind(RowKind.DELETE);
-        assertEquals(RowKind.DELETE, newRow.getRowKind());
+        assertThat(newRow.getRowKind()).isEqualTo(RowKind.DELETE);
     }
 
     @Test
@@ -430,10 +424,10 @@ public class BinaryRowDataTest {
             writer.setNullAt(1);
             writer.complete();
 
-            assertEquals("0.05", row.getDecimal(0, precision, scale).toString());
-            assertTrue(row.isNullAt(1));
+            assertThat(row.getDecimal(0, precision, scale).toString()).isEqualTo("0.05");
+            assertThat(row.isNullAt(1)).isTrue();
             row.setDecimal(0, DecimalData.fromUnscaledLong(6, precision, scale), precision);
-            assertEquals("0.06", row.getDecimal(0, precision, scale).toString());
+            assertThat(row.getDecimal(0, precision, scale).toString()).isEqualTo("0.06");
         }
 
         // 2.not compact
@@ -451,10 +445,10 @@ public class BinaryRowDataTest {
             writer.writeDecimal(1, null, precision);
             writer.complete();
 
-            assertEquals("5.55000", row.getDecimal(0, precision, scale).toString());
-            assertTrue(row.isNullAt(1));
+            assertThat(row.getDecimal(0, precision, scale).toString()).isEqualTo("5.55000");
+            assertThat(row.isNullAt(1)).isTrue();
             row.setDecimal(0, decimal2, precision);
-            assertEquals("6.55000", row.getDecimal(0, precision, scale).toString());
+            assertThat(row.getDecimal(0, precision, scale).toString()).isEqualTo("6.55000");
         }
     }
 
@@ -471,10 +465,10 @@ public class BinaryRowDataTest {
         writer.complete();
 
         RawValueData<String> generic0 = row.getRawValue(0);
-        assertThat(generic0, equivalent(hahah, binarySerializer));
-        assertTrue(row.isNullAt(1));
+        assertThat(generic0).satisfies(matching(equivalent(hahah, binarySerializer)));
+        assertThat(row.isNullAt(1)).isTrue();
         RawValueData<String> generic2 = row.getRawValue(2);
-        assertThat(generic2, equivalent(hahah, binarySerializer));
+        assertThat(generic2).satisfies(matching(equivalent(hahah, binarySerializer)));
     }
 
     @Test
@@ -489,9 +483,9 @@ public class BinaryRowDataTest {
         writer.complete();
 
         RowData nestedRow = row.getRow(0, 2);
-        assertEquals("1", nestedRow.getString(0).toString());
-        assertEquals(1, nestedRow.getInt(1));
-        assertTrue(row.isNullAt(1));
+        assertThat(nestedRow.getString(0).toString()).isEqualTo("1");
+        assertThat(nestedRow.getInt(1)).isEqualTo(1);
+        assertThat(row.isNullAt(1)).isTrue();
     }
 
     @Test
@@ -504,8 +498,8 @@ public class BinaryRowDataTest {
         writer.writeBinary(1, bytes2);
         writer.complete();
 
-        Assert.assertArrayEquals(bytes1, row.getBinary(0));
-        Assert.assertArrayEquals(bytes2, row.getBinary(1));
+        assertThat(row.getBinary(0)).isEqualTo(bytes1);
+        assertThat(row.getBinary(1)).isEqualTo(bytes2);
     }
 
     @Test
@@ -524,9 +518,9 @@ public class BinaryRowDataTest {
         arrayWriter.writeInt(2, 666);
         arrayWriter.complete();
 
-        assertEquals(array.getInt(0), 6);
-        assertTrue(array.isNullAt(1));
-        assertEquals(array.getInt(2), 666);
+        assertThat(6).isEqualTo(array.getInt(0));
+        assertThat(array.isNullAt(1)).isTrue();
+        assertThat(666).isEqualTo(array.getInt(2));
 
         // 2. test write array to binary row
         BinaryRowData row = new BinaryRowData(1);
@@ -536,10 +530,10 @@ public class BinaryRowDataTest {
         rowWriter.complete();
 
         BinaryArrayData array2 = (BinaryArrayData) row.getArray(0);
-        assertEquals(array, array2);
-        assertEquals(6, array2.getInt(0));
-        assertTrue(array2.isNullAt(1));
-        assertEquals(666, array2.getInt(2));
+        assertThat(array2).isEqualTo(array);
+        assertThat(array2.getInt(0)).isEqualTo(6);
+        assertThat(array2.isNullAt(1)).isTrue();
+        assertThat(array2.getInt(2)).isEqualTo(666);
     }
 
     @Test
@@ -548,9 +542,9 @@ public class BinaryRowDataTest {
         Integer[] javaArray = {6, null, 666};
         GenericArrayData array = new GenericArrayData(javaArray);
 
-        assertEquals(array.getInt(0), 6);
-        assertTrue(array.isNullAt(1));
-        assertEquals(array.getInt(2), 666);
+        assertThat(6).isEqualTo(array.getInt(0));
+        assertThat(array.isNullAt(1)).isTrue();
+        assertThat(666).isEqualTo(array.getInt(2));
 
         // 2. test write array to binary row
         BinaryRowData row2 = new BinaryRowData(1);
@@ -560,9 +554,9 @@ public class BinaryRowDataTest {
         writer2.complete();
 
         ArrayData array2 = row2.getArray(0);
-        assertEquals(6, array2.getInt(0));
-        assertTrue(array2.isNullAt(1));
-        assertEquals(666, array2.getInt(2));
+        assertThat(array2.getInt(0)).isEqualTo(6);
+        assertThat(array2.isNullAt(1)).isTrue();
+        assertThat(array2.getInt(2)).isEqualTo(666);
     }
 
     @Test
@@ -607,14 +601,14 @@ public class BinaryRowDataTest {
         BinaryArrayData key = map.keyArray();
         BinaryArrayData value = map.valueArray();
 
-        assertEquals(binaryMap, map);
-        assertEquals(array1, key);
-        assertEquals(array2, value);
+        assertThat(map).isEqualTo(binaryMap);
+        assertThat(key).isEqualTo(array1);
+        assertThat(value).isEqualTo(array2);
 
-        assertEquals(5, key.getInt(1));
-        assertEquals(fromString("5"), value.getString(1));
-        assertEquals(0, key.getInt(3));
-        assertTrue(value.isNullAt(3));
+        assertThat(key.getInt(1)).isEqualTo(5);
+        assertThat(value.getString(1)).isEqualTo(fromString("5"));
+        assertThat(key.getInt(3)).isEqualTo(0);
+        assertThat(value.isNullAt(3)).isTrue();
     }
 
     @Test
@@ -640,11 +634,11 @@ public class BinaryRowDataTest {
                         row.getMap(0),
                         DataTypes.INT().getLogicalType(),
                         DataTypes.STRING().getLogicalType());
-        assertEquals(fromString("6"), map.get(6));
-        assertEquals(fromString("5"), map.get(5));
-        assertEquals(fromString("666"), map.get(666));
-        assertTrue(map.containsKey(0));
-        assertNull(map.get(0));
+        assertThat(map.get(6)).isEqualTo(fromString("6"));
+        assertThat(map.get(5)).isEqualTo(fromString("5"));
+        assertThat(map.get(666)).isEqualTo(fromString("666"));
+        assertThat(map).containsKey(0);
+        assertThat(map.get(0)).isNull();
     }
 
     @Test
@@ -686,13 +680,13 @@ public class BinaryRowDataTest {
     }
 
     private void assertTestGenericObjectRow(BinaryRowData row, TypeSerializer<MyObj> serializer) {
-        assertEquals(0, row.getInt(0));
+        assertThat(row.getInt(0)).isEqualTo(0);
         RawValueData<MyObj> rawValue1 = row.getRawValue(1);
         RawValueData<MyObj> rawValue2 = row.getRawValue(2);
         RawValueData<MyObj> rawValue3 = row.getRawValue(3);
-        assertEquals(new MyObj(0, 1), rawValue1.toObject(serializer));
-        assertEquals(new MyObj(123, 5.0), rawValue2.toObject(serializer));
-        assertEquals(new MyObj(1, 1), rawValue3.toObject(serializer));
+        assertThat(rawValue1.toObject(serializer)).isEqualTo(new MyObj(0, 1));
+        assertThat(rawValue2.toObject(serializer)).isEqualTo(new MyObj(123, 5.0));
+        assertThat(rawValue3.toObject(serializer)).isEqualTo(new MyObj(1, 1));
     }
 
     @Test
@@ -731,18 +725,18 @@ public class BinaryRowDataTest {
                 new RawValueDataSerializer<>(LocalDateTimeSerializer.INSTANCE));
         writer.complete();
 
-        assertEquals(new Date(123), row.<Date>getRawValue(1).toObject(SqlDateSerializer.INSTANCE));
-        assertEquals(new Time(456), row.<Time>getRawValue(2).toObject(SqlTimeSerializer.INSTANCE));
-        assertEquals(
-                new Timestamp(789),
-                row.<Timestamp>getRawValue(3).toObject(SqlTimestampSerializer.INSTANCE));
-        assertEquals(
-                localDate, row.<LocalDate>getRawValue(4).toObject(LocalDateSerializer.INSTANCE));
-        assertEquals(
-                localTime, row.<LocalTime>getRawValue(5).toObject(LocalTimeSerializer.INSTANCE));
-        assertEquals(
-                localDateTime,
-                row.<LocalDateTime>getRawValue(6).toObject(LocalDateTimeSerializer.INSTANCE));
+        assertThat(row.<Date>getRawValue(1).toObject(SqlDateSerializer.INSTANCE))
+                .isEqualTo(new Date(123));
+        assertThat(row.<Time>getRawValue(2).toObject(SqlTimeSerializer.INSTANCE))
+                .isEqualTo(new Time(456));
+        assertThat(row.<Timestamp>getRawValue(3).toObject(SqlTimestampSerializer.INSTANCE))
+                .isEqualTo(new Timestamp(789));
+        assertThat(row.<LocalDate>getRawValue(4).toObject(LocalDateSerializer.INSTANCE))
+                .isEqualTo(localDate);
+        assertThat(row.<LocalTime>getRawValue(5).toObject(LocalTimeSerializer.INSTANCE))
+                .isEqualTo(localTime);
+        assertThat(row.<LocalDateTime>getRawValue(6).toObject(LocalDateTimeSerializer.INSTANCE))
+                .isEqualTo(localDateTime);
     }
 
     @Test
@@ -822,7 +816,7 @@ public class BinaryRowDataTest {
         BinaryRowData mapRow = serializer.createInstance();
         mapRow = serializer.mapFromPages(mapRow, input);
 
-        assertEquals(row, mapRow);
+        assertThat(mapRow).isEqualTo(row);
     }
 
     @Test
@@ -860,7 +854,7 @@ public class BinaryRowDataTest {
         writer.complete();
         int hash2 = row.hashCode();
 
-        assertEquals(hash1, hash2);
+        assertThat(hash2).isEqualTo(hash1);
     }
 
     @Test
@@ -888,7 +882,7 @@ public class BinaryRowDataTest {
         writer.complete();
         int hash2 = row.hashCode();
 
-        assertEquals(hash1, hash2);
+        assertThat(hash2).isEqualTo(hash1);
     }
 
     @Test
@@ -914,24 +908,22 @@ public class BinaryRowDataTest {
 
         BinaryRowData mapRow = serializer.createInstance();
         mapRow = serializer.mapFromPages(mapRow, input);
-        assertEquals(row, mapRow);
-        assertEquals(row.getString(0), mapRow.getString(0));
-        assertEquals(row.getString(1), mapRow.getString(1));
-        assertNotEquals(row.getString(0), mapRow.getString(1));
+        assertThat(mapRow).isEqualTo(row);
+        assertThat(mapRow.getString(0)).isEqualTo(row.getString(0));
+        assertThat(mapRow.getString(1)).isEqualTo(row.getString(1));
+        assertThat(mapRow.getString(1)).isNotEqualTo(row.getString(0));
 
         // test if the hash code before and after serialization are the same
-        assertEquals(row.hashCode(), mapRow.hashCode());
-        assertEquals(row.getString(0).hashCode(), mapRow.getString(0).hashCode());
-        assertEquals(row.getString(1).hashCode(), mapRow.getString(1).hashCode());
+        assertThat(mapRow.hashCode()).isEqualTo(row.hashCode());
+        assertThat(mapRow.getString(0).hashCode()).isEqualTo(row.getString(0).hashCode());
+        assertThat(mapRow.getString(1).hashCode()).isEqualTo(row.getString(1).hashCode());
 
         // test if the copy method produce a row with the same contents
-        assertEquals(row.copy(), mapRow.copy());
-        assertEquals(
-                ((BinaryStringData) row.getString(0)).copy(),
-                ((BinaryStringData) mapRow.getString(0)).copy());
-        assertEquals(
-                ((BinaryStringData) row.getString(1)).copy(),
-                ((BinaryStringData) mapRow.getString(1)).copy());
+        assertThat(mapRow.copy()).isEqualTo(row.copy());
+        assertThat(((BinaryStringData) mapRow.getString(0)).copy())
+                .isEqualTo(((BinaryStringData) row.getString(0)).copy());
+        assertThat(((BinaryStringData) mapRow.getString(1)).copy())
+                .isEqualTo(((BinaryStringData) row.getString(1)).copy());
     }
 
     @Test
@@ -952,7 +944,7 @@ public class BinaryRowDataTest {
                         64);
         StringData newStr = serializer.deserialize(input);
 
-        assertEquals(string, newStr);
+        assertThat(newStr).isEqualTo(string);
     }
 
     @Test
@@ -995,9 +987,9 @@ public class BinaryRowDataTest {
                 }
                 rets.add(retRow.copy());
             }
-            assertEquals(row24, rets.get(0));
-            assertEquals(row160, rets.get(1));
-            assertEquals(row24, rets.get(2));
+            assertThat(rets.get(0)).isEqualTo(row24);
+            assertThat(rets.get(1)).isEqualTo(row160);
+            assertThat(rets.get(2)).isEqualTo(row24);
         }
 
         // 2. test middle row with just on the edge2
@@ -1027,9 +1019,9 @@ public class BinaryRowDataTest {
                 }
                 rets.add(retRow.copy());
             }
-            assertEquals(row24, rets.get(0));
-            assertEquals(row160, rets.get(1));
-            assertEquals(row160, rets.get(2));
+            assertThat(rets.get(0)).isEqualTo(row24);
+            assertThat(rets.get(1)).isEqualTo(row160);
+            assertThat(rets.get(2)).isEqualTo(row160);
         }
 
         // 3. test last row with just on the edge
@@ -1058,8 +1050,8 @@ public class BinaryRowDataTest {
                 }
                 rets.add(retRow.copy());
             }
-            assertEquals(row24, rets.get(0));
-            assertEquals(row160, rets.get(1));
+            assertThat(rets.get(0)).isEqualTo(row24);
+            assertThat(rets.get(1)).isEqualTo(row160);
         }
     }
 
@@ -1074,10 +1066,10 @@ public class BinaryRowDataTest {
             writer.setNullAt(1);
             writer.complete();
 
-            assertEquals("1970-01-01T00:00:00.123", row.getTimestamp(0, 3).toString());
-            assertTrue(row.isNullAt(1));
+            assertThat(row.getTimestamp(0, 3).toString()).isEqualTo("1970-01-01T00:00:00.123");
+            assertThat(row.isNullAt(1)).isTrue();
             row.setTimestamp(0, TimestampData.fromEpochMillis(-123L), precision);
-            assertEquals("1969-12-31T23:59:59.877", row.getTimestamp(0, 3).toString());
+            assertThat(row.getTimestamp(0, 3).toString()).isEqualTo("1969-12-31T23:59:59.877");
         }
 
         // 2. not compact
@@ -1097,14 +1089,14 @@ public class BinaryRowDataTest {
             // the size of row should be 8 + (8 + 8) * 2
             // (8 bytes nullBits, 8 bytes fixed-length part and 8 bytes variable-length part for
             // each timestamp(9))
-            assertEquals(40, row.getSizeInBytes());
+            assertThat(row.getSizeInBytes()).isEqualTo(40);
 
-            assertEquals(
-                    "1969-01-01T00:00:00.123456789", row.getTimestamp(0, precision).toString());
-            assertTrue(row.isNullAt(1));
+            assertThat(row.getTimestamp(0, precision).toString())
+                    .isEqualTo("1969-01-01T00:00:00.123456789");
+            assertThat(row.isNullAt(1)).isTrue();
             row.setTimestamp(0, timestamp2, precision);
-            assertEquals(
-                    "1970-01-01T00:00:00.123456789", row.getTimestamp(0, precision).toString());
+            assertThat(row.getTimestamp(0, precision).toString())
+                    .isEqualTo("1970-01-01T00:00:00.123456789");
         }
     }
 
@@ -1134,7 +1126,7 @@ public class BinaryRowDataTest {
             writer.complete();
         }
 
-        assertEquals(innerBinaryRow, nestedBinaryRow.getRow(1, 2));
-        assertEquals(nestedBinaryRow.getRow(1, 2), innerBinaryRow);
+        assertThat(nestedBinaryRow.getRow(1, 2)).isEqualTo(innerBinaryRow);
+        assertThat(innerBinaryRow).isEqualTo(nestedBinaryRow.getRow(1, 2));
     }
 }

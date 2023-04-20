@@ -34,7 +34,6 @@ import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.util.MutableObjectIterator;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -48,6 +47,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Sort test for binary row. */
 @RunWith(Parameterized.class)
@@ -101,9 +102,9 @@ public class BinaryExternalSorterTest {
         this.ioManager.close();
 
         if (this.memoryManager != null) {
-            Assert.assertTrue(
-                    "Memory leak: not all segments have been returned to the memory manager.",
-                    this.memoryManager.verifyEmpty());
+            assertThat(this.memoryManager.verifyEmpty())
+                    .as("Memory leak: not all segments have been returned to the memory manager.")
+                    .isTrue();
             this.memoryManager.shutdown();
             this.memoryManager = null;
         }
@@ -133,7 +134,14 @@ public class BinaryExternalSorterTest {
                         serializer,
                         IntNormalizedKeyComputer.INSTANCE,
                         IntRecordComparator.INSTANCE,
-                        conf,
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED),
+                        (int)
+                                conf.get(
+                                                ExecutionConfigOptions
+                                                        .TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
+                                        .getBytes(),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED),
                         1f);
         sorter.startThreads();
         sorter.write(reader);
@@ -143,12 +151,12 @@ public class BinaryExternalSorterTest {
         BinaryRowData next = serializer.createInstance();
         for (int i = 0; i < size; i++) {
             next = iterator.next(next);
-            Assert.assertEquals(i, next.getInt(0));
-            Assert.assertEquals(getString(i), next.getString(1).toString());
+            assertThat(next.getInt(0)).isEqualTo(i);
+            assertThat(next.getString(1).toString()).isEqualTo(getString(i));
         }
 
         sorter.close();
-        Assert.assertTrue(memoryManager.verifyEmpty());
+        assertThat(memoryManager.verifyEmpty()).isTrue();
         memoryManager.shutdown();
     }
 
@@ -173,7 +181,14 @@ public class BinaryExternalSorterTest {
                         serializer,
                         IntNormalizedKeyComputer.INSTANCE,
                         IntRecordComparator.INSTANCE,
-                        conf,
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED),
+                        (int)
+                                conf.get(
+                                                ExecutionConfigOptions
+                                                        .TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
+                                        .getBytes(),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED),
                         0.7f);
         sorter.startThreads();
         sorter.write(reader);
@@ -183,8 +198,8 @@ public class BinaryExternalSorterTest {
         BinaryRowData next = serializer.createInstance();
         for (int i = 0; i < size; i++) {
             next = iterator.next(next);
-            Assert.assertEquals(i, next.getInt(0));
-            Assert.assertEquals(getString(i), next.getString(1).toString());
+            assertThat(next.getInt(0)).isEqualTo(i);
+            assertThat(next.getString(1).toString()).isEqualTo(getString(i));
         }
 
         sorter.close();
@@ -214,7 +229,14 @@ public class BinaryExternalSorterTest {
                             }
                         },
                         IntRecordComparator.INSTANCE,
-                        conf,
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED),
+                        (int)
+                                conf.get(
+                                                ExecutionConfigOptions
+                                                        .TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
+                                        .getBytes(),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED),
                         0.7f);
         sorter.startThreads();
         sorter.write(new MockBinaryRowReader(size));
@@ -227,8 +249,8 @@ public class BinaryExternalSorterTest {
         for (int i = 0; i < size; i++) {
             for (int j = 0; j < 3; j++) {
                 next = iterator.next(next);
-                Assert.assertEquals(i, next.getInt(0));
-                Assert.assertEquals(getString(i), next.getString(1).toString());
+                assertThat(next.getInt(0)).isEqualTo(i);
+                assertThat(next.getString(1).toString()).isEqualTo(getString(i));
             }
         }
 
@@ -256,7 +278,14 @@ public class BinaryExternalSorterTest {
                         serializer,
                         IntNormalizedKeyComputer.INSTANCE,
                         IntRecordComparator.INSTANCE,
-                        conf,
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED),
+                        (int)
+                                conf.get(
+                                                ExecutionConfigOptions
+                                                        .TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
+                                        .getBytes(),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED),
                         0.7f);
         sorter.startThreads();
         sorter.write(reader);
@@ -266,8 +295,8 @@ public class BinaryExternalSorterTest {
         BinaryRowData next = serializer.createInstance();
         for (int i = 0; i < size; i++) {
             next = iterator.next(next);
-            Assert.assertEquals(i, next.getInt(0));
-            Assert.assertEquals(getString(i), next.getString(1).toString());
+            assertThat(next.getInt(0)).isEqualTo(i);
+            assertThat(next.getString(1).toString()).isEqualTo(getString(i));
         }
 
         sorter.close();
@@ -304,7 +333,14 @@ public class BinaryExternalSorterTest {
                                 return -super.compare(o1, o2);
                             }
                         },
-                        conf,
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED),
+                        (int)
+                                conf.get(
+                                                ExecutionConfigOptions
+                                                        .TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
+                                        .getBytes(),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED),
                         0.7f);
         sorter.startThreads();
         sorter.write(reader);
@@ -320,8 +356,8 @@ public class BinaryExternalSorterTest {
         BinaryRowData next = serializer.createInstance();
         for (int i = 0; i < size; i++) {
             next = iterator.next(next);
-            Assert.assertEquals((int) data.get(i).f0, next.getInt(0));
-            Assert.assertEquals(data.get(i).f1, next.getString(1).toString());
+            assertThat(next.getInt(0)).isEqualTo((int) data.get(i).f0);
+            assertThat(next.getString(1).toString()).isEqualTo(data.get(i).f1);
         }
 
         sorter.close();
@@ -350,7 +386,14 @@ public class BinaryExternalSorterTest {
                         serializer,
                         IntNormalizedKeyComputer.INSTANCE,
                         IntRecordComparator.INSTANCE,
-                        conf,
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED),
+                        (int)
+                                conf.get(
+                                                ExecutionConfigOptions
+                                                        .TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
+                                        .getBytes(),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED),
                         0.7f);
         sorter.startThreads();
         sorter.write(reader);
@@ -360,8 +403,8 @@ public class BinaryExternalSorterTest {
         BinaryRowData next = serializer.createInstance();
         for (int i = 0; i < size; i++) {
             next = iterator.next(next);
-            Assert.assertEquals(i, next.getInt(0));
-            Assert.assertEquals(getString(i), next.getString(1).toString());
+            assertThat(next.getInt(0)).isEqualTo(i);
+            assertThat(next.getString(1).toString()).isEqualTo(getString(i));
         }
 
         sorter.close();
@@ -388,7 +431,14 @@ public class BinaryExternalSorterTest {
                         serializer,
                         IntNormalizedKeyComputer.INSTANCE,
                         IntRecordComparator.INSTANCE,
-                        conf,
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED),
+                        (int)
+                                conf.get(
+                                                ExecutionConfigOptions
+                                                        .TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
+                                        .getBytes(),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED),
                         0.7f);
         sorter.startThreads();
 
@@ -412,8 +462,8 @@ public class BinaryExternalSorterTest {
         BinaryRowData next = serializer.createInstance();
         for (int i = 0; i < size; i++) {
             next = iterator.next(next);
-            Assert.assertEquals(data.get(i).getInt(0), next.getInt(0));
-            Assert.assertEquals(data.get(i).getString(1), next.getString(1));
+            assertThat(next.getInt(0)).isEqualTo(data.get(i).getInt(0));
+            assertThat(next.getString(1)).isEqualTo(data.get(i).getString(1));
         }
 
         sorter.close();

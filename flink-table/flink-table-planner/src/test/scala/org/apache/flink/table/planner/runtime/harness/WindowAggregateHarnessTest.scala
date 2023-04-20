@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.harness
 
 import org.apache.flink.api.scala._
@@ -37,20 +36,20 @@ import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.types.Row
 import org.apache.flink.types.RowKind.INSERT
 
+import org.junit.{Before, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Before, Test}
 
 import java.time.{LocalDateTime, ZoneId}
-import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.{Collection => JCollection}
+import java.util.concurrent.ConcurrentLinkedQueue
 
 import scala.collection.JavaConversions._
 
 /**
  * Harness tests for processing-time window aggregate. We can't test them in
- * [[WindowAggregateITCase]] because the result is non-deterministic, therefore
- * we use harness to test them.
+ * [[WindowAggregateITCase]] because the result is non-deterministic, therefore we use harness to
+ * test them.
  */
 @RunWith(classOf[Parameterized])
 class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneId)
@@ -63,22 +62,21 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
     super.before()
     val dataId = TestValuesTableFactory.registerData(TestData.windowDataWithTimestamp)
     tEnv.getConfig.setLocalTimeZone(shiftTimeZone)
-    tEnv.executeSql(
-      s"""
-         |CREATE TABLE T1 (
-         | `ts` STRING,
-         | `int` INT,
-         | `double` DOUBLE,
-         | `float` FLOAT,
-         | `bigdec` DECIMAL(10, 2),
-         | `string` STRING,
-         | `name` STRING,
-         | proctime AS PROCTIME()
-         |) WITH (
-         | 'connector' = 'values',
-         | 'data-id' = '$dataId'
-         |)
-         |""".stripMargin)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE T1 (
+                       | `ts` STRING,
+                       | `int` INT,
+                       | `double` DOUBLE,
+                       | `float` FLOAT,
+                       | `bigdec` DECIMAL(10, 2),
+                       | `string` STRING,
+                       | `name` STRING,
+                       | proctime AS PROCTIME()
+                       |) WITH (
+                       | 'connector' = 'values',
+                       | 'data-id' = '$dataId'
+                       |)
+                       |""".stripMargin)
   }
 
   /**
@@ -93,18 +91,54 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
     testHarness.open()
     ingestData(testHarness)
     val expected = new ConcurrentLinkedQueue[Object]()
-    expected.add(record("a", 4L, 5.0D, 2L,
-      localMills("1970-01-01T00:00:00"), localMills("1970-01-01T00:00:05")))
-    expected.add(record("a", 1L, null, 1L,
-      localMills("1970-01-01T00:00:05"), localMills("1970-01-01T00:00:10")))
-    expected.add(record("b", 2L, 6.0D, 2L,
-      localMills("1970-01-01T00:00:05"), localMills("1970-01-01T00:00:10")))
-    expected.add(record("b", 1L, 4.0D, 1L,
-      localMills("1970-01-01T00:00:15"), localMills("1970-01-01T00:00:20")))
-    expected.add(record("b", 1L, 3.0D, 1L,
-      localMills("1970-01-01T00:00:30"), localMills("1970-01-01T00:00:35")))
-    expected.add(record(null, 1L, 7.0D, 0L,
-      localMills("1970-01-01T00:00:30"), localMills("1970-01-01T00:00:35")))
+    expected.add(
+      record(
+        "a",
+        4L,
+        5.0d,
+        2L,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:05")))
+    expected.add(
+      record(
+        "a",
+        1L,
+        null,
+        1L,
+        localMills("1970-01-01T00:00:05"),
+        localMills("1970-01-01T00:00:10")))
+    expected.add(
+      record(
+        "b",
+        2L,
+        6.0d,
+        2L,
+        localMills("1970-01-01T00:00:05"),
+        localMills("1970-01-01T00:00:10")))
+    expected.add(
+      record(
+        "b",
+        1L,
+        4.0d,
+        1L,
+        localMills("1970-01-01T00:00:15"),
+        localMills("1970-01-01T00:00:20")))
+    expected.add(
+      record(
+        "b",
+        1L,
+        3.0d,
+        1L,
+        localMills("1970-01-01T00:00:30"),
+        localMills("1970-01-01T00:00:35")))
+    expected.add(
+      record(
+        null,
+        1L,
+        7.0d,
+        0L,
+        localMills("1970-01-01T00:00:30"),
+        localMills("1970-01-01T00:00:35")))
 
     assertor.assertOutputEqualsSorted("result mismatch", expected, testHarness.getOutput)
 
@@ -112,7 +146,7 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
   }
 
   private def createProcessingTimeTumbleWindowOperator()
-    : (KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData], Array[LogicalType]) = {
+      : (KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData], Array[LogicalType]) = {
     val sql =
       """
         |SELECT
@@ -136,13 +170,13 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
         DataTypes.DOUBLE().getLogicalType,
         DataTypes.BIGINT().getLogicalType,
         DataTypes.TIMESTAMP_LTZ(3).getLogicalType,
-        DataTypes.TIMESTAMP_LTZ(3).getLogicalType)
+        DataTypes.TIMESTAMP_LTZ(3).getLogicalType
+      )
     (testHarness, outputTypes)
   }
 
   /**
-   * The produced result should be the same with
-   * [[WindowAggregateITCase.testEventTimeHopWindow()]].
+   * The produced result should be the same with [[WindowAggregateITCase.testEventTimeHopWindow()]].
    */
   @Test
   def testProcessingTimeHopWindow(): Unit = {
@@ -169,34 +203,101 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
         DataTypes.DOUBLE().getLogicalType,
         DataTypes.BIGINT().getLogicalType,
         DataTypes.TIMESTAMP_LTZ(3).getLogicalType,
-        DataTypes.TIMESTAMP_LTZ(3).getLogicalType))
+        DataTypes.TIMESTAMP_LTZ(3).getLogicalType
+      ))
 
     testHarness.open()
     ingestData(testHarness)
 
     val expected = new ConcurrentLinkedQueue[Object]()
-    expected.add(record("a", 4L, 5.0D, 2L,
-      localMills("1969-12-31T23:59:55"), localMills("1970-01-01T00:00:05")))
-    expected.add(record("a", 5L, 5.0D, 3L,
-      localMills("1970-01-01T00:00:00"), localMills("1970-01-01T00:00:10")))
-    expected.add(record("a", 1L, null, 1L,
-      localMills("1970-01-01T00:00:05"), localMills("1970-01-01T00:00:15")))
-    expected.add(record("b", 2L, 6.0D, 2L,
-      localMills("1970-01-01T00:00:00"), localMills("1970-01-01T00:00:10")))
-    expected.add(record("b", 2L, 6.0D, 2L,
-      localMills("1970-01-01T00:00:05"), localMills("1970-01-01T00:00:15")))
-    expected.add(record("b", 1L, 4.0D, 1L,
-      localMills("1970-01-01T00:00:10"), localMills("1970-01-01T00:00:20")))
-    expected.add(record("b", 1L, 4.0D, 1L,
-      localMills("1970-01-01T00:00:15"), localMills("1970-01-01T00:00:25")))
-    expected.add(record("b", 1L, 3.0D, 1L,
-      localMills("1970-01-01T00:00:25"), localMills("1970-01-01T00:00:35")))
-    expected.add(record("b", 1L, 3.0D, 1L,
-      localMills("1970-01-01T00:00:30"), localMills("1970-01-01T00:00:40")))
-    expected.add(record(null, 1L, 7.0D, 0L,
-      localMills("1970-01-01T00:00:25"), localMills("1970-01-01T00:00:35")))
-    expected.add(record(null, 1L, 7.0D, 0L,
-      localMills("1970-01-01T00:00:30"), localMills("1970-01-01T00:00:40")))
+    expected.add(
+      record(
+        "a",
+        4L,
+        5.0d,
+        2L,
+        localMills("1969-12-31T23:59:55"),
+        localMills("1970-01-01T00:00:05")))
+    expected.add(
+      record(
+        "a",
+        5L,
+        5.0d,
+        3L,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:10")))
+    expected.add(
+      record(
+        "a",
+        1L,
+        null,
+        1L,
+        localMills("1970-01-01T00:00:05"),
+        localMills("1970-01-01T00:00:15")))
+    expected.add(
+      record(
+        "b",
+        2L,
+        6.0d,
+        2L,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:10")))
+    expected.add(
+      record(
+        "b",
+        2L,
+        6.0d,
+        2L,
+        localMills("1970-01-01T00:00:05"),
+        localMills("1970-01-01T00:00:15")))
+    expected.add(
+      record(
+        "b",
+        1L,
+        4.0d,
+        1L,
+        localMills("1970-01-01T00:00:10"),
+        localMills("1970-01-01T00:00:20")))
+    expected.add(
+      record(
+        "b",
+        1L,
+        4.0d,
+        1L,
+        localMills("1970-01-01T00:00:15"),
+        localMills("1970-01-01T00:00:25")))
+    expected.add(
+      record(
+        "b",
+        1L,
+        3.0d,
+        1L,
+        localMills("1970-01-01T00:00:25"),
+        localMills("1970-01-01T00:00:35")))
+    expected.add(
+      record(
+        "b",
+        1L,
+        3.0d,
+        1L,
+        localMills("1970-01-01T00:00:30"),
+        localMills("1970-01-01T00:00:40")))
+    expected.add(
+      record(
+        null,
+        1L,
+        7.0d,
+        0L,
+        localMills("1970-01-01T00:00:25"),
+        localMills("1970-01-01T00:00:35")))
+    expected.add(
+      record(
+        null,
+        1L,
+        7.0d,
+        0L,
+        localMills("1970-01-01T00:00:30"),
+        localMills("1970-01-01T00:00:40")))
 
     assertor.assertOutputEqualsSorted("result mismatch", expected, testHarness.getOutput)
 
@@ -236,40 +337,125 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
         DataTypes.DOUBLE().getLogicalType,
         DataTypes.BIGINT().getLogicalType,
         DataTypes.TIMESTAMP_LTZ(3).getLogicalType,
-        DataTypes.TIMESTAMP_LTZ(3).getLogicalType))
+        DataTypes.TIMESTAMP_LTZ(3).getLogicalType
+      ))
 
     testHarness.open()
     ingestData(testHarness)
 
     val expected = new ConcurrentLinkedQueue[Object]()
-    expected.add(record("a", 4L, 5.0D, 2L,
-      localMills("1970-01-01T00:00:00"), localMills("1970-01-01T00:00:05")))
-    expected.add(record("a", 5L, 5.0D, 3L,
-      localMills("1970-01-01T00:00:00"), localMills("1970-01-01T00:00:10")))
-    expected.add(record("a", 5L, 5.0D, 3L,
-      localMills("1970-01-01T00:00:00"), localMills("1970-01-01T00:00:15")))
-    expected.add(record("b", 2L, 6.0D, 2L,
-      localMills("1970-01-01T00:00:00"), localMills("1970-01-01T00:00:10")))
-    expected.add(record("b", 2L, 6.0D, 2L,
-      localMills("1970-01-01T00:00:00"), localMills("1970-01-01T00:00:15")))
-    expected.add(record("b", 1L, 4.0D, 1L,
-      localMills("1970-01-01T00:00:15"), localMills("1970-01-01T00:00:20")))
-    expected.add(record("b", 1L, 4.0D, 1L,
-      localMills("1970-01-01T00:00:15"), localMills("1970-01-01T00:00:25")))
-    expected.add(record("b", 1L, 4.0D, 1L,
-      localMills("1970-01-01T00:00:15"), localMills("1970-01-01T00:00:30")))
-    expected.add(record("b", 1L, 3.0D, 1L,
-      localMills("1970-01-01T00:00:30"), localMills("1970-01-01T00:00:35")))
-    expected.add(record("b", 1L, 3.0D, 1L,
-      localMills("1970-01-01T00:00:30"), localMills("1970-01-01T00:00:40")))
-    expected.add(record("b", 1L, 3.0D, 1L,
-      localMills("1970-01-01T00:00:30"), localMills("1970-01-01T00:00:45")))
-    expected.add(record(null, 1L, 7.0D, 0L,
-      localMills("1970-01-01T00:00:30"), localMills("1970-01-01T00:00:35")))
-    expected.add(record(null, 1L, 7.0D, 0L,
-      localMills("1970-01-01T00:00:30"), localMills("1970-01-01T00:00:40")))
-    expected.add(record(null, 1L, 7.0D, 0L,
-      localMills("1970-01-01T00:00:30"), localMills("1970-01-01T00:00:45")))
+    expected.add(
+      record(
+        "a",
+        4L,
+        5.0d,
+        2L,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:05")))
+    expected.add(
+      record(
+        "a",
+        5L,
+        5.0d,
+        3L,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:10")))
+    expected.add(
+      record(
+        "a",
+        5L,
+        5.0d,
+        3L,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:15")))
+    expected.add(
+      record(
+        "b",
+        2L,
+        6.0d,
+        2L,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:10")))
+    expected.add(
+      record(
+        "b",
+        2L,
+        6.0d,
+        2L,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:15")))
+    expected.add(
+      record(
+        "b",
+        1L,
+        4.0d,
+        1L,
+        localMills("1970-01-01T00:00:15"),
+        localMills("1970-01-01T00:00:20")))
+    expected.add(
+      record(
+        "b",
+        1L,
+        4.0d,
+        1L,
+        localMills("1970-01-01T00:00:15"),
+        localMills("1970-01-01T00:00:25")))
+    expected.add(
+      record(
+        "b",
+        1L,
+        4.0d,
+        1L,
+        localMills("1970-01-01T00:00:15"),
+        localMills("1970-01-01T00:00:30")))
+    expected.add(
+      record(
+        "b",
+        1L,
+        3.0d,
+        1L,
+        localMills("1970-01-01T00:00:30"),
+        localMills("1970-01-01T00:00:35")))
+    expected.add(
+      record(
+        "b",
+        1L,
+        3.0d,
+        1L,
+        localMills("1970-01-01T00:00:30"),
+        localMills("1970-01-01T00:00:40")))
+    expected.add(
+      record(
+        "b",
+        1L,
+        3.0d,
+        1L,
+        localMills("1970-01-01T00:00:30"),
+        localMills("1970-01-01T00:00:45")))
+    expected.add(
+      record(
+        null,
+        1L,
+        7.0d,
+        0L,
+        localMills("1970-01-01T00:00:30"),
+        localMills("1970-01-01T00:00:35")))
+    expected.add(
+      record(
+        null,
+        1L,
+        7.0d,
+        0L,
+        localMills("1970-01-01T00:00:30"),
+        localMills("1970-01-01T00:00:40")))
+    expected.add(
+      record(
+        null,
+        1L,
+        7.0d,
+        0L,
+        localMills("1970-01-01T00:00:30"),
+        localMills("1970-01-01T00:00:45")))
 
     assertor.assertOutputEqualsSorted("result mismatch", expected, testHarness.getOutput)
 
@@ -284,34 +470,30 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
     testHarness.close()
   }
 
-  /**
-   * Processing time window doesn't support two-phase, so add a single two-phase test.
-    */
+  /** Processing time window doesn't support two-phase, so add a single two-phase test. */
   @Test
   def testTwoPhaseWindowAggregateCloseWithoutOpen(): Unit = {
     val timestampDataId = TestValuesTableFactory.registerData(TestData.windowDataWithTimestamp)
-    tEnv.executeSql(
-      s"""
-         |CREATE TABLE T2 (
-         | `ts` STRING,
-         | `int` INT,
-         | `double` DOUBLE,
-         | `float` FLOAT,
-         | `bigdec` DECIMAL(10, 2),
-         | `string` STRING,
-         | `name` STRING,
-         | `rowtime` AS
-         | TO_TIMESTAMP(`ts`),
-         | WATERMARK for `rowtime` AS `rowtime` - INTERVAL '1' SECOND
-         |) WITH (
-         | 'connector' = 'values',
-         | 'data-id' = '${timestampDataId}',
-         | 'failing-source' = 'false'
-         |)
-         |""".stripMargin)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE T2 (
+                       | `ts` STRING,
+                       | `int` INT,
+                       | `double` DOUBLE,
+                       | `float` FLOAT,
+                       | `bigdec` DECIMAL(10, 2),
+                       | `string` STRING,
+                       | `name` STRING,
+                       | `rowtime` AS
+                       | TO_TIMESTAMP(`ts`),
+                       | WATERMARK for `rowtime` AS `rowtime` - INTERVAL '1' SECOND
+                       |) WITH (
+                       | 'connector' = 'values',
+                       | 'data-id' = '$timestampDataId',
+                       | 'failing-source' = 'false'
+                       |)
+                       |""".stripMargin)
 
-    tEnv.getConfig.getConfiguration.setString(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE")
+    tEnv.getConfig.set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE")
 
     val sql =
       """
@@ -337,7 +519,8 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
       DataTypes.DOUBLE().getLogicalType,
       DataTypes.BIGINT().getLogicalType,
       DataTypes.TIMESTAMP_LTZ(3).getLogicalType,
-      DataTypes.TIMESTAMP_LTZ(3).getLogicalType)
+      DataTypes.TIMESTAMP_LTZ(3).getLogicalType
+    )
     testHarness.setup(new RowDataSerializer(outputTypes: _*))
 
     // simulate a failover after a failed task open, expect no exception happens
@@ -351,10 +534,9 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
   }
 
   /**
-   * Ingests testing data, the input schema is [name, double, string, proctime].
-   * We follow the test data in [[TestData.windowDataWithTimestamp]] to have the same produced
-   * result. The only difference is we don't ingest the late data in this test, so they should
-   * produce same result.
+   * Ingests testing data, the input schema is [name, double, string, proctime]. We follow the test
+   * data in [[TestData.windowDataWithTimestamp]] to have the same produced result. The only
+   * difference is we don't ingest the late data in this test, so they should produce same result.
    */
   private def ingestData(
       testHarness: KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData]): Unit = {
@@ -388,15 +570,15 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
     val objs = args.map {
       case l: Long => Long.box(l)
       case d: Double => Double.box(d)
-      case arg@_ => arg.asInstanceOf[Object]
+      case arg @ _ => arg.asInstanceOf[Object]
     }.toArray
     binaryRecord(INSERT, objs: _*)
   }
 
   private def localMills(dateTime: String): TimestampData = {
-    val windowDateTime =  LocalDateTime.parse(dateTime).atZone(UTC_ZONE_ID)
-     TimestampData.fromEpochMillis(
-       toUtcTimestampMills(windowDateTime.toInstant.toEpochMilli, shiftTimeZone))
+    val windowDateTime = LocalDateTime.parse(dateTime).atZone(UTC_ZONE_ID)
+    TimestampData.fromEpochMillis(
+      toUtcTimestampMills(windowDateTime.toInstant.toEpochMilli, shiftTimeZone))
   }
 }
 
@@ -408,6 +590,7 @@ object WindowAggregateHarnessTest {
       Array(HEAP_BACKEND, ZoneId.of("UTC")),
       Array(HEAP_BACKEND, ZoneId.of("Asia/Shanghai")),
       Array(ROCKSDB_BACKEND, ZoneId.of("UTC")),
-      Array(ROCKSDB_BACKEND, ZoneId.of("Asia/Shanghai")))
+      Array(ROCKSDB_BACKEND, ZoneId.of("Asia/Shanghai"))
+    )
   }
 }

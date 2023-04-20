@@ -32,6 +32,7 @@ import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.FlinkPipelineTranslationUtil;
 import org.apache.flink.client.cli.ExecutionConfigAccessor;
 import org.apache.flink.client.deployment.ClusterClientJobClientAdapter;
+import org.apache.flink.client.testjar.ForbidConfigurationJob;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
@@ -50,16 +51,13 @@ import org.apache.flink.optimizer.costs.DefaultCostEstimator;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.testutils.MiniClusterResource;
+import org.apache.flink.runtime.testutils.InternalMiniClusterExtension;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.util.FlinkRuntimeException;
-import org.apache.flink.util.NetUtils;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -70,24 +68,24 @@ import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /** Simple and maybe stupid test to check the {@link ClusterClient} class. */
-public class ClientTest extends TestLogger {
+class ClientTest {
 
-    @ClassRule
-    public static final MiniClusterResource MINI_CLUSTER_RESOURCE =
-            new MiniClusterResource(new MiniClusterResourceConfiguration.Builder().build());
+    @RegisterExtension
+    private static final InternalMiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new InternalMiniClusterExtension(
+                    new MiniClusterResourceConfiguration.Builder().build());
 
     private Plan plan;
-
-    private NetUtils.Port port;
 
     private Configuration config;
 
@@ -98,8 +96,8 @@ public class ClientTest extends TestLogger {
     private static final String FAIL_MESSAGE =
             "Invalid program should have thrown ProgramInvocationException.";
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeEach
+    void setUp() {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.generateSequence(1, 1000).output(new DiscardingOutputFormat<>());
@@ -107,18 +105,9 @@ public class ClientTest extends TestLogger {
 
         config = new Configuration();
         config.setString(JobManagerOptions.ADDRESS, "localhost");
-        NetUtils.Port port = NetUtils.getAvailablePort();
-        config.setInteger(JobManagerOptions.PORT, port.getPort());
 
         config.set(
                 AkkaOptions.ASK_TIMEOUT_DURATION, AkkaOptions.ASK_TIMEOUT_DURATION.defaultValue());
-    }
-
-    @After
-    public void tearDown() throws Exception {
-        if (port != null) {
-            port.close();
-        }
     }
 
     private Configuration fromPackagedProgram(
@@ -139,112 +128,117 @@ public class ClientTest extends TestLogger {
 
     /** Tests that invalid detached mode programs fail. */
     @Test
-    public void testDetachedMode() throws Exception {
+    void testDetachedMode() {
         final ClusterClient<?> clusterClient =
                 new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
 
-        try {
-            PackagedProgram prg =
-                    PackagedProgram.newBuilder()
-                            .setEntryPointClassName(TestEager.class.getName())
-                            .build();
-            final Configuration configuration = fromPackagedProgram(prg, 1, true);
+        assertThatThrownBy(
+                        () -> {
+                            PackagedProgram prg =
+                                    PackagedProgram.newBuilder()
+                                            .setEntryPointClassName(TestEager.class.getName())
+                                            .build();
+                            final Configuration configuration = fromPackagedProgram(prg, 1, true);
 
-            ClientUtils.executeProgram(
-                    new TestExecutorServiceLoader(clusterClient, plan),
-                    configuration,
-                    prg,
-                    false,
-                    false);
-            fail(FAIL_MESSAGE);
-        } catch (ProgramInvocationException e) {
-            assertEquals(
-                    DetachedJobExecutionResult.DETACHED_MESSAGE
-                            + DetachedJobExecutionResult.JOB_RESULT_MESSAGE
-                            + DetachedJobExecutionResult.EAGER_FUNCTION_MESSAGE,
-                    e.getCause().getMessage());
-        }
+                            ClientUtils.executeProgram(
+                                    new TestExecutorServiceLoader(clusterClient, plan),
+                                    configuration,
+                                    prg,
+                                    false,
+                                    false);
+                            fail(FAIL_MESSAGE);
+                        })
+                .isInstanceOf(ProgramInvocationException.class)
+                .hasMessageContaining(
+                        DetachedJobExecutionResult.DETACHED_MESSAGE
+                                + DetachedJobExecutionResult.JOB_RESULT_MESSAGE
+                                + DetachedJobExecutionResult.EAGER_FUNCTION_MESSAGE);
 
-        try {
-            PackagedProgram prg =
-                    PackagedProgram.newBuilder()
-                            .setEntryPointClassName(TestGetRuntime.class.getName())
-                            .build();
-            final Configuration configuration = fromPackagedProgram(prg, 1, true);
+        assertThatThrownBy(
+                        () -> {
+                            PackagedProgram prg =
+                                    PackagedProgram.newBuilder()
+                                            .setEntryPointClassName(TestGetRuntime.class.getName())
+                                            .build();
+                            final Configuration configuration = fromPackagedProgram(prg, 1, true);
 
-            ClientUtils.executeProgram(
-                    new TestExecutorServiceLoader(clusterClient, plan),
-                    configuration,
-                    prg,
-                    false,
-                    false);
-            fail(FAIL_MESSAGE);
-        } catch (ProgramInvocationException e) {
-            assertEquals(
-                    DetachedJobExecutionResult.DETACHED_MESSAGE
-                            + DetachedJobExecutionResult.JOB_RESULT_MESSAGE,
-                    e.getCause().getMessage());
-        }
+                            ClientUtils.executeProgram(
+                                    new TestExecutorServiceLoader(clusterClient, plan),
+                                    configuration,
+                                    prg,
+                                    false,
+                                    false);
+                            fail(FAIL_MESSAGE);
+                        })
+                .isInstanceOf(ProgramInvocationException.class)
+                .hasMessageContaining(
+                        DetachedJobExecutionResult.DETACHED_MESSAGE
+                                + DetachedJobExecutionResult.JOB_RESULT_MESSAGE);
 
-        try {
-            PackagedProgram prg =
-                    PackagedProgram.newBuilder()
-                            .setEntryPointClassName(TestGetAccumulator.class.getName())
-                            .build();
-            final Configuration configuration = fromPackagedProgram(prg, 1, true);
+        assertThatThrownBy(
+                        () -> {
+                            PackagedProgram prg =
+                                    PackagedProgram.newBuilder()
+                                            .setEntryPointClassName(
+                                                    TestGetAccumulator.class.getName())
+                                            .build();
+                            final Configuration configuration = fromPackagedProgram(prg, 1, true);
 
-            ClientUtils.executeProgram(
-                    new TestExecutorServiceLoader(clusterClient, plan),
-                    configuration,
-                    prg,
-                    false,
-                    false);
-            fail(FAIL_MESSAGE);
-        } catch (ProgramInvocationException e) {
-            assertEquals(
-                    DetachedJobExecutionResult.DETACHED_MESSAGE
-                            + DetachedJobExecutionResult.JOB_RESULT_MESSAGE
-                            + DetachedJobExecutionResult.EAGER_FUNCTION_MESSAGE,
-                    e.getCause().getMessage());
-        }
+                            ClientUtils.executeProgram(
+                                    new TestExecutorServiceLoader(clusterClient, plan),
+                                    configuration,
+                                    prg,
+                                    false,
+                                    false);
+                            fail(FAIL_MESSAGE);
+                        })
+                .isInstanceOf(ProgramInvocationException.class)
+                .hasMessageContaining(
+                        DetachedJobExecutionResult.DETACHED_MESSAGE
+                                + DetachedJobExecutionResult.JOB_RESULT_MESSAGE
+                                + DetachedJobExecutionResult.EAGER_FUNCTION_MESSAGE);
 
-        try {
-            PackagedProgram prg =
-                    PackagedProgram.newBuilder()
-                            .setEntryPointClassName(TestGetAllAccumulator.class.getName())
-                            .build();
-            final Configuration configuration = fromPackagedProgram(prg, 1, true);
+        assertThatThrownBy(
+                        () -> {
+                            PackagedProgram prg =
+                                    PackagedProgram.newBuilder()
+                                            .setEntryPointClassName(
+                                                    TestGetAllAccumulator.class.getName())
+                                            .build();
+                            final Configuration configuration = fromPackagedProgram(prg, 1, true);
 
-            ClientUtils.executeProgram(
-                    new TestExecutorServiceLoader(clusterClient, plan),
-                    configuration,
-                    prg,
-                    false,
-                    false);
-            fail(FAIL_MESSAGE);
-        } catch (ProgramInvocationException e) {
-            assertEquals(
-                    DetachedJobExecutionResult.DETACHED_MESSAGE
-                            + DetachedJobExecutionResult.JOB_RESULT_MESSAGE,
-                    e.getCause().getMessage());
-        }
-    }
-
-    @Test(expected = FlinkRuntimeException.class)
-    public void testMultiExecuteWithEnforcingSingleJobExecution() throws Throwable {
-        try {
-            launchMultiExecuteJob(true);
-        } catch (Exception e) {
-            if (e instanceof ProgramInvocationException) {
-                throw e.getCause();
-            }
-        }
-        fail("Test should have failed due to multiple execute() calls.");
+                            ClientUtils.executeProgram(
+                                    new TestExecutorServiceLoader(clusterClient, plan),
+                                    configuration,
+                                    prg,
+                                    false,
+                                    false);
+                            fail(FAIL_MESSAGE);
+                        })
+                .isInstanceOf(ProgramInvocationException.class)
+                .hasMessageContaining(
+                        DetachedJobExecutionResult.DETACHED_MESSAGE
+                                + DetachedJobExecutionResult.JOB_RESULT_MESSAGE);
     }
 
     @Test
-    public void testMultiExecuteWithoutEnforcingSingleJobExecution()
-            throws ProgramInvocationException {
+    void testMultiExecuteWithEnforcingSingleJobExecution() {
+        assertThatThrownBy(
+                        () -> {
+                            try {
+                                launchMultiExecuteJob(true);
+                            } catch (Exception e) {
+                                if (e instanceof ProgramInvocationException) {
+                                    throw e.getCause();
+                                }
+                            }
+                            fail("Test should have failed due to multiple execute() calls.");
+                        })
+                .isInstanceOf(FlinkRuntimeException.class);
+    }
+
+    @Test
+    void testMultiExecuteWithoutEnforcingSingleJobExecution() throws ProgramInvocationException {
         launchMultiExecuteJob(false);
     }
 
@@ -272,15 +266,20 @@ public class ClientTest extends TestLogger {
 
     /** This test verifies correct job submission messaging logic and plan translation calls. */
     @Test
-    public void shouldSubmitToJobClient() throws Exception {
+    void shouldSubmitToJobClient() {
         final ClusterClient<?> clusterClient =
                 new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
-        JobGraph jobGraph = FlinkPipelineTranslationUtil.getJobGraph(plan, new Configuration(), 1);
+        JobGraph jobGraph =
+                FlinkPipelineTranslationUtil.getJobGraph(
+                        Thread.currentThread().getContextClassLoader(),
+                        plan,
+                        new Configuration(),
+                        1);
 
         jobGraph.addJars(Collections.emptyList());
         jobGraph.setClasspaths(Collections.emptyList());
 
-        assertNotNull(clusterClient.submitJob(jobGraph).get());
+        assertThatFuture(clusterClient.submitJob(jobGraph)).eventuallySucceeds().isNotNull();
     }
 
     /**
@@ -288,7 +287,7 @@ public class ClientTest extends TestLogger {
      * submitted through a client.
      */
     @Test
-    public void tryLocalExecution() throws ProgramInvocationException, ProgramMissingJobException {
+    void tryLocalExecution() throws ProgramInvocationException {
         PackagedProgram packagedProgramMock = mock(PackagedProgram.class);
 
         when(packagedProgramMock.getUserCodeClassLoader())
@@ -305,25 +304,28 @@ public class ClientTest extends TestLogger {
                 .when(packagedProgramMock)
                 .invokeInteractiveModeForExecution();
 
-        try {
-            final ClusterClient<?> client =
-                    new MiniClusterClient(
-                            new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
-            final Configuration configuration = fromPackagedProgram(packagedProgramMock, 1, true);
-            ClientUtils.executeProgram(
-                    new TestExecutorServiceLoader(client, plan),
-                    configuration,
-                    packagedProgramMock,
-                    false,
-                    false);
-            fail("Creating the local execution environment should not be possible");
-        } catch (InvalidProgramException e) {
-            // that is what we want
+        try (final ClusterClient<?> client =
+                new MiniClusterClient(
+                        new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster())) {
+            assertThatThrownBy(
+                            () -> {
+                                final Configuration configuration =
+                                        fromPackagedProgram(packagedProgramMock, 1, true);
+                                ClientUtils.executeProgram(
+                                        new TestExecutorServiceLoader(client, plan),
+                                        configuration,
+                                        packagedProgramMock,
+                                        false,
+                                        false);
+                                fail(
+                                        "Creating the local execution environment should not be possible");
+                            })
+                    .isInstanceOf(InvalidProgramException.class);
         }
     }
 
     @Test
-    public void testGetExecutionPlan() throws ProgramInvocationException {
+    void testGetExecutionPlan() throws ProgramInvocationException {
         PackagedProgram prg =
                 PackagedProgram.newBuilder()
                         .setEntryPointClassName(TestOptimizerPlan.class.getName())
@@ -337,17 +339,43 @@ public class ClientTest extends TestLogger {
                         PackagedProgramUtils.getPipelineFromProgram(
                                 prg, new Configuration(), 1, true);
         OptimizedPlan op = optimizer.compile(plan);
-        assertNotNull(op);
+        assertThat(op).isNotNull();
 
         PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();
-        assertNotNull(dumper.getOptimizerPlanAsJSON(op));
+        assertThat(dumper.getOptimizerPlanAsJSON(op)).isNotNull();
 
         // test HTML escaping
         PlanJSONDumpGenerator dumper2 = new PlanJSONDumpGenerator();
         dumper2.setEncodeForHTML(true);
         String htmlEscaped = dumper2.getOptimizerPlanAsJSON(op);
 
-        assertEquals(-1, htmlEscaped.indexOf('\\'));
+        assertThat(htmlEscaped).doesNotContain("\\");
+    }
+
+    @Test
+    void testFailOnForbiddenConfiguration() throws ProgramInvocationException {
+        try (final ClusterClient<?> clusterClient =
+                new MiniClusterClient(
+                        new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster())) {
+
+            final PackagedProgram program =
+                    PackagedProgram.newBuilder()
+                            .setEntryPointClassName(ForbidConfigurationJob.class.getName())
+                            .build();
+
+            final Configuration configuration = fromPackagedProgram(program, 1, false);
+            configuration.set(DeploymentOptions.PROGRAM_CONFIG_ENABLED, false);
+
+            assertThatThrownBy(
+                            () ->
+                                    ClientUtils.executeProgram(
+                                            new TestExecutorServiceLoader(clusterClient, plan),
+                                            configuration,
+                                            program,
+                                            true,
+                                            false))
+                    .hasRootCauseInstanceOf(MutatedConfigurationException.class);
+        }
     }
 
     // --------------------------------------------------------------------------------------------
@@ -479,7 +507,8 @@ public class ClientTest extends TestLogger {
                     return (pipeline, config, classLoader) -> {
                         final int parallelism = config.getInteger(CoreOptions.DEFAULT_PARALLELISM);
                         final JobGraph jobGraph =
-                                FlinkPipelineTranslationUtil.getJobGraph(plan, config, parallelism);
+                                FlinkPipelineTranslationUtil.getJobGraph(
+                                        classLoader, plan, config, parallelism);
 
                         final ExecutionConfigAccessor accessor =
                                 ExecutionConfigAccessor.fromConfiguration(config);

@@ -21,14 +21,8 @@ import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 
 /** Util for testing different Hive versions. */
 public class HiveVersionTestUtil {
-    public static final boolean HIVE_120_OR_LATER =
-            HiveShimLoader.getHiveVersion().compareTo(HiveShimLoader.HIVE_VERSION_V1_2_0) >= 0;
-    public static final boolean HIVE_110_OR_LATER =
-            HiveShimLoader.getHiveVersion().compareTo(HiveShimLoader.HIVE_VERSION_V1_1_0) >= 0;
     public static final boolean HIVE_310_OR_LATER =
             HiveShimLoader.getHiveVersion().compareTo(HiveShimLoader.HIVE_VERSION_V3_1_0) >= 0;
-    public static final boolean HIVE_210_OR_LATER =
-            HiveShimLoader.getHiveVersion().compareTo(HiveShimLoader.HIVE_VERSION_V2_1_0) >= 0;
-    public static final boolean HIVE_220_OR_LATER =
-            HiveShimLoader.getHiveVersion().compareTo(HiveShimLoader.HIVE_VERSION_V2_2_0) >= 0;
+    public static final boolean HIVE_230_OR_LATER =
+            HiveShimLoader.getHiveVersion().compareTo(HiveShimLoader.HIVE_VERSION_V2_3_0) >= 0;
 }

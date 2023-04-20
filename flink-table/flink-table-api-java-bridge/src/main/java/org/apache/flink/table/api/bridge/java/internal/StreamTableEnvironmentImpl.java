@@ -37,7 +37,6 @@ import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.SchemaTranslator;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.delegation.Executor;
-import org.apache.flink.table.delegation.ExpressionParser;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.PlannerFactoryUtil;
@@ -47,16 +46,19 @@ import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.OutputConversionModifyOperation;
+import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceValidation;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.FlinkUserCodeClassLoaders;
+import org.apache.flink.util.MutableURLClassLoader;
 import org.apache.flink.util.Preconditions;
 
+import java.net.URL;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Optional;
 
 /**
@@ -72,39 +74,44 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
     public StreamTableEnvironmentImpl(
             CatalogManager catalogManager,
             ModuleManager moduleManager,
+            ResourceManager resourceManager,
             FunctionCatalog functionCatalog,
             TableConfig tableConfig,
             StreamExecutionEnvironment executionEnvironment,
             Planner planner,
             Executor executor,
-            boolean isStreamingMode,
-            ClassLoader userClassLoader) {
+            boolean isStreamingMode) {
         super(
                 catalogManager,
                 moduleManager,
+                resourceManager,
                 tableConfig,
                 executor,
                 functionCatalog,
                 planner,
                 isStreamingMode,
-                userClassLoader,
                 executionEnvironment);
     }
 
     public static StreamTableEnvironment create(
-            StreamExecutionEnvironment executionEnvironment,
-            EnvironmentSettings settings,
-            TableConfig tableConfig) {
+            StreamExecutionEnvironment executionEnvironment, EnvironmentSettings settings) {
+        final MutableURLClassLoader userClassLoader =
+                FlinkUserCodeClassLoaders.create(
+                        new URL[0], settings.getUserClassLoader(), settings.getConfiguration());
+        final Executor executor = lookupExecutor(userClassLoader, executionEnvironment);
 
-        // temporary solution until FLINK-15635 is fixed
-        final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        final TableConfig tableConfig = TableConfig.getDefault();
+        tableConfig.setRootConfiguration(executor.getConfiguration());
+        tableConfig.addConfiguration(settings.getConfiguration());
 
+        final ResourceManager resourceManager =
+                new ResourceManager(settings.getConfiguration(), userClassLoader);
         final ModuleManager moduleManager = new ModuleManager();
 
         final CatalogManager catalogManager =
                 CatalogManager.newBuilder()
-                        .classLoader(classLoader)
-                        .config(tableConfig.getConfiguration())
+                        .classLoader(userClassLoader)
+                        .config(tableConfig)
                         .defaultCatalog(
                                 settings.getBuiltInCatalogName(),
                                 new GenericInMemoryCatalog(
@@ -114,16 +121,13 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
                         .build();
 
         final FunctionCatalog functionCatalog =
-                new FunctionCatalog(tableConfig, catalogManager, moduleManager);
-
-        final Executor executor =
-                lookupExecutor(classLoader, settings.getExecutor(), executionEnvironment);
+                new FunctionCatalog(tableConfig, resourceManager, catalogManager, moduleManager);
 
         final Planner planner =
                 PlannerFactoryUtil.createPlanner(
-                        settings.getPlanner(),
                         executor,
                         tableConfig,
+                        userClassLoader,
                         moduleManager,
                         catalogManager,
                         functionCatalog);
@@ -131,13 +135,13 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
         return new StreamTableEnvironmentImpl(
                 catalogManager,
                 moduleManager,
+                resourceManager,
                 functionCatalog,
                 tableConfig,
                 executionEnvironment,
                 planner,
                 executor,
-                settings.isStreamingMode(),
-                classLoader);
+                settings.isStreamingMode());
     }
 
     @Override
@@ -289,12 +293,6 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
     }
 
     @Override
-    public <T> Table fromDataStream(DataStream<T> dataStream, String fields) {
-        List<Expression> expressions = ExpressionParser.INSTANCE.parseExpressionList(fields);
-        return fromDataStream(dataStream, expressions.toArray(new Expression[0]));
-    }
-
-    @Override
     public <T> Table fromDataStream(DataStream<T> dataStream, Expression... fields) {
         return createTable(asQueryOperation(dataStream, Optional.of(Arrays.asList(fields))));
     }
@@ -302,16 +300,6 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
     @Override
     public <T> void registerDataStream(String name, DataStream<T> dataStream) {
         createTemporaryView(name, dataStream);
-    }
-
-    @Override
-    public <T> void registerDataStream(String name, DataStream<T> dataStream, String fields) {
-        createTemporaryView(name, dataStream, fields);
-    }
-
-    @Override
-    public <T> void createTemporaryView(String path, DataStream<T> dataStream, String fields) {
-        createTemporaryView(path, fromDataStream(dataStream, fields));
     }
 
     @Override

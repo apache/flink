@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.stream.sql.agg
 
 import org.apache.flink.table.planner.plan.rules.physical.stream.IncrementalAggregateRule
@@ -37,8 +36,8 @@ class IncrementalAggregateTest(
   override def before(): Unit = {
     super.before()
     // enable incremental agg
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      IncrementalAggregateRule.TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED, true)
+    util.tableEnv.getConfig
+      .set(IncrementalAggregateRule.TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED, Boolean.box(true))
   }
 }
 

@@ -32,13 +32,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.TreeSet;
 
-import static org.apache.flink.table.runtime.operators.window.WindowTestUtils.timeWindow;
-import static org.hamcrest.Matchers.contains;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.anyCollection;
 import static org.mockito.Matchers.anyObject;
 import static org.mockito.Matchers.argThat;
@@ -60,13 +55,11 @@ public class SessionWindowAssignerTest {
         SessionWindowAssigner assigner =
                 SessionWindowAssigner.withGap(Duration.ofMillis(sessionGap));
 
-        assertThat(assigner.assignWindows(ELEMENT, 0L), contains(timeWindow(0, sessionGap)));
-        assertThat(
-                assigner.assignWindows(ELEMENT, 4999L),
-                contains(timeWindow(4999, 4999 + sessionGap)));
-        assertThat(
-                assigner.assignWindows(ELEMENT, 5000L),
-                contains(timeWindow(5000, 5000 + sessionGap)));
+        assertThat(assigner.assignWindows(ELEMENT, 0L)).contains(new TimeWindow(0, sessionGap));
+        assertThat(assigner.assignWindows(ELEMENT, 4999L))
+                .contains(new TimeWindow(4999, 4999 + sessionGap));
+        assertThat(assigner.assignWindows(ELEMENT, 5000L))
+                .contains(new TimeWindow(5000, 5000 + sessionGap));
     }
 
     @SuppressWarnings("unchecked")
@@ -153,11 +146,11 @@ public class SessionWindowAssignerTest {
     public void testProperties() {
         SessionWindowAssigner assigner = SessionWindowAssigner.withGap(Duration.ofMillis(5000));
 
-        assertTrue(assigner.isEventTime());
-        assertEquals(
-                new TimeWindow.Serializer(), assigner.getWindowSerializer(new ExecutionConfig()));
+        assertThat(assigner.isEventTime()).isTrue();
+        assertThat(assigner.getWindowSerializer(new ExecutionConfig()))
+                .isEqualTo(new TimeWindow.Serializer());
 
-        assertTrue(assigner.withEventTime().isEventTime());
-        assertFalse(assigner.withProcessingTime().isEventTime());
+        assertThat(assigner.withEventTime().isEventTime()).isTrue();
+        assertThat(assigner.withProcessingTime().isEventTime()).isFalse();
     }
 }

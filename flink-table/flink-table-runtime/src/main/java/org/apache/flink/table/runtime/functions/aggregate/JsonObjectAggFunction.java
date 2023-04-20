@@ -57,6 +57,7 @@ public class JsonObjectAggFunction
         extends BuiltInAggregateFunction<String, JsonObjectAggFunction.Accumulator> {
 
     private static final long serialVersionUID = 1L;
+    private static final StringData NULL_STRING_DATA = StringData.fromBytes(new byte[] {});
     private static final NullNode NULL_NODE = getNodeFactory().nullNode();
 
     private final transient List<DataType> argumentTypes;
@@ -107,7 +108,9 @@ public class JsonObjectAggFunction
 
         if (valueData == null) {
             if (!skipNulls) {
-                acc.map.put(keyData, null);
+                // We cannot use null for StringData here, since it's not supported by the
+                // StringDataSerializer, instead use a StringData with an empty byte[]
+                acc.map.put(keyData, NULL_STRING_DATA);
             }
         } else {
             acc.map.put(keyData, valueData);
@@ -135,7 +138,7 @@ public class JsonObjectAggFunction
             for (final StringData key : acc.map.keys()) {
                 final StringData value = acc.map.get(key);
                 final JsonNode valueNode =
-                        value == null
+                        value.toBytes().length == 0
                                 ? NULL_NODE
                                 : getNodeFactory().rawValueNode(new RawValue(value.toString()));
 

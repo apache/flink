@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.scheduler.strategy;
 
-import org.apache.flink.runtime.scheduler.ExecutionVertexDeploymentOption;
 import org.apache.flink.runtime.scheduler.SchedulerOperations;
 
 import java.util.ArrayList;
@@ -28,15 +27,14 @@ import java.util.List;
 /** A Simple scheduler operation for testing purposes. */
 public class TestingSchedulerOperations implements SchedulerOperations {
 
-    private final List<List<ExecutionVertexDeploymentOption>> scheduledVertices = new ArrayList<>();
+    private final List<List<ExecutionVertexID>> scheduledVertices = new ArrayList<>();
 
     @Override
-    public void allocateSlotsAndDeploy(
-            List<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions) {
-        scheduledVertices.add(executionVertexDeploymentOptions);
+    public void allocateSlotsAndDeploy(List<ExecutionVertexID> verticesToDeploy) {
+        scheduledVertices.add(verticesToDeploy);
     }
 
-    List<List<ExecutionVertexDeploymentOption>> getScheduledVertices() {
+    List<List<ExecutionVertexID>> getScheduledVertices() {
         return Collections.unmodifiableList(scheduledVertices);
     }
 }

@@ -76,6 +76,7 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
             SingleInputGate inputGate,
             int channelIndex,
             ResultPartitionID partitionId,
+            int consumedSubpartitionIndex,
             int initialBackoff,
             int maxBackoff,
             Counter numBytesIn,
@@ -85,6 +86,7 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
                 inputGate,
                 channelIndex,
                 partitionId,
+                consumedSubpartitionIndex,
                 initialBackoff,
                 maxBackoff,
                 numBytesIn,
@@ -223,7 +225,7 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
     }
 
     @Override
-    final void requestSubpartition(int subpartitionIndex) {
+    final void requestSubpartition() {
         throw new UnsupportedOperationException(
                 "RecoveredInputChannel should never request partition.");
     }

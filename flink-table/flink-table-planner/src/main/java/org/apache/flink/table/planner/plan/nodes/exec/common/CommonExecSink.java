@@ -21,9 +21,11 @@ package org.apache.flink.table.planner.plan.nodes.exec.common;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.streaming.api.datastream.CustomSinkOperatorUidHashes;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
@@ -31,35 +33,45 @@ import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
-import org.apache.flink.streaming.api.transformations.SinkTransformation;
 import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.ParallelismProvider;
+import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.DynamicTableSink.SinkRuntimeProvider;
 import org.apache.flink.table.connector.sink.OutputFormatProvider;
 import org.apache.flink.table.connector.sink.SinkFunctionProvider;
 import org.apache.flink.table.connector.sink.SinkProvider;
+import org.apache.flink.table.connector.sink.SinkV2Provider;
+import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelDelete;
+import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelUpdate;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator;
 import org.apache.flink.table.planner.connectors.TransformationSinkProvider;
-import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.plan.abilities.sink.RowLevelDeleteSpec;
+import org.apache.flink.table.planner.plan.abilities.sink.RowLevelUpdateSpec;
+import org.apache.flink.table.planner.plan.abilities.sink.SinkAbilitySpec;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSinkSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.TransformationMetadata;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
+import org.apache.flink.table.planner.typeutils.RowTypeUtils;
 import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.sink.ConstraintEnforcer;
+import org.apache.flink.table.runtime.operators.sink.RowKindSetter;
 import org.apache.flink.table.runtime.operators.sink.SinkOperator;
 import org.apache.flink.table.runtime.operators.sink.SinkUpsertMaterializer;
 import org.apache.flink.table.runtime.operators.sink.StreamRecordTimestampInserter;
@@ -73,13 +85,14 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.util.TemporaryClassLoaderContext;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -89,23 +102,33 @@ import java.util.stream.IntStream;
 public abstract class CommonExecSink extends ExecNodeBase<Object>
         implements MultipleTransformationTranslator<Object> {
 
+    public static final String CONSTRAINT_VALIDATOR_TRANSFORMATION = "constraint-validator";
+    public static final String PARTITIONER_TRANSFORMATION = "partitioner";
+    public static final String UPSERT_MATERIALIZE_TRANSFORMATION = "upsert-materialize";
+    public static final String TIMESTAMP_INSERTER_TRANSFORMATION = "timestamp-inserter";
+    public static final String ROW_KIND_SETTER = "row-kind-setter";
+    public static final String SINK_TRANSFORMATION = "sink";
+
     public static final String FIELD_NAME_DYNAMIC_TABLE_SINK = "dynamicTableSink";
 
     @JsonProperty(FIELD_NAME_DYNAMIC_TABLE_SINK)
     protected final DynamicTableSinkSpec tableSinkSpec;
 
-    @JsonIgnore private final ChangelogMode inputChangelogMode;
-    @JsonIgnore private final boolean isBounded;
+    private final ChangelogMode inputChangelogMode;
+    private final boolean isBounded;
+    private boolean sinkParallelismConfigured;
 
     protected CommonExecSink(
+            int id,
+            ExecNodeContext context,
+            ReadableConfig persistedConfig,
             DynamicTableSinkSpec tableSinkSpec,
             ChangelogMode inputChangelogMode,
             boolean isBounded,
-            int id,
             List<InputProperty> inputProperties,
             LogicalType outputType,
             String description) {
-        super(id, inputProperties, outputType, description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         this.tableSinkSpec = tableSinkSpec;
         this.inputChangelogMode = inputChangelogMode;
         this.isBounded = isBounded;
@@ -113,7 +136,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
 
     @Override
     public String getSimplifiedName() {
-        return tableSinkSpec.getObjectIdentifier().getObjectName();
+        return tableSinkSpec.getContextResolvedTable().getIdentifier().getObjectName();
     }
 
     public DynamicTableSinkSpec getTableSinkSpec() {
@@ -122,17 +145,23 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
 
     @SuppressWarnings("unchecked")
     protected Transformation<Object> createSinkTransformation(
-            PlannerBase planner,
+            StreamExecutionEnvironment streamExecEnv,
+            ExecNodeConfig config,
+            ClassLoader classLoader,
             Transformation<RowData> inputTransform,
             DynamicTableSink tableSink,
             int rowtimeFieldIndex,
-            boolean upsertMaterialize) {
-        final ResolvedSchema schema = tableSinkSpec.getCatalogTable().getResolvedSchema();
+            boolean upsertMaterialize,
+            int[] inputUpsertKey) {
+        final ResolvedSchema schema = tableSinkSpec.getContextResolvedTable().getResolvedSchema();
         final SinkRuntimeProvider runtimeProvider =
-                tableSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(isBounded));
+                tableSink.getSinkRuntimeProvider(
+                        new SinkRuntimeProviderContext(
+                                isBounded, tableSinkSpec.getTargetColumns()));
         final RowType physicalRowType = getPhysicalRowType(schema);
         final int[] primaryKeys = getPrimaryKeyIndices(physicalRowType, schema);
         final int sinkParallelism = deriveSinkParallelism(inputTransform, runtimeProvider);
+        sinkParallelismConfigured = isParallelismConfigured(runtimeProvider);
         final int inputParallelism = inputTransform.getParallelism();
         final boolean inputInsertOnly = inputChangelogMode.containsOnly(RowKind.INSERT);
         final boolean hasPk = primaryKeys.length > 0;
@@ -144,7 +173,10 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                                     + "Since the configured parallelism is different from the input's parallelism and "
                                     + "the changelog mode is not insert-only, a primary key is required but could not "
                                     + "be found.",
-                            tableSinkSpec.getObjectIdentifier().asSummaryString(),
+                            tableSinkSpec
+                                    .getContextResolvedTable()
+                                    .getIdentifier()
+                                    .asSummaryString(),
                             sinkParallelism,
                             inputParallelism));
         }
@@ -153,18 +185,17 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         final boolean needMaterialization = !inputInsertOnly && upsertMaterialize;
 
         Transformation<RowData> sinkTransform =
-                applyConstraintValidations(
-                        inputTransform, planner.getTableConfig(), physicalRowType);
+                applyConstraintValidations(inputTransform, config, physicalRowType);
 
         if (hasPk) {
             sinkTransform =
                     applyKeyBy(
-                            planner.getTableConfig(),
+                            config,
+                            classLoader,
                             sinkTransform,
                             primaryKeys,
                             sinkParallelism,
                             inputParallelism,
-                            inputInsertOnly,
                             needMaterialization);
         }
 
@@ -174,25 +205,35 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                             sinkTransform,
                             primaryKeys,
                             sinkParallelism,
-                            planner.getTableConfig(),
-                            physicalRowType);
+                            config,
+                            classLoader,
+                            physicalRowType,
+                            inputUpsertKey);
+        }
+
+        Optional<RowKind> targetRowKind = getTargetRowKind();
+        if (targetRowKind.isPresent()) {
+            sinkTransform = applyRowKindSetter(sinkTransform, targetRowKind.get(), config);
         }
 
         return (Transformation<Object>)
                 applySinkProvider(
                         sinkTransform,
-                        planner.getExecEnv(),
+                        streamExecEnv,
                         runtimeProvider,
                         rowtimeFieldIndex,
                         sinkParallelism,
-                        planner.getTableConfig().getConfiguration());
+                        config,
+                        classLoader);
     }
 
     /**
      * Apply an operator to filter or report error to process not-null values for not-null fields.
      */
     private Transformation<RowData> applyConstraintValidations(
-            Transformation<RowData> inputTransform, TableConfig config, RowType physicalRowType) {
+            Transformation<RowData> inputTransform,
+            ExecNodeConfig config,
+            RowType physicalRowType) {
         final ConstraintEnforcer.Builder validatorBuilder = ConstraintEnforcer.newBuilder();
         final String[] fieldNames = physicalRowType.getFieldNames().toArray(new String[0]);
 
@@ -200,8 +241,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         final int[] notNullFieldIndices = getNotNullFieldIndices(physicalRowType);
         if (notNullFieldIndices.length > 0) {
             final ExecutionConfigOptions.NotNullEnforcer notNullEnforcer =
-                    config.getConfiguration()
-                            .get(ExecutionConfigOptions.TABLE_EXEC_SINK_NOT_NULL_ENFORCER);
+                    config.get(ExecutionConfigOptions.TABLE_EXEC_SINK_NOT_NULL_ENFORCER);
             final List<String> notNullFieldNames =
                     Arrays.stream(notNullFieldIndices)
                             .mapToObj(idx -> fieldNames[idx])
@@ -212,8 +252,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         }
 
         final ExecutionConfigOptions.TypeLengthEnforcer typeLengthEnforcer =
-                config.getConfiguration()
-                        .get(ExecutionConfigOptions.TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER);
+                config.get(ExecutionConfigOptions.TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER);
 
         // Build CHAR/VARCHAR length enforcer
         final List<ConstraintEnforcer.FieldInfo> charFieldInfo =
@@ -243,21 +282,17 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
 
         ConstraintEnforcer constraintEnforcer = validatorBuilder.build();
         if (constraintEnforcer != null) {
-            final String operatorDesc =
-                    getFormattedOperatorDescription(
-                            constraintEnforcer.getOperatorName(), config.getConfiguration());
-            final String operatorName =
-                    getFormattedOperatorName(
-                            constraintEnforcer.getOperatorName(),
-                            "ConstraintEnforcer",
-                            config.getConfiguration());
             return ExecNodeUtil.createOneInputTransformation(
                     inputTransform,
-                    operatorName,
-                    operatorDesc,
+                    createTransformationMeta(
+                            CONSTRAINT_VALIDATOR_TRANSFORMATION,
+                            constraintEnforcer.getOperatorName(),
+                            "ConstraintEnforcer",
+                            config),
                     constraintEnforcer,
                     getInputTypeInfo(),
-                    inputTransform.getParallelism());
+                    inputTransform.getParallelism(),
+                    false);
         } else {
             // there are no not-null fields, just skip adding the enforcer operator
             return inputTransform;
@@ -315,26 +350,27 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
     private int deriveSinkParallelism(
             Transformation<RowData> inputTransform, SinkRuntimeProvider runtimeProvider) {
         final int inputParallelism = inputTransform.getParallelism();
-        if (!(runtimeProvider instanceof ParallelismProvider)) {
+        if (isParallelismConfigured(runtimeProvider)) {
+            int sinkParallelism = ((ParallelismProvider) runtimeProvider).getParallelism().get();
+            if (sinkParallelism <= 0) {
+                throw new TableException(
+                        String.format(
+                                "Invalid configured parallelism %s for table '%s'.",
+                                sinkParallelism,
+                                tableSinkSpec
+                                        .getContextResolvedTable()
+                                        .getIdentifier()
+                                        .asSummaryString()));
+            }
+            return sinkParallelism;
+        } else {
             return inputParallelism;
         }
-        final ParallelismProvider parallelismProvider = (ParallelismProvider) runtimeProvider;
-        return parallelismProvider
-                .getParallelism()
-                .map(
-                        sinkParallelism -> {
-                            if (sinkParallelism <= 0) {
-                                throw new TableException(
-                                        String.format(
-                                                "Invalid configured parallelism %s for table '%s'.",
-                                                sinkParallelism,
-                                                tableSinkSpec
-                                                        .getObjectIdentifier()
-                                                        .asSummaryString()));
-                            }
-                            return sinkParallelism;
-                        })
-                .orElse(inputParallelism);
+    }
+
+    private boolean isParallelismConfigured(DynamicTableSink.SinkRuntimeProvider runtimeProvider) {
+        return runtimeProvider instanceof ParallelismProvider
+                && ((ParallelismProvider) runtimeProvider).getParallelism().isPresent();
     }
 
     /**
@@ -342,25 +378,27 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
      * messages.
      */
     private Transformation<RowData> applyKeyBy(
-            TableConfig config,
+            ExecNodeConfig config,
+            ClassLoader classLoader,
             Transformation<RowData> inputTransform,
             int[] primaryKeys,
             int sinkParallelism,
             int inputParallelism,
-            boolean inputInsertOnly,
             boolean needMaterialize) {
         final ExecutionConfigOptions.SinkKeyedShuffle sinkShuffleByPk =
-                config.getConfiguration().get(ExecutionConfigOptions.TABLE_EXEC_SINK_KEYED_SHUFFLE);
+                config.get(ExecutionConfigOptions.TABLE_EXEC_SINK_KEYED_SHUFFLE);
         boolean sinkKeyBy = false;
         switch (sinkShuffleByPk) {
             case NONE:
                 break;
             case AUTO:
-                sinkKeyBy = inputInsertOnly && sinkParallelism != inputParallelism;
+                // should cover both insert-only and changelog input
+                sinkKeyBy = sinkParallelism != inputParallelism && sinkParallelism != 1;
                 break;
             case FORCE:
-                // single parallelism has no problem
-                sinkKeyBy = sinkParallelism != 1 || inputParallelism != 1;
+                // sink single parallelism has no problem (because none partitioner will cause worse
+                // disorder)
+                sinkKeyBy = sinkParallelism != 1;
                 break;
         }
         if (!sinkKeyBy && !needMaterialize) {
@@ -368,13 +406,15 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         }
 
         final RowDataKeySelector selector =
-                KeySelectorUtil.getRowDataSelector(primaryKeys, getInputTypeInfo());
+                KeySelectorUtil.getRowDataSelector(classLoader, primaryKeys, getInputTypeInfo());
         final KeyGroupStreamPartitioner<RowData, RowData> partitioner =
                 new KeyGroupStreamPartitioner<>(
                         selector, KeyGroupRangeAssignment.DEFAULT_LOWER_BOUND_MAX_PARALLELISM);
         Transformation<RowData> partitionedTransform =
                 new PartitionTransformation<>(inputTransform, partitioner);
-        partitionedTransform.setParallelism(sinkParallelism);
+        createTransformationMeta(PARTITIONER_TRANSFORMATION, "Partitioner", "Partitioner", config)
+                .fill(partitionedTransform);
+        partitionedTransform.setParallelism(sinkParallelism, sinkParallelismConfigured);
         return partitionedTransform;
     }
 
@@ -382,43 +422,71 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             Transformation<RowData> inputTransform,
             int[] primaryKeys,
             int sinkParallelism,
-            TableConfig tableConfig,
-            RowType physicalRowType) {
-        GeneratedRecordEqualiser equaliser =
-                new EqualiserCodeGenerator(physicalRowType)
+            ExecNodeConfig config,
+            ClassLoader classLoader,
+            RowType physicalRowType,
+            int[] inputUpsertKey) {
+        final GeneratedRecordEqualiser rowEqualiser =
+                new EqualiserCodeGenerator(physicalRowType, classLoader)
                         .generateRecordEqualiser("SinkMaterializeEqualiser");
+        final GeneratedRecordEqualiser upsertKeyEqualiser =
+                inputUpsertKey == null
+                        ? null
+                        : new EqualiserCodeGenerator(
+                                        RowTypeUtils.projectRowType(
+                                                physicalRowType, inputUpsertKey),
+                                        classLoader)
+                                .generateRecordEqualiser("SinkMaterializeUpsertKeyEqualiser");
+
         SinkUpsertMaterializer operator =
                 new SinkUpsertMaterializer(
                         StateConfigUtil.createTtlConfig(
-                                tableConfig.getIdleStateRetention().toMillis()),
+                                config.get(ExecutionConfigOptions.IDLE_STATE_RETENTION).toMillis()),
                         InternalSerializers.create(physicalRowType),
-                        equaliser);
+                        rowEqualiser,
+                        upsertKeyEqualiser,
+                        inputUpsertKey);
         final String[] fieldNames = physicalRowType.getFieldNames().toArray(new String[0]);
         final List<String> pkFieldNames =
                 Arrays.stream(primaryKeys)
                         .mapToObj(idx -> fieldNames[idx])
                         .collect(Collectors.toList());
-        final String operatorDesc =
-                getFormattedOperatorDescription(
-                        String.format("SinkMaterializer(pk=[%s])", String.join(", ", pkFieldNames)),
-                        tableConfig.getConfiguration());
-        final String operatorName =
-                getFormattedOperatorName(
-                        operatorDesc, "SinkMaterializer", tableConfig.getConfiguration());
+
         OneInputTransformation<RowData, RowData> materializeTransform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        operatorName,
-                        operatorDesc,
+                        createTransformationMeta(
+                                UPSERT_MATERIALIZE_TRANSFORMATION,
+                                String.format(
+                                        "SinkMaterializer(pk=[%s])",
+                                        String.join(", ", pkFieldNames)),
+                                "SinkMaterializer",
+                                config),
                         operator,
                         inputTransform.getOutputType(),
-                        sinkParallelism);
+                        sinkParallelism,
+                        sinkParallelismConfigured);
         RowDataKeySelector keySelector =
                 KeySelectorUtil.getRowDataSelector(
-                        primaryKeys, InternalTypeInfo.of(physicalRowType));
+                        classLoader, primaryKeys, InternalTypeInfo.of(physicalRowType));
         materializeTransform.setStateKeySelector(keySelector);
         materializeTransform.setStateKeyType(keySelector.getProducedType());
         return materializeTransform;
+    }
+
+    private Transformation<RowData> applyRowKindSetter(
+            Transformation<RowData> inputTransform, RowKind rowKind, ExecNodeConfig config) {
+        return ExecNodeUtil.createOneInputTransformation(
+                inputTransform,
+                createTransformationMeta(
+                        ROW_KIND_SETTER,
+                        String.format("RowKindSetter(TargetRowKind=[%s])", rowKind),
+                        "RowKindSetter",
+                        config),
+                new RowKindSetter(rowKind),
+                inputTransform.getOutputType(),
+                inputTransform.getParallelism(),
+                false);
     }
 
     private Transformation<?> applySinkProvider(
@@ -427,57 +495,102 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             SinkRuntimeProvider runtimeProvider,
             int rowtimeFieldIndex,
             int sinkParallelism,
-            Configuration config) {
-        String sinkName = getOperatorName(config);
-        String sinkDescription = getOperatorDescription(config);
-        if (runtimeProvider instanceof DataStreamSinkProvider) {
-            Transformation<RowData> sinkTransformation =
-                    applyRowtimeTransformation(
-                            inputTransform, rowtimeFieldIndex, sinkParallelism, config);
-            final DataStream<RowData> dataStream = new DataStream<>(env, sinkTransformation);
-            final DataStreamSinkProvider provider = (DataStreamSinkProvider) runtimeProvider;
-            return provider.consumeDataStream(dataStream).getTransformation();
-        } else if (runtimeProvider instanceof TransformationSinkProvider) {
-            final TransformationSinkProvider provider =
-                    (TransformationSinkProvider) runtimeProvider;
-            return provider.createTransformation(
-                    TransformationSinkProvider.Context.of(inputTransform, rowtimeFieldIndex));
-        } else if (runtimeProvider instanceof SinkFunctionProvider) {
-            final SinkFunction<RowData> sinkFunction =
-                    ((SinkFunctionProvider) runtimeProvider).createSinkFunction();
-            return createSinkFunctionTransformation(
-                    sinkFunction,
-                    env,
-                    inputTransform,
-                    rowtimeFieldIndex,
-                    sinkName,
-                    sinkDescription,
-                    sinkParallelism);
-        } else if (runtimeProvider instanceof OutputFormatProvider) {
-            OutputFormat<RowData> outputFormat =
-                    ((OutputFormatProvider) runtimeProvider).createOutputFormat();
-            final SinkFunction<RowData> sinkFunction = new OutputFormatSinkFunction<>(outputFormat);
-            return createSinkFunctionTransformation(
-                    sinkFunction,
-                    env,
-                    inputTransform,
-                    rowtimeFieldIndex,
-                    sinkName,
-                    sinkDescription,
-                    sinkParallelism);
-        } else if (runtimeProvider instanceof SinkProvider) {
-            Transformation<?> transformation =
-                    new SinkTransformation<>(
-                            applyRowtimeTransformation(
-                                    inputTransform, rowtimeFieldIndex, sinkParallelism, config),
-                            ((SinkProvider) runtimeProvider).createSink(),
-                            sinkName,
-                            sinkParallelism);
-            transformation.setDescription(sinkDescription);
-            return transformation;
-        } else {
-            throw new TableException("Unsupported sink runtime provider.");
+            ExecNodeConfig config,
+            ClassLoader classLoader) {
+        try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(classLoader)) {
+
+            TransformationMetadata sinkMeta = createTransformationMeta(SINK_TRANSFORMATION, config);
+            if (runtimeProvider instanceof DataStreamSinkProvider) {
+                Transformation<RowData> sinkTransformation =
+                        applyRowtimeTransformation(
+                                inputTransform, rowtimeFieldIndex, sinkParallelism, config);
+                final DataStream<RowData> dataStream = new DataStream<>(env, sinkTransformation);
+                final DataStreamSinkProvider provider = (DataStreamSinkProvider) runtimeProvider;
+                return provider.consumeDataStream(createProviderContext(config), dataStream)
+                        .getTransformation();
+            } else if (runtimeProvider instanceof TransformationSinkProvider) {
+                final TransformationSinkProvider provider =
+                        (TransformationSinkProvider) runtimeProvider;
+                return provider.createTransformation(
+                        new TransformationSinkProvider.Context() {
+                            @Override
+                            public Transformation<RowData> getInputTransformation() {
+                                return inputTransform;
+                            }
+
+                            @Override
+                            public int getRowtimeIndex() {
+                                return rowtimeFieldIndex;
+                            }
+
+                            @Override
+                            public Optional<String> generateUid(String name) {
+                                return createProviderContext(config).generateUid(name);
+                            }
+                        });
+            } else if (runtimeProvider instanceof SinkFunctionProvider) {
+                final SinkFunction<RowData> sinkFunction =
+                        ((SinkFunctionProvider) runtimeProvider).createSinkFunction();
+                return createSinkFunctionTransformation(
+                        sinkFunction,
+                        env,
+                        inputTransform,
+                        rowtimeFieldIndex,
+                        sinkMeta,
+                        sinkParallelism);
+            } else if (runtimeProvider instanceof OutputFormatProvider) {
+                OutputFormat<RowData> outputFormat =
+                        ((OutputFormatProvider) runtimeProvider).createOutputFormat();
+                final SinkFunction<RowData> sinkFunction =
+                        new OutputFormatSinkFunction<>(outputFormat);
+                return createSinkFunctionTransformation(
+                        sinkFunction,
+                        env,
+                        inputTransform,
+                        rowtimeFieldIndex,
+                        sinkMeta,
+                        sinkParallelism);
+            } else if (runtimeProvider instanceof SinkProvider) {
+                Transformation<RowData> sinkTransformation =
+                        applyRowtimeTransformation(
+                                inputTransform, rowtimeFieldIndex, sinkParallelism, config);
+                final DataStream<RowData> dataStream = new DataStream<>(env, sinkTransformation);
+                final Transformation<?> transformation =
+                        DataStreamSink.forSinkV1(
+                                        dataStream,
+                                        ((SinkProvider) runtimeProvider).createSink(),
+                                        CustomSinkOperatorUidHashes.DEFAULT)
+                                .getTransformation();
+                transformation.setParallelism(sinkParallelism, sinkParallelismConfigured);
+                sinkMeta.fill(transformation);
+                return transformation;
+            } else if (runtimeProvider instanceof SinkV2Provider) {
+                Transformation<RowData> sinkTransformation =
+                        applyRowtimeTransformation(
+                                inputTransform, rowtimeFieldIndex, sinkParallelism, config);
+                final DataStream<RowData> dataStream = new DataStream<>(env, sinkTransformation);
+                final Transformation<?> transformation =
+                        DataStreamSink.forSink(
+                                        dataStream,
+                                        ((SinkV2Provider) runtimeProvider).createSink(),
+                                        CustomSinkOperatorUidHashes.DEFAULT)
+                                .getTransformation();
+                transformation.setParallelism(sinkParallelism, sinkParallelismConfigured);
+                sinkMeta.fill(transformation);
+                return transformation;
+            } else {
+                throw new TableException("Unsupported sink runtime provider.");
+            }
         }
+    }
+
+    private ProviderContext createProviderContext(ExecNodeConfig config) {
+        return name -> {
+            if (this instanceof StreamExecNode && config.shouldSetUid()) {
+                return Optional.of(createTransformationUid(name, config));
+            }
+            return Optional.empty();
+        };
     }
 
     private Transformation<?> createSinkFunctionTransformation(
@@ -485,8 +598,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             StreamExecutionEnvironment env,
             Transformation<RowData> inputTransformation,
             int rowtimeFieldIndex,
-            String sinkName,
-            String sinkDescription,
+            TransformationMetadata transformationMetadata,
             int sinkParallelism) {
         final SinkOperator operator = new SinkOperator(env.clean(sinkFunction), rowtimeFieldIndex);
 
@@ -498,10 +610,11 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         final Transformation<?> transformation =
                 new LegacySinkTransformation<>(
                         inputTransformation,
-                        sinkName,
+                        transformationMetadata.getName(),
                         SimpleOperatorFactory.of(operator),
-                        sinkParallelism);
-        transformation.setDescription(sinkDescription);
+                        sinkParallelism,
+                        sinkParallelismConfigured);
+        transformationMetadata.fill(transformation);
         return transformation;
     }
 
@@ -509,24 +622,24 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             Transformation<RowData> inputTransform,
             int rowtimeFieldIndex,
             int sinkParallelism,
-            Configuration config) {
+            ExecNodeConfig config) {
         // Don't apply the transformation/operator if there is no rowtimeFieldIndex
         if (rowtimeFieldIndex == -1) {
             return inputTransform;
         }
-        final String description =
-                getFormattedOperatorDescription(
+        return ExecNodeUtil.createOneInputTransformation(
+                inputTransform,
+                createTransformationMeta(
+                        TIMESTAMP_INSERTER_TRANSFORMATION,
                         String.format(
                                 "StreamRecordTimestampInserter(rowtime field: %s)",
                                 rowtimeFieldIndex),
-                        config);
-        return ExecNodeUtil.createOneInputTransformation(
-                inputTransform,
-                getFormattedOperatorName(description, "StreamRecordTimestampInserter", config),
-                description,
+                        "StreamRecordTimestampInserter",
+                        config),
                 new StreamRecordTimestampInserter(rowtimeFieldIndex),
                 inputTransform.getOutputType(),
-                sinkParallelism);
+                sinkParallelism,
+                sinkParallelismConfigured);
     }
 
     private InternalTypeInfo<RowData> getInputTypeInfo() {
@@ -546,5 +659,31 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
     private enum LengthEnforcerType {
         CHAR,
         BINARY
+    }
+
+    /**
+     * Get the target row-kind that the row data should change to, assuming the current row kind is
+     * RowKind.INSERT. Return Optional.empty() if it doesn't need to change. Currently, it'll only
+     * consider row-level delete/update.
+     */
+    private Optional<RowKind> getTargetRowKind() {
+        if (tableSinkSpec.getSinkAbilities() != null) {
+            for (SinkAbilitySpec sinkAbilitySpec : tableSinkSpec.getSinkAbilities()) {
+                if (sinkAbilitySpec instanceof RowLevelDeleteSpec) {
+                    RowLevelDeleteSpec deleteSpec = (RowLevelDeleteSpec) sinkAbilitySpec;
+                    if (deleteSpec.getRowLevelDeleteMode()
+                            == SupportsRowLevelDelete.RowLevelDeleteMode.DELETED_ROWS) {
+                        return Optional.of(RowKind.DELETE);
+                    }
+                } else if (sinkAbilitySpec instanceof RowLevelUpdateSpec) {
+                    RowLevelUpdateSpec updateSpec = (RowLevelUpdateSpec) sinkAbilitySpec;
+                    if (updateSpec.getRowLevelUpdateMode()
+                            == SupportsRowLevelUpdate.RowLevelUpdateMode.UPDATED_ROWS) {
+                        return Optional.of(RowKind.UPDATE_AFTER);
+                    }
+                }
+            }
+        }
+        return Optional.empty();
     }
 }

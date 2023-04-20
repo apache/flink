@@ -83,7 +83,7 @@ public class OperatorChainTest {
             final StreamConfig cfg = new StreamConfig(new Configuration());
             cfg.setOperatorID(new OperatorID());
             cfg.setStateKeySerializer(new StringSerializer());
-
+            cfg.serializeAllConfigs();
             final List<StreamOperatorWrapper<?, ?>> operatorWrappers = new ArrayList<>();
 
             // initial output goes to nowhere
@@ -98,7 +98,7 @@ public class OperatorChainTest {
                 if (op instanceof SetupableStreamOperator) {
                     ((SetupableStreamOperator) op).setup(containingTask, cfg, lastWriter);
                 }
-                lastWriter = new ChainingOutput<>(op, null);
+                lastWriter = new ChainingOutput<>(op, null, op.getMetricGroup(), null);
 
                 ProcessingTimeService processingTimeService = null;
                 if (op instanceof AbstractStreamOperator) {

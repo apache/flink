@@ -23,7 +23,7 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.CallContext;
-import org.apache.flink.table.types.inference.Signature;
+import org.apache.flink.table.types.inference.Signature.Argument;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
 import java.util.Optional;
@@ -36,19 +36,14 @@ public class CompositeArgumentTypeStrategy implements ArgumentTypeStrategy {
             CallContext callContext, int argumentPos, boolean throwOnFailure) {
         DataType dataType = callContext.getArgumentDataTypes().get(argumentPos);
         if (!LogicalTypeChecks.isCompositeType(dataType.getLogicalType())) {
-            if (throwOnFailure) {
-                throw callContext.newValidationError(
-                        "A composite type expected. Got: %s", dataType);
-            }
-            return Optional.empty();
+            return callContext.fail(throwOnFailure, "A composite type expected. Got: %s", dataType);
         }
 
         return Optional.of(dataType);
     }
 
     @Override
-    public Signature.Argument getExpectedArgument(
-            FunctionDefinition functionDefinition, int argumentPos) {
-        return Signature.Argument.of("<COMPOSITE>");
+    public Argument getExpectedArgument(FunctionDefinition functionDefinition, int argumentPos) {
+        return Argument.ofGroup("COMPOSITE");
     }
 }

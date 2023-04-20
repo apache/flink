@@ -42,6 +42,7 @@ import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
+import org.apache.flink.streaming.runtime.tasks.StreamTask.CanEmitBatchOfRecordsChecker;
 import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.function.ThrowingConsumer;
@@ -75,7 +76,8 @@ public class StreamTwoInputProcessorFactory {
             Counter numRecordsIn,
             InflightDataRescalingDescriptor inflightDataRescalingDescriptor,
             Function<Integer, StreamPartitioner<?>> gatePartitioners,
-            TaskInfo taskInfo) {
+            TaskInfo taskInfo,
+            CanEmitBatchOfRecordsChecker canEmitBatchOfRecords) {
 
         checkNotNull(operatorChain);
 
@@ -91,7 +93,8 @@ public class StreamTwoInputProcessorFactory {
                         0,
                         inflightDataRescalingDescriptor,
                         gatePartitioners,
-                        taskInfo);
+                        taskInfo,
+                        canEmitBatchOfRecords);
         TypeSerializer<IN2> typeSerializer2 = streamConfig.getTypeSerializerIn(1, userClassloader);
         StreamTaskInput<IN2> input2 =
                 StreamTaskNetworkInputFactory.create(
@@ -103,7 +106,8 @@ public class StreamTwoInputProcessorFactory {
                         1,
                         inflightDataRescalingDescriptor,
                         gatePartitioners,
-                        taskInfo);
+                        taskInfo,
+                        canEmitBatchOfRecords);
 
         InputSelectable inputSelectable =
                 streamOperator instanceof InputSelectable ? (InputSelectable) streamOperator : null;
@@ -155,7 +159,7 @@ public class StreamTwoInputProcessorFactory {
                                     ManagedMemoryUseCase.OPERATOR,
                                     taskManagerConfig,
                                     userClassloader),
-                            jobConfig,
+                            taskManagerConfig,
                             executionConfig);
             inputSelectable = selectableSortingInputs.getInputSelectable();
             StreamTaskInput<?>[] sortedInputs = selectableSortingInputs.getSortedInputs();
@@ -180,7 +184,7 @@ public class StreamTwoInputProcessorFactory {
         StreamTaskNetworkOutput<IN1> output1 =
                 new StreamTaskNetworkOutput<>(
                         streamOperator,
-                        record -> processRecord1(record, streamOperator),
+                        RecordProcessorUtils.getRecordProcessor1(streamOperator),
                         input1WatermarkGauge,
                         0,
                         numRecordsIn,
@@ -191,7 +195,7 @@ public class StreamTwoInputProcessorFactory {
         StreamTaskNetworkOutput<IN2> output2 =
                 new StreamTaskNetworkOutput<>(
                         streamOperator,
-                        record -> processRecord2(record, streamOperator),
+                        RecordProcessorUtils.getRecordProcessor2(streamOperator),
                         input2WatermarkGauge,
                         1,
                         numRecordsIn,
@@ -207,22 +211,6 @@ public class StreamTwoInputProcessorFactory {
     @SuppressWarnings("unchecked")
     private static <IN1> StreamTaskInput<IN1> toTypedInput(StreamTaskInput<?> multiInput) {
         return (StreamTaskInput<IN1>) multiInput;
-    }
-
-    private static <T> void processRecord1(
-            StreamRecord<T> record, TwoInputStreamOperator<T, ?, ?> streamOperator)
-            throws Exception {
-
-        streamOperator.setKeyContextElement1(record);
-        streamOperator.processElement1(record);
-    }
-
-    private static <T> void processRecord2(
-            StreamRecord<T> record, TwoInputStreamOperator<?, T, ?> streamOperator)
-            throws Exception {
-
-        streamOperator.setKeyContextElement2(record);
-        streamOperator.processElement2(record);
     }
 
     /**

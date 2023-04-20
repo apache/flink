@@ -88,8 +88,7 @@ public class WindowJoinJsonITCase extends JsonPlanTestBase {
                 "window_end TIMESTAMP(3)",
                 "uv1 BIGINT",
                 "uv2 BIGINT");
-        String jsonPlan =
-                tableEnv.getJsonPlan(
+        compileSqlAndExecutePlan(
                         "insert into MySink select\n"
                                 + "  L.name,\n"
                                 + "  L.window_start,\n"
@@ -116,8 +115,8 @@ public class WindowJoinJsonITCase extends JsonPlanTestBase {
                                 + "     TUMBLE(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))\n"
                                 + "  GROUP BY name, window_start, window_end\n"
                                 + "  ) R\n"
-                                + "ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.name = R.name");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+                                + "ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.name = R.name")
+                .await();
 
         List<String> result = TestValuesTableFactory.getResults("MySink");
         assertResult(

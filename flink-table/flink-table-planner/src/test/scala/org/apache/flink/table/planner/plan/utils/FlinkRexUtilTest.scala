@@ -18,12 +18,12 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory}
 import org.apache.flink.table.planner.codegen.ExpressionReducer
 
 import org.apache.calcite.rex.{RexBuilder, RexLiteral, RexNode, RexUtil}
-import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.`type`.{BasicSqlType, SqlTypeName}
+import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.junit.Assert.{assertEquals, assertFalse}
 import org.junit.Test
@@ -32,7 +32,8 @@ import java.math.BigDecimal
 import java.util.Collections
 
 class FlinkRexUtilTest {
-  private val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(new FlinkTypeSystem())
+  private val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(
+    Thread.currentThread().getContextClassLoader)
   private val rexBuilder = new FlinkRexBuilder(typeFactory)
   private val varcharType = typeFactory.createSqlType(VARCHAR)
   private val intType = typeFactory.createSqlType(INTEGER)
@@ -48,134 +49,147 @@ class FlinkRexUtilTest {
 
     // this predicate contains 95 RexCalls. however,
     // if this predicate is converted to CNF, the result contains 2103039 RexCalls.
-    val predicate = rexBuilder.makeCall(OR,
-      rexBuilder.makeCall(AND,
+    val predicate = rexBuilder.makeCall(
+      OR,
+      rexBuilder.makeCall(
+        AND,
         rexBuilder.makeCall(EQUALS, i_manufact, rexBuilder.makeLiteral("able")),
-        rexBuilder.makeCall(OR,
-          rexBuilder.makeCall(AND,
+        rexBuilder.makeCall(
+          OR,
+          rexBuilder.makeCall(
+            AND,
             rexBuilder.makeCall(EQUALS, i_category, rexBuilder.makeLiteral("Women")),
-            rexBuilder.makeCall(OR,
+            rexBuilder.makeCall(
+              OR,
               rexBuilder.makeCall(EQUALS, i_color, rexBuilder.makeLiteral("powder")),
-              rexBuilder.makeCall(EQUALS, i_color, rexBuilder.makeLiteral("khaki"))
-            ),
-            rexBuilder.makeCall(OR,
+              rexBuilder.makeCall(EQUALS, i_color, rexBuilder.makeLiteral("khaki"))),
+            rexBuilder.makeCall(
+              OR,
               rexBuilder.makeCall(EQUALS, i_units, rexBuilder.makeLiteral("Ounce")),
-              rexBuilder.makeCall(EQUALS, i_units, rexBuilder.makeLiteral("Oz"))
-            ),
-            rexBuilder.makeCall(OR,
+              rexBuilder.makeCall(EQUALS, i_units, rexBuilder.makeLiteral("Oz"))),
+            rexBuilder.makeCall(
+              OR,
               rexBuilder.makeCall(EQUALS, i_size, rexBuilder.makeLiteral("medium")),
-              rexBuilder.makeCall(EQUALS, i_size, rexBuilder.makeLiteral("extra large"))
-            )
+              rexBuilder.makeCall(EQUALS, i_size, rexBuilder.makeLiteral("extra large")))
           ),
-          rexBuilder.makeCall(AND,
+          rexBuilder.makeCall(
+            AND,
             rexBuilder.makeCall(EQUALS, i_category, rexBuilder.makeLiteral("Women")),
-            rexBuilder.makeCall(OR,
+            rexBuilder.makeCall(
+              OR,
               rexBuilder.makeCall(EQUALS, i_color, rexBuilder.makeLiteral("brown")),
-              rexBuilder.makeCall(EQUALS, i_color, rexBuilder.makeLiteral("honeydew"))
-            ),
-            rexBuilder.makeCall(OR,
+              rexBuilder.makeCall(EQUALS, i_color, rexBuilder.makeLiteral("honeydew"))),
+            rexBuilder.makeCall(
+              OR,
               rexBuilder.makeCall(EQUALS, i_units, rexBuilder.makeLiteral("Bunch")),
-              rexBuilder.makeCall(EQUALS, i_units, rexBuilder.makeLiteral("Ton"))
-            ),
-            rexBuilder.makeCall(OR,
+              rexBuilder.makeCall(EQUALS, i_units, rexBuilder.makeLiteral("Ton"))),
+            rexBuilder.makeCall(
+              OR,
               rexBuilder.makeCall(EQUALS, i_size, rexBuilder.makeLiteral("N/A")),
-              rexBuilder.makeCall(EQUALS, i_size, rexBuilder.makeLiteral("small"))
-            )
+              rexBuilder.makeCall(EQUALS, i_size, rexBuilder.makeLiteral("small")))
           ),
-          rexBuilder.makeCall(AND,
+          rexBuilder.makeCall(
+            AND,
             rexBuilder.makeCall(EQUALS, i_category, rexBuilder.makeLiteral("Men")),
-            rexBuilder.makeCall(OR,
+            rexBuilder.makeCall(
+              OR,
               rexBuilder.makeCall(EQUALS, i_color, rexBuilder.makeLiteral("floral")),
-              rexBuilder.makeCall(EQUALS, i_color, rexBuilder.makeLiteral("deep"))
-            ),
-            rexBuilder.makeCall(OR,
+              rexBuilder.makeCall(EQUALS, i_color, rexBuilder.makeLiteral("deep"))),
+            rexBuilder.makeCall(
+              OR,
               rexBuilder.makeCall(EQUALS, i_units, rexBuilder.makeLiteral("N/A")),
-              rexBuilder.makeCall(EQUALS, i_units, rexBuilder.makeLiteral("Dozen"))
-            ),
-            rexBuilder.makeCall(OR,
+              rexBuilder.makeCall(EQUALS, i_units, rexBuilder.makeLiteral("Dozen"))),
+            rexBuilder.makeCall(
+              OR,
               rexBuilder.makeCall(EQUALS, i_size, rexBuilder.makeLiteral("petite")),
-              rexBuilder.makeCall(EQUALS, i_size, rexBuilder.makeLiteral("large"))
-            )
+              rexBuilder.makeCall(EQUALS, i_size, rexBuilder.makeLiteral("large")))
           ),
-          rexBuilder.makeCall(AND,
+          rexBuilder.makeCall(
+            AND,
             rexBuilder.makeCall(EQUALS, i_category, rexBuilder.makeLiteral("Men")),
-            rexBuilder.makeCall(OR,
+            rexBuilder.makeCall(
+              OR,
               rexBuilder.makeCall(EQUALS, i_color, rexBuilder.makeLiteral("light")),
-              rexBuilder.makeCall(EQUALS, i_color, rexBuilder.makeLiteral("cornflower"))
-            ),
-            rexBuilder.makeCall(OR,
+              rexBuilder.makeCall(EQUALS, i_color, rexBuilder.makeLiteral("cornflower"))),
+            rexBuilder.makeCall(
+              OR,
               rexBuilder.makeCall(EQUALS, i_units, rexBuilder.makeLiteral("Box")),
-              rexBuilder.makeCall(EQUALS, i_units, rexBuilder.makeLiteral("Pound"))
-            ),
-            rexBuilder.makeCall(OR,
+              rexBuilder.makeCall(EQUALS, i_units, rexBuilder.makeLiteral("Pound"))),
+            rexBuilder.makeCall(
+              OR,
               rexBuilder.makeCall(EQUALS, i_size, rexBuilder.makeLiteral("medium")),
-              rexBuilder.makeCall(EQUALS, i_size, rexBuilder.makeLiteral("extra large"))
-            )
+              rexBuilder.makeCall(EQUALS, i_size, rexBuilder.makeLiteral("extra large")))
           )
         )
       ),
-      rexBuilder.makeCall(AND,
+      rexBuilder.makeCall(
+        AND,
         rexBuilder.makeCall(EQUALS, i_manufact, rexBuilder.makeLiteral("able")),
-        rexBuilder.makeCall(OR,
-          rexBuilder.makeCall(AND,
+        rexBuilder.makeCall(
+          OR,
+          rexBuilder.makeCall(
+            AND,
             rexBuilder.makeCall(EQUALS, i_category, rexBuilder.makeLiteral("Women")),
-            rexBuilder.makeCall(OR,
+            rexBuilder.makeCall(
+              OR,
               rexBuilder.makeCall(EQUALS, i_color, rexBuilder.makeLiteral("midnight")),
-              rexBuilder.makeCall(EQUALS, i_color, rexBuilder.makeLiteral("snow"))
-            ),
-            rexBuilder.makeCall(OR,
+              rexBuilder.makeCall(EQUALS, i_color, rexBuilder.makeLiteral("snow"))),
+            rexBuilder.makeCall(
+              OR,
               rexBuilder.makeCall(EQUALS, i_units, rexBuilder.makeLiteral("Pallet")),
-              rexBuilder.makeCall(EQUALS, i_units, rexBuilder.makeLiteral("Gross"))
-            ),
-            rexBuilder.makeCall(OR,
+              rexBuilder.makeCall(EQUALS, i_units, rexBuilder.makeLiteral("Gross"))),
+            rexBuilder.makeCall(
+              OR,
               rexBuilder.makeCall(EQUALS, i_size, rexBuilder.makeLiteral("medium")),
-              rexBuilder.makeCall(EQUALS, i_size, rexBuilder.makeLiteral("extra large"))
-            )
+              rexBuilder.makeCall(EQUALS, i_size, rexBuilder.makeLiteral("extra large")))
           ),
-          rexBuilder.makeCall(AND,
+          rexBuilder.makeCall(
+            AND,
             rexBuilder.makeCall(EQUALS, i_category, rexBuilder.makeLiteral("Women")),
-            rexBuilder.makeCall(OR,
+            rexBuilder.makeCall(
+              OR,
               rexBuilder.makeCall(EQUALS, i_color, rexBuilder.makeLiteral("cyan")),
-              rexBuilder.makeCall(EQUALS, i_color, rexBuilder.makeLiteral("papaya"))
-            ),
-            rexBuilder.makeCall(OR,
+              rexBuilder.makeCall(EQUALS, i_color, rexBuilder.makeLiteral("papaya"))),
+            rexBuilder.makeCall(
+              OR,
               rexBuilder.makeCall(EQUALS, i_units, rexBuilder.makeLiteral("Cup")),
-              rexBuilder.makeCall(EQUALS, i_units, rexBuilder.makeLiteral("Dram"))
-            ),
-            rexBuilder.makeCall(OR,
+              rexBuilder.makeCall(EQUALS, i_units, rexBuilder.makeLiteral("Dram"))),
+            rexBuilder.makeCall(
+              OR,
               rexBuilder.makeCall(EQUALS, i_size, rexBuilder.makeLiteral("N/A")),
-              rexBuilder.makeCall(EQUALS, i_size, rexBuilder.makeLiteral("small"))
-            )
+              rexBuilder.makeCall(EQUALS, i_size, rexBuilder.makeLiteral("small")))
           ),
-          rexBuilder.makeCall(AND,
+          rexBuilder.makeCall(
+            AND,
             rexBuilder.makeCall(EQUALS, i_category, rexBuilder.makeLiteral("Men")),
-            rexBuilder.makeCall(OR,
+            rexBuilder.makeCall(
+              OR,
               rexBuilder.makeCall(EQUALS, i_color, rexBuilder.makeLiteral("orange")),
-              rexBuilder.makeCall(EQUALS, i_color, rexBuilder.makeLiteral("frosted"))
-            ),
-            rexBuilder.makeCall(OR,
+              rexBuilder.makeCall(EQUALS, i_color, rexBuilder.makeLiteral("frosted"))),
+            rexBuilder.makeCall(
+              OR,
               rexBuilder.makeCall(EQUALS, i_units, rexBuilder.makeLiteral("Each")),
-              rexBuilder.makeCall(EQUALS, i_units, rexBuilder.makeLiteral("Tbl"))
-            ),
-            rexBuilder.makeCall(OR,
+              rexBuilder.makeCall(EQUALS, i_units, rexBuilder.makeLiteral("Tbl"))),
+            rexBuilder.makeCall(
+              OR,
               rexBuilder.makeCall(EQUALS, i_size, rexBuilder.makeLiteral("petite")),
-              rexBuilder.makeCall(EQUALS, i_size, rexBuilder.makeLiteral("large"))
-            )
+              rexBuilder.makeCall(EQUALS, i_size, rexBuilder.makeLiteral("large")))
           ),
-          rexBuilder.makeCall(AND,
+          rexBuilder.makeCall(
+            AND,
             rexBuilder.makeCall(EQUALS, i_category, rexBuilder.makeLiteral("Men")),
-            rexBuilder.makeCall(OR,
+            rexBuilder.makeCall(
+              OR,
               rexBuilder.makeCall(EQUALS, i_color, rexBuilder.makeLiteral("forest")),
-              rexBuilder.makeCall(EQUALS, i_color, rexBuilder.makeLiteral("ghost"))
-            ),
-            rexBuilder.makeCall(OR,
+              rexBuilder.makeCall(EQUALS, i_color, rexBuilder.makeLiteral("ghost"))),
+            rexBuilder.makeCall(
+              OR,
               rexBuilder.makeCall(EQUALS, i_units, rexBuilder.makeLiteral("Lb")),
-              rexBuilder.makeCall(EQUALS, i_units, rexBuilder.makeLiteral("Bundle"))
-            ),
-            rexBuilder.makeCall(OR,
+              rexBuilder.makeCall(EQUALS, i_units, rexBuilder.makeLiteral("Bundle"))),
+            rexBuilder.makeCall(
+              OR,
               rexBuilder.makeCall(EQUALS, i_size, rexBuilder.makeLiteral("medium")),
-              rexBuilder.makeCall(EQUALS, i_size, rexBuilder.makeLiteral("extra large"))
-            )
+              rexBuilder.makeCall(EQUALS, i_size, rexBuilder.makeLiteral("extra large")))
           )
         )
       )
@@ -192,7 +206,7 @@ class FlinkRexUtilTest {
     assertEquals(RexUtil.toCnf(rexBuilder, predicate).toString, newPredicate3.toString)
 
     val newPredicate4 = FlinkRexUtil.toCnf(rexBuilder, Int.MaxValue, predicate)
-    assertFalse(RexUtil.eq(predicate, newPredicate4))
+    assertFalse(predicate.equals(newPredicate4))
     assertEquals(RexUtil.toCnf(rexBuilder, predicate).toString, newPredicate4.toString)
   }
 
@@ -203,24 +217,26 @@ class FlinkRexUtilTest {
     val b = rexBuilder.makeInputRef(varcharType, 1)
     val c = rexBuilder.makeInputRef(varcharType, 2)
 
-    val predicate = rexBuilder.makeCall(OR,
-      rexBuilder.makeCall(AND,
+    val predicate = rexBuilder.makeCall(
+      OR,
+      rexBuilder.makeCall(
+        AND,
         rexBuilder.makeCall(EQUALS, a, rexBuilder.makeLiteral("1")),
-        rexBuilder.makeCall(EQUALS, b, rexBuilder.makeLiteral("2"))
-      ),
+        rexBuilder.makeCall(EQUALS, b, rexBuilder.makeLiteral("2"))),
       rexBuilder.makeCall(EQUALS, c, rexBuilder.makeLiteral("3"))
     )
 
     // (a="1" OR c="3") OR (b="2" OR c="3")
-    val expected = rexBuilder.makeCall(AND,
-      rexBuilder.makeCall(OR,
+    val expected = rexBuilder.makeCall(
+      AND,
+      rexBuilder.makeCall(
+        OR,
         rexBuilder.makeCall(EQUALS, a, rexBuilder.makeLiteral("1")),
-        rexBuilder.makeCall(EQUALS, c, rexBuilder.makeLiteral("3"))
-      ),
-      rexBuilder.makeCall(OR,
+        rexBuilder.makeCall(EQUALS, c, rexBuilder.makeLiteral("3"))),
+      rexBuilder.makeCall(
+        OR,
         rexBuilder.makeCall(EQUALS, b, rexBuilder.makeLiteral("2")),
-        rexBuilder.makeCall(EQUALS, c, rexBuilder.makeLiteral("3"))
-      )
+        rexBuilder.makeCall(EQUALS, c, rexBuilder.makeLiteral("3")))
     )
 
     val newPredicate1 = FlinkRexUtil.toCnf(rexBuilder, -1, predicate)
@@ -239,141 +255,167 @@ class FlinkRexUtilTest {
     val d = rexBuilder.makeInputRef(intType, 3)
 
     // a = b AND a = b
-    val predicate0 = rexBuilder.makeCall(AND,
-      rexBuilder.makeCall(EQUALS, a, b),
-      rexBuilder.makeCall(EQUALS, a, b)
-    )
+    val predicate0 =
+      rexBuilder.makeCall(AND, rexBuilder.makeCall(EQUALS, a, b), rexBuilder.makeCall(EQUALS, a, b))
     val newPredicate0 = simplify(rexBuilder, predicate0)
     assertEquals(rexBuilder.makeCall(EQUALS, a, b).toString, newPredicate0.toString)
 
     // a = b AND b = a
-    val predicate1 = rexBuilder.makeCall(AND,
-      rexBuilder.makeCall(EQUALS, a, b),
-      rexBuilder.makeCall(EQUALS, b, a)
-    )
+    val predicate1 =
+      rexBuilder.makeCall(AND, rexBuilder.makeCall(EQUALS, a, b), rexBuilder.makeCall(EQUALS, b, a))
     val newPredicate1 = simplify(rexBuilder, predicate1)
     assertEquals(rexBuilder.makeCall(EQUALS, a, b).toString, newPredicate1.toString)
 
     // a = b OR b = a
-    val predicate2 = rexBuilder.makeCall(OR,
-      rexBuilder.makeCall(EQUALS, a, b),
-      rexBuilder.makeCall(EQUALS, b, a)
-    )
+    val predicate2 =
+      rexBuilder.makeCall(OR, rexBuilder.makeCall(EQUALS, a, b), rexBuilder.makeCall(EQUALS, b, a))
     val newPredicate2 = simplify(rexBuilder, predicate2)
     assertEquals(rexBuilder.makeCall(EQUALS, a, b).toString, newPredicate2.toString)
 
     // a = b AND c < d AND b = a AND d > c
-    val predicate3 = rexBuilder.makeCall(AND,
+    val predicate3 = rexBuilder.makeCall(
+      AND,
       rexBuilder.makeCall(EQUALS, a, b),
       rexBuilder.makeCall(LESS_THAN, c, d),
       rexBuilder.makeCall(EQUALS, b, a),
-      rexBuilder.makeCall(GREATER_THAN, d, c)
-    )
+      rexBuilder.makeCall(GREATER_THAN, d, c))
     val newPredicate3 = simplify(rexBuilder, predicate3)
-    assertEquals(rexBuilder.makeCall(AND,
-      rexBuilder.makeCall(EQUALS, a, b),
-      rexBuilder.makeCall(LESS_THAN, c, d)).toString,
+    assertEquals(
+      rexBuilder
+        .makeCall(AND, rexBuilder.makeCall(EQUALS, a, b), rexBuilder.makeCall(LESS_THAN, c, d))
+        .toString,
       newPredicate3.toString)
 
     // cast(a as INTEGER) >= c and c <= cast(a as INTEGER)
-    val predicate4 = rexBuilder.makeCall(AND,
-      rexBuilder.makeCall(GREATER_THAN_OR_EQUAL,
-        rexBuilder.makeCast(typeFactory.createSqlType(INTEGER), a), c),
-      rexBuilder.makeCall(LESS_THAN_OR_EQUAL,
-        c, rexBuilder.makeCast(typeFactory.createSqlType(INTEGER), a))
+    val predicate4 = rexBuilder.makeCall(
+      AND,
+      rexBuilder.makeCall(
+        GREATER_THAN_OR_EQUAL,
+        rexBuilder.makeCast(typeFactory.createSqlType(INTEGER), a),
+        c),
+      rexBuilder.makeCall(
+        LESS_THAN_OR_EQUAL,
+        c,
+        rexBuilder.makeCast(typeFactory.createSqlType(INTEGER), a))
     )
     val newPredicate4 = simplify(rexBuilder, predicate4)
-    assertEquals(rexBuilder.makeCall(GREATER_THAN_OR_EQUAL,
-      rexBuilder.makeCast(typeFactory.createSqlType(INTEGER), a), c).toString,
+    assertEquals(
+      rexBuilder
+        .makeCall(
+          GREATER_THAN_OR_EQUAL,
+          rexBuilder.makeCast(typeFactory.createSqlType(INTEGER), a),
+          c)
+        .toString,
       newPredicate4.toString)
 
     // (substring(a, 1, 3) = b OR c <= d + 1 OR d + 1 >= c)
     // AND
     // (b = (substring(a, 1, 3) OR d + 1 >= c OR c <= d + 1)
-    val aSubstring13 = rexBuilder.makeCall(SUBSTRING, a,
+    val aSubstring13 = rexBuilder.makeCall(
+      SUBSTRING,
+      a,
       rexBuilder.makeBigintLiteral(BigDecimal.ONE),
       rexBuilder.makeBigintLiteral(BigDecimal.valueOf(3)))
     val dPlus1 = rexBuilder.makeCall(PLUS, d, rexBuilder.makeBigintLiteral(BigDecimal.ONE))
-    val predicate5 = rexBuilder.makeCall(AND,
-      rexBuilder.makeCall(OR,
+    val predicate5 = rexBuilder.makeCall(
+      AND,
+      rexBuilder.makeCall(
+        OR,
         rexBuilder.makeCall(EQUALS, aSubstring13, b),
         rexBuilder.makeCall(LESS_THAN_OR_EQUAL, c, dPlus1),
         rexBuilder.makeCall(GREATER_THAN_OR_EQUAL, dPlus1, c)),
-      rexBuilder.makeCall(OR,
+      rexBuilder.makeCall(
+        OR,
         rexBuilder.makeCall(EQUALS, b, aSubstring13),
         rexBuilder.makeCall(GREATER_THAN_OR_EQUAL, dPlus1, c),
         rexBuilder.makeCall(LESS_THAN_OR_EQUAL, c, dPlus1))
     )
     val newPredicate5 = simplify(rexBuilder, predicate5)
-    assertEquals(rexBuilder.makeCall(OR,
-      rexBuilder.makeCall(EQUALS, aSubstring13, b),
-      rexBuilder.makeCall(LESS_THAN_OR_EQUAL, c, dPlus1)).toString,
+    assertEquals(
+      rexBuilder
+        .makeCall(
+          OR,
+          rexBuilder.makeCall(EQUALS, aSubstring13, b),
+          rexBuilder.makeCall(LESS_THAN_OR_EQUAL, c, dPlus1))
+        .toString,
       newPredicate5.toString)
 
     // (a = b OR c < d OR a > 'l') AND (b = a OR d > c OR b < 'k')
-    val predicate6 = rexBuilder.makeCall(AND,
-      rexBuilder.makeCall(OR,
+    val predicate6 = rexBuilder.makeCall(
+      AND,
+      rexBuilder.makeCall(
+        OR,
         rexBuilder.makeCall(EQUALS, a, b),
         rexBuilder.makeCall(LESS_THAN, c, d),
-        rexBuilder.makeCall(GREATER_THAN, a, rexBuilder.makeLiteral("l"))
-      ),
-      rexBuilder.makeCall(OR,
+        rexBuilder.makeCall(GREATER_THAN, a, rexBuilder.makeLiteral("l"))),
+      rexBuilder.makeCall(
+        OR,
         rexBuilder.makeCall(EQUALS, b, a),
         rexBuilder.makeCall(GREATER_THAN, d, c),
-        rexBuilder.makeCall(LESS_THAN, b, rexBuilder.makeLiteral("k"))
-      )
+        rexBuilder.makeCall(LESS_THAN, b, rexBuilder.makeLiteral("k")))
     )
     val newPredicate6 = simplify(rexBuilder, predicate6)
-    assertEquals(rexBuilder.makeCall(AND,
-      rexBuilder.makeCall(OR,
-        rexBuilder.makeCall(EQUALS, a, b),
-        rexBuilder.makeCall(LESS_THAN, c, d),
-        rexBuilder.makeCall(GREATER_THAN, a, rexBuilder.makeLiteral("l"))
-      ),
-      rexBuilder.makeCall(OR,
-        rexBuilder.makeCall(EQUALS, a, b),
-        rexBuilder.makeCall(LESS_THAN, c, d),
-        rexBuilder.makeCall(LESS_THAN, b, rexBuilder.makeLiteral("k"))
-      )
-    ).toString, newPredicate6.toString)
+    assertEquals(
+      rexBuilder
+        .makeCall(
+          AND,
+          rexBuilder.makeCall(
+            OR,
+            rexBuilder.makeCall(EQUALS, a, b),
+            rexBuilder.makeCall(LESS_THAN, c, d),
+            rexBuilder.makeCall(GREATER_THAN, a, rexBuilder.makeLiteral("l"))),
+          rexBuilder.makeCall(
+            OR,
+            rexBuilder.makeCall(EQUALS, a, b),
+            rexBuilder.makeCall(LESS_THAN, c, d),
+            rexBuilder.makeCall(LESS_THAN, b, rexBuilder.makeLiteral("k")))
+        )
+        .toString,
+      newPredicate6.toString
+    )
 
     // (a = b AND c < d) AND b = a
-    val predicate7 = rexBuilder.makeCall(AND,
-      rexBuilder.makeCall(AND,
+    val predicate7 = rexBuilder.makeCall(
+      AND,
+      rexBuilder.makeCall(
+        AND,
         rexBuilder.makeCall(EQUALS, a, b),
-        rexBuilder.makeCall(LESS_THAN, c, d)
-      ),
-      rexBuilder.makeCall(EQUALS, b, a)
-    )
+        rexBuilder.makeCall(LESS_THAN, c, d)),
+      rexBuilder.makeCall(EQUALS, b, a))
     val newPredicate7 = simplify(rexBuilder, predicate7)
-    assertEquals(rexBuilder.makeCall(AND,
-      rexBuilder.makeCall(EQUALS, a, b),
-      rexBuilder.makeCall(LESS_THAN, c, d)).toString,
+    assertEquals(
+      rexBuilder
+        .makeCall(AND, rexBuilder.makeCall(EQUALS, a, b), rexBuilder.makeCall(LESS_THAN, c, d))
+        .toString,
       newPredicate7.toString)
 
     // b >= a OR (a <= b OR c = d)
-    val predicate8 = rexBuilder.makeCall(OR,
+    val predicate8 = rexBuilder.makeCall(
+      OR,
       rexBuilder.makeCall(GREATER_THAN_OR_EQUAL, b, a),
-      rexBuilder.makeCall(OR,
+      rexBuilder.makeCall(
+        OR,
         rexBuilder.makeCall(LESS_THAN_OR_EQUAL, a, b),
-        rexBuilder.makeCall(EQUALS, c, d)
-      )
-    )
+        rexBuilder.makeCall(EQUALS, c, d)))
     val newPredicate8 = simplify(rexBuilder, predicate8)
-    assertEquals(rexBuilder.makeCall(OR,
-      rexBuilder.makeCall(GREATER_THAN_OR_EQUAL, b, a),
-      rexBuilder.makeCall(EQUALS, c, d)).toString,
+    assertEquals(
+      rexBuilder
+        .makeCall(
+          OR,
+          rexBuilder.makeCall(GREATER_THAN_OR_EQUAL, b, a),
+          rexBuilder.makeCall(EQUALS, c, d))
+        .toString,
       newPredicate8.toString)
 
     // true AND true
-    val predicate9 = rexBuilder.makeCall(AND,
-      rexBuilder.makeLiteral(true), rexBuilder.makeLiteral(true))
+    val predicate9 =
+      rexBuilder.makeCall(AND, rexBuilder.makeLiteral(true), rexBuilder.makeLiteral(true))
     val newPredicate9 = simplify(rexBuilder, predicate9)
     assertEquals(rexBuilder.makeLiteral(true).toString, newPredicate9.toString)
 
     // false OR false
-    val predicate10 = rexBuilder.makeCall(OR,
-      rexBuilder.makeLiteral(false), rexBuilder.makeLiteral(false))
+    val predicate10 =
+      rexBuilder.makeCall(OR, rexBuilder.makeLiteral(false), rexBuilder.makeLiteral(false))
     val newPredicate10 = simplify(rexBuilder, predicate10)
     assertEquals(rexBuilder.makeLiteral(false).toString, newPredicate10.toString)
 
@@ -412,22 +454,15 @@ class FlinkRexUtilTest {
     val predicate17 = rexBuilder.makeCall(
       AND,
       predicate17Equals,
-      rexBuilder.makeIn(c, java.util.Arrays.asList(
-        intLiteral(0),
-        intLiteral(1))))
+      rexBuilder.makeIn(c, java.util.Arrays.asList(intLiteral(0), intLiteral(1))))
     val newPredicate17 = simplify(rexBuilder, predicate17)
-    assertEquals(
-      rexBuilder.makeIn(c, Collections.singletonList[RexNode](intLiteral(0))).toString,
-      newPredicate17.toString)
+    assertEquals(rexBuilder.makeCall(EQUALS, c, intLiteral(0)).toString, newPredicate17.toString)
 
     // c = 0 OR SEARCH(c, [0, 1])
-    val predicate18Search = rexBuilder.makeIn(c, java.util.Arrays.asList(
-      intLiteral(0),
-      intLiteral(1)))
-    val predicate18 = rexBuilder.makeCall(
-      OR,
-      rexBuilder.makeCall(EQUALS, c, intLiteral(0)),
-      predicate18Search)
+    val predicate18Search =
+      rexBuilder.makeIn(c, java.util.Arrays.asList(intLiteral(0), intLiteral(1)))
+    val predicate18 =
+      rexBuilder.makeCall(OR, rexBuilder.makeCall(EQUALS, c, intLiteral(0)), predicate18Search)
     val newPredicate18 = simplify(rexBuilder, predicate18)
     assertEquals(predicate18Search.toString, newPredicate18.toString)
 
@@ -436,47 +471,42 @@ class FlinkRexUtilTest {
     //     SEARCH(c, [1, 2]) AND c < 2))
     val predicate19Layer2 = rexBuilder.makeCall(
       AND,
-      rexBuilder.makeIn(c, java.util.Arrays.asList(
-        intLiteral(1),
-        intLiteral(2))),
+      rexBuilder.makeIn(c, java.util.Arrays.asList(intLiteral(1), intLiteral(2))),
       rexBuilder.makeCall(LESS_THAN, c, intLiteral(2)))
     val predicate19Layer1 = rexBuilder.makeCall(
       OR,
-      rexBuilder.makeIn(c, java.util.Arrays.asList(
-        intLiteral(0),
-        intLiteral(1))),
+      rexBuilder.makeIn(c, java.util.Arrays.asList(intLiteral(0), intLiteral(1))),
       predicate19Layer2)
     val predicate19 = rexBuilder.makeCall(
       AND,
       rexBuilder.makeCall(GREATER_THAN, c, intLiteral(0)),
       predicate19Layer1)
     val newPredicate19 = simplify(rexBuilder, predicate19)
-    assertEquals(
-      rexBuilder.makeIn(c, Collections.singletonList[RexNode](intLiteral(1))).toString,
-      newPredicate19.toString)
+    assertEquals(rexBuilder.makeCall(EQUALS, c, intLiteral(1)).toString, newPredicate19.toString)
 
     // c >= 0 OR SEARCH(c, [0, 1])
-    // TODO `c >= 0 OR SEARCH(c, [0, 1])` should be simplified to c >= 0
     val predicate20 = rexBuilder.makeCall(
       OR,
       rexBuilder.makeCall(GREATER_THAN_OR_EQUAL, c, intLiteral(0)),
       predicate18Search)
     val newPredicate20 = simplify(rexBuilder, predicate20)
-    assertEquals(predicate20.toString, newPredicate20.toString)
+    assertEquals(
+      rexBuilder.makeCall(GREATER_THAN_OR_EQUAL, c, intLiteral(0)).toString,
+      newPredicate20.toString)
 
-    //CAST(1 AS BOOLEAN)
+    // CAST(1 AS BOOLEAN)
     val predicate21CastFromData = intLiteral(1)
     val predicate21Cast = makeToBooleanCast(predicate21CastFromData)
     val newPredicate21 = simplify(rexBuilder, predicate21Cast)
     assertEquals(rexBuilder.makeLiteral(true).toString, newPredicate21.toString)
 
-    //CAST(0 AS BOOLEAN)
+    // CAST(0 AS BOOLEAN)
     val predicate22CastFromData = intLiteral(0)
     val predicate22Cast = makeToBooleanCast(predicate22CastFromData)
     val newPredicate22 = simplify(rexBuilder, predicate22Cast)
     assertEquals(rexBuilder.makeLiteral(false).toString, newPredicate22.toString)
 
-    //CAST(-1 AS BOOLEAN)
+    // CAST(-1 AS BOOLEAN)
     val predicate23CastFromData = intLiteral(-1)
     val predicate23Cast = makeToBooleanCast(predicate23CastFromData)
     val newPredicate23 = simplify(rexBuilder, predicate23Cast)
@@ -485,12 +515,15 @@ class FlinkRexUtilTest {
 
   def intLiteral(x: Int): RexLiteral = rexBuilder.makeExactLiteral(BigDecimal.valueOf(x))
 
-  def simplify(rexBuilder: RexBuilder, expr: RexNode): RexNode ={
-    val expressionReducer = new ExpressionReducer(TableConfig.getDefault, false)
+  def simplify(rexBuilder: RexBuilder, expr: RexNode): RexNode = {
+    val expressionReducer = new ExpressionReducer(
+      TableConfig.getDefault,
+      Thread.currentThread().getContextClassLoader,
+      false)
     FlinkRexUtil.simplify(rexBuilder, expr, expressionReducer)
   }
 
-  private def makeToBooleanCast(fromData: RexNode): RexNode ={
+  private def makeToBooleanCast(fromData: RexNode): RexNode = {
     val booleanType = new BasicSqlType(typeFactory.getTypeSystem, SqlTypeName.BOOLEAN)
     rexBuilder.makeCall(
       booleanType,

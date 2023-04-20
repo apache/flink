@@ -125,6 +125,7 @@ public class CheckpointingStatisticsHandler
 
             final CheckpointingStatistics.Summary summary =
                     new CheckpointingStatistics.Summary(
+                            StatsSummaryDto.valueOf(checkpointStatsSummary.getCheckpointedSize()),
                             StatsSummaryDto.valueOf(checkpointStatsSummary.getStateSizeStats()),
                             StatsSummaryDto.valueOf(
                                     checkpointStatsSummary.getEndToEndDurationStats()),

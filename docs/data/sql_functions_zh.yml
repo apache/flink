@@ -159,7 +159,7 @@ arithmetic:
     table: NUMERIC1 + NUMERIC2
     description: 返回 numeric1 加 numeric2。
   - sql: numeric1 - numeric2
-    table: NUMERIC1 + NUMERIC2
+    table: NUMERIC1 - NUMERIC2
     description: 返回 numeric1 减 numeric2。
   - sql: numeric1 * numberic2
     table: NUMERIC1 * NUMERIC2
@@ -271,11 +271,11 @@ arithmetic:
       如果两个 RAND 函数具有相同的初始种子，它们将返回相同的数字序列。
   - sql: RAND_INTEGER(INT)
     table: randInteger(INT)
-    description: 返回 [0.0, INT) 范围内的伪随机双精度值。
+    description: 返回 [0, INT) 范围内的伪随机整数。
   - sql: RAND_INTEGER(INT1, INT2)
     table: randInteger(INT1, INT2)
     description: |
-      返回范围为 [0.0, INT2) 的伪随机双精度值，初始种子为 INT1。
+      返回范围为 [0, INT2) 的伪随机整数，初始种子为 INT1。
       如果两个 RAND_INTGER 函数具有相同的初始种子和边界，它们将返回相同的数字序列。
   - sql: UUID()
     table: uuid()
@@ -411,57 +411,71 @@ string:
       返回字符串 string 的 base64 编码的结果；如果字符串为 `NULL`，则返回 `NULL`。
       例如 `TO_BASE64('hello world')` 返回 `"aGVsbG8gd29ybGQ="`。
   - sql: ASCII(string)
+    table: STRING.ascii()
     description: |
       返回字符串 string 第一个字符的数值。如果字符串为 `NULL` 则返回 `NULL`。
       例如 `ascii('abc')` 返回 `97`，`ascii(CAST(NULL AS VARCHAR))` 返回 `NULL`。
   - sql: CHR(integer)
+    table: INT.chr()
     description: |
       返回二进制等于 integer 的 ASCII 字符。如果整数 integer 大于 255，我们先将得到整数对 255 取模数，
       并返回模数的 CHR。如果整数为 `NULL`，则返回 `NULL`。例如 `chr(97)` 返回 `a`，`chr(353)` 返回 `a`，
       `ascii(CAST(NULL AS VARCHAR))` 返回 `NULL`。
   - sql: DECODE(binary, string)
+    table: BINARY.decode(STRING)
     description: |
       使用提供的字符集（'US-ASCII'，'ISO-8859-1'，'UTF-8'，'UTF-16BE'，'UTF-16LE'，'UTF-16'）解码。
       如果任一参数为空，则结果也将为空。
   - sql: ENCODE(string1, string2)
+    table: STRING1.encode(STRING2)
     description: |
       使用提供的字符集（'US-ASCII'，'ISO-8859-1'，'UTF-8'，'UTF-16BE'，'UTF-16LE'，'UTF-16'）编码。
       如果任一参数为空，则结果也将为空。
   - sql: INSTR(string1, string2)
+    table: STRING1.instr(STRING2)
     description:  返回 string2 在 string1 中第一次出现的位置。如果有任一参数为 `NULL`，则返回 `NULL`。
   - sql: LEFT(string, integer)
+    table: STRING.LEFT(INT)
     description: |
       返回字符串中最左边的长度为 integer 值的字符串。如果 integer 为负，则返回 `EMPTY` 字符串。如果有任一参数
       为 `NULL` 则返回 `NULL`。
   - sql: RIGHT(string, integer)
+    table: STRING.RIGHT(INT)
     description: |
       返回字符串中最右边的长度为 integer 值的字符串。如果 integer 为负，则返回 `EMPTY` 字符串。如果有任一参数
       为 `NULL` 则返回 `NULL`。
   - sql: LOCATE(string1, string2[, integer])
+    table: STRING1.locate(STRING2[, INTEGER])
     description: |
       返回 string2 中 string1 在位置 integer 之后第一次出现的位置。未找到返回 0。如果有任一参数为 `NULL` 则返回 `NULL`。
   - sql: PARSE_URL(string1, string2[, string3])
+    table: STRING1.parseUrl(STRING2[, STRING3])
     description: |
       从 URL 返回指定的部分。string2 的有效值包括“HOST”，“PATH”，“QUERY”，“REF”，“PROTOCOL”，“AUTHORITY”，“FILE”和“USERINFO”。
       如果有任一参数为 `NULL`，则返回 `NULL`。例如
-      `parse_url(' http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'HOST')` 返回 `'facebook.com'`。
+      `parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'HOST')` 返回 `'facebook.com'`。
       还可以通过提供关键词 string3 作为第三个参数来提取 QUERY 中特定键的值。例如
       `parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'QUERY', 'k1')` 返回 `'v1'`。
   - sql: REGEXP(string1, string2)
+    table: STRING1.regexp(STRING2)
     description: |
       如果 string1 的任何（可能为空）子字符串与 Java 正则表达式 string2 匹配，则返回 TRUE，否则返回 FALSE。
       如果有任一参数为 `NULL`，则返回 `NULL`。
   - sql: REVERSE(string)
+    table: STRING.reverse()
     description: 返回反转的字符串。如果字符串为 `NULL`，则返回 `NULL`。
   - sql: SPLIT_INDEX(string1, string2, integer1)
+    table: STRING1.splitIndex(STRING2, INTEGER1)
     description: |
-      通过分隔符 string2 拆分 string1，返回拆分字符串的第 integer（从零开始）个字符串。如果整数为负，则返回 `NULL`。
+      通过分隔符 string2 拆分 string1，返回分隔后这组字符串的第 integer（从零开始）个字符串。如果整数为负，则返回 `NULL`。
       如果有任一参数为 `NULL`，则返回 `NULL`。
   - sql: STR_TO_MAP(string1[, string2, string3])
+    table: STRING1.strToMap([STRING2, STRING3])
     description: |
       使用分隔符将 string1 拆分为键值对后返回一个 map。string2 是 pair 分隔符，默认为 ','。string3 是键值分隔符，默认为 '='。
       pair 分隔符与键值分隔符均为正则表达式，当使用特殊字符作为分隔符时请提前进行转义，例如 `<([{\^-=$!|]})?*+.>`。
-  - sql: SUBSTR(string[, integer1[, integer2]])
+  - sql: SUBSTR(string, integer1[, integer2])
+    table: STRING.substr(INTEGER1[, INTEGER2])
     description: 返回字符串的子字符串，从位置 integer1 开始，长度为 integer2（默认到末尾）。
 
 temporal:
@@ -480,8 +494,7 @@ temporal:
       是 DAY，MINUTE，DAY TO HOUR 或 DAY TO SECOND，以毫秒为间隔；YEAR 或 YEAR TO MONTH 表示几个月的间隔。例
       如 `INTERVAL '10 00:00:00.004' DAY TO SECOND，INTERVAL '10' DAY` 或 `INTERVAL '2-10' YEAR TO
       MONTH` 返回间隔。
-  - sql: YEAR(date)
-    table: numeric.year | numeric.years
+  - table: numeric.year | numeric.years
     description: 创建 numeric 年的月间隔。
   - table: numeric.quarter | numeric.quarters
     description: 为 numeric 季度创建月间隔。例如 `2.quarters` 返回 `6`。
@@ -549,9 +562,13 @@ temporal:
     description: |
       从 SQL 日期 date 返回一年中的第几天（1 到 366 之间的整数）。相当于 EXTRACT(DOY FROM date)。
       例如 `DAYOFYEAR(DATE '1994-09-27')` 返回 270。
-  - sql: DAYOFMONTH
+  - sql: DAYOFMONTH(date)
     description: |
       从 SQL 日期 date 返回一个月中的第几天（1 到 31 之间的整数）。相当于 EXTRACT(DAY FROM date)。
+      例如 `DAYOFMONTH(DATE '1994-09-27')` 返回 27。
+  - sql: DAYOFWEEK(date)
+    description: |
+      从 SQL 日期 date 返回一个星期中的第几天（1 到 7 之间的整数）。相当于 EXTRACT(DOW FROM date)。
       例如 `DAYOFWEEK(DATE '1994-09-27')` 返回 3。
   - sql: HOUR(timestamp)
     description: |
@@ -583,6 +600,7 @@ temporal:
       `(TIME '2:55:00', INTERVAL '1' HOUR) OVERLAPS (TIME '3:30:00', INTERVAL '2' HOUR)` 返回 TRUE；
       `(TIME '9:00:00', TIME '10:00:00') OVERLAPS (TIME '10:15:00', INTERVAL '3' HOUR)` 返回 FALSE。
   - sql: DATE_FORMAT(timestamp, string)
+    table: dateFormat(TIMESTAMP, STRING)
     description: |
       将时间戳 timestamp 转换为日期格式字符串 string 指定格式的字符串值。格式字符串与 Java 的 SimpleDateFormat 兼容。
   - sql: TIMESTAMPADD(timeintervalunit, interval, timepoint)
@@ -592,23 +610,28 @@ temporal:
       返回 timepoint1 和 timepoint2 之间时间间隔。间隔的单位由第一个参数给出，它应该是以下值之一：
       SECOND，MINUTE，HOUR，DAY，MONTH 或 YEAR。
   - sql: CONVERT_TZ(string1, string2, string3)
+    table: convertTz(STRING1, STRING2, STRING3)
     description: |
       将日期时间 string1（具有默认 ISO 时间戳格式 'yyyy-MM-dd HH:mm:ss'）从时区 string2 转换为时区 string3 的值。
       时区的格式应该是缩写如“PST”，全名如“America/Los_Angeles”，或自定义 ID 如“GMT-08:00”。例如
       `CONVERT_TZ('1970-01-01 00:00:00', 'UTC', 'America/Los_Angeles')` 返回 `'1969-12-31 16:00:00`'。
   - sql: FROM_UNIXTIME(numeric[, string])
+    table: fromUnixtime(NUMERIC[, STRING])
     description: |
       以字符串格式 string 返回数字参数 numberic 的表示形式（默认为 'yyyy-MM-dd HH:mm:ss'）。numeric 是一个内部
       时间戳值，表示自'1970-01-01 00:00:00' UTC 以来的秒数，由 UNIX_TIMESTAMP() 函数生成。返回值以会话时区表示
       （在 TableConfig 中指定）。例如，如果在 UTC 时区，FROM_UNIXTIME(44) 返回 '1970-01-01 00:00:44'，如果在
       'Asia/Tokyo' 时区，则返回 '1970-01-01 09:00:44'。
   - sql: UNIX_TIMESTAMP()
+    table: unixTimestamp()
     description: 以秒为单位获取当前的 Unix 时间戳。此函数不是确定性的，这意味着将为每个记录重新计算该值。
   - sql: UNIX_TIMESTAMP(string1[, string2])
+    table: unixTimestamp(STRING1[, STRING2])
     description: |
       使用表配置中指定的时区将格式为 string2 的日期时间字符串 string1（如果未指定默认情况下：yyyy-MM-dd HH:mm:ss）
       转换为 Unix 时间戳（以秒为单位）。
   - sql: TO_DATE(string1[, string2])
+    table: toDate(STRING1[, STRING2])
     description: 将格式为 string2（默认为 'yyyy-MM-dd'）的字符串 string1 转换为日期。
   - sql: TO_TIMESTAMP_LTZ(numeric, precision)
     table: toTimestampLtz(numeric, PRECISION)
@@ -616,7 +639,8 @@ temporal:
       将纪元秒或纪元毫秒转换为 TIMESTAMP_LTZ，有效精度为 0 或 3，0 代表 `TO_TIMESTAMP_LTZ(epochSeconds, 0)`，
       3 代表` TO_TIMESTAMP_LTZ(epochMilliseconds, 3)`。
   - sql: TO_TIMESTAMP(string1[, string2])
-    description: 将 'UTC+0' 时区下格式为 string2（默认为：'yyyy-MM-dd HH:mm:ss'）的字符串 string1 转换为时间戳。
+    table: toTimestamp(STRING1[, STRING2])
+    description: 将格式为 string2（默认为：'yyyy-MM-dd HH:mm:ss'）的字符串 string1 转换为 timestamp，不带时区。
   - sql: CURRENT_WATERMARK(rowtime)
     description: |
       返回给定时间列属性 rowtime 的当前水印，如果管道中的当前操作没有可用的上游操作的公共水印时则为 `NULL`。
@@ -624,7 +648,7 @@ temporal:
       TIMESTAMP_LTZ(3)。
 
       请注意，此函数可以返回 `NULL`，您可能必须考虑这种情况。例如，如果您想过滤掉后期数据，您可以使用：
-      ```
+      ```sql
       WHERE
         CURRENT_WATERMARK(ts) IS NULL
         OR ts > CURRENT_WATERMARK(ts)
@@ -708,13 +732,12 @@ json:
   - sql: IS JSON [ { VALUE | SCALAR | ARRAY | OBJECT } ]
     table: STRING.isJson([JsonType type])
     description: |
-      Determine whether a given string is valid JSON.
+      判定给定字符串是否为有效的 JSON。
 
-      Specifying the optional type argument puts a constraint on which type of JSON object is
-      allowed. If the string is valid JSON, but not that type, `false` is returned. The default is
-      `VALUE`.
+      指定可选类型参数将会限制 JSON 对象所允许的类型。
+      如果字符串是有效的 JSON，但不是指定的类型，则返回 `false`。默认值为 `VALUE`。
 
-      ```
+      ```sql
       -- TRUE
       '1' IS JSON
       '[]' IS JSON
@@ -743,11 +766,11 @@ json:
   - sql: JSON_EXISTS(jsonValue, path [ { TRUE | FALSE | UNKNOWN | ERROR } ON ERROR ])
     table: STRING.jsonExists(STRING path [, JsonExistsOnError onError])
     description: |
-      Determines whether a JSON string satisfies a given path search criterion.
+      判定 JSON 字符串是否满足给定的路径搜索条件。
 
-      If the error behavior is omitted, `FALSE ON ERROR` is assumed as the default.
+      如果要忽略错误行为，那么将 `FALSE ON ERROR` 设为默认值。
 
-      ```
+      ```sql
       -- TRUE
       SELECT JSON_EXISTS('{"a": true}', '$.a');
       -- FALSE
@@ -766,12 +789,11 @@ json:
   - sql: JSON_STRING(value)
     table: jsonString(value)
     description: |
-      Serializes a value into JSON.
+      将值序列化为 JSON。
 
-      This function returns a JSON string containing the serialized value. If the value is `NULL`,
-      the function returns `NULL`.
+      此函数返回一个包含序列化值的 JSON 字符串。如果值为 `NULL`，函数返回 `NULL`。
 
-      ```
+      ```sql
       -- NULL
       JSON_STRING(CAST(NULL AS INT))
 
@@ -787,25 +809,23 @@ json:
   - sql: JSON_VALUE(jsonValue, path [RETURNING <dataType>] [ { NULL | ERROR | DEFAULT <defaultExpr> } ON EMPTY ] [ { NULL | ERROR | DEFAULT <defaultExpr> } ON ERROR ])
     table: STRING.jsonValue(STRING path [, returnType, onEmpty, defaultOnEmpty, onError, defaultOnError])
     description: |
-      Extracts a scalar from a JSON string.
+      从 JSON 字符串中提取标量。
 
-      This method searches a JSON string for a given path expression and returns the value if the
-      value at that path is scalar. Non-scalar values cannot be returned. By default, the value is
-      returned as `STRING`. Using `returningType` a different type can be chosen, with the following
-      types being supported:
+      此方法搜索给定路径表达式的 JSON 字符串，如果该路径上的值是标量则返回该值。不能返回非标量值。默认情况下返回值类型为 `STRING`。
+      可以使用 `returnsType` 设置不同的类型，如下所示:
 
       * `VARCHAR` / `STRING`
       * `BOOLEAN`
       * `INTEGER`
       * `DOUBLE`
 
-      For empty path expressions or errors a behavior can be defined to either return `null`, raise
-      an error or return a defined default value instead. When omitted, the default is
-      `NULL ON EMPTY` or `NULL ON ERROR`, respectively. The default value may be a literal or an
-      expression. If the default value itself raises an error, it falls through to the error
-      behavior for `ON EMPTY`, and raises an error for `ON ERROR`.
-
-      ```
+      对于空路径表达式或错误，可以将行为定义为返回 `null`、引发错误或返回定义的默认值。当省略时，默认为 `NULL ON EMPTY` 或
+      `NULL ON ERROR`。默认值可以是文字或表达式。如果默认值本身引发错误，通过错误就会造成 `ON EMPTY` 的行为，并引发 `ON ERROR` 的错误。
+ 
+      对于路径表达式中包含特殊字符（如空格），你可以使用`['property']` 获 `["property"]`来引用父对象中指定的属性。请确保在属性名两侧加上单引号或双引号。
+      当在 SQL 使用 JSON_VALUE 时，路径作为一个字符串参数已经被单引号引用了，因此你必须将属性名上的单引号转义，如`JSON_VALUE('{"a b": "true"}', '$.[''a b'']')`。
+      
+      ```sql
       -- "true"
       JSON_VALUE('{"a": true}', '$.a')
 
@@ -821,24 +841,25 @@ json:
           DEFAULT FALSE ON ERROR)
 
       -- 0.998D
-      JSON_VALUE('{"a.b": [0.998,0.996]}','$.["a.b"][0]' 
+      JSON_VALUE('{"a.b": [0.998,0.996]}','$.["a.b"][0]'
           RETURNING DOUBLE)
+      
+      -- "right"
+      JSON_VALUE('{"contains blank": "right"}', 'strict $.[''contains blank'']' NULL ON EMPTY DEFAULT 'wrong' ON ERROR)
       ```
   - sql: JSON_QUERY(jsonValue, path [ { WITHOUT | WITH CONDITIONAL | WITH UNCONDITIONAL } [ ARRAY ] WRAPPER ] [ { NULL | EMPTY ARRAY | EMPTY OBJECT | ERROR } ON EMPTY ] [ { NULL | EMPTY ARRAY | EMPTY OBJECT | ERROR } ON ERROR ])
     table: STRING.jsonQuery(path [, JsonQueryWrapper [, JsonQueryOnEmptyOrError, JsonQueryOnEmptyOrError ] ])
     description: |
-      Extracts JSON values from a JSON string.
+      从 JSON 字符串中提取 JSON 值。
 
-      The result is always returned as a `STRING`. The `RETURNING` clause is currently not supported.
+      结果总是以 `STRING` 的形式返回。目前尚不支持 `RETURNING` 子句。
 
-      The `wrappingBehavior` determines whether the extracted value should be wrapped into an array,
-      and whether to do so unconditionally or only if the value itself isn't an array already.
+      `wrappingBehavior` 决定是否将提取的值包装到一个数组中，以及是否无条件地这样做，还是只有当值本身不是数组时才这样做。
 
-      `onEmpty` and `onError` determine the behavior in case the path expression is empty, or in
-      case an error was raised, respectively. By default, in both cases `null` is returned. Other
-      choices are to use an empty array, an empty object, or to raise an error.
+      `onEmpty` 和 `onError` 分别决定路径表达式为空或引发错误时的行为。默认情况下，这两种情况都会返回 `null`。其他选择是
+      使用空数组、空对象或引发错误。
 
-      ```
+      ```sql
       -- '{ "b": 1 }'
       JSON_QUERY('{ "a": { "b": 1 } }', '$.a')
       -- '[1, 2]'
@@ -849,7 +870,7 @@ json:
       JSON_QUERY('{"a":[{"c":"c1"},{"c":"c2"}]}',
           'lax $.a[*].c')
 
-      -- Wrap result into an array
+      -- 将结果包装到数组中
       -- '[{}]'
       JSON_QUERY('{}', '$' WITH CONDITIONAL ARRAY WRAPPER)
       -- '[1, 2]'
@@ -857,13 +878,13 @@ json:
       -- '[[1, 2]]'
       JSON_QUERY('[1, 2]', '$' WITH UNCONDITIONAL ARRAY WRAPPER)
 
-      -- Scalars must be wrapped to be returned
+      -- 必须包装标量才能返回
       -- NULL
       JSON_QUERY(1, '$')
       -- '[1]'
       JSON_QUERY(1, '$' WITH CONDITIONAL ARRAY WRAPPER)
 
-      -- Behavior if path expression is empty / there is an error
+      -- 路径表达式为空/存在错误时的行为
       -- '{}'
       JSON_QUERY('{}', 'lax $.invalid' EMPTY OBJECT ON EMPTY)
       -- '[]'
@@ -872,25 +893,22 @@ json:
   - sql: JSON_OBJECT([[KEY] key VALUE value]* [ { NULL | ABSENT } ON NULL ])
     table: jsonObject(JsonOnNull, keyValues...)
     description: |
-      Builds a JSON object string from a list of key-value pairs.
+      将键值对列表构建为 JSON 对象字符串。
 
-      Note that keys must be non-`NULL` string literals, while values may be arbitrary expressions.
+      注意，键必须是非 `NULL` 字符串自变量，而值可以是任意表达式。
 
-      This function returns a JSON string. The `ON NULL` behavior defines how to treat `NULL`
-      values. If omitted, `NULL ON NULL` is assumed by default.
+      这个函数返回一个 JSON 字符串。`ON NULL` 行为定义了如何处理 `NULL` 值。如果省略，则默认为 `NULL ON NULL`。
 
-      Values which are created from another JSON construction function call (`JSON_OBJECT`,
-      `JSON_ARRAY`) are inserted directly rather than as a string. This allows building nested JSON
-      structures.
+      值是由另一个 JSON 构造函数调用 (`JSON_OBJECT`，`JSON_ARRAY`) 直接插入所创建，而不是作为一个字符串。它允许构建嵌套的 JSON 结构。
 
-      ```
+      ```sql
       -- '{}'
       JSON_OBJECT()
 
       -- '{"K1":"V1","K2":"V2"}'
       JSON_OBJECT('K1' VALUE 'V1', 'K2' VALUE 'V2')
 
-      -- Expressions as values
+      -- 表达式作为值
       JSON_OBJECT('orderNo' VALUE orders.orderId)
 
       -- ON NULL
@@ -909,17 +927,16 @@ json:
   - sql: JSON_OBJECTAGG([KEY] key VALUE value [ { NULL | ABSENT } ON NULL ])
     table: jsonObjectAgg(JsonOnNull, keyExpression, valueExpression)
     description: |
-      Builds a JSON object string by aggregating key-value expressions into a single JSON object.
+      通过将 key-value 聚合到单个 JSON 对象中，构建 JSON 对象字符串。
 
-      The key expression must return a non-nullable character string. Value expressions can be
-      arbitrary, including other JSON functions. If a value is `NULL`, the `ON NULL` behavior
-      defines what to do. If omitted, `NULL ON NULL` is assumed by default.
+      键表达式必须返回不为空的字符串。值表达式可以是任意的，包括其他 JSON 函数。
+      如果值为 `NULL`，则 `ON NULL` 行为定义了要执行的操作。如果省略，默认情况下假定为 `NULL ON NULL`。
 
-      Note that keys must be unique. If a key occurs multiple times, an error will be thrown.
+      请注意，键必须是唯一的。如果一个键出现多次，将抛出一个错误。
 
-      This function is currently not supported in `OVER` windows.
+      目前在 `OVER` windows 中不支持此函数。
 
-      ```
+      ```sql
       -- '{"Apple":2,"Banana":17,"Orange":0}'
       SELECT
         JSON_OBJECTAGG(KEY product VALUE cnt)
@@ -928,23 +945,19 @@ json:
   - sql: JSON_ARRAY([value]* [ { NULL | ABSENT } ON NULL ])
     table: jsonArray(JsonOnNull, values...)
     description: |
-      Builds a JSON array string from a list of values.
+      将数值列表构建为 JSON 数组字符串。
 
-      This function returns a JSON string. The values can be arbitrary expressions. The `ON NULL`
-      behavior defines how to treat `NULL` values. If omitted, `ABSENT ON NULL` is assumed by
-      default.
+      这个函数返回一个 JSON 字符串，值可以是任意表达式。`ON NULL` 行为定义了如何处理 `NULL` 值。如果省略，则假定 `ABSENT ON NULL` 为默认值。
 
-      Elements which are created from another JSON construction function call (`JSON_OBJECT`,
-      `JSON_ARRAY`) are inserted directly rather than as a string. This allows building nested JSON
-      structures.
+      元素是由另一个 JSON 构造函数调用 (`JSON_OBJECT`，`JSON_ARRAY`) 直接插入所创建，而不是作为一个字符串。它允许构建嵌套的 JSON 结构。
 
-      ```
+      ```sql
       -- '[]'
       JSON_ARRAY()
       -- '[1,"2"]'
       JSON_ARRAY(1, '2')
 
-      -- Expressions as values
+      -- 表达式作为值
       JSON_ARRAY(orders.orderId)
 
       -- ON NULL
@@ -957,15 +970,13 @@ json:
   - sql: JSON_ARRAYAGG(items [ { NULL | ABSENT } ON NULL ])
     table: jsonArrayAgg(JsonOnNull, itemExpression)
     description: |
-      Builds a JSON object string by aggregating items into an array.
+      通过将字段聚合到数组中构建 JSON 对象字符串。
 
-      Item expressions can be arbitrary, including other JSON functions. If a value is `NULL`, the
-      `ON NULL` behavior defines what to do. If omitted, `ABSENT ON NULL` is assumed by default.
+      项目表达式可以是任意的，包括其他 JSON 函数。如果值为 `NULL`，则 `ON NULL` 行为定义了要执行的操作。如果省略，默认情况下假定为 `ABSENT ON NULL`。
 
-      This function is currently not supported in `OVER` windows, unbounded session windows, or hop
-      windows.
+      此函数目前不支持 `OVER` windows、未绑定的 session windows 或 hop windows。
 
-      ```
+      ```sql
       -- '["Apple","Banana","Orange"]'
       SELECT
         JSON_ARRAYAGG(product)
@@ -974,12 +985,17 @@ json:
 
 valueconstruction:
   - sql: |
-      -- implicit constructor with parenthesis
+      **implicit** constructor with parenthesis 
+      
       (value1 [, value2]*)
+
+      **explicit** ROW constructor with 
+      
+      ROW(value1 [, value2]*)
     table: row(ANY1, ANY2, ...)
     description: |
-      返回从值列表 (value1, value2, ...) 创建的行。隐式行构造函数支持任意表达式作为字段，但至少需要两个字段。
-      显式行构造函数可以处理任意数量的字段，但目前还不能很好地支持所有类型的字段表达式。
+      返回从值列表 (value1, value2, ...) 创建的行。隐式行构造函数至少需要两个字段。显式行构造函数可以处理任意数量的字段。
+      两者都支持任意表达式作为字段
   - sql: ARRAY ‘[’ value1 [, value2 ]* ‘]’
     table: array(ANY1, ANY2, ...)
     description: 返回从值列表 (value1, value2, ...) 创建的数组。
@@ -1011,7 +1027,7 @@ hashfunctions:
     description: 以 32 个十六进制数字的字符串形式返回 string 的 MD5 哈希值；如果字符串为 `NULL`，则返回 `NULL`。
   - sql: SHA1(string)
     table: STRING.sha1()
-    description: 以 56 个十六进制数字的字符串形式返回 string 的 SHA-224 哈希值；如果字符串为 `NULL`，则返回 `NULL`。
+    description: 以 40 个十六进制数字的字符串形式返回 string 的 SHA-1 哈希值；如果字符串为 `NULL`，则返回 `NULL`。
   - sql: SHA224(string)
     table: STRING.sha224()
     description: 以 56 个十六进制数字的字符串形式返回 string 的 SHA-224 哈希值；如果字符串为 `NULL`，则返回 `NULL`。
@@ -1094,8 +1110,25 @@ aggregate:
   - sql: LAG(expression [, offset] [, default])
     description: 返回窗口中当前行之前第 offset 行处的表达式值。offset 的默认值为 1，default 的默认值为 `NULL`。
   - sql: FIRST_VALUE(expression)
+    table: FIELD.firstValue
     description: 返回一组有序值中的第一个值。
   - sql: LAST_VALUE(expression)
+    table: FIELD.lastValue
     description: 返回一组有序值中的最后一个值。
   - sql: LISTAGG(expression [, separator])
+    table: FIELD.listagg
     description: 连接字符串表达式的值并在它们之间放置分隔符值。字符串末尾不添加分隔符时则分隔符的默认值为“,”。
+  - sql: CUME_DIST()
+    description: 返回值在一组值的累积分布。结果是小于或等于当前行的值的行数除以窗口分区的总行数。
+  - sql: PERCENT_RANK()
+    description: 返回值在一组值的百分比排名。结果是当前行在窗口分区中的排名减 1，然后除以窗口分区的总行数减 1。如果窗口分区的总行数为 1，则该函数返回 0。
+  - sql: NTILE(n)
+    description: |
+      将窗口分区中的所有数据按照顺序划分为 n 个分组，返回分配给各行数据的分组编号（从 1 开始）。
+      如果不能均匀划分为 n 个分组，则从第 1 个分组开始，为每一分组分配一个剩余值。
+      比如某个窗口分区有 6 行数据，划分为 4 个分组，则各行的分组编号为：1，1，2，2，3，4。
+
+catalog:
+  - sql: CURRENT_DATABASE()
+    table: currentDatabase()
+    description: 返回当前数据库。

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.api.scala._
@@ -43,14 +42,16 @@ class CalcPythonCorrelateTransposeRuleTest extends TableTestBase {
       FlinkVolcanoProgramBuilder.newBuilder
         .add(FlinkStreamRuleSets.LOGICAL_OPT_RULES)
         .setRequiredOutputTraits(Array(FlinkConventions.LOGICAL))
-        .build())
+        .build()
+    )
     programs.addLast(
       "logical_rewrite",
       FlinkHepRuleSetProgramBuilder.newBuilder
         .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
         .add(FlinkStreamRuleSets.LOGICAL_REWRITE)
-        .build())
+        .build()
+    )
     util.replaceStreamProgram(programs)
 
     util.addTableSource[(Int, Int, Int)]("MyTable", 'a, 'b, 'c)

@@ -43,9 +43,8 @@ public class CollectionInputFormat<T> extends GenericInputFormat<T> implements N
 
     private TypeSerializer<T> serializer;
 
-    private transient Collection<T>
-            dataSet; // input data as collection. transient, because it will be serialized in a
-    // custom way
+    // input data as collection. transient, because it will be serialized in a custom way
+    private transient Collection<T> dataSet;
 
     private transient Iterator<T> iterator;
 

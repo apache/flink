@@ -32,7 +32,6 @@ import org.apache.flink.mock.Whitebox;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.AfterClass;
@@ -52,9 +51,7 @@ import java.util.Set;
 import java.util.StringJoiner;
 import java.util.regex.Pattern;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for {@link KafkaSourceEnumerator}. */
 public class KafkaEnumeratorTest {
@@ -97,11 +94,10 @@ public class KafkaEnumeratorTest {
             // Start the enumerator and it should schedule a one time task to discover and assign
             // partitions.
             enumerator.start();
-            assertTrue(context.getPeriodicCallables().isEmpty());
-            assertEquals(
-                    "A one time partition discovery callable should have been scheduled",
-                    1,
-                    context.getOneTimeCallables().size());
+            assertThat(context.getPeriodicCallables()).isEmpty();
+            assertThat(context.getOneTimeCallables())
+                    .as("A one time partition discovery callable should have been scheduled")
+                    .hasSize(1);
         }
     }
 
@@ -115,11 +111,10 @@ public class KafkaEnumeratorTest {
             // Start the enumerator and it should schedule a one time task to discover and assign
             // partitions.
             enumerator.start();
-            assertTrue(context.getOneTimeCallables().isEmpty());
-            assertEquals(
-                    "A periodic partition discovery callable should have been scheduled",
-                    1,
-                    context.getPeriodicCallables().size());
+            assertThat(context.getOneTimeCallables()).isEmpty();
+            assertThat(context.getPeriodicCallables())
+                    .as("A periodic partition discovery callable should have been scheduled")
+                    .hasSize(1);
         }
     }
 
@@ -137,7 +132,7 @@ public class KafkaEnumeratorTest {
             // register reader 0.
             registerReader(context, enumerator, READER0);
             registerReader(context, enumerator, READER1);
-            assertTrue(context.getSplitsAssignmentSequence().isEmpty());
+            assertThat(context.getSplitsAssignmentSequence()).isEmpty();
 
             // Run the partition discover callable and check the partition assignment.
             runOneTimePartitionDiscovery(context);
@@ -159,7 +154,7 @@ public class KafkaEnumeratorTest {
             // partitions.
             enumerator.start();
             runOneTimePartitionDiscovery(context);
-            assertTrue(context.getSplitsAssignmentSequence().isEmpty());
+            assertThat(context.getSplitsAssignmentSequence()).isEmpty();
 
             registerReader(context, enumerator, READER0);
             verifyLastReadersAssignments(
@@ -186,10 +181,9 @@ public class KafkaEnumeratorTest {
 
             // invoke partition discovery callable again and there should be no new assignments.
             runPeriodicPartitionDiscovery(context);
-            assertEquals(
-                    "No assignments should be made because there is no partition change",
-                    2,
-                    context.getSplitsAssignmentSequence().size());
+            assertThat(context.getSplitsAssignmentSequence())
+                    .as("No assignments should be made because there is no partition change")
+                    .hasSize(2);
 
             // create the dynamic topic.
             adminClient
@@ -239,10 +233,9 @@ public class KafkaEnumeratorTest {
             enumerator.addSplitsBack(
                     context.getSplitsAssignmentSequence().get(0).assignment().get(READER0),
                     READER0);
-            assertEquals(
-                    "The added back splits should have not been assigned",
-                    2,
-                    context.getSplitsAssignmentSequence().size());
+            assertThat(context.getSplitsAssignmentSequence())
+                    .as("The added back splits should have not been assigned")
+                    .hasSize(2);
 
             // Simulate a reader recovery.
             registerReader(context, enumerator, READER0);
@@ -276,7 +269,7 @@ public class KafkaEnumeratorTest {
             runPeriodicPartitionDiscovery(context2);
 
             registerReader(context2, enumerator, READER0);
-            assertTrue(context2.getSplitsAssignmentSequence().isEmpty());
+            assertThat(context2.getSplitsAssignmentSequence()).isEmpty();
 
             registerReader(context2, enumerator, READER1);
             verifyLastReadersAssignments(
@@ -305,23 +298,13 @@ public class KafkaEnumeratorTest {
 
             AdminClient adminClient =
                     (AdminClient) Whitebox.getInternalState(enumerator, "adminClient");
-            assertNotNull(adminClient);
+            assertThat(adminClient).isNotNull();
             String clientId = (String) Whitebox.getInternalState(adminClient, "clientId");
-            assertNotNull(clientId);
-            assertTrue(clientId.startsWith(clientIdPrefix));
-            assertEquals(
-                    defaultTimeoutMs,
-                    Whitebox.getInternalState(adminClient, "defaultApiTimeoutMs"));
+            assertThat(clientId).isNotNull().startsWith(clientIdPrefix);
+            assertThat(Whitebox.getInternalState(adminClient, "defaultApiTimeoutMs"))
+                    .isEqualTo(defaultTimeoutMs);
 
-            KafkaConsumer<?, ?> consumer =
-                    (KafkaConsumer<?, ?>) Whitebox.getInternalState(enumerator, "consumer");
-            assertNotNull(consumer);
-            clientId = (String) Whitebox.getInternalState(consumer, "clientId");
-            assertNotNull(clientId);
-            assertTrue(clientId.startsWith(clientIdPrefix));
-            assertEquals(
-                    (long) defaultTimeoutMs,
-                    Whitebox.getInternalState(consumer, "requestTimeoutMs"));
+            assertThat(clientId).isNotNull().startsWith(clientIdPrefix);
         }
     }
 
@@ -334,7 +317,7 @@ public class KafkaEnumeratorTest {
 
             // No reader is registered, so the state should be empty
             final KafkaSourceEnumState state1 = enumerator.snapshotState(1L);
-            assertTrue(state1.assignedPartitions().isEmpty());
+            assertThat(state1.assignedPartitions()).isEmpty();
 
             registerReader(context, enumerator, READER0);
             registerReader(context, enumerator, READER1);
@@ -381,8 +364,8 @@ public class KafkaEnumeratorTest {
                 expectedRemovedPartitions.add(new TopicPartition(TOPIC2, i));
             }
 
-            assertEquals(expectedNewPartitions, partitionChange.getNewPartitions());
-            assertEquals(expectedRemovedPartitions, partitionChange.getRemovedPartitions());
+            assertThat(partitionChange.getNewPartitions()).isEqualTo(expectedNewPartitions);
+            assertThat(partitionChange.getRemovedPartitions()).isEqualTo(expectedRemovedPartitions);
         }
     }
 
@@ -398,7 +381,7 @@ public class KafkaEnumeratorTest {
 
         // register reader 0 before the partition discovery.
         registerReader(context, enumerator, READER0);
-        assertTrue(context.getSplitsAssignmentSequence().isEmpty());
+        assertThat(context.getSplitsAssignmentSequence()).isEmpty();
 
         // Run the partition discover callable and check the partition assignment.
         runPeriodicPartitionDiscovery(context);
@@ -503,11 +486,11 @@ public class KafkaEnumeratorTest {
                 (reader, splits) -> {
                     Set<TopicPartition> expectedAssignmentsForReader =
                             expectedAssignments.get(reader);
-                    assertNotNull(expectedAssignmentsForReader);
-                    assertEquals(expectedAssignmentsForReader.size(), splits.size());
+                    assertThat(expectedAssignmentsForReader).isNotNull();
+                    assertThat(splits.size()).isEqualTo(expectedAssignmentsForReader.size());
                     for (KafkaPartitionSplit split : splits) {
-                        assertTrue(
-                                expectedAssignmentsForReader.contains(split.getTopicPartition()));
+                        assertThat(expectedAssignmentsForReader)
+                                .contains(split.getTopicPartition());
                     }
                 });
     }
@@ -545,7 +528,7 @@ public class KafkaEnumeratorTest {
         expectedAssignment.forEach(
                 (reader, topicPartitions) ->
                         allTopicPartitionsFromAssignment.addAll(topicPartitions));
-        assertEquals(allTopicPartitionsFromAssignment, actualTopicPartitions);
+        assertThat(actualTopicPartitions).isEqualTo(allTopicPartitionsFromAssignment);
     }
 
     private Set<TopicPartition> asEnumState(Map<Integer, List<KafkaPartitionSplit>> assignments) {
@@ -573,25 +556,6 @@ public class KafkaEnumeratorTest {
         // Initialize offsets for discovered partitions
         if (!context.getOneTimeCallables().isEmpty()) {
             context.runNextOneTimeCallable();
-        }
-    }
-
-    // -------------- private class ----------------
-
-    private static class BlockingClosingContext
-            extends MockSplitEnumeratorContext<KafkaPartitionSplit> {
-
-        public BlockingClosingContext(int parallelism) {
-            super(parallelism);
-        }
-
-        @Override
-        public void close() {
-            try {
-                Thread.sleep(Long.MAX_VALUE);
-            } catch (InterruptedException e) {
-                // let it go.
-            }
         }
     }
 }

@@ -25,6 +25,8 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import javax.annotation.Nullable;
 
 import java.util.List;
@@ -198,7 +200,10 @@ public class CheckpointingStatistics implements ResponseBody {
     }
 
     /** Checkpoint summary. */
+    @Schema(name = "CheckpointStatisticsSummary")
     public static final class Summary {
+
+        public static final String FIELD_NAME_CHECKPOINTED_SIZE = "checkpointed_size";
 
         /**
          * The accurate name of this field should be 'checkpointed_data_size', keep it as before to
@@ -215,6 +220,9 @@ public class CheckpointingStatistics implements ResponseBody {
         public static final String FIELD_NAME_PROCESSED_DATA = "processed_data";
 
         public static final String FIELD_NAME_PERSISTED_DATA = "persisted_data";
+
+        @JsonProperty(FIELD_NAME_CHECKPOINTED_SIZE)
+        private final StatsSummaryDto checkpointedSize;
 
         @JsonProperty(FIELD_NAME_STATE_SIZE)
         private final StatsSummaryDto stateSize;
@@ -233,11 +241,13 @@ public class CheckpointingStatistics implements ResponseBody {
 
         @JsonCreator
         public Summary(
+                @JsonProperty(FIELD_NAME_CHECKPOINTED_SIZE) StatsSummaryDto checkpointedSize,
                 @JsonProperty(FIELD_NAME_STATE_SIZE) StatsSummaryDto stateSize,
                 @JsonProperty(FIELD_NAME_DURATION) StatsSummaryDto duration,
                 @JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) StatsSummaryDto alignmentBuffered,
                 @JsonProperty(FIELD_NAME_PROCESSED_DATA) StatsSummaryDto processedData,
                 @JsonProperty(FIELD_NAME_PERSISTED_DATA) StatsSummaryDto persistedData) {
+            this.checkpointedSize = checkpointedSize;
             this.stateSize = stateSize;
             this.duration = duration;
             this.alignmentBuffered = alignmentBuffered;
@@ -262,7 +272,8 @@ public class CheckpointingStatistics implements ResponseBody {
                 return false;
             }
             Summary summary = (Summary) o;
-            return Objects.equals(stateSize, summary.stateSize)
+            return Objects.equals(checkpointedSize, summary.checkpointedSize)
+                    && Objects.equals(stateSize, summary.stateSize)
                     && Objects.equals(duration, summary.duration)
                     && Objects.equals(alignmentBuffered, summary.alignmentBuffered)
                     && Objects.equals(processedData, summary.processedData)
@@ -272,7 +283,12 @@ public class CheckpointingStatistics implements ResponseBody {
         @Override
         public int hashCode() {
             return Objects.hash(
-                    stateSize, duration, alignmentBuffered, processedData, persistedData);
+                    checkpointedSize,
+                    stateSize,
+                    duration,
+                    alignmentBuffered,
+                    processedData,
+                    persistedData);
         }
     }
 

@@ -61,7 +61,7 @@ abfss://<your-container>@$<your-azure-account>.dfs.core.windows.net/<object-path
 env.readTextFile("wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>");
 
 // 写入 Azure Blob 存储
-stream.writeAsText("wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>")
+stream.writeAsText("wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>");
 
 // 将 Azure Blob 存储用作 FsStatebackend
 env.setStateBackend(new FsStateBackend("wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>"));

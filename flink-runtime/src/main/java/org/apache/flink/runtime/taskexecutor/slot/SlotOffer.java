@@ -76,4 +76,16 @@ public class SlotOffer implements Serializable {
     public int hashCode() {
         return allocationId.hashCode();
     }
+
+    @Override
+    public String toString() {
+        return "SlotOffer{"
+                + "allocationId="
+                + allocationId
+                + ", slotIndex="
+                + slotIndex
+                + ", resourceProfile="
+                + resourceProfile
+                + '}';
+    }
 }

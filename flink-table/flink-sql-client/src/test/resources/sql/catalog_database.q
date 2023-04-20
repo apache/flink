@@ -35,7 +35,7 @@ org.apache.flink.sql.parser.impl.ParseException: Encountered "." at line 1, colu
 Was expecting one of:
     <EOF>
     "WITH" ...
-
+    ";" ...
 !error
 
 create database my.db;
@@ -87,6 +87,11 @@ drop catalog default_catalog;
 [INFO] Execute statement succeed.
 !info
 
+drop catalog c1;
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.catalog.exceptions.CatalogException: Cannot drop a catalog which is currently in use.
+!error
+
 # ==========================================================================
 # test database
 # ==========================================================================
@@ -99,8 +104,8 @@ show databases;
 +---------------+
 | database name |
 +---------------+
-|       default |
 |           db1 |
+|       default |
 +---------------+
 2 rows in set
 !ok
@@ -141,9 +146,9 @@ show databases;
 +---------------+
 | database name |
 +---------------+
-|       default |
 |           db1 |
 |           db2 |
+|       default |
 +---------------+
 3 rows in set
 !ok
@@ -156,8 +161,8 @@ show databases;
 +---------------+
 | database name |
 +---------------+
-|       default |
 |           db1 |
+|       default |
 +---------------+
 2 rows in set
 !ok
@@ -179,6 +184,15 @@ use `default`;
 !info
 
 drop database `default`;
+[INFO] Execute statement succeed.
+!info
+
+drop catalog `mod`;
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.catalog.exceptions.CatalogException: Cannot drop a catalog which is currently in use.
+!error
+
+use catalog `c1`;
 [INFO] Execute statement succeed.
 !info
 
@@ -267,11 +281,11 @@ describe hivecatalog.`default`.param_types_table;
 !ok
 
 SET 'execution.runtime-mode' = 'batch';
-[INFO] Session property has been set.
+[INFO] Execute statement succeed.
 !info
 
 SET 'sql-client.execution.result-mode' = 'tableau';
-[INFO] Session property has been set.
+[INFO] Execute statement succeed.
 !info
 
 # test the SELECT query can run successfully, even result is empty
@@ -486,7 +500,7 @@ show views;
 # ==========================================================================
 
 SET 'sql-client.execution.result-mode' = 'changelog';
-[INFO] Session property has been set.
+[INFO] Execute statement succeed.
 !info
 
 create table MyTable7 (a int, b string) with ('connector' = 'values');
@@ -505,7 +519,7 @@ show tables;
 !ok
 
 reset;
-[INFO] All session properties have been set to their default values.
+[INFO] Execute statement succeed.
 !info
 
 drop table MyTable5;
@@ -520,4 +534,77 @@ show tables;
 |    MyView5 |
 +------------+
 2 rows in set
+!ok
+
+# ==========================================================================
+# test enhanced show tables
+# ==========================================================================
+
+create catalog catalog1 with ('type'='generic_in_memory');
+[INFO] Execute statement succeed.
+!info
+
+create database catalog1.db1;
+[INFO] Execute statement succeed.
+!info
+
+create table catalog1.db1.person (a int, b string) with ('connector' = 'datagen');
+[INFO] Execute statement succeed.
+!info
+
+create table catalog1.db1.dim (a int, b string) with ('connector' = 'datagen');
+[INFO] Execute statement succeed.
+!info
+
+create table catalog1.db1.address (a int, b string) with ('connector' = 'datagen');
+[INFO] Execute statement succeed.
+!info
+
+create view catalog1.db1.v_person as select * from catalog1.db1.person;
+[INFO] Execute statement succeed.
+!info
+
+show tables from catalog1.db1;
++------------+
+| table name |
++------------+
+|    address |
+|        dim |
+|     person |
+|   v_person |
++------------+
+4 rows in set
+!ok
+
+show tables from catalog1.db1 like '%person%';
++------------+
+| table name |
++------------+
+|     person |
+|   v_person |
++------------+
+2 rows in set
+!ok
+
+show tables in catalog1.db1 not like '%person%';
++------------+
+| table name |
++------------+
+|    address |
+|        dim |
++------------+
+2 rows in set
+!ok
+
+use catalog catalog1;
+[INFO] Execute statement succeed.
+!info
+
+show tables from db1 like 'p_r%';
++------------+
+| table name |
++------------+
+|     person |
++------------+
+1 row in set
 !ok

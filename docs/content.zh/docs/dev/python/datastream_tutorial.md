@@ -47,8 +47,8 @@ Apache Flink 提供了 DataStream API，用于构建健壮的、有状态的流�
 
 首先，你需要在你的电脑上准备以下环境：
 
-* Java 8 or 11
-* Python 3.6, 3.7 or 3.8
+* Java 11
+* Python 3.7, 3.8, 3.9 or 3.10
 
 使用 Python DataStream API 需要安装 PyFlink，PyFlink 发布在 [PyPI](https://pypi.org/project/apache-flink/)上，可以通过 `pip` 快速安装。 
 
@@ -123,8 +123,7 @@ import sys
 
 from pyflink.common import WatermarkStrategy, Encoder, Types
 from pyflink.datastream import StreamExecutionEnvironment, RuntimeExecutionMode
-from pyflink.datastream.connectors import (FileSource, StreamFormat, FileSink, OutputFileConfig,
-                                           RollingPolicy)
+from pyflink.datastream.connectors.file_system import FileSource, StreamFormat, FileSink, OutputFileConfig, RollingPolicy
 
 
 word_count_data = ["To be, or not to be,--that is the question:--",

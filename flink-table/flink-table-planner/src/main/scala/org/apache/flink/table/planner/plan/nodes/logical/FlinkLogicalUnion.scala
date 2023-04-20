@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.logical
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
@@ -23,6 +22,7 @@ import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 import org.apache.calcite.rel.core.{SetOp, Union}
 import org.apache.calcite.rel.logical.LogicalUnion
 import org.apache.calcite.rel.metadata.RelMetadataQuery
@@ -32,9 +32,9 @@ import java.util.{List => JList}
 import scala.collection.JavaConversions._
 
 /**
-  * Sub-class of [[Union]] that is a relational expression
-  * which returns the union of the rows of its inputs in Flink.
-  */
+ * Sub-class of [[Union]] that is a relational expression which returns the union of the rows of its
+ * inputs in Flink.
+ */
 class FlinkLogicalUnion(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -48,7 +48,7 @@ class FlinkLogicalUnion(
   }
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
-    val rowCnt = this.getInputs.foldLeft(0D) {
+    val rowCnt = this.getInputs.foldLeft(0d) {
       (rows, input) =>
         val inputRowCount = mq.getRowCount(input)
         rows + inputRowCount
@@ -58,16 +58,9 @@ class FlinkLogicalUnion(
 
 }
 
-private class FlinkLogicalUnionConverter
-  extends ConverterRule(
-    classOf[LogicalUnion],
-    Convention.NONE,
-    FlinkConventions.LOGICAL,
-    "FlinkLogicalUnionConverter") {
+private class FlinkLogicalUnionConverter(config: Config) extends ConverterRule(config) {
 
-  /**
-    * Only translate UNION ALL.
-    */
+  /** Only translate UNION ALL. */
   override def matches(call: RelOptRuleCall): Boolean = {
     val union: LogicalUnion = call.rel(0)
     union.all
@@ -83,7 +76,12 @@ private class FlinkLogicalUnionConverter
 }
 
 object FlinkLogicalUnion {
-  val CONVERTER: ConverterRule = new FlinkLogicalUnionConverter()
+  val CONVERTER: ConverterRule = new FlinkLogicalUnionConverter(
+    Config.INSTANCE.withConversion(
+      classOf[LogicalUnion],
+      Convention.NONE,
+      FlinkConventions.LOGICAL,
+      "FlinkLogicalUnionConverter"))
 
   def create(inputs: JList[RelNode], all: Boolean): FlinkLogicalUnion = {
     val cluster = inputs.get(0).getCluster

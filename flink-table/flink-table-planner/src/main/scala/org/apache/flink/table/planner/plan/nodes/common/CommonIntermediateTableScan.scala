@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.common
 
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
@@ -28,9 +27,7 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery
 
 import scala.collection.JavaConversions._
 
-/**
-  * Base class that wraps [[IntermediateRelTable]].
-  */
+/** Base class that wraps [[IntermediateRelTable]]. */
 abstract class CommonIntermediateTableScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -51,8 +48,8 @@ abstract class CommonIntermediateTableScan(
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw)
+    super
+      .explainTerms(pw)
       .item("fields", getRowType.getFieldNames.mkString(", "))
   }
 }
-

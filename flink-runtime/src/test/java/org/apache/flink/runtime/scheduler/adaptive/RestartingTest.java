@@ -25,11 +25,15 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
+import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ScheduledFuture;
 import java.util.function.Consumer;
 
@@ -127,7 +131,9 @@ public class RestartingTest extends TestLogger {
                 executionGraphHandler,
                 operatorCoordinatorHandler,
                 log,
-                Duration.ZERO);
+                Duration.ZERO,
+                ClassLoader.getSystemClassLoader(),
+                new ArrayList<>());
     }
 
     public Restarting createRestartingState(MockRestartingContext ctx)
@@ -156,7 +162,8 @@ public class RestartingTest extends TestLogger {
         public void goToCanceling(
                 ExecutionGraph executionGraph,
                 ExecutionGraphHandler executionGraphHandler,
-                OperatorCoordinatorHandler operatorCoordinatorHandler) {
+                OperatorCoordinatorHandler operatorCoordinatorHandler,
+                List<ExceptionHistoryEntry> failureCollection) {
             cancellingStateValidator.validateInput(
                     new ExecutingTest.CancellingArguments(
                             executionGraph, executionGraphHandler, operatorCoordinatorHandler));
@@ -164,7 +171,10 @@ public class RestartingTest extends TestLogger {
         }
 
         @Override
-        public void goToWaitingForResources() {
+        public void archiveFailure(RootExceptionHistoryEntry failure) {}
+
+        @Override
+        public void goToWaitingForResources(ExecutionGraph previousExecutionGraph) {
             waitingForResourcesStateValidator.validateInput(null);
             hadStateTransition = true;
         }

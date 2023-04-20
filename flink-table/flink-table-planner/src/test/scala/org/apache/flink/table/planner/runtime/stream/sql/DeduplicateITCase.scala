@@ -15,27 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecDeduplicate
+import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOn}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
-import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.types.Row
-import org.junit.Assert._
+
 import org.junit.{Assume, Rule, Test}
+import org.junit.Assert._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-import scala.collection.mutable
 import scala.collection.JavaConversions._
+import scala.collection.mutable
 
 @RunWith(classOf[Parameterized])
 class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
@@ -58,7 +58,7 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
   def testFirstRowOnProctime(): Unit = {
     val t = failingDataSource(TestData.tupleData3)
       .toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
-    tEnv.registerTable("T", t)
+    tEnv.createTemporaryView("T", t)
 
     val sql =
       """
@@ -75,15 +75,20 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
     tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink)
     env.execute()
 
-    val expected = List("1,1,Hi", "2,2,Hello", "4,3,Hello world, how are you?",
-      "7,4,Comment#1", "11,5,Comment#5", "16,6,Comment#10")
+    val expected = List(
+      "1,1,Hi",
+      "2,2,Hello",
+      "4,3,Hello world, how are you?",
+      "7,4,Comment#1",
+      "11,5,Comment#5",
+      "16,6,Comment#10")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
   @Test
   def testFirstRowOnBuiltinProctime(): Unit = {
     val t = failingDataSource(TestData.tupleData3).toTable(tEnv, 'a, 'b, 'c)
-    tEnv.registerTable("T", t)
+    tEnv.createTemporaryView("T", t)
 
     val sql =
       """
@@ -100,8 +105,13 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
     tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink)
     env.execute()
 
-    val expected = List("1,1,Hi", "2,2,Hello", "4,3,Hello world, how are you?",
-      "7,4,Comment#1", "11,5,Comment#5", "16,6,Comment#10")
+    val expected = List(
+      "1,1,Hi",
+      "2,2,Hello",
+      "4,3,Hello world, how are you?",
+      "7,4,Comment#1",
+      "11,5,Comment#5",
+      "16,6,Comment#10")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
@@ -109,7 +119,7 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
   def testLastRowOnProctime(): Unit = {
     val t = failingDataSource(TestData.tupleData3)
       .toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
-    tEnv.registerTable("T", t)
+    tEnv.createTemporaryView("T", t)
 
     val sql =
       """
@@ -126,15 +136,20 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
     tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink)
     env.execute()
 
-    val expected = List("1,1,Hi", "3,2,Hello world", "6,3,Luke Skywalker",
-      "10,4,Comment#4", "15,5,Comment#9", "21,6,Comment#15")
+    val expected = List(
+      "1,1,Hi",
+      "3,2,Hello world",
+      "6,3,Luke Skywalker",
+      "10,4,Comment#4",
+      "15,5,Comment#9",
+      "21,6,Comment#15")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
   @Test
   def testLastRowOnBuiltinProctime(): Unit = {
     val t = failingDataSource(TestData.tupleData3).toTable(tEnv, 'a, 'b, 'c)
-    tEnv.registerTable("T", t)
+    tEnv.createTemporaryView("T", t)
 
     val sql =
       """
@@ -151,17 +166,23 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
     tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink)
     env.execute()
 
-    val expected = List("1,1,Hi", "3,2,Hello world", "6,3,Luke Skywalker",
-      "10,4,Comment#4", "15,5,Comment#9", "21,6,Comment#15")
+    val expected = List(
+      "1,1,Hi",
+      "3,2,Hello world",
+      "6,3,Luke Skywalker",
+      "10,4,Comment#4",
+      "15,5,Comment#9",
+      "21,6,Comment#15")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
   @Test
   def testFirstRowOnRowtime(): Unit = {
-    val t = env.fromCollection(rowtimeTestData)
+    val t = env
+      .fromCollection(rowtimeTestData)
       .assignTimestampsAndWatermarks(new RowtimeExtractor)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime())
-    tEnv.registerTable("T", t)
+    tEnv.createTemporaryView("T", t)
     createSinkTable("rowtime_sink")
 
     val sql =
@@ -185,19 +206,22 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
       "+I(3,5,Comment#2,1970-01-01T00:00:00.005)",
       "-U(3,5,Comment#2,1970-01-01T00:00:00.005)",
       "+U(3,4,Comment#2,1970-01-01T00:00:00.004)",
-      "+I(4,4,Comment#3,1970-01-01T00:00:00.004)")
+      "+I(4,4,Comment#3,1970-01-01T00:00:00.004)"
+    )
     assertEquals(expected.sorted, rawResult.sorted)
   }
 
   @Test
   def testFirstRowWithoutAllChangelogOnRowtime(): Unit = {
     Assume.assumeTrue("Without all change log only for minibatch.", miniBatch == MiniBatchOn)
-    tEnv.getConfig.getConfiguration.setBoolean(
-      StreamExecDeduplicate.TABLE_EXEC_DEDUPLICATE_MINIBATCH_COMPACT_CHANGES, true)
-    val t = env.fromCollection(rowtimeTestData)
+    tEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_DEDUPLICATE_MINIBATCH_COMPACT_CHANGES_ENABLED,
+      Boolean.box(true))
+    val t = env
+      .fromCollection(rowtimeTestData)
       .assignTimestampsAndWatermarks(new RowtimeExtractor)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime())
-    tEnv.registerTable("T", t)
+    tEnv.createTemporaryView("T", t)
     createSinkTable("rowtime_sink")
 
     val sql =
@@ -219,26 +243,27 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
       "+I(1,1,Hi,1970-01-01T00:00:00.001)",
       "+I(2,3,I am fine.,1970-01-01T00:00:00.003)",
       "+I(3,4,Comment#2,1970-01-01T00:00:00.004)",
-      "+I(4,4,Comment#3,1970-01-01T00:00:00.004)")
+      "+I(4,4,Comment#3,1970-01-01T00:00:00.004)"
+    )
     assertEquals(expected.sorted, rawResult.sorted)
   }
 
   @Test
   def testFirstRowOnRowTimeFollowedByUnboundedAgg(): Unit = {
-    val t = env.fromCollection(rowtimeTestData)
+    val t = env
+      .fromCollection(rowtimeTestData)
       .assignTimestampsAndWatermarks(new RowtimeExtractor)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime())
-    tEnv.registerTable("T", t)
-    tEnv.executeSql(
-      s"""
-         |CREATE TABLE rowtime_sink (
-         |    cnt BIGINT
-         |) WITH (
-         |  'connector' = 'values',
-         |  'sink-insert-only' = 'false',
-         |  'changelog-mode' = 'I,UA,D'
-         |)
-         |""".stripMargin)
+    tEnv.createTemporaryView("T", t)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE rowtime_sink (
+                       |    cnt BIGINT
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'sink-insert-only' = 'false',
+                       |  'changelog-mode' = 'I,UA,D'
+                       |)
+                       |""".stripMargin)
     val sql =
       """
         |INSERT INTO rowtime_sink
@@ -261,10 +286,11 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
 
   @Test
   def testLastRowOnRowtime(): Unit = {
-    val t = env.fromCollection(rowtimeTestData)
+    val t = env
+      .fromCollection(rowtimeTestData)
       .assignTimestampsAndWatermarks(new RowtimeExtractor)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime())
-    tEnv.registerTable("T", t)
+    tEnv.createTemporaryView("T", t)
     createSinkTable("rowtime_sink")
 
     val sql =
@@ -292,19 +318,22 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
       "+I(3,5,Comment#2,1970-01-01T00:00:00.005)",
       "+I(3,4,Comment#2,1970-01-01T00:00:00.004)",
       "-U(3,4,Comment#2,1970-01-01T00:00:00.004)",
-      "+U(4,4,Comment#3,1970-01-01T00:00:00.004)")
+      "+U(4,4,Comment#3,1970-01-01T00:00:00.004)"
+    )
     assertEquals(expected.sorted, rawResult.sorted)
   }
 
   @Test
   def testLastRowWithoutAllChangelogOnRowtime(): Unit = {
     Assume.assumeTrue("Without all change log only for minibatch.", miniBatch == MiniBatchOn)
-    tEnv.getConfig.getConfiguration.setBoolean(
-      StreamExecDeduplicate.TABLE_EXEC_DEDUPLICATE_MINIBATCH_COMPACT_CHANGES, true)
-    val t = env.fromCollection(rowtimeTestData)
+    tEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_DEDUPLICATE_MINIBATCH_COMPACT_CHANGES_ENABLED,
+      Boolean.box(true))
+    val t = env
+      .fromCollection(rowtimeTestData)
       .assignTimestampsAndWatermarks(new RowtimeExtractor)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime())
-    tEnv.registerTable("T", t)
+    tEnv.createTemporaryView("T", t)
     createSinkTable("rowtime_sink")
 
     val sql =
@@ -328,26 +357,27 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
       "+I(2,3,I am fine.,1970-01-01T00:00:00.003)",
       "+I(2,6,Comment#1,1970-01-01T00:00:00.006)",
       "+I(3,5,Comment#2,1970-01-01T00:00:00.005)",
-      "+I(4,4,Comment#3,1970-01-01T00:00:00.004)")
+      "+I(4,4,Comment#3,1970-01-01T00:00:00.004)"
+    )
     assertEquals(expected.sorted, rawResult.sorted)
   }
 
   @Test
   def testLastRowOnRowTimeFollowedByUnboundedAgg(): Unit = {
-    val t = env.fromCollection(rowtimeTestData)
+    val t = env
+      .fromCollection(rowtimeTestData)
       .assignTimestampsAndWatermarks(new RowtimeExtractor)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime())
-    tEnv.registerTable("T", t)
-    tEnv.executeSql(
-      s"""
-         |CREATE TABLE rowtime_sink (
-         |    cnt BIGINT
-         |) WITH (
-         |  'connector' = 'values',
-         |  'sink-insert-only' = 'false',
-         |  'changelog-mode' = 'I,UA,D'
-         |)
-         |""".stripMargin)
+    tEnv.createTemporaryView("T", t)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE rowtime_sink (
+                       |    cnt BIGINT
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'sink-insert-only' = 'false',
+                       |  'changelog-mode' = 'I,UA,D'
+                       |)
+                       |""".stripMargin)
     val sql =
       """
         |INSERT INTO rowtime_sink
@@ -369,19 +399,18 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
   }
 
   def createSinkTable(tableName: String): Unit = {
-    tEnv.executeSql(
-      s"""
-         |CREATE TABLE $tableName (
-         |    a INT,
-         |    b BIGINT,
-         |    c STRING,
-         |    rowtime TIMESTAMP(3)
-         |) WITH (
-         |  'connector' = 'values',
-         |  'sink-insert-only' = 'false',
-         |  'changelog-mode' = 'I,UA,D'
-         |)
-         |""".stripMargin)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE $tableName (
+                       |    a INT,
+                       |    b BIGINT,
+                       |    c STRING,
+                       |    rowtime TIMESTAMP(3)
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'sink-insert-only' = 'false',
+                       |  'changelog-mode' = 'I,UA,D'
+                       |)
+                       |""".stripMargin)
   }
 }
 

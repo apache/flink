@@ -44,10 +44,7 @@ import static org.apache.flink.table.data.DecimalDataUtils.sign;
 import static org.apache.flink.table.data.DecimalDataUtils.signum;
 import static org.apache.flink.table.data.DecimalDataUtils.sround;
 import static org.apache.flink.table.data.DecimalDataUtils.subtract;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link DecimalData}. */
 public class DecimalDataTest {
@@ -58,72 +55,73 @@ public class DecimalDataTest {
         BigDecimal bigDecimal1 = new BigDecimal("13145678.90123");
         BigDecimal bigDecimal2 = new BigDecimal("1234567890.0987654321");
         // fromUnscaledBytes
-        assertEquals(
-                DecimalData.fromBigDecimal(bigDecimal1, 15, 5),
-                DecimalData.fromUnscaledBytes(bigDecimal1.unscaledValue().toByteArray(), 15, 5));
-        assertEquals(
-                DecimalData.fromBigDecimal(bigDecimal2, 23, 10),
-                DecimalData.fromUnscaledBytes(bigDecimal2.unscaledValue().toByteArray(), 23, 10));
+        assertThat(DecimalData.fromUnscaledBytes(bigDecimal1.unscaledValue().toByteArray(), 15, 5))
+                .isEqualTo(DecimalData.fromBigDecimal(bigDecimal1, 15, 5));
+        assertThat(DecimalData.fromUnscaledBytes(bigDecimal2.unscaledValue().toByteArray(), 23, 10))
+                .isEqualTo(DecimalData.fromBigDecimal(bigDecimal2, 23, 10));
         // toUnscaledBytes
-        assertArrayEquals(
-                bigDecimal1.unscaledValue().toByteArray(),
-                DecimalData.fromUnscaledBytes(bigDecimal1.unscaledValue().toByteArray(), 15, 5)
-                        .toUnscaledBytes());
-        assertArrayEquals(
-                bigDecimal2.unscaledValue().toByteArray(),
-                DecimalData.fromUnscaledBytes(bigDecimal2.unscaledValue().toByteArray(), 23, 10)
-                        .toUnscaledBytes());
+        assertThat(
+                        DecimalData.fromUnscaledBytes(
+                                        bigDecimal1.unscaledValue().toByteArray(), 15, 5)
+                                .toUnscaledBytes())
+                .isEqualTo(bigDecimal1.unscaledValue().toByteArray());
+        assertThat(
+                        DecimalData.fromUnscaledBytes(
+                                        bigDecimal2.unscaledValue().toByteArray(), 23, 10)
+                                .toUnscaledBytes())
+                .isEqualTo(bigDecimal2.unscaledValue().toByteArray());
 
         DecimalData decimal1 = DecimalData.fromUnscaledLong(10, 5, 0);
         DecimalData decimal2 = DecimalData.fromUnscaledLong(15, 5, 0);
-        assertEquals(
-                decimal1.hashCode(),
-                DecimalData.fromBigDecimal(new BigDecimal(10), 5, 0).hashCode());
-        assertEquals(decimal1, decimal1.copy());
-        assertEquals(decimal1, DecimalData.fromUnscaledLong(decimal1.toUnscaledLong(), 5, 0));
-        assertEquals(decimal1, DecimalData.fromUnscaledBytes(decimal1.toUnscaledBytes(), 5, 0));
-        assertTrue(decimal1.compareTo(decimal2) < 0);
-        assertEquals(1, signum(decimal1));
-        assertEquals(10.5, doubleValue(castFrom(10.5, 5, 1)), 0.0);
-        assertEquals(DecimalData.fromUnscaledLong(-10, 5, 0), negate(decimal1));
-        assertEquals(decimal1, abs(decimal1));
-        assertEquals(decimal1, abs(negate(decimal1)));
-        assertEquals(25, add(decimal1, decimal2, 5, 0).toUnscaledLong());
-        assertEquals(-5, subtract(decimal1, decimal2, 5, 0).toUnscaledLong());
-        assertEquals(150, multiply(decimal1, decimal2, 5, 0).toUnscaledLong());
-        assertEquals(0.67, doubleValue(divide(decimal1, decimal2, 5, 2)), 0.0);
-        assertEquals(decimal1, mod(decimal1, decimal2, 5, 0));
-        assertEquals(
-                5,
-                divideToIntegralValue(decimal1, DecimalData.fromUnscaledLong(2, 5, 0), 5, 0)
-                        .toUnscaledLong());
-        assertEquals(10, castToIntegral(decimal1));
-        assertTrue(castToBoolean(decimal1));
-        assertEquals(0, compare(decimal1, 10));
-        assertTrue(compare(decimal1, 5) > 0);
-        assertEquals(castFrom(1.0, 10, 5), sign(castFrom(5.556, 10, 5)));
+        assertThat(DecimalData.fromBigDecimal(new BigDecimal(10), 5, 0).hashCode())
+                .isEqualTo(decimal1.hashCode());
+        assertThat(decimal1.copy()).isEqualTo(decimal1);
+        assertThat(DecimalData.fromUnscaledLong(decimal1.toUnscaledLong(), 5, 0))
+                .isEqualTo(decimal1);
+        assertThat(DecimalData.fromUnscaledBytes(decimal1.toUnscaledBytes(), 5, 0))
+                .isEqualTo(decimal1);
+        assertThat(decimal1.compareTo(decimal2)).isLessThan(0);
+        assertThat(signum(decimal1)).isEqualTo(1);
+        assertThat(doubleValue(castFrom(10.5, 5, 1))).isEqualTo(10.5);
+        assertThat(negate(decimal1)).isEqualTo(DecimalData.fromUnscaledLong(-10, 5, 0));
+        assertThat(abs(decimal1)).isEqualTo(decimal1);
+        assertThat(abs(negate(decimal1))).isEqualTo(decimal1);
+        assertThat(add(decimal1, decimal2, 5, 0).toUnscaledLong()).isEqualTo(25);
+        assertThat(subtract(decimal1, decimal2, 5, 0).toUnscaledLong()).isEqualTo(-5);
+        assertThat(multiply(decimal1, decimal2, 5, 0).toUnscaledLong()).isEqualTo(150);
+        assertThat(doubleValue(divide(decimal1, decimal2, 5, 2))).isEqualTo(0.67);
+        assertThat(mod(decimal1, decimal2, 5, 0)).isEqualTo(decimal1);
+        assertThat(
+                        divideToIntegralValue(decimal1, DecimalData.fromUnscaledLong(2, 5, 0), 5, 0)
+                                .toUnscaledLong())
+                .isEqualTo(5);
+        assertThat(castToIntegral(decimal1)).isEqualTo(10);
+        assertThat(castToBoolean(decimal1)).isTrue();
+        assertThat(compare(decimal1, 10)).isEqualTo(0);
+        assertThat(compare(decimal1, 5)).isGreaterThan(0);
+        assertThat(sign(castFrom(5.556, 10, 5))).isEqualTo(castFrom(1.0, 10, 5));
 
-        assertNull(DecimalData.fromBigDecimal(new BigDecimal(Long.MAX_VALUE), 5, 0));
-        assertEquals(0, DecimalData.zero(5, 2).toBigDecimal().intValue());
-        assertEquals(0, DecimalData.zero(20, 2).toBigDecimal().intValue());
+        assertThat(DecimalData.fromBigDecimal(new BigDecimal(Long.MAX_VALUE), 5, 0)).isNull();
+        assertThat(DecimalData.zero(5, 2).toBigDecimal().intValue()).isEqualTo(0);
+        assertThat(DecimalData.zero(20, 2).toBigDecimal().intValue()).isEqualTo(0);
 
-        assertEquals(DecimalData.fromUnscaledLong(10, 5, 0), floor(castFrom(10.5, 5, 1)));
-        assertEquals(DecimalData.fromUnscaledLong(11, 5, 0), ceil(castFrom(10.5, 5, 1)));
-        assertEquals("5.00", castToDecimal(castFrom(5.0, 10, 1), 10, 2).toString());
+        assertThat(floor(castFrom(10.5, 5, 1))).isEqualTo(DecimalData.fromUnscaledLong(10, 5, 0));
+        assertThat(ceil(castFrom(10.5, 5, 1))).isEqualTo(DecimalData.fromUnscaledLong(11, 5, 0));
+        assertThat(castToDecimal(castFrom(5.0, 10, 1), 10, 2).toString()).isEqualTo("5.00");
 
-        assertEquals(5, castToIntegral(castFrom(5, 5, 0)));
-        assertEquals(5, castToIntegral(castFrom("5", 5, 0)));
+        assertThat(castToIntegral(castFrom(5, 5, 0))).isEqualTo(5);
+        assertThat(castToIntegral(castFrom("5", 5, 0))).isEqualTo(5);
 
         DecimalData newDecimal = castFrom(castFrom(10, 5, 2), 10, 4);
-        assertEquals(10, newDecimal.precision());
-        assertEquals(4, newDecimal.scale());
+        assertThat(newDecimal.precision()).isEqualTo(10);
+        assertThat(newDecimal.scale()).isEqualTo(4);
 
-        assertTrue(is32BitDecimal(6));
-        assertTrue(is64BitDecimal(11));
-        assertTrue(isByteArrayDecimal(20));
+        assertThat(is32BitDecimal(6)).isTrue();
+        assertThat(is64BitDecimal(11)).isTrue();
+        assertThat(isByteArrayDecimal(20)).isTrue();
 
-        assertEquals(6, sround(castFrom(5.555, 5, 0), 1).toUnscaledLong());
-        assertEquals(56, sround(castFrom(5.555, 5, 3), 1).toUnscaledLong());
+        assertThat(sround(castFrom(5.555, 5, 0), 1).toUnscaledLong()).isEqualTo(6);
+        assertThat(sround(castFrom(5.555, 5, 3), 1).toUnscaledLong()).isEqualTo(56);
     }
 
     @SuppressWarnings("ConstantConditions")
@@ -131,49 +129,56 @@ public class DecimalDataTest {
     public void testNotCompact() {
         DecimalData decimal1 = DecimalData.fromBigDecimal(new BigDecimal(10), 20, 0);
         DecimalData decimal2 = DecimalData.fromBigDecimal(new BigDecimal(15), 20, 0);
-        assertEquals(
-                decimal1.hashCode(),
-                DecimalData.fromBigDecimal(new BigDecimal(10), 20, 0).hashCode());
-        assertEquals(decimal1, decimal1.copy());
-        assertEquals(decimal1, DecimalData.fromBigDecimal(decimal1.toBigDecimal(), 20, 0));
-        assertEquals(decimal1, DecimalData.fromUnscaledBytes(decimal1.toUnscaledBytes(), 20, 0));
-        assertTrue(decimal1.compareTo(decimal2) < 0);
-        assertEquals(1, signum(decimal1));
-        assertEquals(10.5, doubleValue(castFrom(10.5, 20, 1)), 0.0);
-        assertEquals(DecimalData.fromBigDecimal(new BigDecimal(-10), 20, 0), negate(decimal1));
-        assertEquals(decimal1, abs(decimal1));
-        assertEquals(decimal1, abs(negate(decimal1)));
-        assertEquals(25, add(decimal1, decimal2, 20, 0).toBigDecimal().longValue());
-        assertEquals(-5, subtract(decimal1, decimal2, 20, 0).toBigDecimal().longValue());
-        assertEquals(150, multiply(decimal1, decimal2, 20, 0).toBigDecimal().longValue());
-        assertEquals(0.67, doubleValue(divide(decimal1, decimal2, 20, 2)), 0.0);
-        assertEquals(decimal1, mod(decimal1, decimal2, 20, 0));
-        assertEquals(
-                5,
-                divideToIntegralValue(
-                                decimal1,
-                                DecimalData.fromBigDecimal(new BigDecimal(2), 20, 0),
-                                20,
-                                0)
-                        .toBigDecimal()
-                        .longValue());
-        assertEquals(10, castToIntegral(decimal1));
-        assertTrue(castToBoolean(decimal1));
-        assertEquals(0, compare(decimal1, 10));
-        assertTrue(compare(decimal1, 5) > 0);
-        assertTrue(compare(DecimalData.fromBigDecimal(new BigDecimal("10.5"), 20, 2), 10) > 0);
-        assertEquals(castFrom(1.0, 20, 5), sign(castFrom(5.556, 20, 5)));
+        assertThat(DecimalData.fromBigDecimal(new BigDecimal(10), 20, 0).hashCode())
+                .isEqualTo(decimal1.hashCode());
+        assertThat(decimal1.copy()).isEqualTo(decimal1);
+        assertThat(DecimalData.fromBigDecimal(decimal1.toBigDecimal(), 20, 0)).isEqualTo(decimal1);
+        assertThat(DecimalData.fromUnscaledBytes(decimal1.toUnscaledBytes(), 20, 0))
+                .isEqualTo(decimal1);
+        assertThat(decimal1.compareTo(decimal2)).isLessThan(0);
+        assertThat(signum(decimal1)).isEqualTo(1);
+        assertThat(doubleValue(castFrom(10.5, 20, 1))).isEqualTo(10.5);
+        assertThat(negate(decimal1))
+                .isEqualTo(DecimalData.fromBigDecimal(new BigDecimal(-10), 20, 0));
+        assertThat(abs(decimal1)).isEqualTo(decimal1);
+        assertThat(abs(negate(decimal1))).isEqualTo(decimal1);
+        assertThat(add(decimal1, decimal2, 20, 0).toBigDecimal().longValue()).isEqualTo(25);
+        assertThat(subtract(decimal1, decimal2, 20, 0).toBigDecimal().longValue()).isEqualTo(-5);
+        assertThat(multiply(decimal1, decimal2, 20, 0).toBigDecimal().longValue()).isEqualTo(150);
+        assertThat(doubleValue(divide(decimal1, decimal2, 20, 2))).isEqualTo(0.67);
+        assertThat(mod(decimal1, decimal2, 20, 0)).isEqualTo(decimal1);
+        assertThat(
+                        divideToIntegralValue(
+                                        decimal1,
+                                        DecimalData.fromBigDecimal(new BigDecimal(2), 20, 0),
+                                        20,
+                                        0)
+                                .toBigDecimal()
+                                .longValue())
+                .isEqualTo(5);
+        assertThat(castToIntegral(decimal1)).isEqualTo(10);
+        assertThat(castToBoolean(decimal1)).isTrue();
+        assertThat(compare(decimal1, 10)).isEqualTo(0);
+        assertThat(compare(decimal1, 5)).isGreaterThan(0);
+        assertThat(compare(DecimalData.fromBigDecimal(new BigDecimal("10.5"), 20, 2), 10))
+                .isGreaterThan(0);
+        assertThat(sign(castFrom(5.556, 20, 5))).isEqualTo(castFrom(1.0, 20, 5));
 
-        assertNull(DecimalData.fromBigDecimal(new BigDecimal(Long.MAX_VALUE), 5, 0));
-        assertEquals(0, DecimalData.zero(20, 2).toBigDecimal().intValue());
-        assertEquals(0, DecimalData.zero(20, 2).toBigDecimal().intValue());
+        assertThat(DecimalData.fromBigDecimal(new BigDecimal(Long.MAX_VALUE), 5, 0)).isNull();
+        assertThat(DecimalData.zero(20, 2).toBigDecimal().intValue()).isEqualTo(0);
+        assertThat(DecimalData.zero(20, 2).toBigDecimal().intValue()).isEqualTo(0);
+
+        DecimalData decimal3 = DecimalData.fromBigDecimal(new BigDecimal(10), 18, 0);
+        DecimalData decimal4 = DecimalData.fromBigDecimal(new BigDecimal(15), 18, 0);
+        assertThat(DecimalDataUtils.compare(subtract(decimal3, decimal4, 19, 0), -5)).isEqualTo(0);
+        assertThat(DecimalDataUtils.compare(add(decimal3, decimal4, 19, 0), 25)).isEqualTo(0);
     }
 
     @Test
     public void testToString() {
         String val = "0.0000000000000000001";
-        assertEquals(val, castFrom(val, 39, val.length() - 2).toString());
+        assertThat(castFrom(val, 39, val.length() - 2).toString()).isEqualTo(val);
         val = "123456789012345678901234567890123456789";
-        assertEquals(val, castFrom(val, 39, 0).toString());
+        assertThat(castFrom(val, 39, 0).toString()).isEqualTo(val);
     }
 }

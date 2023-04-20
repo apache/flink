@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.stream.table
 
 import org.apache.flink.api.scala._
@@ -33,7 +32,7 @@ class GroupWindowTableAggregateTest extends TableTestBase {
   @Test
   def testSingleWindow(): Unit = {
     val windowedTable = table
-      .window(Tumble over 5.milli on 'd as 'w)
+      .window(Tumble.over(5.milli).on('d).as('w))
       .groupBy('w, 'c)
       .flatAggregate(emptyFunc('a, 'b))
       .select('f0, 'f1 + 1, 'w.start, 'w.end)
@@ -44,11 +43,11 @@ class GroupWindowTableAggregateTest extends TableTestBase {
   @Test
   def testMultiWindow(): Unit = {
     val windowedTable = table
-      .window(Tumble over 50.milli on 'e as 'w1)
+      .window(Tumble.over(50.milli).on('e).as('w1))
       .groupBy('w1, 'c)
       .flatAggregate(emptyFunc('a, 'b))
-      .select('w1.proctime as 'proctime, 'c, 'f0, 'f1 + 1 as 'f1)
-      .window(Slide over 20.milli every 10.milli on 'proctime as 'w2)
+      .select('w1.proctime.as('proctime), 'c, 'f0, ('f1 + 1).as('f1))
+      .window(Slide.over(20.milli).every(10.milli).on('proctime).as('w2))
       .groupBy('w2)
       .flatAggregate(emptyFunc('f0))
       .select('w2.start, 'f1)
@@ -59,7 +58,7 @@ class GroupWindowTableAggregateTest extends TableTestBase {
   @Test
   def testTimeMaterializer(): Unit = {
     val windowedTable = table
-      .window(Tumble over 5.milli on 'd as 'w)
+      .window(Tumble.over(5.milli).on('d).as('w))
       .groupBy('w, 'e)
       .flatAggregate(emptyFunc('a, 'b))
       .select('f0, 'f1 + 1, 'w.start, 'w.end)

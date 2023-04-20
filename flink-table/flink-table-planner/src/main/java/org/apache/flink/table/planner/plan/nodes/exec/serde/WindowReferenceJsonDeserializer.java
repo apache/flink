@@ -40,10 +40,10 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.WindowReferen
  */
 @Deprecated
 @Internal
-public final class WindowReferenceJsonDeserializer extends StdDeserializer<WindowReference> {
+final class WindowReferenceJsonDeserializer extends StdDeserializer<WindowReference> {
     private static final long serialVersionUID = 1L;
 
-    protected WindowReferenceJsonDeserializer() {
+    WindowReferenceJsonDeserializer() {
         super(WindowReference.class);
     }
 

@@ -21,23 +21,14 @@ package org.apache.flink.api.java.typeutils.runtime;
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
 /** A {@link TypeSerializerUpgradeTestBase} for the {@link PojoSerializer}. */
-@RunWith(Parameterized.class)
-public class PojoSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Object> {
+class PojoSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Object> {
 
-    public PojoSerializerUpgradeTest(TestSpecification<Object, Object> testSpecification) {
-        super(testSpecification);
-    }
-
-    @Parameterized.Parameters(name = "Test Specification = {0}")
-    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
         // for PojoSerializer we also test against 1.7, 1.8, and 1.9 because we have snapshots
         // for this which go beyond what we have for the usual subclasses of

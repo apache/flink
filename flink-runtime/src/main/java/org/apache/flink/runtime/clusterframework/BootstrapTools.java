@@ -51,7 +51,7 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 public class BootstrapTools {
     /** Internal option which says if default value is used for {@link CoreOptions#TMP_DIRS}. */
     private static final ConfigOption<Boolean> USE_LOCAL_DEFAULT_TMP_DIRS =
-            key("internal.io.tmpdirs.use-local-default").defaultValue(false);
+            key("internal.io.tmpdirs.use-local-default").booleanType().defaultValue(false);
 
     private static final Logger LOG = LoggerFactory.getLogger(BootstrapTools.class);
 

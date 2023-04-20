@@ -47,18 +47,13 @@ under the License.
             <td>根据你的版本用恰当的 Kafka 连接器</td>
         </tr>
         <tr>
-            <td>AWS Kinesis Streams</td>
+            <td>Amazon Kinesis Data Streams</td>
             <td>精确一次</td>
             <td></td>
         </tr>
         <tr>
             <td>RabbitMQ</td>
             <td>至多一次 (v 0.10) / 精确一次 (v 1.0) </td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>Twitter Streaming API</td>
-            <td>至多一次</td>
             <td></td>
         </tr>
         <tr>
@@ -101,6 +96,11 @@ under the License.
         <td></td>
     </tr>
     <tr>
+        <td>Opensearch</td>
+        <td>至少一次</td>
+        <td></td>
+    </tr>
+    <tr>
         <td>Kafka producer</td>
         <td>至少一次 / 精确一次</td>
         <td>当使用事务生产者时，保证精确一次 (v 0.11+)</td>
@@ -111,7 +111,17 @@ under the License.
         <td>只有当更新是幂等时，保证精确一次</td>
     </tr>
     <tr>
-        <td>AWS Kinesis Streams</td>
+        <td>Amazon DynamoDB</td>
+        <td>至少一次</td>
+        <td></td>
+    </tr>
+        <tr>
+        <td>Amazon Kinesis Data Streams</td>
+        <td>至少一次</td>
+        <td></td>
+    </tr>
+        <tr>
+        <td>Amazon Kinesis Data Firehose</td>
         <td>至少一次</td>
         <td></td>
     </tr>

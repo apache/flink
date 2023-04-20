@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.api.TableException
@@ -31,10 +30,10 @@ import org.apache.flink.table.runtime.operators.rank.RankType
 
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.{RelNode, SingleRel}
 import org.apache.calcite.rel.convert.Converter
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata._
-import org.apache.calcite.rel.{RelNode, SingleRel}
 import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
@@ -45,9 +44,9 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
-  * FlinkRelMdColumnUniqueness supplies a implementation of
-  * [[RelMetadataQuery#areColumnsUnique]] for the standard logical algebra.
-  */
+ * FlinkRelMdColumnUniqueness supplies a implementation of [[RelMetadataQuery#areColumnsUnique]] for
+ * the standard logical algebra.
+ */
 class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata.ColumnUniqueness] {
 
   def getDef: MetadataDef[BuiltInMetadata.ColumnUniqueness] = BuiltInMetadata.ColumnUniqueness.DEF
@@ -83,18 +82,20 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
     if (rel.tuples.size < 2) {
       return true
     }
-    columns.foreach { idx =>
-      val columnValues = rel.tuples map { tuple =>
-        val literal = tuple.get(idx)
-        if (literal.isNull) {
-          NullSentinel.INSTANCE
-        } else {
-          literal.getValueAs(classOf[Comparable[_]])
+    columns.foreach {
+      idx =>
+        val columnValues = rel.tuples.map {
+          tuple =>
+            val literal = tuple.get(idx)
+            if (literal.isNull) {
+              NullSentinel.INSTANCE
+            } else {
+              literal.getValueAs(classOf[Comparable[_]])
+            }
         }
-      }
-      if (columnValues.toSet.size == columnValues.size) {
-        return true
-      }
+        if (columnValues.toSet.size == columnValues.size) {
+          return true
+        }
     }
     false
   }
@@ -121,17 +122,20 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
       ignoreNulls: Boolean): JBoolean = mq.areColumnsUnique(rel.getInput, columns, ignoreNulls)
 
   /**
-    * Determines whether a specified set of columns from a Calc relational expression are unique.
-    *
-    * @param rel         the Calc relational expression
-    * @param mq          metadata query instance
-    * @param columns     column mask representing the subset of columns for which
-    *                    uniqueness will be determined
-    * @param ignoreNulls if true, ignore null values when determining column
-    *                    uniqueness
-    * @return whether the columns are unique, or
-    *         null if not enough information is available to make that determination
-    */
+   * Determines whether a specified set of columns from a Calc relational expression are unique.
+   *
+   * @param rel
+   *   the Calc relational expression
+   * @param mq
+   *   metadata query instance
+   * @param columns
+   *   column mask representing the subset of columns for which uniqueness will be determined
+   * @param ignoreNulls
+   *   if true, ignore null values when determining column uniqueness
+   * @return
+   *   whether the columns are unique, or null if not enough information is available to make that
+   *   determination
+   */
   def areColumnsUnique(
       rel: Calc,
       mq: RelMetadataQuery,
@@ -157,36 +161,38 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
       ignoreNulls: Boolean,
       originalNode: SingleRel): JBoolean = {
     val childColumns = ImmutableBitSet.builder
-    columns.foreach { idx =>
-      val project = projects.get(idx)
-      project match {
-        case inputRef: RexInputRef => childColumns.set(inputRef.getIndex)
-        case asCall: RexCall if asCall.getKind.equals(SqlKind.AS) &&
-          asCall.getOperands.get(0).isInstanceOf[RexInputRef] =>
-          childColumns.set(asCall.getOperands.get(0).asInstanceOf[RexInputRef].getIndex)
-        case call: RexCall if ignoreNulls =>
-          // If the expression is a cast such that the types are the same
-          // except for the nullability, then if we're ignoring nulls,
-          // it doesn't matter whether the underlying column reference
-          // is nullable.  Check that the types are the same by making a
-          // nullable copy of both types and then comparing them.
-          if (call.getOperator eq SqlStdOperatorTable.CAST) {
-            val castOperand = call.getOperands.get(0)
-            castOperand match {
-              case castRef: RexInputRef =>
-                val typeFactory = originalNode.getCluster.getTypeFactory
-                val castType = typeFactory.createTypeWithNullability(project.getType, true)
-                val origType = typeFactory.createTypeWithNullability(castOperand.getType, true)
-                if (castType == origType) {
-                  childColumns.set(castRef.getIndex)
-                }
-              case _ => // ignore
+    columns.foreach {
+      idx =>
+        val project = projects.get(idx)
+        project match {
+          case inputRef: RexInputRef => childColumns.set(inputRef.getIndex)
+          case asCall: RexCall
+              if asCall.getKind.equals(SqlKind.AS) &&
+                asCall.getOperands.get(0).isInstanceOf[RexInputRef] =>
+            childColumns.set(asCall.getOperands.get(0).asInstanceOf[RexInputRef].getIndex)
+          case call: RexCall if ignoreNulls =>
+            // If the expression is a cast such that the types are the same
+            // except for the nullability, then if we're ignoring nulls,
+            // it doesn't matter whether the underlying column reference
+            // is nullable.  Check that the types are the same by making a
+            // nullable copy of both types and then comparing them.
+            if (call.getOperator eq SqlStdOperatorTable.CAST) {
+              val castOperand = call.getOperands.get(0)
+              castOperand match {
+                case castRef: RexInputRef =>
+                  val typeFactory = originalNode.getCluster.getTypeFactory
+                  val castType = typeFactory.createTypeWithNullability(project.getType, true)
+                  val origType = typeFactory.createTypeWithNullability(castOperand.getType, true)
+                  if (castType == origType) {
+                    childColumns.set(castRef.getIndex)
+                  }
+                case _ => // ignore
+              }
             }
-          }
-        case _ =>
-        // If the expression will not influence uniqueness of the
-        // projection, then skip it.
-      }
+          case _ =>
+          // If the expression will not influence uniqueness of the
+          // projection, then skip it.
+        }
     }
 
     // If no columns can affect uniqueness, then return unknown
@@ -337,7 +343,7 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
       columns: ImmutableBitSet,
       ignoreNulls: Boolean): JBoolean = null
 
-  private  def areColumnsUniqueOnAggregate(
+  private def areColumnsUniqueOnAggregate(
       grouping: Array[Int],
       mq: RelMetadataQuery,
       columns: ImmutableBitSet,
@@ -404,9 +410,7 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
       val begin = outputFieldCount - namedProperties.size
       val end = outputFieldCount - 1
       val keys = ImmutableBitSet.of(grouping.indices: _*)
-      (begin to end).map {
-        i => keys.union(ImmutableBitSet.of(i))
-      }.exists(columns.contains)
+      (begin to end).map(i => keys.union(ImmutableBitSet.of(i))).exists(columns.contains)
     } else {
       false
     }
@@ -438,10 +442,7 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
     val input = overAgg.getInput
     val inputFieldLength = input.getRowType.getFieldCount
     val columnsBelongsToInput = ImmutableBitSet.of(columns.filter(_ < inputFieldLength).toList)
-    val isSubColumnsUnique = mq.areColumnsUnique(
-      input,
-      columnsBelongsToInput,
-      ignoreNulls)
+    val isSubColumnsUnique = mq.areColumnsUnique(input, columnsBelongsToInput, ignoreNulls)
     if (isSubColumnsUnique != null && isSubColumnsUnique) {
       true
     } else if (columnsBelongsToInput.cardinality() < columns.cardinality()) {
@@ -499,11 +500,14 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
       ignoreNulls: Boolean): JBoolean = {
     val left = join.getInput
     areColumnsUniqueOfJoin(
-      join.joinInfo, join.joinType, left.getRowType,
+      join.joinInfo,
+      join.joinType,
+      left.getRowType,
       (leftSet: ImmutableBitSet) => mq.areColumnsUnique(left, leftSet, ignoreNulls),
       // TODO get uniqueKeys from TableSchema of TableSource
       (_: ImmutableBitSet) => null,
-      mq, columns
+      mq,
+      columns
     )
   }
 
@@ -521,7 +525,7 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
     // Divide up the input column mask into column masks for the left and
     // right sides of the join
     val (leftColumns, rightColumns) =
-    FlinkRelMdUtil.splitColumnsIntoLeftAndRight(leftRowType.getFieldCount, columns)
+      FlinkRelMdUtil.splitColumnsIntoLeftAndRight(leftRowType.getFieldCount, columns)
 
     // If the original column mask contains columns from both the left and
     // right hand side, then the columns are unique if and only if they're
@@ -531,8 +535,7 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
     if ((leftColumns.cardinality > 0) && (rightColumns.cardinality > 0)) {
       if ((leftUnique == null) || (rightUnique == null)) {
         return null
-      }
-      else {
+      } else {
         return leftUnique && rightUnique
       }
     }
@@ -591,8 +594,9 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
         } else {
           null
         }
-      case _ => throw new TableException(
-        s"Unknown join type ${rel.getJoinType} for correlate relation $rel")
+      case _ =>
+        throw new TableException(
+          s"Unknown join type ${rel.getJoinType} for correlate relation $rel")
     }
   }
 
@@ -626,11 +630,12 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
     if (areColumnsUnique(rel.asInstanceOf[SetOp], mq, columns, ignoreNulls)) {
       return true
     }
-    rel.getInputs foreach { input =>
-      val unique = mq.areColumnsUnique(input, columns, ignoreNulls)
-      if (unique != null && unique) {
-        return true
-      }
+    rel.getInputs.foreach {
+      input =>
+        val unique = mq.areColumnsUnique(input, columns, ignoreNulls)
+        if (unique != null && unique) {
+          return true
+        }
     }
     false
   }
@@ -648,19 +653,23 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
   }
 
   /**
-    * Determines whether a specified set of columns from a RelSubSet relational expression are
-    * unique.
-    *
-    * FIX BUG in <a href="https://issues.apache.org/jira/browse/CALCITE-2134">[CALCITE-2134] </a>
-    *
-    * @param subset      the RelSubSet relational expression
-    * @param mq          metadata query instance
-    * @param columns     column mask representing the subset of columns for which
-    *                    uniqueness will be determined
-    * @param ignoreNulls if true, ignore null values when determining column uniqueness
-    * @return whether the columns are unique, or
-    *         null if not enough information is available to make that determination
-    */
+   * Determines whether a specified set of columns from a RelSubSet relational expression are
+   * unique.
+   *
+   * FIX BUG in <a href="https://issues.apache.org/jira/browse/CALCITE-2134">[CALCITE-2134] </a>
+   *
+   * @param subset
+   *   the RelSubSet relational expression
+   * @param mq
+   *   metadata query instance
+   * @param columns
+   *   column mask representing the subset of columns for which uniqueness will be determined
+   * @param ignoreNulls
+   *   if true, ignore null values when determining column uniqueness
+   * @return
+   *   whether the columns are unique, or null if not enough information is available to make that
+   *   determination
+   */
   def areColumnsUnique(
       subset: RelSubset,
       mq: RelMetadataQuery,
@@ -676,8 +685,8 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
         // NOTE: If add estimation uniqueness for new RelNode type e.g. Rank / Expand,
         // add the RelNode to pattern matching in RelSubset.
         case _: Aggregate | _: Filter | _: Values | _: TableScan | _: Project | _: Correlate |
-             _: Join | _: Exchange | _: Sort | _: SetOp | _: Calc | _: Converter | _: Window |
-             _: Expand | _: Rank | _: FlinkRelNode =>
+            _: Join | _: Exchange | _: Sort | _: SetOp | _: Calc | _: Converter | _: Window |
+            _: Expand | _: Rank | _: FlinkRelNode =>
           try {
             val unique = mq.areColumnsUnique(rel, columns, ignoreNulls)
             if (unique != null) {
@@ -687,8 +696,7 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
             } else {
               nullCount += 1
             }
-          }
-          catch {
+          } catch {
             case _: CyclicMetadataException =>
             // Ignore this relational expression; there will be non-cyclic ones in this set.
           }
@@ -700,21 +708,25 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
   }
 
   /**
-    * Catch-all implementation for
-    * [[BuiltInMetadata.ColumnUniqueness#areColumnsUnique(ImmutableBitSet, boolean)]],
-    * invoked using reflection, for any relational expression not
-    * handled by a more specific method.
-    *
-    * @param rel         Relational expression
-    * @param mq          Metadata query
-    * @param columns     column mask representing the subset of columns for which
-    *                    uniqueness will be determined
-    * @param ignoreNulls if true, ignore null values when determining column uniqueness
-    * @return whether the columns are unique, or
-    *         null if not enough information is available to make that determination
-    * @see org.apache.calcite.rel.metadata.RelMetadataQuery#areColumnsUnique(
-    *      RelNode, ImmutableBitSet, boolean)
-    */
+   * Catch-all implementation for
+   * [[BuiltInMetadata.ColumnUniqueness#areColumnsUnique(ImmutableBitSet, boolean)]], invoked using
+   * reflection, for any relational expression not handled by a more specific method.
+   *
+   * @param rel
+   *   Relational expression
+   * @param mq
+   *   Metadata query
+   * @param columns
+   *   column mask representing the subset of columns for which uniqueness will be determined
+   * @param ignoreNulls
+   *   if true, ignore null values when determining column uniqueness
+   * @return
+   *   whether the columns are unique, or null if not enough information is available to make that
+   *   determination
+   * @see
+   *   org.apache.calcite.rel.metadata.RelMetadataQuery#areColumnsUnique( RelNode, ImmutableBitSet,
+   *   boolean)
+   */
   def areColumnsUnique(
       rel: RelNode,
       mq: RelMetadataQuery,
@@ -727,7 +739,7 @@ object FlinkRelMdColumnUniqueness {
 
   private val INSTANCE = new FlinkRelMdColumnUniqueness
 
-  val SOURCE: RelMetadataProvider = ReflectiveRelMetadataProvider.reflectiveSource(
-    BuiltInMethod.COLUMN_UNIQUENESS.method, INSTANCE)
+  val SOURCE: RelMetadataProvider =
+    ReflectiveRelMetadataProvider.reflectiveSource(BuiltInMethod.COLUMN_UNIQUENESS.method, INSTANCE)
 
 }

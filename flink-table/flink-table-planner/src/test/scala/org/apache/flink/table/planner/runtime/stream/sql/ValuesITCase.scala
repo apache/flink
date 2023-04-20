@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.streaming.api.scala._
@@ -35,9 +34,7 @@ class ValuesITCase extends StreamingTestBase {
 
     val sqlQuery = "SELECT * FROM (VALUES (1, 'Bob'), (1, 'Alice')) T(a, b)"
 
-    val outputType = InternalTypeInfo.ofFields(
-      new IntType(),
-      new VarCharType(5))
+    val outputType = InternalTypeInfo.ofFields(new IntType(), new VarCharType(5))
 
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[RowData]
     val sink = new TestingAppendRowDataSink(outputType)

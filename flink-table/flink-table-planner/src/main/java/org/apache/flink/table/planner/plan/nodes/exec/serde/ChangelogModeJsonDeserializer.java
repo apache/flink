@@ -18,11 +18,11 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.types.RowKind;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
@@ -30,20 +30,22 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std
 import java.io.IOException;
 
 /**
- * JSON deserializer for {@link ChangelogMode}. refer to {@link ChangelogModeJsonSerializer} for
- * serializer.
+ * JSON deserializer for {@link ChangelogMode}.
+ *
+ * @see ChangelogModeJsonSerializer for the reverse operation
  */
-public class ChangelogModeJsonDeserializer extends StdDeserializer<ChangelogMode> {
+@Internal
+final class ChangelogModeJsonDeserializer extends StdDeserializer<ChangelogMode> {
     private static final long serialVersionUID = 1L;
 
-    public ChangelogModeJsonDeserializer() {
+    ChangelogModeJsonDeserializer() {
         super(ChangelogMode.class);
     }
 
     @Override
     public ChangelogMode deserialize(
             JsonParser jsonParser, DeserializationContext deserializationContext)
-            throws IOException, JsonProcessingException {
+            throws IOException {
         ChangelogMode.Builder builder = ChangelogMode.newBuilder();
         JsonNode rowKindsNode = jsonParser.readValueAsTree();
         for (JsonNode rowKindNode : rowKindsNode) {

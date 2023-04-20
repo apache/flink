@@ -46,6 +46,8 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 
+import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
+
 /** Integration tests for Hadoop IO formats. */
 @RunWith(Parameterized.class)
 public class HadoopIOFormatsITCase extends JavaProgramTestBase {

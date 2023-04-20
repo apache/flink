@@ -78,7 +78,7 @@ public class BufferTimeoutITCase extends AbstractTestBase {
 
         final JobClient jobClient = env.executeAsync();
         CommonTestUtils.waitForAllTaskRunning(
-                miniClusterResource.getMiniCluster(), jobClient.getJobID(), false);
+                MINI_CLUSTER_RESOURCE.getMiniCluster(), jobClient.getJobID(), false);
 
         assertTrue(
                 RecordWriter.DEFAULT_OUTPUT_FLUSH_THREAD_NAME + " thread is unexpectedly running",

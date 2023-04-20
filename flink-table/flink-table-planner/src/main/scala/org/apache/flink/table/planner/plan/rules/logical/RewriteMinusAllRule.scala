@@ -15,14 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable.GREATER_THAN
 import org.apache.flink.table.planner.plan.utils.SetOpRewriteUtil.replicateRows
 
-import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.rel.core.{Minus, RelFactories}
 import org.apache.calcite.sql.`type`.SqlTypeName.BIGINT
 import org.apache.calcite.util.Util
@@ -30,39 +29,40 @@ import org.apache.calcite.util.Util
 import scala.collection.JavaConversions._
 
 /**
-  * Replaces logical [[Minus]] operator using a combination of union all, aggregate
-  * and table function.
-  *
-  * Original Query :
-  * {{{
-  *    SELECT c1 FROM ut1 EXCEPT ALL SELECT c1 FROM ut2
-  * }}}
-  *
-  * Rewritten Query:
-  * {{{
-  *   SELECT c1
-  *   FROM (
-  *     SELECT c1, sum_val
-  *     FROM (
-  *       SELECT c1, sum(vcol_marker) AS sum_val
-  *       FROM (
-  *         SELECT c1, 1L as vcol_marker FROM ut1
-  *         UNION ALL
-  *         SELECT c1, -1L as vcol_marker FROM ut2
-  *       ) AS union_all
-  *       GROUP BY union_all.c1
-  *     )
-  *     WHERE sum_val > 0
-  *   )
-  *   LATERAL TABLE(replicate_row(sum_val, c1)) AS T(c1)
-  * }}}
-  *
-  * Only handle the case of input size 2.
-  */
-class RewriteMinusAllRule extends RelOptRule(
-  operand(classOf[Minus], any),
-  RelFactories.LOGICAL_BUILDER,
-  "RewriteMinusAllRule") {
+ * Replaces logical [[Minus]] operator using a combination of union all, aggregate and table
+ * function.
+ *
+ * Original Query :
+ * {{{
+ *    SELECT c1 FROM ut1 EXCEPT ALL SELECT c1 FROM ut2
+ * }}}
+ *
+ * Rewritten Query:
+ * {{{
+ *   SELECT c1
+ *   FROM (
+ *     SELECT c1, sum_val
+ *     FROM (
+ *       SELECT c1, sum(vcol_marker) AS sum_val
+ *       FROM (
+ *         SELECT c1, 1L as vcol_marker FROM ut1
+ *         UNION ALL
+ *         SELECT c1, -1L as vcol_marker FROM ut2
+ *       ) AS union_all
+ *       GROUP BY union_all.c1
+ *     )
+ *     WHERE sum_val > 0
+ *   )
+ *   LATERAL TABLE(replicate_row(sum_val, c1)) AS T(c1)
+ * }}}
+ *
+ * Only handle the case of input size 2.
+ */
+class RewriteMinusAllRule
+  extends RelOptRule(
+    operand(classOf[Minus], any),
+    RelFactories.LOGICAL_BUILDER,
+    "RewriteMinusAllRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val minus: Minus = call.rel(0)
@@ -79,35 +79,30 @@ class RewriteMinusAllRule extends RelOptRule(
     // 1. add vcol_marker to left rel node
     val leftBuilder = call.builder
     val leftWithAddedVirtualCols = leftBuilder
-        .push(left)
-        .project(leftBuilder.fields(fields) ++
-            Seq(leftBuilder.alias(
-              leftBuilder.cast(leftBuilder.literal(1L), BIGINT), "vcol_marker")))
-        .build()
+      .push(left)
+      .project(leftBuilder.fields(fields) ++
+        Seq(leftBuilder.alias(leftBuilder.cast(leftBuilder.literal(1L), BIGINT), "vcol_marker")))
+      .build()
 
     // 2. add vcol_marker to right rel node
     val rightBuilder = call.builder
     val rightWithAddedVirtualCols = rightBuilder
-        .push(right)
-        .project(rightBuilder.fields(fields) ++
-            Seq(rightBuilder.alias(
-              leftBuilder.cast(leftBuilder.literal(-1L), BIGINT), "vcol_marker")))
-        .build()
+      .push(right)
+      .project(rightBuilder.fields(fields) ++
+        Seq(rightBuilder.alias(leftBuilder.cast(leftBuilder.literal(-1L), BIGINT), "vcol_marker")))
+      .build()
 
     // 3. add union all and aggregate
     val builder = call.builder
     builder
-        .push(leftWithAddedVirtualCols)
-        .push(rightWithAddedVirtualCols)
-        .union(true)
-        .aggregate(
-          builder.groupKey(builder.fields(fields)),
-          builder.sum(false, "sum_vcol_marker", builder.field("vcol_marker")))
-        .filter(builder.call(
-          GREATER_THAN,
-          builder.field("sum_vcol_marker"),
-          builder.literal(0)))
-        .project(Seq(builder.field("sum_vcol_marker")) ++ builder.fields(fields))
+      .push(leftWithAddedVirtualCols)
+      .push(rightWithAddedVirtualCols)
+      .union(true)
+      .aggregate(
+        builder.groupKey(builder.fields(fields)),
+        builder.sum(false, "sum_vcol_marker", builder.field("vcol_marker")))
+      .filter(builder.call(GREATER_THAN, builder.field("sum_vcol_marker"), builder.literal(0)))
+      .project(Seq(builder.field("sum_vcol_marker")) ++ builder.fields(fields))
 
     // 4. add table function to replicate rows
     val output = replicateRows(builder, minus.getRowType, fields)

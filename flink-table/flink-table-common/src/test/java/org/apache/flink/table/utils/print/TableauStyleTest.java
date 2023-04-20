@@ -30,7 +30,7 @@ import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintWriter;
@@ -42,24 +42,25 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link TableauStyle}. */
-public class TableauStyleTest {
+class TableauStyleTest {
     private final ByteArrayOutputStream outContent = new ByteArrayOutputStream();
 
     @Test
-    public void testCharFullWidth() {
+    void testCharFullWidth() {
         char[] chars = new char[] {'A', 'a', ',', '中', '，', 'こ'};
         boolean[] expected = new boolean[] {false, false, false, true, true, true};
 
         for (int i = 0; i < chars.length; i++) {
-            assertEquals(expected[i], TableauStyle.isFullWidth(Character.codePointAt(chars, i)));
+            assertThat(TableauStyle.isFullWidth(Character.codePointAt(chars, i)))
+                    .isEqualTo(expected[i]);
         }
     }
 
     @Test
-    public void testStringDisplayWidth() {
+    void testStringDisplayWidth() {
         List<String> data =
                 Arrays.asList(
                         "abcdefg,12345,ABC",
@@ -69,20 +70,20 @@ public class TableauStyleTest {
         int[] expected = new int[] {17, 37, 12, 36};
 
         for (int i = 0; i < data.size(); i++) {
-            assertEquals(expected[i], TableauStyle.getStringDisplayWidth(data.get(i)));
+            assertThat(TableauStyle.getStringDisplayWidth(data.get(i))).isEqualTo(expected[i]);
         }
     }
 
     @Test
-    public void testPrintWithEmptyResult() {
+    void testPrintWithEmptyResult() {
         PrintStyle.tableauWithDataInferredColumnWidths(getSchema(), getConverter())
                 .print(Collections.emptyIterator(), new PrintWriter(outContent));
 
-        assertEquals("Empty set" + System.lineSeparator(), outContent.toString());
+        assertThat(outContent.toString()).isEqualTo("Empty set" + System.lineSeparator());
     }
 
     @Test
-    public void testPrintWithEmptyResultAndRowKind() {
+    void testPrintWithEmptyResultAndRowKind() {
         PrintStyle.tableauWithTypeInferredColumnWidths(
                         getSchema(),
                         getConverter(),
@@ -91,11 +92,11 @@ public class TableauStyleTest {
                         true)
                 .print(Collections.emptyIterator(), new PrintWriter(outContent));
 
-        assertEquals("Empty set" + System.lineSeparator(), outContent.toString());
+        assertThat(outContent.toString()).isEqualTo("Empty set" + System.lineSeparator());
     }
 
     @Test
-    public void testPrintWithEmptyResultAndDeriveColumnWidthByContent() {
+    void testPrintWithEmptyResultAndDeriveColumnWidthByContent() {
         PrintStyle.tableauWithTypeInferredColumnWidths(
                         getSchema(),
                         getConverter(),
@@ -104,11 +105,11 @@ public class TableauStyleTest {
                         false)
                 .print(Collections.emptyIterator(), new PrintWriter(outContent));
 
-        assertEquals("Empty set" + System.lineSeparator(), outContent.toString());
+        assertThat(outContent.toString()).isEqualTo("Empty set" + System.lineSeparator());
     }
 
     @Test
-    public void testPrintWithMultipleRows() {
+    void testPrintWithMultipleRows() {
         PrintStyle.tableauWithDataInferredColumnWidths(getSchema(), getConverter())
                 .print(getData().iterator(), new PrintWriter(outContent));
 
@@ -120,38 +121,38 @@ public class TableauStyleTest {
         // The last row of `varchar` value will pad with two ' ' before the column.
         // Because the length of `これは日本語をテストするた` plus the length of `...` is 29,
         // no more Japanese character can be added to the line.
-        assertEquals(
-                "+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
-                        + System.lineSeparator()
-                        + "| boolean |         int |               bigint |                        varchar | decimal(10, 5) |                  timestamp |"
-                        + System.lineSeparator()
-                        + "+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
-                        + System.lineSeparator()
-                        + "|  <NULL> |           1 |                    2 |                            abc |        1.23000 | 2020-03-01 18:39:14.000000 |"
-                        + System.lineSeparator()
-                        + "|   false |      <NULL> |                    0 |                                |        1.00000 | 2020-03-01 18:39:14.100000 |"
-                        + System.lineSeparator()
-                        + "|    true |  2147483647 |               <NULL> |                        abcdefg |    12345.00000 | 2020-03-01 18:39:14.120000 |"
-                        + System.lineSeparator()
-                        + "|   false | -2147483648 |  9223372036854775807 |                         <NULL> |    12345.06789 | 2020-03-01 18:39:14.123000 |"
-                        + System.lineSeparator()
-                        + "|    true |         100 | -9223372036854775808 |                     abcdefg111 |         <NULL> | 2020-03-01 18:39:14.123456 |"
-                        + System.lineSeparator()
-                        + "|  <NULL> |          -1 |                   -1 | abcdefghijklmnopqrstuvwxyza... |   -12345.06789 |                     <NULL> |"
-                        + System.lineSeparator()
-                        + "|  <NULL> |          -1 |                   -1 |                   这是一段中文 |   -12345.06789 | 2020-03-04 18:39:14.000000 |"
-                        + System.lineSeparator()
-                        + "|  <NULL> |          -1 |                   -1 |  これは日本語をテストするた... |   -12345.06789 | 2020-03-04 18:39:14.000000 |"
-                        + System.lineSeparator()
-                        + "+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
-                        + System.lineSeparator()
-                        + "8 rows in set"
-                        + System.lineSeparator(),
-                outContent.toString());
+        assertThat(outContent.toString())
+                .isEqualTo(
+                        "+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
+                                + System.lineSeparator()
+                                + "| boolean |         int |               bigint |                        varchar | decimal(10, 5) |                  timestamp |"
+                                + System.lineSeparator()
+                                + "+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
+                                + System.lineSeparator()
+                                + "|  <NULL> |           1 |                    2 |                            abc |        1.23000 | 2020-03-01 18:39:14.000000 |"
+                                + System.lineSeparator()
+                                + "|   false |      <NULL> |                    0 |                                |        1.00000 | 2020-03-01 18:39:14.100000 |"
+                                + System.lineSeparator()
+                                + "|    true |  2147483647 |               <NULL> |                        abcdefg |    12345.00000 | 2020-03-01 18:39:14.120000 |"
+                                + System.lineSeparator()
+                                + "|   false | -2147483648 |  9223372036854775807 |                         <NULL> |    12345.06789 | 2020-03-01 18:39:14.123000 |"
+                                + System.lineSeparator()
+                                + "|    true |         100 | -9223372036854775808 |                     abcdefg111 |         <NULL> | 2020-03-01 18:39:14.123456 |"
+                                + System.lineSeparator()
+                                + "|  <NULL> |          -1 |                   -1 | abcdefghijklmnopqrstuvwxyza... |   -12345.06789 |                     <NULL> |"
+                                + System.lineSeparator()
+                                + "|  <NULL> |          -1 |                   -1 |                   这是一段中文 |   -12345.06789 | 2020-03-04 18:39:14.000000 |"
+                                + System.lineSeparator()
+                                + "|  <NULL> |          -1 |                   -1 |  これは日本語をテストするた... |   -12345.06789 | 2020-03-04 18:39:14.000000 |"
+                                + System.lineSeparator()
+                                + "+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
+                                + System.lineSeparator()
+                                + "8 rows in set"
+                                + System.lineSeparator());
     }
 
     @Test
-    public void testPrintWithMultipleRowsAndRowKind() {
+    void testPrintWithMultipleRowsAndRowKind() {
         PrintStyle.tableauWithTypeInferredColumnWidths(
                         getSchema(),
                         getConverter(),
@@ -168,38 +169,38 @@ public class TableauStyleTest {
         // The last row of `varchar` value will pad with two ' ' before the column.
         // Because the length of `これは日本語をテストするた` plus the length of `...` is 29,
         // no more Japanese character can be added to the line.
-        assertEquals(
-                "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
-                        + System.lineSeparator()
-                        + "| op | boolean |         int |               bigint |                        varchar | decimal(10, 5) |                  timestamp |"
-                        + System.lineSeparator()
-                        + "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
-                        + System.lineSeparator()
-                        + "| +I |         |           1 |                    2 |                            abc |        1.23000 | 2020-03-01 18:39:14.000000 |"
-                        + System.lineSeparator()
-                        + "| +I |   false |             |                    0 |                                |        1.00000 | 2020-03-01 18:39:14.100000 |"
-                        + System.lineSeparator()
-                        + "| -D |    true |  2147483647 |                      |                        abcdefg |    12345.00000 | 2020-03-01 18:39:14.120000 |"
-                        + System.lineSeparator()
-                        + "| +I |   false | -2147483648 |  9223372036854775807 |                                |    12345.06789 | 2020-03-01 18:39:14.123000 |"
-                        + System.lineSeparator()
-                        + "| +I |    true |         100 | -9223372036854775808 |                     abcdefg111 |                | 2020-03-01 18:39:14.123456 |"
-                        + System.lineSeparator()
-                        + "| -U |         |          -1 |                   -1 | abcdefghijklmnopqrstuvwxyza... |   -12345.06789 |                            |"
-                        + System.lineSeparator()
-                        + "| +U |         |          -1 |                   -1 |                   这是一段中文 |   -12345.06789 | 2020-03-04 18:39:14.000000 |"
-                        + System.lineSeparator()
-                        + "| -D |         |          -1 |                   -1 |  これは日本語をテストするた... |   -12345.06789 | 2020-03-04 18:39:14.000000 |"
-                        + System.lineSeparator()
-                        + "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
-                        + System.lineSeparator()
-                        + "8 rows in set"
-                        + System.lineSeparator(),
-                outContent.toString());
+        assertThat(outContent.toString())
+                .isEqualTo(
+                        "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
+                                + System.lineSeparator()
+                                + "| op | boolean |         int |               bigint |                        varchar | decimal(10, 5) |                  timestamp |"
+                                + System.lineSeparator()
+                                + "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
+                                + System.lineSeparator()
+                                + "| +I |         |           1 |                    2 |                            abc |        1.23000 | 2020-03-01 18:39:14.000000 |"
+                                + System.lineSeparator()
+                                + "| +I |   false |             |                    0 |                                |        1.00000 | 2020-03-01 18:39:14.100000 |"
+                                + System.lineSeparator()
+                                + "| -D |    true |  2147483647 |                      |                        abcdefg |    12345.00000 | 2020-03-01 18:39:14.120000 |"
+                                + System.lineSeparator()
+                                + "| +I |   false | -2147483648 |  9223372036854775807 |                                |    12345.06789 | 2020-03-01 18:39:14.123000 |"
+                                + System.lineSeparator()
+                                + "| +I |    true |         100 | -9223372036854775808 |                     abcdefg111 |                | 2020-03-01 18:39:14.123456 |"
+                                + System.lineSeparator()
+                                + "| -U |         |          -1 |                   -1 | abcdefghijklmnopqrstuvwxyza... |   -12345.06789 |                            |"
+                                + System.lineSeparator()
+                                + "| +U |         |          -1 |                   -1 |                   这是一段中文 |   -12345.06789 | 2020-03-04 18:39:14.000000 |"
+                                + System.lineSeparator()
+                                + "| -D |         |          -1 |                   -1 |  これは日本語をテストするた... |   -12345.06789 | 2020-03-04 18:39:14.000000 |"
+                                + System.lineSeparator()
+                                + "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
+                                + System.lineSeparator()
+                                + "8 rows in set"
+                                + System.lineSeparator());
     }
 
     @Test
-    public void testPrintWithMultipleRowsAndDeriveColumnWidthByContent() {
+    void testPrintWithMultipleRowsAndDeriveColumnWidthByContent() {
         PrintStyle.tableauWithDataInferredColumnWidths(
                         getSchema(),
                         getConverter(),
@@ -208,24 +209,24 @@ public class TableauStyleTest {
                         true)
                 .print(getData().subList(0, 3).iterator(), new PrintWriter(outContent));
 
-        assertEquals(
-                "+----+---------+------------+--------+---------+----------------+----------------------------+"
-                        + System.lineSeparator()
-                        + "| op | boolean |        int | bigint | varchar | decimal(10, 5) |                  timestamp |"
-                        + System.lineSeparator()
-                        + "+----+---------+------------+--------+---------+----------------+----------------------------+"
-                        + System.lineSeparator()
-                        + "| +I |         |          1 |      2 |     abc |        1.23000 | 2020-03-01 18:39:14.000000 |"
-                        + System.lineSeparator()
-                        + "| +I |   false |            |      0 |         |        1.00000 | 2020-03-01 18:39:14.100000 |"
-                        + System.lineSeparator()
-                        + "| -D |    true | 2147483647 |        | abcdefg |    12345.00000 | 2020-03-01 18:39:14.120000 |"
-                        + System.lineSeparator()
-                        + "+----+---------+------------+--------+---------+----------------+----------------------------+"
-                        + System.lineSeparator()
-                        + "3 rows in set"
-                        + System.lineSeparator(),
-                outContent.toString());
+        assertThat(outContent.toString())
+                .isEqualTo(
+                        "+----+---------+------------+--------+---------+----------------+----------------------------+"
+                                + System.lineSeparator()
+                                + "| op | boolean |        int | bigint | varchar | decimal(10, 5) |                  timestamp |"
+                                + System.lineSeparator()
+                                + "+----+---------+------------+--------+---------+----------------+----------------------------+"
+                                + System.lineSeparator()
+                                + "| +I |         |          1 |      2 |     abc |        1.23000 | 2020-03-01 18:39:14.000000 |"
+                                + System.lineSeparator()
+                                + "| +I |   false |            |      0 |         |        1.00000 | 2020-03-01 18:39:14.100000 |"
+                                + System.lineSeparator()
+                                + "| -D |    true | 2147483647 |        | abcdefg |    12345.00000 | 2020-03-01 18:39:14.120000 |"
+                                + System.lineSeparator()
+                                + "+----+---------+------------+--------+---------+----------------+----------------------------+"
+                                + System.lineSeparator()
+                                + "3 rows in set"
+                                + System.lineSeparator());
     }
 
     private ResolvedSchema getSchema() {

@@ -15,21 +15,16 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import sys
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar, List, Iterable
 
-from apache_beam.coders import Coder
-
+from pyflink.common.constants import MAX_LONG_VALUE
 from pyflink.datastream.state import StateDescriptor, State, ValueStateDescriptor, \
     ListStateDescriptor, MapStateDescriptor
 from pyflink.datastream.window import TimeWindow, CountWindow
-from pyflink.fn_execution.datastream.timerservice_impl import LegacyInternalTimerServiceImpl
+from pyflink.fn_execution.datastream.process.timerservice_impl import LegacyInternalTimerServiceImpl
 from pyflink.fn_execution.coders import from_type_info, MapCoder, GenericArrayCoder
 from pyflink.fn_execution.internal_state import InternalMergingState
-from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
-
-MAX_LONG_VALUE = sys.maxsize
 
 K = TypeVar('K')
 W = TypeVar('W', TimeWindow, CountWindow)
@@ -119,8 +114,8 @@ class WindowContext(Context[K, W]):
     def __init__(self,
                  window_operator,
                  trigger_context: 'TriggerContext',
-                 state_backend: RemoteKeyedStateBackend,
-                 state_value_coder: Coder,
+                 state_backend,
+                 state_value_coder,
                  timer_service: LegacyInternalTimerServiceImpl,
                  is_event_time: bool):
         self._window_operator = window_operator
@@ -183,7 +178,7 @@ class TriggerContext(object):
     def __init__(self,
                  trigger,
                  timer_service: LegacyInternalTimerServiceImpl[W],
-                 state_backend: RemoteKeyedStateBackend):
+                 state_backend):
         self._trigger = trigger
         self._timer_service = timer_service
         self._state_backend = state_backend

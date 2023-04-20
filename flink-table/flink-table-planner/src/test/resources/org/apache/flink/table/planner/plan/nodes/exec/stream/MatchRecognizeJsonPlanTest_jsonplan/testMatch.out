@@ -1,31 +1,53 @@
 {
   "flinkVersion" : "",
   "nodes" : [ {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
+    "id" : 1,
+    "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
-      "identifier" : {
-        "catalogName" : "default_catalog",
-        "databaseName" : "default_database",
-        "tableName" : "MyTable"
-      },
-      "catalogTable" : {
-        "schema.2.expr" : "PROCTIME()",
-        "schema.2.data-type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL",
-        "connector" : "values",
-        "schema.0.data-type" : "BIGINT",
-        "schema.2.name" : "proctime",
-        "schema.1.name" : "name",
-        "bounded" : "false",
-        "schema.0.name" : "id",
-        "schema.1.data-type" : "VARCHAR(2147483647)"
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`MyTable`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "id",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "name",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "proctime",
+              "kind" : "COMPUTED",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "CALL",
+                  "internalName" : "$PROCTIME$1",
+                  "operands" : [ ],
+                  "type" : {
+                    "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+                    "nullable" : false,
+                    "precision" : 3,
+                    "kind" : "PROCTIME"
+                  }
+                },
+                "serializableString" : "PROCTIME()"
+              }
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ],
+          "options" : {
+            "connector" : "values",
+            "bounded" : "false"
+          }
+        }
       }
     },
-    "id" : 1,
     "outputType" : "ROW<`id` BIGINT, `name` VARCHAR(2147483647)>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[id, name])",
     "inputProperties" : [ ]
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "id" : 2,
+    "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
@@ -35,12 +57,8 @@
       "inputIndex" : 1,
       "type" : "VARCHAR(2147483647)"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "PROCTIME",
-        "kind" : "OTHER_FUNCTION",
-        "syntax" : "FUNCTION"
-      },
+      "kind" : "CALL",
+      "internalName" : "$PROCTIME$1",
       "operands" : [ ],
       "type" : {
         "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
@@ -50,7 +68,6 @@
       }
     } ],
     "condition" : null,
-    "id" : 2,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -78,8 +95,8 @@
     },
     "description" : "Calc(select=[id, name, PROCTIME() AS proctime])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
     "id" : 3,
+    "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "SINGLETON"
@@ -107,22 +124,17 @@
     },
     "description" : "Exchange(distribution=[single])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMatch",
+    "id" : 4,
+    "type" : "stream-exec-match_1",
     "matchSpec" : {
       "pattern" : {
-        "kind" : "REX_CALL",
-        "operator" : {
-          "name" : "",
-          "kind" : "PATTERN_CONCAT",
-          "syntax" : "BINARY"
-        },
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "sqlKind" : "PATTERN_CONCAT",
         "operands" : [ {
-          "kind" : "REX_CALL",
-          "operator" : {
-            "name" : "",
-            "kind" : "PATTERN_CONCAT",
-            "syntax" : "BINARY"
-          },
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "sqlKind" : "PATTERN_CONCAT",
           "operands" : [ {
             "kind" : "LITERAL",
             "value" : "A\"",
@@ -142,19 +154,12 @@
       },
       "patternDefinitions" : {
         "A\"" : {
-          "kind" : "REX_CALL",
-          "operator" : {
-            "name" : "=",
-            "kind" : "EQUALS",
-            "syntax" : "BINARY"
-          },
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$=$1",
           "operands" : [ {
-            "kind" : "REX_CALL",
-            "operator" : {
-              "name" : "LAST",
-              "kind" : "LAST",
-              "syntax" : "FUNCTION"
-            },
+            "kind" : "CALL",
+            "internalName" : "$LAST$1",
             "operands" : [ {
               "kind" : "PATTERN_INPUT_REF",
               "alpha" : "*",
@@ -174,19 +179,12 @@
           "type" : "BOOLEAN"
         },
         "l" : {
-          "kind" : "REX_CALL",
-          "operator" : {
-            "name" : "=",
-            "kind" : "EQUALS",
-            "syntax" : "BINARY"
-          },
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$=$1",
           "operands" : [ {
-            "kind" : "REX_CALL",
-            "operator" : {
-              "name" : "LAST",
-              "kind" : "LAST",
-              "syntax" : "FUNCTION"
-            },
+            "kind" : "CALL",
+            "internalName" : "$LAST$1",
             "operands" : [ {
               "kind" : "PATTERN_INPUT_REF",
               "alpha" : "*",
@@ -206,19 +204,12 @@
           "type" : "BOOLEAN"
         },
         "C" : {
-          "kind" : "REX_CALL",
-          "operator" : {
-            "name" : "=",
-            "kind" : "EQUALS",
-            "syntax" : "BINARY"
-          },
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$=$1",
           "operands" : [ {
-            "kind" : "REX_CALL",
-            "operator" : {
-              "name" : "LAST",
-              "kind" : "LAST",
-              "syntax" : "FUNCTION"
-            },
+            "kind" : "CALL",
+            "internalName" : "$LAST$1",
             "operands" : [ {
               "kind" : "PATTERN_INPUT_REF",
               "alpha" : "*",
@@ -240,12 +231,9 @@
       },
       "measures" : {
         "aid" : {
-          "kind" : "REX_CALL",
-          "operator" : {
-            "name" : "FINAL",
-            "kind" : "FINAL",
-            "syntax" : "PREFIX"
-          },
+          "kind" : "CALL",
+          "syntax" : "PREFIX",
+          "internalName" : "$FINAL$1",
           "operands" : [ {
             "kind" : "PATTERN_INPUT_REF",
             "alpha" : "A\"",
@@ -255,12 +243,9 @@
           "type" : "BIGINT"
         },
         "bid" : {
-          "kind" : "REX_CALL",
-          "operator" : {
-            "name" : "FINAL",
-            "kind" : "FINAL",
-            "syntax" : "PREFIX"
-          },
+          "kind" : "CALL",
+          "syntax" : "PREFIX",
+          "internalName" : "$FINAL$1",
           "operands" : [ {
             "kind" : "PATTERN_INPUT_REF",
             "alpha" : "l",
@@ -270,12 +255,9 @@
           "type" : "BIGINT"
         },
         "cid" : {
-          "kind" : "REX_CALL",
-          "operator" : {
-            "name" : "FINAL",
-            "kind" : "FINAL",
-            "syntax" : "PREFIX"
-          },
+          "kind" : "CALL",
+          "syntax" : "PREFIX",
+          "internalName" : "$FINAL$1",
           "operands" : [ {
             "kind" : "PATTERN_INPUT_REF",
             "alpha" : "C",
@@ -287,8 +269,8 @@
       },
       "after" : {
         "kind" : "LITERAL",
+        "symbol" : "MATCH_RECOGNIZE_AFTER_OPTION",
         "value" : "SKIP_TO_NEXT_ROW",
-        "class" : "org.apache.calcite.sql.SqlMatchRecognize$AfterOption",
         "type" : {
           "type" : "SYMBOL",
           "nullable" : false
@@ -308,7 +290,6 @@
       },
       "interval" : null
     },
-    "id" : 4,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -319,27 +300,41 @@
     "outputType" : "ROW<`aid` BIGINT, `bid` BIGINT, `cid` BIGINT>",
     "description" : "Match(orderBy=[proctime ASC], measures=[FINAL(A\".id) AS aid, FINAL(l.id) AS bid, FINAL(C.id) AS cid], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[((_UTF-16LE'A\"', _UTF-16LE'l'), _UTF-16LE'C')], define=[{A\"==(LAST(*.$1, 0), _UTF-16LE'a'), l==(LAST(*.$1, 0), _UTF-16LE'b'), C==(LAST(*.$1, 0), _UTF-16LE'c')}])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
+    "id" : 5,
+    "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
     "dynamicTableSink" : {
-      "identifier" : {
-        "catalogName" : "default_catalog",
-        "databaseName" : "default_database",
-        "tableName" : "MySink"
-      },
-      "catalogTable" : {
-        "sink-insert-only" : "false",
-        "table-sink-class" : "DEFAULT",
-        "schema.2.data-type" : "BIGINT",
-        "connector" : "values",
-        "schema.0.data-type" : "BIGINT",
-        "schema.2.name" : "c",
-        "schema.1.name" : "b",
-        "schema.0.name" : "a",
-        "schema.1.data-type" : "BIGINT"
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`MySink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "b",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "c",
+              "dataType" : "BIGINT"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ],
+          "options" : {
+            "sink-insert-only" : "false",
+            "table-sink-class" : "DEFAULT",
+            "connector" : "values"
+          }
+        }
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "id" : 5,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"

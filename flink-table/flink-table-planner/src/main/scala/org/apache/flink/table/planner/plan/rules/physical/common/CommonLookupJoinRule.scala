@@ -26,8 +26,8 @@ import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType
 import org.apache.flink.table.planner.plan.utils.JoinUtil
 import org.apache.flink.table.sources.LookupableTableSource
 
-import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptTable}
+import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rex.RexProgram
@@ -37,10 +37,10 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
-  * Base implementation for both
-  * [[org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalLookupJoinRule]] and
-  * [[org.apache.flink.table.planner.plan.rules.physical.stream.StreamPhysicalLookupJoinRule]].
-  */
+ * Base implementation for both
+ * [[org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalLookupJoinRule]] and
+ * [[org.apache.flink.table.planner.plan.rules.physical.stream.StreamPhysicalLookupJoinRule]].
+ */
 trait CommonLookupJoinRule extends CommonTemporalTableJoinRule {
 
   protected def matches(
@@ -70,7 +70,8 @@ trait CommonLookupJoinRule extends CommonTemporalTableJoinRule {
   protected def isTableSourceScan(relNode: RelNode): Boolean = {
     relNode match {
       case _: FlinkLogicalLegacyTableSourceScan | _: CommonPhysicalLegacyTableSourceScan |
-           _: FlinkLogicalTableSourceScan | _: CommonPhysicalTableSourceScan => true
+          _: FlinkLogicalTableSourceScan | _: CommonPhysicalTableSourceScan =>
+        true
       case _ => false
     }
   }
@@ -108,18 +109,18 @@ trait CommonLookupJoinRule extends CommonTemporalTableJoinRule {
   }
 
   protected def transform(
-    join: FlinkLogicalJoin,
-    input: FlinkLogicalRel,
-    temporalTable: RelOptTable,
-    calcProgram: Option[RexProgram]): CommonPhysicalLookupJoin
+      join: FlinkLogicalJoin,
+      input: FlinkLogicalRel,
+      temporalTable: RelOptTable,
+      calcProgram: Option[RexProgram]): CommonPhysicalLookupJoin
 }
 
 abstract class BaseSnapshotOnTableScanRule(description: String)
   extends RelOptRule(
-    operand(classOf[FlinkLogicalJoin],
+    operand(
+      classOf[FlinkLogicalJoin],
       operand(classOf[FlinkLogicalRel], any()),
-      operand(classOf[FlinkLogicalSnapshot],
-        operand(classOf[TableScan], any()))),
+      operand(classOf[FlinkLogicalSnapshot], operand(classOf[TableScan], any()))),
     description)
   with CommonLookupJoinRule {
 
@@ -144,11 +145,13 @@ abstract class BaseSnapshotOnTableScanRule(description: String)
 
 abstract class BaseSnapshotOnCalcTableScanRule(description: String)
   extends RelOptRule(
-    operand(classOf[FlinkLogicalJoin],
+    operand(
+      classOf[FlinkLogicalJoin],
       operand(classOf[FlinkLogicalRel], any()),
-      operand(classOf[FlinkLogicalSnapshot],
-        operand(classOf[FlinkLogicalCalc],
-          operand(classOf[TableScan], any())))),
+      operand(
+        classOf[FlinkLogicalSnapshot],
+        operand(classOf[FlinkLogicalCalc], operand(classOf[TableScan], any())))
+    ),
     description)
   with CommonLookupJoinRule {
 
@@ -166,8 +169,7 @@ abstract class BaseSnapshotOnCalcTableScanRule(description: String)
     val tableScan = call.rel[RelNode](4)
 
     validateJoin(join)
-    val temporalJoin = transform(
-      join, input, tableScan.getTable, Some(calc.getProgram))
+    val temporalJoin = transform(join, input, tableScan.getTable, Some(calc.getProgram))
     call.transformTo(temporalJoin)
   }
 

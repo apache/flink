@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -78,6 +79,15 @@ import java.util.Collection;
  */
 @PublicEvolving
 public interface StateBackend extends java.io.Serializable {
+
+    /**
+     * Return the name of this backend, default is simple class name. {@link
+     * org.apache.flink.runtime.state.delegate.DelegatingStateBackend} may return the simple class
+     * name of the delegated backend.
+     */
+    default String getName() {
+        return this.getClass().getSimpleName();
+    }
 
     /**
      * Creates a new {@link CheckpointableKeyedStateBackend} that is responsible for holding
@@ -187,5 +197,9 @@ public interface StateBackend extends java.io.Serializable {
      */
     default boolean supportsNoClaimRestoreMode() {
         return false;
+    }
+
+    default boolean supportsSavepointFormat(SavepointFormatType formatType) {
+        return formatType == SavepointFormatType.CANONICAL;
     }
 }

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.expressions.validation
 
 import org.apache.flink.table.api._
@@ -37,23 +36,11 @@ class CompositeAccessValidationTest extends CompositeTypeTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testWrongIntKeyField(): Unit = {
-    testTableApi('f0.get(555), "'fail'", "fail")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testWrongIntKeyField2(): Unit = {
-    testTableApi("fail", "f0.get(555)", "fail")
+    testTableApi('f0.get(555), "fail")
   }
 
   @Test(expected = classOf[ValidationException])
   def testWrongStringKeyField(): Unit = {
-    testTableApi('f0.get("fghj"), "'fail'", "fail")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testWrongStringKeyField2(): Unit = {
-    testTableApi("fail", "f0.get('fghj')", "fail")
+    testTableApi('f0.get("fghj"), "fail")
   }
 }
-
-

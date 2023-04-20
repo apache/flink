@@ -21,20 +21,20 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.OperatingSystem;
 
-import org.junit.Assume;
-import org.junit.Test;
+import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Collections;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 public class GlobFilePathFilterTest {
     @Test
     public void testDefaultConstructorCreateMatchAllFilter() {
         GlobFilePathFilter matcher = new GlobFilePathFilter();
-        assertFalse(matcher.filterPath(new Path("dir/file.txt")));
+        assertThat(matcher.filterPath(new Path("dir/file.txt"))).isFalse();
     }
 
     @Test
@@ -43,7 +43,7 @@ public class GlobFilePathFilterTest {
                 new GlobFilePathFilter(
                         Collections.<String>emptyList(), Collections.<String>emptyList());
 
-        assertFalse(matcher.filterPath(new Path("dir/file.txt")));
+        assertThat(matcher.filterPath(new Path("dir/file.txt"))).isFalse();
     }
 
     @Test
@@ -52,8 +52,8 @@ public class GlobFilePathFilterTest {
                 new GlobFilePathFilter(
                         Collections.singletonList("dir/*"), Collections.<String>emptyList());
 
-        assertFalse(matcher.filterPath(new Path("dir/file.txt")));
-        assertTrue(matcher.filterPath(new Path("dir1/file.txt")));
+        assertThat(matcher.filterPath(new Path("dir/file.txt"))).isFalse();
+        assertThat(matcher.filterPath(new Path("dir1/file.txt"))).isTrue();
     }
 
     @Test
@@ -63,7 +63,7 @@ public class GlobFilePathFilterTest {
                         Collections.singletonList("dir/*"),
                         Collections.singletonList("dir/file.txt"));
 
-        assertTrue(matcher.filterPath(new Path("dir/file.txt")));
+        assertThat(matcher.filterPath(new Path("dir/file.txt"))).isTrue();
     }
 
     @Test
@@ -72,8 +72,8 @@ public class GlobFilePathFilterTest {
                 new GlobFilePathFilter(
                         Collections.singletonList("dir/?.txt"), Collections.<String>emptyList());
 
-        assertFalse(matcher.filterPath(new Path("dir/a.txt")));
-        assertTrue(matcher.filterPath(new Path("dir/aa.txt")));
+        assertThat(matcher.filterPath(new Path("dir/a.txt"))).isFalse();
+        assertThat(matcher.filterPath(new Path("dir/aa.txt"))).isTrue();
     }
 
     @Test
@@ -83,10 +83,10 @@ public class GlobFilePathFilterTest {
                         Collections.singletonList("dir/[acd].txt"),
                         Collections.<String>emptyList());
 
-        assertFalse(matcher.filterPath(new Path("dir/a.txt")));
-        assertFalse(matcher.filterPath(new Path("dir/c.txt")));
-        assertFalse(matcher.filterPath(new Path("dir/d.txt")));
-        assertTrue(matcher.filterPath(new Path("dir/z.txt")));
+        assertThat(matcher.filterPath(new Path("dir/a.txt"))).isFalse();
+        assertThat(matcher.filterPath(new Path("dir/c.txt"))).isFalse();
+        assertThat(matcher.filterPath(new Path("dir/d.txt"))).isFalse();
+        assertThat(matcher.filterPath(new Path("dir/z.txt"))).isTrue();
     }
 
     @Test
@@ -96,11 +96,11 @@ public class GlobFilePathFilterTest {
                         Collections.singletonList("dir/[a-d].txt"),
                         Collections.<String>emptyList());
 
-        assertFalse(matcher.filterPath(new Path("dir/a.txt")));
-        assertFalse(matcher.filterPath(new Path("dir/b.txt")));
-        assertFalse(matcher.filterPath(new Path("dir/c.txt")));
-        assertFalse(matcher.filterPath(new Path("dir/d.txt")));
-        assertTrue(matcher.filterPath(new Path("dir/z.txt")));
+        assertThat(matcher.filterPath(new Path("dir/a.txt"))).isFalse();
+        assertThat(matcher.filterPath(new Path("dir/b.txt"))).isFalse();
+        assertThat(matcher.filterPath(new Path("dir/c.txt"))).isFalse();
+        assertThat(matcher.filterPath(new Path("dir/d.txt"))).isFalse();
+        assertThat(matcher.filterPath(new Path("dir/z.txt"))).isTrue();
     }
 
     @Test
@@ -110,23 +110,24 @@ public class GlobFilePathFilterTest {
                         Collections.singletonList("**"),
                         Collections.singletonList("/dir/file2.txt"));
 
-        assertFalse(matcher.filterPath(new Path("hdfs:///dir/file1.txt")));
-        assertTrue(matcher.filterPath(new Path("hdfs:///dir/file2.txt")));
-        assertFalse(matcher.filterPath(new Path("hdfs:///dir/file3.txt")));
+        assertThat(matcher.filterPath(new Path("hdfs:///dir/file1.txt"))).isFalse();
+        assertThat(matcher.filterPath(new Path("hdfs:///dir/file2.txt"))).isTrue();
+        assertThat(matcher.filterPath(new Path("hdfs:///dir/file3.txt"))).isFalse();
     }
 
     @Test
     public void testExcludeFilenameWithStart() {
-        Assume.assumeTrue(
-                "Windows does not allow asterisks in file names.", !OperatingSystem.isWindows());
+        assumeThat(OperatingSystem.isWindows())
+                .as("Windows does not allow asterisks in file names.")
+                .isFalse();
 
         GlobFilePathFilter matcher =
                 new GlobFilePathFilter(
                         Collections.singletonList("**"), Collections.singletonList("\\*"));
 
-        assertTrue(matcher.filterPath(new Path("*")));
-        assertFalse(matcher.filterPath(new Path("**")));
-        assertFalse(matcher.filterPath(new Path("other.txt")));
+        assertThat(matcher.filterPath(new Path("*"))).isTrue();
+        assertThat(matcher.filterPath(new Path("**"))).isFalse();
+        assertThat(matcher.filterPath(new Path("other.txt"))).isFalse();
     }
 
     @Test
@@ -135,9 +136,9 @@ public class GlobFilePathFilterTest {
                 new GlobFilePathFilter(
                         Collections.singletonList("*"), Collections.<String>emptyList());
 
-        assertFalse(matcher.filterPath(new Path("a")));
-        assertTrue(matcher.filterPath(new Path("a/b")));
-        assertTrue(matcher.filterPath(new Path("a/b/c")));
+        assertThat(matcher.filterPath(new Path("a"))).isFalse();
+        assertThat(matcher.filterPath(new Path("a/b"))).isTrue();
+        assertThat(matcher.filterPath(new Path("a/b/c"))).isTrue();
     }
 
     @Test
@@ -146,19 +147,23 @@ public class GlobFilePathFilterTest {
                 new GlobFilePathFilter(
                         Collections.singletonList("**"), Collections.<String>emptyList());
 
-        assertFalse(matcher.filterPath(new Path("a")));
-        assertFalse(matcher.filterPath(new Path("a/b")));
-        assertFalse(matcher.filterPath(new Path("a/b/c")));
+        assertThat(matcher.filterPath(new Path("a"))).isFalse();
+        assertThat(matcher.filterPath(new Path("a/b"))).isFalse();
+        assertThat(matcher.filterPath(new Path("a/b/c"))).isFalse();
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testIncluePatternIsNull() {
-        new GlobFilePathFilter(null, Collections.<String>emptyList());
+        Assertions.assertThatThrownBy(
+                        () -> new GlobFilePathFilter(null, Collections.<String>emptyList()))
+                .isInstanceOf(NullPointerException.class);
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testExcludePatternIsNull() {
-        new GlobFilePathFilter(Collections.singletonList("**"), null);
+        Assertions.assertThatThrownBy(
+                        () -> new GlobFilePathFilter(Collections.singletonList("**"), null))
+                .isInstanceOf(NullPointerException.class);
     }
 
     @Test
@@ -168,8 +173,9 @@ public class GlobFilePathFilterTest {
                         Collections.singletonList("**"), Collections.<String>emptyList());
 
         GlobFilePathFilter matcherCopy = CommonTestUtils.createCopySerializable(matcher);
-        assertFalse(matcher.filterPath(new Path("a")));
-        assertFalse(matcher.filterPath(new Path("a/b")));
-        assertFalse(matcher.filterPath(new Path("a/b/c")));
+
+        assertThat(matcherCopy.filterPath(new Path("a"))).isFalse();
+        assertThat(matcherCopy.filterPath(new Path("a/b"))).isFalse();
+        assertThat(matcherCopy.filterPath(new Path("a/b/c"))).isFalse();
     }
 }

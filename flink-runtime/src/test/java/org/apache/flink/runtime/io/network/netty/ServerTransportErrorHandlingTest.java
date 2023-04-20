@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
+import org.apache.flink.runtime.io.network.netty.CancelPartitionRequestTest.InfiniteSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
@@ -26,7 +27,6 @@ import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
@@ -34,25 +34,21 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandlerAdapter;
 
 import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import java.net.BindException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.connect;
-import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.createConfig;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.initServerAndClient;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.shutdown;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class ServerTransportErrorHandlingTest {
-    private static final int NETTY_INIT_MAX_RETRY_TIMES = 20;
 
     /** Verifies remote closes trigger the release of all resources. */
     @Test
@@ -68,18 +64,14 @@ public class ServerTransportErrorHandlingTest {
                         anyInt(),
                         any(BufferAvailabilityListener.class)))
                 .thenAnswer(
-                        new Answer<ResultSubpartitionView>() {
-                            @Override
-                            public ResultSubpartitionView answer(InvocationOnMock invocationOnMock)
-                                    throws Throwable {
-                                BufferAvailabilityListener listener =
-                                        (BufferAvailabilityListener)
-                                                invocationOnMock.getArguments()[2];
-                                listener.notifyDataAvailable();
-                                return new CancelPartitionRequestTest.InfiniteSubpartitionView(
-                                        outboundBuffers, sync);
-                            }
-                        });
+                        (Answer<ResultSubpartitionView>)
+                                invocationOnMock -> {
+                                    BufferAvailabilityListener listener =
+                                            (BufferAvailabilityListener)
+                                                    invocationOnMock.getArguments()[2];
+                                    listener.notifyDataAvailable();
+                                    return new InfiniteSubpartitionView(outboundBuffers, sync);
+                                });
 
         NettyProtocol protocol =
                 new NettyProtocol(partitionManager, mock(TaskEventDispatcher.class)) {
@@ -91,9 +83,7 @@ public class ServerTransportErrorHandlingTest {
                             // Close on read
                             new ChannelInboundHandlerAdapter() {
                                 @Override
-                                public void channelRead(ChannelHandlerContext ctx, Object msg)
-                                        throws Exception {
-
+                                public void channelRead(ChannelHandlerContext ctx, Object msg) {
                                     ctx.channel().close();
                                 }
                             }
@@ -104,27 +94,7 @@ public class ServerTransportErrorHandlingTest {
         NettyTestUtil.NettyServerAndClient serverAndClient = null;
 
         try {
-            for (int retry = 0; retry < NETTY_INIT_MAX_RETRY_TIMES; retry++) {
-                try {
-                    serverAndClient = initServerAndClient(protocol, createConfig());
-                    break;
-                } catch (Exception e) {
-                    if (retry >= NETTY_INIT_MAX_RETRY_TIMES - 1) {
-                        throw new RuntimeException(
-                                "Failed to initialize netty server and client, retried "
-                                        + retry
-                                        + " times.",
-                                e);
-                    }
-                    if (e instanceof BindException
-                            || ExceptionUtils.findThrowableWithMessage(e, "Address already in use")
-                                    .isPresent()) {
-                        continue;
-                    }
-                    throw e;
-                }
-            }
-
+            serverAndClient = initServerAndClient(protocol);
             Channel ch = connect(serverAndClient);
 
             // Write something to trigger close by server

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.batch.table.validation
 
 import org.apache.flink.api.scala._
@@ -32,10 +31,11 @@ class JoinValidationTest extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testJoinNonExistingKey(): Unit = {
     val util = batchTestUtil()
-    val ds1 = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val ds1 = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     val ds2 = util.addTableSource[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
-    ds1.join(ds2)
+    ds1
+      .join(ds2)
       // must fail. Field 'foo does not exist
       .where('foo === 'e)
       .select('c, 'g)
@@ -44,10 +44,11 @@ class JoinValidationTest extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testJoinWithNonMatchingKeyTypes(): Unit = {
     val util = batchTestUtil()
-    val ds1 = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val ds1 = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     val ds2 = util.addTableSource[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
-    ds1.join(ds2)
+    ds1
+      .join(ds2)
       // must fail. Field 'a is Int, and 'g is String
       .where('a === 'g)
       .select('c, 'g)
@@ -57,10 +58,11 @@ class JoinValidationTest extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testJoinWithAmbiguousFields(): Unit = {
     val util = batchTestUtil()
-    val ds1 = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val ds1 = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     val ds2 = util.addTableSource[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'c)
 
-    ds1.join(ds2)
+    ds1
+      .join(ds2)
       // must fail. Both inputs share the same field 'c
       .where('a === 'd)
       .select('c, 'g)
@@ -69,7 +71,7 @@ class JoinValidationTest extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testLeftJoinNoEquiJoinPredicate(): Unit = {
     val util = batchTestUtil()
-    val ds1 = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val ds1 = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     val ds2 = util.addTableSource[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
     ds2.leftOuterJoin(ds1, 'b < 'd).select('c, 'g)
@@ -78,7 +80,7 @@ class JoinValidationTest extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testRightJoinNoEquiJoinPredicate(): Unit = {
     val util = batchTestUtil()
-    val ds1 = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val ds1 = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     val ds2 = util.addTableSource[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
     ds2.rightOuterJoin(ds1, 'b < 'd).select('c, 'g)
@@ -87,7 +89,7 @@ class JoinValidationTest extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testFullJoinNoEquiJoinPredicate(): Unit = {
     val util = batchTestUtil()
-    val ds1 = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val ds1 = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     val ds2 = util.addTableSource[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
     ds2.fullOuterJoin(ds1, 'b < 'd).select('c, 'g)
@@ -119,8 +121,8 @@ class JoinValidationTest extends TableTestBase {
   @Test(expected = classOf[TableException])
   def testOuterJoinWithPythonFunctionInCondition(): Unit = {
     val util = batchTestUtil()
-    val left = util.addTableSource[(Int, Long, String)]("left",'a, 'b, 'c)
-    val right = util.addTableSource[(Int, Long, String)]("right",'d, 'e, 'f)
+    val left = util.addTableSource[(Int, Long, String)]("left", 'a, 'b, 'c)
+    val right = util.addTableSource[(Int, Long, String)]("right", 'd, 'e, 'f)
     val pyFunc = new PythonScalarFunction("pyFunc")
     val result = left.leftOuterJoin(right, 'a === 'd && pyFunc('a, 'd) === 'a + 'd)
     util.verifyExecPlan(result)

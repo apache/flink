@@ -25,16 +25,15 @@ from pyflink.fn_execution.table.aggregate_fast cimport DistinctViewDescriptor, R
 from pyflink.fn_execution.coder_impl_fast cimport InternalRowKind
 
 import datetime
-import sys
 from typing import List, Dict
 
 import pytz
 
-from pyflink.fn_execution.datastream.timerservice_impl import LegacyInternalTimerServiceImpl
+from pyflink.common.constants import MAX_LONG_VALUE
+from pyflink.fn_execution.datastream.process.timerservice_impl import LegacyInternalTimerServiceImpl
 from pyflink.fn_execution.coders import PickleCoder
 from pyflink.fn_execution.table.state_data_view import DataViewSpec, ListViewSpec, MapViewSpec, \
     PerWindowStateDataViewStore
-from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 from pyflink.fn_execution.table.window_assigner import WindowAssigner, PanedWindowAssigner, \
     MergingWindowAssigner
 from pyflink.fn_execution.table.window_context import WindowContext, TriggerContext, K, W
@@ -42,8 +41,6 @@ from pyflink.fn_execution.table.window_process_function import GeneralWindowProc
     InternalWindowProcessFunction, PanedWindowProcessFunction, MergingWindowProcessFunction
 from pyflink.fn_execution.table.window_trigger import Trigger
 from pyflink.table.udf import ImperativeAggregateFunction
-
-MAX_LONG_VALUE = sys.maxsize
 
 cdef InternalRow join_row(list left, list right, InternalRowKind row_kind):
     return InternalRow(left.__add__(right), row_kind)
@@ -329,7 +326,7 @@ cdef class GroupWindowAggFunctionBase:
     def __init__(self,
                  allowed_lateness: int,
                  key_selector: RowKeySelector,
-                 state_backend: RemoteKeyedStateBackend,
+                 state_backend,
                  state_value_coder,
                  window_assigner: WindowAssigner[W],
                  window_aggregator: NamespaceAggsHandleFunctionBase,
@@ -473,9 +470,9 @@ cdef class GroupWindowAggFunctionBase:
         cdef list timers
         cdef object timer
         timers = []
-        for timer in self._internal_timer_service.timers.keys():
+        for timer in self._internal_timer_service._timers.keys():
             timers.append(timer)
-        self._internal_timer_service.timers.clear()
+        self._internal_timer_service._timers.clear()
         return timers
 
     cpdef void close(self):
@@ -510,7 +507,7 @@ cdef class GroupWindowAggFunction(GroupWindowAggFunctionBase):
     def __init__(self,
                  allowed_lateness: int,
                  key_selector: RowKeySelector,
-                 state_backend: RemoteKeyedStateBackend,
+                 state_backend,
                  state_value_coder,
                  window_assigner: WindowAssigner[W],
                  window_aggregator: NamespaceAggsHandleFunction[W],

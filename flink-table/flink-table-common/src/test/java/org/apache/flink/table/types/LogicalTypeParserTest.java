@@ -59,30 +59,24 @@ import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
 import org.apache.flink.table.types.utils.TypeConversions;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.UNRESOLVED;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link LogicalTypeParser}. */
-@RunWith(Parameterized.class)
 public class LogicalTypeParserTest {
 
-    @Parameters(name = "{index}: [From: {0}, To: {1}]")
-    public static List<TestSpec> testData() {
-        return Arrays.asList(
+    private static Stream<TestSpec> testData() {
+        return Stream.of(
                 TestSpec.forString("CHAR").expectType(new CharType()),
                 TestSpec.forString("CHAR NOT NULL").expectType(new CharType().copy(false)),
                 TestSpec.forString("CHAR   NOT \t\nNULL").expectType(new CharType().copy(false)),
@@ -261,20 +255,18 @@ public class LogicalTypeParserTest {
                         .expectErrorMessage("Unable to restore the RAW type"));
     }
 
-    @Parameter public TestSpec testSpec;
-
-    @Rule public ExpectedException thrown = ExpectedException.none();
-
-    @Test
-    public void testParsing() {
+    @ParameterizedTest(name = "{index}: [From: {0}, To: {1}]")
+    @MethodSource("testData")
+    void testParsing(TestSpec testSpec) {
         if (testSpec.expectedType != null) {
             assertThat(LogicalTypeParser.parse(testSpec.typeString))
                     .isEqualTo(testSpec.expectedType);
         }
     }
 
-    @Test
-    public void testSerializableParsing() {
+    @ParameterizedTest(name = "{index}: [From: {0}, To: {1}]")
+    @MethodSource("testData")
+    void testSerializableParsing(TestSpec testSpec) {
         if (testSpec.expectedType != null) {
             if (!testSpec.expectedType.is(UNRESOLVED)
                     && testSpec.expectedType.getChildren().stream()
@@ -285,13 +277,13 @@ public class LogicalTypeParserTest {
         }
     }
 
-    @Test
-    public void testErrorMessage() {
+    @ParameterizedTest(name = "{index}: [From: {0}, To: {1}]")
+    @MethodSource("testData")
+    void testErrorMessage(TestSpec testSpec) {
         if (testSpec.expectedErrorMessage != null) {
-            thrown.expect(ValidationException.class);
-            thrown.expectMessage(testSpec.expectedErrorMessage);
-
-            LogicalTypeParser.parse(testSpec.typeString);
+            assertThatThrownBy(() -> LogicalTypeParser.parse(testSpec.typeString))
+                    .isInstanceOf(ValidationException.class)
+                    .hasMessageContaining(testSpec.expectedErrorMessage);
         }
     }
 

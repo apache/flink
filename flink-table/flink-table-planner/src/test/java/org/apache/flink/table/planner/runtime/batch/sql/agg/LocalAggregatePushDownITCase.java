@@ -36,7 +36,7 @@ import java.util.Collections;
 public class LocalAggregatePushDownITCase extends BatchTestBase {
 
     @Before
-    public void before() {
+    public void before() throws Exception {
         super.before();
         env().setParallelism(1); // set sink parallelism to 1
 
@@ -134,8 +134,7 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
     public void testDisablePushDownLocalAgg() {
         // disable push down local agg
         tEnv().getConfig()
-                .getConfiguration()
-                .setBoolean(
+                .set(
                         OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_AGGREGATE_PUSHDOWN_ENABLED,
                         false);
 
@@ -170,9 +169,7 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
     @Test
     public void testPushDownLocalSortAggWithoutSort() {
         // enable sort agg
-        tEnv().getConfig()
-                .getConfiguration()
-                .setString(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
+        tEnv().getConfig().set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
 
         checkResult(
                 "SELECT\n"
@@ -188,9 +185,7 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
     @Test
     public void testPushDownLocalSortAggWithSort() {
         // enable sort agg
-        tEnv().getConfig()
-                .getConfiguration()
-                .setString(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
+        tEnv().getConfig().set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
 
         checkResult(
                 "SELECT\n"
@@ -296,8 +291,7 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
     public void testPushDownLocalAggWithoutAuxGrouping() {
         // enable two-phase aggregate, otherwise there is no local aggregate
         tEnv().getConfig()
-                .getConfiguration()
-                .setString(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE");
+                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE");
 
         checkResult(
                 "SELECT\n"

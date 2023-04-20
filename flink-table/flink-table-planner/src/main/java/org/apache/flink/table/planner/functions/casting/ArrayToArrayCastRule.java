@@ -20,8 +20,8 @@ package org.apache.flink.table.planner.functions.casting;
 
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.GenericArrayData;
+import org.apache.flink.table.planner.codegen.CodeGenUtils;
 import org.apache.flink.table.types.logical.ArrayType;
-import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
@@ -32,7 +32,8 @@ import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.met
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.newArray;
 
 /** {@link LogicalTypeRoot#ARRAY} to {@link LogicalTypeRoot#ARRAY} cast rule. */
-class ArrayToArrayCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayData, ArrayData> {
+class ArrayToArrayCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayData, ArrayData>
+        implements ConstructedToConstructedCastRule<ArrayData, ArrayData> {
 
     static final ArrayToArrayCastRule INSTANCE = new ArrayToArrayCastRule();
 
@@ -108,30 +109,8 @@ class ArrayToArrayCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayD
 
     private static String arrayElementType(LogicalType t) {
         if (t.isNullable()) {
-            return "Object";
+            return CodeGenUtils.boxedTypeTermForType(t);
         }
-        switch (t.getTypeRoot()) {
-            case BOOLEAN:
-                return "boolean";
-            case TINYINT:
-                return "byte";
-            case SMALLINT:
-                return "short";
-            case INTEGER:
-            case DATE:
-            case TIME_WITHOUT_TIME_ZONE:
-            case INTERVAL_YEAR_MONTH:
-                return "int";
-            case BIGINT:
-            case INTERVAL_DAY_TIME:
-                return "long";
-            case FLOAT:
-                return "float";
-            case DOUBLE:
-                return "double";
-            case DISTINCT_TYPE:
-                return arrayElementType(((DistinctType) t).getSourceType());
-        }
-        return "Object";
+        return CodeGenUtils.primitiveTypeTermForType(t);
     }
 }

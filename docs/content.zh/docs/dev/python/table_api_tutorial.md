@@ -49,8 +49,8 @@ Apache Flink 提供 Table API 关系型 API 来统一处理流和批，即查询
 
 如果要继续我们的旅程，你需要一台具有以下功能的计算机：
 
-* Java 8 or 11
-* Python 3.6, 3.7 or 3.8
+* Java 11
+* Python 3.7, 3.8, 3.9 or 3.10
 
 使用 Python Table API 需要安装 PyFlink，它已经被发布到 [PyPi](https://pypi.org/project/apache-flink/)，你可以通过如下方式安装 PyFlink：
 
@@ -66,7 +66,7 @@ $ python -m pip install apache-flink
 
 ```python
 t_env = TableEnvironment.create(EnvironmentSettings.in_streaming_mode())
-t_env.get_config().get_configuration().set_string("parallelism.default", "1")
+t_env.get_config().set("parallelism.default", "1")
 ```
 
 接下来，我们将介绍如何创建源表和结果表。
@@ -200,7 +200,7 @@ word_count_data = ["To be, or not to be,--that is the question:--",
 def word_count(input_path, output_path):
     t_env = TableEnvironment.create(EnvironmentSettings.in_streaming_mode())
     # write all the data to one file
-    t_env.get_config().get_configuration().set_string("parallelism.default", "1")
+    t_env.get_config().set("parallelism.default", "1")
 
     # define the source
     if input_path is not None:

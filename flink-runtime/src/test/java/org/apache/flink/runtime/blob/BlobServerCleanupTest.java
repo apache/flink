@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
@@ -27,27 +26,29 @@ import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.function.TriConsumerWithException;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.NoSuchFileException;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -59,14 +60,36 @@ import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.verifyContents;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.fail;
 
 /** A few tests for the cleanup of transient BLOBs at the {@link BlobServer}. */
 public class BlobServerCleanupTest extends TestLogger {
 
-    private final Random rnd = new Random();
+    private static final Random RANDOM = new Random();
 
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir private File temporaryFolder;
+
+    private static byte[] createRandomData() {
+        final byte[] randomData = new byte[2000000];
+        RANDOM.nextBytes(randomData);
+
+        return randomData;
+    }
+
+    private static BlobServer createTestInstance(String storageDirectoryPath, long cleanupInterval)
+            throws IOException {
+        return createTestInstance(storageDirectoryPath, cleanupInterval, new VoidBlobStore());
+    }
+
+    private static BlobServer createTestInstance(
+            String storageDirectoryPath, long cleanupInterval, BlobStore blobStore)
+            throws IOException {
+        final Configuration config = new Configuration();
+        config.setString(BlobServerOptions.STORAGE_DIRECTORY, storageDirectoryPath);
+        config.setLong(BlobServerOptions.CLEANUP_INTERVAL, cleanupInterval);
+
+        return new BlobServer(config, new File(storageDirectoryPath), blobStore);
+    }
 
     @Test
     public void testTransientBlobNoJobCleanup()
@@ -94,17 +117,13 @@ public class BlobServerCleanupTest extends TestLogger {
         final List<CompletableFuture<Void>> getOperations =
                 new ArrayList<>(numberConcurrentGetOperations);
 
-        byte[] data = new byte[2000000];
-        rnd.nextBytes(data);
-        byte[] data2 = Arrays.copyOfRange(data, 10, 54);
-
-        Configuration config = new Configuration();
-        config.setLong(BlobServerOptions.CLEANUP_INTERVAL, cleanupInterval);
+        byte[] data = createRandomData();
+        byte[] data2 = createRandomData();
 
         long cleanupLowerBound;
 
         try (BlobServer server =
-                new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore())) {
+                createTestInstance(temporaryFolder.getAbsolutePath(), cleanupInterval)) {
 
             ConcurrentMap<Tuple2<JobID, TransientBlobKey>, Long> transientBlobExpiryTimes =
                     server.getBlobExpiryTimes();
@@ -136,14 +155,16 @@ public class BlobServerCleanupTest extends TestLogger {
             final Long key1ExpiryAfterGet = transientBlobExpiryTimes.get(Tuple2.of(jobId, key1));
             assertThat(key1ExpiryAfterGet).isGreaterThan(key1ExpiryAfterPut);
             assertThat(key1ExpiryAfterGet).isGreaterThanOrEqualTo(cleanupLowerBound);
-            assertEquals(key2ExpiryAfterPut, transientBlobExpiryTimes.get(Tuple2.of(jobId, key2)));
+            assertThat(key2ExpiryAfterPut)
+                    .isEqualTo(transientBlobExpiryTimes.get(Tuple2.of(jobId, key2)));
 
             // access key2, verify expiry times (delay at least 1ms to also verify key1 expiry is
             // unchanged)
             Thread.sleep(1);
             cleanupLowerBound = System.currentTimeMillis() + cleanupInterval;
             verifyContents(server, jobId, key2, data2);
-            assertEquals(key1ExpiryAfterGet, transientBlobExpiryTimes.get(Tuple2.of(jobId, key1)));
+            assertThat(key1ExpiryAfterGet)
+                    .isEqualTo(transientBlobExpiryTimes.get(Tuple2.of(jobId, key1)));
             assertThat(transientBlobExpiryTimes.get(Tuple2.of(jobId, key2)))
                     .isGreaterThan(key2ExpiryAfterPut);
             assertThat(transientBlobExpiryTimes.get(Tuple2.of(jobId, key2)))
@@ -189,6 +210,160 @@ public class BlobServerCleanupTest extends TestLogger {
     }
 
     @Test
+    public void testLocalCleanup() throws Exception {
+        final TestingBlobStore blobStore =
+                createTestingBlobStoreBuilder()
+                        .setDeleteAllFunction(
+                                jobDataToDelete ->
+                                        fail(
+                                                "No deleteAll call is expected to be triggered but was for %s.",
+                                                jobDataToDelete))
+                        .createTestingBlobStore();
+        testSuccessfulCleanup(
+                new JobID(),
+                (testInstance, jobId, executor) ->
+                        testInstance.localCleanupAsync(jobId, executor).join(),
+                blobStore);
+    }
+
+    @Test
+    public void testGlobalCleanup() throws Exception {
+        final Set<JobID> actuallyDeletedJobData = new HashSet<>();
+        final JobID jobId = new JobID();
+        final TestingBlobStore blobStore =
+                createTestingBlobStoreBuilder()
+                        .setDeleteAllFunction(
+                                jobDataToDelete -> {
+                                    actuallyDeletedJobData.add(jobDataToDelete);
+                                    return true;
+                                })
+                        .createTestingBlobStore();
+        testSuccessfulCleanup(
+                jobId,
+                (testInstance, jobIdForCleanup, executor) ->
+                        testInstance.globalCleanupAsync(jobIdForCleanup, executor).join(),
+                blobStore);
+
+        assertThat(actuallyDeletedJobData).containsExactlyInAnyOrder(jobId);
+    }
+
+    @Test
+    public void testGlobalCleanupUnsuccessfulInBlobStore() throws Exception {
+        final TestingBlobStore blobStore =
+                createTestingBlobStoreBuilder()
+                        .setDeleteAllFunction(jobDataToDelete -> false)
+                        .createTestingBlobStore();
+
+        testFailedCleanup(
+                new JobID(),
+                (testInstance, jobId, executor) ->
+                        assertThatThrownBy(
+                                        () ->
+                                                testInstance
+                                                        .globalCleanupAsync(new JobID(), executor)
+                                                        .get())
+                                .isInstanceOf(ExecutionException.class)
+                                .hasCauseInstanceOf(IOException.class),
+                blobStore);
+    }
+
+    @Test
+    public void testGlobalCleanupFailureInBlobStore() throws Exception {
+        final RuntimeException actualException = new RuntimeException("Expected RuntimeException");
+        final TestingBlobStore blobStore =
+                createTestingBlobStoreBuilder()
+                        .setDeleteAllFunction(
+                                jobDataToDelete -> {
+                                    throw actualException;
+                                })
+                        .createTestingBlobStore();
+
+        testFailedCleanup(
+                new JobID(),
+                (testInstance, jobId, executor) ->
+                        assertThatThrownBy(
+                                        () ->
+                                                testInstance
+                                                        .globalCleanupAsync(new JobID(), executor)
+                                                        .get())
+                                .isInstanceOf(ExecutionException.class)
+                                .hasCause(actualException),
+                blobStore);
+    }
+
+    private TestingBlobStoreBuilder createTestingBlobStoreBuilder() {
+        return new TestingBlobStoreBuilder()
+                .setDeleteFunction(
+                        (jobId, blobKey) -> {
+                            throw new UnsupportedOperationException(
+                                    "Deletion of individual blobs is not supported.");
+                        });
+    }
+
+    private void testFailedCleanup(
+            JobID jobId,
+            TriConsumerWithException<BlobServer, JobID, Executor, ? extends Exception> callback,
+            BlobStore blobStore)
+            throws Exception {
+        testCleanup(jobId, callback, blobStore, 2);
+    }
+
+    private void testSuccessfulCleanup(
+            JobID jobId,
+            TriConsumerWithException<BlobServer, JobID, Executor, ? extends Exception> callback,
+            BlobStore blobStore)
+            throws Exception {
+        testCleanup(jobId, callback, blobStore, 0);
+    }
+
+    private void testCleanup(
+            JobID jobId,
+            TriConsumerWithException<BlobServer, JobID, Executor, ? extends Exception> callback,
+            BlobStore blobStore,
+            int expectedFileCountAfterCleanup)
+            throws Exception {
+        final JobID otherJobId = new JobID();
+        final ExecutorService executorService = Executors.newSingleThreadExecutor();
+        try (BlobServer testInstance =
+                createTestInstance(
+                        temporaryFolder.getAbsolutePath(), Integer.MAX_VALUE, blobStore)) {
+            testInstance.start();
+
+            final BlobKey transientDataBlobKey =
+                    put(testInstance, jobId, createRandomData(), TRANSIENT_BLOB);
+            final BlobKey otherTransientDataBlobKey =
+                    put(testInstance, otherJobId, createRandomData(), TRANSIENT_BLOB);
+
+            final BlobKey permanentDataBlobKey =
+                    put(testInstance, jobId, createRandomData(), PERMANENT_BLOB);
+            final BlobKey otherPermanentDataBlobKey =
+                    put(testInstance, otherJobId, createRandomData(), PERMANENT_BLOB);
+
+            checkFilesExist(
+                    jobId,
+                    Arrays.asList(transientDataBlobKey, permanentDataBlobKey),
+                    testInstance,
+                    true);
+            checkFilesExist(
+                    otherJobId,
+                    Arrays.asList(otherTransientDataBlobKey, otherPermanentDataBlobKey),
+                    testInstance,
+                    true);
+
+            callback.accept(testInstance, jobId, executorService);
+
+            checkFileCountForJob(expectedFileCountAfterCleanup, jobId, testInstance);
+            checkFilesExist(
+                    otherJobId,
+                    Arrays.asList(otherTransientDataBlobKey, otherPermanentDataBlobKey),
+                    testInstance,
+                    true);
+        } finally {
+            assertThat(executorService.shutdownNow()).isEmpty();
+        }
+    }
+
+    @Test
     public void testBlobServerExpiresRecoveredTransientJobBlob() throws Exception {
         runBlobServerExpiresRecoveredTransientBlob(new JobID());
     }
@@ -201,44 +376,41 @@ public class BlobServerCleanupTest extends TestLogger {
     private void runBlobServerExpiresRecoveredTransientBlob(@Nullable JobID jobId)
             throws Exception {
         final long cleanupInterval = 1L;
-        final Configuration configuration = new Configuration();
-        configuration.set(BlobServerOptions.CLEANUP_INTERVAL, cleanupInterval);
-        final File storageDirectory = temporaryFolder.newFolder();
 
         final TransientBlobKey transientBlobKey =
                 TestingBlobUtils.writeTransientBlob(
-                        storageDirectory.toPath(), jobId, new byte[] {1, 2, 3, 4});
-        final File blob = BlobUtils.getStorageLocation(storageDirectory, jobId, transientBlobKey);
+                        temporaryFolder.toPath(), jobId, new byte[] {1, 2, 3, 4});
+        final File blob = BlobUtils.getStorageLocation(temporaryFolder, jobId, transientBlobKey);
 
         try (final BlobServer blobServer =
-                new BlobServer(configuration, storageDirectory, new VoidBlobStore())) {
-            CommonTestUtils.waitUntilCondition(
-                    () -> !blob.exists(),
-                    Deadline.fromNow(Duration.ofSeconds(cleanupInterval * 5L)),
-                    "The transient blob has not been cleaned up automatically.");
+                createTestInstance(temporaryFolder.getAbsolutePath(), cleanupInterval)) {
+            CommonTestUtils.waitUntilCondition(() -> !blob.exists());
         }
     }
 
     @Test
-    public void testBlobServerRetainsJobs() throws IOException {
-        final File storageDirectory = temporaryFolder.newFolder();
-
+    public void testBlobServerRetainsJobs() throws Exception {
         final JobID jobId1 = new JobID();
         final JobID jobId2 = new JobID();
 
         final byte[] fileContent = {1, 2, 3, 4};
         final PermanentBlobKey blobKey1 =
-                TestingBlobUtils.writePermanentBlob(storageDirectory.toPath(), jobId1, fileContent);
+                TestingBlobUtils.writePermanentBlob(temporaryFolder.toPath(), jobId1, fileContent);
         final PermanentBlobKey blobKey2 =
-                TestingBlobUtils.writePermanentBlob(storageDirectory.toPath(), jobId2, fileContent);
+                TestingBlobUtils.writePermanentBlob(temporaryFolder.toPath(), jobId2, fileContent);
 
+        final ExecutorService executorService = Executors.newSingleThreadExecutor();
         try (final BlobServer blobServer =
-                new BlobServer(new Configuration(), storageDirectory, new VoidBlobStore())) {
-            blobServer.retainJobs(Collections.singleton(jobId1));
+                createTestInstance(
+                        temporaryFolder.getAbsolutePath(),
+                        BlobServerOptions.CLEANUP_INTERVAL.defaultValue())) {
+            blobServer.retainJobs(Collections.singleton(jobId1), executorService);
 
             assertThat(blobServer.getFile(jobId1, blobKey1)).hasBinaryContent(fileContent);
             assertThatThrownBy(() -> blobServer.getFile(jobId2, blobKey2))
                     .isInstanceOf(NoSuchFileException.class);
+        } finally {
+            assertThat(executorService.shutdownNow()).isEmpty();
         }
     }
 
@@ -314,10 +486,9 @@ public class BlobServerCleanupTest extends TestLogger {
                 throw new IOException("File " + jobDir + " does not exist.");
             }
         } else {
-            assertEquals(
-                    "Too many/few files in job dir: " + Arrays.asList(blobsForJob).toString(),
-                    expectedCount,
-                    blobsForJob.length);
+            assertThat(blobsForJob.length)
+                    .as("Too many/few files in job dir: " + Arrays.asList(blobsForJob))
+                    .isEqualTo(expectedCount);
         }
     }
 }

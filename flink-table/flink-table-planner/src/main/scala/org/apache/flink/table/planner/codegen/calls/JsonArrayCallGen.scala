@@ -15,19 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.codegen.calls
 
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{BINARY_STRING, className, newName, primitiveTypeTermForType}
-import org.apache.flink.table.planner.codegen.JsonGenerateUtils.{createNodeTerm, getOnNullBehavior}
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.{ArrayNode, NullNode}
+import org.apache.flink.table.api.JsonOnNull
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{className, newName, primitiveTypeTermForType, BINARY_STRING}
+import org.apache.flink.table.planner.codegen.JsonGenerateUtils.{createNodeTerm, getOnNullBehavior}
 import org.apache.flink.table.runtime.functions.SqlJsonUtils
 import org.apache.flink.table.types.logical.LogicalType
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.{ArrayNode, NullNode}
-
 import org.apache.calcite.rex.RexCall
-import org.apache.calcite.sql.SqlJsonConstructorNullClause.{ABSENT_ON_NULL, NULL_ON_NULL}
 
 /** [[CallGenerator]] for `JSON_ARRAY`. */
 class JsonArrayCallGen(call: RexCall) extends CallGenerator {
@@ -45,27 +43,30 @@ class JsonArrayCallGen(call: RexCall) extends CallGenerator {
     ctx.addReusableMember(s"${className[NullNode]} $nullNodeTerm = $nodeTerm.nullNode();")
 
     val onNull = getOnNullBehavior(operands.head)
-    val populateNodeCode = operands.zipWithIndex.drop(1).map {
-      case (elementExpr, elementIdx) =>
-        val elementTerm = createNodeTerm(ctx, elementExpr, call.operands.get(elementIdx))
+    val populateNodeCode = operands.zipWithIndex
+      .drop(1)
+      .map {
+        case (elementExpr, elementIdx) =>
+          val elementTerm = createNodeTerm(ctx, elementExpr, call.operands.get(elementIdx))
 
-        onNull match {
-          case NULL_ON_NULL =>
-            s"""
-               |if (${elementExpr.nullTerm}) {
-               |    $nodeTerm.add($nullNodeTerm);
-               |} else {
-               |    $nodeTerm.add($elementTerm);
-               |}
-               |""".stripMargin
-          case ABSENT_ON_NULL =>
-            s"""
-               |if (!${elementExpr.nullTerm}) {
-               |    $nodeTerm.add($elementTerm);
-               |}
-               |""".stripMargin
-        }
-    }.mkString
+          onNull match {
+            case JsonOnNull.NULL =>
+              s"""
+                 |if (${elementExpr.nullTerm}) {
+                 |    $nodeTerm.add($nullNodeTerm);
+                 |} else {
+                 |    $nodeTerm.add($elementTerm);
+                 |}
+                 |""".stripMargin
+            case JsonOnNull.ABSENT =>
+              s"""
+                 |if (!${elementExpr.nullTerm}) {
+                 |    $nodeTerm.add($elementTerm);
+                 |}
+                 |""".stripMargin
+          }
+      }
+      .mkString
 
     val resultTerm = newName("result")
     val resultTermType = primitiveTypeTermForType(returnType)

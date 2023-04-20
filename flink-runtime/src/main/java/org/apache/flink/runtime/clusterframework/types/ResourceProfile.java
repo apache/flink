@@ -73,10 +73,7 @@ public class ResourceProfile implements Serializable {
      */
     public static final ResourceProfile UNKNOWN = new ResourceProfile();
 
-    /**
-     * A ResourceProfile that indicates infinite resource that matches any resource requirement, for
-     * testability purpose only.
-     */
+    /** A ResourceProfile that indicates infinite resource that matches any resource requirement. */
     @VisibleForTesting
     public static final ResourceProfile ANY =
             newBuilder()

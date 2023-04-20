@@ -16,11 +16,11 @@
 # limitations under the License.
 
 SET 'sql-client.execution.result-mode' = 'tableau';
-[INFO] Session property has been set.
+[INFO] Execute statement succeed.
 !info
 
 SET 'table.dml-sync' = 'true';
-[INFO] Session property has been set.
+[INFO] Execute statement succeed.
 !info
 
 create table src (
@@ -37,7 +37,7 @@ create table src (
 # ==========================================================================
 
 SET 'execution.runtime-mode' = 'streaming';
-[INFO] Session property has been set.
+[INFO] Execute statement succeed.
 !info
 
 create table StreamingTable (
@@ -52,12 +52,12 @@ create table StreamingTable (
 !info
 
 BEGIN STATEMENT SET;
-[INFO] Begin a statement set.
+[INFO] Execute statement succeed.
 !info
 
 BEGIN STATEMENT SET;
 [ERROR] Could not execute SQL statement. Reason:
-org.apache.flink.table.client.gateway.SqlExecutionException: Only INSERT statement is allowed in Statement Set.
+org.apache.flink.table.gateway.service.utils.SqlExecutionException: Only 'INSERT/CREATE TABLE AS' statement is allowed in Statement Set or use 'END' statement to submit Statement Set.
 !error
 
 create table src (
@@ -67,27 +67,25 @@ create table src (
   'connector' = 'values'
 );
 [ERROR] Could not execute SQL statement. Reason:
-org.apache.flink.table.client.gateway.SqlExecutionException: Only INSERT statement is allowed in Statement Set.
+org.apache.flink.table.gateway.service.utils.SqlExecutionException: Only 'INSERT/CREATE TABLE AS' statement is allowed in Statement Set or use 'END' statement to submit Statement Set.
 !error
 
 SELECT id, str FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi')) as T(id, str);
 [ERROR] Could not execute SQL statement. Reason:
-org.apache.flink.table.client.gateway.SqlExecutionException: Only INSERT statement is allowed in Statement Set.
+org.apache.flink.table.gateway.service.utils.SqlExecutionException: Only 'INSERT/CREATE TABLE AS' statement is allowed in Statement Set or use 'END' statement to submit Statement Set.
 !error
 
 INSERT INTO StreamingTable SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi'), (3, 'Hello'), (3, 'World'), (4, 'ADD'), (5, 'LINE'));
-[INFO] Add SQL update statement to the statement set.
+[INFO] Execute statement succeed.
 !info
 
 END;
-[INFO] Submitting SQL update statement to the cluster...
-[INFO] Execute statement in sync mode. Please wait for the execution finish...
 [INFO] Complete execution of the SQL update statement.
 !info
 
 END;
 [ERROR] Could not execute SQL statement. Reason:
-org.apache.flink.table.client.gateway.SqlExecutionException: No Statement Set to submit, "END;" command should be used after "BEGIN STATEMENT SET;".
+org.apache.flink.table.gateway.service.utils.SqlExecutionException: No Statement Set to submit. 'END' statement should be used after 'BEGIN STATEMENT SET'.
 !error
 
 SELECT * FROM StreamingTable;
@@ -110,7 +108,7 @@ Received a total of 7 rows
 # ==========================================================================
 
 SET 'execution.runtime-mode' = 'batch';
-[INFO] Session property has been set.
+[INFO] Execute statement succeed.
 !info
 
 create table BatchTable (
@@ -125,21 +123,19 @@ str string
 !info
 
 BEGIN STATEMENT SET;
-[INFO] Begin a statement set.
+[INFO] Execute statement succeed.
 !info
 
 BEGIN STATEMENT SET;
 [ERROR] Could not execute SQL statement. Reason:
-org.apache.flink.table.client.gateway.SqlExecutionException: Only INSERT statement is allowed in Statement Set.
+org.apache.flink.table.gateway.service.utils.SqlExecutionException: Only 'INSERT/CREATE TABLE AS' statement is allowed in Statement Set or use 'END' statement to submit Statement Set.
 !error
 
 INSERT INTO BatchTable SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi'), (3, 'Hello'), (3, 'World'), (4, 'ADD'), (5, 'LINE'));
-[INFO] Add SQL update statement to the statement set.
+[INFO] Execute statement succeed.
 !info
 
 END;
-[INFO] Submitting SQL update statement to the cluster...
-[INFO] Execute statement in sync mode. Please wait for the execution finish...
 [INFO] Complete execution of the SQL update statement.
 !info
 
@@ -159,9 +155,9 @@ SELECT * FROM BatchTable;
 !ok
 
 BEGIN STATEMENT SET;
-[INFO] Begin a statement set.
+[INFO] Execute statement succeed.
 !info
 
 END;
-[INFO] No statement in the statement set, skip submit.
+[INFO] Execute statement succeed.
 !info

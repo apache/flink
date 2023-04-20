@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.`match`
 
 import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy._
@@ -38,7 +37,8 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
         |   DEFINE
         |     A as A.f0 = 1
         |)""".stripMargin,
-      Pattern.begin("A", skipToNext()).next("B"))
+      Pattern.begin("A", skipToNext()).next("B")
+    )
   }
 
   @Test
@@ -53,7 +53,8 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
         |   DEFINE
         |     A as A.f0 = 1
         |)""".stripMargin,
-      Pattern.begin("A", skipToNext()).next("B"))
+      Pattern.begin("A", skipToNext()).next("B")
+    )
 
     verifyPattern(
       """MATCH_RECOGNIZE (
@@ -65,7 +66,8 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
         |   DEFINE
         |     A as A.f0 = 1
         |)""".stripMargin,
-      Pattern.begin("A", skipToLast("A").throwExceptionOnMiss()).next("B"))
+      Pattern.begin("A", skipToLast("A").throwExceptionOnMiss()).next("B")
+    )
 
     verifyPattern(
       """MATCH_RECOGNIZE (
@@ -77,7 +79,8 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
         |   DEFINE
         |     A as A.f0 = 1
         |)""".stripMargin,
-      Pattern.begin("A", skipToFirst("A").throwExceptionOnMiss()).next("B"))
+      Pattern.begin("A", skipToFirst("A").throwExceptionOnMiss()).next("B")
+    )
 
     verifyPattern(
       """MATCH_RECOGNIZE (
@@ -89,7 +92,8 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
         |   DEFINE
         |     A as A.f0 = 1
         |)""".stripMargin,
-      Pattern.begin("A", skipPastLastEvent()).next("B"))
+      Pattern.begin("A", skipPastLastEvent()).next("B")
+    )
   }
 
   @Test
@@ -103,7 +107,8 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
         |   DEFINE
         |     A as A.f0 = 1
         |)""".stripMargin,
-      Pattern.begin("A", skipToNext()).timesOrMore(2).consecutive().greedy().next("B"))
+      Pattern.begin("A", skipToNext()).timesOrMore(2).consecutive().greedy().next("B")
+    )
 
     verifyPattern(
       """MATCH_RECOGNIZE (
@@ -114,7 +119,8 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
         |   DEFINE
         |     A as A.f0 = 1
         |)""".stripMargin,
-      Pattern.begin("A", skipToNext()).oneOrMore().consecutive().greedy().next("B"))
+      Pattern.begin("A", skipToNext()).oneOrMore().consecutive().greedy().next("B")
+    )
 
     verifyPattern(
       """MATCH_RECOGNIZE (
@@ -125,7 +131,8 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
         |   DEFINE
         |     A as A.f0 = 1
         |)""".stripMargin,
-      Pattern.begin("A", skipToNext()).times(2, 6).consecutive().greedy().next("B"))
+      Pattern.begin("A", skipToNext()).times(2, 6).consecutive().greedy().next("B")
+    )
 
     verifyPattern(
       """MATCH_RECOGNIZE (
@@ -136,7 +143,8 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
         |   DEFINE
         |     A as A.f0 = 1
         |)""".stripMargin,
-      Pattern.begin("A", skipToNext()).times(2).consecutive())
+      Pattern.begin("A", skipToNext()).times(2).consecutive()
+    )
   }
 
   @Test
@@ -150,7 +158,8 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
         |   DEFINE
         |     A as A.f0 = 1
         |)""".stripMargin,
-      Pattern.begin("A", skipToNext()).oneOrMore().consecutive().greedy().optional().next("B"))
+      Pattern.begin("A", skipToNext()).oneOrMore().consecutive().greedy().optional().next("B")
+    )
 
     verifyPattern(
       """MATCH_RECOGNIZE (
@@ -161,7 +170,8 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
         |   DEFINE
         |     A as A.f0 = 1
         |)""".stripMargin,
-      Pattern.begin("A", skipToNext()).optional().next("B"))
+      Pattern.begin("A", skipToNext()).optional().next("B")
+    )
   }
 
   @Test
@@ -175,7 +185,8 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
         |   DEFINE
         |     A as A.f0 = 1
         |)""".stripMargin,
-      Pattern.begin("A", skipToNext()).timesOrMore(2).consecutive().next("B"))
+      Pattern.begin("A", skipToNext()).timesOrMore(2).consecutive().next("B")
+    )
 
     verifyPattern(
       """MATCH_RECOGNIZE (
@@ -186,7 +197,8 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
         |   DEFINE
         |     A as A.f0 = 1
         |)""".stripMargin,
-      Pattern.begin("A", skipToNext()).oneOrMore().consecutive().next("B"))
+      Pattern.begin("A", skipToNext()).oneOrMore().consecutive().next("B")
+    )
 
     verifyPattern(
       """MATCH_RECOGNIZE (
@@ -197,7 +209,8 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
         |   DEFINE
         |     A as A.f0 = 1
         |)""".stripMargin,
-      Pattern.begin("A", skipToNext()).times(2, 6).consecutive().next("B"))
+      Pattern.begin("A", skipToNext()).times(2, 6).consecutive().next("B")
+    )
 
     verifyPattern(
       """MATCH_RECOGNIZE (
@@ -208,7 +221,8 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
         |   DEFINE
         |     A as A.f0 = 1
         |)""".stripMargin,
-      Pattern.begin("A", skipToNext()).oneOrMore().consecutive().optional().next("B"))
+      Pattern.begin("A", skipToNext()).oneOrMore().consecutive().optional().next("B")
+    )
   }
 
   @Test
@@ -223,7 +237,8 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
         |    `A"` as `A"`.f0 = 1
         |) AS T
         |""".stripMargin,
-      Pattern.begin("A\"", skipToNext()).optional().next("\u006C").next("C"))
+      Pattern.begin("A\"", skipToNext()).optional().next("\u006C").next("C")
+    )
   }
 
   @Test
@@ -238,8 +253,11 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
         |    A as A.f0 = 1
         |) AS T
         |""".stripMargin,
-      Pattern.begin("A", skipToNext()).next("B")
-        .within(Time.milliseconds(10 * 24 * 60 * 60 * 1000 + 4)))
+      Pattern
+        .begin("A", skipToNext())
+        .next("B")
+        .within(Time.milliseconds(10 * 24 * 60 * 60 * 1000 + 4))
+    )
 
     verifyPattern(
       """MATCH_RECOGNIZE (
@@ -251,8 +269,11 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
         |    A as A.f0 = 1
         |) AS T
         |""".stripMargin,
-      Pattern.begin("A", skipToNext()).next("B")
-        .within(Time.milliseconds(10 * 24 * 60 * 60 * 1000)))
+      Pattern
+        .begin("A", skipToNext())
+        .next("B")
+        .within(Time.milliseconds(10 * 24 * 60 * 60 * 1000))
+    )
 
     verifyPattern(
       """MATCH_RECOGNIZE (
@@ -264,8 +285,11 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
         |    A as A.f0 = 1
         |) AS T
         |""".stripMargin,
-      Pattern.begin("A", skipToNext()).next("B")
-        .within(Time.milliseconds(10 * 60 * 1000)))
+      Pattern
+        .begin("A", skipToNext())
+        .next("B")
+        .within(Time.milliseconds(10 * 60 * 1000))
+    )
   }
 
   @Test(expected = classOf[TableException])
@@ -280,7 +304,8 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
         |    A as A.f0 = 1
         |) AS T
         |""".stripMargin,
-      null /* don't care */)
+      null /* don't care */
+    )
   }
 
   @Test(expected = classOf[TableException])
@@ -294,7 +319,8 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
         |   DEFINE
         |     A as A.f0 = 1
         |)""".stripMargin,
-      null /* don't care */)
+      null /* don't care */
+    )
   }
 
   @Test(expected = classOf[TableException])
@@ -308,7 +334,8 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
         |   DEFINE
         |     A as A.f0 = 1
         |)""".stripMargin,
-      null /* don't care */)
+      null /* don't care */
+    )
   }
 
   @Test
@@ -325,7 +352,8 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
         |   DEFINE
         |     A AS A.f0 = 1
         |)""".stripMargin,
-      null /* don't care */)
+      null /* don't care */
+    )
   }
 
   @Test
@@ -342,7 +370,8 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
         |   DEFINE
         |     A AS A.f0 = 1
         |)""".stripMargin,
-      null /* don't care */)
+      null /* don't care */
+    )
   }
 
   @Test
@@ -359,7 +388,8 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
         |   DEFINE
         |     A AS A.f0 = 1
         |)""".stripMargin,
-      null /* don't care */)
+      null /* don't care */
+    )
   }
 
   @Test
@@ -376,7 +406,8 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
         |   DEFINE
         |     A AS PREV(A.f0) = 1
         |)""".stripMargin,
-      null /* don't care */)
+      null /* don't care */
+    )
   }
 
   @Test
@@ -393,6 +424,7 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
         |   DEFINE
         |     A AS A.f0 = 1
         |)""".stripMargin,
-      null /* don't care */)
+      null /* don't care */
+    )
   }
 }

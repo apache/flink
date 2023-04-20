@@ -19,15 +19,17 @@
 package org.apache.flink.connector.testframe.environment;
 
 import org.apache.flink.annotation.Experimental;
-import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.highavailability.nonha.embedded.HaLeadershipControl;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 
+import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,9 +37,14 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
+
+import static org.apache.flink.configuration.MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL;
+import static org.apache.flink.connector.testframe.utils.ConnectorTestConstants.METRIC_FETCHER_UPDATE_INTERVAL_MS;
+import static org.apache.flink.runtime.jobgraph.SavepointConfigOptions.SAVEPOINT_PATH;
 
 /** Test environment for running jobs on Flink mini-cluster. */
 @Experimental
@@ -53,9 +60,12 @@ public class MiniClusterTestEnvironment implements TestEnvironment, ClusterContr
     private boolean isStarted = false;
 
     public MiniClusterTestEnvironment() {
+        Configuration conf = new Configuration();
+        conf.set(METRIC_FETCHER_UPDATE_INTERVAL, METRIC_FETCHER_UPDATE_INTERVAL_MS);
         this.miniCluster =
                 new MiniClusterWithClientResource(
                         new MiniClusterResourceConfiguration.Builder()
+                                .setConfiguration(conf)
                                 .setNumberTaskManagers(1)
                                 .setNumberSlotsPerTaskManager(6)
                                 .setRpcServiceSharing(RpcServiceSharing.DEDICATED)
@@ -71,7 +81,18 @@ public class MiniClusterTestEnvironment implements TestEnvironment, ClusterContr
     @Override
     public StreamExecutionEnvironment createExecutionEnvironment(
             TestEnvironmentSettings envOptions) {
-        return StreamExecutionEnvironment.getExecutionEnvironment();
+        Configuration configuration = new Configuration();
+        if (envOptions.getSavepointRestorePath() != null) {
+            configuration.setString(SAVEPOINT_PATH, envOptions.getSavepointRestorePath());
+        }
+        return new TestStreamEnvironment(
+                this.miniCluster.getMiniCluster(),
+                configuration,
+                this.miniCluster.getNumberSlots(),
+                envOptions.getConnectorJarPaths().stream()
+                        .map(url -> new org.apache.flink.core.fs.Path(url.getPath()))
+                        .collect(Collectors.toList()),
+                Collections.emptyList());
     }
 
     @Override
@@ -109,8 +130,7 @@ public class MiniClusterTestEnvironment implements TestEnvironment, ClusterContr
             throws Exception {
         terminateTaskManager();
         CommonTestUtils.waitForNoTaskRunning(
-                () -> miniCluster.getRestClusterClient().getJobDetails(jobClient.getJobID()).get(),
-                Deadline.fromNow(Duration.ofMinutes(5)));
+                () -> miniCluster.getRestClusterClient().getJobDetails(jobClient.getJobID()).get());
         afterFailAction.run();
         startTaskManager();
     }
@@ -131,12 +151,13 @@ public class MiniClusterTestEnvironment implements TestEnvironment, ClusterContr
     }
 
     @Override
-    public void tearDown() {
+    public void tearDown() throws Exception {
         if (!isStarted) {
             return;
         }
         isStarted = false;
         this.miniCluster.after();
+        FileUtils.deleteDirectory(checkpointPath.toFile());
         LOG.debug("MiniCluster has been tear down");
     }
 

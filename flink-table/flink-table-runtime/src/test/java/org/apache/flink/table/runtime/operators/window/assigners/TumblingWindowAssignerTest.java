@@ -23,32 +23,25 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import java.time.Duration;
 
-import static org.apache.flink.table.runtime.operators.window.WindowTestUtils.timeWindow;
-import static org.hamcrest.Matchers.contains;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link TumblingWindowAssigner}. */
 public class TumblingWindowAssignerTest {
 
     private static final RowData ELEMENT = GenericRowData.of("String");
-    @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Test
     public void testWindowAssignment() {
         TumblingWindowAssigner assigner = TumblingWindowAssigner.of(Duration.ofMillis(5000));
 
-        assertThat(assigner.assignWindows(ELEMENT, 0L), contains(timeWindow(0, 5000)));
-        assertThat(assigner.assignWindows(ELEMENT, 4999L), contains(timeWindow(0, 5000)));
-        assertThat(assigner.assignWindows(ELEMENT, 5000L), contains(timeWindow(5000, 10000)));
+        assertThat(assigner.assignWindows(ELEMENT, 0L)).contains(new TimeWindow(0, 5000));
+        assertThat(assigner.assignWindows(ELEMENT, 4999L)).contains(new TimeWindow(0, 5000));
+        assertThat(assigner.assignWindows(ELEMENT, 5000L)).contains(new TimeWindow(5000, 10000));
     }
 
     @Test
@@ -57,23 +50,18 @@ public class TumblingWindowAssignerTest {
                 TumblingWindowAssigner.of(Duration.ofMillis(5000))
                         .withOffset(Duration.ofMillis(100));
 
-        assertThat(assigner.assignWindows(ELEMENT, 100L), contains(timeWindow(100, 5100)));
-        assertThat(assigner.assignWindows(ELEMENT, 5099L), contains(timeWindow(100, 5100)));
-        assertThat(assigner.assignWindows(ELEMENT, 5100L), contains(timeWindow(5100, 10100)));
+        assertThat(assigner.assignWindows(ELEMENT, 100L)).contains(new TimeWindow(100, 5100));
+        assertThat(assigner.assignWindows(ELEMENT, 5099L)).contains(new TimeWindow(100, 5100));
+        assertThat(assigner.assignWindows(ELEMENT, 5100L)).contains(new TimeWindow(5100, 10100));
     }
 
     @Test
     public void testInvalidParameters() {
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage("size > 0");
-        TumblingWindowAssigner.of(Duration.ofSeconds(-1));
+        assertThatThrownBy(() -> TumblingWindowAssigner.of(Duration.ofSeconds(-1)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("TumblingWindowAssigner parameters must satisfy size > 0");
 
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage("size > 0");
         TumblingWindowAssigner.of(Duration.ofSeconds(10)).withOffset(Duration.ofSeconds(20));
-
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage("size > 0");
         TumblingWindowAssigner.of(Duration.ofSeconds(10)).withOffset(Duration.ofSeconds(-1));
     }
 
@@ -81,11 +69,11 @@ public class TumblingWindowAssignerTest {
     public void testProperties() {
         TumblingWindowAssigner assigner = TumblingWindowAssigner.of(Duration.ofMillis(5000));
 
-        assertTrue(assigner.isEventTime());
-        assertEquals(
-                new TimeWindow.Serializer(), assigner.getWindowSerializer(new ExecutionConfig()));
+        assertThat(assigner.isEventTime()).isTrue();
+        assertThat(assigner.getWindowSerializer(new ExecutionConfig()))
+                .isEqualTo(new TimeWindow.Serializer());
 
-        assertTrue(assigner.withEventTime().isEventTime());
-        assertFalse(assigner.withProcessingTime().isEventTime());
+        assertThat(assigner.withEventTime().isEventTime()).isTrue();
+        assertThat(assigner.withProcessingTime().isEventTime()).isFalse();
     }
 }

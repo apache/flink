@@ -191,12 +191,12 @@ public class TableDescriptor {
         private final List<String> partitionKeys;
         private @Nullable String comment;
 
-        private Builder() {
+        protected Builder() {
             this.options = new HashMap<>();
             this.partitionKeys = new ArrayList<>();
         }
 
-        private Builder(TableDescriptor descriptor) {
+        protected Builder(TableDescriptor descriptor) {
             this.schema = descriptor.getSchema().orElse(null);
             this.options = new HashMap<>(descriptor.getOptions());
             this.partitionKeys = new ArrayList<>(descriptor.getPartitionKeys());
@@ -207,7 +207,7 @@ public class TableDescriptor {
          * Define the schema of the {@link TableDescriptor}.
          *
          * <p>The schema is typically required. It is optional only in cases where the schema can be
-         * inferred, e.g. {@link Table#executeInsert(TableDescriptor)}.
+         * inferred, e.g. {@link Table#insertInto(TableDescriptor)}.
          */
         public Builder schema(@Nullable Schema schema) {
             this.schema = schema;

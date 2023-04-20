@@ -174,8 +174,8 @@ class NettyServer {
         }
 
         if (bootstrap != null) {
-            if (bootstrap.group() != null) {
-                bootstrap.group().shutdownGracefully();
+            if (bootstrap.config().group() != null) {
+                bootstrap.config().group().shutdownGracefully();
             }
             bootstrap = null;
         }

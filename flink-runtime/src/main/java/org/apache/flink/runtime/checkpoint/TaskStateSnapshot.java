@@ -22,13 +22,16 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CompositeStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateUtil;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.SerializedValue;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterators;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -167,6 +170,19 @@ public class TaskStateSnapshot implements CompositeStateHandle {
     }
 
     @Override
+    public long getCheckpointedSize() {
+        long size = 0L;
+
+        for (OperatorSubtaskState subtaskState : subtaskStatesByOperatorID.values()) {
+            if (subtaskState != null) {
+                size += subtaskState.getCheckpointedSize();
+            }
+        }
+
+        return size;
+    }
+
+    @Override
     public void registerSharedStates(SharedStateRegistry stateRegistry, long checkpointID) {
         for (OperatorSubtaskState operatorSubtaskState : subtaskStatesByOperatorID.values()) {
             if (operatorSubtaskState != null) {
@@ -217,5 +233,25 @@ public class TaskStateSnapshot implements CompositeStateHandle {
                         .filter(mapping -> !mapping.equals(NO_RESCALE))
                         .iterator(),
                 NO_RESCALE);
+    }
+
+    @Nullable
+    public static SerializedValue<TaskStateSnapshot> serializeTaskStateSnapshot(
+            TaskStateSnapshot subtaskState) {
+        try {
+            return subtaskState == null ? null : new SerializedValue<>(subtaskState);
+        } catch (IOException e) {
+            throw new FlinkRuntimeException(e);
+        }
+    }
+
+    @Nullable
+    public static TaskStateSnapshot deserializeTaskStateSnapshot(
+            SerializedValue<TaskStateSnapshot> subtaskState, ClassLoader classLoader) {
+        try {
+            return subtaskState == null ? null : subtaskState.deserializeValue(classLoader);
+        } catch (IOException | ClassNotFoundException e) {
+            throw new FlinkRuntimeException(e);
+        }
     }
 }

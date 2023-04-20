@@ -40,7 +40,7 @@ Take a simple `Source -> Sink` job as an example. If you see a warning for `Sour
 ## Task performance metrics
 
 Every parallel instance of a task (subtask) is exposing a group of three metrics:
-- `backPressureTimeMsPerSecond`, time that subtask spent being back pressured
+- `backPressuredTimeMsPerSecond`, time that subtask spent being back pressured
 - `idleTimeMsPerSecond`, time that subtask spent waiting for something to process
 - `busyTimeMsPerSecond`, time that subtask was busy doing some actual work
 At any point of time these three metrics are adding up approximately to `1000ms`.

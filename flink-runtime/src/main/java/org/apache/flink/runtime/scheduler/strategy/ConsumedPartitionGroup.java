@@ -18,9 +18,12 @@
 
 package org.apache.flink.runtime.scheduler.strategy;
 
-import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -28,8 +31,13 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
-/** Group of consumed {@link IntermediateResultPartitionID}s. */
+/**
+ * Group of consumed {@link IntermediateResultPartitionID}s. One such a group corresponds to one
+ * {@link ConsumerVertexGroup}.
+ */
 public class ConsumedPartitionGroup implements Iterable<IntermediateResultPartitionID> {
 
     private final List<IntermediateResultPartitionID> resultPartitions;
@@ -38,11 +46,23 @@ public class ConsumedPartitionGroup implements Iterable<IntermediateResultPartit
 
     private final IntermediateDataSetID intermediateDataSetID;
 
-    private ConsumedPartitionGroup(List<IntermediateResultPartitionID> resultPartitions) {
+    private final ResultPartitionType resultPartitionType;
+
+    /** Number of consumer tasks in the corresponding {@link ConsumerVertexGroup}. */
+    private final int numConsumers;
+
+    @Nullable private ConsumerVertexGroup consumerVertexGroup;
+
+    private ConsumedPartitionGroup(
+            int numConsumers,
+            List<IntermediateResultPartitionID> resultPartitions,
+            ResultPartitionType resultPartitionType) {
         checkArgument(
                 resultPartitions.size() > 0,
                 "The size of result partitions in the ConsumedPartitionGroup should be larger than 0.");
+        this.numConsumers = numConsumers;
         this.intermediateDataSetID = resultPartitions.get(0).getIntermediateDataSetID();
+        this.resultPartitionType = Preconditions.checkNotNull(resultPartitionType);
 
         // Sanity check: all the partitions in one ConsumedPartitionGroup should have the same
         // IntermediateDataSetID
@@ -56,13 +76,18 @@ public class ConsumedPartitionGroup implements Iterable<IntermediateResultPartit
     }
 
     public static ConsumedPartitionGroup fromMultiplePartitions(
-            List<IntermediateResultPartitionID> resultPartitions) {
-        return new ConsumedPartitionGroup(resultPartitions);
+            int numConsumers,
+            List<IntermediateResultPartitionID> resultPartitions,
+            ResultPartitionType resultPartitionType) {
+        return new ConsumedPartitionGroup(numConsumers, resultPartitions, resultPartitionType);
     }
 
     public static ConsumedPartitionGroup fromSinglePartition(
-            IntermediateResultPartitionID resultPartition) {
-        return new ConsumedPartitionGroup(Collections.singletonList(resultPartition));
+            int numConsumers,
+            IntermediateResultPartitionID resultPartition,
+            ResultPartitionType resultPartitionType) {
+        return new ConsumedPartitionGroup(
+                numConsumers, Collections.singletonList(resultPartition), resultPartitionType);
     }
 
     @Override
@@ -76,6 +101,14 @@ public class ConsumedPartitionGroup implements Iterable<IntermediateResultPartit
 
     public boolean isEmpty() {
         return resultPartitions.isEmpty();
+    }
+
+    /**
+     * In dynamic graph cases, the number of consumers of ConsumedPartitionGroup can be different
+     * even if they contain the same IntermediateResultPartition.
+     */
+    public int getNumConsumers() {
+        return numConsumers;
     }
 
     public IntermediateResultPartitionID getFirst() {
@@ -95,12 +128,24 @@ public class ConsumedPartitionGroup implements Iterable<IntermediateResultPartit
         return unfinishedPartitions.decrementAndGet();
     }
 
-    @VisibleForTesting
     public int getNumberOfUnfinishedPartitions() {
         return unfinishedPartitions.get();
     }
 
     public boolean areAllPartitionsFinished() {
         return unfinishedPartitions.get() == 0;
+    }
+
+    public ResultPartitionType getResultPartitionType() {
+        return resultPartitionType;
+    }
+
+    public ConsumerVertexGroup getConsumerVertexGroup() {
+        return checkNotNull(consumerVertexGroup, "ConsumerVertexGroup is not properly set.");
+    }
+
+    public void setConsumerVertexGroup(ConsumerVertexGroup consumerVertexGroup) {
+        checkState(this.consumerVertexGroup == null);
+        this.consumerVertexGroup = checkNotNull(consumerVertexGroup);
     }
 }

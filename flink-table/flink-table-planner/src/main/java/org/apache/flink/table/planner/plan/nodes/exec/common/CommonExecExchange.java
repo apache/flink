@@ -18,8 +18,10 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.types.logical.RowType;
@@ -35,7 +37,12 @@ public abstract class CommonExecExchange extends ExecNodeBase<RowData>
         implements SingleTransformationTranslator<RowData> {
 
     public CommonExecExchange(
-            int id, List<InputProperty> inputProperties, RowType outputType, String description) {
-        super(id, inputProperties, outputType, description);
+            int id,
+            ExecNodeContext context,
+            ReadableConfig persistedConfig,
+            List<InputProperty> inputProperties,
+            RowType outputType,
+            String description) {
+        super(id, context, persistedConfig, inputProperties, outputType, description);
     }
 }

@@ -23,13 +23,18 @@ import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.util.Pool;
 import org.apache.flink.connector.file.table.ColumnarRowIterator;
 import org.apache.flink.connector.file.table.PartitionFieldExtractor;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.orc.shim.OrcShim;
+import org.apache.flink.orc.util.OrcFormatStatisticsReportUtil;
 import org.apache.flink.orc.vector.ColumnBatchFactory;
 import org.apache.flink.orc.vector.OrcVectorizedBatchWrapper;
+import org.apache.flink.table.connector.format.FileBasedStatisticsReportableInputFormat;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.columnar.ColumnarRowData;
 import org.apache.flink.table.data.columnar.vector.ColumnVector;
 import org.apache.flink.table.data.columnar.vector.VectorizedColumnBatch;
+import org.apache.flink.table.plan.stats.TableStats;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -56,7 +61,8 @@ import static org.apache.flink.orc.vector.AbstractOrcColumnVector.createFlinkVec
  * different and types of extra fields need to be added.
  */
 public class OrcColumnarRowInputFormat<BatchT, SplitT extends FileSourceSplit>
-        extends AbstractOrcFileInputFormat<RowData, BatchT, SplitT> {
+        extends AbstractOrcFileInputFormat<RowData, BatchT, SplitT>
+        implements FileBasedStatisticsReportableInputFormat {
 
     private static final long serialVersionUID = 1L;
 
@@ -92,6 +98,12 @@ public class OrcColumnarRowInputFormat<BatchT, SplitT extends FileSourceSplit>
     @Override
     public TypeInformation<RowData> getProducedType() {
         return this.producedTypeInfo;
+    }
+
+    @Override
+    public TableStats reportStatistics(List<Path> files, DataType producedDataType) {
+        return OrcFormatStatisticsReportUtil.getTableStatistics(
+                files, producedDataType, hadoopConfigWrapper.getHadoopConfig());
     }
 
     // ------------------------------------------------------------------------

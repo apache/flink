@@ -94,3 +94,4 @@ spec:
       emptyDir: { }
     - name: flink-logs
       emptyDir: { }
+  dnsPolicy: None

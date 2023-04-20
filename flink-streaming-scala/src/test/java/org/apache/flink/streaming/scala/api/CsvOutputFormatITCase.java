@@ -28,6 +28,7 @@ import org.junit.Test;
 
 import java.io.File;
 
+import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
 import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;

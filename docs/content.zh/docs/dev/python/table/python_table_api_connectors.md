@@ -36,7 +36,7 @@ under the License.
 要在 PyFlink 作业中使用，首先需要将其指定为作业的 [依赖]({{< ref "docs/dev/python/dependency_management" >}})。
 
 ```python
-table_env.get_config().get_configuration().set_string("pipeline.jars", "file:///my/jar/path/connector.jar;file:///my/jar/path/json.jar")
+table_env.get_config().set("pipeline.jars", "file:///my/jar/path/connector.jar;file:///my/jar/path/json.jar")
 ```
 
 ## 如何使用连接器
@@ -86,7 +86,7 @@ def log_processing():
     env_settings = EnvironmentSettings.in_streaming_mode()
     t_env = TableEnvironment.create(env_settings)
     # specify connector and format jars
-    t_env.get_config().get_configuration().set_string("pipeline.jars", "file:///my/jar/path/connector.jar;file:///my/jar/path/json.jar")
+    t_env.get_config().set("pipeline.jars", "file:///my/jar/path/connector.jar;file:///my/jar/path/json.jar")
     
     source_ddl = """
             CREATE TABLE source_table(
@@ -134,12 +134,14 @@ if __name__ == '__main__':
 PyFlink 表支持与 Pandas DataFrame 之间互相转换。
 
 ```python
+from pyflink.table.expressions import col
+
 import pandas as pd
 import numpy as np
 
 # 创建一个 PyFlink 表
 pdf = pd.DataFrame(np.random.rand(1000, 2))
-table = t_env.from_pandas(pdf, ["a", "b"]).filter("a > 0.5")
+table = t_env.from_pandas(pdf, ["a", "b"]).filter(col('a') > 0.5)
 
 # 将 PyFlink 表转换成 Pandas DataFrame
 pdf = table.to_pandas()
@@ -150,6 +152,8 @@ pdf = table.to_pandas()
 `from_elements()` 用于从一个元素集合中创建一张表。元素类型必须是可支持的原子类型或者复杂类型。
 
 ```python
+from pyflink.table import DataTypes
+
 table_env.from_elements([(1, 'Hi'), (2, 'Hello')])
 
 # 使用第二个参数指定自定义字段名

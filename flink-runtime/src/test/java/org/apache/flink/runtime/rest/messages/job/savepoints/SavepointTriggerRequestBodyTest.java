@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest.messages.job.savepoints;
 
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.rest.messages.RestRequestMarshallingTestBase;
 import org.apache.flink.runtime.rest.messages.TriggerId;
 
@@ -45,10 +46,38 @@ public class SavepointTriggerRequestBodyTest
     public static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
-                    {new SavepointTriggerRequestBody("/tmp", true, null)},
-                    {new SavepointTriggerRequestBody("/tmp", false, null)},
-                    {new SavepointTriggerRequestBody("/tmp", true, new TriggerId())},
-                    {new SavepointTriggerRequestBody("/tmp", false, new TriggerId())},
+                    {
+                        new SavepointTriggerRequestBody(
+                                "/tmp", true, SavepointFormatType.CANONICAL, null)
+                    },
+                    {
+                        new SavepointTriggerRequestBody(
+                                "/tmp", false, SavepointFormatType.CANONICAL, null)
+                    },
+                    {
+                        new SavepointTriggerRequestBody(
+                                "/tmp", true, SavepointFormatType.CANONICAL, new TriggerId())
+                    },
+                    {
+                        new SavepointTriggerRequestBody(
+                                "/tmp", false, SavepointFormatType.CANONICAL, new TriggerId())
+                    },
+                    {
+                        new SavepointTriggerRequestBody(
+                                "/tmp", true, SavepointFormatType.NATIVE, null)
+                    },
+                    {
+                        new SavepointTriggerRequestBody(
+                                "/tmp", false, SavepointFormatType.NATIVE, null)
+                    },
+                    {
+                        new SavepointTriggerRequestBody(
+                                "/tmp", true, SavepointFormatType.NATIVE, new TriggerId())
+                    },
+                    {
+                        new SavepointTriggerRequestBody(
+                                "/tmp", false, SavepointFormatType.NATIVE, new TriggerId())
+                    }
                 });
     }
 
@@ -67,5 +96,6 @@ public class SavepointTriggerRequestBodyTest
             final SavepointTriggerRequestBody expected, final SavepointTriggerRequestBody actual) {
         assertEquals(expected.getTargetDirectory(), actual.getTargetDirectory());
         assertEquals(expected.getTriggerId(), actual.getTriggerId());
+        assertEquals(expected.getFormatType(), actual.getFormatType());
     }
 }

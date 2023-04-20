@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest.handler.job.savepoints;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.dispatcher.TriggerSavepointMode;
 import org.apache.flink.runtime.dispatcher.UnknownOperationKeyException;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -208,8 +209,9 @@ public class SavepointHandlers {
                             ? TriggerSavepointMode.TERMINATE_WITH_SAVEPOINT
                             : TriggerSavepointMode.SUSPEND_WITH_SAVEPOINT;
             final String targetDirectory = requestedTargetDirectory.orElse(defaultSavepointDir);
+            final SavepointFormatType formatType = request.getRequestBody().getFormatType();
             return gateway.stopWithSavepoint(
-                    operationKey, targetDirectory, savepointMode, RpcUtils.INF_TIMEOUT);
+                    operationKey, targetDirectory, formatType, savepointMode, RpcUtils.INF_TIMEOUT);
         }
     }
 
@@ -251,8 +253,9 @@ public class SavepointHandlers {
                             ? TriggerSavepointMode.CANCEL_WITH_SAVEPOINT
                             : TriggerSavepointMode.SAVEPOINT;
             final String targetDirectory = requestedTargetDirectory.orElse(defaultSavepointDir);
+            final SavepointFormatType formatType = request.getRequestBody().getFormatType();
             return gateway.triggerSavepoint(
-                    operationKey, targetDirectory, savepointMode, RpcUtils.INF_TIMEOUT);
+                    operationKey, targetDirectory, formatType, savepointMode, RpcUtils.INF_TIMEOUT);
         }
     }
 

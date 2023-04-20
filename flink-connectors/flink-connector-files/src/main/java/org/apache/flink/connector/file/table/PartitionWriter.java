@@ -62,4 +62,28 @@ public interface PartitionWriter<T> {
             return format;
         }
     }
+
+    /** Listener for partition writer. */
+    interface PartitionWriterListener {
+
+        /**
+         * Notifies a new file has been opened.
+         *
+         * <p>Note that this does not mean that the file has been created in the file system. It is
+         * only created logically and the actual file will be generated after it is committed.
+         *
+         * @param partition The partition for the newly opened file.
+         * @param file The newly created file.
+         */
+        void onFileOpened(String partition, Path file);
+    }
+
+    /** Default implementation for PartitionWriterListener. */
+    class DefaultPartitionWriterListener implements PartitionWriterListener {
+
+        @Override
+        public void onFileOpened(String partition, Path file) {
+            // do nothing
+        }
+    }
 }

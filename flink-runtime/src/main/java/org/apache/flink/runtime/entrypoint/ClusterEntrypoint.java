@@ -65,6 +65,8 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.security.contexts.SecurityContext;
+import org.apache.flink.runtime.security.token.DefaultDelegationTokenManagerFactory;
+import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.webmonitor.retriever.impl.RpcMetricQueryServiceRetriever;
 import org.apache.flink.util.AutoCloseableAsync;
@@ -109,6 +111,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
     public static final ConfigOption<String> INTERNAL_CLUSTER_EXECUTION_MODE =
             ConfigOptions.key("internal.cluster.execution-mode")
+                    .stringType()
                     .defaultValue(ExecutionMode.NORMAL.toString());
 
     protected static final Logger LOG = LoggerFactory.getLogger(ClusterEntrypoint.class);
@@ -149,6 +152,9 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
     private HeartbeatServices heartbeatServices;
 
     @GuardedBy("lock")
+    private DelegationTokenManager delegationTokenManager;
+
+    @GuardedBy("lock")
     private RpcService commonRpcService;
 
     @GuardedBy("lock")
@@ -179,6 +185,29 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         shutDownHook =
                 ShutdownHookUtil.addShutdownHook(
                         () -> this.closeAsync().join(), getClass().getSimpleName(), LOG);
+    }
+
+    public int getRestPort() {
+        synchronized (lock) {
+            assertClusterEntrypointIsStarted();
+
+            return clusterComponent.getRestPort();
+        }
+    }
+
+    public int getRpcPort() {
+        synchronized (lock) {
+            assertClusterEntrypointIsStarted();
+
+            return commonRpcService.getPort();
+        }
+    }
+
+    @GuardedBy("lock")
+    private void assertClusterEntrypointIsStarted() {
+        Preconditions.checkNotNull(
+                commonRpcService,
+                String.format("%s has not been started yet.", getClass().getSimpleName()));
     }
 
     public CompletableFuture<ApplicationStatus> getTerminationFuture() {
@@ -269,6 +298,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                             haServices,
                             blobServer,
                             heartbeatServices,
+                            delegationTokenManager,
                             metricRegistry,
                             executionGraphInfoStore,
                             new RpcMetricQueryServiceRetriever(
@@ -349,6 +379,15 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                     Executors.newFixedThreadPool(
                             ClusterEntrypointUtils.getPoolSize(configuration),
                             new ExecutorThreadFactory("cluster-io"));
+            delegationTokenManager =
+                    DefaultDelegationTokenManagerFactory.create(
+                            configuration,
+                            pluginManager,
+                            commonRpcService.getScheduledExecutor(),
+                            ioExecutor);
+            // Obtaining delegation tokens and propagating them to the local JVM receivers in a
+            // one-time fashion is required because BlobServer may connect to external file systems
+            delegationTokenManager.obtainDelegationTokens();
             haServices = createHaServices(configuration, ioExecutor, rpcSystem);
             blobServer =
                     BlobUtils.createBlobServer(
@@ -362,7 +401,10 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
             final RpcService metricQueryServiceRpcService =
                     MetricUtils.startRemoteMetricsRpcService(
-                            configuration, commonRpcService.getAddress(), rpcSystem);
+                            configuration,
+                            commonRpcService.getAddress(),
+                            configuration.getString(JobManagerOptions.BIND_HOST),
+                            rpcSystem);
             metricRegistry.startQueryService(metricQueryServiceRpcService, null);
 
             final String hostname = RpcUtils.getHostname(commonRpcService);
@@ -473,7 +515,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
             }
 
             if (metricRegistry != null) {
-                terminationFutures.add(metricRegistry.shutdown());
+                terminationFutures.add(metricRegistry.closeAsync());
             }
 
             if (ioExecutor != null) {
@@ -483,7 +525,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
             }
 
             if (commonRpcService != null) {
-                terminationFutures.add(commonRpcService.stopService());
+                terminationFutures.add(commonRpcService.closeAsync());
             }
 
             try {
@@ -641,7 +683,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
     protected abstract ExecutionGraphInfoStore createSerializableExecutionGraphStore(
             Configuration configuration, ScheduledExecutor scheduledExecutor) throws IOException;
 
-    protected static EntrypointClusterConfiguration parseArguments(String[] args)
+    public static EntrypointClusterConfiguration parseArguments(String[] args)
             throws FlinkParseException {
         final CommandLineParser<EntrypointClusterConfiguration> clusterConfigurationParser =
                 new CommandLineParser<>(new EntrypointClusterConfigurationParserFactory());
@@ -661,12 +703,18 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         final int restPort = entrypointClusterConfiguration.getRestPort();
 
         if (restPort >= 0) {
+            LOG.warn(
+                    "The 'webui-port' parameter of 'jobmanager.sh' has been deprecated. Please use '-D {}=<port> instead.",
+                    RestOptions.PORT);
             configuration.setInteger(RestOptions.PORT, restPort);
         }
 
         final String hostname = entrypointClusterConfiguration.getHostname();
 
         if (hostname != null) {
+            LOG.warn(
+                    "The 'host' parameter of 'jobmanager.sh' has been deprecated. Please use '-D {}=<host> instead.",
+                    JobManagerOptions.ADDRESS);
             configuration.setString(JobManagerOptions.ADDRESS, hostname);
         }
 

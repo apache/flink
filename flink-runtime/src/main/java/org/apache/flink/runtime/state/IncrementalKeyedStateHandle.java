@@ -20,7 +20,7 @@ package org.apache.flink.runtime.state;
 
 import javax.annotation.Nonnull;
 
-import java.util.Set;
+import java.util.Map;
 import java.util.UUID;
 
 /** Common interface to all incremental {@link KeyedStateHandle}. */
@@ -36,5 +36,5 @@ public interface IncrementalKeyedStateHandle
      * created.
      */
     @Nonnull
-    Set<StateHandleID> getSharedStateHandleIDs();
+    Map<StateHandleID, StreamStateHandle> getSharedStateHandles();
 }

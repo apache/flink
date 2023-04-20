@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
@@ -25,16 +24,10 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalE
 import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 
-/**
-  * Rule that converts [[FlinkLogicalExpand]] to [[StreamPhysicalExpand]].
-  */
-class StreamPhysicalExpandRule
-  extends ConverterRule(
-    classOf[FlinkLogicalExpand],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.STREAM_PHYSICAL,
-    "StreamPhysicalExpandRule") {
+/** Rule that converts [[FlinkLogicalExpand]] to [[StreamPhysicalExpand]]. */
+class StreamPhysicalExpandRule(config: Config) extends ConverterRule(config) {
 
   def convert(rel: RelNode): RelNode = {
     val expand = rel.asInstanceOf[FlinkLogicalExpand]
@@ -50,5 +43,10 @@ class StreamPhysicalExpandRule
 }
 
 object StreamPhysicalExpandRule {
-  val INSTANCE: RelOptRule = new StreamPhysicalExpandRule
+  val INSTANCE: RelOptRule = new StreamPhysicalExpandRule(
+    Config.INSTANCE.withConversion(
+      classOf[FlinkLogicalExpand],
+      FlinkConventions.LOGICAL,
+      FlinkConventions.STREAM_PHYSICAL,
+      "StreamPhysicalExpandRule"))
 }

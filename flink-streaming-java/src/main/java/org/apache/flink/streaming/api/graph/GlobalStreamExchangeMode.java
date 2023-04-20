@@ -51,5 +51,11 @@ public enum GlobalStreamExchangeMode {
     ALL_EDGES_PIPELINED,
 
     /** Set all job edges {@link ResultPartitionType#PIPELINED_APPROXIMATE}. */
-    ALL_EDGES_PIPELINED_APPROXIMATE
+    ALL_EDGES_PIPELINED_APPROXIMATE,
+
+    /** Set all job edges {@link ResultPartitionType#HYBRID_FULL}. */
+    ALL_EDGES_HYBRID_FULL,
+
+    /** Set all job edges {@link ResultPartitionType#HYBRID_SELECTIVE}. */
+    ALL_EDGES_HYBRID_SELECTIVE
 }

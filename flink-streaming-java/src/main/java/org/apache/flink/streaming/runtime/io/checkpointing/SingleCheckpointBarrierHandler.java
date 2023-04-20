@@ -27,6 +27,8 @@ import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.partition.consumer.CheckpointableInput;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointableTask;
+import org.apache.flink.streaming.runtime.io.checkpointing.BarrierAlignmentUtil.Cancellable;
+import org.apache.flink.streaming.runtime.io.checkpointing.BarrierAlignmentUtil.DelayableTimer;
 import org.apache.flink.streaming.runtime.tasks.SubtaskCheckpointCoordinator;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.clock.Clock;
@@ -44,9 +46,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.BiFunction;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_DECLINED_INPUT_END_OF_STREAM;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_DECLINED_SUBSUMED;
@@ -67,7 +67,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
 
     private final String taskName;
     private final ControllerImpl context;
-    private final BiFunction<Callable<?>, Duration, Cancellable> registerTimer;
+    private final DelayableTimer registerTimer;
     private final SubtaskCheckpointCoordinator subTaskCheckpointCoordinator;
     private final CheckpointableInput[] inputs;
 
@@ -128,7 +128,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
             SubtaskCheckpointCoordinator checkpointCoordinator,
             Clock clock,
             int numOpenChannels,
-            BiFunction<Callable<?>, Duration, Cancellable> registerTimer,
+            DelayableTimer registerTimer,
             boolean enableCheckpointAfterTasksFinished,
             CheckpointableInput... inputs) {
         return new SingleCheckpointBarrierHandler(
@@ -149,7 +149,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
             CheckpointableTask toNotifyOnCheckpoint,
             Clock clock,
             int numOpenChannels,
-            BiFunction<Callable<?>, Duration, Cancellable> registerTimer,
+            DelayableTimer registerTimer,
             boolean enableCheckpointAfterTasksFinished,
             CheckpointableInput... inputs) {
         return new SingleCheckpointBarrierHandler(
@@ -171,7 +171,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
             SubtaskCheckpointCoordinator checkpointCoordinator,
             Clock clock,
             int numOpenChannels,
-            BiFunction<Callable<?>, Duration, Cancellable> registerTimer,
+            DelayableTimer registerTimer,
             boolean enableCheckpointAfterTasksFinished,
             CheckpointableInput... inputs) {
         return new SingleCheckpointBarrierHandler(
@@ -195,7 +195,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
             int numOpenChannels,
             BarrierHandlerState currentState,
             boolean alternating,
-            BiFunction<Callable<?>, Duration, Cancellable> registerTimer,
+            DelayableTimer registerTimer,
             CheckpointableInput[] inputs,
             boolean enableCheckpointAfterTasksFinished) {
         super(toNotifyOnCheckpoint, clock, enableCheckpointAfterTasksFinished);
@@ -308,22 +308,17 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
     }
 
     private void registerAlignmentTimer(CheckpointBarrier announcedBarrier) {
-        long alignedCheckpointTimeout =
-                announcedBarrier.getCheckpointOptions().getAlignedCheckpointTimeout();
-        long timePassedSinceCheckpointStart =
-                getClock().absoluteTimeMillis() - announcedBarrier.getTimestamp();
-
-        long timerDelay = Math.max(alignedCheckpointTimeout - timePassedSinceCheckpointStart, 0);
+        long timerDelay = BarrierAlignmentUtil.getTimerDelay(getClock(), announcedBarrier);
 
         this.currentAlignmentTimer =
-                registerTimer.apply(
+                registerTimer.registerTask(
                         () -> {
                             long barrierId = announcedBarrier.getId();
                             try {
                                 if (currentCheckpointId == barrierId
                                         && !getAllBarriersReceivedFuture(barrierId).isDone()) {
                                     currentState =
-                                            currentState.alignmentTimeout(
+                                            currentState.alignedCheckpointTimeout(
                                                     context, announcedBarrier);
                                 }
                             } catch (CheckpointException ex) {

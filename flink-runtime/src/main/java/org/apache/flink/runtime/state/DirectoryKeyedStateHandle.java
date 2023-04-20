@@ -34,12 +34,15 @@ public class DirectoryKeyedStateHandle implements KeyedStateHandle {
     /** The key-group range. */
     @Nonnull private final KeyGroupRange keyGroupRange;
 
+    private final StateHandleID stateHandleId;
+
     public DirectoryKeyedStateHandle(
             @Nonnull DirectoryStateHandle directoryStateHandle,
             @Nonnull KeyGroupRange keyGroupRange) {
 
         this.directoryStateHandle = directoryStateHandle;
         this.keyGroupRange = keyGroupRange;
+        this.stateHandleId = StateHandleID.randomStateHandleId();
     }
 
     @Nonnull
@@ -64,10 +67,20 @@ public class DirectoryKeyedStateHandle implements KeyedStateHandle {
     }
 
     @Override
+    public long getCheckpointedSize() {
+        return getStateSize();
+    }
+
+    @Override
     public KeyedStateHandle getIntersection(KeyGroupRange otherKeyGroupRange) {
         return this.keyGroupRange.getIntersection(otherKeyGroupRange).getNumberOfKeyGroups() > 0
                 ? this
                 : null;
+    }
+
+    @Override
+    public StateHandleID getStateHandleId() {
+        return stateHandleId;
     }
 
     @Override

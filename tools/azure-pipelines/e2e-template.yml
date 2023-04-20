@@ -44,6 +44,10 @@ jobs:
           echo "##vso[task.setvariable variable=skip;]0"
         fi
       displayName: Check if Docs only PR
+    # free up disk space before running anything caching related. Caching has proven to fail in the past, due to lacking disk space.
+    - script: ./tools/azure-pipelines/free_disk_space.sh
+      target: host
+      displayName: Free up disk space
     # the cache task does not create directories on a cache miss, and can later fail when trying to tar the directory if the test haven't created it
     # this may for example happen if a given directory is only used by a subset of tests, which are run in a different 'group'
     - bash: |
@@ -96,14 +100,11 @@ jobs:
         source ./tools/ci/maven-utils.sh
         setup_maven
 
-        echo "Free up disk space"
-        ./tools/azure-pipelines/free_disk_space.sh
-
         echo "Installing required software"
         sudo apt-get install -y bc libapr1
         # install libssl1.0.0 for netty tcnative
-        wget http://security.ubuntu.com/ubuntu/pool/main/o/openssl1.0/libssl1.0.0_1.0.2n-1ubuntu5.7_amd64.deb
-        sudo apt install ./libssl1.0.0_1.0.2n-1ubuntu5.7_amd64.deb
+        wget http://security.ubuntu.com/ubuntu/pool/main/o/openssl1.0/libssl1.0.0_1.0.2n-1ubuntu5.11_amd64.deb
+        sudo apt install ./libssl1.0.0_1.0.2n-1ubuntu5.11_amd64.deb
       displayName: Prepare E2E run
       condition: not(eq(variables['SKIP'], '1'))
     - script: ${{parameters.environment}} PROFILE="$PROFILE -Dfast -Pskip-webui-build" ./tools/ci/compile.sh
@@ -115,8 +116,6 @@ jobs:
         IT_CASE_S3_BUCKET: $(SECRET_S3_BUCKET)
         IT_CASE_S3_ACCESS_KEY: $(SECRET_S3_ACCESS_KEY)
         IT_CASE_S3_SECRET_KEY: $(SECRET_S3_SECRET_KEY)
-        IT_CASE_GLUE_SCHEMA_ACCESS_KEY: $(SECRET_GLUE_SCHEMA_ACCESS_KEY)
-        IT_CASE_GLUE_SCHEMA_SECRET_KEY: $(SECRET_GLUE_SCHEMA_SECRET_KEY)
       condition: and(succeeded(), not(eq(variables['SKIP'], '1')))
       # upload debug artifacts
     - task: PublishPipelineArtifact@1

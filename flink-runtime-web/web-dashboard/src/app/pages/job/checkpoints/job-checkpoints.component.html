@@ -86,6 +86,11 @@
               <nz-divider nzType="vertical"></nz-divider>
               <span>
                 <strong>Checkpointed Data Size:</strong>
+                {{ checkPointStats['latest']['completed']['checkpointed_size'] | humanizeBytes }}
+              </span>
+              <nz-divider nzType="vertical"></nz-divider>
+              <span>
+                <strong>Full Checkpoint Data Size:</strong>
                 {{ checkPointStats['latest']['completed']['state_size'] | humanizeBytes }}
               </span>
             </td>
@@ -152,8 +157,18 @@
               <nz-divider nzType="vertical"></nz-divider>
               <span>
                 <strong>Checkpointed Data Size:</strong>
+                {{ checkPointStats['latest']['savepoint']['checkpointed_size'] | humanizeBytes }}
+              </span>
+              <nz-divider nzType="vertical"></nz-divider>
+              <span>
+                <strong>Full Checkpoint Data Size:</strong>
                 {{ checkPointStats['latest']['savepoint']['state_size'] | humanizeBytes }}
               </span>
+              <ng-container *ngIf="checkPointStats['latest']['savepoint']['savepointFormat']">
+                <nz-divider nzType="vertical"></nz-divider>
+                <strong>Savepoint Format:</strong>
+                {{ checkPointStats['latest']['savepoint']['savepointFormat'] }}
+              </ng-container>
               <nz-divider nzType="vertical"></nz-divider>
               <span>
                 <strong>Path:</strong>
@@ -217,14 +232,26 @@
     >
       <thead>
         <tr>
-          <th nzWidth="60px"></th>
+          <th nzWidth="70px"></th>
           <th><strong>ID</strong></th>
           <th><strong>Status</strong></th>
           <th><strong>Acknowledged</strong></th>
           <th><strong>Trigger Time</strong></th>
           <th><strong>Latest Acknowledgement</strong></th>
           <th><strong>End to End Duration</strong></th>
-          <th><strong>Checkpointed Data Size</strong></th>
+          <th>
+            <strong>
+              Checkpointed Data Size
+              <i
+                class="header-icon"
+                nz-icon
+                nz-tooltip
+                nzTooltipTitle="The size of data persisted during the sync and async phases of a checkpoint. It's usually smaller than Full checkpoint data size if incremental checkpoints or changelog is enabled."
+                nzType="info-circle"
+              ></i>
+            </strong>
+          </th>
+          <th><strong>Full Checkpoint Data Size</strong></th>
           <th><strong>Processed (persisted) in-flight data</strong></th>
         </tr>
       </thead>
@@ -257,6 +284,7 @@
               {{ checkpoint['end_to_end_duration'] | humanizeDuration }}
             </td>
             <td *ngIf="checkpoint['end_to_end_duration'] < 0">n/a</td>
+            <td>{{ checkpoint['checkpointed_size'] | humanizeBytes }}</td>
             <td>{{ checkpoint['state_size'] | humanizeBytes }}</td>
             <td>
               {{ checkpoint['processed_data'] | humanizeBytes }} ({{
@@ -288,7 +316,19 @@
         <tr>
           <th></th>
           <th><strong>End to End Duration</strong></th>
-          <th><strong>Checkpointed Data Size</strong></th>
+          <th>
+            <strong>
+              Checkpointed Data Size
+              <i
+                class="header-icon"
+                nz-icon
+                nz-tooltip
+                nzTooltipTitle="The size of data persisted during the sync and async phases of a checkpoint. It's usually smaller than Full checkpoint data size if incremental checkpoints or changelog is enabled"
+                nzType="info-circle"
+              ></i>
+            </strong>
+          </th>
+          <th><strong>Full Checkpoint Data Size</strong></th>
           <th><strong>Processed (persisted) in-flight data</strong></th>
         </tr>
       </thead>
@@ -297,36 +337,45 @@
           <tr>
             <td><strong>Minimum</strong></td>
             <td>
-              {{ checkPointStats['summary']['end_to_end_duration']['min'] | humanizeDuration }}
+              {{ checkPointStats['summary']['end_to_end_duration']?.min | humanizeDuration }}
             </td>
-            <td>{{ checkPointStats['summary']['state_size']['min'] | humanizeBytes }}</td>
             <td>
-              {{ checkPointStats['summary']['processed_data']['min'] | humanizeBytes }} ({{
-                checkPointStats['summary']['persisted_data']['min'] | humanizeBytes
+              {{ checkPointStats['summary']['checkpointed_size']?.min | humanizeBytes }}
+            </td>
+            <td>{{ checkPointStats['summary']['state_size']?.min | humanizeBytes }}</td>
+            <td>
+              {{ checkPointStats['summary']['processed_data']?.min | humanizeBytes }} ({{
+                checkPointStats['summary']['persisted_data']?.min | humanizeBytes
               }})
             </td>
           </tr>
           <tr>
             <td><strong>Average</strong></td>
             <td>
-              {{ checkPointStats['summary']['end_to_end_duration']['avg'] | humanizeDuration }}
+              {{ checkPointStats['summary']['end_to_end_duration']?.avg | humanizeDuration }}
             </td>
-            <td>{{ checkPointStats['summary']['state_size']['avg'] | humanizeBytes }}</td>
             <td>
-              {{ checkPointStats['summary']['processed_data']['avg'] | humanizeBytes }} ({{
-                checkPointStats['summary']['persisted_data']['avg'] | humanizeBytes
+              {{ checkPointStats['summary']['checkpointed_size']?.avg | humanizeBytes }}
+            </td>
+            <td>{{ checkPointStats['summary']['state_size']?.avg | humanizeBytes }}</td>
+            <td>
+              {{ checkPointStats['summary']['processed_data']?.avg | humanizeBytes }} ({{
+                checkPointStats['summary']['persisted_data']?.avg | humanizeBytes
               }})
             </td>
           </tr>
           <tr>
             <td><strong>Maximum</strong></td>
             <td>
-              {{ checkPointStats['summary']['end_to_end_duration']['max'] | humanizeDuration }}
+              {{ checkPointStats['summary']['end_to_end_duration']?.max | humanizeDuration }}
             </td>
-            <td>{{ checkPointStats['summary']['state_size']['max'] | humanizeBytes }}</td>
             <td>
-              {{ checkPointStats['summary']['processed_data']['max'] | humanizeBytes }} ({{
-                checkPointStats['summary']['persisted_data']['max'] | humanizeBytes
+              {{ checkPointStats['summary']['checkpointed_size']?.max | humanizeBytes }}
+            </td>
+            <td>{{ checkPointStats['summary']['state_size']?.max | humanizeBytes }}</td>
+            <td>
+              {{ checkPointStats['summary']['processed_data']?.max | humanizeBytes }} ({{
+                checkPointStats['summary']['persisted_data']?.max | humanizeBytes
               }})
             </td>
           </tr>
@@ -353,6 +402,7 @@
               <th></th>
               <th><strong>End to End Duration</strong></th>
               <th><strong>Checkpointed Data Size</strong></th>
+              <th><strong>Full Checkpoint Data Size</strong></th>
               <th><strong>Processed (persisted) in-flight data</strong></th>
             </tr>
           </thead>
@@ -361,48 +411,60 @@
               <tr>
                 <td><strong>50% percentile</strong></td>
                 <td>
-                  {{ checkPointStats['summary']['end_to_end_duration']['p50'] | humanizeDuration }}
+                  {{ checkPointStats['summary']['end_to_end_duration']?.p50 | humanizeDuration }}
                 </td>
-                <td>{{ checkPointStats['summary']['state_size']['p50'] | humanizeBytes }}</td>
                 <td>
-                  {{ checkPointStats['summary']['processed_data']['p50'] | humanizeBytes }} ({{
-                    checkPointStats['summary']['persisted_data']['p50'] | humanizeBytes
+                  {{ checkPointStats['summary']['checkpointed_size']?.p50 | humanizeBytes }}
+                </td>
+                <td>{{ checkPointStats['summary']['state_size']?.p50 | humanizeBytes }}</td>
+                <td>
+                  {{ checkPointStats['summary']['processed_data']?.p50 | humanizeBytes }} ({{
+                    checkPointStats['summary']['persisted_data']?.p50 | humanizeBytes
                   }})
                 </td>
               </tr>
               <tr>
                 <td><strong>90% percentile</strong></td>
                 <td>
-                  {{ checkPointStats['summary']['end_to_end_duration']['p90'] | humanizeDuration }}
+                  {{ checkPointStats['summary']['end_to_end_duration']?.p90 | humanizeDuration }}
                 </td>
-                <td>{{ checkPointStats['summary']['state_size']['p90'] | humanizeBytes }}</td>
                 <td>
-                  {{ checkPointStats['summary']['processed_data']['p90'] | humanizeBytes }} ({{
-                    checkPointStats['summary']['persisted_data']['p90'] | humanizeBytes
+                  {{ checkPointStats['summary']['checkpointed_size']?.p90 | humanizeBytes }}
+                </td>
+                <td>{{ checkPointStats['summary']['state_size']?.p90 | humanizeBytes }}</td>
+                <td>
+                  {{ checkPointStats['summary']['processed_data']?.p90 | humanizeBytes }} ({{
+                    checkPointStats['summary']['persisted_data']?.p90 | humanizeBytes
                   }})
                 </td>
               </tr>
               <tr>
                 <td><strong>99% percentile</strong></td>
                 <td>
-                  {{ checkPointStats['summary']['end_to_end_duration']['p99'] | humanizeDuration }}
+                  {{ checkPointStats['summary']['end_to_end_duration']?.p99 | humanizeDuration }}
                 </td>
-                <td>{{ checkPointStats['summary']['state_size']['p99'] | humanizeBytes }}</td>
                 <td>
-                  {{ checkPointStats['summary']['processed_data']['p99'] | humanizeBytes }} ({{
-                    checkPointStats['summary']['persisted_data']['p99'] | humanizeBytes
+                  {{ checkPointStats['summary']['checkpointed_size']?.p99 | humanizeBytes }}
+                </td>
+                <td>{{ checkPointStats['summary']['state_size']?.p99 | humanizeBytes }}</td>
+                <td>
+                  {{ checkPointStats['summary']['processed_data']?.p99 | humanizeBytes }} ({{
+                    checkPointStats['summary']['persisted_data']?.p99 | humanizeBytes
                   }})
                 </td>
               </tr>
               <tr>
                 <td><strong>99.9% percentile</strong></td>
                 <td>
-                  {{ checkPointStats['summary']['end_to_end_duration']['p999'] | humanizeDuration }}
+                  {{ checkPointStats['summary']['end_to_end_duration']?.p999 | humanizeDuration }}
                 </td>
-                <td>{{ checkPointStats['summary']['state_size']['p999'] | humanizeBytes }}</td>
                 <td>
-                  {{ checkPointStats['summary']['processed_data']['p999'] | humanizeBytes }} ({{
-                    checkPointStats['summary']['persisted_data']['p999'] | humanizeBytes
+                  {{ checkPointStats['summary']['checkpointed_size']?.p999 | humanizeBytes }}
+                </td>
+                <td>{{ checkPointStats['summary']['state_size']?.p999 | humanizeBytes }}</td>
+                <td>
+                  {{ checkPointStats['summary']['processed_data']?.p999 | humanizeBytes }} ({{
+                    checkPointStats['summary']['persisted_data']?.p999 | humanizeBytes
                   }})
                 </td>
               </tr>
@@ -443,10 +505,10 @@
           </tr>
           <tr>
             <td>Interval</td>
-            <td *ngIf="checkPointConfig['interval'] === '0x7fffffffffffffff'">
+            <td *ngIf="checkPointConfig['interval'] === disabledInterval">
               Periodic checkpoints disabled
             </td>
-            <td *ngIf="checkPointConfig['interval'] !== '0x7fffffffffffffff'">
+            <td *ngIf="checkPointConfig['interval'] !== disabledInterval">
               {{ checkPointConfig['interval'] | humanizeDuration }}
             </td>
           </tr>
@@ -491,6 +553,23 @@
             <td>Checkpoints With Finished Tasks</td>
             <td>
               {{ checkPointConfig['checkpoints_after_tasks_finish'] ? 'Enabled' : 'Disabled' }}
+            </td>
+          </tr>
+          <tr>
+            <td>State Changelog</td>
+            <td *ngIf="checkPointConfig['state_changelog_enabled']">Enabled</td>
+            <td *ngIf="!checkPointConfig['state_changelog_enabled']">Disabled</td>
+          </tr>
+          <tr *ngIf="checkPointConfig['state_changelog_enabled']">
+            <td>Changelog Storage</td>
+            <td>{{ checkPointConfig['changelog_storage'] }}</td>
+          </tr>
+          <tr *ngIf="checkPointConfig['state_changelog_enabled']">
+            <td>Changelog Periodic Materialization Interval</td>
+            <td>
+              {{
+                checkPointConfig['changelog_periodic_materialization_interval'] | humanizeDuration
+              }}
             </td>
           </tr>
         </ng-container>

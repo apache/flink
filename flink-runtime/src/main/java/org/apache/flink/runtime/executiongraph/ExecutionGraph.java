@@ -32,8 +32,8 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
@@ -49,6 +49,7 @@ import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -88,7 +89,8 @@ public interface ExecutionGraph extends AccessExecutionGraph {
             StateBackend checkpointStateBackend,
             CheckpointStorage checkpointStorage,
             CheckpointStatsTracker statsTracker,
-            CheckpointsCleaner checkpointsCleaner);
+            CheckpointsCleaner checkpointsCleaner,
+            String changelogStorage);
 
     @Nullable
     CheckpointCoordinator getCheckpointCoordinator();
@@ -122,6 +124,15 @@ public interface ExecutionGraph extends AccessExecutionGraph {
     long getNumberOfRestarts();
 
     Map<IntermediateDataSetID, IntermediateResult> getAllIntermediateResults();
+
+    /**
+     * Gets the intermediate result partition by the given partition ID, or throw an exception if
+     * the partition is not found.
+     *
+     * @param id of the intermediate result partition
+     * @return intermediate result partition
+     */
+    IntermediateResultPartition getResultPartitionOrThrow(final IntermediateResultPartitionID id);
 
     /**
      * Merges all accumulator results from the tasks previously executed in the Executions.
@@ -191,15 +202,6 @@ public interface ExecutionGraph extends AccessExecutionGraph {
      */
     boolean updateState(TaskExecutionStateTransition state);
 
-    /**
-     * Mark the data of a result partition to be available. Note that only PIPELINED partitions are
-     * accepted because it is for the case that a TM side PIPELINED result partition has data
-     * produced and notifies JM.
-     *
-     * @param partitionId specifying the result partition whose data have become available
-     */
-    void notifyPartitionDataAvailable(ResultPartitionID partitionId);
-
     Map<ExecutionAttemptID, Execution> getRegisteredExecutions();
 
     void registerJobStatusListener(JobStatusListener listener);
@@ -211,6 +213,15 @@ public interface ExecutionGraph extends AccessExecutionGraph {
     @Nonnull
     ComponentMainThreadExecutor getJobMasterMainThreadExecutor();
 
+    default void initializeJobVertex(ExecutionJobVertex ejv, long createTimestamp)
+            throws JobException {
+        initializeJobVertex(
+                ejv,
+                createTimestamp,
+                VertexInputInfoComputationUtils.computeVertexInputInfos(
+                        ejv, getAllIntermediateResults()::get));
+    }
+
     /**
      * Initialize the given execution job vertex, mainly includes creating execution vertices
      * according to the parallelism, and connecting to the predecessors.
@@ -218,6 +229,23 @@ public interface ExecutionGraph extends AccessExecutionGraph {
      * @param ejv The execution job vertex that needs to be initialized.
      * @param createTimestamp The timestamp for creating execution vertices, used to initialize the
      *     first Execution with.
+     * @param jobVertexInputInfos The input infos of this job vertex.
      */
-    void initializeJobVertex(ExecutionJobVertex ejv, long createTimestamp) throws JobException;
+    void initializeJobVertex(
+            ExecutionJobVertex ejv,
+            long createTimestamp,
+            Map<IntermediateDataSetID, JobVertexInputInfo> jobVertexInputInfos)
+            throws JobException;
+
+    /**
+     * Notify that some job vertices have been newly initialized, execution graph will try to update
+     * scheduling topology.
+     *
+     * @param vertices The execution job vertices that are newly initialized.
+     */
+    void notifyNewlyInitializedJobVertices(List<ExecutionJobVertex> vertices);
+
+    Optional<String> findVertexWithAttempt(final ExecutionAttemptID attemptId);
+
+    Optional<AccessExecution> findExecution(final ExecutionAttemptID attemptId);
 }

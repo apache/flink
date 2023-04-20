@@ -43,6 +43,7 @@ Flink SQL supports the following SHOW statements for now:
 - SHOW FUNCTIONS
 - SHOW MODULES
 - SHOW JARS
+- SHOW JOBS
 
 ## Run a SHOW statement
 
@@ -520,10 +521,86 @@ Show current database.
 ## SHOW TABLES
 
 ```sql
-SHOW TABLES
+SHOW TABLES [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] LIKE <sql_like_pattern> ]
 ```
 
-Show all tables in the current catalog and the current database.
+Show all tables for an optionally specified database. If no database is specified then the tables are returned from the current database. Additionally, the output of this statement may be filtered by an optional matching pattern.
+
+**LIKE**
+Show all tables with given table name and optional `LIKE` clause, whose name is whether similar to the `<sql_like_pattern>`.
+
+The syntax of sql pattern in `LIKE` clause is the same as that of `MySQL` dialect.
+* `%` matches any number of characters, even zero characters, `\%` matches one `%` character.
+* `_` matches exactly one character, `\_` matches one `_` character.
+
+### SHOW TABLES EXAMPLES
+
+Assumes that the `db1` database located in `catalog1` catalog has the following tables:
+* person
+* dim
+
+the current database in session has the following tables:
+* items
+* orders
+
+- Shows all tables of the given database.
+
+```sql
+show tables from db1;
+-- show tables from catalog1.db1;
+-- show tables in db1;
+-- show tables in catalog1.db1;
++------------+
+| table name |
++------------+
+|        dim |
+|     person |
++------------+
+2 rows in set
+```
+
+- Shows all tables of the given database, which are similar to the given sql pattern.
+
+```sql
+show tables from db1 like '%n';
+-- show tables from catalog1.db1 like '%n';
+-- show tables in db1 like '%n';
+-- show tables in catalog1.db1 like '%n';
++------------+
+| table name |
++------------+
+|     person |
++------------+
+1 row in set
+```
+
+- Shows all tables of the given database, which are not similar to the given sql pattern.
+
+```sql
+show tables from db1 not like '%n';
+-- show tables from catalog1.db1 not like '%n';
+-- show tables in db1 not like '%n';
+-- show tables in catalog1.db1 not like '%n';
++------------+
+| table name |
++------------+
+|        dim |
++------------+
+1 row in set
+```
+
+- Shows all tables of the current database.
+
+```sql
+show tables;
++------------+
+| table name |
++------------+
+|      items |
+|     orders |
++------------+
+2 rows in set
+```
 
 
 ## SHOW CREATE TABLE
@@ -533,6 +610,46 @@ SHOW CREATE TABLE
 ```
 
 Show create table statement for specified table.
+
+The output includes the table name, column names, data types, constraints, comments, and configurations.
+
+It is a very useful statement when you need to understand the structure, configuration and constraints of an existing table or to recreate the table in another database.
+
+Assumes that the table `orders` is created as follows:
+```sql
+CREATE TABLE orders (
+  order_id BIGINT NOT NULL comment 'this is the primary key, named ''order_id''.',
+  product VARCHAR(32),
+  amount INT,
+  ts TIMESTAMP(3) comment 'notice: watermark, named ''ts''.',
+  ptime AS PROCTIME() comment 'notice: computed column, named ''ptime''.',
+  WATERMARK FOR ts AS ts - INTERVAL '1' SECOND,
+  CONSTRAINT `PK_3599338` PRIMARY KEY (order_id) NOT ENFORCED
+) WITH (
+  'connector' = 'datagen'
+);
+```
+Shows the creation statement.
+```sql
+show create table orders;
++---------------------------------------------------------------------------------------------+
+|                                                                                      result |
++---------------------------------------------------------------------------------------------+
+| CREATE TABLE `default_catalog`.`default_database`.`orders` (
+  `order_id` BIGINT NOT NULL COMMENT 'this is the primary key, named ''order_id''.',
+  `product` VARCHAR(32),
+  `amount` INT,
+  `ts` TIMESTAMP(3) COMMENT 'notice: watermark, named ''ts''.',
+  `ptime` AS PROCTIME() COMMENT 'notice: computed column, named ''ptime''.',
+  WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
+  CONSTRAINT `PK_3599338` PRIMARY KEY (`order_id`) NOT ENFORCED
+) WITH (
+  'connector' = 'datagen'
+)
+ |
++---------------------------------------------------------------------------------------------+
+1 row in set
+```
 
 <span class="label label-danger">Attention</span> Currently `SHOW CREATE TABLE` only supports table that is created by Flink SQL DDL.
 
@@ -669,6 +786,16 @@ SHOW JARS
 
 Show all added jars in the session classloader which are added by [`ADD JAR`]({{< ref "docs/dev/table/sql/jar" >}}#add-jar) statements.
 
-<span class="label label-danger">Attention</span> Currently `SHOW JARS` only works in the [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
+<span class="label label-danger">Attention</span> Currently `SHOW JARS` statements only work in the [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) or [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
+
+## SHOW JOBS
+
+```sql
+SHOW JOBS
+```
+
+Show the jobs in the Flink cluster.
+
+<span class="label label-danger">Attention</span> Currently `SHOW JOBS` statements only work in the [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) or [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
 
 {{< top >}}

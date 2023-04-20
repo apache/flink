@@ -119,7 +119,7 @@ final class ProjectionOperationFactory {
      *
      * <ul>
      *   <li>{@link FieldReferenceExpression}, {@link TableReferenceExpression}, {@link
-     *       LocalReferenceExpression} and {@link BuiltInFunctionDefinitions#AS} are already named}
+     *       LocalReferenceExpression} and {@link BuiltInFunctionDefinitions#AS} are already named
      *   <li>{@link BuiltInFunctionDefinitions#CAST} use the name of underlying expression appended
      *       with the name of the type
      *   <li>{@link BuiltInFunctionDefinitions#GET} uses pattern <i>[underlying name][$fieldName]{1,

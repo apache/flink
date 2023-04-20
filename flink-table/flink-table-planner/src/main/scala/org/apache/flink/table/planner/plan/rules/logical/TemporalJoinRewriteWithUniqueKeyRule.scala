@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.api.ValidationException
@@ -24,8 +23,8 @@ import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalJoin, Flin
 import org.apache.flink.table.planner.plan.rules.common.CommonTemporalTableJoinRule
 import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil
 
-import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptUtil}
+import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rex._
@@ -33,19 +32,20 @@ import org.apache.calcite.rex._
 import scala.collection.JavaConversions._
 
 /**
-  * Planner rule that rewrites temporal join with extracted primary key, Event-time temporal
-  * table join requires primary key and row time attribute of versioned table. The versioned table
-  * could be a table source or a view only if it contains the unique key and time attribute.
-  *
-  * <p> Flink supports extract the primary key and row time attribute from the view if the view
-  * comes from [[LogicalRank]] node which can convert to a [[Deduplicate]] node.
-  */
-class TemporalJoinRewriteWithUniqueKeyRule extends RelOptRule(
-  operand(classOf[FlinkLogicalJoin],
-    operand(classOf[FlinkLogicalRel], any()),
-    operand(classOf[FlinkLogicalSnapshot],
-      operand(classOf[FlinkLogicalRel], any()))),
-  "TemporalJoinRewriteWithUniqueKeyRule")
+ * Planner rule that rewrites temporal join with extracted primary key, Event-time temporal table
+ * join requires primary key and row time attribute of versioned table. The versioned table could be
+ * a table source or a view only if it contains the unique key and time attribute.
+ *
+ * <p> Flink supports extract the primary key and row time attribute from the view if the view comes
+ * from [[LogicalRank]] node which can convert to a [[Deduplicate]] node.
+ */
+class TemporalJoinRewriteWithUniqueKeyRule
+  extends RelOptRule(
+    operand(
+      classOf[FlinkLogicalJoin],
+      operand(classOf[FlinkLogicalRel], any()),
+      operand(classOf[FlinkLogicalSnapshot], operand(classOf[FlinkLogicalRel], any()))),
+    "TemporalJoinRewriteWithUniqueKeyRule")
   with CommonTemporalTableJoinRule {
 
   override def matches(call: RelOptRuleCall): Boolean = {
@@ -64,6 +64,7 @@ class TemporalJoinRewriteWithUniqueKeyRule extends RelOptRule(
     val join = call.rel[FlinkLogicalJoin](0)
     val leftInput = call.rel[FlinkLogicalRel](1)
     val snapshot = call.rel[FlinkLogicalSnapshot](2)
+    val snapshotInput = call.rel[FlinkLogicalRel](3)
 
     val joinCondition = join.getCondition
 
@@ -84,7 +85,8 @@ class TemporalJoinRewriteWithUniqueKeyRule extends RelOptRule(
             }
 
           val rexBuilder = join.getCluster.getRexBuilder
-          val primaryKeyInputRefs = extractPrimaryKeyInputRefs(leftInput, snapshot, rexBuilder)
+          val primaryKeyInputRefs =
+            extractPrimaryKeyInputRefs(leftInput, snapshot, snapshotInput, rexBuilder)
           validateRightPrimaryKey(join, rightJoinKey, primaryKeyInputRefs)
 
           if (TemporalJoinUtil.isInitialRowTimeTemporalTableJoin(call)) {
@@ -104,14 +106,18 @@ class TemporalJoinRewriteWithUniqueKeyRule extends RelOptRule(
               leftJoinKey,
               rightJoinKey)
           }
-        }
-        else {
+        } else {
           super.visitCall(call)
         }
       }
     })
-    val rewriteJoin = FlinkLogicalJoin.create(
-      leftInput, snapshot, newJoinCondition, join.getJoinType)
+    val rewriteJoin =
+      FlinkLogicalJoin.create(
+        leftInput,
+        snapshot,
+        newJoinCondition,
+        join.getHints,
+        join.getJoinType)
     call.transformTo(rewriteJoin)
   }
 
@@ -122,16 +128,16 @@ class TemporalJoinRewriteWithUniqueKeyRule extends RelOptRule(
 
     if (rightPrimaryKeyInputRefs.isEmpty) {
       throw new ValidationException(
-          "Temporal Table Join requires primary key in versioned table, " +
-            s"but no primary key can be found. " +
-            s"The physical plan is:\n${RelOptUtil.toString(join)}\n")
+        "Temporal Table Join requires primary key in versioned table, " +
+          s"but no primary key can be found. " +
+          s"The physical plan is:\n${RelOptUtil.toString(join)}\n")
     }
 
     val rightJoinKeyRefIndices = rightJoinKeyExpression
-      .map(rex => rex.asInstanceOf[RexInputRef].getIndex )
+      .map(rex => rex.asInstanceOf[RexInputRef].getIndex)
       .toArray
 
-    val rightPrimaryKeyRefIndices= rightPrimaryKeyInputRefs.get
+    val rightPrimaryKeyRefIndices = rightPrimaryKeyInputRefs.get
       .map(rex => rex.asInstanceOf[RexInputRef].getIndex)
       .toArray
 
@@ -143,11 +149,16 @@ class TemporalJoinRewriteWithUniqueKeyRule extends RelOptRule(
       val joinLeftFieldNames = join.getLeft.getRowType.getFieldNames
       val joinRightFieldNamess = join.getRight.getRowType.getFieldNames
       val primaryKeyNames = rightPrimaryKeyRefIndices
-        .map(i => joinFieldNames.get(i)).toList
+        .map(i => joinFieldNames.get(i))
+        .toList
         .mkString(",")
-      val joinEquiInfo = join.analyzeCondition.pairs().map { pair =>
-        joinLeftFieldNames.get(pair.source) + "=" + joinRightFieldNamess.get(pair.target)
-      }.toList.mkString(",")
+      val joinEquiInfo = join.analyzeCondition
+        .pairs()
+        .map {
+          pair => joinLeftFieldNames.get(pair.source) + "=" + joinRightFieldNamess.get(pair.target)
+        }
+        .toList
+        .mkString(",")
       throw new ValidationException(
         s"Temporal table's primary key [$primaryKeyNames] must be included in the equivalence " +
           s"condition of temporal join, but current temporal join condition is [$joinEquiInfo].")
@@ -157,26 +168,26 @@ class TemporalJoinRewriteWithUniqueKeyRule extends RelOptRule(
   private def extractPrimaryKeyInputRefs(
       leftInput: RelNode,
       snapshot: FlinkLogicalSnapshot,
+      snapshotInput: FlinkLogicalRel,
       rexBuilder: RexBuilder): Option[Seq[RexNode]] = {
     val rightFields = snapshot.getRowType.getFieldList
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(snapshot.getCluster.getMetadataQuery)
 
-    val upsertKeySet = fmq.getUpsertKeys(snapshot.getInput())
+    val upsertKeySet = fmq.getUpsertKeys(snapshotInput)
     val fields = snapshot.getRowType.getFieldList
 
     if (upsertKeySet != null && upsertKeySet.size() > 0) {
       val leftFieldCnt = leftInput.getRowType.getFieldCount
-      val upsertKeySetInputRefs = upsertKeySet.filter(_.nonEmpty)
-        .map(_.toArray
-          .map(fields)
-          // build InputRef of upsert key in snapshot
-          .map(f => rexBuilder.makeInputRef(
-            f.getType,
-            leftFieldCnt + rightFields.indexOf(f)))
-          .toSeq)
+      val upsertKeySetInputRefs = upsertKeySet
+        .filter(_.nonEmpty)
+        .map(
+          _.toArray
+            .map(fields)
+            // build InputRef of upsert key in snapshot
+            .map(f => rexBuilder.makeInputRef(f.getType, leftFieldCnt + rightFields.indexOf(f)))
+            .toSeq)
       // select shortest upsert key as primary key
-      upsertKeySetInputRefs
-        .toArray
+      upsertKeySetInputRefs.toArray
         .sortBy(_.length)
         .headOption
     } else {

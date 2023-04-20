@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecPythonCorrelate;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
@@ -33,15 +35,18 @@ public class BatchExecPythonCorrelate extends CommonExecPythonCorrelate
         implements BatchExecNode<RowData> {
 
     public BatchExecPythonCorrelate(
+            ReadableConfig tableConfig,
             FlinkJoinType joinType,
             RexCall invocation,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
         super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(BatchExecPythonCorrelate.class),
+                ExecNodeContext.newPersistedConfig(BatchExecPythonCorrelate.class, tableConfig),
                 joinType,
                 invocation,
-                getNewNodeId(),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);

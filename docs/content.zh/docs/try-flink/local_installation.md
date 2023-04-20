@@ -42,7 +42,7 @@ under the License.
 
 ## 步骤 1：下载
 
-为了运行Flink，只需提前安装好 __Java 8 或者 Java 11__。你可以通过以下命令来检查 Java 是否已经安装正确。
+为了运行Flink，只需提前安装好 __Java 11__。你可以通过以下命令来检查 Java 是否已经安装正确。
 
 ```bash
 java -version

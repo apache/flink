@@ -34,13 +34,15 @@ object ScalaJob {
     // we want to go through serialization to check for kryo issues
     env.disableOperatorChaining()
 
-    env.fromElements(new NonPojo()).map(new MapFunction[NonPojo, NonPojo] {
-      override def map(value: NonPojo): NonPojo = {
-        // use some method that was removed in 2.12+
-        BoxesRunTime.hashFromNumber(value.getSomeInt)
-        value
-      }
-    })
+    env
+      .fromElements(new NonPojo())
+      .map(new MapFunction[NonPojo, NonPojo] {
+        override def map(value: NonPojo): NonPojo = {
+          // use some method that was removed in 2.12+
+          BoxesRunTime.hashFromNumber(value.getSomeInt)
+          value
+        }
+      })
 
     env.execute();
   }

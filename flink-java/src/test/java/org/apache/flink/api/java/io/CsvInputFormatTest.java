@@ -35,8 +35,8 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.parser.FieldParser;
 import org.apache.flink.types.parser.StringParser;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -49,16 +49,11 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for {@link CsvInputFormat}. */
-public class CsvInputFormatTest {
+class CsvInputFormatTest {
 
     private static final Path PATH = new Path("an/ignored/file/");
 
@@ -68,13 +63,13 @@ public class CsvInputFormatTest {
     private static final String SECOND_PART = "That is the second part";
 
     @Test
-    public void testSplitCsvInputStreamInLargeBuffer() throws Exception {
+    void testSplitCsvInputStreamInLargeBuffer() throws Exception {
         testSplitCsvInputStream(1024 * 1024, false, false);
         testSplitCsvInputStream(1024 * 1024, false, true);
     }
 
     @Test
-    public void testSplitCsvInputStreamInSmallBuffer() throws Exception {
+    void testSplitCsvInputStreamInSmallBuffer() throws Exception {
         testSplitCsvInputStream(2, false, false);
         testSplitCsvInputStream(1024 * 1024, false, true);
     }
@@ -134,9 +129,8 @@ public class CsvInputFormatTest {
 
         for (FileInputSplit inputSplit : inputSplits) {
             if (!compressed) {
-                assertEquals(
-                        inputSplit.getStart() + inputSplit.getLength(),
-                        offsetAtEndOfSplit[splitCounter]);
+                assertThat(offsetAtEndOfSplit[splitCounter])
+                        .isEqualTo(inputSplit.getStart() + inputSplit.getLength());
             }
             splitCounter++;
 
@@ -145,34 +139,30 @@ public class CsvInputFormatTest {
 
             while (!format.reachedEnd()) {
                 if ((result = format.nextRecord(result)) != null) {
-                    assertEquals(
-                            (long) format.getCurrentState(), offsetsAfterRecord[recordCounter]);
+                    assertThat(offsetsAfterRecord[recordCounter])
+                            .isEqualTo((long) format.getCurrentState());
                     recordCounter++;
 
                     if (recordCounter == 1) {
-                        assertNotNull(result);
-                        assertEquals("this is", result.f0);
-                        assertEquals(Integer.valueOf(1), result.f1);
-                        assertEquals(new Double(2.0), result.f2);
-                        assertEquals((long) format.getCurrentState(), 15);
+                        assertThat(result.f0).isEqualTo("this is");
+                        assertThat(result.f1).isOne();
+                        assertThat(result.f2).isEqualTo(new Double(2.0));
+                        assertThat((long) format.getCurrentState()).isEqualTo(15);
                     } else if (recordCounter == 2) {
-                        assertNotNull(result);
-                        assertEquals("a test", result.f0);
-                        assertEquals(Integer.valueOf(3), result.f1);
-                        assertEquals(new Double(4.0), result.f2);
-                        assertEquals((long) format.getCurrentState(), 29);
+                        assertThat(result.f0).isEqualTo("a test");
+                        assertThat(result.f1).isEqualTo(Integer.valueOf(3));
+                        assertThat(result.f2).isEqualTo(new Double(4.0));
+                        assertThat((long) format.getCurrentState()).isEqualTo(29);
                     } else if (recordCounter == 3) {
-                        assertNotNull(result);
-                        assertEquals("#next", result.f0);
-                        assertEquals(Integer.valueOf(5), result.f1);
-                        assertEquals(new Double(6.0), result.f2);
-                        assertEquals((long) format.getCurrentState(), 42);
+                        assertThat(result.f0).isEqualTo("#next");
+                        assertThat(result.f1).isEqualTo(Integer.valueOf(5));
+                        assertThat(result.f2).isEqualTo(new Double(6.0));
+                        assertThat((long) format.getCurrentState()).isEqualTo(42);
                     } else {
-                        assertNotNull(result);
-                        assertEquals("asdadas", result.f0);
-                        assertEquals(new Integer(5), result.f1);
-                        assertEquals(new Double(30.0), result.f2);
-                        assertEquals((long) format.getCurrentState(), 58);
+                        assertThat(result.f0).isEqualTo("asdadas");
+                        assertThat(result.f1).isEqualTo(new Integer(5));
+                        assertThat(result.f2).isEqualTo(new Double(30.0));
+                        assertThat((long) format.getCurrentState()).isEqualTo(58);
                     }
 
                     // simulate checkpoint
@@ -195,16 +185,16 @@ public class CsvInputFormatTest {
             }
             format.close();
         }
-        Assert.assertEquals(4, recordCounter);
+        assertThat(recordCounter).isEqualTo(4);
     }
 
     @Test
-    public void ignoreInvalidLinesAndGetOffsetInLargeBuffer() {
+    void ignoreInvalidLinesAndGetOffsetInLargeBuffer() {
         ignoreInvalidLines(1024 * 1024);
     }
 
     @Test
-    public void ignoreInvalidLinesAndGetOffsetInSmallBuffer() {
+    void ignoreInvalidLinesAndGetOffsetInSmallBuffer() {
         ignoreInvalidLines(2);
     }
 
@@ -224,8 +214,7 @@ public class CsvInputFormatTest {
             final TupleTypeInfo<Tuple3<String, Integer, Double>> typeInfo =
                     TupleTypeInfo.getBasicTupleTypeInfo(String.class, Integer.class, Double.class);
             final CsvInputFormat<Tuple3<String, Integer, Double>> format =
-                    new TupleCsvInputFormat<Tuple3<String, Integer, Double>>(
-                            PATH, "\n", "|", typeInfo);
+                    new TupleCsvInputFormat<>(PATH, "\n", "|", typeInfo);
             format.setLenient(true);
             format.setBufferSize(bufferSize);
 
@@ -233,31 +222,28 @@ public class CsvInputFormatTest {
             format.configure(parameters);
             format.open(split);
 
-            Tuple3<String, Integer, Double> result = new Tuple3<String, Integer, Double>();
+            Tuple3<String, Integer, Double> result = new Tuple3<>();
             result = format.nextRecord(result);
-            assertNotNull(result);
-            assertEquals("this is", result.f0);
-            assertEquals(Integer.valueOf(1), result.f1);
-            assertEquals(new Double(2.0), result.f2);
-            assertEquals((long) format.getCurrentState(), 65);
+            assertThat(result.f0).isEqualTo("this is");
+            assertThat(result.f1).isOne();
+            assertThat(result.f2).isEqualTo(new Double(2.0));
+            assertThat((long) format.getCurrentState()).isEqualTo(65);
 
             result = format.nextRecord(result);
-            assertNotNull(result);
-            assertEquals("a test", result.f0);
-            assertEquals(Integer.valueOf(3), result.f1);
-            assertEquals(new Double(4.0), result.f2);
-            assertEquals((long) format.getCurrentState(), 91);
+            assertThat(result.f0).isEqualTo("a test");
+            assertThat(result.f1).isEqualTo(Integer.valueOf(3));
+            assertThat(result.f2).isEqualTo(new Double(4.0));
+            assertThat((long) format.getCurrentState()).isEqualTo(91);
 
             result = format.nextRecord(result);
-            assertNotNull(result);
-            assertEquals("#next", result.f0);
-            assertEquals(Integer.valueOf(5), result.f1);
-            assertEquals(new Double(6.0), result.f2);
-            assertEquals((long) format.getCurrentState(), 104);
+            assertThat(result.f0).isEqualTo("#next");
+            assertThat(result.f1).isEqualTo(Integer.valueOf(5));
+            assertThat(result.f2).isEqualTo(new Double(6.0));
+            assertThat((long) format.getCurrentState()).isEqualTo(104);
 
             result = format.nextRecord(result);
-            assertNull(result);
-            assertEquals(fileContent.length(), (long) format.getCurrentState());
+            assertThat(result).isNull();
+            assertThat((long) format.getCurrentState()).isEqualTo(fileContent.length());
         } catch (Exception ex) {
             ex.printStackTrace();
             fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
@@ -265,7 +251,7 @@ public class CsvInputFormatTest {
     }
 
     @Test
-    public void ignoreSingleCharPrefixComments() {
+    void ignoreSingleCharPrefixComments() {
         try {
             final String fileContent =
                     "#description of the data\n"
@@ -279,30 +265,27 @@ public class CsvInputFormatTest {
             final TupleTypeInfo<Tuple3<String, Integer, Double>> typeInfo =
                     TupleTypeInfo.getBasicTupleTypeInfo(String.class, Integer.class, Double.class);
             final CsvInputFormat<Tuple3<String, Integer, Double>> format =
-                    new TupleCsvInputFormat<Tuple3<String, Integer, Double>>(
-                            PATH, "\n", "|", typeInfo);
+                    new TupleCsvInputFormat<>(PATH, "\n", "|", typeInfo);
             format.setCommentPrefix("#");
 
             final Configuration parameters = new Configuration();
             format.configure(parameters);
             format.open(split);
 
-            Tuple3<String, Integer, Double> result = new Tuple3<String, Integer, Double>();
+            Tuple3<String, Integer, Double> result = new Tuple3<>();
 
             result = format.nextRecord(result);
-            assertNotNull(result);
-            assertEquals("this is", result.f0);
-            assertEquals(Integer.valueOf(1), result.f1);
-            assertEquals(new Double(2.0), result.f2);
+            assertThat(result.f0).isEqualTo("this is");
+            assertThat(result.f1).isOne();
+            assertThat(result.f2).isEqualTo(new Double(2.0));
 
             result = format.nextRecord(result);
-            assertNotNull(result);
-            assertEquals("a test", result.f0);
-            assertEquals(Integer.valueOf(3), result.f1);
-            assertEquals(new Double(4.0), result.f2);
+            assertThat(result.f0).isEqualTo("a test");
+            assertThat(result.f1).isEqualTo(Integer.valueOf(3));
+            assertThat(result.f2).isEqualTo(new Double(4.0));
 
             result = format.nextRecord(result);
-            assertNull(result);
+            assertThat(result).isNull();
         } catch (Exception ex) {
             ex.printStackTrace();
             fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
@@ -310,7 +293,7 @@ public class CsvInputFormatTest {
     }
 
     @Test
-    public void ignoreMultiCharPrefixComments() {
+    void ignoreMultiCharPrefixComments() {
         try {
 
             final String fileContent =
@@ -336,19 +319,17 @@ public class CsvInputFormatTest {
             Tuple3<String, Integer, Double> result = new Tuple3<String, Integer, Double>();
 
             result = format.nextRecord(result);
-            assertNotNull(result);
-            assertEquals("this is", result.f0);
-            assertEquals(Integer.valueOf(1), result.f1);
-            assertEquals(new Double(2.0), result.f2);
+            assertThat(result.f0).isEqualTo("this is");
+            assertThat(result.f1).isOne();
+            assertThat(result.f2).isEqualTo(new Double(2.0));
 
             result = format.nextRecord(result);
-            assertNotNull(result);
-            assertEquals("a test", result.f0);
-            assertEquals(Integer.valueOf(3), result.f1);
-            assertEquals(new Double(4.0), result.f2);
+            assertThat(result.f0).isEqualTo("a test");
+            assertThat(result.f1).isEqualTo(Integer.valueOf(3));
+            assertThat(result.f2).isEqualTo(new Double(4.0));
 
             result = format.nextRecord(result);
-            assertNull(result);
+            assertThat(result).isNull();
         } catch (Exception ex) {
             ex.printStackTrace();
             fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
@@ -356,7 +337,7 @@ public class CsvInputFormatTest {
     }
 
     @Test
-    public void readStringFields() {
+    void readStringFields() {
         try {
             final String fileContent = "abc|def|ghijk\nabc||hhg\n|||";
             final FileInputSplit split = createTempFile(fileContent);
@@ -364,36 +345,32 @@ public class CsvInputFormatTest {
             final TupleTypeInfo<Tuple3<String, String, String>> typeInfo =
                     TupleTypeInfo.getBasicTupleTypeInfo(String.class, String.class, String.class);
             final CsvInputFormat<Tuple3<String, String, String>> format =
-                    new TupleCsvInputFormat<Tuple3<String, String, String>>(
-                            PATH, "\n", "|", typeInfo);
+                    new TupleCsvInputFormat<>(PATH, "\n", "|", typeInfo);
 
             final Configuration parameters = new Configuration();
             format.configure(parameters);
             format.open(split);
 
-            Tuple3<String, String, String> result = new Tuple3<String, String, String>();
+            Tuple3<String, String, String> result = new Tuple3<>();
 
             result = format.nextRecord(result);
-            assertNotNull(result);
-            assertEquals("abc", result.f0);
-            assertEquals("def", result.f1);
-            assertEquals("ghijk", result.f2);
+            assertThat(result.f0).isEqualTo("abc");
+            assertThat(result.f1).isEqualTo("def");
+            assertThat(result.f2).isEqualTo("ghijk");
 
             result = format.nextRecord(result);
-            assertNotNull(result);
-            assertEquals("abc", result.f0);
-            assertEquals("", result.f1);
-            assertEquals("hhg", result.f2);
+            assertThat(result.f0).isEqualTo("abc");
+            assertThat(result.f1).isEmpty();
+            assertThat(result.f2).isEqualTo("hhg");
 
             result = format.nextRecord(result);
-            assertNotNull(result);
-            assertEquals("", result.f0);
-            assertEquals("", result.f1);
-            assertEquals("", result.f2);
+            assertThat(result.f0).isEmpty();
+            assertThat(result.f1).isEmpty();
+            assertThat(result.f2).isEmpty();
 
             result = format.nextRecord(result);
-            assertNull(result);
-            assertTrue(format.reachedEnd());
+            assertThat(result).isNull();
+            assertThat(format.reachedEnd()).isTrue();
         } catch (Exception ex) {
             ex.printStackTrace();
             fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
@@ -401,7 +378,7 @@ public class CsvInputFormatTest {
     }
 
     @Test
-    public void readMixedQuotedStringFields() {
+    void readMixedQuotedStringFields() {
         try {
             final String fileContent = "@a|b|c@|def|@ghijk@\nabc||@|hhg@\n|||";
             final FileInputSplit split = createTempFile(fileContent);
@@ -409,37 +386,36 @@ public class CsvInputFormatTest {
             final TupleTypeInfo<Tuple3<String, String, String>> typeInfo =
                     TupleTypeInfo.getBasicTupleTypeInfo(String.class, String.class, String.class);
             final CsvInputFormat<Tuple3<String, String, String>> format =
-                    new TupleCsvInputFormat<Tuple3<String, String, String>>(
-                            PATH, "\n", "|", typeInfo);
+                    new TupleCsvInputFormat<>(PATH, "\n", "|", typeInfo);
 
             final Configuration parameters = new Configuration();
             format.enableQuotedStringParsing('@');
             format.configure(parameters);
             format.open(split);
 
-            Tuple3<String, String, String> result = new Tuple3<String, String, String>();
+            Tuple3<String, String, String> result = new Tuple3<>();
 
             result = format.nextRecord(result);
-            assertNotNull(result);
-            assertEquals("a|b|c", result.f0);
-            assertEquals("def", result.f1);
-            assertEquals("ghijk", result.f2);
+            assertThat(result).isNotNull();
+            assertThat(result.f0).isEqualTo("a|b|c");
+            assertThat(result.f1).isEqualTo("def");
+            assertThat(result.f2).isEqualTo("ghijk");
 
             result = format.nextRecord(result);
-            assertNotNull(result);
-            assertEquals("abc", result.f0);
-            assertEquals("", result.f1);
-            assertEquals("|hhg", result.f2);
+            assertThat(result).isNotNull();
+            assertThat(result.f0).isEqualTo("abc");
+            assertThat(result.f1).isEmpty();
+            assertThat(result.f2).isEqualTo("|hhg");
 
             result = format.nextRecord(result);
-            assertNotNull(result);
-            assertEquals("", result.f0);
-            assertEquals("", result.f1);
-            assertEquals("", result.f2);
+            assertThat(result).isNotNull();
+            assertThat(result.f0).isEmpty();
+            assertThat(result.f1).isEmpty();
+            assertThat(result.f2).isEmpty();
 
             result = format.nextRecord(result);
-            assertNull(result);
-            assertTrue(format.reachedEnd());
+            assertThat(result).isNull();
+            assertThat(format.reachedEnd()).isTrue();
         } catch (Exception ex) {
             ex.printStackTrace();
             fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
@@ -447,7 +423,7 @@ public class CsvInputFormatTest {
     }
 
     @Test
-    public void readStringFieldsWithTrailingDelimiters() {
+    void readStringFieldsWithTrailingDelimiters() {
         try {
             final String fileContent = "abc|-def|-ghijk\nabc|-|-hhg\n|-|-|-\n";
             final FileInputSplit split = createTempFile(fileContent);
@@ -455,43 +431,40 @@ public class CsvInputFormatTest {
             final TupleTypeInfo<Tuple3<String, String, String>> typeInfo =
                     TupleTypeInfo.getBasicTupleTypeInfo(String.class, String.class, String.class);
             final CsvInputFormat<Tuple3<String, String, String>> format =
-                    new TupleCsvInputFormat<Tuple3<String, String, String>>(PATH, typeInfo);
+                    new TupleCsvInputFormat<>(PATH, typeInfo);
 
             format.setFieldDelimiter("|-");
 
             format.configure(new Configuration());
             format.open(split);
 
-            Tuple3<String, String, String> result = new Tuple3<String, String, String>();
+            Tuple3<String, String, String> result = new Tuple3<>();
 
             result = format.nextRecord(result);
-            assertNotNull(result);
-            assertEquals("abc", result.f0);
-            assertEquals("def", result.f1);
-            assertEquals("ghijk", result.f2);
+            assertThat(result.f0).isEqualTo("abc");
+            assertThat(result.f1).isEqualTo("def");
+            assertThat(result.f2).isEqualTo("ghijk");
 
             result = format.nextRecord(result);
-            assertNotNull(result);
-            assertEquals("abc", result.f0);
-            assertEquals("", result.f1);
-            assertEquals("hhg", result.f2);
+            assertThat(result.f0).isEqualTo("abc");
+            assertThat(result.f1).isEmpty();
+            assertThat(result.f2).isEqualTo("hhg");
 
             result = format.nextRecord(result);
-            assertNotNull(result);
-            assertEquals("", result.f0);
-            assertEquals("", result.f1);
-            assertEquals("", result.f2);
+            assertThat(result.f0).isEmpty();
+            assertThat(result.f1).isEmpty();
+            assertThat(result.f2).isEmpty();
 
             result = format.nextRecord(result);
-            assertNull(result);
-            assertTrue(format.reachedEnd());
+            assertThat(result).isNull();
+            assertThat(format.reachedEnd()).isTrue();
         } catch (Exception ex) {
             fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
         }
     }
 
     @Test
-    public void testTailingEmptyFields() throws Exception {
+    void testTailingEmptyFields() throws Exception {
         final String fileContent =
                 "aa,bb,cc\n"
                         + // ok
@@ -507,38 +480,34 @@ public class CsvInputFormatTest {
         final TupleTypeInfo<Tuple3<String, String, String>> typeInfo =
                 TupleTypeInfo.getBasicTupleTypeInfo(String.class, String.class, String.class);
         final CsvInputFormat<Tuple3<String, String, String>> format =
-                new TupleCsvInputFormat<Tuple3<String, String, String>>(PATH, typeInfo);
+                new TupleCsvInputFormat<>(PATH, typeInfo);
 
         format.setFieldDelimiter(",");
 
         format.configure(new Configuration());
         format.open(split);
 
-        Tuple3<String, String, String> result = new Tuple3<String, String, String>();
+        Tuple3<String, String, String> result = new Tuple3<>();
 
         result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals("aa", result.f0);
-        assertEquals("bb", result.f1);
-        assertEquals("cc", result.f2);
+        assertThat(result.f0).isEqualTo("aa");
+        assertThat(result.f1).isEqualTo("bb");
+        assertThat(result.f2).isEqualTo("cc");
 
         result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals("aa", result.f0);
-        assertEquals("bb", result.f1);
-        assertEquals("", result.f2);
+        assertThat(result.f0).isEqualTo("aa");
+        assertThat(result.f1).isEqualTo("bb");
+        assertThat(result.f2).isEmpty();
 
         result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals("aa", result.f0);
-        assertEquals("", result.f1);
-        assertEquals("", result.f2);
+        assertThat(result.f0).isEqualTo("aa");
+        assertThat(result.f1).isEmpty();
+        assertThat(result.f2).isEmpty();
 
         result = format.nextRecord(result);
-        assertNotNull(result);
-        assertEquals("", result.f0);
-        assertEquals("", result.f1);
-        assertEquals("", result.f2);
+        assertThat(result.f0).isEmpty();
+        assertThat(result.f1).isEmpty();
+        assertThat(result.f2).isEmpty();
 
         try {
             format.nextRecord(result);
@@ -548,7 +517,7 @@ public class CsvInputFormatTest {
     }
 
     @Test
-    public void testIntegerFields() throws IOException {
+    void testIntegerFields() {
         try {
             final String fileContent = "111|222|333|444|555\n666|777|888|999|000|\n";
             final FileInputSplit split = createTempFile(fileContent);
@@ -569,35 +538,34 @@ public class CsvInputFormatTest {
             format.configure(new Configuration());
             format.open(split);
 
-            Tuple5<Integer, Integer, Integer, Integer, Integer> result =
-                    new Tuple5<Integer, Integer, Integer, Integer, Integer>();
+            Tuple5<Integer, Integer, Integer, Integer, Integer> result = new Tuple5<>();
 
             result = format.nextRecord(result);
-            assertNotNull(result);
-            assertEquals(Integer.valueOf(111), result.f0);
-            assertEquals(Integer.valueOf(222), result.f1);
-            assertEquals(Integer.valueOf(333), result.f2);
-            assertEquals(Integer.valueOf(444), result.f3);
-            assertEquals(Integer.valueOf(555), result.f4);
+            assertThat(result).isNotNull();
+            assertThat(result.f0).isEqualTo(Integer.valueOf(111));
+            assertThat(result.f1).isEqualTo(Integer.valueOf(222));
+            assertThat(result.f2).isEqualTo(Integer.valueOf(333));
+            assertThat(result.f3).isEqualTo(Integer.valueOf(444));
+            assertThat(result.f4).isEqualTo(Integer.valueOf(555));
 
             result = format.nextRecord(result);
-            assertNotNull(result);
-            assertEquals(Integer.valueOf(666), result.f0);
-            assertEquals(Integer.valueOf(777), result.f1);
-            assertEquals(Integer.valueOf(888), result.f2);
-            assertEquals(Integer.valueOf(999), result.f3);
-            assertEquals(Integer.valueOf(000), result.f4);
+            assertThat(result).isNotNull();
+            assertThat(result.f0).isEqualTo(Integer.valueOf(666));
+            assertThat(result.f1).isEqualTo(Integer.valueOf(777));
+            assertThat(result.f2).isEqualTo(Integer.valueOf(888));
+            assertThat(result.f3).isEqualTo(Integer.valueOf(999));
+            assertThat(result.f4).isEqualTo(Integer.valueOf(000));
 
             result = format.nextRecord(result);
-            assertNull(result);
-            assertTrue(format.reachedEnd());
+            assertThat(result).isNull();
+            assertThat(format.reachedEnd()).isTrue();
         } catch (Exception ex) {
             fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
         }
     }
 
     @Test
-    public void testEmptyFields() throws IOException {
+    void testEmptyFields() {
         try {
             final String fileContent =
                     "|0|0|0|0|0|\n"
@@ -617,16 +585,14 @@ public class CsvInputFormatTest {
                             Double.class,
                             Byte.class);
             final CsvInputFormat<Tuple6<Short, Integer, Long, Float, Double, Byte>> format =
-                    new TupleCsvInputFormat<Tuple6<Short, Integer, Long, Float, Double, Byte>>(
-                            PATH, typeInfo);
+                    new TupleCsvInputFormat<>(PATH, typeInfo);
 
             format.setFieldDelimiter("|");
 
             format.configure(new Configuration());
             format.open(split);
 
-            Tuple6<Short, Integer, Long, Float, Double, Byte> result =
-                    new Tuple6<Short, Integer, Long, Float, Double, Byte>();
+            Tuple6<Short, Integer, Long, Float, Double, Byte> result = new Tuple6<>();
 
             try {
                 result = format.nextRecord(result);
@@ -660,15 +626,15 @@ public class CsvInputFormatTest {
             }
 
             result = format.nextRecord(result);
-            assertNull(result);
-            assertTrue(format.reachedEnd());
+            assertThat(result).isNull();
+            assertThat(format.reachedEnd()).isTrue();
         } catch (Exception ex) {
             fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
         }
     }
 
     @Test
-    public void testDoubleFields() throws IOException {
+    void testDoubleFields() {
         try {
             final String fileContent = "11.1|22.2|33.3|44.4|55.5\n66.6|77.7|88.8|99.9|00.0|\n";
             final FileInputSplit split = createTempFile(fileContent);
@@ -677,43 +643,39 @@ public class CsvInputFormatTest {
                     TupleTypeInfo.getBasicTupleTypeInfo(
                             Double.class, Double.class, Double.class, Double.class, Double.class);
             final CsvInputFormat<Tuple5<Double, Double, Double, Double, Double>> format =
-                    new TupleCsvInputFormat<Tuple5<Double, Double, Double, Double, Double>>(
-                            PATH, typeInfo);
+                    new TupleCsvInputFormat<>(PATH, typeInfo);
 
             format.setFieldDelimiter("|");
 
             format.configure(new Configuration());
             format.open(split);
 
-            Tuple5<Double, Double, Double, Double, Double> result =
-                    new Tuple5<Double, Double, Double, Double, Double>();
+            Tuple5<Double, Double, Double, Double, Double> result = new Tuple5<>();
 
             result = format.nextRecord(result);
-            assertNotNull(result);
-            assertEquals(Double.valueOf(11.1), result.f0);
-            assertEquals(Double.valueOf(22.2), result.f1);
-            assertEquals(Double.valueOf(33.3), result.f2);
-            assertEquals(Double.valueOf(44.4), result.f3);
-            assertEquals(Double.valueOf(55.5), result.f4);
+            assertThat(result.f0).isEqualTo(Double.valueOf(11.1));
+            assertThat(result.f1).isEqualTo(Double.valueOf(22.2));
+            assertThat(result.f2).isEqualTo(Double.valueOf(33.3));
+            assertThat(result.f3).isEqualTo(Double.valueOf(44.4));
+            assertThat(result.f4).isEqualTo(Double.valueOf(55.5));
 
             result = format.nextRecord(result);
-            assertNotNull(result);
-            assertEquals(Double.valueOf(66.6), result.f0);
-            assertEquals(Double.valueOf(77.7), result.f1);
-            assertEquals(Double.valueOf(88.8), result.f2);
-            assertEquals(Double.valueOf(99.9), result.f3);
-            assertEquals(Double.valueOf(00.0), result.f4);
+            assertThat(result.f0).isEqualTo(Double.valueOf(66.6));
+            assertThat(result.f1).isEqualTo(Double.valueOf(77.7));
+            assertThat(result.f2).isEqualTo(Double.valueOf(88.8));
+            assertThat(result.f3).isEqualTo(Double.valueOf(99.9));
+            assertThat(result.f4).isEqualTo(Double.valueOf(00.0));
 
             result = format.nextRecord(result);
-            assertNull(result);
-            assertTrue(format.reachedEnd());
+            assertThat(result).isNull();
+            assertThat(format.reachedEnd()).isTrue();
         } catch (Exception ex) {
             fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
         }
     }
 
     @Test
-    public void testReadFirstN() throws IOException {
+    void testReadFirstN() {
         try {
             final String fileContent = "111|222|333|444|555|\n666|777|888|999|000|\n";
             final FileInputSplit split = createTempFile(fileContent);
@@ -728,28 +690,26 @@ public class CsvInputFormatTest {
             format.configure(new Configuration());
             format.open(split);
 
-            Tuple2<Integer, Integer> result = new Tuple2<Integer, Integer>();
+            Tuple2<Integer, Integer> result = new Tuple2<>();
 
             result = format.nextRecord(result);
-            assertNotNull(result);
-            assertEquals(Integer.valueOf(111), result.f0);
-            assertEquals(Integer.valueOf(222), result.f1);
+            assertThat(result.f0).isEqualTo(Integer.valueOf(111));
+            assertThat(result.f1).isEqualTo(Integer.valueOf(222));
 
             result = format.nextRecord(result);
-            assertNotNull(result);
-            assertEquals(Integer.valueOf(666), result.f0);
-            assertEquals(Integer.valueOf(777), result.f1);
+            assertThat(result.f0).isEqualTo(Integer.valueOf(666));
+            assertThat(result.f1).isEqualTo(Integer.valueOf(777));
 
             result = format.nextRecord(result);
-            assertNull(result);
-            assertTrue(format.reachedEnd());
+            assertThat(result).isNull();
+            assertThat(format.reachedEnd()).isTrue();
         } catch (Exception ex) {
             fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
         }
     }
 
     @Test
-    public void testReadSparseWithNullFieldsForTypes() throws IOException {
+    void testReadSparseWithNullFieldsForTypes() {
         try {
             final String fileContent =
                     "111|x|222|x|333|x|444|x|555|x|666|x|777|x|888|x|999|x|000|x|\n"
@@ -770,30 +730,28 @@ public class CsvInputFormatTest {
             format.configure(new Configuration());
             format.open(split);
 
-            Tuple3<Integer, Integer, Integer> result = new Tuple3<Integer, Integer, Integer>();
+            Tuple3<Integer, Integer, Integer> result = new Tuple3<>();
 
             result = format.nextRecord(result);
-            assertNotNull(result);
-            assertEquals(Integer.valueOf(111), result.f0);
-            assertEquals(Integer.valueOf(444), result.f1);
-            assertEquals(Integer.valueOf(888), result.f2);
+            assertThat(result.f0).isEqualTo(Integer.valueOf(111));
+            assertThat(result.f1).isEqualTo(Integer.valueOf(444));
+            assertThat(result.f2).isEqualTo(Integer.valueOf(888));
 
             result = format.nextRecord(result);
-            assertNotNull(result);
-            assertEquals(Integer.valueOf(000), result.f0);
-            assertEquals(Integer.valueOf(777), result.f1);
-            assertEquals(Integer.valueOf(333), result.f2);
+            assertThat(result.f0).isEqualTo(Integer.valueOf(000));
+            assertThat(result.f1).isEqualTo(Integer.valueOf(777));
+            assertThat(result.f2).isEqualTo(Integer.valueOf(333));
 
             result = format.nextRecord(result);
-            assertNull(result);
-            assertTrue(format.reachedEnd());
+            assertThat(result).isNull();
+            assertThat(format.reachedEnd()).isTrue();
         } catch (Exception ex) {
             fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
         }
     }
 
     @Test
-    public void testReadSparseWithPositionSetter() throws IOException {
+    void testReadSparseWithPositionSetter() {
         try {
             final String fileContent =
                     "111|222|333|444|555|666|777|888|999|000|\n000|999|888|777|666|555|444|333|222|111|";
@@ -811,30 +769,28 @@ public class CsvInputFormatTest {
             format.configure(new Configuration());
             format.open(split);
 
-            Tuple3<Integer, Integer, Integer> result = new Tuple3<Integer, Integer, Integer>();
+            Tuple3<Integer, Integer, Integer> result = new Tuple3<>();
 
             result = format.nextRecord(result);
-            assertNotNull(result);
-            assertEquals(Integer.valueOf(111), result.f0);
-            assertEquals(Integer.valueOf(444), result.f1);
-            assertEquals(Integer.valueOf(888), result.f2);
+            assertThat(result.f0).isEqualTo(Integer.valueOf(111));
+            assertThat(result.f1).isEqualTo(Integer.valueOf(444));
+            assertThat(result.f2).isEqualTo(Integer.valueOf(888));
 
             result = format.nextRecord(result);
-            assertNotNull(result);
-            assertEquals(Integer.valueOf(000), result.f0);
-            assertEquals(Integer.valueOf(777), result.f1);
-            assertEquals(Integer.valueOf(333), result.f2);
+            assertThat(result.f0).isEqualTo(Integer.valueOf(000));
+            assertThat(result.f1).isEqualTo(Integer.valueOf(777));
+            assertThat(result.f2).isEqualTo(Integer.valueOf(333));
 
             result = format.nextRecord(result);
-            assertNull(result);
-            assertTrue(format.reachedEnd());
+            assertThat(result).isNull();
+            assertThat(format.reachedEnd()).isTrue();
         } catch (Exception ex) {
             fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
         }
     }
 
     @Test
-    public void testReadSparseWithMask() throws IOException {
+    void testReadSparseWithMask() {
         try {
             final String fileContent =
                     "111&&222&&333&&444&&555&&666&&777&&888&&999&&000&&\n"
@@ -845,7 +801,7 @@ public class CsvInputFormatTest {
                     TupleTypeInfo.getBasicTupleTypeInfo(
                             Integer.class, Integer.class, Integer.class);
             final CsvInputFormat<Tuple3<Integer, Integer, Integer>> format =
-                    new TupleCsvInputFormat<Tuple3<Integer, Integer, Integer>>(
+                    new TupleCsvInputFormat<>(
                             PATH,
                             typeInfo,
                             new boolean[] {true, false, false, true, false, false, false, true});
@@ -855,30 +811,28 @@ public class CsvInputFormatTest {
             format.configure(new Configuration());
             format.open(split);
 
-            Tuple3<Integer, Integer, Integer> result = new Tuple3<Integer, Integer, Integer>();
+            Tuple3<Integer, Integer, Integer> result = new Tuple3<>();
 
             result = format.nextRecord(result);
-            assertNotNull(result);
-            assertEquals(Integer.valueOf(111), result.f0);
-            assertEquals(Integer.valueOf(444), result.f1);
-            assertEquals(Integer.valueOf(888), result.f2);
+            assertThat(result.f0).isEqualTo(Integer.valueOf(111));
+            assertThat(result.f1).isEqualTo(Integer.valueOf(444));
+            assertThat(result.f2).isEqualTo(Integer.valueOf(888));
 
             result = format.nextRecord(result);
-            assertNotNull(result);
-            assertEquals(Integer.valueOf(000), result.f0);
-            assertEquals(Integer.valueOf(777), result.f1);
-            assertEquals(Integer.valueOf(333), result.f2);
+            assertThat(result.f0).isEqualTo(Integer.valueOf(000));
+            assertThat(result.f1).isEqualTo(Integer.valueOf(777));
+            assertThat(result.f2).isEqualTo(Integer.valueOf(333));
 
             result = format.nextRecord(result);
-            assertNull(result);
-            assertTrue(format.reachedEnd());
+            assertThat(result).isNull();
+            assertThat(format.reachedEnd()).isTrue();
         } catch (Exception ex) {
             fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
         }
     }
 
     @Test
-    public void testParseStringErrors() throws Exception {
+    void testParseStringErrors() {
         StringParser stringParser = new StringParser();
         stringParser.enableQuotedStringParsing((byte) '"');
 
@@ -898,14 +852,14 @@ public class CsvInputFormatTest {
                             new byte[] {'|'},
                             null);
 
-            assertThat(result, is(-1));
-            assertThat(stringParser.getErrorState(), is(failure[1]));
+            assertThat(result).isEqualTo(-1);
+            assertThat(stringParser.getErrorState()).isSameAs(failure[1]);
         }
     }
 
-    // Test disabled because we do not support double-quote escaped quotes right now.
-    // @Test
-    public void testParserCorrectness() throws Exception {
+    @Disabled("Test disabled because we do not support double-quote escaped quotes right now.")
+    @Test
+    void testParserCorrectness() throws Exception {
         // RFC 4180 Compliance Test content
         // Taken from http://en.wikipedia.org/wiki/Comma-separated_values#Example
         final String fileContent =
@@ -922,8 +876,7 @@ public class CsvInputFormatTest {
                 TupleTypeInfo.getBasicTupleTypeInfo(
                         Integer.class, String.class, String.class, String.class, Double.class);
         final CsvInputFormat<Tuple5<Integer, String, String, String, Double>> format =
-                new TupleCsvInputFormat<Tuple5<Integer, String, String, String, Double>>(
-                        PATH, typeInfo);
+                new TupleCsvInputFormat<>(PATH, typeInfo);
 
         format.setSkipFirstLineAsHeader(true);
         format.setFieldDelimiter(",");
@@ -931,36 +884,32 @@ public class CsvInputFormatTest {
         format.configure(new Configuration());
         format.open(split);
 
-        Tuple5<Integer, String, String, String, Double> result =
-                new Tuple5<Integer, String, String, String, Double>();
+        Tuple5<Integer, String, String, String, Double> result = new Tuple5<>();
 
         @SuppressWarnings("unchecked")
         Tuple5<Integer, String, String, String, Double>[] expectedLines =
                 new Tuple5[] {
-                    new Tuple5<Integer, String, String, String, Double>(
-                            1997, "Ford", "E350", "ac, abs, moon", 3000.0),
-                    new Tuple5<Integer, String, String, String, Double>(
-                            1999, "Chevy", "Venture \"Extended Edition\"", "", 4900.0),
-                    new Tuple5<Integer, String, String, String, Double>(
+                    new Tuple5<>(1997, "Ford", "E350", "ac, abs, moon", 3000.0),
+                    new Tuple5<>(1999, "Chevy", "Venture \"Extended Edition\"", "", 4900.0),
+                    new Tuple5<>(
                             1996,
                             "Jeep",
                             "Grand Cherokee",
                             "MUST SELL! air, moon roof, loaded",
                             4799.00),
-                    new Tuple5<Integer, String, String, String, Double>(
+                    new Tuple5<>(
                             1999, "Chevy", "Venture \"Extended Edition, Very Large\"", "", 5000.00),
-                    new Tuple5<Integer, String, String, String, Double>(
-                            0, "", "Venture \"Extended Edition\"", "", 4900.0)
+                    new Tuple5<>(0, "", "Venture \"Extended Edition\"", "", 4900.0)
                 };
 
         try {
             for (Tuple5<Integer, String, String, String, Double> expected : expectedLines) {
                 result = format.nextRecord(result);
-                assertEquals(expected, result);
+                assertThat(result).isEqualTo(expected);
             }
 
-            assertNull(format.nextRecord(result));
-            assertTrue(format.reachedEnd());
+            assertThat(format.nextRecord(result)).isNull();
+            assertThat(format.reachedEnd()).isTrue();
 
         } catch (Exception ex) {
             fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
@@ -985,7 +934,7 @@ public class CsvInputFormatTest {
     }
 
     @Test
-    public void testWindowsLineEndRemoval() {
+    void testWindowsLineEndRemoval() {
 
         // Check typical use case -- linux file is correct and it is set up to linux (\n)
         this.testRemovingTrailingCR("\n", "\n");
@@ -1026,8 +975,7 @@ public class CsvInputFormatTest {
             final TupleTypeInfo<Tuple1<String>> typeInfo =
                     TupleTypeInfo.getBasicTupleTypeInfo(String.class);
             final CsvInputFormat<Tuple1<String>> inputFormat =
-                    new TupleCsvInputFormat<Tuple1<String>>(
-                            new Path(tempFile.toURI().toString()), typeInfo);
+                    new TupleCsvInputFormat<>(new Path(tempFile.toURI().toString()), typeInfo);
 
             Configuration parameters = new Configuration();
             inputFormat.configure(parameters);
@@ -1038,16 +986,16 @@ public class CsvInputFormatTest {
 
             inputFormat.open(splits[0]);
 
-            Tuple1<String> result = inputFormat.nextRecord(new Tuple1<String>());
+            Tuple1<String> result = inputFormat.nextRecord(new Tuple1<>());
 
-            assertNotNull("Expecting to not return null", result);
+            assertThat(result).as("Expecting to not return null").isNotNull();
 
-            assertEquals(FIRST_PART, result.f0);
+            assertThat(result.f0).isEqualTo(FIRST_PART);
 
             result = inputFormat.nextRecord(result);
 
-            assertNotNull("Expecting to not return null", result);
-            assertEquals(SECOND_PART, result.f0);
+            assertThat(result).as("Expecting to not return null").isNotNull();
+            assertThat(result.f0).isEqualTo(SECOND_PART);
 
         } catch (Throwable t) {
             System.err.println("test failed with exception: " + t.getMessage());
@@ -1061,21 +1009,21 @@ public class CsvInputFormatTest {
 
         format.nextRecord(item);
 
-        assertEquals(123, item.field1);
-        assertEquals("AAA", item.field2);
-        assertEquals(Double.valueOf(3.123), item.field3);
-        assertEquals("BBB", item.field4);
+        assertThat(item.field1).isEqualTo(123);
+        assertThat(item.field2).isEqualTo("AAA");
+        assertThat(item.field3).isEqualTo(Double.valueOf(3.123));
+        assertThat(item.field4).isEqualTo("BBB");
 
         format.nextRecord(item);
 
-        assertEquals(456, item.field1);
-        assertEquals("BBB", item.field2);
-        assertEquals(Double.valueOf(1.123), item.field3);
-        assertEquals("AAA", item.field4);
+        assertThat(item.field1).isEqualTo(456);
+        assertThat(item.field2).isEqualTo("BBB");
+        assertThat(item.field3).isEqualTo(Double.valueOf(1.123));
+        assertThat(item.field4).isEqualTo("AAA");
     }
 
     @Test
-    public void testPojoType() throws Exception {
+    void testPojoType() throws Exception {
         File tempFile = File.createTempFile("CsvReaderPojoType", "tmp");
         tempFile.deleteOnExit();
         tempFile.setWritable(true);
@@ -1100,7 +1048,7 @@ public class CsvInputFormatTest {
     }
 
     @Test
-    public void testPojoTypeWithPrivateField() throws Exception {
+    void testPojoTypeWithPrivateField() throws Exception {
         File tempFile = File.createTempFile("CsvReaderPojoType", "tmp");
         tempFile.deleteOnExit();
         tempFile.setWritable(true);
@@ -1114,8 +1062,7 @@ public class CsvInputFormatTest {
         PojoTypeInfo<PrivatePojoItem> typeInfo =
                 (PojoTypeInfo<PrivatePojoItem>) TypeExtractor.createTypeInfo(PrivatePojoItem.class);
         CsvInputFormat<PrivatePojoItem> inputFormat =
-                new PojoCsvInputFormat<PrivatePojoItem>(
-                        new Path(tempFile.toURI().toString()), typeInfo);
+                new PojoCsvInputFormat<>(new Path(tempFile.toURI().toString()), typeInfo);
 
         inputFormat.configure(new Configuration());
 
@@ -1125,29 +1072,28 @@ public class CsvInputFormatTest {
         PrivatePojoItem item = new PrivatePojoItem();
         inputFormat.nextRecord(item);
 
-        assertEquals(123, item.field1);
-        assertEquals("AAA", item.field2);
-        assertEquals(Double.valueOf(3.123), item.field3);
-        assertEquals("BBB", item.field4);
+        assertThat(item.field1).isEqualTo(123);
+        assertThat(item.field2).isEqualTo("AAA");
+        assertThat(item.field3).isEqualTo(Double.valueOf(3.123));
+        assertThat(item.field4).isEqualTo("BBB");
 
         inputFormat.nextRecord(item);
 
-        assertEquals(456, item.field1);
-        assertEquals("BBB", item.field2);
-        assertEquals(Double.valueOf(1.123), item.field3);
-        assertEquals("AAA", item.field4);
+        assertThat(item.field1).isEqualTo(456);
+        assertThat(item.field2).isEqualTo("BBB");
+        assertThat(item.field3).isEqualTo(Double.valueOf(1.123));
+        assertThat(item.field4).isEqualTo("AAA");
     }
 
     @Test
-    public void testPojoTypeWithTrailingEmptyFields() throws Exception {
+    void testPojoTypeWithTrailingEmptyFields() throws Exception {
         final String fileContent = "123,,3.123,,\n456,BBB,3.23,,";
         final FileInputSplit split = createTempFile(fileContent);
 
         @SuppressWarnings("unchecked")
         PojoTypeInfo<PrivatePojoItem> typeInfo =
                 (PojoTypeInfo<PrivatePojoItem>) TypeExtractor.createTypeInfo(PrivatePojoItem.class);
-        CsvInputFormat<PrivatePojoItem> inputFormat =
-                new PojoCsvInputFormat<PrivatePojoItem>(PATH, typeInfo);
+        CsvInputFormat<PrivatePojoItem> inputFormat = new PojoCsvInputFormat<>(PATH, typeInfo);
 
         inputFormat.configure(new Configuration());
         inputFormat.open(split);
@@ -1155,21 +1101,21 @@ public class CsvInputFormatTest {
         PrivatePojoItem item = new PrivatePojoItem();
         inputFormat.nextRecord(item);
 
-        assertEquals(123, item.field1);
-        assertEquals("", item.field2);
-        assertEquals(Double.valueOf(3.123), item.field3);
-        assertEquals("", item.field4);
+        assertThat(item.field1).isEqualTo(123);
+        assertThat(item.field2).isEmpty();
+        assertThat(item.field3).isEqualTo(Double.valueOf(3.123));
+        assertThat(item.field4).isEmpty();
 
         inputFormat.nextRecord(item);
 
-        assertEquals(456, item.field1);
-        assertEquals("BBB", item.field2);
-        assertEquals(Double.valueOf(3.23), item.field3);
-        assertEquals("", item.field4);
+        assertThat(item.field1).isEqualTo(456);
+        assertThat(item.field2).isEqualTo("BBB");
+        assertThat(item.field3).isEqualTo(Double.valueOf(3.23));
+        assertThat(item.field4).isEmpty();
     }
 
     @Test
-    public void testPojoTypeWithMappingInformation() throws Exception {
+    void testPojoTypeWithMappingInformation() throws Exception {
         File tempFile = File.createTempFile("CsvReaderPojoType", "tmp");
         tempFile.deleteOnExit();
         tempFile.setWritable(true);
@@ -1183,7 +1129,7 @@ public class CsvInputFormatTest {
         PojoTypeInfo<PojoItem> typeInfo =
                 (PojoTypeInfo<PojoItem>) TypeExtractor.createTypeInfo(PojoItem.class);
         CsvInputFormat<PojoItem> inputFormat =
-                new PojoCsvInputFormat<PojoItem>(
+                new PojoCsvInputFormat<>(
                         new Path(tempFile.toURI().toString()),
                         typeInfo,
                         new String[] {"field1", "field3", "field2", "field4"});
@@ -1197,7 +1143,7 @@ public class CsvInputFormatTest {
     }
 
     @Test
-    public void testPojoTypeWithPartialFieldInCSV() throws Exception {
+    void testPojoTypeWithPartialFieldInCSV() throws Exception {
         File tempFile = File.createTempFile("CsvReaderPojoType", "tmp");
         tempFile.deleteOnExit();
         tempFile.setWritable(true);
@@ -1211,7 +1157,7 @@ public class CsvInputFormatTest {
         PojoTypeInfo<PojoItem> typeInfo =
                 (PojoTypeInfo<PojoItem>) TypeExtractor.createTypeInfo(PojoItem.class);
         CsvInputFormat<PojoItem> inputFormat =
-                new PojoCsvInputFormat<PojoItem>(
+                new PojoCsvInputFormat<>(
                         new Path(tempFile.toURI().toString()),
                         typeInfo,
                         new boolean[] {true, false, true, false, true, true});
@@ -1225,7 +1171,7 @@ public class CsvInputFormatTest {
     }
 
     @Test
-    public void testPojoTypeWithMappingInfoAndPartialField() throws Exception {
+    void testPojoTypeWithMappingInfoAndPartialField() throws Exception {
         File tempFile = File.createTempFile("CsvReaderPojoType", "tmp");
         tempFile.deleteOnExit();
         tempFile.setWritable(true);
@@ -1239,7 +1185,7 @@ public class CsvInputFormatTest {
         PojoTypeInfo<PojoItem> typeInfo =
                 (PojoTypeInfo<PojoItem>) TypeExtractor.createTypeInfo(PojoItem.class);
         CsvInputFormat<PojoItem> inputFormat =
-                new PojoCsvInputFormat<PojoItem>(
+                new PojoCsvInputFormat<>(
                         new Path(tempFile.toURI().toString()),
                         typeInfo,
                         new String[] {"field1", "field4"},
@@ -1253,12 +1199,12 @@ public class CsvInputFormatTest {
         PojoItem item = new PojoItem();
         inputFormat.nextRecord(item);
 
-        assertEquals(123, item.field1);
-        assertEquals("BBB", item.field4);
+        assertThat(item.field1).isEqualTo(123);
+        assertThat(item.field4).isEqualTo("BBB");
     }
 
     @Test
-    public void testPojoTypeWithInvalidFieldMapping() throws Exception {
+    void testPojoTypeWithInvalidFieldMapping() throws Exception {
         File tempFile = File.createTempFile("CsvReaderPojoType", "tmp");
         tempFile.deleteOnExit();
         tempFile.setWritable(true);
@@ -1268,7 +1214,7 @@ public class CsvInputFormatTest {
                 (PojoTypeInfo<PojoItem>) TypeExtractor.createTypeInfo(PojoItem.class);
 
         try {
-            new PojoCsvInputFormat<PojoItem>(
+            new PojoCsvInputFormat<>(
                     new Path(tempFile.toURI().toString()),
                     typeInfo,
                     new String[] {"field1", "field2"});
@@ -1278,7 +1224,7 @@ public class CsvInputFormatTest {
         }
 
         try {
-            new PojoCsvInputFormat<PojoItem>(
+            new PojoCsvInputFormat<>(
                     new Path(tempFile.toURI().toString()),
                     typeInfo,
                     new String[] {"field1", "field2", null, "field4"});
@@ -1288,7 +1234,7 @@ public class CsvInputFormatTest {
         }
 
         try {
-            new PojoCsvInputFormat<PojoItem>(
+            new PojoCsvInputFormat<>(
                     new Path(tempFile.toURI().toString()),
                     typeInfo,
                     new String[] {"field1", "field2", "field3", "field5"});
@@ -1299,7 +1245,7 @@ public class CsvInputFormatTest {
     }
 
     @Test
-    public void testQuotedStringParsingWithIncludeFields() throws Exception {
+    void testQuotedStringParsingWithIncludeFields() throws Exception {
         final String fileContent =
                 "\"20:41:52-1-3-2015\"|\"Re: Taskmanager memory error in Eclipse\"|"
                         + "\"Blahblah <blah@blahblah.org>\"|\"blaaa|\"blubb\"";
@@ -1315,7 +1261,7 @@ public class CsvInputFormatTest {
         TupleTypeInfo<Tuple2<String, String>> typeInfo =
                 TupleTypeInfo.getBasicTupleTypeInfo(String.class, String.class);
         CsvInputFormat<Tuple2<String, String>> inputFormat =
-                new TupleCsvInputFormat<Tuple2<String, String>>(
+                new TupleCsvInputFormat<>(
                         new Path(tempFile.toURI().toString()),
                         typeInfo,
                         new boolean[] {true, false, true});
@@ -1329,14 +1275,14 @@ public class CsvInputFormatTest {
 
         inputFormat.open(splits[0]);
 
-        Tuple2<String, String> record = inputFormat.nextRecord(new Tuple2<String, String>());
+        Tuple2<String, String> record = inputFormat.nextRecord(new Tuple2<>());
 
-        assertEquals("20:41:52-1-3-2015", record.f0);
-        assertEquals("Blahblah <blah@blahblah.org>", record.f1);
+        assertThat(record.f0).isEqualTo("20:41:52-1-3-2015");
+        assertThat(record.f1).isEqualTo("Blahblah <blah@blahblah.org>");
     }
 
     @Test
-    public void testQuotedStringParsingWithEscapedQuotes() throws Exception {
+    void testQuotedStringParsingWithEscapedQuotes() throws Exception {
         final String fileContent = "\"\\\"Hello\\\" World\"|\"We are\\\" young\"";
 
         final File tempFile = File.createTempFile("CsvReaderQuotedString", "tmp");
@@ -1361,10 +1307,10 @@ public class CsvInputFormatTest {
 
         inputFormat.open(splits[0]);
 
-        Tuple2<String, String> record = inputFormat.nextRecord(new Tuple2<String, String>());
+        Tuple2<String, String> record = inputFormat.nextRecord(new Tuple2<>());
 
-        assertEquals("\\\"Hello\\\" World", record.f0);
-        assertEquals("We are\\\" young", record.f1);
+        assertThat(record.f0).isEqualTo("\\\"Hello\\\" World");
+        assertThat(record.f1).isEqualTo("We are\\\" young");
     }
 
     /**
@@ -1373,7 +1319,7 @@ public class CsvInputFormatTest {
      * @throws Exception
      */
     @Test
-    public void testPojoSubclassType() throws Exception {
+    void testPojoSubclassType() throws Exception {
         final String fileContent = "t1,foobar,tweet2\nt2,barfoo,tweet2";
 
         final File tempFile = File.createTempFile("CsvReaderPOJOSubclass", "tmp");
@@ -1409,7 +1355,7 @@ public class CsvInputFormatTest {
             actual.add(pojo);
         }
 
-        assertEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     // --------------------------------------------------------------------------------------------

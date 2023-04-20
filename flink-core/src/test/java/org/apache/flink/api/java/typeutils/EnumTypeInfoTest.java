@@ -21,7 +21,7 @@ package org.apache.flink.api.java.typeutils;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
 /** Test for {@link EnumTypeInfo}. */
-public class EnumTypeInfoTest extends TypeInformationTestBase<EnumTypeInfo<?>> {
+class EnumTypeInfoTest extends TypeInformationTestBase<EnumTypeInfo<?>> {
 
     @Override
     @SuppressWarnings("unchecked")

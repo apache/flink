@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.jobgraph.RestoreMode;
 
 import java.io.Serializable;
@@ -39,7 +39,7 @@ public class CheckpointProperties implements Serializable {
     private static final long serialVersionUID = 2L;
 
     /** Type - checkpoint / savepoint. */
-    private final CheckpointType checkpointType;
+    private final SnapshotType checkpointType;
 
     /**
      * This has a misleading name and actually means whether the snapshot must be triggered, or
@@ -56,10 +56,9 @@ public class CheckpointProperties implements Serializable {
 
     private final boolean unclaimed;
 
-    @VisibleForTesting
-    CheckpointProperties(
+    public CheckpointProperties(
             boolean forced,
-            CheckpointType checkpointType,
+            SnapshotType checkpointType,
             boolean discardSubsumed,
             boolean discardFinished,
             boolean discardCancelled,
@@ -166,7 +165,7 @@ public class CheckpointProperties implements Serializable {
     }
 
     /** Gets the type of the checkpoint (checkpoint / savepoint). */
-    public CheckpointType getCheckpointType() {
+    public SnapshotType getCheckpointType() {
         return checkpointType;
     }
 
@@ -187,7 +186,7 @@ public class CheckpointProperties implements Serializable {
      *     </code> otherwise.
      */
     public boolean isSynchronous() {
-        return checkpointType.isSynchronous();
+        return isSavepoint() && ((SavepointType) checkpointType).isSynchronous();
     }
 
     // ------------------------------------------------------------------------
@@ -204,7 +203,7 @@ public class CheckpointProperties implements Serializable {
 
         CheckpointProperties that = (CheckpointProperties) o;
         return forced == that.forced
-                && checkpointType == that.checkpointType
+                && checkpointType.equals(that.checkpointType)
                 && discardSubsumed == that.discardSubsumed
                 && discardFinished == that.discardFinished
                 && discardCancelled == that.discardCancelled
@@ -248,14 +247,6 @@ public class CheckpointProperties implements Serializable {
     //  Factories and pre-configured properties
     // ------------------------------------------------------------------------
 
-    private static final CheckpointProperties SAVEPOINT =
-            new CheckpointProperties(
-                    true, CheckpointType.SAVEPOINT, false, false, false, false, false, false);
-
-    private static final CheckpointProperties SAVEPOINT_NO_FORCE =
-            new CheckpointProperties(
-                    false, CheckpointType.SAVEPOINT, false, false, false, false, false, false);
-
     private static final CheckpointProperties CHECKPOINT_NEVER_RETAINED =
             new CheckpointProperties(
                     false,
@@ -297,8 +288,17 @@ public class CheckpointProperties implements Serializable {
      *
      * @return Checkpoint properties for a (manually triggered) savepoint.
      */
-    public static CheckpointProperties forSavepoint(boolean forced) {
-        return forced ? SAVEPOINT : SAVEPOINT_NO_FORCE;
+    public static CheckpointProperties forSavepoint(
+            boolean forced, SavepointFormatType formatType) {
+        return new CheckpointProperties(
+                forced,
+                SavepointType.savepoint(formatType),
+                false,
+                false,
+                false,
+                false,
+                false,
+                false);
     }
 
     /**
@@ -311,7 +311,10 @@ public class CheckpointProperties implements Serializable {
     public static CheckpointProperties forUnclaimedSnapshot() {
         return new CheckpointProperties(
                 false,
-                CheckpointType.SAVEPOINT, // unclaimed snapshot is similar to a savepoint
+                // unclaimed snapshot is similar to a savepoint
+                // we do not care about the format when restoring, the format is
+                // necessary when triggering a savepoint
+                SavepointType.savepoint(SavepointFormatType.CANONICAL),
                 false,
                 false,
                 false,
@@ -320,10 +323,11 @@ public class CheckpointProperties implements Serializable {
                 true);
     }
 
-    public static CheckpointProperties forSyncSavepoint(boolean forced, boolean terminate) {
+    public static CheckpointProperties forSyncSavepoint(
+            boolean forced, boolean terminate, SavepointFormatType formatType) {
         return new CheckpointProperties(
                 forced,
-                terminate ? CheckpointType.SAVEPOINT_TERMINATE : CheckpointType.SAVEPOINT_SUSPEND,
+                terminate ? SavepointType.terminate(formatType) : SavepointType.suspend(formatType),
                 false,
                 false,
                 false,

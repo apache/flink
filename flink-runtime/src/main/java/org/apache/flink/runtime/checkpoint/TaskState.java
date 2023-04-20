@@ -143,6 +143,12 @@ public class TaskState implements CompositeStateHandle {
     }
 
     @Override
+    public long getCheckpointedSize() {
+        // This class is actually deprecated, just return the state size.
+        return getStateSize();
+    }
+
+    @Override
     public long getStateSize() {
         long result = 0L;
 

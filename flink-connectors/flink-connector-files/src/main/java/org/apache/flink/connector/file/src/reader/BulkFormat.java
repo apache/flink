@@ -98,7 +98,7 @@ public interface BulkFormat<T, SplitT extends FileSourceSplit>
 
     /**
      * Creates a new reader that reads from the {@link FileSourceSplit#path() split's path} starting
-     * at the {@link FileSourceSplit#offset()} split's offset} and reads {@link
+     * at the {@link FileSourceSplit#offset() split's offset} and reads {@link
      * FileSourceSplit#length() length} bytes after the offset.
      */
     BulkFormat.Reader<T> createReader(Configuration config, SplitT split) throws IOException;

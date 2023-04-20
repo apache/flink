@@ -65,9 +65,7 @@ public class BatchOperatorNameTest extends OperatorNameTestBase {
     /** Verify Sort, SortAggregate. */
     @Test
     public void testSortAggregate() {
-        tEnv.getConfig()
-                .getConfiguration()
-                .setString(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
+        tEnv.getConfig().set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
         createTestSource();
         verifyQuery("SELECT a, " + "count(distinct b) as b " + "FROM MyTable GROUP BY a");
     }
@@ -95,8 +93,7 @@ public class BatchOperatorNameTest extends OperatorNameTestBase {
     @Test
     public void testNestedLoopJoin() {
         tEnv.getConfig()
-                .getConfiguration()
-                .setString(
+                .set(
                         ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS,
                         "HashJoin, SortMergeJoin");
         testJoinInternal();
@@ -106,8 +103,7 @@ public class BatchOperatorNameTest extends OperatorNameTestBase {
     @Test
     public void testSortMergeJoin() {
         tEnv.getConfig()
-                .getConfiguration()
-                .setString(
+                .set(
                         ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS,
                         "HashJoin, NestedLoopJoin");
         testJoinInternal();
@@ -155,5 +151,25 @@ public class BatchOperatorNameTest extends OperatorNameTestBase {
                                         .toArray(LogicalType[]::new));
         util.testingTableEnv().registerTableSinkInternal("MySink", sink);
         verifyInsert("insert into MySink select * from MySource");
+    }
+
+    @Test
+    public void testMatch() {
+        createSourceWithTimeAttribute();
+        String sql =
+                "SELECT T.aid, T.bid, T.cid\n"
+                        + "     FROM MyTable MATCH_RECOGNIZE (\n"
+                        + "             ORDER BY proctime\n"
+                        + "             MEASURES\n"
+                        + "             `A\"`.a AS aid,\n"
+                        + "             \u006C.a AS bid,\n"
+                        + "             C.a AS cid\n"
+                        + "             PATTERN (`A\"` \u006C C)\n"
+                        + "             DEFINE\n"
+                        + "                 `A\"` AS a = 1,\n"
+                        + "                 \u006C AS b = 2,\n"
+                        + "                 C AS c = 'c'\n"
+                        + "     ) AS T";
+        verifyQuery(sql);
     }
 }

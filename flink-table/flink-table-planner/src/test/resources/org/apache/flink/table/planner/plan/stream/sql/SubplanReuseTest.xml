@@ -77,14 +77,16 @@ Join(joinType=[InnerJoin], where=[(b = e0)], select=[a, b, c, d, e, f, a0, b0, c
 :     :  +- Calc(select=[a, b, c], where=[(a < 10)])
 :     :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 :     +- Exchange(distribution=[hash[d]])
-:        +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+:        +- Calc(select=[d, e, f], where=[(d < 10)])
+:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 +- Exchange(distribution=[hash[e]])
    +- Join(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
       :- Exchange(distribution=[hash[a]])
       :  +- Calc(select=[a, b, c], where=[(a > 5)])
       :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
       +- Exchange(distribution=[hash[d]])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+         +- Calc(select=[d, e, f], where=[(d > 5)])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -124,14 +126,16 @@ Join(joinType=[InnerJoin], where=[(b = e0)], select=[a, b, d, e, a0, b0, d0, e0]
 :     :  +- Calc(select=[a, b], where=[(a < 10)])
 :     :     +- TableSourceScan(table=[[default_catalog, default_database, newX, filter=[], project=[a, b], metadata=[]]], fields=[a, b])
 :     +- Exchange(distribution=[hash[d]])
-:        +- TableSourceScan(table=[[default_catalog, default_database, newY, project=[d, e], metadata=[]]], fields=[d, e])
+:        +- Calc(select=[d, e], where=[(d < 10)])
+:           +- TableSourceScan(table=[[default_catalog, default_database, newY, filter=[], project=[d, e], metadata=[]]], fields=[d, e])
 +- Exchange(distribution=[hash[e]])
    +- Join(joinType=[InnerJoin], where=[(a = d)], select=[a, b, d, e], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
       :- Exchange(distribution=[hash[a]])
       :  +- Calc(select=[a, b], where=[(a > 5)])
       :     +- TableSourceScan(table=[[default_catalog, default_database, newX, filter=[], project=[a, b], metadata=[]]], fields=[a, b])
       +- Exchange(distribution=[hash[d]])
-         +- TableSourceScan(table=[[default_catalog, default_database, newY, project=[d, e], metadata=[]]], fields=[d, e])
+         +- Calc(select=[d, e], where=[(d > 5)])
+            +- TableSourceScan(table=[[default_catalog, default_database, newY, filter=[], project=[d, e], metadata=[]]], fields=[d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -167,15 +171,17 @@ Join(joinType=[InnerJoin], where=[(b = e0)], select=[a, b, d, e, a0, b0, d0, e0]
 :     :- Exchange(distribution=[hash[a]])
 :     :  +- Calc(select=[a, b], where=[(a < 10)])
 :     :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])(reuse_id=[1])
-:     +- Exchange(distribution=[hash[d]])(reuse_id=[2])
-:        +- Calc(select=[d, e])
-:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+:     +- Exchange(distribution=[hash[d]])
+:        +- Calc(select=[d, e], where=[(d < 10)])
+:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])(reuse_id=[2])
 +- Exchange(distribution=[hash[e]])
    +- Join(joinType=[InnerJoin], where=[(a = d)], select=[a, b, d, e], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
       :- Exchange(distribution=[hash[a]])
       :  +- Calc(select=[a, b], where=[(a > 5)])
       :     +- Reused(reference_id=[1])
-      +- Reused(reference_id=[2])
+      +- Exchange(distribution=[hash[d]])
+         +- Calc(select=[d, e], where=[(d > 5)])
+            +- Reused(reference_id=[2])
 ]]>
     </Resource>
   </TestCase>
@@ -320,14 +326,17 @@ Join(joinType=[InnerJoin], where=[(b = e0)], select=[a, b, d, e, a0, b0, d0, e0]
 :     :- Exchange(distribution=[hash[a]])
 :     :  +- Calc(select=[a, b], where=[(a < 10)])
 :     :     +- TableSourceScan(table=[[default_catalog, default_database, newX, filter=[], project=[a, b], metadata=[]]], fields=[a, b])(reuse_id=[1])
-:     +- Exchange(distribution=[hash[d]])(reuse_id=[2])
-:        +- TableSourceScan(table=[[default_catalog, default_database, newY, project=[d, e], metadata=[]]], fields=[d, e])
+:     +- Exchange(distribution=[hash[d]])
+:        +- Calc(select=[d, e], where=[(d < 10)])
+:           +- TableSourceScan(table=[[default_catalog, default_database, newY, filter=[], project=[d, e], metadata=[]]], fields=[d, e])(reuse_id=[2])
 +- Exchange(distribution=[hash[e]])
    +- Join(joinType=[InnerJoin], where=[(a = d)], select=[a, b, d, e], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
       :- Exchange(distribution=[hash[a]])
       :  +- Calc(select=[a, b], where=[(a > 5)])
       :     +- Reused(reference_id=[1])
-      +- Reused(reference_id=[2])
+      +- Exchange(distribution=[hash[d]])
+         +- Calc(select=[d, e], where=[(d > 5)])
+            +- Reused(reference_id=[2])
 ]]>
     </Resource>
   </TestCase>
@@ -694,7 +703,7 @@ Join(joinType=[InnerJoin], where=[(a = a0)], select=[c, a, b, c0, a0, b0], leftI
 :        +- Exchange(distribution=[hash[c]])
 :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[a]])
-   +- Calc(select=[c, a, b], where=[(b < 10)])
+   +- Calc(select=[c, a, b], where=[((b < 10) AND (a > 1))])
       +- Reused(reference_id=[1])
 ]]>
     </Resource>

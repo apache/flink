@@ -70,7 +70,7 @@
         </tr>
         <tr>
             <td><h5>cluster.thread-dump.stacktrace-max-depth</h5></td>
-            <td style="word-wrap: break-word;">8</td>
+            <td style="word-wrap: break-word;">50</td>
             <td>Integer</td>
             <td>The maximum stacktrace depth of TaskManager and JobManager's thread dump web-frontend displayed.</td>
         </tr>
@@ -102,7 +102,7 @@
             <td><h5>process.working-dir</h5></td>
             <td style="word-wrap: break-word;">io.tmp.dirs</td>
             <td>String</td>
-            <td>Working directory for Flink processes. The working directory can be used to store information that can be used upon process recovery. If not configured, then it will default to a randomly picked temporary directory defined via <code class="highlighter-rouge">io.tmp.dirs</code>.</td>
+            <td>Local working directory for Flink processes. The working directory can be used to store information that can be used upon process recovery. If not configured, then it will default to a randomly picked temporary directory defined via <code class="highlighter-rouge">io.tmp.dirs</code>.</td>
         </tr>
     </tbody>
 </table>

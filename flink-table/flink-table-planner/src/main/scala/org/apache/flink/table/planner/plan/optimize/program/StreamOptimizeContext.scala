@@ -15,27 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.optimize.program
 
 import org.apache.flink.table.planner.plan.`trait`.MiniBatchInterval
 
 import org.apache.calcite.rex.RexBuilder
 
-/**
-  * A OptimizeContext allows to obtain stream table environment information when optimizing.
-  */
+/** A OptimizeContext allows to obtain stream table environment information when optimizing. */
 trait StreamOptimizeContext extends FlinkOptimizeContext {
 
   /**
-   * Returns true if the root is required to send UPDATE_BEFORE message with
-   * UPDATE_AFTER message together for update changes.
+   * Returns true if the root is required to send UPDATE_BEFORE message with UPDATE_AFTER message
+   * together for update changes.
    */
   def isUpdateBeforeRequired: Boolean
 
-  /**
-    * Returns the mini-batch interval that sink requests.
-    */
+  /** Returns the mini-batch interval that sink requests. */
   def getMiniBatchInterval: MiniBatchInterval
 
 }

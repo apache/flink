@@ -26,35 +26,35 @@ import org.apache.flink.util.Preconditions;
 
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem;
 import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.StorageOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Provides recoverable-writer functionality for the standard GoogleHadoopFileSystem. */
+/** FileSystem implementation that wraps GoogleHadoopFileSystem and supports RecoverableWriter. */
 class GSFileSystem extends HadoopFileSystem {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GSFileSystem.class);
 
-    private final GSFileSystemOptions options;
+    private final GSFileSystemOptions fileSystemOptions;
 
-    GSFileSystem(GoogleHadoopFileSystem googleHadoopFileSystem, GSFileSystemOptions options) {
+    private final Storage storage;
+
+    GSFileSystem(
+            GoogleHadoopFileSystem googleHadoopFileSystem,
+            Storage storage,
+            GSFileSystemOptions fileSystemOptions) {
         super(Preconditions.checkNotNull(googleHadoopFileSystem));
-        LOGGER.info("Creating GSFileSystem with options {}", options);
-
-        this.options = Preconditions.checkNotNull(options);
+        this.fileSystemOptions = Preconditions.checkNotNull(fileSystemOptions);
+        this.storage = Preconditions.checkNotNull(storage);
     }
 
     @Override
     public RecoverableWriter createRecoverableWriter() {
-        LOGGER.info("Creating recoverable writer with options {}", options);
-
-        // create the Google storage service instance
-        Storage storage = StorageOptions.getDefaultInstance().getService();
+        LOGGER.info("Creating GSRecoverableWriter with file-system options {}", fileSystemOptions);
 
         // create the GS blob storage wrapper
         GSBlobStorageImpl blobStorage = new GSBlobStorageImpl(storage);
 
         // construct the recoverable writer with the blob storage wrapper and the options
-        return new GSRecoverableWriter(blobStorage, options);
+        return new GSRecoverableWriter(blobStorage, fileSystemOptions);
     }
 }

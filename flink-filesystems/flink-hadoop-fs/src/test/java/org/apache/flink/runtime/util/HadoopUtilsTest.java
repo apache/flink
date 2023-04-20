@@ -32,24 +32,24 @@ import org.mockito.Mockito;
 import sun.security.krb5.KrbException;
 
 import static org.apache.flink.runtime.util.HadoopUtils.HDFS_DELEGATION_TOKEN_KIND;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeFalse;
 import static org.junit.Assume.assumeTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Unit tests for Hadoop utils. */
 public class HadoopUtilsTest extends TestLogger {
 
     @BeforeClass
     public static void setPropertiesToEnableKerberosConfigInit() throws KrbException {
-        System.setProperty("java.security.krb5.realm", "");
-        System.setProperty("java.security.krb5.kdc", "");
+        System.setProperty("java.security.krb5.realm", "EXAMPLE.COM");
+        System.setProperty("java.security.krb5.kdc", "kdc");
         System.setProperty("java.security.krb5.conf", "/dev/null");
         sun.security.krb5.Config.refresh();
     }
 
     @AfterClass
-    public static void cleanupHadoopConfigs() throws KrbException {
+    public static void cleanupHadoopConfigs() {
         UserGroupInformation.setConfiguration(new Configuration());
     }
 

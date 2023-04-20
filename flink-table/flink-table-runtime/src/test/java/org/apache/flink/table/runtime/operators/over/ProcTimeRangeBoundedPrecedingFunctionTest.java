@@ -35,7 +35,7 @@ import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 import org.junit.Test;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link ProcTimeRangeBoundedPrecedingFunction}. */
 public class ProcTimeRangeBoundedPrecedingFunctionTest {
@@ -74,7 +74,9 @@ public class ProcTimeRangeBoundedPrecedingFunctionTest {
         AbstractKeyedStateBackend stateBackend =
                 (AbstractKeyedStateBackend) operator.getKeyedStateBackend();
 
-        assertEquals("Initial state is not empty", 0, stateBackend.numKeyValueStateEntries());
+        assertThat(stateBackend.numKeyValueStateEntries())
+                .as("Initial state is not empty")
+                .isEqualTo(0);
 
         // put some records
         testHarness.setProcessingTime(100);
@@ -89,7 +91,9 @@ public class ProcTimeRangeBoundedPrecedingFunctionTest {
         testHarness.setProcessingTime(4000);
         // at this moment the function should have cleaned up states
 
-        assertEquals("State has not been cleaned up", 0, stateBackend.numKeyValueStateEntries());
+        assertThat(stateBackend.numKeyValueStateEntries())
+                .as("State has not been cleaned up")
+                .isEqualTo(0);
     }
 
     private OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(

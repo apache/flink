@@ -1,0 +1,973 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testUpdateAllColsWithOnlyRequireUpdatedCols[updateMode = ALL_ROWS]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.t], targetColumns=[[1],[0],[2]], fields=[a, b, c])
++- LogicalProject(a=[IF(>($2, 123), 123, $0)], b=[IF(>($2, 123), _UTF-16LE'v2', $1)], c=[IF(>($2, 123), +($2, 1), $2)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1],[0],[2]], fields=[a, b, c])
++- Calc(select=[IF(>(c, 123), 123, a) AS a, IF(>(c, 123), 'v2', b) AS b, IF(>(c, 123), +(c, 1), c) AS c])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1],[0],[2]], fields=[a, b, c])
++- Calc(select=[IF((c > 123), 123, a) AS a, IF((c > 123), 'v2', b) AS b, IF((c > 123), (c + 1), c) AS c])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: t[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[IF((c > 123), 123, a) AS a, IF((c > 123), 'v2', b) AS b, IF((c > 123), (c + 1), c) AS c])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sink: Unnamed",
+    "pact" : "Data Sink",
+    "contents" : "Sink: Unnamed",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUpdateAllColsWithOnlyRequireUpdatedCols[updateMode = UPDATED_ROWS]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.t], targetColumns=[[1],[0],[2]], fields=[a, b, c])
++- LogicalProject(a=[123], b=[_UTF-16LE'v2'], c=[+($2, 1)])
+   +- LogicalFilter(condition=[>($2, 123)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1],[0],[2]], fields=[a, b, c])
++- Calc(select=[123 AS a, 'v2' AS b, +(c, 1) AS c], where=[>(c, 123)])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1],[0],[2]], fields=[a, b, c])
++- Calc(select=[123 AS a, 'v2' AS b, (c + 1) AS c], where=[(c > 123)])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: t[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[123 AS a, 'v2' AS b, (c + 1) AS c], where=[(c > 123)])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "RowKindSetter[]",
+    "pact" : "Operator",
+    "contents" : "[]:RowKindSetter(TargetRowKind=[UPDATE_AFTER])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sink: Unnamed",
+    "pact" : "Data Sink",
+    "contents" : "Sink: Unnamed",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUpdatePartColsWithOnlyRequireUpdatedCols[updateMode = ALL_ROWS]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.t], targetColumns=[[3],[2],[4]], fields=[a, b, c])
++- LogicalProject(a=[IF(>($4, 123), 123, $2)], b=[IF(>($4, 123), _UTF-16LE'v2', $3)], c=[IF(>($4, 123), +($4, 1), $4)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.t], targetColumns=[[3],[2],[4]], fields=[a, b, c])
++- Calc(select=[IF(>(c, 123), 123, a) AS a, IF(>(c, 123), 'v2', b) AS b, IF(>(c, 123), +(c, 1), c) AS c])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[f0, f1, a, b, c, f2, f3])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.t], targetColumns=[[3],[2],[4]], fields=[a, b, c])
++- Calc(select=[IF((c > 123), 123, a) AS a, IF((c > 123), 'v2', b) AS b, IF((c > 123), (c + 1), c) AS c])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[f0, f1, a, b, c, f2, f3])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: t[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, t]], fields=[f0, f1, a, b, c, f2, f3])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[IF((c > 123), 123, a) AS a, IF((c > 123), 'v2', b) AS b, IF((c > 123), (c + 1), c) AS c])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sink: Unnamed",
+    "pact" : "Data Sink",
+    "contents" : "Sink: Unnamed",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUpdatePartColsWithOnlyRequireUpdatedCols[updateMode = UPDATED_ROWS]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.t], targetColumns=[[3],[2],[4]], fields=[a, b, c])
++- LogicalProject(a=[123], b=[_UTF-16LE'v2'], c=[+($4, 1)])
+   +- LogicalFilter(condition=[>($4, 123)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.t], targetColumns=[[3],[2],[4]], fields=[a, b, c])
++- Calc(select=[123 AS a, 'v2' AS b, +(c, 1) AS c], where=[>(c, 123)])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[f0, f1, a, b, c, f2, f3])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.t], targetColumns=[[3],[2],[4]], fields=[a, b, c])
++- Calc(select=[123 AS a, 'v2' AS b, (c + 1) AS c], where=[(c > 123)])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[f0, f1, a, b, c, f2, f3])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: t[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, t]], fields=[f0, f1, a, b, c, f2, f3])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[123 AS a, 'v2' AS b, (c + 1) AS c], where=[(c > 123)])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "RowKindSetter[]",
+    "pact" : "Operator",
+    "contents" : "[]:RowKindSetter(TargetRowKind=[UPDATE_AFTER])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sink: Unnamed",
+    "pact" : "Data Sink",
+    "contents" : "Sink: Unnamed",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUpdateWithCustomColumns[updateMode = ALL_ROWS]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[b, c])
++- LogicalProject(b=[IF(=($1, _UTF-16LE'123'), _UTF-16LE'v2', $1)], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[b, c])
++- Calc(select=[IF(=(b, '123'), 'v2', b) AS b, c])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[b, c])
++- Calc(select=[IF((b = '123'), 'v2', b) AS b, c])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: t[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[IF((b = '123'), 'v2', b) AS b, c])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sink: Unnamed",
+    "pact" : "Data Sink",
+    "contents" : "Sink: Unnamed",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUpdateWithCustomColumns[updateMode = UPDATED_ROWS]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[b, c])
++- LogicalProject(b=[_UTF-16LE'v2'], c=[$2])
+   +- LogicalFilter(condition=[=($1, _UTF-16LE'123')])
+      +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[b, c])
++- Calc(select=['v2' AS b, c], where=[=(b, '123')])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[b, c])
++- Calc(select=['v2' AS b, c], where=[(b = '123')])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: t[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=['v2' AS b, c], where=[(b = '123')])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "RowKindSetter[]",
+    "pact" : "Operator",
+    "contents" : "[]:RowKindSetter(TargetRowKind=[UPDATE_AFTER])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sink: Unnamed",
+    "pact" : "Data Sink",
+    "contents" : "Sink: Unnamed",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUpdateWithFilter[updateMode = ALL_ROWS]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a, b])
++- LogicalProject(a=[$0], b=[IF(AND(=($0, 123), =($1, _UTF-16LE'v1')), _UTF-16LE'v2', $1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a, b])
++- Calc(select=[a, IF(AND(=(a, 123), =(b, 'v1')), 'v2', b) AS b])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a, b])
++- Calc(select=[a, IF(((a = 123) AND (b = 'v1')), 'v2', b) AS b])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: t[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[a, IF(((a = 123) AND (b = 'v1')), 'v2', b) AS b])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sink: Unnamed",
+    "pact" : "Data Sink",
+    "contents" : "Sink: Unnamed",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUpdateWithoutFilter[updateMode = UPDATED_ROWS]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.t], targetColumns=[[1],[0]], fields=[a, b])
++- LogicalProject(a=[*(CHAR_LENGTH($1), $0)], b=[_UTF-16LE'n1'])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1],[0]], fields=[a, b])
++- Calc(select=[*(CHAR_LENGTH(b), a) AS a, 'n1' AS b])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1],[0]], fields=[a, b])
++- Calc(select=[(CHAR_LENGTH(b) * a) AS a, 'n1' AS b])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: t[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[(CHAR_LENGTH(b) * a) AS a, 'n1' AS b])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "RowKindSetter[]",
+    "pact" : "Operator",
+    "contents" : "[]:RowKindSetter(TargetRowKind=[UPDATE_AFTER])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sink: Unnamed",
+    "pact" : "Data Sink",
+    "contents" : "Sink: Unnamed",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUpdateWithFilter[updateMode = UPDATED_ROWS]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a, b])
++- LogicalProject(a=[$0], b=[_UTF-16LE'v2'])
+   +- LogicalFilter(condition=[AND(=($0, 123), =($1, _UTF-16LE'v1'))])
+      +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a, b])
++- Calc(select=[CAST(123 AS INTEGER) AS a, 'v2' AS b], where=[AND(=(a, 123), =(b, 'v1'))])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a, b])
++- Calc(select=[CAST(123 AS INTEGER) AS a, 'v2' AS b], where=[((a = 123) AND (b = 'v1'))])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: t[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[CAST(123 AS INTEGER) AS a, 'v2' AS b], where=[((a = 123) AND (b = 'v1'))])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "RowKindSetter[]",
+    "pact" : "Operator",
+    "contents" : "[]:RowKindSetter(TargetRowKind=[UPDATE_AFTER])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sink: Unnamed",
+    "pact" : "Data Sink",
+    "contents" : "Sink: Unnamed",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUpdateWithMetaColumns[updateMode = ALL_ROWS]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[meta_f1, meta_f2, a, b])
++- LogicalProject(meta_f1=[$3], meta_f2=[$4], a=[$0], b=[IF(=($1, _UTF-16LE'123'), _UTF-16LE'v2', $1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[meta_f1, meta_f2, a, b])
++- Calc(select=[meta_f1, meta_f2, a, IF(=(b, '123'), 'v2', b) AS b])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c, meta_f1, meta_f2])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[meta_f1, meta_f2, a, b])
++- Calc(select=[meta_f1, meta_f2, a, IF((b = '123'), 'v2', b) AS b])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c, meta_f1, meta_f2])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: t[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c, meta_f1, meta_f2])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[meta_f1, meta_f2, a, IF((b = '123'), 'v2', b) AS b])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sink: Unnamed",
+    "pact" : "Data Sink",
+    "contents" : "Sink: Unnamed",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUpdateWithMetaColumns[updateMode = UPDATED_ROWS]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[meta_f1, meta_f2, a, b])
++- LogicalProject(meta_f1=[$3], meta_f2=[$4], a=[$0], b=[_UTF-16LE'v2'])
+   +- LogicalFilter(condition=[=($1, _UTF-16LE'123')])
+      +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[meta_f1, meta_f2, a, b])
++- Calc(select=[meta_f1, meta_f2, a, 'v2' AS b], where=[=(b, '123')])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c, meta_f1, meta_f2])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[meta_f1, meta_f2, a, b])
++- Calc(select=[meta_f1, meta_f2, a, 'v2' AS b], where=[(b = '123')])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c, meta_f1, meta_f2])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: t[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c, meta_f1, meta_f2])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[meta_f1, meta_f2, a, 'v2' AS b], where=[(b = '123')])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "RowKindSetter[]",
+    "pact" : "Operator",
+    "contents" : "[]:RowKindSetter(TargetRowKind=[UPDATE_AFTER])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sink: Unnamed",
+    "pact" : "Data Sink",
+    "contents" : "Sink: Unnamed",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUpdateWithSubQuery[updateMode = UPDATED_ROWS]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a, b])
++- LogicalProject(a=[$0], b=[_UTF-16LE'v2'])
+   +- LogicalFilter(condition=[=(CAST($0):BIGINT, $SCALAR_QUERY({
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
+  LogicalProject($f0=[0])
+    LogicalTableScan(table=[[default_catalog, default_database, t1]])
+}))])
+      +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a, b])
++- Calc(select=[a, 'v2' AS b])
+   +- NestedLoopJoin(joinType=[InnerJoin], where=[=(a0, EXPR$0)], select=[a, a0, EXPR$0], build=[right], singleRowJoin=[true])
+      :- Calc(select=[a, CAST(a AS BIGINT) AS a0])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
+      +- Exchange(distribution=[broadcast])
+         +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
+            +- Exchange(distribution=[single])
+               +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
+                  +- Calc(select=[0 AS $f0])
+                     +- TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a, b])
++- Calc(select=[a, 'v2' AS b])
+   +- NestedLoopJoin(joinType=[InnerJoin], where=[(a0 = EXPR$0)], select=[a, a0, EXPR$0], build=[right], singleRowJoin=[true])
+      :- Calc(select=[a, CAST(a AS BIGINT) AS a0])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
+      +- Exchange(distribution=[broadcast])
+         +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
+            +- Exchange(distribution=[single])
+               +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
+                  +- Calc(select=[0 AS $f0])
+                     +- TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: t[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[a, CAST(a AS BIGINT) AS a0])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Source: t1[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[0 AS $f0])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "HashAggregate[]",
+    "pact" : "Operator",
+    "contents" : "[]:LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "HashAggregate[]",
+    "pact" : "Operator",
+    "contents" : "[]:HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "GLOBAL",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "NestedLoopJoin[]",
+    "pact" : "Operator",
+    "contents" : "[]:NestedLoopJoin(joinType=[InnerJoin], where=[(a0 = EXPR$0)], select=[a, a0, EXPR$0], build=[right], singleRowJoin=[true])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    }, {
+      "id" : ,
+      "ship_strategy" : "BROADCAST",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[a, 'v2' AS b])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "RowKindSetter[]",
+    "pact" : "Operator",
+    "contents" : "[]:RowKindSetter(TargetRowKind=[UPDATE_AFTER])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sink: Unnamed",
+    "pact" : "Data Sink",
+    "contents" : "Sink: Unnamed",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUpdateWithoutFilter[updateMode = ALL_ROWS]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.t], targetColumns=[[1],[0]], fields=[a, b])
++- LogicalProject(a=[*(CHAR_LENGTH($1), $0)], b=[_UTF-16LE'n1'])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1],[0]], fields=[a, b])
++- Calc(select=[*(CHAR_LENGTH(b), a) AS a, 'n1' AS b])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1],[0]], fields=[a, b])
++- Calc(select=[(CHAR_LENGTH(b) * a) AS a, 'n1' AS b])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: t[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[(CHAR_LENGTH(b) * a) AS a, 'n1' AS b])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sink: Unnamed",
+    "pact" : "Data Sink",
+    "contents" : "Sink: Unnamed",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUpdateWithSubQuery[updateMode = ALL_ROWS]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a, b])
++- LogicalProject(a=[$0], b=[IF(=(CAST($0):BIGINT, $SCALAR_QUERY({
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
+  LogicalProject($f0=[0])
+    LogicalTableScan(table=[[default_catalog, default_database, t1]])
+})), _UTF-16LE'v2', $1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a, b])
++- Calc(select=[a, IF(=(CAST(a AS BIGINT), EXPR$0), 'v2', b) AS b])
+   +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[true], select=[a, b, EXPR$0], build=[right], singleRowJoin=[true])
+      :- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
+      +- Exchange(distribution=[broadcast])
+         +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
+            +- Exchange(distribution=[single])
+               +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
+                  +- Calc(select=[0 AS $f0])
+                     +- TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a, b])
++- Calc(select=[a, IF((CAST(a AS BIGINT) = EXPR$0), 'v2', b) AS b])
+   +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[true], select=[a, b, EXPR$0], build=[right], singleRowJoin=[true])
+      :- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
+      +- Exchange(distribution=[broadcast])
+         +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
+            +- Exchange(distribution=[single])
+               +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
+                  +- Calc(select=[0 AS $f0])
+                     +- TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: t[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Source: t1[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[0 AS $f0])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "HashAggregate[]",
+    "pact" : "Operator",
+    "contents" : "[]:LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "HashAggregate[]",
+    "pact" : "Operator",
+    "contents" : "[]:HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "GLOBAL",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "NestedLoopJoin[]",
+    "pact" : "Operator",
+    "contents" : "[]:NestedLoopJoin(joinType=[LeftOuterJoin], where=[true], select=[a, b, EXPR$0], build=[right], singleRowJoin=[true])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    }, {
+      "id" : ,
+      "ship_strategy" : "BROADCAST",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[a, IF((CAST(a AS BIGINT) = EXPR$0), 'v2', b) AS b])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sink: Unnamed",
+    "pact" : "Data Sink",
+    "contents" : "Sink: Unnamed",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+</Root>

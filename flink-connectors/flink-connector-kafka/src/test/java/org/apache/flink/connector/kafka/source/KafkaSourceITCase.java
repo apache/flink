@@ -20,6 +20,9 @@ package org.apache.flink.connector.kafka.source;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.ListAccumulator;
+import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.common.eventtime.WatermarkGenerator;
+import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -33,9 +36,12 @@ import org.apache.flink.connector.testframe.external.DefaultContainerizedExterna
 import org.apache.flink.connector.testframe.junit.annotations.TestContext;
 import org.apache.flink.connector.testframe.junit.annotations.TestEnv;
 import org.apache.flink.connector.testframe.junit.annotations.TestExternalSystem;
+import org.apache.flink.connector.testframe.junit.annotations.TestSemantics;
 import org.apache.flink.connector.testframe.testsuites.SourceTestSuiteBase;
+import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.operators.StreamMap;
@@ -68,12 +74,13 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.connector.kafka.testutils.KafkaSourceExternalContext.SplitMappingMode.PARTITION;
 import static org.apache.flink.connector.kafka.testutils.KafkaSourceExternalContext.SplitMappingMode.TOPIC;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unite test class for {@link KafkaSource}. */
 public class KafkaSourceITCase {
@@ -134,10 +141,9 @@ public class KafkaSourceITCase {
             stream.addSink(new DiscardingSink<>());
             JobExecutionResult result = env.execute();
 
-            assertEquals(
-                    Arrays.asList(
-                            currentTimestamp + 1L, currentTimestamp + 2L, currentTimestamp + 3L),
-                    result.getAccumulatorResult("timestamp"));
+            assertThat(result.<List<Long>>getAccumulatorResult("timestamp"))
+                    .containsExactly(
+                            currentTimestamp + 1L, currentTimestamp + 2L, currentTimestamp + 3L);
         }
 
         @ParameterizedTest(name = "Object reuse in deserializer = {arguments}")
@@ -177,33 +183,36 @@ public class KafkaSourceITCase {
 
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(1);
-            final CloseableIterator<Integer> resultIterator =
+
+            try (CloseableIterator<Integer> resultIterator =
                     env.fromSource(
                                     source,
                                     WatermarkStrategy.noWatermarks(),
                                     "testValueOnlyDeserializer")
-                            .executeAndCollect();
+                            .executeAndCollect()) {
+                AtomicInteger actualSum = new AtomicInteger();
+                resultIterator.forEachRemaining(actualSum::addAndGet);
 
-            AtomicInteger actualSum = new AtomicInteger();
-            resultIterator.forEachRemaining(actualSum::addAndGet);
-
-            // Calculate the actual sum of values
-            // Values in a partition should start from partition ID, and end with
-            // (NUM_RECORDS_PER_PARTITION - 1)
-            // e.g. Values in partition 5 should be {5, 6, 7, 8, 9}
-            int expectedSum = 0;
-            for (int partition = 0; partition < KafkaSourceTestEnv.NUM_PARTITIONS; partition++) {
-                for (int value = partition;
-                        value < KafkaSourceTestEnv.NUM_RECORDS_PER_PARTITION;
-                        value++) {
-                    expectedSum += value;
+                // Calculate the actual sum of values
+                // Values in a partition should start from partition ID, and end with
+                // (NUM_RECORDS_PER_PARTITION - 1)
+                // e.g. Values in partition 5 should be {5, 6, 7, 8, 9}
+                int expectedSum = 0;
+                for (int partition = 0;
+                        partition < KafkaSourceTestEnv.NUM_PARTITIONS;
+                        partition++) {
+                    for (int value = partition;
+                            value < KafkaSourceTestEnv.NUM_RECORDS_PER_PARTITION;
+                            value++) {
+                        expectedSum += value;
+                    }
                 }
+
+                // Since we have two topics, the expected sum value should be doubled
+                expectedSum *= 2;
+
+                assertThat(actualSum.get()).isEqualTo(expectedSum);
             }
-
-            // Since we have two topics, the expected sum value should be doubled
-            expectedSum *= 2;
-
-            assertEquals(expectedSum, actualSum.get());
         }
 
         @ParameterizedTest(name = "Object reuse in deserializer = {arguments}")
@@ -254,11 +263,119 @@ public class KafkaSourceITCase {
                             "testBasicReadWithoutGroupId");
             executeAndVerify(env, stream);
         }
+
+        @Test
+        public void testPerPartitionWatermark() throws Throwable {
+            String watermarkTopic = "watermarkTestTopic-" + UUID.randomUUID();
+            KafkaSourceTestEnv.createTestTopic(watermarkTopic, 2, 1);
+            List<ProducerRecord<String, Integer>> records =
+                    Arrays.asList(
+                            new ProducerRecord<>(watermarkTopic, 0, 100L, null, 100),
+                            new ProducerRecord<>(watermarkTopic, 0, 200L, null, 200),
+                            new ProducerRecord<>(watermarkTopic, 0, 300L, null, 300),
+                            new ProducerRecord<>(watermarkTopic, 1, 150L, null, 150),
+                            new ProducerRecord<>(watermarkTopic, 1, 250L, null, 250),
+                            new ProducerRecord<>(watermarkTopic, 1, 350L, null, 350));
+            KafkaSourceTestEnv.produceToKafka(records);
+            KafkaSource<PartitionAndValue> source =
+                    KafkaSource.<PartitionAndValue>builder()
+                            .setBootstrapServers(KafkaSourceTestEnv.brokerConnectionStrings)
+                            .setTopics(watermarkTopic)
+                            .setGroupId("watermark-test")
+                            .setDeserializer(new TestingKafkaRecordDeserializationSchema(false))
+                            .setStartingOffsets(OffsetsInitializer.earliest())
+                            .setBounded(OffsetsInitializer.latest())
+                            .build();
+            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+            env.setParallelism(1);
+            env.fromSource(
+                            source,
+                            WatermarkStrategy.forGenerator(
+                                    (context) -> new OnEventWatermarkGenerator()),
+                            "testPerPartitionWatermark")
+                    .process(
+                            new ProcessFunction<PartitionAndValue, Long>() {
+                                @Override
+                                public void processElement(
+                                        PartitionAndValue value,
+                                        ProcessFunction<PartitionAndValue, Long>.Context ctx,
+                                        Collector<Long> out) {
+                                    assertThat(ctx.timestamp())
+                                            .as(
+                                                    "Event time should never behind watermark "
+                                                            + "because of per-split watermark multiplexing logic")
+                                            .isGreaterThanOrEqualTo(
+                                                    ctx.timerService().currentWatermark());
+                                }
+                            });
+            env.execute();
+        }
+
+        @Test
+        public void testConsumingEmptyTopic() throws Throwable {
+            String emptyTopic = "emptyTopic-" + UUID.randomUUID();
+            KafkaSourceTestEnv.createTestTopic(emptyTopic, 3, 1);
+            KafkaSource<PartitionAndValue> source =
+                    KafkaSource.<PartitionAndValue>builder()
+                            .setBootstrapServers(KafkaSourceTestEnv.brokerConnectionStrings)
+                            .setTopics(emptyTopic)
+                            .setGroupId("empty-topic-test")
+                            .setDeserializer(new TestingKafkaRecordDeserializationSchema(false))
+                            .setStartingOffsets(OffsetsInitializer.earliest())
+                            .setBounded(OffsetsInitializer.latest())
+                            .build();
+            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+            env.setParallelism(1);
+            try (CloseableIterator<PartitionAndValue> iterator =
+                    env.fromSource(
+                                    source,
+                                    WatermarkStrategy.noWatermarks(),
+                                    "testConsumingEmptyTopic")
+                            .executeAndCollect()) {
+                assertThat(iterator.hasNext()).isFalse();
+            }
+        }
+
+        @Test
+        public void testConsumingTopicWithEmptyPartitions() throws Throwable {
+            String topicWithEmptyPartitions = "topicWithEmptyPartitions-" + UUID.randomUUID();
+            KafkaSourceTestEnv.createTestTopic(
+                    topicWithEmptyPartitions, KafkaSourceTestEnv.NUM_PARTITIONS, 1);
+            List<ProducerRecord<String, Integer>> records =
+                    KafkaSourceTestEnv.getRecordsForTopicWithoutTimestamp(topicWithEmptyPartitions);
+            // Only keep records in partition 5
+            int partitionWithRecords = 5;
+            records.removeIf(record -> record.partition() != partitionWithRecords);
+            KafkaSourceTestEnv.produceToKafka(records);
+            KafkaSourceTestEnv.setupEarliestOffsets(
+                    Collections.singletonList(
+                            new TopicPartition(topicWithEmptyPartitions, partitionWithRecords)));
+
+            KafkaSource<PartitionAndValue> source =
+                    KafkaSource.<PartitionAndValue>builder()
+                            .setBootstrapServers(KafkaSourceTestEnv.brokerConnectionStrings)
+                            .setTopics(topicWithEmptyPartitions)
+                            .setGroupId("topic-with-empty-partition-test")
+                            .setDeserializer(new TestingKafkaRecordDeserializationSchema(false))
+                            .setStartingOffsets(OffsetsInitializer.earliest())
+                            .setBounded(OffsetsInitializer.latest())
+                            .build();
+            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+            env.setParallelism(2);
+            executeAndVerify(
+                    env,
+                    env.fromSource(
+                            source,
+                            WatermarkStrategy.noWatermarks(),
+                            "testConsumingTopicWithEmptyPartitions"));
+        }
     }
 
     /** Integration test based on connector testing framework. */
     @Nested
     class IntegrationTests extends SourceTestSuiteBase<String> {
+        @TestSemantics
+        CheckpointingMode[] semantics = new CheckpointingMode[] {CheckpointingMode.EXACTLY_ONCE};
 
         // Defines test environment on Flink MiniCluster
         @SuppressWarnings("unused")
@@ -384,16 +501,32 @@ public class KafkaSourceITCase {
                         resultPerPartition
                                 .computeIfAbsent(partitionAndValue.tp, ignored -> new ArrayList<>())
                                 .add(partitionAndValue.value));
+
+        // Expected elements from partition P should be an integer sequence from P to
+        // NUM_RECORDS_PER_PARTITION.
         resultPerPartition.forEach(
                 (tp, values) -> {
-                    int firstExpectedValue = Integer.parseInt(tp.substring(tp.indexOf('-') + 1));
+                    int firstExpectedValue =
+                            Integer.parseInt(tp.substring(tp.lastIndexOf('-') + 1));
                     for (int i = 0; i < values.size(); i++) {
-                        assertEquals(
-                                firstExpectedValue + i,
-                                (int) values.get(i),
-                                String.format(
-                                        "The %d-th value for partition %s should be %d", i, tp, i));
+                        assertThat((int) values.get(i))
+                                .as(
+                                        String.format(
+                                                "The %d-th value for partition %s should be %d",
+                                                i, tp, firstExpectedValue + i))
+                                .isEqualTo(firstExpectedValue + i);
                     }
                 });
+    }
+
+    private static class OnEventWatermarkGenerator
+            implements WatermarkGenerator<PartitionAndValue> {
+        @Override
+        public void onEvent(PartitionAndValue event, long eventTimestamp, WatermarkOutput output) {
+            output.emitWatermark(new Watermark(eventTimestamp));
+        }
+
+        @Override
+        public void onPeriodicEmit(WatermarkOutput output) {}
     }
 }

@@ -141,6 +141,12 @@ public class OperatorState implements CompositeStateHandle {
         return maxParallelism;
     }
 
+    public OperatorState copyWithNewOperatorID(OperatorID newOperatorId) {
+        OperatorState newState = new OperatorState(newOperatorId, parallelism, maxParallelism);
+        operatorSubtaskStates.forEach(newState::putState);
+        return newState;
+    }
+
     public OperatorState copyAndDiscardInFlightData() {
         OperatorState newState = new OperatorState(operatorID, parallelism, maxParallelism);
 
@@ -189,6 +195,20 @@ public class OperatorState implements CompositeStateHandle {
             OperatorSubtaskState operatorSubtaskState = operatorSubtaskStates.get(i);
             if (operatorSubtaskState != null) {
                 result += operatorSubtaskState.getStateSize();
+            }
+        }
+
+        return result;
+    }
+
+    @Override
+    public long getCheckpointedSize() {
+        long result = coordinatorState == null ? 0L : coordinatorState.getStateSize();
+
+        for (int i = 0; i < parallelism; i++) {
+            OperatorSubtaskState operatorSubtaskState = operatorSubtaskStates.get(i);
+            if (operatorSubtaskState != null) {
+                result += operatorSubtaskState.getCheckpointedSize();
             }
         }
 

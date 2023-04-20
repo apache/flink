@@ -47,7 +47,8 @@ public class NoOpTimestampsAndWatermarks<T> implements TimestampsAndWatermarks<T
     }
 
     @Override
-    public ReaderOutput<T> createMainOutput(PushingAsyncDataInput.DataOutput<T> output) {
+    public ReaderOutput<T> createMainOutput(
+            PushingAsyncDataInput.DataOutput<T> output, WatermarkUpdateListener watermarkEmitted) {
         checkNotNull(output);
         return new TimestampsOnlyOutput<>(output, timestamps);
     }

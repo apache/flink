@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
@@ -29,25 +30,24 @@ import org.apache.calcite.rex.RexWindowBound;
 import java.io.IOException;
 
 /**
- * JSON serializer for {@link RexWindowBound}. refer to {@link RexWindowBoundJsonDeserializer} for
- * deserializer.
+ * JSON serializer for {@link RexWindowBound}.
  *
- * <p>Supports serialize CURRENT_ROW, UNBOUNDED_PRECEDING, UNBOUNDED_FOLLOWING, Preceding Bounded
- * Window and Following Bounded Window.
+ * @see RexWindowBoundJsonDeserializer for the reverse operation
  */
-public class RexWindowBoundJsonSerializer extends StdSerializer<RexWindowBound> {
+@Internal
+final class RexWindowBoundJsonSerializer extends StdSerializer<RexWindowBound> {
 
-    public static final String FIELD_NAME_KIND = "kind";
-    public static final String KIND_CURRENT_ROW = "CURRENT_ROW";
-    public static final String KIND_UNBOUNDED_PRECEDING = "UNBOUNDED_PRECEDING";
-    public static final String KIND_UNBOUNDED_FOLLOWING = "UNBOUNDED_FOLLOWING";
-    public static final String KIND_BOUNDED_WINDOW = "BOUNDED_WINDOW";
+    static final String FIELD_NAME_KIND = "kind";
+    static final String KIND_CURRENT_ROW = "CURRENT_ROW";
+    static final String KIND_UNBOUNDED_PRECEDING = "UNBOUNDED_PRECEDING";
+    static final String KIND_UNBOUNDED_FOLLOWING = "UNBOUNDED_FOLLOWING";
+    static final String KIND_BOUNDED_WINDOW = "BOUNDED_WINDOW";
 
-    public static final String FIELD_NAME_IS_PRECEDING = "isPreceding";
-    public static final String FIELD_NAME_IS_FOLLOWING = "isFollowing";
-    public static final String FIELD_NAME_OFFSET = "offset";
+    static final String FIELD_NAME_IS_PRECEDING = "isPreceding";
+    static final String FIELD_NAME_IS_FOLLOWING = "isFollowing";
+    static final String FIELD_NAME_OFFSET = "offset";
 
-    public RexWindowBoundJsonSerializer() {
+    RexWindowBoundJsonSerializer() {
         super(RexWindowBound.class);
     }
 

@@ -31,6 +31,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.heartbeat.HeartbeatServicesImpl;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
@@ -44,9 +45,9 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.rpc.MainThreadExecutable;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcService;
+import org.apache.flink.runtime.security.token.DelegationTokenReceiverRepository;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
-import org.apache.flink.runtime.taskexecutor.rpc.RpcResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.taskexecutor.slot.DefaultTimerService;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils;
@@ -60,8 +61,8 @@ import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.testutils.TestFileUtils;
-import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.Reference;
 import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.rules.TemporaryFolder;
@@ -78,21 +79,21 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.mockito.Mockito.mock;
 
 /** Simple environment setup for task executor task. */
 class TaskSubmissionTestEnvironment implements AutoCloseable {
 
-    private final HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
+    private final HeartbeatServices heartbeatServices = new HeartbeatServicesImpl(1000L, 1000L);
     private final TestingRpcService testingRpcService;
     private final TaskExecutorBlobService taskExecutorBlobService =
             NoOpTaskExecutorBlobService.INSTANCE;
     private final Time timeout = Time.milliseconds(10000L);
     private final TestingFatalErrorHandler testingFatalErrorHandler =
             new TestingFatalErrorHandler();
-    private final TimerService<AllocationID> timerService =
-            new DefaultTimerService<>(TestingUtils.defaultExecutor(), timeout.toMilliseconds());
+    private final TimerService<AllocationID> timerService;
 
     private final TestingHighAvailabilityServices haServices;
     private final TemporaryFolder temporaryFolder;
@@ -111,8 +112,14 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
                     taskManagerActionListeners,
             @Nullable String metricQueryServiceAddress,
             TestingRpcService testingRpcService,
-            ShuffleEnvironment<?, ?> shuffleEnvironment)
+            ShuffleEnvironment<?, ?> shuffleEnvironment,
+            ScheduledExecutorService executor)
             throws Exception {
+
+        this.timerService =
+                new DefaultTimerService<>(
+                        java.util.concurrent.Executors.newSingleThreadScheduledExecutor(),
+                        timeout.toMilliseconds());
 
         this.haServices = new TestingHighAvailabilityServices();
         this.haServices.setResourceManagerLeaderRetriever(new SettableLeaderRetrievalService());
@@ -125,7 +132,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 
         final TaskSlotTable<Task> taskSlotTable =
                 slotSize > 0
-                        ? TaskSlotUtils.createTaskSlotTable(slotSize)
+                        ? TaskSlotUtils.createTaskSlotTable(slotSize, executor)
                         : TestingTaskSlotTable.<Task>newBuilder()
                                 .tryMarkSlotActiveReturns(true)
                                 .addTaskReturns(true)
@@ -150,7 +157,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
         TaskExecutorLocalStateStoresManager localStateStoresManager =
                 new TaskExecutorLocalStateStoresManager(
                         false,
-                        new File[] {temporaryFolder.newFolder()},
+                        Reference.owned(new File[] {temporaryFolder.newFolder()}),
                         Executors.directExecutor());
 
         final TaskManagerServices taskManagerServices =
@@ -188,20 +195,16 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
         registerJobMasterConnection(
                 jobTable,
                 jobId,
-                testingRpcService,
                 jobMasterGateway,
                 taskManagerActions,
-                timeout,
                 taskExecutor.getMainThreadExecutableForTesting());
     }
 
     static void registerJobMasterConnection(
             JobTable jobTable,
             JobID jobId,
-            RpcService testingRpcService,
             JobMasterGateway jobMasterGateway,
             TaskManagerActions taskManagerActions,
-            Time timeout,
             MainThreadExecutable mainThreadExecutable) {
         mainThreadExecutable.runAsync(
                 () -> {
@@ -214,10 +217,6 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
                             taskManagerActions,
                             new TestCheckpointResponder(),
                             new TestGlobalAggregateManager(),
-                            new RpcResultPartitionConsumableNotifier(
-                                    jobMasterGateway,
-                                    testingRpcService.getScheduledExecutor(),
-                                    timeout),
                             TestingPartitionProducerStateChecker.newBuilder()
                                     .setPartitionProducerStateFunction(
                                             (jobID, intermediateDataSetID, resultPartitionID) ->
@@ -271,7 +270,8 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
                 metricQueryServiceAddress,
                 taskExecutorBlobService,
                 testingFatalErrorHandler,
-                new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()));
+                new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()),
+                new DelegationTokenReceiverRepository(configuration, null));
     }
 
     private static ShuffleEnvironment<?, ?> createShuffleEnvironment(
@@ -320,7 +320,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
-        testingRpcService.stopService().join();
+        testingRpcService.closeAsync().join();
 
         timerService.stop();
 
@@ -329,6 +329,8 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
         temporaryFolder.delete();
 
         testingFatalErrorHandler.rethrowError();
+
+        taskExecutor.close();
     }
 
     public static final class Builder {
@@ -409,7 +411,8 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
             return this;
         }
 
-        public TaskSubmissionTestEnvironment build() throws Exception {
+        public TaskSubmissionTestEnvironment build(ScheduledExecutorService executorService)
+                throws Exception {
             final TestingRpcService testingRpcService = new TestingRpcService();
             final ShuffleEnvironment<?, ?> network =
                     optionalShuffleEnvironment.orElseGet(
@@ -435,7 +438,8 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
                     taskManagerActionListeners,
                     metricQueryServiceAddress,
                     testingRpcService,
-                    network);
+                    network,
+                    executorService);
         }
     }
 }

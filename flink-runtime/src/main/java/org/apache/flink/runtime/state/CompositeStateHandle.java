@@ -50,4 +50,14 @@ public interface CompositeStateHandle extends StateObject {
      * @param stateRegistry The registry where shared states are registered.
      */
     void registerSharedStates(SharedStateRegistry stateRegistry, long checkpointID);
+
+    /**
+     * Returns the persisted data size during checkpoint execution in bytes. If incremental
+     * checkpoint is enabled, this value represents the incremental persisted data size, and usually
+     * smaller than {@link #getStateSize()}. If the size is unknown, this method would return same
+     * result as {@link #getStateSize()}.
+     *
+     * @return The persisted data size during checkpoint execution in bytes.
+     */
+    long getCheckpointedSize();
 }

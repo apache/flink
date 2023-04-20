@@ -18,16 +18,12 @@
 
 package org.apache.flink.client.deployment.application;
 
-import org.apache.flink.client.testjar.ClasspathProvider;
+import org.apache.flink.client.testjar.ClasspathProviderExtension;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.io.FilenameUtils;
-import org.hamcrest.CoreMatchers;
-import org.hamcrest.collection.IsIterableContainingInAnyOrder;
-import org.hamcrest.core.IsCollectionContaining;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.File;
 import java.io.IOException;
@@ -37,142 +33,141 @@ import java.util.Collection;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.core.Is.is;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * {@code FromClasspathEntryClassInformationProviderTest} tests {@link
  * FromClasspathEntryClassInformationProvider}.
  */
-public class FromClasspathEntryClassInformationProviderTest extends TestLogger {
+class FromClasspathEntryClassInformationProviderTest {
 
-    @Rule
-    public ClasspathProvider noEntryClassClasspathProvider =
-            ClasspathProvider.createWithNoEntryClass();
+    @RegisterExtension
+    ClasspathProviderExtension noEntryClassClasspathProvider =
+            ClasspathProviderExtension.createWithNoEntryClass();
 
-    @Rule
-    public ClasspathProvider singleEntryClassClasspathProvider =
-            ClasspathProvider.createWithSingleEntryClass();
+    @RegisterExtension
+    ClasspathProviderExtension singleEntryClassClasspathProvider =
+            ClasspathProviderExtension.createWithSingleEntryClass();
 
-    @Rule
-    public ClasspathProvider multipleEntryClassesClasspathProvider =
-            ClasspathProvider.createWithMultipleEntryClasses();
+    @RegisterExtension
+    ClasspathProviderExtension multipleEntryClassesClasspathProvider =
+            ClasspathProviderExtension.createWithMultipleEntryClasses();
 
-    @Rule
-    public ClasspathProvider testJobEntryClassClasspathProvider =
-            ClasspathProvider.createWithTestJobOnly();
-
-    @Rule
-    public ClasspathProvider onlyTextFileClasspathProvider =
-            ClasspathProvider.createWithTextFileOnly();
+    @RegisterExtension
+    ClasspathProviderExtension testJobEntryClassClasspathProvider =
+            ClasspathProviderExtension.createWithTestJobOnly();
 
     @Test
-    public void testJobClassOnUserClasspathWithExplicitJobClassName()
-            throws IOException, FlinkException {
+    void testJobClassOnUserClasspathWithExplicitJobClassName() throws IOException, FlinkException {
         FromClasspathEntryClassInformationProvider testInstance =
                 FromClasspathEntryClassInformationProvider.create(
                         singleEntryClassClasspathProvider.getJobClassName(),
                         singleEntryClassClasspathProvider.getURLUserClasspath());
 
-        assertThat(testInstance.getJobClassName().isPresent(), is(true));
-        assertThat(
-                testInstance.getJobClassName().get(),
-                is(singleEntryClassClasspathProvider.getJobClassName()));
-        assertThat(testInstance.getJarFile().isPresent(), is(false));
-    }
-
-    @Test(expected = FlinkException.class)
-    public void testJobClassOnUserClasspathWithOnlyTestFileOnClasspath()
-            throws IOException, FlinkException {
-        // we want to check that the right exception is thrown if the user classpath is empty
-        FromClasspathEntryClassInformationProvider.create(
-                "SomeJobClassName", onlyTextFileClasspathProvider.getURLUserClasspath());
-    }
-
-    @Test(expected = NullPointerException.class)
-    public void testJobClassOnUserClasspathWithMissingJobClassName()
-            throws IOException, FlinkException {
-        FromClasspathEntryClassInformationProvider.create(
-                null, singleEntryClassClasspathProvider.getURLUserClasspath());
-    }
-
-    @Test(expected = NullPointerException.class)
-    public void testJobClassOnUserClasspathWithMissingUserClasspath()
-            throws IOException, FlinkException {
-        FromClasspathEntryClassInformationProvider.create("jobClassName", null);
+        assertThat(testInstance.getJobClassName())
+                .contains(singleEntryClassClasspathProvider.getJobClassName());
+        assertThat(testInstance.getJarFile()).isEmpty();
     }
 
     @Test
-    public void testJobClassOnUserClasspathWithoutExplicitJobClassName()
+    void testJobClassOnUserClasspathWithMissingJobClassName() {
+        assertThatThrownBy(
+                        () ->
+                                FromClasspathEntryClassInformationProvider.create(
+                                        null,
+                                        singleEntryClassClasspathProvider.getURLUserClasspath()))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void testJobClassOnUserClasspathWithMissingUserClasspath() {
+        assertThatThrownBy(
+                        () ->
+                                FromClasspathEntryClassInformationProvider.create(
+                                        "jobClassName", null))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void testJobClassOnUserClasspathWithoutExplicitJobClassName()
             throws IOException, FlinkException {
         FromClasspathEntryClassInformationProvider testInstance =
                 FromClasspathEntryClassInformationProvider.createFromClasspath(
                         singleEntryClassClasspathProvider.getURLUserClasspath());
 
-        assertThat(testInstance.getJobClassName().isPresent(), is(true));
-        assertThat(
-                testInstance.getJobClassName().get(),
-                is(singleEntryClassClasspathProvider.getJobClassName()));
-        assertThat(testInstance.getJarFile().isPresent(), is(false));
-    }
-
-    @Test(expected = FlinkException.class)
-    public void testMissingJobClassOnUserClasspathWithoutExplicitJobClassName()
-            throws IOException, FlinkException {
-        FromClasspathEntryClassInformationProvider.createFromClasspath(
-                noEntryClassClasspathProvider.getURLUserClasspath());
-    }
-
-    @Test(expected = FlinkException.class)
-    public void testTooManyMainMethodsOnUserClasspath() throws IOException, FlinkException {
-        FromClasspathEntryClassInformationProvider.createFromClasspath(
-                multipleEntryClassesClasspathProvider.getURLUserClasspath());
-    }
-
-    @Test(expected = NullPointerException.class)
-    public void testJobClassOnUserClasspathWithoutExplicitJobClassNameAndMissingUserClasspath()
-            throws IOException, FlinkException {
-        FromClasspathEntryClassInformationProvider.createFromClasspath(null);
+        assertThat(testInstance.getJobClassName())
+                .contains(singleEntryClassClasspathProvider.getJobClassName());
+        assertThat(testInstance.getJarFile()).isEmpty();
     }
 
     @Test
-    public void testJobClassNameFromSystemClasspath() throws IOException, FlinkException {
+    void testMissingJobClassOnUserClasspathWithoutExplicitJobClassName() {
+        assertThatThrownBy(
+                        () ->
+                                FromClasspathEntryClassInformationProvider.createFromClasspath(
+                                        noEntryClassClasspathProvider.getURLUserClasspath()))
+                .isInstanceOf(FlinkException.class);
+    }
+
+    @Test
+    void testTooManyMainMethodsOnUserClasspath() {
+        assertThatThrownBy(
+                        () ->
+                                FromClasspathEntryClassInformationProvider.createFromClasspath(
+                                        multipleEntryClassesClasspathProvider
+                                                .getURLUserClasspath()))
+                .isInstanceOf(FlinkException.class);
+    }
+
+    @Test
+    void testJobClassOnUserClasspathWithoutExplicitJobClassNameAndMissingUserClasspath() {
+        assertThatThrownBy(
+                        () -> FromClasspathEntryClassInformationProvider.createFromClasspath(null))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void testJobClassNameFromSystemClasspath() throws IOException, FlinkException {
         singleEntryClassClasspathProvider.setSystemClasspath();
         FromClasspathEntryClassInformationProvider testInstance =
                 FromClasspathEntryClassInformationProvider.createFromSystemClasspath();
-        assertThat(testInstance.getJobClassName().isPresent(), is(true));
-        assertThat(
-                testInstance.getJobClassName().get(),
-                is(singleEntryClassClasspathProvider.getJobClassName()));
-        assertThat(testInstance.getJarFile().isPresent(), is(false));
-    }
-
-    @Test(expected = FlinkException.class)
-    public void testMissingJobClassNameFromSystemClasspath() throws IOException, FlinkException {
-        noEntryClassClasspathProvider.setSystemClasspath();
-        FromClasspathEntryClassInformationProvider.createFromSystemClasspath();
-    }
-
-    @Test(expected = FlinkException.class)
-    public void testTooManyMainMethodsOnSystemClasspath() throws IOException, FlinkException {
-        multipleEntryClassesClasspathProvider.setSystemClasspath();
-        FromClasspathEntryClassInformationProvider.createFromSystemClasspath();
+        assertThat(testInstance.getJobClassName())
+                .contains(singleEntryClassClasspathProvider.getJobClassName());
+        assertThat(testInstance.getJarFile()).isEmpty();
     }
 
     @Test
-    public void testJarFromSystemClasspathSanityCheck() {
+    void testMissingJobClassNameFromSystemClasspath() {
+        assertThatThrownBy(
+                        () -> {
+                            noEntryClassClasspathProvider.setSystemClasspath();
+                            FromClasspathEntryClassInformationProvider.createFromSystemClasspath();
+                        })
+                .isInstanceOf(FlinkException.class);
+    }
+
+    @Test
+    void testTooManyMainMethodsOnSystemClasspath() {
+        assertThatThrownBy(
+                        () -> {
+                            multipleEntryClassesClasspathProvider.setSystemClasspath();
+                            FromClasspathEntryClassInformationProvider.createFromSystemClasspath();
+                        })
+                .isInstanceOf(FlinkException.class);
+    }
+
+    @Test
+    void testJarFromSystemClasspathSanityCheck() {
         // Junit executes this test, so it should be returned as part of JARs on the classpath
         final Iterable<File> systemClasspath =
                 FromClasspathEntryClassInformationProvider.extractSystemClasspath();
-        assertThat(
-                StreamSupport.stream(systemClasspath.spliterator(), false)
-                        .map(File::getName)
-                        .collect(Collectors.toList()),
-                IsCollectionContaining.hasItem(CoreMatchers.containsString("junit")));
+        assertThat(StreamSupport.stream(systemClasspath.spliterator(), false).map(File::getName))
+                .anyMatch(s -> s.contains("junit"));
     }
 
     @Test
-    public void testJarFromSystemClasspath() throws MalformedURLException {
+    void testJarFromSystemClasspath() throws MalformedURLException {
         multipleEntryClassesClasspathProvider.setSystemClasspath();
         final Collection<String> systemClasspath =
                 StreamSupport.stream(
@@ -192,8 +187,6 @@ public class FromClasspathEntryClassInformationProviderTest extends TestLogger {
                         // we're excluding any non-jar files
                         .filter(name -> name.endsWith("jar"))
                         .collect(Collectors.toList());
-        assertThat(
-                systemClasspath,
-                IsIterableContainingInAnyOrder.containsInAnyOrder(expectedContent.toArray()));
+        assertThat(systemClasspath).isEqualTo(expectedContent);
     }
 }

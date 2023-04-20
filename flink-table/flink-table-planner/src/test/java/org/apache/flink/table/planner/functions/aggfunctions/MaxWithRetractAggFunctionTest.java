@@ -498,7 +498,7 @@ public final class MaxWithRetractAggFunctionTest {
 
     /** Test base for {@link MaxWithRetractAggFunction}. */
     public abstract static class MaxWithRetractAggFunctionTestBase<T>
-            extends AggFunctionTestBase<T, MaxWithRetractAccumulator<T>> {
+            extends AggFunctionTestBase<T, T, MaxWithRetractAccumulator<T>> {
 
         @Override
         protected Class<?> getAccClass() {

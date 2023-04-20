@@ -124,8 +124,7 @@ public class SerializationProxiesTest {
         try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
             final StateMetaInfoReader reader =
                     StateMetaInfoSnapshotReadersWriters.getReader(
-                            CURRENT_STATE_META_INFO_SNAPSHOT_VERSION,
-                            StateMetaInfoSnapshotReadersWriters.StateTypeHint.KEYED_STATE);
+                            CURRENT_STATE_META_INFO_SNAPSHOT_VERSION);
             metaInfo =
                     reader.readStateMetaInfoSnapshot(
                             new DataInputViewStreamWrapper(in),
@@ -176,7 +175,7 @@ public class SerializationProxiesTest {
 
         OperatorBackendSerializationProxy serializationProxy =
                 new OperatorBackendSerializationProxy(
-                        stateMetaInfoSnapshots, broadcastStateMetaInfoSnapshots);
+                        stateMetaInfoSnapshots, broadcastStateMetaInfoSnapshots, true);
 
         byte[] serialized;
         try (ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos()) {
@@ -192,6 +191,7 @@ public class SerializationProxiesTest {
             serializationProxy.read(new DataInputViewStreamWrapper(in));
         }
 
+        Assert.assertTrue(serializationProxy.isUsingStateCompression());
         assertEqualStateMetaInfoSnapshotsLists(
                 stateMetaInfoSnapshots, serializationProxy.getOperatorStateMetaInfoSnapshots());
         assertEqualStateMetaInfoSnapshotsLists(
@@ -221,8 +221,7 @@ public class SerializationProxiesTest {
         try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
             final StateMetaInfoReader reader =
                     StateMetaInfoSnapshotReadersWriters.getReader(
-                            CURRENT_STATE_META_INFO_SNAPSHOT_VERSION,
-                            StateMetaInfoSnapshotReadersWriters.StateTypeHint.OPERATOR_STATE);
+                            CURRENT_STATE_META_INFO_SNAPSHOT_VERSION);
             snapshot =
                     reader.readStateMetaInfoSnapshot(
                             new DataInputViewStreamWrapper(in),
@@ -263,8 +262,7 @@ public class SerializationProxiesTest {
         try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
             final StateMetaInfoReader reader =
                     StateMetaInfoSnapshotReadersWriters.getReader(
-                            CURRENT_STATE_META_INFO_SNAPSHOT_VERSION,
-                            StateMetaInfoSnapshotReadersWriters.StateTypeHint.OPERATOR_STATE);
+                            CURRENT_STATE_META_INFO_SNAPSHOT_VERSION);
             snapshot =
                     reader.readStateMetaInfoSnapshot(
                             new DataInputViewStreamWrapper(in),

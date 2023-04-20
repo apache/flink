@@ -52,6 +52,7 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.util.CloseableIterable;
 
@@ -69,6 +70,7 @@ import java.util.Random;
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewInputChannelStateHandle;
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewResultSubpartitionStateHandle;
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.state.OperatorStateHandle.Mode.SPLIT_DISTRIBUTE;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -280,7 +282,7 @@ public class StreamTaskStateInitializerImplTest {
             boolean createTimerServiceManager) {
 
         JobID jobID = new JobID(42L, 43L);
-        ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
+        ExecutionAttemptID executionAttemptID = createExecutionAttemptId();
         TestCheckpointResponder checkpointResponderMock = new TestCheckpointResponder();
 
         TaskLocalStateStore taskLocalStateStore = new TestTaskLocalStateStore();
@@ -295,7 +297,11 @@ public class StreamTaskStateInitializerImplTest {
                         taskLocalStateStore,
                         changelogStorage);
 
-        DummyEnvironment dummyEnvironment = new DummyEnvironment("test-task", 1, 0);
+        DummyEnvironment dummyEnvironment =
+                new DummyEnvironment(
+                        "test-task",
+                        1,
+                        executionAttemptID.getExecutionVertexId().getSubtaskIndex());
         dummyEnvironment.setTaskStateManager(taskStateManager);
 
         if (createTimerServiceManager) {
@@ -312,11 +318,13 @@ public class StreamTaskStateInitializerImplTest {
                                 ClassLoader userClassloader,
                                 KeyContext keyContext,
                                 ProcessingTimeService processingTimeService,
-                                Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates)
+                                Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates,
+                                StreamTaskCancellationContext cancellationContext)
                                 throws Exception {
                             return null;
                         }
-                    });
+                    },
+                    StreamTaskCancellationContext.alwaysRunning());
         }
     }
 }

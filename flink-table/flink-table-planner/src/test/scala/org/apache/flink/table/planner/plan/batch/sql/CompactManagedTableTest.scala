@@ -15,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.core.fs.Path
 import org.apache.flink.table.catalog.{CatalogPartitionSpec, ObjectIdentifier}
 import org.apache.flink.table.factories.TestManagedTableFactory
 import org.apache.flink.table.planner.utils.TableTestBase
+
 import org.junit.{After, Before, Test}
 
 import java.util
@@ -37,8 +37,7 @@ class CompactManagedTableTest extends TableTestBase {
   @Before
   def before(): Unit = {
     val tableRef = new AtomicReference[util.Map[String, String]]
-    TestManagedTableFactory.MANAGED_TABLES.put(
-      tableIdentifier, tableRef)
+    TestManagedTableFactory.MANAGED_TABLES.put(tableIdentifier, tableRef)
     val ddl =
       """
         |CREATE TABLE ManagedTable (

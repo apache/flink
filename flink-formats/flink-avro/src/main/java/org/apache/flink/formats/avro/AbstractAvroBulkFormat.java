@@ -39,6 +39,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.function.Function;
 
 /** Provides a {@link BulkFormat} for Avro records. */
 @Internal
@@ -55,14 +56,12 @@ public abstract class AbstractAvroBulkFormat<A, T, SplitT extends FileSourceSpli
 
     @Override
     public AvroReader createReader(Configuration config, SplitT split) throws IOException {
-        open(split);
-        return createReader(split);
+        return createReader(split, createReusedAvroRecord(), createConverter());
     }
 
     @Override
     public AvroReader restoreReader(Configuration config, SplitT split) throws IOException {
-        open(split);
-        return createReader(split);
+        return createReader(split, createReusedAvroRecord(), createConverter());
     }
 
     @Override
@@ -70,7 +69,8 @@ public abstract class AbstractAvroBulkFormat<A, T, SplitT extends FileSourceSpli
         return true;
     }
 
-    private AvroReader createReader(SplitT split) throws IOException {
+    private AvroReader createReader(SplitT split, A reuse, Function<A, T> converter)
+            throws IOException {
         long end = split.offset() + split.length();
         if (split.getReaderPosition().isPresent()) {
             CheckpointedPosition position = split.getReaderPosition().get();
@@ -79,21 +79,22 @@ public abstract class AbstractAvroBulkFormat<A, T, SplitT extends FileSourceSpli
                     split.offset(),
                     end,
                     position.getOffset(),
-                    position.getRecordsAfterOffset());
+                    position.getRecordsAfterOffset(),
+                    reuse,
+                    converter);
         } else {
-            return new AvroReader(split.path(), split.offset(), end, -1, 0);
+            return new AvroReader(split.path(), split.offset(), end, -1, 0, reuse, converter);
         }
     }
 
-    protected void open(SplitT split) {}
-
-    protected abstract T convert(A record);
-
     protected abstract A createReusedAvroRecord();
+
+    protected abstract Function<A, T> createConverter();
 
     private class AvroReader implements BulkFormat.Reader<T> {
 
         private final DataFileReader<A> reader;
+        private final Function<A, T> converter;
 
         private final long end;
         private final Pool<A> pool;
@@ -101,10 +102,15 @@ public abstract class AbstractAvroBulkFormat<A, T, SplitT extends FileSourceSpli
         private long currentBlockStart;
         private long currentRecordsToSkip;
 
-        private AvroReader(Path path, long offset, long end, long blockStart, long recordsToSkip)
+        private AvroReader(
+                Path path,
+                long offset,
+                long end,
+                long blockStart,
+                long recordsToSkip,
+                A reuse,
+                Function<A, T> converter)
                 throws IOException {
-            A reuse = createReusedAvroRecord();
-
             this.reader = createReaderFromPath(path);
             if (blockStart >= 0) {
                 reader.seek(blockStart);
@@ -114,6 +120,7 @@ public abstract class AbstractAvroBulkFormat<A, T, SplitT extends FileSourceSpli
             for (int i = 0; i < recordsToSkip; i++) {
                 reader.next(reuse);
             }
+            this.converter = converter;
 
             this.end = end;
             this.pool = new Pool<>(1);
@@ -152,7 +159,10 @@ public abstract class AbstractAvroBulkFormat<A, T, SplitT extends FileSourceSpli
             currentBlockStart = reader.previousSync();
             Iterator<T> iterator =
                     new AvroBlockIterator(
-                            reader.getBlockCount() - currentRecordsToSkip, reader, reuse);
+                            reader.getBlockCount() - currentRecordsToSkip,
+                            reader,
+                            reuse,
+                            converter);
             long recordsToSkip = currentRecordsToSkip;
             currentRecordsToSkip = 0;
             return new IteratorResultIterator<>(
@@ -179,11 +189,17 @@ public abstract class AbstractAvroBulkFormat<A, T, SplitT extends FileSourceSpli
         private long numRecordsRemaining;
         private final DataFileReader<A> reader;
         private final A reuse;
+        private final Function<A, T> converter;
 
-        private AvroBlockIterator(long numRecordsRemaining, DataFileReader<A> reader, A reuse) {
+        private AvroBlockIterator(
+                long numRecordsRemaining,
+                DataFileReader<A> reader,
+                A reuse,
+                Function<A, T> converter) {
             this.numRecordsRemaining = numRecordsRemaining;
             this.reader = reader;
             this.reuse = reuse;
+            this.converter = converter;
         }
 
         @Override
@@ -197,7 +213,7 @@ public abstract class AbstractAvroBulkFormat<A, T, SplitT extends FileSourceSpli
                 numRecordsRemaining--;
                 // reader.next merely deserialize bytes in memory to java objects
                 // and will not read from file
-                return convert(reader.next(reuse));
+                return converter.apply(reader.next(reuse));
             } catch (IOException e) {
                 throw new RuntimeException(
                         "Encountered exception when reading from avro format file", e);

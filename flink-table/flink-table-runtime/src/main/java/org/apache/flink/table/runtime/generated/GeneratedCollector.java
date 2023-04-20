@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.generated;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.util.Collector;
 
 /**
@@ -45,7 +46,7 @@ public class GeneratedCollector<C extends Collector<?>> extends GeneratedClass<C
      * @param conf configuration when generating Collector.
      */
     public GeneratedCollector(
-            String className, String code, Object[] references, Configuration conf) {
+            String className, String code, Object[] references, ReadableConfig conf) {
         super(className, code, references, conf);
     }
 }

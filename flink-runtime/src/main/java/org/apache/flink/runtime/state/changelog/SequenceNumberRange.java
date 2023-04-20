@@ -29,8 +29,8 @@ public interface SequenceNumberRange {
     long size();
 
     /**
-     * @return true if {@link #from} &lt; sqn &lt; {@link #to} (this implies that the range is not
-     *     empty, i.e. to &gt; from))
+     * @return true if {@link #from} &le; sqn &lt; {@link #to} (this implies that the range is not
+     *     empty, i.e. to &gt; from)
      */
     boolean contains(SequenceNumber sqn);
 

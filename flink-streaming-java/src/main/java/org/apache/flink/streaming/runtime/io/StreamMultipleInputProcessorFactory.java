@@ -47,9 +47,11 @@ import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
+import org.apache.flink.streaming.runtime.tasks.StreamTask.CanEmitBatchOfRecordsChecker;
 import org.apache.flink.streaming.runtime.tasks.WatermarkGaugeExposingOutput;
 import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.util.Arrays;
 import java.util.List;
@@ -83,7 +85,8 @@ public class StreamMultipleInputProcessorFactory {
             OperatorChain<?, ?> operatorChain,
             InflightDataRescalingDescriptor inflightDataRescalingDescriptor,
             Function<Integer, StreamPartitioner<?>> gatePartitioners,
-            TaskInfo taskInfo) {
+            TaskInfo taskInfo,
+            CanEmitBatchOfRecordsChecker canEmitBatchOfRecords) {
         checkNotNull(operatorChain);
 
         List<Input> operatorInputs = mainOperator.getInputs();
@@ -115,7 +118,8 @@ public class StreamMultipleInputProcessorFactory {
                                 i,
                                 inflightDataRescalingDescriptor,
                                 gatePartitioners,
-                                taskInfo);
+                                taskInfo,
+                                canEmitBatchOfRecords);
             } else if (configuredInput instanceof StreamConfig.SourceInputConfig) {
                 StreamConfig.SourceInputConfig sourceInput =
                         (StreamConfig.SourceInputConfig) configuredInput;
@@ -176,7 +180,7 @@ public class StreamMultipleInputProcessorFactory {
                                     ManagedMemoryUseCase.OPERATOR,
                                     taskManagerConfig,
                                     userClassloader),
-                            jobConfig,
+                            taskManagerConfig,
                             executionConfig);
 
             StreamTaskInput<?>[] sortedInputs = selectableSortingInputs.getSortedInputs();
@@ -248,6 +252,9 @@ public class StreamMultipleInputProcessorFactory {
 
         private final Counter networkRecordsIn;
 
+        /** The function way is only used for frequent record processing as for JIT optimization. */
+        private final ThrowingConsumer<StreamRecord<T>, Exception> recordConsumer;
+
         private StreamTaskNetworkOutput(
                 Input<T> input,
                 WatermarkGauge inputWatermarkGauge,
@@ -257,12 +264,12 @@ public class StreamMultipleInputProcessorFactory {
             this.inputWatermarkGauge = checkNotNull(inputWatermarkGauge);
             this.mainOperatorRecordsIn = mainOperatorRecordsIn;
             this.networkRecordsIn = networkRecordsIn;
+            this.recordConsumer = RecordProcessorUtils.getRecordProcessor(input);
         }
 
         @Override
         public void emitRecord(StreamRecord<T> record) throws Exception {
-            input.setKeyContextElement(record);
-            input.processElement(record);
+            recordConsumer.accept(record);
             mainOperatorRecordsIn.inc();
             networkRecordsIn.inc();
         }

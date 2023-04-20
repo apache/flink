@@ -29,10 +29,11 @@ import org.apache.flink.table.functions.python.PythonFunctionKind;
 import org.apache.flink.types.Row;
 
 import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.Random;
 import java.util.TimeZone;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Test scalar functions. */
 public class JavaUserDefinedScalarFunctions {
@@ -101,7 +102,8 @@ public class JavaUserDefinedScalarFunctions {
     /** Testing open method is called. */
     public static class UdfWithOpen extends ScalarFunction {
 
-        private boolean isOpened = false;
+        // transient make this class serializable by class name
+        private transient boolean isOpened = false;
 
         @Override
         public void open(FunctionContext context) throws Exception {
@@ -127,6 +129,10 @@ public class JavaUserDefinedScalarFunctions {
 
         public int eval(int v) {
             return v + random.nextInt();
+        }
+
+        public String eval(String v) {
+            return v + "-" + random.nextInt();
         }
 
         @Override
@@ -290,6 +296,26 @@ public class JavaUserDefinedScalarFunctions {
         @Override
         public PythonFunctionKind getPythonFunctionKind() {
             return PythonFunctionKind.PANDAS;
+        }
+    }
+
+    /** A Python UDF that returns current timestamp with any input. */
+    public static class PythonTimestampScalarFunction extends ScalarFunction
+            implements PythonFunction {
+
+        @DataTypeHint("TIMESTAMP(3)")
+        public LocalDateTime eval(@DataTypeHint(inputGroup = InputGroup.ANY) Object... o) {
+            return LocalDateTime.now();
+        }
+
+        @Override
+        public byte[] getSerializedPythonFunction() {
+            return new byte[0];
+        }
+
+        @Override
+        public PythonEnv getPythonEnv() {
+            return null;
         }
     }
 }

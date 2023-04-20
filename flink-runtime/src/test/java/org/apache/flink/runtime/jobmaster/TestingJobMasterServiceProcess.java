@@ -20,124 +20,132 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 
-import javax.annotation.Nullable;
-
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 
 /** Testing implementation of {@link JobMasterServiceProcess}. */
 public class TestingJobMasterServiceProcess implements JobMasterServiceProcess {
 
-    private final CompletableFuture<JobMasterGateway> jobMasterGatewayFuture;
-
-    private final CompletableFuture<JobManagerRunnerResult> jobManagerRunnerResultFuture;
-
-    private final CompletableFuture<String> leaderAddressFuture;
-
-    private final boolean isInitialized;
-
-    private final CompletableFuture<Void> terminationFuture;
-
-    private final boolean manualTerminationFutureCompletion;
+    private final UUID leaderSessionId;
+    private final Supplier<CompletableFuture<Void>> closeAsyncSupplier;
+    private final Supplier<Boolean> isInitializedAndRunningSupplier;
+    private final Supplier<CompletableFuture<JobMasterGateway>> getJobMasterGatewayFutureSupplier;
+    private final Supplier<CompletableFuture<JobManagerRunnerResult>> getResultFutureSupplier;
+    private final Supplier<CompletableFuture<String>> getLeaderAddressFutureSupplier;
 
     private TestingJobMasterServiceProcess(
-            CompletableFuture<JobMasterGateway> jobMasterGatewayFuture,
-            CompletableFuture<JobManagerRunnerResult> jobManagerRunnerResultFuture,
-            CompletableFuture<String> leaderAddressFuture,
-            boolean isInitialized,
-            CompletableFuture<Void> terminationFuture,
-            boolean manualTerminationFutureCompletion) {
-        this.jobMasterGatewayFuture = jobMasterGatewayFuture;
-        this.jobManagerRunnerResultFuture = jobManagerRunnerResultFuture;
-        this.leaderAddressFuture = leaderAddressFuture;
-        this.isInitialized = isInitialized;
-        this.terminationFuture = terminationFuture;
-        this.manualTerminationFutureCompletion = manualTerminationFutureCompletion;
+            UUID leaderSessionId,
+            Supplier<CompletableFuture<Void>> closeAsyncSupplier,
+            Supplier<Boolean> isInitializedAndRunningSupplier,
+            Supplier<CompletableFuture<JobMasterGateway>> getJobMasterGatewayFutureSupplier,
+            Supplier<CompletableFuture<JobManagerRunnerResult>> getResultFutureSupplier,
+            Supplier<CompletableFuture<String>> getLeaderAddressFutureSupplier) {
+        this.leaderSessionId = leaderSessionId;
+        this.closeAsyncSupplier = closeAsyncSupplier;
+        this.isInitializedAndRunningSupplier = isInitializedAndRunningSupplier;
+        this.getJobMasterGatewayFutureSupplier = getJobMasterGatewayFutureSupplier;
+        this.getResultFutureSupplier = getResultFutureSupplier;
+        this.getLeaderAddressFutureSupplier = getLeaderAddressFutureSupplier;
     }
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        if (!manualTerminationFutureCompletion) {
-            terminationFuture.complete(null);
-        }
+        return closeAsyncSupplier.get();
+    }
 
-        return terminationFuture;
+    @Override
+    public UUID getLeaderSessionId() {
+        return leaderSessionId;
     }
 
     @Override
     public boolean isInitializedAndRunning() {
-        return isInitialized && !terminationFuture.isDone();
+        return isInitializedAndRunningSupplier.get();
     }
 
     @Override
     public CompletableFuture<JobMasterGateway> getJobMasterGatewayFuture() {
-        return jobMasterGatewayFuture;
+        return getJobMasterGatewayFutureSupplier.get();
     }
 
     @Override
     public CompletableFuture<JobManagerRunnerResult> getResultFuture() {
-        return jobManagerRunnerResultFuture;
+        return getResultFutureSupplier.get();
     }
 
     @Override
     public CompletableFuture<String> getLeaderAddressFuture() {
-        return leaderAddressFuture;
+        return getLeaderAddressFutureSupplier.get();
     }
 
     public static Builder newBuilder() {
         return new Builder();
     }
 
+    /** Builder for {@link TestingJobMasterServiceProcess}. */
     public static final class Builder {
-        private CompletableFuture<JobMasterGateway> jobMasterGatewayFuture =
-                CompletableFuture.completedFuture(new TestingJobMasterGatewayBuilder().build());
-        private CompletableFuture<JobManagerRunnerResult> jobManagerRunnerResultFuture =
-                new CompletableFuture<>();
-        private CompletableFuture<String> leaderAddressFuture =
-                CompletableFuture.completedFuture("foobar");
-        private boolean isInitialized = true;
-        @Nullable private CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
-        private boolean manualTerminationFutureCompletion = false;
 
-        public Builder setJobMasterGatewayFuture(
-                CompletableFuture<JobMasterGateway> jobMasterGatewayFuture) {
-            this.jobMasterGatewayFuture = jobMasterGatewayFuture;
+        private UUID leaderSessionId = UUID.randomUUID();
+        private Supplier<CompletableFuture<Void>> closeAsyncSupplier = unsupportedOperation();
+        private Supplier<Boolean> isInitializedAndRunningSupplier = unsupportedOperation();
+        private Supplier<CompletableFuture<JobMasterGateway>> getJobMasterGatewayFutureSupplier =
+                () ->
+                        CompletableFuture.completedFuture(
+                                new TestingJobMasterGatewayBuilder().build());
+        private Supplier<CompletableFuture<JobManagerRunnerResult>> getResultFutureSupplier =
+                CompletableFuture::new;
+        private Supplier<CompletableFuture<String>> getLeaderAddressFutureSupplier =
+                () -> CompletableFuture.completedFuture("leader address");
+
+        private static <T> Supplier<T> unsupportedOperation() {
+            return () -> {
+                throw new UnsupportedOperationException();
+            };
+        }
+
+        public Builder setCloseAsyncSupplier(Supplier<CompletableFuture<Void>> closeAsyncSupplier) {
+            this.closeAsyncSupplier = closeAsyncSupplier;
             return this;
         }
 
-        public Builder setJobManagerRunnerResultFuture(
-                CompletableFuture<JobManagerRunnerResult> jobManagerRunnerResultFuture) {
-            this.jobManagerRunnerResultFuture = jobManagerRunnerResultFuture;
+        public Builder setIsInitializedAndRunningSupplier(
+                Supplier<Boolean> isInitializedAndRunningSupplier) {
+            this.isInitializedAndRunningSupplier = isInitializedAndRunningSupplier;
             return this;
         }
 
-        public Builder setLeaderAddressFuture(CompletableFuture<String> leaderAddressFuture) {
-            this.leaderAddressFuture = leaderAddressFuture;
+        public Builder setGetJobMasterGatewayFutureSupplier(
+                Supplier<CompletableFuture<JobMasterGateway>> getJobMasterGatewayFutureSupplier) {
+            this.getJobMasterGatewayFutureSupplier = getJobMasterGatewayFutureSupplier;
             return this;
         }
 
-        public Builder setIsInitialized(boolean isInitialized) {
-            this.isInitialized = isInitialized;
+        public Builder setGetResultFutureSupplier(
+                Supplier<CompletableFuture<JobManagerRunnerResult>> getResultFutureSupplier) {
+            this.getResultFutureSupplier = getResultFutureSupplier;
             return this;
         }
 
-        public Builder setTerminationFuture(@Nullable CompletableFuture<Void> terminationFuture) {
-            this.terminationFuture = terminationFuture;
+        public Builder setGetLeaderAddressFutureSupplier(
+                Supplier<CompletableFuture<String>> getLeaderAddressFutureSupplier) {
+            this.getLeaderAddressFutureSupplier = getLeaderAddressFutureSupplier;
             return this;
         }
 
-        public Builder withManualTerminationFutureCompletion() {
-            this.manualTerminationFutureCompletion = true;
+        public Builder setLeaderSessionId(UUID leaderSessionId) {
+            this.leaderSessionId = leaderSessionId;
             return this;
         }
 
         public TestingJobMasterServiceProcess build() {
             return new TestingJobMasterServiceProcess(
-                    jobMasterGatewayFuture,
-                    jobManagerRunnerResultFuture,
-                    leaderAddressFuture,
-                    isInitialized,
-                    terminationFuture,
-                    manualTerminationFutureCompletion);
+                    leaderSessionId,
+                    closeAsyncSupplier,
+                    isInitializedAndRunningSupplier,
+                    getJobMasterGatewayFutureSupplier,
+                    getResultFutureSupplier,
+                    getLeaderAddressFutureSupplier);
         }
     }
 }

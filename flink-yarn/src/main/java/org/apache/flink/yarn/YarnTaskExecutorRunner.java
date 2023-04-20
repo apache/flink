@@ -23,6 +23,7 @@ import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.TaskManagerOptionsInternal;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
@@ -138,6 +139,8 @@ public class YarnTaskExecutorRunner {
                 variables.get(YarnResourceManagerDriver.ENV_FLINK_NODE_ID);
         if (taskExecutorHostname != null) {
             configuration.setString(TaskManagerOptions.HOST, taskExecutorHostname);
+            configuration.setString(
+                    TaskManagerOptionsInternal.TASK_MANAGER_NODE_ID, taskExecutorHostname);
         }
     }
 }

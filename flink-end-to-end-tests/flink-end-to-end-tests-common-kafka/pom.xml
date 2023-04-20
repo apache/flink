@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<artifactId>flink-end-to-end-tests</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.15-SNAPSHOT</version>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
@@ -76,7 +76,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.kafka</groupId>
 			<artifactId>kafka-clients</artifactId>
-			<version>2.8.1</version>
+			<version>3.2.3</version>
 		</dependency>
 
 		<!-- The following dependencies are for connector/format sql-jars that
@@ -115,14 +115,14 @@ under the License.
 			<!-- https://mvnrepository.com/artifact/io.confluent/kafka-avro-serializer -->
 			<groupId>io.confluent</groupId>
 			<artifactId>kafka-avro-serializer</artifactId>
-			<version>6.2.2</version>
+			<version>7.2.2</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>io.confluent</groupId>
 			<artifactId>kafka-schema-registry-client</artifactId>
-			<version>6.2.2</version>
+			<version>7.2.2</version>
 			<scope>test</scope>
 			<exclusions>
 				<exclusion>
@@ -135,7 +135,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.avro</groupId>
 			<artifactId>avro</artifactId>
-			<version>1.10.0</version>
+			<version>${avro.version}</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -150,7 +150,6 @@ under the License.
 				</exclusion>
 			</exclusions>
 		</dependency>
-
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-kafka</artifactId>
@@ -225,9 +224,17 @@ under the License.
 							<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
 						</artifactItem>
 						<artifactItem>
+							<groupId>org.apache.flink</groupId>
+							<artifactId>flink-connector-test-utils</artifactId>
+							<version>${project.version}</version>
+							<destFileName>flink-connector-testing.jar</destFileName>
+							<type>jar</type>
+							<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
+						</artifactItem>
+						<artifactItem>
 							<groupId>org.apache.kafka</groupId>
 							<artifactId>kafka-clients</artifactId>
-							<version>2.8.1</version>
+							<version>3.2.3</version>
 							<destFileName>kafka-clients.jar</destFileName>
 							<type>jar</type>
 							<outputDirectory>${project.build.directory}/dependencies</outputDirectory>

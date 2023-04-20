@@ -71,7 +71,7 @@ public class KafkaSourceExternalContext implements DataStreamSourceExternalConte
     private final AdminClient adminClient;
     private final List<KafkaPartitionDataWriter> writers = new ArrayList<>();
 
-    KafkaSourceExternalContext(
+    protected KafkaSourceExternalContext(
             String bootstrapServers,
             SplitMappingMode splitMappingMode,
             List<URL> connectorJarPaths) {
@@ -190,7 +190,10 @@ public class KafkaSourceExternalContext implements DataStreamSourceExternalConte
         final Set<String> topics = adminClient.listTopics().names().get();
         if (topics.contains(topicName)) {
             final Map<String, TopicDescription> topicDescriptions =
-                    adminClient.describeTopics(Collections.singletonList(topicName)).all().get();
+                    adminClient
+                            .describeTopics(Collections.singletonList(topicName))
+                            .allTopicNames()
+                            .get();
             final int numPartitions = topicDescriptions.get(topicName).partitions().size();
             LOG.info("Creating partition {} for topic '{}'", numPartitions + 1, topicName);
             adminClient
@@ -204,8 +207,10 @@ public class KafkaSourceExternalContext implements DataStreamSourceExternalConte
                     new TopicPartition(topicName, numPartitions));
         } else {
             LOG.info("Creating topic '{}'", topicName);
-            adminClient.createTopics(
-                    Collections.singletonList(new NewTopic(topicName, 1, (short) 1)));
+            adminClient
+                    .createTopics(Collections.singletonList(new NewTopic(topicName, 1, (short) 1)))
+                    .all()
+                    .get();
             return new KafkaPartitionDataWriter(
                     getKafkaProducerProperties(0), new TopicPartition(topicName, 0));
         }

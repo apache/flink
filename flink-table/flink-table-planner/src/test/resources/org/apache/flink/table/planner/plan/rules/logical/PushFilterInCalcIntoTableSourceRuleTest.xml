@@ -47,7 +47,7 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[name, id, amount, price], where=[OR(>(amount, 2), <(amount, 10))])
+FlinkLogicalCalc(select=[name, id, amount, price], where=[IS NOT NULL(amount)])
 +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[]]], fields=[name, id, amount, price])
 ]]>
     </Resource>
@@ -66,7 +66,7 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[$3], price=[$4])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[name, id, amount, +(amount, 1) AS virtualField, price], where=[OR(>(amount, 2), <(amount, 10))])
+FlinkLogicalCalc(select=[name, id, amount, +(amount, 1) AS virtualField, price], where=[IS NOT NULL(amount)])
 +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, VirtualTable, filter=[]]], fields=[name, id, amount, price])
 ]]>
     </Resource>

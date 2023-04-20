@@ -26,6 +26,11 @@
     <nz-divider nzType="vertical"></nz-divider>
     <strong>Checkpoint Type:</strong>
     {{ checkPointType }}
+    <ng-container *ngIf="checkPointDetail?.savepointFormat">
+      <nz-divider nzType="vertical"></nz-divider>
+      <strong>Savepoint Format:</strong>
+      {{ checkPointDetail?.savepointFormat || '-' }}
+    </ng-container>
     <ng-container *ngIf="checkPointDetail?.failure_message">
       <nz-divider nzType="vertical"></nz-divider>
       <strong>Failure Message:</strong>
@@ -45,12 +50,13 @@
   >
     <thead>
       <tr>
-        <th nzWidth="60px"></th>
+        <th nzWidth="70px"></th>
         <th><strong>Name</strong></th>
         <th><strong>Acknowledged</strong></th>
         <th><strong>Latest Acknowledgment</strong></th>
         <th><strong>End to End Duration</strong></th>
         <th><strong>Checkpointed Data Size</strong></th>
+        <th><strong>Full Checkpoint Data Size</strong></th>
         <th><strong>Processed (persisted) in-flight data</strong></th>
       </tr>
     </thead>
@@ -81,6 +87,9 @@
             {{ checkPointDetail['tasks'][vertex.id]['end_to_end_duration'] | humanizeDuration }}
           </td>
           <td *ngIf="checkPointDetail['tasks'][vertex.id]['end_to_end_duration'] < 0">n/a</td>
+          <td>
+            {{ checkPointDetail['tasks'][vertex.id]['checkpointed_size'] | humanizeBytes }}
+          </td>
           <td>{{ checkPointDetail['tasks'][vertex.id]['state_size'] | humanizeBytes }}</td>
           <td>
             {{ checkPointDetail['tasks'][vertex.id]['processed_data'] | humanizeBytes }} ({{
@@ -89,7 +98,7 @@
           </td>
         </tr>
         <tr [nzExpand]="vertex.expand">
-          <td colspan="7" *ngIf="vertex.expand" class="collapse-td">
+          <td colspan="8" *ngIf="vertex.expand" class="collapse-td">
             <flink-job-checkpoints-subtask
               [checkPointId]="checkPoint.id"
               [vertex]="vertex"

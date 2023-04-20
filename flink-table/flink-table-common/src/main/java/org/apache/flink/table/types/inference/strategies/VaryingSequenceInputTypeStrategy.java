@@ -102,9 +102,9 @@ public final class VaryingSequenceInputTypeStrategy implements InputTypeStrategy
         final Signature.Argument newArg;
         final String type = varyingArgument.getType();
         if (argumentNames == null) {
-            newArg = Signature.Argument.of(type + "...");
+            newArg = Signature.Argument.ofVarying(type);
         } else {
-            newArg = Signature.Argument.of(argumentNames.get(constantArgumentCount), type + "...");
+            newArg = Signature.Argument.ofVarying(argumentNames.get(constantArgumentCount), type);
         }
 
         final List<Signature.Argument> arguments = new ArrayList<>();

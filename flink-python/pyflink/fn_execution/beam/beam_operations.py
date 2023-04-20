@@ -17,22 +17,29 @@
 ################################################################################
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.runners import common
 from apache_beam.runners.worker import bundle_processor, operation_specs
 from apache_beam.utils import proto_utils
+
+from pyflink import fn_execution
+
+if fn_execution.PYFLINK_CYTHON_ENABLED:
+    try:
+        import pyflink.fn_execution.beam.beam_operations_fast as beam_operations
+    except:
+        import pyflink.fn_execution.beam.beam_operations_slow as beam_operations
+        fn_execution.PYFLINK_CYTHON_ENABLED = False
+else:
+    import pyflink.fn_execution.beam.beam_operations_slow as beam_operations
 
 from pyflink.fn_execution import flink_fn_execution_pb2
 from pyflink.fn_execution.coders import from_proto, from_type_info_proto, TimeWindowCoder, \
     CountWindowCoder, FlattenRowCoder
-from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
+from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend, RemoteOperatorStateBackend
 
 import pyflink.fn_execution.datastream.operations as datastream_operations
+from pyflink.fn_execution.datastream.process import operations
 import pyflink.fn_execution.table.operations as table_operations
-
-try:
-    import pyflink.fn_execution.beam.beam_operations_fast as beam_operations
-except ImportError:
-    import pyflink.fn_execution.beam.beam_operations_slow as beam_operations
-
 
 # ----------------- UDF --------------------
 
@@ -129,12 +136,12 @@ def create_data_stream_keyed_process_function(factory, transform_id, transform_p
         return _create_user_defined_function_operation(
             factory, transform_proto, consumers, payload,
             beam_operations.StatelessFunctionOperation,
-            datastream_operations.StatelessOperation)
+            operations.StatelessOperation)
     else:
         return _create_user_defined_function_operation(
             factory, transform_proto, consumers, payload,
             beam_operations.StatefulFunctionOperation,
-            datastream_operations.StatefulOperation)
+            operations.StatefulOperation)
 
 
 # ----------------- Utilities --------------------
@@ -150,13 +157,25 @@ def _create_user_defined_function_operation(factory, transform_proto, consumers,
         input=None,
         side_inputs=None,
         output_coders=[output_coders[tag] for tag in output_tags])
+    name = common.NameContext(transform_proto.unique_name)
+    serialized_fn = spec.serialized_fn
 
-    if hasattr(spec.serialized_fn, "key_type"):
+    if isinstance(serialized_fn, flink_fn_execution_pb2.UserDefinedDataStreamFunction):
+        operator_state_backend = RemoteOperatorStateBackend(
+            factory.state_handler,
+            serialized_fn.state_cache_size,
+            serialized_fn.map_state_read_cache_size,
+            serialized_fn.map_state_write_cache_size,
+        )
+    else:
+        operator_state_backend = None
+
+    if hasattr(serialized_fn, "key_type"):
         # keyed operation, need to create the KeyedStateBackend.
-        row_schema = spec.serialized_fn.key_type.row_schema
+        row_schema = serialized_fn.key_type.row_schema
         key_row_coder = FlattenRowCoder([from_proto(f.type) for f in row_schema.fields])
-        if spec.serialized_fn.HasField('group_window'):
-            if spec.serialized_fn.group_window.is_time_window:
+        if serialized_fn.HasField('group_window'):
+            if serialized_fn.group_window.is_time_window:
                 window_coder = TimeWindowCoder()
             else:
                 window_coder = CountWindowCoder()
@@ -166,40 +185,46 @@ def _create_user_defined_function_operation(factory, transform_proto, consumers,
             factory.state_handler,
             key_row_coder,
             window_coder,
-            spec.serialized_fn.state_cache_size,
-            spec.serialized_fn.map_state_read_cache_size,
-            spec.serialized_fn.map_state_write_cache_size)
+            serialized_fn.state_cache_size,
+            serialized_fn.map_state_read_cache_size,
+            serialized_fn.map_state_write_cache_size)
 
         return beam_operation_cls(
-            transform_proto.unique_name,
+            name,
             spec,
             factory.counter_factory,
             factory.state_sampler,
             consumers,
             internal_operation_cls,
-            keyed_state_backend)
-    elif internal_operation_cls == datastream_operations.StatefulOperation:
-        key_row_coder = from_type_info_proto(spec.serialized_fn.key_type_info)
+            keyed_state_backend,
+            operator_state_backend,
+        )
+    elif internal_operation_cls == operations.StatefulOperation:
+        key_row_coder = from_type_info_proto(serialized_fn.key_type_info)
         keyed_state_backend = RemoteKeyedStateBackend(
             factory.state_handler,
             key_row_coder,
             None,
-            1000,
-            1000,
-            1000)
+            serialized_fn.state_cache_size,
+            serialized_fn.map_state_read_cache_size,
+            serialized_fn.map_state_write_cache_size)
         return beam_operation_cls(
-            transform_proto.unique_name,
+            name,
             spec,
             factory.counter_factory,
             factory.state_sampler,
             consumers,
             internal_operation_cls,
-            keyed_state_backend)
+            keyed_state_backend,
+            operator_state_backend,
+        )
     else:
         return beam_operation_cls(
-            transform_proto.unique_name,
+            name,
             spec,
             factory.counter_factory,
             factory.state_sampler,
             consumers,
-            internal_operation_cls)
+            internal_operation_cls,
+            operator_state_backend,
+        )

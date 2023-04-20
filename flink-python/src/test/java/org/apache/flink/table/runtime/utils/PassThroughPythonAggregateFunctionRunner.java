@@ -19,27 +19,29 @@
 package org.apache.flink.table.runtime.utils;
 
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
-import org.apache.flink.python.PythonConfig;
-import org.apache.flink.python.env.PythonEnvironmentManager;
-import org.apache.flink.python.metric.FlinkMetricContainer;
+import org.apache.flink.python.env.process.ProcessPythonEnvironmentManager;
+import org.apache.flink.python.metric.process.FlinkMetricContainer;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.arrow.serializers.ArrowSerializer;
 import org.apache.flink.table.runtime.runners.python.beam.BeamTablePythonFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.Struct;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
+import java.util.stream.Collectors;
 
-import static org.apache.flink.streaming.api.utils.ProtoUtils.createArrowTypeCoderInfoDescriptorProto;
+import static org.apache.flink.python.Constants.OUTPUT_COLLECTION_ID;
+import static org.apache.flink.python.util.ProtoUtils.createArrowTypeCoderInfoDescriptorProto;
 
 /**
  * A {@link PassThroughPythonAggregateFunctionRunner} runner that just return the first input
@@ -67,12 +69,11 @@ public class PassThroughPythonAggregateFunctionRunner extends BeamTablePythonFun
 
     public PassThroughPythonAggregateFunctionRunner(
             String taskName,
-            PythonEnvironmentManager environmentManager,
+            ProcessPythonEnvironmentManager environmentManager,
             RowType inputType,
             RowType outputType,
             String functionUrn,
             FlinkFnApi.UserDefinedFunctions userDefinedFunctions,
-            Map<String, String> jobOptions,
             FlinkMetricContainer flinkMetricContainer,
             boolean isBatchOverWindow) {
         super(
@@ -80,7 +81,6 @@ public class PassThroughPythonAggregateFunctionRunner extends BeamTablePythonFun
                 environmentManager,
                 functionUrn,
                 userDefinedFunctions,
-                jobOptions,
                 flinkMetricContainer,
                 null,
                 null,
@@ -97,7 +97,7 @@ public class PassThroughPythonAggregateFunctionRunner extends BeamTablePythonFun
     }
 
     @Override
-    public void open(PythonConfig config) throws Exception {
+    public void open(ReadableConfig config) throws Exception {
         super.open(config);
         bais = new ByteArrayInputStreamWithPos();
         baisWrapper = new DataInputViewStreamWrapper(bais);
@@ -147,7 +147,10 @@ public class PassThroughPythonAggregateFunctionRunner extends BeamTablePythonFun
     @Override
     public void flush() throws Exception {
         super.flush();
-        resultBuffer.addAll(buffer);
+        resultBuffer.addAll(
+                buffer.stream()
+                        .map(b -> Tuple2.of(OUTPUT_COLLECTION_ID, b))
+                        .collect(Collectors.toList()));
         buffer.clear();
     }
 

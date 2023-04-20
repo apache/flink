@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.calcite.rel.metadata.RelMdUtil
@@ -40,6 +39,7 @@ class FlinkRelMdUtilTest {
   @Test
   def testNumDistinctValsWithLargeInputs(): Unit = {
     Assert.assertNotEquals(0.0, FlinkRelMdUtil.numDistinctVals(1e18, 1e10))
+    Assert.assertEquals(9.99999993922529e9, FlinkRelMdUtil.numDistinctVals(1e18, 1e10), 1d)
     // this test will fail once CALCITE-4351 is fixed
     // in that case FlinkRelMdUtil#numDistinctVals should be removed
     // see FLINK-19780

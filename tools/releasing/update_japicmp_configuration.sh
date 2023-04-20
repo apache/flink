@@ -17,7 +17,7 @@
 # limitations under the License.
 #
 
-if [ -z "${NEW_VERSION}" ]; then
+if [ -z "${NEW_VERSION:-}" ]; then
     echo "NEW_VERSION was not set."
     exit 1
 fi
@@ -34,18 +34,18 @@ fi
 #     There is a master branch with a version X.Y-SNAPSHOT, with a japicmp reference version of X.(Y-1).0 .
 #   Release flow:
 #     - update the master to X.(Y+1)-SNAPSHOT, but keep the reference version intact since X.Y.0 is not released (yet)
-#     - create X.Y-SNAPSHOT branch, but keep the reference version intact since X.Y.0 is not released (yet)
+#     - create snapshot branch for X.Y-SNAPSHOT (i.e. release-X.Y), but keep the reference version intact since X.Y.0 is not released (yet)
 #     - release X.Y.0
-#     - update the japicmp reference version of both master and X.Y-SNAPSHOT to X.Y.0
-#     - enable stronger compatibility constraints for X.Y-SNAPSHOT to ensure compatibility for PublicEvolving
+#     - update the japicmp reference version of both master and the snapshot branch for X.Y-SNAPSHOT to X.Y.0
+#     - enable stronger compatibility constraints for X.Y-SNAPSHOT in the snapshot branch to ensure compatibility for PublicEvolving
 # Scenario B) New minor release X.Y.Z
 #   Premise:
-#     There is a snapshot branch with a version X.Y-SNAPSHOT, with a japicmp reference version of X.Y.(Z-1)
+#     There is a snapshot branch release-X.Y having a version X.Y-SNAPSHOT, with a japicmp reference version of X.Y.(Z-1)
 #   Release flow:
-#     - create X.Y.Z-rc branch
+#     - create X.Y.Z-rc* branch
 #     - update the japicmp reference version of X.Y.Z to X.Y.(Z-1)
 #     - release X.Y.Z
-#     - update the japicmp reference version of X.Y-SNAPSHOT to X.Y.Z
+#     - update the japicmp reference version of X.Y-SNAPSHOT (in the snapshot branch release-X.Y) to X.Y.Z
 
 POM=../pom.xml
 function enable_public_evolving_compatibility_checks() {
@@ -57,6 +57,15 @@ function set_japicmp_reference_version() {
   local version=$1
 
   perl -pi -e 's#(<japicmp.referenceVersion>).*(</japicmp.referenceVersion>)#${1}'${version}'${2}#' ${POM}
+}
+
+function clear_exclusions() {
+  exclusion_start=$(($(sed -n '/<!-- MARKER: start exclusions/=' ${POM}) + 1))
+  exclusion_end=$(($(sed -n '/<!-- MARKER: end exclusions/=' ${POM}) - 1))
+
+  if [[ $exclusion_start -lt $exclusion_end ]]; then
+    sed -i "${exclusion_start},${exclusion_end}d" ${POM}
+  fi
 }
 
 current_branch=$(git rev-parse --abbrev-ref HEAD)
@@ -73,10 +82,12 @@ if [[ ${current_branch} =~ -rc ]]; then
 elif [[ ${current_branch} =~ ^master$ ]]; then
   # master branch
   set_japicmp_reference_version ${NEW_VERSION}
+  clear_exclusions
 elif [[ ${current_branch} =~ ^release- ]]; then
   # snapshot branch
   set_japicmp_reference_version ${NEW_VERSION}
   enable_public_evolving_compatibility_checks
+  clear_exclusions
 else
   echo "Script was called from unexpected branch ${current_branch}; should be rc/snapshot/master branch."
   exit 1

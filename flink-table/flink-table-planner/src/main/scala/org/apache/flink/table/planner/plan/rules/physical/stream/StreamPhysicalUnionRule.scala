@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
@@ -25,18 +24,12 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalU
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 
 import scala.collection.JavaConversions._
 
-/**
-  * Rule that converts [[FlinkLogicalUnion]] to [[StreamPhysicalUnion]].
-  */
-class StreamPhysicalUnionRule
-  extends ConverterRule(
-    classOf[FlinkLogicalUnion],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.STREAM_PHYSICAL,
-    "StreamPhysicalUnionRule") {
+/** Rule that converts [[FlinkLogicalUnion]] to [[StreamPhysicalUnion]]. */
+class StreamPhysicalUnionRule(config: Config) extends ConverterRule(config) {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     call.rel(0).asInstanceOf[FlinkLogicalUnion].all
@@ -47,15 +40,15 @@ class StreamPhysicalUnionRule
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
     val newInputs = union.getInputs.map(RelOptRule.convert(_, FlinkConventions.STREAM_PHYSICAL))
 
-    new StreamPhysicalUnion(
-      rel.getCluster,
-      traitSet,
-      newInputs,
-      union.all,
-      rel.getRowType)
+    new StreamPhysicalUnion(rel.getCluster, traitSet, newInputs, union.all, rel.getRowType)
   }
 }
 
 object StreamPhysicalUnionRule {
-  val INSTANCE: RelOptRule = new StreamPhysicalUnionRule
+  val INSTANCE: RelOptRule = new StreamPhysicalUnionRule(
+    Config.INSTANCE.withConversion(
+      classOf[FlinkLogicalUnion],
+      FlinkConventions.LOGICAL,
+      FlinkConventions.STREAM_PHYSICAL,
+      "StreamPhysicalUnionRule"))
 }

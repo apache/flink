@@ -15,15 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.logical
 
 import com.google.common.collect.{ImmutableList, Maps}
-import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptUtil}
+import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.core.Aggregate.Group
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall, Calc, Project, RelFactories}
+import org.apache.calcite.rel.core.Aggregate.Group
 import org.apache.calcite.rex.{RexInputRef, RexNode, RexProgram, RexUtil}
 import org.apache.calcite.runtime.Utilities
 import org.apache.calcite.util.ImmutableBitSet
@@ -33,23 +32,23 @@ import java.util
 
 import scala.collection.JavaConversions._
 
-/**
-  * Planner rule that removes unreferenced AggregateCall from Aggregate
-  */
-abstract class PruneAggregateCallRule[T <: RelNode](topClass: Class[T]) extends RelOptRule(
-  operand(topClass,
-    operand(classOf[Aggregate], any)),
-  RelFactories.LOGICAL_BUILDER,
-  s"PruneAggregateCallRule_${topClass.getCanonicalName}") {
+/** Planner rule that removes unreferenced AggregateCall from Aggregate */
+abstract class PruneAggregateCallRule[T <: RelNode](topClass: Class[T])
+  extends RelOptRule(
+    operand(topClass, operand(classOf[Aggregate], any)),
+    RelFactories.LOGICAL_BUILDER,
+    s"PruneAggregateCallRule_${topClass.getCanonicalName}") {
 
   protected def getInputRefs(relOnAgg: T): ImmutableBitSet
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val relOnAgg: T = call.rel(0)
     val agg: Aggregate = call.rel(1)
-    if (agg.indicator || agg.getGroupType != Group.SIMPLE || agg.getAggCallList.isEmpty ||
+    if (
+      agg.getGroupType != Group.SIMPLE || agg.getAggCallList.isEmpty ||
       // at least output one column
-      (agg.getGroupCount == 0 && agg.getAggCallList.size() == 1)) {
+      (agg.getGroupCount == 0 && agg.getAggCallList.size() == 1)
+    ) {
       return false
     }
     val inputRefs = getInputRefs(relOnAgg)
@@ -57,18 +56,19 @@ abstract class PruneAggregateCallRule[T <: RelNode](topClass: Class[T]) extends 
     unrefAggCallIndices.nonEmpty
   }
 
-  private def getUnrefAggCallIndices(
-      inputRefs: ImmutableBitSet,
-      agg: Aggregate): Array[Int] = {
+  private def getUnrefAggCallIndices(inputRefs: ImmutableBitSet, agg: Aggregate): Array[Int] = {
     val groupCount = agg.getGroupCount
-    agg.getAggCallList.indices.flatMap { index =>
-      val aggCallOutputIndex = groupCount + index
-      if (inputRefs.get(aggCallOutputIndex)) {
-        Array.empty[Int]
-      } else {
-        Array(index)
+    agg.getAggCallList.indices
+      .flatMap {
+        index =>
+          val aggCallOutputIndex = groupCount + index
+          if (inputRefs.get(aggCallOutputIndex)) {
+            Array.empty[Int]
+          } else {
+            Array(index)
+          }
       }
-    }.toArray[Int]
+      .toArray[Int]
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
@@ -91,7 +91,6 @@ abstract class PruneAggregateCallRule[T <: RelNode](topClass: Class[T]) extends 
     val newAgg = agg.copy(
       agg.getTraitSet,
       agg.getInput,
-      agg.indicator,
       agg.getGroupSet,
       ImmutableList.of(agg.getGroupSet),
       newAggCalls
@@ -102,11 +101,12 @@ abstract class PruneAggregateCallRule[T <: RelNode](topClass: Class[T]) extends 
     val mapOldToNew = Maps.newHashMap[Integer, Integer]()
     val fieldCountOfOldAgg = agg.getRowType.getFieldCount
     val unrefAggCallOutputIndices = unrefAggCallIndices.map(_ + agg.getGroupCount)
-    (0 until fieldCountOfOldAgg).foreach { i =>
-      if (!unrefAggCallOutputIndices.contains(i)) {
-        mapOldToNew.put(i, newFieldIndex)
-        newFieldIndex += 1
-      }
+    (0 until fieldCountOfOldAgg).foreach {
+      i =>
+        if (!unrefAggCallOutputIndices.contains(i)) {
+          mapOldToNew.put(i, newFieldIndex)
+          newFieldIndex += 1
+        }
     }
     require(mapOldToNew.size() == newAgg.getRowType.getFieldCount)
 
@@ -115,10 +115,7 @@ abstract class PruneAggregateCallRule[T <: RelNode](topClass: Class[T]) extends 
     call.transformTo(newRelOnAgg)
   }
 
-  protected def createNewRel(
-      mapping: Mappings.TargetMapping,
-      project: T,
-      newAgg: RelNode): RelNode
+  protected def createNewRel(mapping: Mappings.TargetMapping, project: T, newAgg: RelNode): RelNode
 }
 
 class ProjectPruneAggregateCallRule extends PruneAggregateCallRule(classOf[Project]) {
@@ -131,17 +128,17 @@ class ProjectPruneAggregateCallRule extends PruneAggregateCallRule(classOf[Proje
       project: Project,
       newAgg: RelNode): RelNode = {
     val newProjects = RexUtil.apply(mapping, project.getProjects).toList
-    if (projectsOnlyIdentity(newProjects, newAgg.getRowType.getFieldCount) &&
-      Utilities.compare(project.getRowType.getFieldNames, newAgg.getRowType.getFieldNames) == 0) {
+    if (
+      projectsOnlyIdentity(newProjects, newAgg.getRowType.getFieldCount) &&
+      Utilities.compare(project.getRowType.getFieldNames, newAgg.getRowType.getFieldNames) == 0
+    ) {
       newAgg
     } else {
       project.copy(project.getTraitSet, newAgg, newProjects, project.getRowType)
     }
   }
 
-  private def projectsOnlyIdentity(
-      projects: util.List[RexNode],
-      inputFieldCount: Int): Boolean = {
+  private def projectsOnlyIdentity(projects: util.List[RexNode], inputFieldCount: Int): Boolean = {
     if (projects.size != inputFieldCount) {
       return false
     }
@@ -186,8 +183,10 @@ class CalcPruneAggregateCallRule extends PruneAggregateCallRule(classOf[Calc]) {
       program.getOutputRowType.getFieldNames,
       calc.getCluster.getRexBuilder
     )
-    if (newProgram.isTrivial &&
-      Utilities.compare(calc.getRowType.getFieldNames, newAgg.getRowType.getFieldNames) == 0) {
+    if (
+      newProgram.isTrivial &&
+      Utilities.compare(calc.getRowType.getFieldNames, newAgg.getRowType.getFieldNames) == 0
+    ) {
       newAgg
     } else {
       calc.copy(calc.getTraitSet, newAgg, newProgram)

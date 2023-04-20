@@ -15,23 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.batch.sql
 
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.planner.runtime.FileSystemITCaseBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.types.Row
-import org.junit.{Assert, Before}
 
-import java.lang.AssertionError
+import org.junit.Before
+
 import scala.collection.Seq
 
-/**
-  * Batch [[FileSystemITCaseBase]].
-  */
+/** Batch [[FileSystemITCaseBase]]. */
 abstract class BatchFileSystemITCaseBase extends BatchTestBase with FileSystemITCaseBase {
-
   @Before
   override def before(): Unit = {
     super.before()
@@ -53,11 +49,13 @@ abstract class BatchFileSystemITCaseBase extends BatchTestBase with FileSystemIT
     try {
       result.foreach(checkFunc)
     } catch {
-      case e: AssertionError => throw new AssertionError(
-        s"""
-           |Results do not match for query:
-           |  $sqlQuery
-     """.stripMargin, e)
+      case e: AssertionError =>
+        throw new AssertionError(
+          s"""
+             |Results do not match for query:
+             |  $sqlQuery
+     """.stripMargin,
+          e)
     }
   }
 }

@@ -15,11 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.runtime.types
 
 import _root_.java.lang.{Iterable => JIterable}
-import com.twitter.chill.{Input, KSerializer, Kryo, Output}
+import com.twitter.chill.{Input, Kryo, KSerializer, Output}
 
 /*
 This code is copied as is from Twitter Chill 0.7.4 because we need to user a newer chill version
@@ -32,8 +31,8 @@ checks in our code base.
 /**
  * A Kryo serializer for serializing results returned by asJavaIterable.
  *
- * The underlying object is scala.collection.convert.Wrappers$IterableWrapper.
- * Kryo deserializes this into an AbstractCollection, which unfortunately doesn't work.
+ * The underlying object is scala.collection.convert.Wrappers$IterableWrapper. Kryo deserializes
+ * this into an AbstractCollection, which unfortunately doesn't work.
  *
  * Ported from Apache Spark's KryoSerializer.scala.
  */
@@ -67,7 +66,8 @@ private object JavaIterableWrapperSerializer {
 
   // Get the underlying method so we can use it to get the Scala collection for serialization.
   private val underlyingMethodOpt = {
-    try Some(wrapperClass.getDeclaredMethod("underlying")) catch {
+    try Some(wrapperClass.getDeclaredMethod("underlying"))
+    catch {
       case e: Exception =>
         None
     }
