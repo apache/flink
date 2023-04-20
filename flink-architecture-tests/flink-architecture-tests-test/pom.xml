@@ -77,6 +77,12 @@ under the License.
 			<artifactId>flink-test-utils-junit</artifactId>
 			<scope>compile</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-test-utils</artifactId>
+			<version>${project.version}</version>
+			<scope>compile</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
