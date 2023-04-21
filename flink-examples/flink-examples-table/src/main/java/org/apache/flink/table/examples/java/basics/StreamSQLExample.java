@@ -100,13 +100,13 @@ public final class StreamSQLExample {
     public static class Order {
         public Long user;
         public String product;
-        public int amount;
+        public Integer amount;
 
         // for POJO detection in DataStream API
         public Order() {}
 
         // for structured type detection in Table API
-        public Order(Long user, String product, int amount) {
+        public Order(Long user, String product, Integer amount) {
             this.user = user;
             this.product = product;
             this.amount = amount;
