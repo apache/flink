@@ -733,7 +733,6 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                 checkpointOptions.isUnalignedCheckpoint());
 
         checkpointMetrics.setSyncDurationMillis((System.nanoTime() - started) / 1_000_000);
-        checkpointMetrics.setUnalignedCheckpoint(checkpointOptions.isUnalignedCheckpoint());
         return true;
     }
 
