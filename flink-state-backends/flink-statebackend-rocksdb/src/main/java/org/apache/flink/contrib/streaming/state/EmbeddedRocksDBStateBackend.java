@@ -473,7 +473,9 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
         }
         final RocksDBResourceContainer resourceContainer =
                 createOptionsAndResourceContainer(
-                        sharedResources, nativeMetricOptions.isStatisticsEnabled());
+                        sharedResources,
+                        instanceBasePath,
+                        nativeMetricOptions.isStatisticsEnabled());
 
         ExecutionConfig executionConfig = env.getExecutionConfig();
         StreamCompressionDecorator keyGroupCompressionDecorator =
@@ -875,13 +877,14 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
     }
 
     @VisibleForTesting
-    RocksDBResourceContainer createOptionsAndResourceContainer() {
-        return createOptionsAndResourceContainer(null, false);
+    RocksDBResourceContainer createOptionsAndResourceContainer(@Nullable File instanceBasePath) {
+        return createOptionsAndResourceContainer(null, instanceBasePath, false);
     }
 
     @VisibleForTesting
     private RocksDBResourceContainer createOptionsAndResourceContainer(
             @Nullable OpaqueMemoryResource<RocksDBSharedResources> sharedResources,
+            @Nullable File instanceBasePath,
             boolean enableStatistics) {
 
         return new RocksDBResourceContainer(
@@ -889,6 +892,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
                 predefinedOptions != null ? predefinedOptions : PredefinedOptions.DEFAULT,
                 rocksDbOptionsFactory,
                 sharedResources,
+                instanceBasePath,
                 enableStatistics);
     }
 

@@ -86,7 +86,6 @@ import java.util.Queue;
 import java.util.concurrent.RunnableFuture;
 
 import static junit.framework.TestCase.assertNotNull;
-import static org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackendBuilder.DB_INSTANCE_DIR_STRING;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -148,7 +147,9 @@ public class EmbeddedRocksDBStateBackendTest
     private final RocksDBResourceContainer optionsContainer = new RocksDBResourceContainer();
 
     public void prepareRocksDB() throws Exception {
-        String dbPath = new File(TEMP_FOLDER.newFolder(), DB_INSTANCE_DIR_STRING).getAbsolutePath();
+        String dbPath =
+                RocksDBKeyedStateBackendBuilder.getInstanceRocksDBPath(TEMP_FOLDER.newFolder())
+                        .getAbsolutePath();
         ColumnFamilyOptions columnOptions = optionsContainer.getColumnOptions();
 
         ArrayList<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>(1);
