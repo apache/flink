@@ -85,7 +85,7 @@ class LocalBufferPool implements BufferPool {
      *
      * <p><strong>BEWARE:</strong> Take special care with the interactions between this lock and
      * locks acquired before entering this class vs. locks being acquired during calls to external
-     * code inside this class, e.g. with {@link
+     * code inside this class, e.g. with {@code
      * org.apache.flink.runtime.io.network.partition.consumer.BufferManager#bufferQueue} via the
      * {@link #registeredListeners} callback.
      */
