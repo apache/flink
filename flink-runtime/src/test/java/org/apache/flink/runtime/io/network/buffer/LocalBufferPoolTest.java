@@ -309,10 +309,7 @@ class LocalBufferPoolTest {
         assertThat(bufferPool.getNumBuffers()).isEqualTo(smallPoolSize);
         assertThat(bufferPool.getNumberOfRequestedOverdraftMemorySegments())
                 .isEqualTo(numRequestedOverdraftBuffersAfterDecreasing);
-        assertThat(
-                        bufferPool.bestEffortGetNumOfUsedBuffers()
-                                + bufferPool.getNumberOfAvailableMemorySegments()
-                                - bufferPool.getNumberOfRequestedOverdraftMemorySegments())
+        assertThat(bufferPool.getNumberOfRequestedMemorySegments())
                 .isEqualTo(numRequestedOrdinaryBuffersAfterDecreasing);
         assertThat(bufferPool.getNumberOfAvailableMemorySegments())
                 .isEqualTo(numAvailableBuffersAfterDecreasing);
