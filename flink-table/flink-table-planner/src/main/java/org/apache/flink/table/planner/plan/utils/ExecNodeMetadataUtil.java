@@ -195,7 +195,7 @@ public final class ExecNodeMetadataUtil {
     }
 
     @VisibleForTesting
-    static void addTestNode(Class<? extends ExecNode<?>> execNodeClass) {
+    public static void addTestNode(Class<? extends ExecNode<?>> execNodeClass) {
         addToLookupMap(execNodeClass);
     }
 
