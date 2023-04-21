@@ -19,42 +19,35 @@
 package org.apache.flink.runtime.clusterframework.types;
 
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
-import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.jobmaster.slotpool.LocationPreferenceSlotSelectionStrategy;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotInfoWithUtilization;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotSelectionStrategy;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
-import org.hamcrest.FeatureMatcher;
-import org.hamcrest.Matcher;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 
-import static org.hamcrest.CoreMatchers.hasItem;
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link LocationPreferenceSlotSelectionStrategy}. */
-public class LocationPreferenceSlotSelectionStrategyTest extends SlotSelectionStrategyTestBase {
+class LocationPreferenceSlotSelectionStrategyTest extends SlotSelectionStrategyTestBase {
 
-    public LocationPreferenceSlotSelectionStrategyTest() {
-        super(LocationPreferenceSlotSelectionStrategy.createDefault());
-    }
-
-    protected LocationPreferenceSlotSelectionStrategyTest(
-            SlotSelectionStrategy slotSelectionStrategy) {
-        super(slotSelectionStrategy);
+    @BeforeEach
+    void setUp() {
+        this.selectionStrategy = LocationPreferenceSlotSelectionStrategy.createDefault();
     }
 
     @Test
-    public void testPhysicalSlotResourceProfileRespected() {
+    void testPhysicalSlotResourceProfileRespected() {
 
-        SlotProfile slotProfile =
+        final SlotProfile slotProfile =
                 SlotProfile.priorAllocation(
                         resourceProfile,
                         biggerResourceProfile,
@@ -63,17 +56,23 @@ public class LocationPreferenceSlotSelectionStrategyTest extends SlotSelectionSt
                         Collections.emptySet());
 
         Optional<SlotSelectionStrategy.SlotInfoAndLocality> match = runMatching(slotProfile);
-        Assert.assertTrue(
-                match.get()
-                        .getSlotInfo()
-                        .getResourceProfile()
-                        .isMatching(slotProfile.getPhysicalSlotResourceProfile()));
+        assertThat(match)
+                .hasValueSatisfying(
+                        slotInfoAndLocality ->
+                                assertThat(
+                                                slotInfoAndLocality
+                                                        .getSlotInfo()
+                                                        .getResourceProfile()
+                                                        .isMatching(
+                                                                slotProfile
+                                                                        .getPhysicalSlotResourceProfile()))
+                                        .isTrue());
 
         ResourceProfile evenBiggerResourceProfile =
                 ResourceProfile.fromResources(
                         biggerResourceProfile.getCpuCores().getValue().doubleValue() + 1.0,
                         resourceProfile.getTaskHeapMemory().getMebiBytes());
-        slotProfile =
+        final SlotProfile slotProfileNotMatching =
                 SlotProfile.priorAllocation(
                         resourceProfile,
                         evenBiggerResourceProfile,
@@ -81,49 +80,33 @@ public class LocationPreferenceSlotSelectionStrategyTest extends SlotSelectionSt
                         Collections.emptyList(),
                         Collections.emptySet());
 
-        match = runMatching(slotProfile);
-        Assert.assertFalse(match.isPresent());
+        match = runMatching(slotProfileNotMatching);
+        assertThat(match).isNotPresent();
     }
 
     @Test
-    public void matchNoRequirements() {
+    void matchNoRequirements() {
 
         SlotProfile slotProfile = SlotProfileTestingUtils.noRequirements();
         Optional<SlotSelectionStrategy.SlotInfoAndLocality> match = runMatching(slotProfile);
 
-        Assert.assertTrue(match.isPresent());
-        final SlotSelectionStrategy.SlotInfoAndLocality slotInfoAndLocality = match.get();
-        assertThat(candidates, hasItem(withSlotInfo(slotInfoAndLocality.getSlotInfo())));
-        assertThat(slotInfoAndLocality, hasLocality(Locality.UNCONSTRAINED));
+        assertMatchingSlotLocalityAndInCandidates(match, Locality.UNCONSTRAINED, candidates);
     }
 
     @Test
-    public void returnsHostLocalMatchingIfExactTMLocationCannotBeFulfilled() {
+    void returnsHostLocalMatchingIfExactTMLocationCannotBeFulfilled() {
 
         SlotProfile slotProfile =
                 SlotProfileTestingUtils.preferredLocality(
                         resourceProfile, Collections.singletonList(tmlX));
         Optional<SlotSelectionStrategy.SlotInfoAndLocality> match = runMatching(slotProfile);
 
-        Assert.assertTrue(match.isPresent());
-        final SlotSelectionStrategy.SlotInfoAndLocality slotInfoAndLocality = match.get();
-        final SlotInfo slotInfo = slotInfoAndLocality.getSlotInfo();
-        assertThat(candidates, hasItem(withSlotInfo(slotInfo)));
-        assertThat(slotInfoAndLocality, hasLocality(Locality.HOST_LOCAL));
-    }
-
-    private Matcher<SlotSelectionStrategy.SlotInfoAndLocality> hasLocality(Locality locality) {
-        return new LocalityFeatureMatcher(locality);
-    }
-
-    private Matcher<SlotSelectionStrategy.SlotInfoAndResources> withSlotInfo(SlotInfo slotInfo) {
-        return new SlotInfoFeatureMatcher(slotInfo);
+        assertMatchingSlotLocalityAndInCandidates(match, Locality.HOST_LOCAL, candidates);
     }
 
     @Test
-    public void
-            returnsNonLocalMatchingIfResourceProfileCanBeFulfilledButNotTheTMLocationPreferences()
-                    throws Exception {
+    void returnsNonLocalMatchingIfResourceProfileCanBeFulfilledButNotTheTMLocationPreferences()
+            throws Exception {
         final InetAddress nonHostLocalInetAddress =
                 InetAddress.getByAddress(new byte[] {10, 0, 0, 24});
         final TaskManagerLocation nonLocalTm =
@@ -134,39 +117,36 @@ public class LocationPreferenceSlotSelectionStrategyTest extends SlotSelectionSt
                         resourceProfile, Collections.singletonList(nonLocalTm));
         Optional<SlotSelectionStrategy.SlotInfoAndLocality> match = runMatching(slotProfile);
 
-        Assert.assertTrue(match.isPresent());
-        final SlotSelectionStrategy.SlotInfoAndLocality slotInfoAndLocality = match.get();
-        assertThat(candidates, hasItem(withSlotInfo(slotInfoAndLocality.getSlotInfo())));
-        assertThat(slotInfoAndLocality, hasLocality(Locality.NON_LOCAL));
+        assertMatchingSlotLocalityAndInCandidates(match, Locality.NON_LOCAL, candidates);
     }
 
     @Test
-    public void matchPreferredLocation() {
+    void matchPreferredLocation() {
 
         SlotProfile slotProfile =
                 SlotProfileTestingUtils.preferredLocality(
                         biggerResourceProfile, Collections.singletonList(tml2));
         Optional<SlotSelectionStrategy.SlotInfoAndLocality> match = runMatching(slotProfile);
 
-        Assert.assertEquals(slotInfo2, match.get().getSlotInfo());
+        assertMatchingSlotEqualsToSlotInfo(match, slotInfo2);
 
         slotProfile =
                 SlotProfileTestingUtils.preferredLocality(
                         resourceProfile, Arrays.asList(tmlX, tml4));
         match = runMatching(slotProfile);
 
-        Assert.assertEquals(slotInfo4, match.get().getSlotInfo());
+        assertMatchingSlotEqualsToSlotInfo(match, slotInfo4);
 
         slotProfile =
                 SlotProfileTestingUtils.preferredLocality(
                         resourceProfile, Arrays.asList(tml3, tml1, tml3, tmlX));
         match = runMatching(slotProfile);
 
-        Assert.assertEquals(slotInfo3, match.get().getSlotInfo());
+        assertMatchingSlotEqualsToSlotInfo(match, slotInfo3);
     }
 
     @Test
-    public void matchPreviousLocationAvailableButAlsoBlacklisted() {
+    void matchPreviousLocationAvailableButAlsoBlacklisted() {
         HashSet<AllocationID> blacklisted = new HashSet<>(4);
         blacklisted.add(aid1);
         blacklisted.add(aid2);
@@ -182,30 +162,33 @@ public class LocationPreferenceSlotSelectionStrategyTest extends SlotSelectionSt
         Optional<SlotSelectionStrategy.SlotInfoAndLocality> match = runMatching(slotProfile);
 
         // available previous allocation should override blacklisting
-        Assert.assertEquals(slotInfo3, match.get().getSlotInfo());
+        assertMatchingSlotEqualsToSlotInfo(match, slotInfo3);
     }
 
-    private static class SlotInfoFeatureMatcher
-            extends FeatureMatcher<SlotSelectionStrategy.SlotInfoAndResources, SlotInfo> {
-        SlotInfoFeatureMatcher(SlotInfo slotInfo) {
-            super(is(slotInfo), "Slot info of a SlotInfoAndResources instance", "slotInfo");
-        }
-
-        @Override
-        protected SlotInfo featureValueOf(SlotSelectionStrategy.SlotInfoAndResources actual) {
-            return actual.getSlotInfo();
-        }
+    protected static void assertMatchingSlotEqualsToSlotInfo(
+            Optional<SlotSelectionStrategy.SlotInfoAndLocality> matchingSlot,
+            SlotInfoWithUtilization slotInfo) {
+        assertThat(matchingSlot)
+                .hasValueSatisfying(
+                        slotInfoAndLocality ->
+                                assertThat(slotInfoAndLocality.getSlotInfo()).isEqualTo(slotInfo));
     }
 
-    private static class LocalityFeatureMatcher
-            extends FeatureMatcher<SlotSelectionStrategy.SlotInfoAndLocality, Locality> {
-        LocalityFeatureMatcher(Locality locality) {
-            super(is(locality), "Locality of SlotInfoAndLocality instance", "locality");
-        }
-
-        @Override
-        protected Locality featureValueOf(SlotSelectionStrategy.SlotInfoAndLocality actual) {
-            return actual.getLocality();
-        }
+    protected static void assertMatchingSlotLocalityAndInCandidates(
+            Optional<SlotSelectionStrategy.SlotInfoAndLocality> matchingSlot,
+            Locality locality,
+            Set<SlotSelectionStrategy.SlotInfoAndResources> candidates) {
+        assertThat(matchingSlot)
+                .hasValueSatisfying(
+                        slotInfoAndLocality -> {
+                            assertThat(slotInfoAndLocality.getLocality()).isEqualTo(locality);
+                            assertThat(candidates)
+                                    .anySatisfy(
+                                            slotInfoAndResources ->
+                                                    assertThat(slotInfoAndResources.getSlotInfo())
+                                                            .isEqualTo(
+                                                                    slotInfoAndLocality
+                                                                            .getSlotInfo()));
+                        });
     }
 }

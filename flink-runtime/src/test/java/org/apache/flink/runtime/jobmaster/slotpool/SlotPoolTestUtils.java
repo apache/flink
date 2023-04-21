@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.RpcTaskManagerGateway;
@@ -26,11 +28,14 @@ import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.util.ResourceCounter;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Map;
 
 /** Utilities for testing slot pool implementations. */
 public final class SlotPoolTestUtils {
@@ -78,5 +83,27 @@ public final class SlotPoolTestUtils {
             Collection<SlotOffer> slotOffers,
             TaskManagerGateway taskManagerGateway) {
         return slotPool.offerSlots(new LocalTaskManagerLocation(), taskManagerGateway, slotOffers);
+    }
+
+    @Nonnull
+    public static Collection<SlotOffer> createSlotOffersForResourceRequirements(
+            ResourceCounter resourceRequirements) {
+        Collection<SlotOffer> slotOffers = new ArrayList<>();
+        int slotIndex = 0;
+
+        for (Map.Entry<ResourceProfile, Integer> resourceWithCount :
+                resourceRequirements.getResourcesWithCount()) {
+            for (int i = 0; i < resourceWithCount.getValue(); i++) {
+                ResourceProfile slotProfile = resourceWithCount.getKey();
+                slotOffers.add(
+                        new SlotOffer(
+                                new AllocationID(),
+                                slotIndex++,
+                                slotProfile == ResourceProfile.UNKNOWN
+                                        ? ResourceProfile.ANY
+                                        : slotProfile));
+            }
+        }
+        return slotOffers;
     }
 }
