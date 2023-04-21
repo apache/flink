@@ -24,7 +24,6 @@ import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotInfoWithUtilization;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotSelectionStrategy;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.util.TestLogger;
 
 import java.net.InetAddress;
 import java.util.Collections;
@@ -33,7 +32,7 @@ import java.util.Optional;
 import java.util.Set;
 
 /** Test base for {@link SlotSelectionStrategy}. */
-public abstract class SlotSelectionStrategyTestBase extends TestLogger {
+abstract class SlotSelectionStrategyTestBase {
 
     protected final ResourceProfile resourceProfile = ResourceProfile.fromResources(2, 1024);
     protected final ResourceProfile biggerResourceProfile = ResourceProfile.fromResources(3, 1024);
@@ -74,11 +73,7 @@ public abstract class SlotSelectionStrategyTestBase extends TestLogger {
     protected final Set<SlotSelectionStrategy.SlotInfoAndResources> candidates =
             Collections.unmodifiableSet(createCandidates());
 
-    protected final SlotSelectionStrategy selectionStrategy;
-
-    public SlotSelectionStrategyTestBase(SlotSelectionStrategy slotSelectionStrategy) {
-        this.selectionStrategy = slotSelectionStrategy;
-    }
+    protected SlotSelectionStrategy selectionStrategy;
 
     private Set<SlotSelectionStrategy.SlotInfoAndResources> createCandidates() {
         Set<SlotSelectionStrategy.SlotInfoAndResources> candidates = new HashSet<>(4);
