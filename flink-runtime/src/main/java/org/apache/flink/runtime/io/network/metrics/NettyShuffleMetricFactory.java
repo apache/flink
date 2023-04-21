@@ -244,7 +244,7 @@ public class NettyShuffleMetricFactory {
 
         @Override
         public Integer getValue() {
-            return networkBufferPool.getRequestedSegmentsUsage();
+            return networkBufferPool.getEstimatedRequestedSegmentsUsage();
         }
 
         @Override
