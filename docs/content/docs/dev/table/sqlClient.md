@@ -851,4 +851,22 @@ either in the cluster configuration or session configuration (the latter would t
 
 For more details about stopping jobs, please refer to [Job Statements]({{< ref "docs/dev/table/sql/job" >}}#stop-job).
 
+### SQL Syntax highlighting
+
+SQL Client can highlight SQL syntax with several color schemes.
+With `sql-client.display.color-schema` it could be set a color scheme.
+Available color schemes: `chester`, `dracula`, `solarized`, `vs2010`, `obsidian`, `geshi`, `default` (no highlighting).
+In case of wrong name the fallback is to `default`.
+
+| Color schema \ Style | Keyword      | Default | Comment        | Hint         | Quoted  | SQL Identifier |
+|:---------------------|--------------|:--------|:---------------|:-------------|:--------|:---------------|
+| `Default`            | Default      | Default | Default        | Default      | Default | Default        |
+| `Chester`            | Bold blue    | White   | Italic green   | Bold green   | Red     | Cyan           |
+| `Dark`               | Bold blue    | White   | Italic bright  | Bold bright  | Green   | Cyan           |
+| `Dracula`            | Bold magenta | White   | Italic cyan    | Bold cyan    | Green   | Red            |
+| `Geshi`              | Bold #993333 | White   | Italic #808080 | Bold #808080 | #66CC66 | #000099        |
+| `Light`              | Bold red     | Black   | Italic bright  | Bold bright  | Green   | Cyan           |
+| `Obsidian`           | Bold green   | White   | Italic bright  | Bold bright  | Red     | Magenta        |
+| `VS2010`             | Bold blue    | White   | Italic green   | Bold green   | Red     | Magenta        |
+
 {{< top >}}
