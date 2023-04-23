@@ -32,12 +32,11 @@ class DefaultLocationPreferenceSlotSelectionStrategy
     @Nonnull
     @Override
     protected Optional<SlotInfoAndLocality> selectWithoutLocationPreference(
-            @Nonnull Collection<SlotInfoAndResources> availableSlots,
+            @Nonnull Collection<SlotInfoWithUtilization> availableSlots,
             @Nonnull ResourceProfile resourceProfile) {
-        for (SlotInfoAndResources candidate : availableSlots) {
-            if (candidate.getRemainingResources().isMatching(resourceProfile)) {
-                return Optional.of(
-                        SlotInfoAndLocality.of(candidate.getSlotInfo(), Locality.UNCONSTRAINED));
+        for (SlotInfoWithUtilization candidate : availableSlots) {
+            if (candidate.getResourceProfile().isMatching(resourceProfile)) {
+                return Optional.of(SlotInfoAndLocality.of(candidate, Locality.UNCONSTRAINED));
             }
         }
         return Optional.empty();

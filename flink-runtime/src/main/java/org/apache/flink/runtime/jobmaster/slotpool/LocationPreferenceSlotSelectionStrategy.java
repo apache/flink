@@ -40,7 +40,7 @@ public abstract class LocationPreferenceSlotSelectionStrategy implements SlotSel
 
     @Override
     public Optional<SlotInfoAndLocality> selectBestSlotForProfile(
-            @Nonnull Collection<SlotInfoAndResources> availableSlots,
+            @Nonnull Collection<SlotInfoWithUtilization> availableSlots,
             @Nonnull SlotProfile slotProfile) {
 
         Collection<TaskManagerLocation> locationPreferences = slotProfile.getPreferredLocations();
@@ -60,7 +60,7 @@ public abstract class LocationPreferenceSlotSelectionStrategy implements SlotSel
 
     @Nonnull
     private Optional<SlotInfoAndLocality> selectWithLocationPreference(
-            @Nonnull Collection<SlotInfoAndResources> availableSlots,
+            @Nonnull Collection<SlotInfoWithUtilization> availableSlots,
             @Nonnull Collection<TaskManagerLocation> locationPreferences,
             @Nonnull ResourceProfile resourceProfile) {
 
@@ -75,25 +75,23 @@ public abstract class LocationPreferenceSlotSelectionStrategy implements SlotSel
             preferredFQHostNames.merge(locationPreference.getFQDNHostname(), 1, Integer::sum);
         }
 
-        SlotInfoAndResources bestCandidate = null;
+        SlotInfoWithUtilization bestCandidate = null;
         Locality bestCandidateLocality = Locality.UNKNOWN;
         double bestCandidateScore = Double.NEGATIVE_INFINITY;
 
-        for (SlotInfoAndResources candidate : availableSlots) {
+        for (SlotInfoWithUtilization candidate : availableSlots) {
 
-            if (candidate.getRemainingResources().isMatching(resourceProfile)) {
+            if (candidate.getResourceProfile().isMatching(resourceProfile)) {
 
                 // this gets candidate is local-weigh
                 int localWeigh =
                         preferredResourceIDs.getOrDefault(
-                                candidate.getSlotInfo().getTaskManagerLocation().getResourceID(),
-                                0);
+                                candidate.getTaskManagerLocation().getResourceID(), 0);
 
                 // this gets candidate is host-local-weigh
                 int hostLocalWeigh =
                         preferredFQHostNames.getOrDefault(
-                                candidate.getSlotInfo().getTaskManagerLocation().getFQDNHostname(),
-                                0);
+                                candidate.getTaskManagerLocation().getFQDNHostname(), 0);
 
                 double candidateScore =
                         calculateCandidateScore(
@@ -111,14 +109,13 @@ public abstract class LocationPreferenceSlotSelectionStrategy implements SlotSel
 
         // at the end of the iteration, we return the candidate with best possible locality or null.
         return bestCandidate != null
-                ? Optional.of(
-                        SlotInfoAndLocality.of(bestCandidate.getSlotInfo(), bestCandidateLocality))
+                ? Optional.of(SlotInfoAndLocality.of(bestCandidate, bestCandidateLocality))
                 : Optional.empty();
     }
 
     @Nonnull
     protected abstract Optional<SlotInfoAndLocality> selectWithoutLocationPreference(
-            @Nonnull Collection<SlotInfoAndResources> availableSlots,
+            @Nonnull Collection<SlotInfoWithUtilization> availableSlots,
             @Nonnull ResourceProfile resourceProfile);
 
     protected abstract double calculateCandidateScore(

@@ -177,15 +177,15 @@ class LocationPreferenceSlotSelectionStrategyTest extends SlotSelectionStrategyT
     protected static void assertMatchingSlotLocalityAndInCandidates(
             Optional<SlotSelectionStrategy.SlotInfoAndLocality> matchingSlot,
             Locality locality,
-            Set<SlotSelectionStrategy.SlotInfoAndResources> candidates) {
+            Set<SlotInfoWithUtilization> candidates) {
         assertThat(matchingSlot)
                 .hasValueSatisfying(
                         slotInfoAndLocality -> {
                             assertThat(slotInfoAndLocality.getLocality()).isEqualTo(locality);
                             assertThat(candidates)
                                     .anySatisfy(
-                                            slotInfoAndResources ->
-                                                    assertThat(slotInfoAndResources.getSlotInfo())
+                                            slotInfoWithUtilization ->
+                                                    assertThat(slotInfoWithUtilization)
                                                             .isEqualTo(
                                                                     slotInfoAndLocality
                                                                             .getSlotInfo()));

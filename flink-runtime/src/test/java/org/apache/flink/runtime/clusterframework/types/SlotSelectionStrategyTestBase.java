@@ -70,17 +70,17 @@ abstract class SlotSelectionStrategyTestBase {
             SlotInfoWithUtilization.from(
                     new SimpleSlotContext(aid4, tml4, 4, taskManagerGateway, resourceProfile), 0);
 
-    protected final Set<SlotSelectionStrategy.SlotInfoAndResources> candidates =
+    protected final Set<SlotInfoWithUtilization> candidates =
             Collections.unmodifiableSet(createCandidates());
 
     protected SlotSelectionStrategy selectionStrategy;
 
-    private Set<SlotSelectionStrategy.SlotInfoAndResources> createCandidates() {
-        Set<SlotSelectionStrategy.SlotInfoAndResources> candidates = new HashSet<>(4);
-        candidates.add(SlotSelectionStrategy.SlotInfoAndResources.fromSingleSlot(slotInfo1));
-        candidates.add(SlotSelectionStrategy.SlotInfoAndResources.fromSingleSlot(slotInfo2));
-        candidates.add(SlotSelectionStrategy.SlotInfoAndResources.fromSingleSlot(slotInfo3));
-        candidates.add(SlotSelectionStrategy.SlotInfoAndResources.fromSingleSlot(slotInfo4));
+    private Set<SlotInfoWithUtilization> createCandidates() {
+        Set<SlotInfoWithUtilization> candidates = new HashSet<>(4);
+        candidates.add(slotInfo1);
+        candidates.add(slotInfo2);
+        candidates.add(slotInfo3);
+        candidates.add(slotInfo4);
         return candidates;
     }
 
