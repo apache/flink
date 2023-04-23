@@ -182,6 +182,10 @@ public class SourceMetricsITCase extends TestLogger {
                     .isEqualTo(processedRecordsPerSubtask);
             assertThatCounter(group.getIOMetricGroup().getNumBytesInCounter())
                     .isEqualTo(processedRecordsPerSubtask * MockRecordEmitter.RECORD_SIZE_IN_BYTES);
+            assertThatCounter(group.getIOMetricGroup().getNumRecordsOutCounter())
+                    .isEqualTo(processedRecordsPerSubtask);
+            assertThatCounter(group.getIOMetricGroup().getNumBytesOutCounter())
+                    .isEqualTo(processedRecordsPerSubtask * MockRecordEmitter.RECORD_SIZE_IN_BYTES);
             // MockRecordEmitter is just incrementing errors every even record
             assertThatCounter(metrics.get(MetricNames.NUM_RECORDS_IN_ERRORS))
                     .isEqualTo(processedRecordsPerSubtask / 2);
