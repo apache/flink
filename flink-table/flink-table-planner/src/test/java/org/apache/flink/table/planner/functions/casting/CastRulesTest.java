@@ -18,8 +18,10 @@
 
 package org.apache.flink.table.planner.functions.casting;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LocalDateSerializer;
 import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -38,11 +40,14 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.utils.DateTimeUtils;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDate;
@@ -814,6 +819,13 @@ class CastRulesTest {
                                         LocalDateTime.parse("2020-11-11T18:08:01.123")),
                                 fromString("2020-11-11T18:08:01.123"))
                         .fromCase(
+                                RAW(LocalDateTime.class, LocalDateTimeSerializer.INSTANCE),
+                                RawValueData.fromBytes(
+                                        getRawBytes(
+                                                LocalDateTime.parse("2020-11-11T18:08:01.123"),
+                                                LocalDateTimeSerializer.INSTANCE)),
+                                fromString("2020-11-11T18:08:01.123"))
+                        .fromCase(
                                 MY_STRUCTURED_TYPE,
                                 GenericRowData.of(
                                         10L,
@@ -942,9 +954,23 @@ class CastRulesTest {
                                 RAW(LocalDate.class, LocalDateSerializer.INSTANCE),
                                 RawValueData.fromObject(LocalDate.parse("2020-12-09")),
                                 fromString("2020-12-09  "))
+                        .fromCase(
+                                RAW(LocalDate.class, LocalDateSerializer.INSTANCE),
+                                RawValueData.fromBytes(
+                                        getRawBytes(
+                                                LocalDate.parse("2020-12-09"),
+                                                LocalDateSerializer.INSTANCE)),
+                                fromString("2020-12-09  "))
                         .fromCaseLegacy(
                                 RAW(LocalDate.class, LocalDateSerializer.INSTANCE),
                                 RawValueData.fromObject(LocalDate.parse("2020-12-09")),
+                                fromString("2020-12-09"))
+                        .fromCaseLegacy(
+                                RAW(LocalDate.class, LocalDateSerializer.INSTANCE),
+                                RawValueData.fromBytes(
+                                        getRawBytes(
+                                                LocalDate.parse("2020-12-09"),
+                                                LocalDateSerializer.INSTANCE)),
                                 fromString("2020-12-09"))
                         .fromCase(
                                 RAW(LocalDateTime.class, LocalDateTimeSerializer.INSTANCE)
@@ -1104,10 +1130,24 @@ class CastRulesTest {
                                 RawValueData.fromObject(
                                         LocalDateTime.parse("2020-11-11T18:08:01.123")),
                                 fromString("202"))
+                        .fromCase(
+                                RAW(LocalDateTime.class, LocalDateTimeSerializer.INSTANCE),
+                                RawValueData.fromBytes(
+                                        getRawBytes(
+                                                LocalDateTime.parse("2020-11-11T18:08:01.123"),
+                                                LocalDateTimeSerializer.INSTANCE)),
+                                fromString("202"))
                         .fromCaseLegacy(
                                 RAW(LocalDateTime.class, LocalDateTimeSerializer.INSTANCE),
                                 RawValueData.fromObject(
                                         LocalDateTime.parse("2020-11-11T18:08:01.123")),
+                                fromString("2020-11-11T18:08:01.123"))
+                        .fromCaseLegacy(
+                                RAW(LocalDateTime.class, LocalDateTimeSerializer.INSTANCE),
+                                RawValueData.fromBytes(
+                                        getRawBytes(
+                                                LocalDateTime.parse("2020-11-11T18:08:01.123"),
+                                                LocalDateTimeSerializer.INSTANCE)),
                                 fromString("2020-11-11T18:08:01.123"))
                         .fromCase(
                                 RAW(LocalDateTime.class, LocalDateTimeSerializer.INSTANCE)
@@ -1699,5 +1739,15 @@ class CastRulesTest {
                 LocalDateTime.of(years, months, days, hours, minutes, seconds, nanos)
                         .atZone(CET)
                         .toInstant());
+    }
+
+    private static <T> byte[] getRawBytes(T obj, TypeSerializer<T> serializer) {
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        try {
+            serializer.serialize(obj, new DataOutputViewStreamWrapper(bos));
+        } catch (IOException e) {
+            Assertions.fail("Failed to get raw bytes", e);
+        }
+        return bos.toByteArray();
     }
 }

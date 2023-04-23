@@ -24,6 +24,7 @@ import org.apache.flink.table.data.utils.CastExecutor;
 import org.apache.flink.table.planner.codegen.CodeGenUtils;
 import org.apache.flink.table.runtime.generated.CompileUtils;
 import org.apache.flink.table.runtime.typeutils.InternalSerializers;
+import org.apache.flink.table.runtime.typeutils.RawValueDataSerializer;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.FlinkRuntimeException;
 
@@ -217,10 +218,15 @@ abstract class AbstractCodeGeneratorCastRule<IN, OUT> extends AbstractCastRule<I
                     .computeIfAbsent(
                             type,
                             t -> {
+                                TypeSerializer<?> serializer = InternalSerializers.create(t);
+                                if (serializer instanceof RawValueDataSerializer) {
+                                    serializer =
+                                            ((RawValueDataSerializer<?>) serializer)
+                                                    .getInnerSerializer();
+                                }
                                 Map.Entry<String, TypeSerializer<?>> e =
                                         new SimpleImmutableEntry<>(
-                                                "typeSerializer$" + variableIndex,
-                                                InternalSerializers.create(t));
+                                                "typeSerializer$" + variableIndex, serializer);
                                 variableIndex++;
                                 return e;
                             })
