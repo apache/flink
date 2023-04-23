@@ -956,7 +956,7 @@ public class MiniCluster implements AutoCloseableAsync {
 
     /**
      * This method executes a job in detached mode. The method returns immediately after the job has
-     * been added to the
+     * been added to the execution.
      *
      * @param job The Flink job to execute
      * @throws JobExecutionException Thrown if anything went amiss during initial job launch, or if
