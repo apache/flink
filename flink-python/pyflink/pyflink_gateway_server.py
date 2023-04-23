@@ -160,7 +160,7 @@ def get_jvm_opts(env):
 
     # Remove leading and ending double quotes (if present) of value
     jvm_opts = jvm_opts.strip("\"")
-    return jvm_opts
+    return jvm_opts.split(" ")
 
 
 def construct_flink_classpath(env):
@@ -249,7 +249,7 @@ def launch_gateway_server_process(env, args):
             [construct_flink_classpath(env), construct_hadoop_classpath(env)])
         if "FLINK_TESTING" in env:
             classpath = os.pathsep.join([classpath, construct_test_classpath()])
-        command = [java_executable, jvm_args, jvm_opts] + log_settings \
+        command = [java_executable, jvm_args] + jvm_opts + log_settings \
             + ["-cp", classpath, program_args.main_class] + program_args.other_args
     else:
         command = [os.path.join(env["FLINK_BIN_DIR"], "flink"), "run"] + program_args.other_args \
