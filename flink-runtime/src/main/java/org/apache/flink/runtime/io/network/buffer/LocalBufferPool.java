@@ -68,7 +68,7 @@ import static org.apache.flink.util.concurrent.FutureUtils.assertNoException;
  * {@link NetworkBufferPool} as long as it hasn't reached {@link #maxNumberOfMemorySegments} or one
  * subpartition reached the quota.
  */
-class LocalBufferPool implements BufferPool {
+public class LocalBufferPool implements BufferPool {
     private static final Logger LOG = LoggerFactory.getLogger(LocalBufferPool.class);
 
     private static final int UNKNOWN_CHANNEL = -1;
