@@ -25,6 +25,7 @@ import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.blocklist.BlocklistUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -80,6 +81,8 @@ public class TaskManagerDisconnectOnShutdownITCase {
     public void testTaskManagerProcessFailure() {
         Configuration config = new Configuration();
         config.setString(JobManagerOptions.ADDRESS, "localhost");
+        config.set(JobManagerOptions.PORT, 0);
+        config.set(RestOptions.BIND_PORT, "0");
 
         // disable heartbeats
         config.set(HeartbeatManagerOptions.HEARTBEAT_RPC_FAILURE_THRESHOLD, -1);
@@ -116,9 +119,11 @@ public class TaskManagerDisconnectOnShutdownITCase {
                 }) {
             clusterEntrypoint.startCluster();
 
+            final Configuration taskManagerConfig = new Configuration(config);
+            taskManagerConfig.set(JobManagerOptions.PORT, clusterEntrypoint.getRpcPort());
             TestProcessBuilder taskManagerProcessBuilder =
                     new TestProcessBuilder(TaskExecutorProcessEntryPoint.class.getName());
-            taskManagerProcessBuilder.addConfigAsMainClassArgs(config);
+            taskManagerProcessBuilder.addConfigAsMainClassArgs(taskManagerConfig);
 
             // start the TaskManager processes
             taskManagerProcess = taskManagerProcessBuilder.start();
