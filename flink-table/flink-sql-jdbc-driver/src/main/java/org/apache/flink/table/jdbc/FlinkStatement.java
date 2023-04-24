@@ -64,11 +64,10 @@ public class FlinkStatement extends BaseStatement {
     }
 
     private void clearCurrentResults() throws SQLException {
-        FlinkResultSet resultSet = currentResults;
-        if (resultSet == null) {
+        if (currentResults == null) {
             return;
         }
-        resultSet.close();
+        currentResults.close();
         currentResults = null;
     }
 
