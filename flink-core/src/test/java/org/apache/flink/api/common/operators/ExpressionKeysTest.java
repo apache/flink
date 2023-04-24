@@ -35,16 +35,10 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.commons.lang3.ArrayUtils;
 import org.junit.Assert;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.modules.junit4.PowerMockRunner;
-import org.powermock.reflect.Whitebox;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.Arrays;
 
 @SuppressWarnings("unused")
-@RunWith(PowerMockRunner.class)
 public class ExpressionKeysTest {
 
     @Test
@@ -74,23 +68,18 @@ public class ExpressionKeysTest {
     }
 
     @Test
-    public void testTupleRangeCheck()
-            throws IllegalAccessException, IllegalArgumentException, InvocationTargetException {
-
-        // test private static final int[] rangeCheckFields(int[] fields, int maxAllowedField)
-        Method rangeCheckFieldsMethod =
-                Whitebox.getMethod(Keys.class, "rangeCheckFields", int[].class, int.class);
+    public void testTupleRangeCheck() throws IllegalArgumentException {
 
         // valid indexes
-        rangeCheckFieldsMethod.invoke(null, new int[] {1, 2, 3, 4}, 4);
+        Keys.rangeCheckFields(new int[] {1, 2, 3, 4}, 4);
 
         // corner case tests
-        rangeCheckFieldsMethod.invoke(null, new int[] {0}, 0);
+        Keys.rangeCheckFields(new int[] {0}, 0);
 
         Throwable ex = null;
         try {
             // throws illegal argument.
-            rangeCheckFieldsMethod.invoke(null, new int[] {5}, 0);
+            Keys.rangeCheckFields(new int[] {5}, 0);
         } catch (Throwable iae) {
             ex = iae;
         }
