@@ -18,9 +18,7 @@
 
 package org.apache.flink.table.jdbc.utils;
 
-import org.apache.flink.table.data.RowData;
-
 import java.util.Iterator;
 
 /** Closeable result iterator for jdbc driver. */
-public interface CloseableResultIterator extends Iterator<RowData>, AutoCloseable {}
+public interface CloseableResultIterator<T> extends Iterator<T>, AutoCloseable {}

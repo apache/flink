@@ -21,7 +21,6 @@ package org.apache.flink.table.jdbc;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.client.gateway.StatementResult;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.jdbc.utils.CloseableResultIterator;
 import org.apache.flink.table.jdbc.utils.DataConverter;
 import org.apache.flink.table.jdbc.utils.StatementResultIterator;
@@ -52,7 +51,7 @@ public class FlinkResultSet extends BaseResultSet {
     private final List<DataType> dataTypeList;
     private final List<String> columnNameList;
     private final Statement statement;
-    private final CloseableResultIterator iterator;
+    private final CloseableResultIterator<RowData> iterator;
     private final DataConverter dataConverter;
     private final FlinkResultSetMetaData resultSetMetaData;
     private RowData currentRow;
@@ -60,12 +59,20 @@ public class FlinkResultSet extends BaseResultSet {
 
     private volatile boolean closed;
 
-    public FlinkResultSet(Statement statement, StatementResult result, DataConverter dataConverter) {
-        this(statement, new StatementResultIterator(result), result.getResultSchema(), dataConverter);
+    public FlinkResultSet(
+            Statement statement, StatementResult result, DataConverter dataConverter) {
+        this(
+                statement,
+                new StatementResultIterator(result),
+                result.getResultSchema(),
+                dataConverter);
     }
 
     public FlinkResultSet(
-            Statement statement, CloseableResultIterator iterator, ResolvedSchema schema, DataConverter dataConverter) {
+            Statement statement,
+            CloseableResultIterator<RowData> iterator,
+            ResolvedSchema schema,
+            DataConverter dataConverter) {
         this.statement = checkNotNull(statement, "Statement cannot be null");
         this.iterator = checkNotNull(iterator, "Statement result cannot be null");
         this.dataConverter = checkNotNull(dataConverter, "Data converter cannot be null");

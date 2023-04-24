@@ -23,7 +23,7 @@ import org.apache.flink.table.data.RowData;
 import java.util.Iterator;
 
 /** Result iterator from given iterator. */
-public class CollectionResultIterator implements CloseableResultIterator {
+public class CollectionResultIterator implements CloseableResultIterator<RowData> {
     private final Iterator<RowData> iterator;
 
     public CollectionResultIterator(Iterator<RowData> iterator) {

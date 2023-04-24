@@ -66,7 +66,8 @@ public class DatabaseMetaDataUtils {
         return new FlinkResultSet(
                 statement,
                 new CollectionResultIterator(catalogs.iterator()),
-                ResolvedSchema.of(TABLE_CAT_COLUMN));
+                ResolvedSchema.of(TABLE_CAT_COLUMN),
+                StringDataConverter.CONVERTER);
     }
 
     /**
@@ -87,8 +88,9 @@ public class DatabaseMetaDataUtils {
     public static FlinkResultSet createSchemasResultSet(
             Statement statement, List<String> catalogs, Map<String, List<String>> catalogSchemas) {
         List<RowData> schemaWithCatalogList = new ArrayList<>();
-        catalogs.sort(String::compareTo);
-        for (String catalog : catalogs) {
+        List<String> catalogList = new ArrayList<>(catalogs);
+        catalogList.sort(String::compareTo);
+        for (String catalog : catalogList) {
             List<String> schemas = catalogSchemas.get(catalog);
             schemas.sort(String::compareTo);
             schemas.forEach(
@@ -102,6 +104,7 @@ public class DatabaseMetaDataUtils {
         return new FlinkResultSet(
                 statement,
                 new CollectionResultIterator(schemaWithCatalogList.iterator()),
-                ResolvedSchema.of(TABLE_SCHEM_COLUMN, TABLE_CATALOG_COLUMN));
+                ResolvedSchema.of(TABLE_SCHEM_COLUMN, TABLE_CATALOG_COLUMN),
+                StringDataConverter.CONVERTER);
     }
 }

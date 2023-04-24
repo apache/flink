@@ -22,7 +22,7 @@ import org.apache.flink.table.client.gateway.StatementResult;
 import org.apache.flink.table.data.RowData;
 
 /** Closeable result iterator for statement result. */
-public class StatementResultIterator implements CloseableResultIterator {
+public class StatementResultIterator implements CloseableResultIterator<RowData> {
     private final StatementResult result;
 
     public StatementResultIterator(StatementResult result) {

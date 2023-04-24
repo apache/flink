@@ -44,7 +44,7 @@ public class FlinkDatabaseMetaData extends BaseDatabaseMetaData {
     private final Executor executor;
 
     @VisibleForTesting
-    public FlinkDatabaseMetaData(String url, FlinkConnection connection, Statement statement) {
+    protected FlinkDatabaseMetaData(String url, FlinkConnection connection, Statement statement) {
         this.url = url;
         this.connection = connection;
         this.statement = statement;
@@ -74,6 +74,7 @@ public class FlinkDatabaseMetaData extends BaseDatabaseMetaData {
             try (StatementResult result = catalogs()) {
                 while (result.hasNext()) {
                     String catalog = result.next().getString(0).toString();
+                    connection.setCatalog(catalog);
                     getSchemasForCatalog(catalogList, catalogSchemaList, catalog, null);
                 }
             }
@@ -93,8 +94,6 @@ public class FlinkDatabaseMetaData extends BaseDatabaseMetaData {
             @Nullable String schemaPattern)
             throws SQLException {
         catalogList.add(catalog);
-        connection.setCatalog(catalog);
-
         List<String> schemas = new ArrayList<>();
         try (StatementResult schemaResult = schemas()) {
             while (schemaResult.hasNext()) {
@@ -122,11 +121,13 @@ public class FlinkDatabaseMetaData extends BaseDatabaseMetaData {
                 try (StatementResult result = catalogs()) {
                     while (result.hasNext()) {
                         String catalogName = result.next().getString(0).toString();
+                        connection.setCatalog(catalogName);
                         getSchemasForCatalog(
                                 catalogList, catalogSchemas, catalogName, schemaPattern);
                     }
                 }
             } else {
+                connection.setCatalog(catalog);
                 getSchemasForCatalog(catalogList, catalogSchemas, catalog, schemaPattern);
             }
             connection.setCatalog(currentCatalog);

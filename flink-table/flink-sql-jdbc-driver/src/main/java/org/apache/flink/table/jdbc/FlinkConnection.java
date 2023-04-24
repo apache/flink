@@ -34,6 +34,8 @@ import java.util.Collections;
 import java.util.Properties;
 import java.util.UUID;
 
+import static org.apache.flink.table.jdbc.utils.DriverUtils.checkArgument;
+
 /** Connection to flink sql gateway for jdbc driver. */
 public class FlinkConnection extends BaseConnection {
     private final String url;
@@ -106,7 +108,9 @@ public class FlinkConnection extends BaseConnection {
     public String getCatalog() throws SQLException {
         try (StatementResult result = executor.executeStatement("SHOW CURRENT CATALOG;")) {
             if (result.hasNext()) {
-                return result.next().getString(0).toString();
+                String catalog = result.next().getString(0).toString();
+                checkArgument(!result.hasNext(), "There are more than one current catalog.");
+                return catalog;
             } else {
                 throw new SQLException("No catalog");
             }
@@ -160,7 +164,9 @@ public class FlinkConnection extends BaseConnection {
     public String getSchema() throws SQLException {
         try (StatementResult result = executor.executeStatement("SHOW CURRENT DATABASE;")) {
             if (result.hasNext()) {
-                return result.next().getString(0).toString();
+                String schema = result.next().getString(0).toString();
+                checkArgument(!result.hasNext(), "There are more than one current database.");
+                return schema;
             } else {
                 throw new SQLException("No database");
             }
