@@ -77,7 +77,7 @@ public class DefaultAllocatedSlotPool implements AllocatedSlotPool {
 
     private void addSlotInternal(AllocatedSlot slot, long currentTime) {
         registeredSlots.put(slot.getAllocationId(), slot);
-        freeSlots.addFreeSlot(slot, currentTime);
+        freeSlots.addFreeSlot(slot.getAllocationId(), slot.getTaskManagerId(), currentTime);
     }
 
     @Override
@@ -109,7 +109,7 @@ public class DefaultAllocatedSlotPool implements AllocatedSlotPool {
     private AllocatedSlot removeSlotInternal(AllocationID allocationId) {
         final AllocatedSlot removedSlot = registeredSlots.remove(allocationId);
         if (removedSlot != null) {
-            freeSlots.removeFreeSlot(removedSlot);
+            freeSlots.removeFreeSlot(allocationId, removedSlot.getTaskManagerId());
         }
         return removedSlot;
     }
@@ -164,7 +164,7 @@ public class DefaultAllocatedSlotPool implements AllocatedSlotPool {
         AllocatedSlot slot = registeredSlots.get(allocationId);
         Preconditions.checkNotNull(slot, "The slot with id %s was not exists.", allocationId);
         Preconditions.checkState(
-                freeSlots.removeFreeSlot(slot) != null,
+                freeSlots.removeFreeSlot(allocationId, slot.getTaskManagerId()) != null,
                 "The slot with id %s was not free.",
                 allocationId);
         return registeredSlots.get(allocationId);
@@ -175,7 +175,7 @@ public class DefaultAllocatedSlotPool implements AllocatedSlotPool {
         final AllocatedSlot allocatedSlot = registeredSlots.get(allocationId);
 
         if (allocatedSlot != null && !freeSlots.contains(allocationId)) {
-            freeSlots.addFreeSlot(allocatedSlot, currentTime);
+            freeSlots.addFreeSlot(allocationId, allocatedSlot.getTaskManagerId(), currentTime);
             return Optional.of(allocatedSlot);
         } else {
             return Optional.empty();
@@ -225,24 +225,25 @@ public class DefaultAllocatedSlotPool implements AllocatedSlotPool {
         /** Index containing a mapping between TaskExecutors and their free slots number. */
         private final Map<ResourceID, Integer> freeSlotsNumberPerTaskExecutor = new HashMap<>();
 
-        public void addFreeSlot(AllocatedSlot slot, long currentTime) {
-            Preconditions.checkState(
-                    !freeSlotsSince.containsKey(slot.getAllocationId()),
-                    "Slot with id %s has been freed",
-                    slot.getAllocationId());
-            freeSlotsSince.put(slot.getAllocationId(), currentTime);
-            freeSlotsNumberPerTaskExecutor.put(
-                    slot.getTaskManagerId(),
-                    freeSlotsNumberPerTaskExecutor.getOrDefault(slot.getTaskManagerId(), 0) + 1);
+        public void addFreeSlot(
+                AllocationID allocationId, ResourceID resourceId, long currentTime) {
+            if (freeSlotsSince.put(allocationId, currentTime) == null) {
+                freeSlotsNumberPerTaskExecutor.merge(resourceId, 1, Integer::sum);
+            }
         }
 
-        public Long removeFreeSlot(AllocatedSlot slot) {
-            if (freeSlotsSince.containsKey(slot.getAllocationId())) {
-                freeSlotsNumberPerTaskExecutor.put(
-                        slot.getTaskManagerId(),
-                        freeSlotsNumberPerTaskExecutor.get(slot.getTaskManagerId()) - 1);
+        public Long removeFreeSlot(AllocationID allocationId, ResourceID resourceId) {
+            Long freeSince = freeSlotsSince.remove(allocationId);
+            if (freeSince != null) {
+                freeSlotsNumberPerTaskExecutor.computeIfPresent(
+                        resourceId,
+                        (ignore, count) -> {
+                            int newCount = count - 1;
+                            return newCount == 0 ? null : newCount;
+                        });
             }
-            return freeSlotsSince.remove(slot.getAllocationId());
+
+            return freeSince;
         }
 
         public boolean contains(AllocationID allocationId) {
