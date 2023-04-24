@@ -101,11 +101,11 @@
           "type" : "VARCHAR(2147483647)"
         }, {
           "kind" : "LITERAL",
-          "value" : "1",
+          "value" : 1,
           "type" : "INT NOT NULL"
         }, {
           "kind" : "LITERAL",
-          "value" : "5",
+          "value" : 5,
           "type" : "INT NOT NULL"
         } ],
         "type" : "VARCHAR(2147483647)"
@@ -121,7 +121,7 @@
         "type" : "TIMESTAMP(3)"
       }, {
         "kind" : "LITERAL",
-        "value" : "1000",
+        "value" : 1000,
         "type" : "INT NOT NULL"
       } ],
       "type" : "TIMESTAMP(3)"
@@ -149,7 +149,7 @@
             "type" : "BIGINT NOT NULL"
           }, {
             "kind" : "LITERAL",
-            "value" : "0",
+            "value" : 0,
             "type" : "INT NOT NULL"
           } ],
           "type" : "BOOLEAN NOT NULL"
@@ -173,7 +173,7 @@
             "type" : "BIGINT"
           }, {
             "kind" : "LITERAL",
-            "value" : "100",
+            "value" : 100,
             "type" : "INT NOT NULL"
           } ],
           "type" : "BOOLEAN"
@@ -189,7 +189,7 @@
           "type" : "INT NOT NULL"
         }, {
           "kind" : "LITERAL",
-          "value" : "10",
+          "value" : 10,
           "type" : "INT NOT NULL"
         } ],
         "type" : "BOOLEAN NOT NULL"

@@ -194,7 +194,7 @@
         "type" : "INT"
       }, {
         "kind" : "LITERAL",
-        "value" : "1024",
+        "value" : 1024,
         "type" : "INT NOT NULL"
       } ],
       "type" : "INT"

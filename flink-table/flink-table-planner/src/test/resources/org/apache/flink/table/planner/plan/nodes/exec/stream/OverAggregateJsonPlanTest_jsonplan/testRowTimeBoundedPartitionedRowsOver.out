@@ -179,7 +179,7 @@
       } ],
       "constants" : [ {
         "kind" : "LITERAL",
-        "value" : "5",
+        "value" : 5,
         "type" : "INT NOT NULL"
       } ],
       "originalInputFields" : 3

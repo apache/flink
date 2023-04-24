@@ -167,7 +167,7 @@
               "type" : "VARCHAR(2147483647)"
             }, {
               "kind" : "LITERAL",
-              "value" : "0",
+              "value" : 0,
               "type" : "INT NOT NULL"
             } ],
             "type" : "VARCHAR(2147483647)"
@@ -192,7 +192,7 @@
               "type" : "VARCHAR(2147483647)"
             }, {
               "kind" : "LITERAL",
-              "value" : "0",
+              "value" : 0,
               "type" : "INT NOT NULL"
             } ],
             "type" : "VARCHAR(2147483647)"
@@ -217,7 +217,7 @@
               "type" : "VARCHAR(2147483647)"
             }, {
               "kind" : "LITERAL",
-              "value" : "0",
+              "value" : 0,
               "type" : "INT NOT NULL"
             } ],
             "type" : "VARCHAR(2147483647)"

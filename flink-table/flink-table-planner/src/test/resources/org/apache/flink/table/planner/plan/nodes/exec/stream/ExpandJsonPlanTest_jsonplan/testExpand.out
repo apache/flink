@@ -60,7 +60,7 @@
         "type" : "INT NOT NULL"
       }, {
         "kind" : "LITERAL",
-        "value" : "1024",
+        "value" : 1024,
         "type" : "INT NOT NULL"
       } ],
       "type" : "INT NOT NULL"
@@ -78,7 +78,7 @@
         "type" : "INT"
       }, {
         "kind" : "LITERAL",
-        "value" : "1024",
+        "value" : 1024,
         "type" : "INT NOT NULL"
       } ],
       "type" : "INT"
@@ -118,7 +118,7 @@
       "type" : "INT"
     }, {
       "kind" : "LITERAL",
-      "value" : "1",
+      "value" : 1,
       "type" : "BIGINT NOT NULL"
     } ], [ {
       "kind" : "INPUT_REF",
@@ -142,7 +142,7 @@
       "type" : "INT"
     }, {
       "kind" : "LITERAL",
-      "value" : "2",
+      "value" : 2,
       "type" : "BIGINT NOT NULL"
     } ] ],
     "inputProperties" : [ {
@@ -187,7 +187,7 @@
         "type" : "BIGINT NOT NULL"
       }, {
         "kind" : "LITERAL",
-        "value" : "1",
+        "value" : 1,
         "type" : "INT NOT NULL"
       } ],
       "type" : "BOOLEAN NOT NULL"
@@ -201,7 +201,7 @@
         "type" : "BIGINT NOT NULL"
       }, {
         "kind" : "LITERAL",
-        "value" : "2",
+        "value" : 2,
         "type" : "INT NOT NULL"
       } ],
       "type" : "BOOLEAN NOT NULL"

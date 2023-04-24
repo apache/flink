@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.utils;
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
@@ -41,6 +42,10 @@ public final class JsonTestUtils {
 
     public static JsonNode readFromString(String path) throws IOException {
         return OBJECT_MAPPER_INSTANCE.readTree(path);
+    }
+
+    public static String writeToString(JsonNode target) throws JsonProcessingException {
+        return OBJECT_MAPPER_INSTANCE.writeValueAsString(target);
     }
 
     public static JsonNode setFlinkVersion(JsonNode target, FlinkVersion flinkVersion) {
