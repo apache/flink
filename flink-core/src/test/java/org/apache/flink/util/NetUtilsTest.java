@@ -28,7 +28,6 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.net.URL;
-import java.net.UnknownHostException;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
@@ -259,7 +258,15 @@ public class NetUtilsTest extends TestLogger {
     }
 
     @Test
-    public void testFormatAddress() throws UnknownHostException {
+    public void testFormatAddress() {
+        {
+            // null
+            String host = null;
+            int port = 42;
+            Assert.assertEquals(
+                    "127.0.0.1" + ":" + port,
+                    NetUtils.unresolvedHostAndPortToNormalizedString(host, port));
+        }
         {
             // IPv4
             String host = "1.2.3.4";
