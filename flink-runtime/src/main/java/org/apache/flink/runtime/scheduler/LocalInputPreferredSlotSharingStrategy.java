@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
@@ -133,9 +132,6 @@ class LocalInputPreferredSlotSharingStrategy
         private final Map<CoLocationConstraint, ExecutionSlotSharingGroup>
                 constraintToExecutionSlotSharingGroupMap;
 
-        private final Map<SlotSharingGroupId, List<ExecutionSlotSharingGroup>>
-                executionSlotSharingGroups;
-
         /**
          * A JobVertex only belongs to one {@link SlotSharingGroup}. A SlotSharingGroup is
          * corresponding to a set of {@link ExecutionSlotSharingGroup}s. We can maintain available
@@ -197,7 +193,6 @@ class LocalInputPreferredSlotSharingStrategy
 
             executionSlotSharingGroupMap = new HashMap<>();
             constraintToExecutionSlotSharingGroupMap = new HashMap<>();
-            executionSlotSharingGroups = new HashMap<>();
             availableGroupsForJobVertex = new HashMap<>();
             candidateGroupsForConsumedPartitionGroup = new IdentityHashMap<>();
         }
@@ -398,14 +393,9 @@ class LocalInputPreferredSlotSharingStrategy
                 ExecutionVertexID executionVertexId) {
             final SlotSharingGroup slotSharingGroup =
                     getSlotSharingGroup(executionVertexId.getJobVertexId());
-            final List<ExecutionSlotSharingGroup> correspondingExecutionSlotSharingGroups =
-                    executionSlotSharingGroups.computeIfAbsent(
-                            slotSharingGroup.getSlotSharingGroupId(), k -> new ArrayList<>());
 
             final ExecutionSlotSharingGroup newGroup = new ExecutionSlotSharingGroup();
             newGroup.setResourceProfile(slotSharingGroup.getResourceProfile());
-
-            correspondingExecutionSlotSharingGroups.add(newGroup);
 
             // Once a new ExecutionSlotSharingGroup is created, it's available for all JobVertices
             // in this SlotSharingGroup
