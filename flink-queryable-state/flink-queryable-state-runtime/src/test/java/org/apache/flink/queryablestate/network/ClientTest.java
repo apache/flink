@@ -230,7 +230,7 @@ class ClientTest {
 
     /** Tests that a request to an unavailable host is failed with ConnectException. */
     @Test
-    void testRequestUnavailableHost() throws Exception {
+    void testRequestUnavailableHost() {
         AtomicKvStateRequestStats stats = new AtomicKvStateRequestStats();
 
         MessageSerializer<KvStateInternalRequest, KvStateResponse> serializer =
@@ -243,7 +243,10 @@ class ClientTest {
         try {
             client = new Client<>("Test Client", 1, serializer, stats);
 
-            InetSocketAddress serverAddress = new InetSocketAddress(InetAddress.getLocalHost(), 0);
+            // Since no real servers are created based on the server address, the given fixed port
+            // is enough.
+            InetSocketAddress serverAddress =
+                    new InetSocketAddress("flink-qs-client-test-unavailable-host", 12345);
 
             KvStateInternalRequest request =
                     new KvStateInternalRequest(new KvStateID(), new byte[0]);
