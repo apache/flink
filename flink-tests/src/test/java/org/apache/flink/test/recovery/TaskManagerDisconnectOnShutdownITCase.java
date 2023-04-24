@@ -52,6 +52,7 @@ import org.apache.flink.test.util.TestProcessBuilder;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.TestLoggerExtension;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
@@ -67,7 +68,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getJavaCommandPath;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.fail;
 
 /** This test ensures the TaskManager disconnects from the ResourceManager on shutdown. */
 @ExtendWith(TestLoggerExtension.class)
@@ -97,7 +97,7 @@ public class TaskManagerDisconnectOnShutdownITCase {
         // is available on this machine
         String javaCommand = getJavaCommandPath();
         if (javaCommand == null) {
-            fail("cannot find java executable");
+            Assertions.fail("cannot find java executable");
         }
 
         final TaskManagerConnectionTracker tracker = new TaskManagerConnectionTracker();
@@ -133,7 +133,7 @@ public class TaskManagerDisconnectOnShutdownITCase {
             assertThat(tracker.getNumberOfConnectedTaskManager()).isEqualTo(1);
         } catch (Throwable t) {
             printProcessLog(taskManagerProcess);
-            fail(t.getMessage());
+            Assertions.fail(t.getMessage());
         } finally {
             if (taskManagerProcess != null && taskManagerProcess.getProcess().isAlive()) {
                 LOG.error("TaskManager did not shutdown in time.");
