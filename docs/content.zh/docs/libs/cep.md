@@ -724,21 +724,18 @@ Pattern.begin("start").where(_.getName().equals("a"))
           <td>
               <p>与<code>oneOrMore()</code>和<code>times()</code>一起使用， 在匹配的事件之间施加严格的连续性，
               也就是说，任何不匹配的事件都会终止匹配（和<code>next()</code>一样）。</p>
-              <p>如果不使用它，那么就是松散连续（和<code>followedBy()</code>一样）。</p>
+              <p>如果不使用它，那么就是松散连续（和<code>followedBy()</code>一样）。例如，一个如下的模式：
 
-              <p>例如，一个如下的模式：</p>
 ```java
 Pattern.<Event>begin("start")
-    .where(SimpleCondition.of(value -> value.getName().equals("c")))
-    .followedBy("middle")
+    .next("middle")
     .where(SimpleCondition.of(value -> value.getName().equals("a")))
-    .oneOrMore()
-    .consecutive()
-    .followedBy("end1")
-    .where(SimpleCondition.of(value -> value.getName().equals("b")));
+    .notFollowedBy("end")
+    .where(SimpleCondition.of(value -> value.getName().equals("b")))
+    .within(Time.seconds(10));
 ```
+</p>
               <p>输入：C D A1 A2 A3 D A4 B，会产生下面的输出：</p>
-
               <p>如果施加严格连续性： {C A1 B}，{C A1 A2 B}，{C A1 A2 A3 B}</p>
               <p>不施加严格连续性： {C A1 B}，{C A1 A2 B}，{C A1 A2 A3 B}，{C A1 A2 A3 A4 B}</p>
           </td>
@@ -748,21 +745,20 @@ Pattern.<Event>begin("start")
        <td>
               <p>与<code>oneOrMore()</code>和<code>times()</code>一起使用，
               在匹配的事件中间施加不确定松散连续性（和<code>followedByAny()</code>一样）。</p>
-              <p>如果不使用，就是松散连续（和<code>followedBy()</code>一样）。</p>
+              <p>如果不使用，就是松散连续（和<code>followedBy()</code>一样）。例如，一个如下的模式：
 
-              <p>例如，一个如下的模式：</p>
 ```java
 Pattern.<Event>begin("start")
-    .where(SimpleCondition.of(value -> value.getName().equals("c")))
-    .followedBy("middle")
-    .where(SimpleCondition.of(value -> value.getName().equals("a")))
-    .oneOrMore()
-    .allowCombinations()
-    .followedBy("end1")
-    .where(SimpleCondition.of(value -> value.getName().equals("b")));
+.where(SimpleCondition.of(value -> value.getName().equals("c")))
+.followedBy("middle")
+.where(SimpleCondition.of(value -> value.getName().equals("a")))
+.oneOrMore()
+.allowCombinations()
+.followedBy("end1")
+.where(SimpleCondition.of(value -> value.getName().equals("b")));
 ```
+</p>
                <p>输入：C D A1 A2 A3 D A4 B，会产生如下的输出：</p>
-
                <p>如果使用不确定松散连续： {C A1 B}，{C A1 A2 B}，{C A1 A3 B}，{C A1 A4 B}，{C A1 A2 A3 B}，{C A1 A2 A4 B}，{C A1 A3 A4 B}，{C A1 A2 A3 A4 B}</p>
                <p>如果不使用：{C A1 B}，{C A1 A2 B}，{C A1 A2 A3 B}，{C A1 A2 A3 A4 B}</p>
        </td>
@@ -784,18 +780,16 @@ Pattern.<Event>begin("start")
               <td>
                 <p>与<code>oneOrMore()</code>和<code>times()</code>一起使用， 在匹配的事件之间施加严格的连续性，
                 也就是说，任何不匹配的事件都会终止匹配（和<code>next()</code>一样）。</p>
-                <p>如果不使用它，那么就是松散连续（和<code>followedBy()</code>一样）。</p>
+                <p>如果不使用它，那么就是松散连续（和<code>followedBy()</code>一样）。例如，一个如下的模式：
 
-          <p>例如，一个如下的模式：</p>
 ```scala
 Pattern.begin("start").where(_.getName().equals("c"))
   .followedBy("middle").where(_.getName().equals("a"))
                        .oneOrMore().consecutive()
   .followedBy("end1").where(_.getName().equals("b"))
 ```
-
+</p>
                 <p>输入：C D A1 A2 A3 D A4 B，会产生下面的输出：</p>
-
                 <p>如果施加严格连续性： {C A1 B}，{C A1 A2 B}，{C A1 A2 A3 B}</p>
                 <p>不施加严格连续性： {C A1 B}，{C A1 A2 B}，{C A1 A2 A3 B}，{C A1 A2 A3 A4 B}</p>
               </td>
@@ -805,18 +799,16 @@ Pattern.begin("start").where(_.getName().equals("c"))
                   <td>
                     <p>与<code>oneOrMore()</code>和<code>times()</code>一起使用，
                     在匹配的事件中间施加不确定松散连续性（和<code>followedByAny()</code>一样）。</p>
-                    <p>如果不使用，就是松散连续（和<code>followedBy()</code>一样）。</p>
+                    <p>如果不使用，就是松散连续（和<code>followedBy()</code>一样）。例如，一个如下的模式：
 
-           <p>例如，一个如下的模式：</p>
 ```scala
 Pattern.begin("start").where(_.getName().equals("c"))
   .followedBy("middle").where(_.getName().equals("a"))
                        .oneOrMore().allowCombinations()
   .followedBy("end1").where(_.getName().equals("b"))
 ```
-
+</p>
                           <p>输入：C D A1 A2 A3 D A4 B，会产生如下的输出：</p>
-
                           <p>如果使用不确定松散连续： {C A1 B}，{C A1 A2 B}，{C A1 A3 B}，{C A1 A4 B}，{C A1 A2 A3 B}，{C A1 A2 A4 B}，{C A1 A3 A4 B}，{C A1 A2 A3 A4 B}</p>
                           <p>如果不使用：{C A1 B}，{C A1 A2 B}，{C A1 A2 A3 B}，{C A1 A2 A3 A4 B}</p>
                   </td>
