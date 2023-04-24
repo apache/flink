@@ -614,6 +614,13 @@ under the License.
 
 			<!-- For dependency convergence -->
 			<dependency>
+				<groupId>net.java.dev.jna</groupId>
+				<artifactId>jna</artifactId>
+				<version>5.12.1</version>
+			</dependency>
+
+			<!-- For dependency convergence -->
+			<dependency>
 				<groupId>org.objenesis</groupId>
 				<artifactId>objenesis</artifactId>
 				<version>2.1</version>
