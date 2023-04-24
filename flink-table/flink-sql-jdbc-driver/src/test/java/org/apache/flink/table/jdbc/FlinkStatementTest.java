@@ -74,7 +74,8 @@ public class FlinkStatementTest extends FlinkJdbcDriverTestBase {
                 // Wait job finished
                 boolean jobFinished = false;
                 while (!jobFinished) {
-                    try (ResultSet resultSet = statement.executeQuery("SHOW JOBS")) {
+                    assertTrue(statement.execute("SHOW JOBS"));
+                    try (ResultSet resultSet = statement.getResultSet()) {
                         while (resultSet.next()) {
                             if (resultSet.getString(1).equals(jobId)) {
                                 if (resultSet.getString(3).equals("FINISHED")) {
@@ -106,7 +107,8 @@ public class FlinkStatementTest extends FlinkJdbcDriverTestBase {
                                     "1,11,111", "2,22,222", "3,33,333", "4,44,444");
                 }
 
-                try (ResultSet resultSet = statement.executeQuery("SHOW JOBS")) {
+                assertTrue(statement.execute("SHOW JOBS"));
+                try (ResultSet resultSet = statement.getResultSet()) {
                     // Check there are two finished jobs.
                     int count = 0;
                     while (resultSet.next()) {

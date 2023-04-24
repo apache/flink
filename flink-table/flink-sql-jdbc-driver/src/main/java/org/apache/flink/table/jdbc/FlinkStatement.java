@@ -23,41 +23,53 @@ import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.StatementResult;
 import org.apache.flink.table.jdbc.utils.StringDataConverter;
 
+import javax.annotation.concurrent.NotThreadSafe;
+
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
-import java.util.concurrent.atomic.AtomicReference;
 
 /** Statement for flink jdbc driver. */
+@NotThreadSafe
 public class FlinkStatement extends BaseStatement {
     private final Connection connection;
     private final Executor executor;
-    private final AtomicReference<FlinkResultSet> currentResults;
-    private volatile boolean closed;
+    private FlinkResultSet currentResults;
+    private boolean closed;
 
     public FlinkStatement(FlinkConnection connection) {
         this.connection = connection;
         this.executor = connection.getExecutor();
-        this.currentResults = new AtomicReference<>();
+        this.currentResults = null;
     }
 
+    /**
+     * Execute a SELECT query.
+     *
+     * @param sql an SQL statement to be sent to the database, typically a static SQL <code>SELECT
+     *     </code> statement
+     * @return the select query result set.
+     * @throws SQLException the thrown exception
+     */
     @Override
     public ResultSet executeQuery(String sql) throws SQLException {
-        if (!execute(sql)) {
+        StatementResult result = executeInternal(sql);
+        if (!result.isQueryResult()) {
             throw new SQLException(String.format("Statement[%s] is not a query.", sql));
         }
+        currentResults = new FlinkResultSet(this, result, StringDataConverter.CONVERTER);
 
-        return currentResults.get();
+        return currentResults;
     }
 
     private void clearCurrentResults() throws SQLException {
-        FlinkResultSet resultSet = currentResults.get();
+        FlinkResultSet resultSet = currentResults;
         if (resultSet == null) {
             return;
         }
         resultSet.close();
-        currentResults.set(null);
+        currentResults = null;
     }
 
     @Override
@@ -82,42 +94,51 @@ public class FlinkStatement extends BaseStatement {
         }
     }
 
+    /**
+     * Execute a sql statement. Notice that the <code>INSERT</code> statement in Flink would return
+     * job id as result set.
+     *
+     * @param sql any SQL statement
+     * @return True if there is result set for the statement.
+     * @throws SQLException the thrown exception.
+     */
     @Override
     public boolean execute(String sql) throws SQLException {
+        StatementResult result = executeInternal(sql);
+        if (result.isQueryResult() || result.getResultKind() == ResultKind.SUCCESS_WITH_CONTENT) {
+            currentResults = new FlinkResultSet(this, result, StringDataConverter.CONVERTER);
+            return true;
+        }
+
+        return false;
+    }
+
+    private StatementResult executeInternal(String sql) throws SQLException {
         checkClosed();
         clearCurrentResults();
 
-        StatementResult result = executor.executeStatement(sql);
-        FlinkResultSet resultSet = new FlinkResultSet(this, result, StringDataConverter.CONVERTER);
-        currentResults.set(resultSet);
-
-        return resultSet.isQuery() || result.getResultKind() == ResultKind.SUCCESS_WITH_CONTENT;
+        return executor.executeStatement(sql);
     }
 
     @Override
     public ResultSet getResultSet() throws SQLException {
         checkClosed();
 
-        FlinkResultSet resultSet = currentResults.get();
-        if (resultSet == null) {
+        if (currentResults == null) {
             throw new SQLException("No result set in the current statement.");
         }
-        if (!resultSet.isQuery()) {
-            throw new SQLException("Result set is not query");
-        }
-        if (resultSet.isClosed()) {
+        if (currentResults.isClosed()) {
             throw new SQLException("Result set has been closed");
         }
 
-        return resultSet;
+        return currentResults;
     }
 
     @Override
     public boolean getMoreResults() throws SQLException {
         checkClosed();
 
-        FlinkResultSet resultSet = currentResults.get();
-        if (resultSet != null) {
+        if (currentResults != null) {
             cancel();
             return false;
         }

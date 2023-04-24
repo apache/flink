@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.jdbc;
 
-import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.client.gateway.StatementResult;
 import org.apache.flink.table.data.RowData;
@@ -52,7 +51,6 @@ public class FlinkResultSet extends BaseResultSet {
     private final Statement statement;
     private final StatementResult result;
     private final DataConverter dataConverter;
-    private final boolean query;
     private final FlinkResultSetMetaData resultSetMetaData;
     private RowData currentRow;
     private boolean wasNull;
@@ -63,8 +61,6 @@ public class FlinkResultSet extends BaseResultSet {
             Statement statement, StatementResult result, DataConverter dataConverter) {
         this.statement = checkNotNull(statement, "Statement cannot be null");
         this.result = checkNotNull(result, "Statement result cannot be null");
-        this.query =
-                result.isQueryResult() || result.getResultKind() == ResultKind.SUCCESS_WITH_CONTENT;
         this.dataConverter = checkNotNull(dataConverter, "Data converter cannot be null");
         this.currentRow = null;
         this.wasNull = false;
@@ -449,9 +445,5 @@ public class FlinkResultSet extends BaseResultSet {
     @Override
     public boolean isClosed() throws SQLException {
         return this.closed;
-    }
-
-    boolean isQuery() {
-        return query;
     }
 }
