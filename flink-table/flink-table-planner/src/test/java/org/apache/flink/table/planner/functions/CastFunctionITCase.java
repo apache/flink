@@ -1204,7 +1204,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 new Long[] {1L, null, 2L})
                         .build(),
                 CastTestSpecBuilder.testCastTo(ARRAY(BIGINT().notNull()))
-                        .fromCase(ARRAY(INT().notNull()), new Integer[] {1, 2}, new Long[] {1L, 2L})
+                        .fromCase(ARRAY(INT().notNull()), new Integer[] {1, 2}, new long[] {1L, 2L})
                         .build(),
                 CastTestSpecBuilder.testCastTo(ROW(BIGINT(), BIGINT(), STRING(), ARRAY(STRING())))
                         .fromCase(
