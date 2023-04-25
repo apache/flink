@@ -256,7 +256,7 @@ public class DataStreamCsvITCase {
         "capital",
         "population"
     })
-    static class CityPojo implements Serializable {
+    public static class CityPojo implements Serializable {
         public String city;
         public BigDecimal lat;
         public BigDecimal lng;
