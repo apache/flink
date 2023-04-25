@@ -27,7 +27,9 @@ import org.apache.flink.orc.vector.Vectorizer;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.orc.OrcFile;
+import org.apache.orc.impl.PhysicalFsWriter;
 import org.apache.orc.impl.WriterImpl;
+import org.apache.orc.impl.writer.WriterEncryptionVariant;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -96,7 +98,9 @@ public class OrcBulkWriterFactory<T> implements BulkWriter.Factory<T> {
     @Override
     public BulkWriter<T> create(FSDataOutputStream out) throws IOException {
         OrcFile.WriterOptions opts = getWriterOptions();
-        opts.physicalWriter(new PhysicalWriterImpl(out, opts));
+        opts.physicalWriter(
+                new PhysicalFsWriter(
+                        new NoCloseFSDataOutputStream(out), opts, new WriterEncryptionVariant[0]));
 
         // The path of the Writer is not used to indicate the destination file
         // in this case since we have used a dedicated physical writer to write

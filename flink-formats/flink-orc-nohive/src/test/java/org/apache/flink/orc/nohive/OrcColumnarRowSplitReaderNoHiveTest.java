@@ -47,11 +47,11 @@ class OrcColumnarRowSplitReaderNoHiveTest extends OrcColumnarRowSplitReaderTest 
         TypeDescription schema =
                 TypeDescription.fromString(
                         "struct<"
-                                + "f0:float,"
-                                + "f1:double,"
-                                + "f2:timestamp,"
-                                + "f3:tinyint,"
-                                + "f4:smallint"
+                                + "_col0:float,"
+                                + "_col1:double,"
+                                + "_col2:timestamp,"
+                                + "_col3:tinyint,"
+                                + "_col4:smallint"
                                 + ">");
 
         org.apache.hadoop.fs.Path filePath = new org.apache.hadoop.fs.Path(file);
@@ -105,7 +105,9 @@ class OrcColumnarRowSplitReaderNoHiveTest extends OrcColumnarRowSplitReaderTest 
             throws IOException {
         return OrcNoHiveSplitReaderUtil.genPartColumnarRowReader(
                 new Configuration(),
-                IntStream.range(0, fullTypes.length).mapToObj(i -> "f" + i).toArray(String[]::new),
+                IntStream.range(0, fullTypes.length)
+                        .mapToObj(i -> "_col" + i)
+                        .toArray(String[]::new),
                 fullTypes,
                 partitionSpec,
                 selectedFields,

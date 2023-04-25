@@ -154,11 +154,11 @@ public class OrcColumnarRowSplitReaderTest {
         long totalF0 = 0;
 
         Map<String, Object> partSpec = new HashMap<>();
-        partSpec.put("f1", 1);
-        partSpec.put("f3", 3L);
-        partSpec.put("f5", "f5");
-        partSpec.put("f8", BigDecimal.valueOf(5.333));
-        partSpec.put("f13", "f13");
+        partSpec.put("_col1", 1);
+        partSpec.put("_col3", 3L);
+        partSpec.put("_col5", "f5");
+        partSpec.put("_col8", BigDecimal.valueOf(5.333));
+        partSpec.put("_col13", "f13");
 
         // read all splits
         for (FileInputSplit split : splits) {
@@ -246,11 +246,11 @@ public class OrcColumnarRowSplitReaderTest {
         TypeDescription schema =
                 TypeDescription.fromString(
                         "struct<"
-                                + "f0:float,"
-                                + "f1:double,"
-                                + "f2:timestamp,"
-                                + "f3:tinyint,"
-                                + "f4:smallint"
+                                + "_col0:float,"
+                                + "_col1:double,"
+                                + "_col2:timestamp,"
+                                + "_col3:tinyint,"
+                                + "_col4:smallint"
                                 + ">");
 
         org.apache.hadoop.fs.Path filePath = new org.apache.hadoop.fs.Path(file);
@@ -307,15 +307,15 @@ public class OrcColumnarRowSplitReaderTest {
 
         int cnt = 0;
         Map<String, Object> partSpec = new HashMap<>();
-        partSpec.put("f5", true);
-        partSpec.put("f6", new Date(562423));
-        partSpec.put("f7", LocalDateTime.of(1999, 1, 1, 1, 1));
-        partSpec.put("f8", 6.6);
-        partSpec.put("f9", null);
-        partSpec.put("f10", null);
-        partSpec.put("f11", null);
-        partSpec.put("f12", null);
-        partSpec.put("f13", null);
+        partSpec.put("_col5", true);
+        partSpec.put("_col6", new Date(562423));
+        partSpec.put("_col7", LocalDateTime.of(1999, 1, 1, 1, 1));
+        partSpec.put("_col8", 6.6);
+        partSpec.put("_col9", null);
+        partSpec.put("_col10", null);
+        partSpec.put("_col11", null);
+        partSpec.put("_col12", null);
+        partSpec.put("_col13", null);
         try (OrcColumnarRowSplitReader reader =
                 createReader(
                         new int[] {2, 0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13},
@@ -406,7 +406,9 @@ public class OrcColumnarRowSplitReaderTest {
         return OrcSplitReaderUtil.genPartColumnarRowReader(
                 "2.3.0",
                 new Configuration(),
-                IntStream.range(0, fullTypes.length).mapToObj(i -> "f" + i).toArray(String[]::new),
+                IntStream.range(0, fullTypes.length)
+                        .mapToObj(i -> "_col" + i)
+                        .toArray(String[]::new),
                 fullTypes,
                 partitionSpec,
                 selectedFields,

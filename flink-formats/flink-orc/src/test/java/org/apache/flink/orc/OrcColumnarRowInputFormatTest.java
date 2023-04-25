@@ -56,6 +56,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.table.utils.PartitionPathUtils.generatePartitionPath;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -192,32 +193,40 @@ class OrcColumnarRowInputFormatTest {
     @Test
     void testReadFileWithPartitionFields(@TempDir java.nio.file.Path tmpDir) throws IOException {
         LinkedHashMap<String, String> partSpec = new LinkedHashMap<>();
-        partSpec.put("f1", "1");
-        partSpec.put("f3", "3");
-        partSpec.put("f5", "f5");
-        partSpec.put("f8", BigDecimal.valueOf(5.333).toString());
-        partSpec.put("f13", "f13");
+        partSpec.put("_col1", "1");
+        partSpec.put("_col3", "3");
+        partSpec.put("_col5", "f5");
+        partSpec.put("_col8", BigDecimal.valueOf(5.333).toString());
+        partSpec.put("_col13", "f13");
 
         final Path flatFile =
                 copyFileFromResource(
                         "test-data-flat.orc", tmpDir.resolve(generatePartitionPath(partSpec)));
 
+        LogicalType[] dataTypes = {
+            /* 0 */
+            DataTypes.INT().getLogicalType(),
+            /* 1 */ DataTypes.INT().getLogicalType(), // part-1
+            /* 2 */ DataTypes.STRING().getLogicalType(),
+            /* 3 */ DataTypes.BIGINT().getLogicalType(), // part-2
+            /* 4 */ DataTypes.STRING().getLogicalType(),
+            /* 5 */ DataTypes.STRING().getLogicalType(), // part-3
+            /* 6 */ DataTypes.STRING().getLogicalType(),
+            /* 7 */ DataTypes.INT().getLogicalType(),
+            /* 8 */ DataTypes.DECIMAL(10, 5).getLogicalType(), // part-4
+            /* 9 */ DataTypes.STRING().getLogicalType(),
+            /* 11*/ DataTypes.INT().getLogicalType(),
+            /* 12*/ DataTypes.INT().getLogicalType(),
+            /* 13*/ DataTypes.STRING().getLogicalType(), // part-5
+            /* 14*/ DataTypes.INT().getLogicalType()
+        };
+
         RowType tableType =
                 RowType.of(
-                        /* 0 */ DataTypes.INT().getLogicalType(),
-                        /* 1 */ DataTypes.INT().getLogicalType(), // part-1
-                        /* 2 */ DataTypes.STRING().getLogicalType(),
-                        /* 3 */ DataTypes.BIGINT().getLogicalType(), // part-2
-                        /* 4 */ DataTypes.STRING().getLogicalType(),
-                        /* 5 */ DataTypes.STRING().getLogicalType(), // part-3
-                        /* 6 */ DataTypes.STRING().getLogicalType(),
-                        /* 7 */ DataTypes.INT().getLogicalType(),
-                        /* 8 */ DataTypes.DECIMAL(10, 5).getLogicalType(), // part-4
-                        /* 9 */ DataTypes.STRING().getLogicalType(),
-                        /* 11*/ DataTypes.INT().getLogicalType(),
-                        /* 12*/ DataTypes.INT().getLogicalType(),
-                        /* 13*/ DataTypes.STRING().getLogicalType(), // part-5
-                        /* 14*/ DataTypes.INT().getLogicalType());
+                        dataTypes,
+                        IntStream.range(0, dataTypes.length)
+                                .mapToObj(i -> "_col" + i)
+                                .toArray(String[]::new));
 
         int[] projectedFields = {8, 1, 3, 0, 5, 2};
 

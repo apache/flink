@@ -170,7 +170,7 @@ under the License.
 		-->
 		<minikdc.version>3.2.4</minikdc.version>
 		<hive.version>2.3.9</hive.version>
-		<orc.version>1.5.6</orc.version>
+		<orc.version>1.7.8</orc.version>
 		<japicmp.referenceVersion>1.17.0</japicmp.referenceVersion>
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
 		<spotless.version>2.27.1</spotless.version>

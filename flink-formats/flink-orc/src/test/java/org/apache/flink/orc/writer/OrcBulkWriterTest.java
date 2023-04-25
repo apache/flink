@@ -28,8 +28,10 @@ import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
 import org.apache.hadoop.conf.Configuration;
-import org.junit.jupiter.api.Test;
+import org.apache.orc.CompressionKind;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.io.File;
 import java.util.Arrays;
@@ -39,19 +41,29 @@ import java.util.Properties;
 /** Unit test for the ORC BulkWriter implementation. */
 class OrcBulkWriterTest {
 
+    @TempDir private File outDir;
     private final String schema = "struct<_col0:string,_col1:int>";
     private final List<Record> input =
             Arrays.asList(new Record("Shiv", 44), new Record("Jesse", 23), new Record("Walt", 50));
 
-    @Test
-    void testOrcBulkWriter(@TempDir File outDir) throws Exception {
+    @ParameterizedTest
+    @EnumSource(CompressionKind.class)
+    void testOrcBulkWriter(CompressionKind codec) throws Exception {
         final Properties writerProps = new Properties();
-        writerProps.setProperty("orc.compress", "LZ4");
+        writerProps.setProperty("orc.compress", codec.name());
 
         final OrcBulkWriterFactory<Record> writer =
                 new OrcBulkWriterFactory<>(
                         new RecordVectorizer(schema), writerProps, new Configuration());
 
+        writeRecordsIntoOrcFile(outDir, writer);
+
+        // validate records and compression kind
+        OrcBulkWriterTestUtil.validate(outDir, input, codec);
+    }
+
+    private void writeRecordsIntoOrcFile(File outDir, OrcBulkWriterFactory<Record> writer)
+            throws Exception {
         StreamingFileSink<Record> sink =
                 StreamingFileSink.forBulkFormat(new Path(outDir.toURI()), writer)
                         .withBucketAssigner(new UniqueBucketAssigner<>("test"))
@@ -71,8 +83,6 @@ class OrcBulkWriterTest {
 
             testHarness.snapshot(1, ++time);
             testHarness.notifyOfCompletedCheckpoint(1);
-
-            OrcBulkWriterTestUtil.validate(outDir, input);
         }
     }
 }

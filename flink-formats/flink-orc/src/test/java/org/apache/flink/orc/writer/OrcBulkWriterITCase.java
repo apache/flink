@@ -30,6 +30,7 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.
 import org.apache.flink.streaming.util.FiniteTestSource;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.orc.CompressionKind;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -68,6 +69,6 @@ class OrcBulkWriterITCase {
 
         env.execute();
 
-        OrcBulkWriterTestUtil.validate(outDir, testData);
+        OrcBulkWriterTestUtil.validate(outDir, testData, CompressionKind.LZ4);
     }
 }
