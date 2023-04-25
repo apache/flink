@@ -113,7 +113,7 @@ public class CheckpointCoordinator {
     /** The job whose checkpoint this coordinator coordinates. */
     private final JobID job;
 
-    /** Default checkpoint properties. * */
+    /** Default checkpoint properties. */
     private final CheckpointProperties checkpointProperties;
 
     /** The executor used for asynchronous calls, like potentially blocking I/O. */
@@ -800,7 +800,7 @@ public class CheckpointCoordinator {
     }
 
     /**
-     * Initialize the checkpoint location asynchronously. It will expected to be executed in io
+     * Initialize the checkpoint location asynchronously. It will be expected to be executed in io
      * thread due to it might be time-consuming.
      *
      * @param checkpointID checkpoint id
