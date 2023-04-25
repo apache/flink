@@ -28,6 +28,7 @@ import org.apache.flink.runtime.io.network.partition.hybrid.HsFileDataIndexImpl.
 import org.apache.flink.runtime.io.network.partition.hybrid.index.FileDataIndexRegionHelper;
 import org.apache.flink.runtime.io.network.partition.hybrid.index.TestingFileDataIndexRegion;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.ProducerMergedPartitionFileIndex;
+import org.apache.flink.runtime.metrics.TimerGauge;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -74,7 +75,7 @@ public class HybridShuffleTestUtils {
     }
 
     public static HsOutputMetrics createTestingOutputMetrics() {
-        return new HsOutputMetrics(new TestCounter(), new TestCounter());
+        return new HsOutputMetrics(new TestCounter(), new TestCounter(), new TimerGauge());
     }
 
     public static TestingFileDataIndexRegion createSingleTestRegion(

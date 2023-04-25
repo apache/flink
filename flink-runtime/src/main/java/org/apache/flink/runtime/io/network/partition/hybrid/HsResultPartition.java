@@ -154,7 +154,11 @@ public class HsResultPartition extends ResultPartition {
     public void setMetricGroup(TaskIOMetricGroup metrics) {
         super.setMetricGroup(metrics);
         checkNotNull(memoryDataManager)
-                .setOutputMetrics(new HsOutputMetrics(numBytesOut, numBuffersOut));
+                .setOutputMetrics(
+                        new HsOutputMetrics(
+                                numBytesOut,
+                                numBuffersOut,
+                                metrics.getHardBackPressuredTimePerSecond()));
     }
 
     @Override
