@@ -110,30 +110,11 @@ public class FlinkDatabaseMetaData extends BaseDatabaseMetaData {
         return executor.executeStatement("SHOW DATABASES;");
     }
 
+    // TODO Flink will support SHOW DATABASES LIKE statement in FLIP-297, this method will be
+    // supported after that issue.
     @Override
     public ResultSet getSchemas(String catalog, String schemaPattern) throws SQLException {
-        List<String> catalogList = new ArrayList<>();
-        Map<String, List<String>> catalogSchemas = new HashMap<>();
-        if (!("".equals(catalog))) {
-            String currentCatalog = connection.getCatalog();
-            String currentDatabase = connection.getSchema();
-            if (catalog == null) {
-                try (StatementResult result = catalogs()) {
-                    while (result.hasNext()) {
-                        String catalogName = result.next().getString(0).toString();
-                        connection.setCatalog(catalogName);
-                        getSchemasForCatalog(
-                                catalogList, catalogSchemas, catalogName, schemaPattern);
-                    }
-                }
-            } else {
-                connection.setCatalog(catalog);
-                getSchemasForCatalog(catalogList, catalogSchemas, catalog, schemaPattern);
-            }
-            connection.setCatalog(currentCatalog);
-            connection.setSchema(currentDatabase);
-        }
-        return createSchemasResultSet(statement, catalogList, catalogSchemas);
+        throw new UnsupportedOperationException();
     }
 
     @Override
