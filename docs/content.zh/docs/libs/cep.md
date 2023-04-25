@@ -477,11 +477,6 @@ pattern.oneOrMore()
 pattern.timesOrMore(2);
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-pattern.timesOrMore(2)
-```
-{{< /tab >}}
 {{< /tabs >}}
 
 #### `times(#ofTimes)`

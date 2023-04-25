@@ -483,11 +483,6 @@ internal contiguity see <a href="#consecutive_java">consecutive</a>.
 pattern.timesOrMore(2);
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-pattern.timesOrMore(2)
-```
-{{< /tab >}}
 {{< /tabs >}}
 
 #### `times(#ofTimes)`
