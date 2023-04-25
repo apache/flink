@@ -25,7 +25,7 @@ import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.api.java.typeutils.runtime.kryo5.KryoSerializer;
 import org.apache.flink.connector.file.table.BinPacking;
 import org.apache.flink.connector.file.table.stream.TaskTracker;
 import org.apache.flink.connector.file.table.stream.compact.CompactMessages.CompactionUnit;

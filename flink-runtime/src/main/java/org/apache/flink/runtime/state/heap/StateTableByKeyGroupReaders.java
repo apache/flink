@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.typeutils.runtime.kryo5.KryoVersion;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.runtime.state.KeyGroupPartitioner;
 import org.apache.flink.runtime.state.StateSnapshotKeyGroupReader;
@@ -60,23 +61,26 @@ public class StateTableByKeyGroupReaders {
             case 4:
             case 5:
             case 6:
-                return createV2PlusReader(stateTable);
+            case 7:
+                return createV2PlusReader(stateTable, version);
             default:
                 throw new IllegalArgumentException("Unknown version: " + version);
         }
     }
 
     private static <K, N, S> StateSnapshotKeyGroupReader createV2PlusReader(
-            StateTable<K, N, S> stateTable) {
+            StateTable<K, N, S> stateTable, int version) {
+        final KryoVersion kryoVersion =
+                (version >= 7) ? KryoVersion.VERSION_5_X : KryoVersion.VERSION_2_X;
         final TypeSerializer<N> namespaceSerializer = stateTable.getNamespaceSerializer();
         final TypeSerializer<S> stateSerializer = stateTable.getStateSerializer();
         final TypeSerializer<K> keySerializer = stateTable.keySerializer;
         final Tuple3<N, K, S> buffer = new Tuple3<>();
         return KeyGroupPartitioner.createKeyGroupPartitionReader(
                 (in) -> {
-                    buffer.f0 = namespaceSerializer.deserialize(in);
-                    buffer.f1 = keySerializer.deserialize(in);
-                    buffer.f2 = stateSerializer.deserialize(in);
+                    buffer.f0 = namespaceSerializer.deserializeWithKryoVersionHint(in, kryoVersion);
+                    buffer.f1 = keySerializer.deserializeWithKryoVersionHint(in, kryoVersion);
+                    buffer.f2 = stateSerializer.deserializeWithKryoVersionHint(in, kryoVersion);
                     return buffer;
                 },
                 (element, keyGroupId1) ->

@@ -141,7 +141,7 @@ public class CEPMigrationTest implements MigrationTest {
         OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
                 new KeyedOneInputStreamOperatorTestHarness<>(
                         CepOperatorTestUtilities.getKeyedCepOperator(false, new NFAFactory()),
-                        keySelector,
+                        keySelector, // Event::getId
                         BasicTypeInfo.INT_TYPE_INFO);
 
         try {

@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.typeutils.runtime.kryo;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotSerializationUtil;
@@ -249,13 +250,27 @@ public class KryoSerializerCompatibilityTest {
                 kryoSerializerConfigSnapshot.resolveSchemaCompatibility(kryoSerializer);
         assertTrue(compatResult.isCompatibleWithReconfiguredSerializer());
 
-        kryoSerializer = (KryoSerializer<TestClass>) compatResult.getReconfiguredSerializer();
-        assertEquals(
-                testClassId, kryoSerializer.getKryo().getRegistration(TestClass.class).getId());
-        assertEquals(
-                testClassAId, kryoSerializer.getKryo().getRegistration(TestClassA.class).getId());
-        assertEquals(
-                testClassBId, kryoSerializer.getKryo().getRegistration(TestClassB.class).getId());
+        TypeSerializer<TestClass> rawReconfiguredSerializer =
+                compatResult.getReconfiguredSerializer();
+        if (rawReconfiguredSerializer instanceof KryoSerializer) {
+            KryoSerializer<TestClass> reconfiguredSerializer =
+                    (KryoSerializer<TestClass>) rawReconfiguredSerializer;
+
+            assertEquals(
+                    testClassId,
+                    reconfiguredSerializer.getKryo().getRegistration(TestClass.class).getId());
+            assertEquals(
+                    testClassAId,
+                    reconfiguredSerializer.getKryo().getRegistration(TestClassA.class).getId());
+            assertEquals(
+                    testClassBId,
+                    reconfiguredSerializer.getKryo().getRegistration(TestClassB.class).getId());
+        } else if (rawReconfiguredSerializer
+                instanceof org.apache.flink.api.java.typeutils.runtime.kryo5.KryoSerializer) {
+            // IDs don't have to match here.
+        } else {
+            assertTrue("Invalid type of rawReconfiguredSerializer", false);
+        }
     }
 
     private static class TestClass {}

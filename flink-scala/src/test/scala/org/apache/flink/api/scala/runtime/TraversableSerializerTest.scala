@@ -20,7 +20,6 @@ package org.apache.flink.api.scala.runtime
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.TraversableSerializer
 
@@ -191,7 +190,13 @@ class TraversableSerializerTestInstance[T](
 
     // check for deep copy if type is immutable and not serialized with Kryo
     // elements of traversable should not have reference equality
-    if (!elementSerializer.isImmutableType && !elementSerializer.isInstanceOf[KryoSerializer[_]]) {
+    if (
+      !elementSerializer.isImmutableType
+      && !elementSerializer
+        .isInstanceOf[org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer[_]]
+      && !elementSerializer
+        .isInstanceOf[org.apache.flink.api.java.typeutils.runtime.kryo5.KryoSerializer[_]]
+    ) {
       data.foreach {
         datum =>
           val original = datum.asInstanceOf[Traversable[_]].toIterable

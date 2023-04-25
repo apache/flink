@@ -21,6 +21,7 @@ package org.apache.flink.api.common.typeutils.base;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
+import org.apache.flink.api.java.typeutils.runtime.kryo5.KryoVersion;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -116,6 +117,12 @@ public final class ListSerializer<T> extends TypeSerializer<List<T>> {
 
     @Override
     public void serialize(List<T> list, DataOutputView target) throws IOException {
+        serializeWithKryoVersionHint(list, target, KryoVersion.DEFAULT);
+    }
+
+    @Override
+    public void serializeWithKryoVersionHint(
+            List<T> list, DataOutputView target, KryoVersion kryoVersion) throws IOException {
         final int size = list.size();
         target.writeInt(size);
 
@@ -123,18 +130,24 @@ public final class ListSerializer<T> extends TypeSerializer<List<T>> {
         // the given list supports RandomAccess.
         // The Iterator should be stack allocated on new JVMs (due to escape analysis)
         for (T element : list) {
-            elementSerializer.serialize(element, target);
+            elementSerializer.serializeWithKryoVersionHint(element, target, kryoVersion);
         }
     }
 
     @Override
     public List<T> deserialize(DataInputView source) throws IOException {
+        return deserializeWithKryoVersionHint(source, KryoVersion.DEFAULT);
+    }
+
+    @Override
+    public List<T> deserializeWithKryoVersionHint(DataInputView source, KryoVersion kryoVersion)
+            throws IOException {
         final int size = source.readInt();
         // create new list with (size + 1) capacity to prevent expensive growth when a single
         // element is added
         final List<T> list = new ArrayList<>(size + 1);
         for (int i = 0; i < size; i++) {
-            list.add(elementSerializer.deserialize(source));
+            list.add(elementSerializer.deserializeWithKryoVersionHint(source, kryoVersion));
         }
         return list;
     }

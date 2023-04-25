@@ -24,7 +24,9 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoPojosForMigrationTests.Animal;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoPojosForMigrationTests.Dog;
+import org.apache.flink.api.java.typeutils.runtime.kryo.KryoPojosForMigrationTests.DogKryo5Serializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoPojosForMigrationTests.DogKryoSerializer;
+import org.apache.flink.api.java.typeutils.runtime.kryo.KryoPojosForMigrationTests.DogV2Kryo5Serializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoPojosForMigrationTests.DogV2KryoSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoPojosForMigrationTests.Parrot;
 import org.apache.flink.core.memory.DataInputDeserializer;
@@ -38,7 +40,6 @@ import org.junit.Test;
 import java.io.IOException;
 import java.io.Serializable;
 
-import static org.apache.flink.api.common.typeutils.TypeSerializerMatchers.isCompatibleAsIs;
 import static org.apache.flink.api.common.typeutils.TypeSerializerMatchers.isCompatibleWithReconfiguredSerializer;
 import static org.apache.flink.api.common.typeutils.TypeSerializerMatchers.isIncompatible;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -57,15 +58,20 @@ public class KryoSerializerSnapshotTest {
 
     @Test
     public void sanityTest() {
-        assertThat(resolveKryoCompatibility(oldConfig, newConfig), isCompatibleAsIs());
+        assertThat(
+                resolveKryoCompatibility(oldConfig, newConfig),
+                isCompatibleWithReconfiguredSerializer());
     }
 
     @Test
     public void addingTypesIsCompatibleAfterReconfiguration() {
         oldConfig.registerKryoType(Animal.class);
+        oldConfig.registerKryo5Type(Animal.class);
 
         newConfig.registerKryoType(Animal.class);
+        newConfig.registerKryo5Type(Animal.class);
         newConfig.registerTypeWithKryoSerializer(Dog.class, DogKryoSerializer.class);
+        newConfig.registerTypeWithKryo5Serializer(Dog.class, DogKryo5Serializer.class);
 
         assertThat(
                 resolveKryoCompatibility(oldConfig, newConfig),
@@ -76,13 +82,19 @@ public class KryoSerializerSnapshotTest {
     public void replacingKryoSerializersIsCompatibleAsIs() {
         oldConfig.registerKryoType(Animal.class);
         oldConfig.registerTypeWithKryoSerializer(Dog.class, DogKryoSerializer.class);
+        oldConfig.registerTypeWithKryo5Serializer(Dog.class, DogKryo5Serializer.class);
 
         newConfig.registerKryoType(Animal.class);
         newConfig.registerTypeWithKryoSerializer(Dog.class, DogV2KryoSerializer.class);
+        newConfig.registerTypeWithKryo5Serializer(Dog.class, DogV2Kryo5Serializer.class);
 
-        // it is compatible as is, since Kryo does not expose compatibility API with KryoSerializers
+        // Due to the Kryo v2 to Kryo v5 upgrade, this will reconfigure the serializer from
+        // a Kryo v2 to a Kryo v5 serializer.
+        // it is compatible, since Kryo does not expose compatibility API with KryoSerializers
         // so we can not know if DogKryoSerializer is compatible with DogV2KryoSerializer
-        assertThat(resolveKryoCompatibility(oldConfig, newConfig), isCompatibleAsIs());
+        assertThat(
+                resolveKryoCompatibility(oldConfig, newConfig),
+                isCompatibleWithReconfiguredSerializer());
     }
 
     @Test
@@ -102,8 +114,7 @@ public class KryoSerializerSnapshotTest {
     public void tryingToRestoreWithNonExistingClassShouldBeIncompatible() throws IOException {
         TypeSerializerSnapshot<Animal> restoredSnapshot = kryoSnapshotWithMissingClass();
 
-        TypeSerializer<Animal> currentSerializer =
-                new KryoSerializer<>(Animal.class, new ExecutionConfig());
+        TypeSerializer<Animal> currentSerializer = new KryoSerializer<>(Animal.class, newConfig);
 
         assertThat(
                 restoredSnapshot.resolveSchemaCompatibility(currentSerializer), isIncompatible());
@@ -123,8 +134,9 @@ public class KryoSerializerSnapshotTest {
 
     /**
      * This method returns the bytes of a serialized {@link KryoSerializerSnapshot}, that contains a
-     * Kryo registration of a class that does not exists in the current classpath.
+     * Kryo registration of a class that does not exist in the current classpath.
      */
+    @SuppressWarnings("deprecation")
     private static byte[] unLoadableSnapshotBytes() throws IOException {
         final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
 
@@ -136,6 +148,7 @@ public class KryoSerializerSnapshotTest {
 
             ExecutionConfig conf = new ExecutionConfig();
             conf.registerKryoType(outsideClassLoading.getObject().getClass());
+            conf.registerKryo5Type(outsideClassLoading.getObject().getClass());
 
             KryoSerializer<Animal> previousSerializer = new KryoSerializer<>(Animal.class, conf);
             TypeSerializerSnapshot<Animal> previousSnapshot =

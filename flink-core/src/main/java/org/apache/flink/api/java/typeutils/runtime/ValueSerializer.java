@@ -28,8 +28,9 @@ import org.apache.flink.types.Value;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.InstantiationUtil;
 
-import com.esotericsoftware.kryo.Kryo;
-import org.objenesis.strategy.StdInstantiatorStrategy;
+import com.esotericsoftware.kryo.kryo5.Kryo;
+import com.esotericsoftware.kryo.kryo5.objenesis.strategy.StdInstantiatorStrategy;
+import com.esotericsoftware.kryo.kryo5.util.DefaultInstantiatorStrategy;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -59,7 +60,7 @@ public final class ValueSerializer<T extends Value> extends TypeSerializer<T> {
      * <p>Currently, we only have one single registration for the value type. Nevertheless, we keep
      * this information here for future compatibility.
      */
-    private LinkedHashMap<String, KryoRegistration> kryoRegistrations;
+    private LinkedHashMap<String, Kryo5Registration> kryoRegistrations;
 
     private transient Kryo kryo;
 
@@ -93,14 +94,14 @@ public final class ValueSerializer<T extends Value> extends TypeSerializer<T> {
     public T copy(T from) {
         checkKryoInitialized();
 
-        return KryoUtils.copy(from, kryo, this);
+        return Kryo5Utils.copy(from, kryo, this);
     }
 
     @Override
     public T copy(T from, T reuse) {
         checkKryoInitialized();
 
-        return KryoUtils.copy(from, reuse, kryo, this);
+        return Kryo5Utils.copy(from, reuse, kryo, this);
     }
 
     @Override
@@ -138,14 +139,11 @@ public final class ValueSerializer<T extends Value> extends TypeSerializer<T> {
         if (this.kryo == null) {
             this.kryo = new Kryo();
 
-            Kryo.DefaultInstantiatorStrategy instantiatorStrategy =
-                    new Kryo.DefaultInstantiatorStrategy();
-            instantiatorStrategy.setFallbackInstantiatorStrategy(new StdInstantiatorStrategy());
-            kryo.setInstantiatorStrategy(instantiatorStrategy);
+            DefaultInstantiatorStrategy initStrategy = new DefaultInstantiatorStrategy();
+            initStrategy.setFallbackInstantiatorStrategy(new StdInstantiatorStrategy());
+            kryo.setInstantiatorStrategy(initStrategy);
 
-            this.kryo.setAsmEnabled(true);
-
-            KryoUtils.applyRegistrations(
+            Kryo5Utils.applyRegistrations(
                     this.kryo, kryoRegistrations.values(), this.kryo.getNextRegistrationId());
         }
     }
@@ -221,12 +219,12 @@ public final class ValueSerializer<T extends Value> extends TypeSerializer<T> {
         }
     }
 
-    private static LinkedHashMap<String, KryoRegistration> asKryoRegistrations(Class<?> type) {
+    private static LinkedHashMap<String, Kryo5Registration> asKryoRegistrations(Class<?> type) {
         checkNotNull(type);
 
-        LinkedHashMap<String, KryoRegistration> registration =
+        LinkedHashMap<String, Kryo5Registration> registration =
                 CollectionUtil.newLinkedHashMapWithExpectedSize(1);
-        registration.put(type.getClass().getName(), new KryoRegistration(type));
+        registration.put(type.getClass().getName(), new Kryo5Registration(type));
 
         return registration;
     }

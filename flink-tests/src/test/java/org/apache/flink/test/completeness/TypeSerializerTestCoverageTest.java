@@ -146,6 +146,8 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
                         StreamElementSerializer.class.getName(),
                         WritableSerializer.class.getName(),
                         KryoSerializer.class.getName(),
+                        org.apache.flink.api.java.typeutils.runtime.kryo5.KryoSerializer.class
+                                .getName(),
                         UnloadableDummyTypeSerializer.class.getName(),
                         TupleSerializer.class.getName(),
                         EnumSerializer.class.getName(),

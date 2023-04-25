@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.LegacySerializerSnapshotTransformer
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.java.typeutils.runtime.kryo5.KryoVersion;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -148,6 +149,14 @@ public final class Lockable<T> {
         public Lockable<E> deserialize(DataInputView source) throws IOException {
             int refCount = IntSerializer.INSTANCE.deserialize(source);
             E record = elementSerializer.deserialize(source);
+            return new Lockable<>(record, refCount);
+        }
+
+        @Override
+        public Lockable<E> deserializeWithKryoVersionHint(
+                DataInputView source, KryoVersion kryoVersion) throws IOException {
+            int refCount = IntSerializer.INSTANCE.deserialize(source);
+            E record = elementSerializer.deserializeWithKryoVersionHint(source, kryoVersion);
             return new Lockable<>(record, refCount);
         }
 

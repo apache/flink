@@ -38,8 +38,6 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.description.InlineElement;
 import org.apache.flink.util.Preconditions;
 
-import com.esotericsoftware.kryo.Serializer;
-
 import java.io.Serializable;
 import java.time.Duration;
 import java.util.Collections;
@@ -163,16 +161,29 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     private LinkedHashMap<Class<?>, SerializableSerializer<?>> registeredTypesWithKryoSerializers =
             new LinkedHashMap<>();
 
-    private LinkedHashMap<Class<?>, Class<? extends Serializer<?>>>
+    private LinkedHashMap<Class<?>, SerializableKryo5Serializer<?>>
+            registeredTypesWithKryo5Serializers = new LinkedHashMap<>();
+
+    private LinkedHashMap<Class<?>, Class<? extends com.esotericsoftware.kryo.Serializer<?>>>
             registeredTypesWithKryoSerializerClasses = new LinkedHashMap<>();
+
+    private LinkedHashMap<Class<?>, Class<? extends com.esotericsoftware.kryo.kryo5.Serializer<?>>>
+            registeredTypesWithKryo5SerializerClasses = new LinkedHashMap<>();
 
     private LinkedHashMap<Class<?>, SerializableSerializer<?>> defaultKryoSerializers =
             new LinkedHashMap<>();
 
-    private LinkedHashMap<Class<?>, Class<? extends Serializer<?>>> defaultKryoSerializerClasses =
+    private LinkedHashMap<Class<?>, SerializableKryo5Serializer<?>> defaultKryo5Serializers =
             new LinkedHashMap<>();
 
+    private LinkedHashMap<Class<?>, Class<? extends com.esotericsoftware.kryo.Serializer<?>>>
+            defaultKryoSerializerClasses = new LinkedHashMap<>();
+
+    private LinkedHashMap<Class<?>, Class<? extends com.esotericsoftware.kryo.kryo5.Serializer<?>>>
+            defaultKryo5SerializerClasses = new LinkedHashMap<>();
+
     private LinkedHashSet<Class<?>> registeredKryoTypes = new LinkedHashSet<>();
+    private LinkedHashSet<Class<?>> registeredKryo5Types = new LinkedHashSet<>();
 
     private LinkedHashSet<Class<?>> registeredPojoTypes = new LinkedHashSet<>();
 
@@ -789,8 +800,9 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      * @param type The class of the types serialized with the given serializer.
      * @param serializer The serializer to use.
      */
-    public <T extends Serializer<?> & Serializable> void addDefaultKryoSerializer(
-            Class<?> type, T serializer) {
+    @Deprecated
+    public <T extends com.esotericsoftware.kryo.Serializer<?> & Serializable>
+            void addDefaultKryoSerializer(Class<?> type, T serializer) {
         if (type == null || serializer == null) {
             throw new NullPointerException("Cannot register null class or serializer.");
         }
@@ -804,12 +816,50 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      * @param type The class of the types serialized with the given serializer.
      * @param serializerClass The class of the serializer to use.
      */
+    @Deprecated
     public void addDefaultKryoSerializer(
-            Class<?> type, Class<? extends Serializer<?>> serializerClass) {
+            Class<?> type,
+            Class<? extends com.esotericsoftware.kryo.Serializer<?>> serializerClass) {
         if (type == null || serializerClass == null) {
             throw new NullPointerException("Cannot register null class or serializer.");
         }
         defaultKryoSerializerClasses.put(type, serializerClass);
+    }
+
+    /**
+     * Adds a new Kryo default serializer to the Runtime.
+     *
+     * <p>Note that the serializer instance must be serializable (as defined by
+     * java.io.Serializable), because it may be distributed to the worker nodes by java
+     * serialization.
+     *
+     * @param type The class of the types serialized with the given serializer.
+     * @param serializer The serializer to use.
+     */
+    @PublicEvolving
+    public <T extends com.esotericsoftware.kryo.kryo5.Serializer<?> & Serializable>
+            void addDefaultKryo5Serializer(Class<?> type, T serializer) {
+        if (type == null || serializer == null) {
+            throw new NullPointerException("Cannot register null class or serializer.");
+        }
+
+        defaultKryo5Serializers.put(type, new SerializableKryo5Serializer<>(serializer));
+    }
+
+    /**
+     * Adds a new Kryo default serializer to the Runtime.
+     *
+     * @param type The class of the types serialized with the given serializer.
+     * @param serializerClass The class of the serializer to use.
+     */
+    @PublicEvolving
+    public void addDefaultKryo5Serializer(
+            Class<?> type,
+            Class<? extends com.esotericsoftware.kryo.kryo5.Serializer<?>> serializerClass) {
+        if (type == null || serializerClass == null) {
+            throw new NullPointerException("Cannot register null class or serializer.");
+        }
+        defaultKryo5SerializerClasses.put(type, serializerClass);
     }
 
     /**
@@ -822,8 +872,9 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      * @param type The class of the types serialized with the given serializer.
      * @param serializer The serializer to use.
      */
-    public <T extends Serializer<?> & Serializable> void registerTypeWithKryoSerializer(
-            Class<?> type, T serializer) {
+    @Deprecated
+    public <T extends com.esotericsoftware.kryo.Serializer<?> & Serializable>
+            void registerTypeWithKryoSerializer(Class<?> type, T serializer) {
         if (type == null || serializer == null) {
             throw new NullPointerException("Cannot register null class or serializer.");
         }
@@ -838,17 +889,61 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      * @param type The class of the types serialized with the given serializer.
      * @param serializerClass The class of the serializer to use.
      */
+    @Deprecated
     @SuppressWarnings("rawtypes")
     public void registerTypeWithKryoSerializer(
-            Class<?> type, Class<? extends Serializer> serializerClass) {
+            Class<?> type, Class<? extends com.esotericsoftware.kryo.Serializer> serializerClass) {
         if (type == null || serializerClass == null) {
             throw new NullPointerException("Cannot register null class or serializer.");
         }
 
         @SuppressWarnings("unchecked")
-        Class<? extends Serializer<?>> castedSerializerClass =
-                (Class<? extends Serializer<?>>) serializerClass;
+        Class<? extends com.esotericsoftware.kryo.Serializer<?>> castedSerializerClass =
+                (Class<? extends com.esotericsoftware.kryo.Serializer<?>>) serializerClass;
         registeredTypesWithKryoSerializerClasses.put(type, castedSerializerClass);
+    }
+
+    /**
+     * Registers the given type with a Kryo Serializer.
+     *
+     * <p>Note that the serializer instance must be serializable (as defined by
+     * java.io.Serializable), because it may be distributed to the worker nodes by java
+     * serialization.
+     *
+     * @param type The class of the types serialized with the given serializer.
+     * @param serializer The serializer to use.
+     */
+    @PublicEvolving
+    public <T extends com.esotericsoftware.kryo.kryo5.Serializer<?> & Serializable>
+            void registerTypeWithKryo5Serializer(Class<?> type, T serializer) {
+        if (type == null || serializer == null) {
+            throw new NullPointerException("Cannot register null class or serializer.");
+        }
+
+        registeredTypesWithKryo5Serializers.put(
+                type, new SerializableKryo5Serializer<>(serializer));
+    }
+
+    /**
+     * Registers the given Serializer via its class as a serializer for the given type at the
+     * KryoSerializer
+     *
+     * @param type The class of the types serialized with the given serializer.
+     * @param serializerClass The class of the serializer to use.
+     */
+    @PublicEvolving
+    @SuppressWarnings("rawtypes")
+    public void registerTypeWithKryo5Serializer(
+            Class<?> type,
+            Class<? extends com.esotericsoftware.kryo.kryo5.Serializer> serializerClass) {
+        if (type == null || serializerClass == null) {
+            throw new NullPointerException("Cannot register null class or serializer.");
+        }
+
+        @SuppressWarnings("unchecked")
+        Class<? extends com.esotericsoftware.kryo.kryo5.Serializer<?>> castedSerializerClass =
+                (Class<? extends com.esotericsoftware.kryo.kryo5.Serializer<?>>) serializerClass;
+        registeredTypesWithKryo5SerializerClasses.put(type, castedSerializerClass);
     }
 
     /**
@@ -876,6 +971,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      *
      * @param type The class of the type to register.
      */
+    @Deprecated
     public void registerKryoType(Class<?> type) {
         if (type == null) {
             throw new NullPointerException("Cannot register null type class.");
@@ -883,27 +979,65 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
         registeredKryoTypes.add(type);
     }
 
+    @PublicEvolving
+    public void registerKryo5Type(Class<?> type) {
+        if (type == null) {
+            throw new NullPointerException("Cannot register null type class.");
+        }
+        registeredKryo5Types.add(type);
+    }
+
     /** Returns the registered types with Kryo Serializers. */
+    @Deprecated
     public LinkedHashMap<Class<?>, SerializableSerializer<?>>
             getRegisteredTypesWithKryoSerializers() {
         return registeredTypesWithKryoSerializers;
     }
 
+    /** Returns the registered types with Kryo Serializers. */
+    @PublicEvolving
+    public LinkedHashMap<Class<?>, SerializableKryo5Serializer<?>>
+            getRegisteredTypesWithKryo5Serializers() {
+        return registeredTypesWithKryo5Serializers;
+    }
+
     /** Returns the registered types with their Kryo Serializer classes. */
-    public LinkedHashMap<Class<?>, Class<? extends Serializer<?>>>
+    @Deprecated
+    public LinkedHashMap<Class<?>, Class<? extends com.esotericsoftware.kryo.Serializer<?>>>
             getRegisteredTypesWithKryoSerializerClasses() {
         return registeredTypesWithKryoSerializerClasses;
     }
 
+    /** Returns the registered types with their Kryo Serializer classes. */
+    @PublicEvolving
+    public LinkedHashMap<Class<?>, Class<? extends com.esotericsoftware.kryo.kryo5.Serializer<?>>>
+            getRegisteredTypesWithKryo5SerializerClasses() {
+        return registeredTypesWithKryo5SerializerClasses;
+    }
+
     /** Returns the registered default Kryo Serializers. */
+    @Deprecated
     public LinkedHashMap<Class<?>, SerializableSerializer<?>> getDefaultKryoSerializers() {
         return defaultKryoSerializers;
     }
 
+    /** Returns the registered default Kryo Serializers. */
+    @PublicEvolving
+    public LinkedHashMap<Class<?>, SerializableKryo5Serializer<?>> getDefaultKryo5Serializers() {
+        return defaultKryo5Serializers;
+    }
+
     /** Returns the registered default Kryo Serializer classes. */
-    public LinkedHashMap<Class<?>, Class<? extends Serializer<?>>>
+    public LinkedHashMap<Class<?>, Class<? extends com.esotericsoftware.kryo.Serializer<?>>>
             getDefaultKryoSerializerClasses() {
         return defaultKryoSerializerClasses;
+    }
+
+    /** Returns the registered default Kryo Serializer classes. */
+    @PublicEvolving
+    public LinkedHashMap<Class<?>, Class<? extends com.esotericsoftware.kryo.kryo5.Serializer<?>>>
+            getDefaultKryo5SerializerClasses() {
+        return defaultKryo5SerializerClasses;
     }
 
     /** Returns the registered Kryo types. */
@@ -921,6 +1055,25 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
             return result;
         } else {
             return registeredKryoTypes;
+        }
+    }
+
+    /** Returns the registered Kryo types. */
+    @PublicEvolving
+    public LinkedHashSet<Class<?>> getRegisteredKryo5Types() {
+        if (isForceKryoEnabled()) {
+            // if we force kryo, we must also return all the types that
+            // were previously only registered as POJO
+            LinkedHashSet<Class<?>> result = new LinkedHashSet<>();
+            result.addAll(registeredKryo5Types);
+            for (Class<?> t : registeredPojoTypes) {
+                if (!result.contains(t)) {
+                    result.add(t);
+                }
+            }
+            return result;
+        } else {
+            return registeredKryo5Types;
         }
     }
 
@@ -988,8 +1141,12 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                     && Objects.equals(globalJobParameters, other.globalJobParameters)
                     && registeredTypesWithKryoSerializerClasses.equals(
                             other.registeredTypesWithKryoSerializerClasses)
+                    && registeredTypesWithKryo5SerializerClasses.equals(
+                            other.registeredTypesWithKryo5SerializerClasses)
                     && defaultKryoSerializerClasses.equals(other.defaultKryoSerializerClasses)
+                    && defaultKryo5SerializerClasses.equals(other.defaultKryo5SerializerClasses)
                     && registeredKryoTypes.equals(other.registeredKryoTypes)
+                    && registeredKryo5Types.equals(other.registeredKryo5Types)
                     && registeredPojoTypes.equals(other.registeredPojoTypes);
 
         } else {
@@ -1006,6 +1163,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                 registeredTypesWithKryoSerializerClasses,
                 defaultKryoSerializerClasses,
                 registeredKryoTypes,
+                registeredKryo5Types,
                 registeredPojoTypes);
     }
 
@@ -1030,6 +1188,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                 + defaultKryoSerializerClasses
                 + ", registeredKryoTypes="
                 + registeredKryoTypes
+                + ", registeredKryo5Types="
+                + registeredKryo5Types
                 + ", registeredPojoTypes="
                 + registeredPojoTypes
                 + '}';
@@ -1053,13 +1213,32 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
     // ------------------------------ Utilities  ----------------------------------
 
-    public static class SerializableSerializer<T extends Serializer<?> & Serializable>
+    @Deprecated
+    public static class SerializableSerializer<
+                    T extends com.esotericsoftware.kryo.Serializer<?> & Serializable>
             implements Serializable {
         private static final long serialVersionUID = 4687893502781067189L;
 
         private T serializer;
 
         public SerializableSerializer(T serializer) {
+            this.serializer = serializer;
+        }
+
+        public T getSerializer() {
+            return serializer;
+        }
+    }
+
+    @PublicEvolving
+    public static class SerializableKryo5Serializer<
+                    T extends com.esotericsoftware.kryo.kryo5.Serializer<?> & Serializable>
+            implements Serializable {
+        private static final long serialVersionUID = 4687893502781067189L;
+
+        private T serializer;
+
+        public SerializableKryo5Serializer(T serializer) {
             this.serializer = serializer;
         }
 
@@ -1183,6 +1362,10 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                 .getOptional(PipelineOptions.KRYO_DEFAULT_SERIALIZERS)
                 .map(s -> parseKryoSerializersWithExceptionHandling(classLoader, s))
                 .ifPresent(s -> this.defaultKryoSerializerClasses = s);
+        configuration
+                .getOptional(PipelineOptions.KRYO5_DEFAULT_SERIALIZERS)
+                .map(s -> parseKryo5SerializersWithExceptionHandling(classLoader, s))
+                .ifPresent(s -> this.defaultKryo5SerializerClasses = s);
 
         configuration
                 .getOptional(PipelineOptions.POJO_REGISTERED_CLASSES)
@@ -1193,6 +1376,16 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                 .getOptional(PipelineOptions.KRYO_REGISTERED_CLASSES)
                 .map(c -> loadClasses(c, classLoader, "Could not load kryo type to be registered."))
                 .ifPresent(c -> this.registeredKryoTypes = c);
+
+        configuration
+                .getOptional(PipelineOptions.KRYO5_REGISTERED_CLASSES)
+                .map(
+                        c ->
+                                loadClasses(
+                                        c,
+                                        classLoader,
+                                        "Could not load kryo 5 type to be registered."))
+                .ifPresent(c -> this.registeredKryo5Types = c);
 
         configuration
                 .getOptional(JobManagerOptions.SCHEDULER)
@@ -1216,7 +1409,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                 .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
-    private LinkedHashMap<Class<?>, Class<? extends Serializer<?>>>
+    private LinkedHashMap<Class<?>, Class<? extends com.esotericsoftware.kryo.Serializer<?>>>
             parseKryoSerializersWithExceptionHandling(
                     ClassLoader classLoader, List<String> kryoSerializers) {
         try {
@@ -1231,8 +1424,23 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
         }
     }
 
-    private LinkedHashMap<Class<?>, Class<? extends Serializer<?>>> parseKryoSerializers(
-            ClassLoader classLoader, List<String> kryoSerializers) {
+    private LinkedHashMap<Class<?>, Class<? extends com.esotericsoftware.kryo.kryo5.Serializer<?>>>
+            parseKryo5SerializersWithExceptionHandling(
+                    ClassLoader classLoader, List<String> kryoSerializers) {
+        try {
+            return parseKryo5Serializers(classLoader, kryoSerializers);
+        } catch (Exception e) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "Could not configure kryo 5 serializers from %s. The expected format is:"
+                                    + "'class:<fully qualified class name>,serializer:<fully qualified serializer name>;...",
+                            kryoSerializers),
+                    e);
+        }
+    }
+
+    private LinkedHashMap<Class<?>, Class<? extends com.esotericsoftware.kryo.Serializer<?>>>
+            parseKryoSerializers(ClassLoader classLoader, List<String> kryoSerializers) {
         return kryoSerializers.stream()
                 .map(ConfigurationUtils::parseMap)
                 .collect(
@@ -1242,6 +1450,29 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                                                 m.get("class"),
                                                 classLoader,
                                                 "Could not load class for kryo serialization"),
+                                m ->
+                                        loadClass(
+                                                m.get("serializer"),
+                                                classLoader,
+                                                "Could not load serializer's class"),
+                                (m1, m2) -> {
+                                    throw new IllegalArgumentException(
+                                            "Duplicated serializer for class: " + m1);
+                                },
+                                LinkedHashMap::new));
+    }
+
+    private LinkedHashMap<Class<?>, Class<? extends com.esotericsoftware.kryo.kryo5.Serializer<?>>>
+            parseKryo5Serializers(ClassLoader classLoader, List<String> kryoSerializers) {
+        return kryoSerializers.stream()
+                .map(ConfigurationUtils::parseMap)
+                .collect(
+                        Collectors.toMap(
+                                m ->
+                                        loadClass(
+                                                m.get("class"),
+                                                classLoader,
+                                                "Could not load class for kryo 5 serialization"),
                                 m ->
                                         loadClass(
                                                 m.get("serializer"),

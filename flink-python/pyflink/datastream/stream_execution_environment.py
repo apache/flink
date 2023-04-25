@@ -454,6 +454,23 @@ class StreamExecutionEnvironment(object):
         j_serializer_clz = load_java_class(serializer_class_name)
         self._j_stream_execution_environment.addDefaultKryoSerializer(type_clz, j_serializer_clz)
 
+    def add_default_kryo5_serializer(self, type_class_name: str, serializer_class_name: str):
+        """
+        Adds a new Kryo 5 default serializer to the Runtime.
+
+        Example:
+        ::
+
+            >>> env.add_default_kryo5_serializer("com.aaa.bbb.TypeClass", "com.aaa.bbb.Serializer")
+
+        :param type_class_name: The full-qualified java class name of the types serialized with the
+                                given serializer.
+        :param serializer_class_name: The full-qualified java class name of the serializer to use.
+        """
+        type_clz = load_java_class(type_class_name)
+        j_serializer_clz = load_java_class(serializer_class_name)
+        self._j_stream_execution_environment.addDefaultKryo5Serializer(type_clz, j_serializer_clz)
+
     def register_type_with_kryo_serializer(self, type_class_name: str, serializer_class_name: str):
         """
         Registers the given Serializer via its class as a serializer for the given type at the
@@ -472,6 +489,26 @@ class StreamExecutionEnvironment(object):
         type_clz = load_java_class(type_class_name)
         j_serializer_clz = load_java_class(serializer_class_name)
         self._j_stream_execution_environment.registerTypeWithKryoSerializer(
+            type_clz, j_serializer_clz)
+
+    def register_type_with_kryo5_serializer(self, type_class_name: str, serializer_class_name: str):
+        """
+        Registers the given Serializer via its class as a serializer for the given type at the
+        KryoSerializer.
+
+        Example:
+        ::
+
+            >>> env.register_type_with_kryo5_serializer("com.aaa.bbb.TypeClass",
+            ...                                        "com.aaa.bbb.Serializer")
+
+        :param type_class_name: The full-qualified java class name of the types serialized with
+                                the given serializer.
+        :param serializer_class_name: The full-qualified java class name of the serializer to use.
+        """
+        type_clz = load_java_class(type_class_name)
+        j_serializer_clz = load_java_class(serializer_class_name)
+        self._j_stream_execution_environment.registerTypeWithKryo5Serializer(
             type_clz, j_serializer_clz)
 
     def register_type(self, type_class_name: str):

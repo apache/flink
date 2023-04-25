@@ -25,7 +25,7 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.api.java.typeutils.runtime.kryo5.KryoSerializer;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -40,8 +40,8 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator;
 import org.apache.flink.util.Collector;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.serializers.JavaSerializer;
+import com.esotericsoftware.kryo.kryo5.Kryo;
+import com.esotericsoftware.kryo.kryo5.serializers.JavaSerializer;
 import org.junit.Test;
 
 import java.io.File;
@@ -60,7 +60,7 @@ public class StateDescriptorPassingTest {
     @Test
     public void testReduceWindowState() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
+        env.registerTypeWithKryo5Serializer(File.class, JavaSerializer.class);
 
         DataStream<File> src =
                 env.fromElements(new File("/"))
@@ -93,7 +93,7 @@ public class StateDescriptorPassingTest {
     @Test
     public void testApplyWindowState() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
+        env.registerTypeWithKryo5Serializer(File.class, JavaSerializer.class);
 
         DataStream<File> src =
                 env.fromElements(new File("/"))
@@ -127,7 +127,7 @@ public class StateDescriptorPassingTest {
     @Test
     public void testProcessWindowState() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
+        env.registerTypeWithKryo5Serializer(File.class, JavaSerializer.class);
 
         DataStream<File> src =
                 env.fromElements(new File("/"))
@@ -161,7 +161,7 @@ public class StateDescriptorPassingTest {
     @Test
     public void testProcessAllWindowState() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
+        env.registerTypeWithKryo5Serializer(File.class, JavaSerializer.class);
 
         // simulate ingestion time
         DataStream<File> src =
@@ -188,7 +188,7 @@ public class StateDescriptorPassingTest {
     @Test
     public void testReduceWindowAllState() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
+        env.registerTypeWithKryo5Serializer(File.class, JavaSerializer.class);
 
         // simulate ingestion time
         DataStream<File> src =
@@ -215,7 +215,7 @@ public class StateDescriptorPassingTest {
     @Test
     public void testApplyWindowAllState() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
+        env.registerTypeWithKryo5Serializer(File.class, JavaSerializer.class);
 
         // simulate ingestion time
         DataStream<File> src =

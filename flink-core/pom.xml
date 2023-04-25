@@ -95,6 +95,12 @@ under the License.
 			<!-- managed version -->
 		</dependency>
 
+		<dependency>
+			<groupId>com.esotericsoftware.kryo</groupId>
+			<artifactId>kryo5</artifactId>
+			<!-- managed version -->
+		</dependency>
+
 		<!-- The common collections are needed for some hash tables used in the collection execution -->
 		<dependency>
 			<groupId>commons-collections</groupId>

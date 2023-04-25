@@ -25,7 +25,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
-import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.api.java.typeutils.runtime.kryo5.KryoSerializer;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.CommonTestUtils;
@@ -124,6 +124,7 @@ public class StateDescriptorTest {
     }
 
     @Test
+    @SuppressWarnings("deprecation")
     public void testInitializeSerializerAfterSerializationWithCustomConfig() throws Exception {
         // guard our test assumptions.
         assertEquals(
@@ -136,19 +137,34 @@ public class StateDescriptorTest {
 
         final ExecutionConfig config = new ExecutionConfig();
         config.registerKryoType(File.class);
+        config.registerKryo5Type(File.class);
 
         final TestStateDescriptor<Path> original = new TestStateDescriptor<>("test", Path.class);
         TestStateDescriptor<Path> clone = CommonTestUtils.createCopySerializable(original);
 
         clone.initializeSerializerUnlessSet(config);
+        TypeSerializer<?> cloneSerializer = clone.getSerializer();
 
         // serialized one (later initialized) carries the registration
-        assertTrue(
-                ((KryoSerializer<?>) clone.getSerializer())
-                                .getKryo()
-                                .getRegistration(File.class)
-                                .getId()
-                        > 0);
+        if (cloneSerializer instanceof KryoSerializer<?>) {
+            assertTrue(
+                    ((KryoSerializer<?>) cloneSerializer)
+                                    .getKryo()
+                                    .getRegistration(File.class)
+                                    .getId()
+                            > 0);
+        } else if (cloneSerializer
+                instanceof org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer) {
+            assertTrue(
+                    ((org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer<?>)
+                                            cloneSerializer)
+                                    .getKryo()
+                                    .getRegistration(File.class)
+                                    .getId()
+                            > 0);
+        } else {
+            assertTrue("unexpected serializer type", false);
+        }
     }
 
     // ------------------------------------------------------------------------

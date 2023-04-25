@@ -34,7 +34,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
-import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.api.java.typeutils.runtime.kryo5.KryoSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
@@ -87,6 +87,7 @@ public class StreamingRuntimeContextTest {
 
         final ExecutionConfig config = new ExecutionConfig();
         config.registerKryoType(Path.class);
+        config.registerKryo5Type(Path.class);
 
         final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
 
@@ -108,6 +109,7 @@ public class StreamingRuntimeContextTest {
 
         final ExecutionConfig config = new ExecutionConfig();
         config.registerKryoType(Path.class);
+        config.registerKryo5Type(Path.class);
 
         final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
 
@@ -134,6 +136,7 @@ public class StreamingRuntimeContextTest {
     public void testAggregatingStateInstantiation() throws Exception {
         final ExecutionConfig config = new ExecutionConfig();
         config.registerKryoType(Path.class);
+        config.registerKryo5Type(Path.class);
 
         final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
 
@@ -163,6 +166,7 @@ public class StreamingRuntimeContextTest {
 
         final ExecutionConfig config = new ExecutionConfig();
         config.registerKryoType(Path.class);
+        config.registerKryo5Type(Path.class);
 
         final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
 
@@ -204,6 +208,7 @@ public class StreamingRuntimeContextTest {
 
         final ExecutionConfig config = new ExecutionConfig();
         config.registerKryoType(Path.class);
+        config.registerKryo5Type(Path.class);
 
         final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
 

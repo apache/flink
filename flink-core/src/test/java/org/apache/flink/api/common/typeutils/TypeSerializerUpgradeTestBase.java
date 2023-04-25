@@ -80,6 +80,9 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
      * test data, that will be written by the created pre-upgrade {@link TypeSerializer}.
      */
     public interface PreUpgradeSetup<PreviousElementT> {
+        default void setup() {}
+
+        default void cleanup() {}
 
         /** Creates a pre-upgrade {@link TypeSerializer}. */
         TypeSerializer<PreviousElementT> createPriorSerializer();
@@ -127,6 +130,28 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
             try (ThreadContextClassLoader ignored =
                     new ThreadContextClassLoader(setupClassloader)) {
                 this.delegateSetup = relocatedDelegateSetupClass.newInstance();
+            }
+        }
+
+        @Override
+        public void setup() {
+            try (ThreadContextClassLoader ignored =
+                    new ThreadContextClassLoader(setupClassloader)) {
+                delegateSetup.setup();
+            } catch (IOException e) {
+                throw new RuntimeException(
+                        "Error running setup via ClassLoaderSafePreUpgradeSetup.", e);
+            }
+        }
+
+        @Override
+        public void cleanup() {
+            try (ThreadContextClassLoader ignored =
+                    new ThreadContextClassLoader(setupClassloader)) {
+                delegateSetup.cleanup();
+            } catch (IOException e) {
+                throw new RuntimeException(
+                        "Error running cleanup via ClassLoaderSafePreUpgradeSetup.", e);
             }
         }
 
@@ -292,6 +317,8 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
             throws Exception {
         try (ThreadContextClassLoader ignored =
                 new ThreadContextClassLoader(testSpecification.verifier.verifierClassloader)) {
+            testSpecification.setup.setup();
+
             assumeThat(TypeSerializerSchemaCompatibility.incompatible())
                     .as(
                             "This test only applies for test specifications that verify an upgraded serializer that is not incompatible.")
@@ -310,6 +337,8 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
                     restoredSerializer,
                     dataUnderTest(testSpecification),
                     testSpecification.verifier.testDataMatcher());
+        } finally {
+            testSpecification.setup.cleanup();
         }
     }
 
@@ -381,6 +410,8 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
             throws Exception {
         try (ThreadContextClassLoader ignored =
                 new ThreadContextClassLoader(testSpecification.verifier.verifierClassloader)) {
+            testSpecification.setup.setup();
+
             TypeSerializerSnapshot<UpgradedElementT> restoredSerializerSnapshot =
                     snapshotUnderTest(testSpecification);
             TypeSerializer<UpgradedElementT> upgradedSerializer =
@@ -402,6 +433,8 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
                     reconfiguredUpgradedSerializer,
                     dataUnderTest(testSpecification),
                     testSpecification.verifier.testDataMatcher());
+        } finally {
+            testSpecification.setup.cleanup();
         }
     }
 
@@ -455,9 +488,11 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
                 readAndThenWriteData(dataInput, serializer, serializer, testDataMatcher);
         TypeSerializerSnapshot<T> snapshot = writeAndThenReadSerializerSnapshot(serializer);
         TypeSerializer<T> restoreSerializer = snapshot.restoreSerializer();
+        // 2023-06-04: Use the original serializer to deserialize the data, not the
+        // restoredSerializer which may be upgraded, particularly with the Kryo upgrade.
         serializedData =
                 readAndThenWriteData(
-                        serializedData, restoreSerializer, restoreSerializer, testDataMatcher);
+                        serializedData, serializer, restoreSerializer, testDataMatcher);
 
         TypeSerializer<T> duplicateSerializer = snapshot.restoreSerializer().duplicate();
         readAndThenWriteData(

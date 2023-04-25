@@ -227,8 +227,42 @@ public class PipelineOptions {
                                                             + " class:org.example.ExampleClass2,serializer:org.example.ExampleSerializer2"))
                                     .build());
 
+    public static final ConfigOption<List<String>> KRYO5_DEFAULT_SERIALIZERS =
+            key("pipeline.default-kryo5-serializers")
+                    .stringType()
+                    .asList()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Semicolon separated list of pairs of class names and Kryo serializers class names to be used"
+                                                    + " as Kryo 5 default serializers")
+                                    .linebreak()
+                                    .linebreak()
+                                    .text("Example:")
+                                    .linebreak()
+                                    .add(
+                                            TextElement.code(
+                                                    "class:org.example.ExampleClass,serializer:org.example.ExampleSerializer1;"
+                                                            + " class:org.example.ExampleClass2,serializer:org.example.ExampleSerializer2"))
+                                    .build());
+
     public static final ConfigOption<List<String>> KRYO_REGISTERED_CLASSES =
             key("pipeline.registered-kryo-types")
+                    .stringType()
+                    .asList()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Semicolon separated list of types to be registered with the serialization stack. If the type"
+                                                    + " is eventually serialized as a POJO, then the type is registered with the POJO serializer. If the"
+                                                    + " type ends up being serialized with Kryo, then it will be registered at Kryo to make"
+                                                    + " sure that only tags are written.")
+                                    .build());
+
+    public static final ConfigOption<List<String>> KRYO5_REGISTERED_CLASSES =
+            key("pipeline.registered-kryo5-types")
                     .stringType()
                     .asList()
                     .noDefaultValue()

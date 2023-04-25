@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.typeutils.runtime.kryo5.KryoVersion;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.StateEntry;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
@@ -142,9 +143,12 @@ public class CopyOnWriteStateMapSnapshot<K, N, S>
         dov.writeInt(size);
         while (snapshotIterator.hasNext()) {
             StateEntry<K, N, S> stateEntry = snapshotIterator.next();
-            namespaceSerializer.serialize(stateEntry.getNamespace(), dov);
-            keySerializer.serialize(stateEntry.getKey(), dov);
-            stateSerializer.serialize(stateEntry.getState(), dov);
+            namespaceSerializer.serializeWithKryoVersionHint(
+                    stateEntry.getNamespace(), dov, KryoVersion.VERSION_5_X);
+            keySerializer.serializeWithKryoVersionHint(
+                    stateEntry.getKey(), dov, KryoVersion.VERSION_5_X);
+            stateSerializer.serializeWithKryoVersionHint(
+                    stateEntry.getState(), dov, KryoVersion.VERSION_5_X);
         }
     }
 

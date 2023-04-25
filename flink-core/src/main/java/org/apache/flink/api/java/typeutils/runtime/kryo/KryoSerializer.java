@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.typeutils.runtime.kryo;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.ExecutionConfig.SerializableSerializer;
@@ -29,6 +30,7 @@ import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
 import org.apache.flink.api.java.typeutils.runtime.KryoRegistration;
 import org.apache.flink.api.java.typeutils.runtime.KryoUtils;
 import org.apache.flink.api.java.typeutils.runtime.NoFetchingInput;
+import org.apache.flink.api.java.typeutils.runtime.kryo5.KryoVersion;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.CollectionUtil;
@@ -149,6 +151,10 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 
     private final Class<T> type;
 
+    // This is used for generating new serialization snapshots.
+    private org.apache.flink.api.java.typeutils.runtime.kryo5.KryoSerializer<T>
+            forwardCompatibilitySerializer;
+
     // ------------------------------------------------------------------------
     // The fields below are lazily initialized after duplication or deserialization.
 
@@ -187,19 +193,61 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
                         executionConfig.getRegisteredKryoTypes(),
                         executionConfig.getRegisteredTypesWithKryoSerializerClasses(),
                         executionConfig.getRegisteredTypesWithKryoSerializers());
+
+        this.forwardCompatibilitySerializer =
+                new org.apache.flink.api.java.typeutils.runtime.kryo5.KryoSerializer<>(
+                        type, executionConfig, this);
+    }
+
+    public KryoSerializer(
+            Class<T> type,
+            ExecutionConfig executionConfig,
+            org.apache.flink.api.java.typeutils.runtime.kryo5.KryoSerializer<T>
+                    forwardCompatibilitySerializer) {
+        this.type = checkNotNull(type);
+
+        this.defaultSerializers = executionConfig.getDefaultKryoSerializers();
+        this.defaultSerializerClasses = executionConfig.getDefaultKryoSerializerClasses();
+
+        this.kryoRegistrations =
+                buildKryoRegistrations(
+                        this.type,
+                        executionConfig.getRegisteredKryoTypes(),
+                        executionConfig.getRegisteredTypesWithKryoSerializerClasses(),
+                        executionConfig.getRegisteredTypesWithKryoSerializers());
+
+        this.forwardCompatibilitySerializer = checkNotNull(forwardCompatibilitySerializer);
     }
 
     /**
      * Copy-constructor that does not copy transient fields. They will be initialized once required.
      */
-    protected KryoSerializer(KryoSerializer<T> toCopy) {
+    @Internal
+    public KryoSerializer(KryoSerializer<T> toCopy) {
+        this(toCopy, null);
 
+        if (toCopy.forwardCompatibilitySerializer != null) {
+            this.forwardCompatibilitySerializer =
+                    new org.apache.flink.api.java.typeutils.runtime.kryo5.KryoSerializer<>(
+                            toCopy.forwardCompatibilitySerializer, this);
+        }
+    }
+
+    /**
+     * Copy-constructor that does not copy transient fields. They will be initialized once required.
+     */
+    @Internal
+    public KryoSerializer(
+            KryoSerializer<T> toCopy,
+            org.apache.flink.api.java.typeutils.runtime.kryo5.KryoSerializer<T>
+                    forwardCompatibilitySerializer) {
         this.type = checkNotNull(toCopy.type, "Type class cannot be null.");
         this.defaultSerializerClasses = toCopy.defaultSerializerClasses;
         this.defaultSerializers =
                 CollectionUtil.newLinkedHashMapWithExpectedSize(toCopy.defaultSerializers.size());
         this.kryoRegistrations =
                 CollectionUtil.newLinkedHashMapWithExpectedSize(toCopy.kryoRegistrations.size());
+        this.forwardCompatibilitySerializer = forwardCompatibilitySerializer;
 
         // deep copy the serializer instances in defaultSerializers
         for (Map.Entry<Class<?>, ExecutionConfig.SerializableSerializer<?>> entry :
@@ -234,11 +282,14 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
     // for KryoSerializerSnapshot
     // ------------------------------------------------------------------------
 
-    KryoSerializer(
+    @Internal
+    public KryoSerializer(
             Class<T> type,
             LinkedHashMap<Class<?>, SerializableSerializer<?>> defaultSerializers,
             LinkedHashMap<Class<?>, Class<? extends Serializer<?>>> defaultSerializerClasses,
-            LinkedHashMap<String, KryoRegistration> kryoRegistrations) {
+            LinkedHashMap<String, KryoRegistration> kryoRegistrations,
+            org.apache.flink.api.java.typeutils.runtime.kryo5.KryoSerializer<T>
+                    forwardCompatibilitySerializer) {
 
         this.type = checkNotNull(type, "Type class cannot be null.");
         this.defaultSerializerClasses =
@@ -248,21 +299,28 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
                 checkNotNull(defaultSerializers, "Default serializers cannot be null.");
         this.kryoRegistrations =
                 checkNotNull(kryoRegistrations, "Kryo registrations cannot be null.");
+
+        this.forwardCompatibilitySerializer = forwardCompatibilitySerializer;
     }
 
-    Class<T> getType() {
+    @Internal
+    public Class<T> getType() {
         return type;
     }
 
-    LinkedHashMap<Class<?>, SerializableSerializer<?>> getDefaultKryoSerializers() {
+    @Internal
+    public LinkedHashMap<Class<?>, SerializableSerializer<?>> getDefaultKryoSerializers() {
         return defaultSerializers;
     }
 
-    LinkedHashMap<Class<?>, Class<? extends Serializer<?>>> getDefaultKryoSerializerClasses() {
+    @Internal
+    public LinkedHashMap<Class<?>, Class<? extends Serializer<?>>>
+            getDefaultKryoSerializerClasses() {
         return defaultSerializerClasses;
     }
 
-    LinkedHashMap<String, KryoRegistration> getKryoRegistrations() {
+    @Internal
+    public LinkedHashMap<String, KryoRegistration> getKryoRegistrations() {
         return kryoRegistrations;
     }
 
@@ -383,6 +441,27 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
         }
     }
 
+    @Override
+    public void serializeWithKryoVersionHint(
+            T record, DataOutputView target, KryoVersion kryoVersion) throws IOException {
+        switch (kryoVersion) {
+            case DEFAULT:
+            case VERSION_2_X:
+                serialize(record, target);
+                break;
+            case VERSION_5_X:
+                if (forwardCompatibilitySerializer == null) {
+                    throw new IOException("Required v5 compatability serializer missing");
+                } else {
+                    forwardCompatibilitySerializer.serializeWithKryoVersionHint(
+                            record, target, kryoVersion);
+                }
+                break;
+            default:
+                throw new IOException(String.format("Unexpected Kryo version: %s", kryoVersion));
+        }
+    }
+
     @SuppressWarnings("unchecked")
     @Override
     public T deserialize(DataInputView source) throws IOException {
@@ -414,6 +493,25 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
             if (CONCURRENT_ACCESS_CHECK) {
                 exitExclusiveThread();
             }
+        }
+    }
+
+    @Override
+    public T deserializeWithKryoVersionHint(DataInputView source, KryoVersion kryoVersion)
+            throws IOException {
+        switch (kryoVersion) {
+            case DEFAULT:
+            case VERSION_2_X:
+                return deserialize(source);
+            case VERSION_5_X:
+                if (forwardCompatibilitySerializer == null) {
+                    throw new IOException("Required v5 compatability serializer missing");
+                } else {
+                    return forwardCompatibilitySerializer.deserializeWithKryoVersionHint(
+                            source, kryoVersion);
+                }
+            default:
+                throw new IOException(String.format("Unexpected Kryo version: %s", kryoVersion));
         }
     }
 
@@ -560,8 +658,12 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 
     @Override
     public TypeSerializerSnapshot<T> snapshotConfiguration() {
-        return new KryoSerializerSnapshot<>(
-                type, defaultSerializers, defaultSerializerClasses, kryoRegistrations);
+        if (forwardCompatibilitySerializer == null) {
+            return new KryoSerializerSnapshot<>(
+                    type, defaultSerializers, defaultSerializerClasses, kryoRegistrations);
+        } else {
+            return forwardCompatibilitySerializer.snapshotConfiguration();
+        }
     }
 
     // --------------------------------------------------------------------------------------------

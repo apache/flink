@@ -27,8 +27,9 @@ import org.apache.flink.types.NormalizableKey;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.InstantiationUtil;
 
-import com.esotericsoftware.kryo.Kryo;
-import org.objenesis.strategy.StdInstantiatorStrategy;
+import com.esotericsoftware.kryo.kryo5.Kryo;
+import com.esotericsoftware.kryo.kryo5.objenesis.strategy.StdInstantiatorStrategy;
+import com.esotericsoftware.kryo.kryo5.util.DefaultInstantiatorStrategy;
 
 import java.io.IOException;
 
@@ -65,7 +66,7 @@ public class ValueComparator<T extends Value & Comparable<T>> extends TypeCompar
     public void setReference(T toCompare) {
         checkKryoInitialized();
 
-        reference = KryoUtils.copy(toCompare, kryo, new ValueSerializer<T>(type));
+        reference = Kryo5Utils.copy(toCompare, kryo, new ValueSerializer<T>(type));
     }
 
     @Override
@@ -142,12 +143,11 @@ public class ValueComparator<T extends Value & Comparable<T>> extends TypeCompar
         if (this.kryo == null) {
             this.kryo = new Kryo();
 
-            Kryo.DefaultInstantiatorStrategy instantiatorStrategy =
-                    new Kryo.DefaultInstantiatorStrategy();
+            DefaultInstantiatorStrategy instantiatorStrategy = new DefaultInstantiatorStrategy();
             instantiatorStrategy.setFallbackInstantiatorStrategy(new StdInstantiatorStrategy());
             kryo.setInstantiatorStrategy(instantiatorStrategy);
 
-            this.kryo.setAsmEnabled(true);
+            // this.kryo.setAsmEnabled(true);
             this.kryo.register(type);
         }
     }

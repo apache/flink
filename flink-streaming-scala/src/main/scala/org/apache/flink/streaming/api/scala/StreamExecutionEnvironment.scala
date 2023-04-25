@@ -468,6 +468,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) extends AutoCloseable {
    * @param serializer
    *   The serializer to use.
    */
+  @deprecated
   def addDefaultKryoSerializer[T <: Serializer[_] with Serializable](
       `type`: Class[_],
       serializer: T): Unit = {
@@ -482,8 +483,42 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) extends AutoCloseable {
    * @param serializerClass
    *   The class of the serializer to use.
    */
+  @deprecated
   def addDefaultKryoSerializer(`type`: Class[_], serializerClass: Class[_ <: Serializer[_]]) {
     javaEnv.addDefaultKryoSerializer(`type`, serializerClass)
+  }
+
+  /**
+   * Adds a new Kryo 5 default serializer to the Runtime. <p/> Note that the serializer instance
+   * must be serializable (as defined by java.io.Serializable), because it may be distributed to the
+   * worker nodes by java serialization.
+   *
+   * @param type
+   *   The class of the types serialized with the given serializer.
+   * @param serializer
+   *   The serializer to use.
+   */
+  @PublicEvolving
+  def addDefaultKryo5Serializer[
+      T <: com.esotericsoftware.kryo.kryo5.Serializer[_] with Serializable](
+      `type`: Class[_],
+      serializer: T): Unit = {
+    javaEnv.addDefaultKryo5Serializer(`type`, serializer)
+  }
+
+  /**
+   * Adds a new Kryo 5 default serializer to the Runtime.
+   *
+   * @param type
+   *   The class of the types serialized with the given serializer.
+   * @param serializerClass
+   *   The class of the serializer to use.
+   */
+  @PublicEvolving
+  def addDefaultKryo5Serializer(
+      `type`: Class[_],
+      serializerClass: Class[_ <: com.esotericsoftware.kryo.kryo5.Serializer[_]]) {
+    javaEnv.addDefaultKryo5Serializer(`type`, serializerClass)
   }
 
   /**
@@ -492,6 +527,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) extends AutoCloseable {
    * Note that the serializer instance must be serializable (as defined by java.io.Serializable),
    * because it may be distributed to the worker nodes by java serialization.
    */
+  @Deprecated
   def registerTypeWithKryoSerializer[T <: Serializer[_] with Serializable](
       clazz: Class[_],
       serializer: T): Unit = {
@@ -499,8 +535,31 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) extends AutoCloseable {
   }
 
   /** Registers the given type with the serializer at the [[KryoSerializer]]. */
+  @Deprecated
   def registerTypeWithKryoSerializer(clazz: Class[_], serializer: Class[_ <: Serializer[_]]) {
     javaEnv.registerTypeWithKryoSerializer(clazz, serializer)
+  }
+
+  /**
+   * Registers the given type with the serializer at the [[KryoSerializer]].
+   *
+   * Note that the serializer instance must be serializable (as defined by java.io.Serializable),
+   * because it may be distributed to the worker nodes by java serialization.
+   */
+  @PublicEvolving
+  def registerTypeWithKryo5Serializer[
+      T <: com.esotericsoftware.kryo.kryo5.Serializer[_] with Serializable](
+      clazz: Class[_],
+      serializer: T): Unit = {
+    javaEnv.registerTypeWithKryo5Serializer(clazz, serializer)
+  }
+
+  /** Registers the given type with the serializer at the [[KryoSerializer]]. */
+  @PublicEvolving
+  def registerTypeWithKryo5Serializer(
+      clazz: Class[_],
+      serializer: Class[_ <: com.esotericsoftware.kryo.kryo5.Serializer[_]]) {
+    javaEnv.registerTypeWithKryo5Serializer(clazz, serializer)
   }
 
   /**

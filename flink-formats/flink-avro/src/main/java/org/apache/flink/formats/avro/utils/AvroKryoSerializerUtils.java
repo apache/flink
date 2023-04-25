@@ -22,15 +22,11 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.AvroUtils;
+import org.apache.flink.api.java.typeutils.runtime.Kryo5Registration;
 import org.apache.flink.api.java.typeutils.runtime.KryoRegistration;
-import org.apache.flink.api.java.typeutils.runtime.kryo.Serializers;
 import org.apache.flink.formats.avro.typeutils.AvroSerializer;
 import org.apache.flink.formats.avro.typeutils.AvroTypeInfo;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.Serializer;
-import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 
@@ -49,7 +45,12 @@ public class AvroKryoSerializerUtils extends AvroUtils {
             // because Kryo is not able to serialize them properly, we use this serializer for them
             reg.registerTypeWithKryoSerializer(
                     GenericData.Array.class,
-                    Serializers.SpecificInstanceCollectionSerializerForArrayList.class);
+                    org.apache.flink.api.java.typeutils.runtime.kryo.Serializers
+                            .SpecificInstanceCollectionSerializerForArrayList.class);
+            reg.registerTypeWithKryo5Serializer(
+                    GenericData.Array.class,
+                    org.apache.flink.api.java.typeutils.runtime.kryo5.Serializers
+                            .SpecificInstanceCollectionSerializerForArrayList.class);
 
             // We register this serializer for users who want to use untyped Avro records
             // (GenericData.Record).
@@ -59,6 +60,7 @@ public class AvroKryoSerializerUtils extends AvroUtils {
             // we add the serializer as a default serializer because Avro is using a private
             // sub-type at runtime.
             reg.addDefaultKryoSerializer(Schema.class, AvroSchemaSerializer.class);
+            reg.addDefaultKryo5Serializer(Schema.class, AvroKryo5SchemaSerializer.class);
         }
     }
 
@@ -70,7 +72,19 @@ public class AvroKryoSerializerUtils extends AvroUtils {
                 new KryoRegistration(
                         GenericData.Array.class,
                         new ExecutionConfig.SerializableSerializer<>(
-                                new Serializers
+                                new org.apache.flink.api.java.typeutils.runtime.kryo.Serializers
+                                        .SpecificInstanceCollectionSerializerForArrayList())));
+    }
+
+    @Override
+    public void addAvroGenericDataArrayRegistration5(
+            LinkedHashMap<String, Kryo5Registration> kryoRegistrations) {
+        kryoRegistrations.put(
+                GenericData.Array.class.getName(),
+                new Kryo5Registration(
+                        GenericData.Array.class,
+                        new ExecutionConfig.SerializableKryo5Serializer<>(
+                                new org.apache.flink.api.java.typeutils.runtime.kryo5.Serializers
                                         .SpecificInstanceCollectionSerializerForArrayList())));
     }
 
@@ -92,17 +106,54 @@ public class AvroKryoSerializerUtils extends AvroUtils {
      * org.apache.avro.generic.GenericData.Record}} types. Having this serializer, we are able to
      * handle avro Records.
      */
-    public static class AvroSchemaSerializer extends Serializer<Schema> implements Serializable {
+    public static class AvroSchemaSerializer extends com.esotericsoftware.kryo.Serializer<Schema>
+            implements Serializable {
         private static final long serialVersionUID = 1L;
 
         @Override
-        public void write(Kryo kryo, Output output, Schema object) {
+        public void write(
+                com.esotericsoftware.kryo.Kryo kryo,
+                com.esotericsoftware.kryo.io.Output output,
+                Schema object) {
             String schemaAsString = object.toString(false);
             output.writeString(schemaAsString);
         }
 
         @Override
-        public Schema read(Kryo kryo, Input input, Class<Schema> type) {
+        public Schema read(
+                com.esotericsoftware.kryo.Kryo kryo,
+                com.esotericsoftware.kryo.io.Input input,
+                Class<Schema> type) {
+            String schemaAsString = input.readString();
+            // the parser seems to be stateful, to we need a new one for every type.
+            Schema.Parser sParser = new Schema.Parser();
+            return sParser.parse(schemaAsString);
+        }
+    }
+
+    /**
+     * Slow serialization approach for Avro schemas. This is only used with {{@link
+     * org.apache.avro.generic.GenericData.Record}} types. Having this serializer, we are able to
+     * handle avro Records.
+     */
+    public static class AvroKryo5SchemaSerializer
+            extends com.esotericsoftware.kryo.kryo5.Serializer<Schema> implements Serializable {
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        public void write(
+                com.esotericsoftware.kryo.kryo5.Kryo kryo,
+                com.esotericsoftware.kryo.kryo5.io.Output output,
+                Schema object) {
+            String schemaAsString = object.toString(false);
+            output.writeString(schemaAsString);
+        }
+
+        @Override
+        public Schema read(
+                com.esotericsoftware.kryo.kryo5.Kryo kryo,
+                com.esotericsoftware.kryo.kryo5.io.Input input,
+                Class<? extends Schema> type) {
             String schemaAsString = input.readString();
             // the parser seems to be stateful, to we need a new one for every type.
             Schema.Parser sParser = new Schema.Parser();
