@@ -55,6 +55,8 @@ import org.apache.flink.runtime.rest.handler.job.JobIdsHandler;
 import org.apache.flink.runtime.rest.handler.job.JobManagerJobConfigurationHandler;
 import org.apache.flink.runtime.rest.handler.job.JobManagerJobEnvironmentHandler;
 import org.apache.flink.runtime.rest.handler.job.JobPlanHandler;
+import org.apache.flink.runtime.rest.handler.job.JobResourceRequirementsHandler;
+import org.apache.flink.runtime.rest.handler.job.JobResourceRequirementsUpdateHandler;
 import org.apache.flink.runtime.rest.handler.job.JobStatusHandler;
 import org.apache.flink.runtime.rest.handler.job.JobVertexAccumulatorsHandler;
 import org.apache.flink.runtime.rest.handler.job.JobVertexBackPressureHandler;
@@ -1012,6 +1014,20 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                 Tuple2.of(
                         TaskManagerThreadDumpHeaders.getInstance(),
                         taskManagerThreadDumpFileHandler));
+
+        final JobResourceRequirementsHandler jobResourceRequirementsHandler =
+                new JobResourceRequirementsHandler(leaderRetriever, timeout, responseHeaders);
+        final JobResourceRequirementsUpdateHandler jobResourceRequirementsUpdateHandler =
+                new JobResourceRequirementsUpdateHandler(leaderRetriever, timeout, responseHeaders);
+
+        handlers.add(
+                Tuple2.of(
+                        jobResourceRequirementsHandler.getMessageHeaders(),
+                        jobResourceRequirementsHandler));
+        handlers.add(
+                Tuple2.of(
+                        jobResourceRequirementsUpdateHandler.getMessageHeaders(),
+                        jobResourceRequirementsUpdateHandler));
 
         handlers.stream()
                 .map(tuple -> tuple.f1)
