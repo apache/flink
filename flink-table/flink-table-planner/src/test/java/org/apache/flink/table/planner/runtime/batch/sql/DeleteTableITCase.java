@@ -74,7 +74,7 @@ public class DeleteTableITCase extends BatchTestBase {
                                 dataId));
         // it only contains equal expression, should be pushed down
         List<Row> rows = toRows(tEnv().executeSql("DELETE FROM t where a = 1"));
-        assertThat(rows.toString()).isEqualTo("[+I[1], +I[OK]]");
+        assertThat(rows.toString()).isEqualTo("[+I[1]]");
         rows = toRows(tEnv().executeSql("SELECT * FROM t"));
         assertThat(rows.toString())
                 .isEqualTo("[+I[0, b_0, 0.0], +I[2, b_2, 4.0], +I[3, b_3, 6.0], +I[4, b_4, 8.0]]");
@@ -130,7 +130,7 @@ public class DeleteTableITCase extends BatchTestBase {
 
         // should fall back to delete push down
         rows = toRows(tEnv().executeSql("DELETE FROM t"));
-        assertThat(rows.toString()).isEqualTo("[+I[3], +I[OK]]");
+        assertThat(rows.toString()).isEqualTo("[+I[3]]");
         rows = toRows(tEnv().executeSql("SELECT * FROM t"));
         assertThat(rows).isEmpty();
     }
