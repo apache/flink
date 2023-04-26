@@ -2073,6 +2073,13 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testExplainForJsonFile() {
+        String sql = "explain plan for 'hdfs://path'";
+        String expected = "EXPLAIN 'hdfs://path'";
+        this.sql(sql).ok(expected);
+    }
+
+    @Test
     void testExplainChangelogMode() {
         String sql = "explain changelog_mode select * from emps";
         String expected = "EXPLAIN CHANGELOG_MODE SELECT *\nFROM `EMPS`";

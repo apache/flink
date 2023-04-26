@@ -19,9 +19,13 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
 
 import java.io.File;
-import java.nio.file.Path;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Paths;
 import java.util.Objects;
 
@@ -48,10 +52,28 @@ public abstract class PlanReference {
         return fromFile(Paths.get(path).toFile());
     }
 
-    /** @see #fromFile(File) */
+    /** load file inputStream from flink core filesystem. */
     public static PlanReference fromFile(Path path) {
         Objects.requireNonNull(path, "Path cannot be null");
-        return fromFile(path.toFile());
+        FileSystem fs;
+        try {
+            fs = path.getFileSystem();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        FSDataInputStream inputStream;
+        try {
+            inputStream = fs.open(path);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return new InputStreamPlanReference(inputStream);
+    }
+
+    /** @see #fromFile(File) */
+    public static PlanReference fromFile(Paths path) {
+        Objects.requireNonNull(path, "Path cannot be null");
+        return fromFile(path.toString());
     }
 
     /** Create a reference starting from a file path. */
@@ -80,6 +102,21 @@ public abstract class PlanReference {
         Objects.requireNonNull(classLoader, "ClassLoader cannot be null");
         Objects.requireNonNull(resourcePath, "Resource path cannot be null");
         return new ResourcePlanReference(classLoader, resourcePath);
+    }
+
+    /** Plan reference to a file in the core filesystem which supports various filesystem. */
+    @Experimental
+    public static class InputStreamPlanReference extends PlanReference {
+
+        private final InputStream inputStream;
+
+        private InputStreamPlanReference(InputStream inputStream) {
+            this.inputStream = inputStream;
+        }
+
+        public InputStream getInputStream() {
+            return inputStream;
+        }
     }
 
     /** Plan reference to a file in the local filesystem. */

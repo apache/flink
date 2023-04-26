@@ -2032,7 +2032,11 @@ SqlNode SqlRichExplain() :
     <EXPLAIN>
     )
     (
-        stmt = SqlStatementSet()
+        (
+            stmt = SqlStatementSet()
+            |
+            stmt = StringLiteral()
+        )
         |
         stmt = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
         |
