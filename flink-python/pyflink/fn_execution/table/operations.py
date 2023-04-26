@@ -23,20 +23,12 @@ from typing import Tuple
 from pyflink import fn_execution
 
 if fn_execution.PYFLINK_CYTHON_ENABLED:
-    try:
-        from pyflink.fn_execution.table.aggregate_fast import RowKeySelector, \
-            SimpleAggsHandleFunction, GroupAggFunction, DistinctViewDescriptor, \
-            SimpleTableAggsHandleFunction, GroupTableAggFunction
-        from pyflink.fn_execution.table.window_aggregate_fast import \
-            SimpleNamespaceAggsHandleFunction, GroupWindowAggFunction
-        from pyflink.fn_execution.coder_impl_fast import InternalRow
-    except:
-        from pyflink.fn_execution.table.aggregate_slow import RowKeySelector, \
-            SimpleAggsHandleFunction, GroupAggFunction, DistinctViewDescriptor, \
-            SimpleTableAggsHandleFunction, GroupTableAggFunction
-        from pyflink.fn_execution.table.window_aggregate_slow import \
-            SimpleNamespaceAggsHandleFunction, GroupWindowAggFunction
-        fn_execution.PYFLINK_CYTHON_ENABLED = False
+    from pyflink.fn_execution.table.aggregate_fast import RowKeySelector, \
+        SimpleAggsHandleFunction, GroupAggFunction, DistinctViewDescriptor, \
+        SimpleTableAggsHandleFunction, GroupTableAggFunction
+    from pyflink.fn_execution.table.window_aggregate_fast import \
+        SimpleNamespaceAggsHandleFunction, GroupWindowAggFunction
+    from pyflink.fn_execution.coder_impl_fast import InternalRow
 else:
     from pyflink.fn_execution.table.aggregate_slow import RowKeySelector, \
         SimpleAggsHandleFunction, GroupAggFunction, DistinctViewDescriptor, \
