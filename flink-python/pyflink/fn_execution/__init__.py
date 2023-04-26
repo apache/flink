@@ -22,3 +22,19 @@ if 'PYFLINK_CYTHON_ENABLED' in os.environ:
     PYFLINK_CYTHON_ENABLED = bool(os.environ['PYFLINK_CYTHON_ENABLED'])
 else:
     PYFLINK_CYTHON_ENABLED = True
+
+
+try:
+    # check whether beam could be fast
+    from apache_beam.coders import stream
+
+    # check whether PyFlink could be fast
+    from pyflink.fn_execution import stream_fast
+    from pyflink.fn_execution import coder_impl_fast
+    from pyflink.fn_execution.beam import beam_operations_fast
+    from pyflink.fn_execution.beam import beam_coder_impl_fast
+    from pyflink.fn_execution.beam import beam_stream_fast
+    from pyflink.fn_execution.table import window_aggregate_fast
+    from pyflink.fn_execution.table import aggregate_fast
+except:
+    PYFLINK_CYTHON_ENABLED = False
