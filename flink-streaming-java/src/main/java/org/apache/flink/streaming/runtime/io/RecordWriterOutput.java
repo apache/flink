@@ -19,7 +19,9 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -60,6 +62,10 @@ public class RecordWriterOutput<OUT>
 
     private WatermarkStatus announcedStatus = WatermarkStatus.ACTIVE;
 
+    // Uses a dummy counter here to avoid checking the existence of numRecordsOut on the
+    // per-record path.
+    private Counter numRecordsOut = new SimpleCounter();
+
     @SuppressWarnings("unchecked")
     public RecordWriterOutput(
             RecordWriter<SerializationDelegate<StreamRecord<OUT>>> recordWriter,
@@ -86,12 +92,16 @@ public class RecordWriterOutput<OUT>
 
     @Override
     public void collect(StreamRecord<OUT> record) {
-        collectAndCheckIfChained(record);
+        if (collectAndCheckIfChained(record)) {
+            numRecordsOut.inc();
+        }
     }
 
     @Override
     public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
-        collectAndCheckIfChained(outputTag, record);
+        if (collectAndCheckIfChained(outputTag, record)) {
+            numRecordsOut.inc();
+        }
     }
 
     @Override
@@ -165,6 +175,10 @@ public class RecordWriterOutput<OUT>
         } catch (IOException e) {
             throw new UncheckedIOException(e.getMessage(), e);
         }
+    }
+
+    public void setNumRecordsOut(Counter numRecordsOut) {
+        this.numRecordsOut = checkNotNull(numRecordsOut);
     }
 
     public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException {
