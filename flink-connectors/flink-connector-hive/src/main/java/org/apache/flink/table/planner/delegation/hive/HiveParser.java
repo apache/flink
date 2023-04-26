@@ -186,7 +186,7 @@ public class HiveParser extends ParserImpl {
     @Override
     public List<Operation> parse(String statement) {
         Catalog currentCatalog =
-                catalogRegistry.getCatalog(catalogRegistry.getCurrentCatalog()).orElse(null);
+                catalogRegistry.getCatalogOrError(catalogRegistry.getCurrentCatalog());
         if (!(currentCatalog instanceof HiveCatalog)) {
             LOG.warn("Current catalog is not HiveCatalog. Falling back to Flink's planner.");
             return super.parse(statement);

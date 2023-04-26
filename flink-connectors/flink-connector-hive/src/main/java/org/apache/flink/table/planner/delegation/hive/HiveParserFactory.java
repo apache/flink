@@ -47,6 +47,8 @@ public class HiveParserFactory implements ParserFactory {
 
     @Override
     public Parser create(Context context) {
+        // in here, we hard cast the context to CalciteContext for Hive parser will need
+        // CalciteContext to build Calcite's RelNode.
         return new HiveParser((CalciteContext) context);
     }
 }

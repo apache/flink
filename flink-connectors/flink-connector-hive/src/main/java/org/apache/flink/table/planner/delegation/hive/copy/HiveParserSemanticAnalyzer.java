@@ -2097,7 +2097,7 @@ public class HiveParserSemanticAnalyzer {
         ObjectIdentifier tableIdentifier =
                 catalogRegistry.qualifyIdentifier(UnresolvedIdentifier.of(tableName.split("\\.")));
         Optional<ResolvedCatalogBaseTable<?>> optionalTab =
-                catalogRegistry.getResolvedCatalogBaseTable(tableIdentifier);
+                catalogRegistry.getCatalogBaseTable(tableIdentifier);
         if (!optionalTab.isPresent()) {
             if (throwException) {
                 throw new IllegalArgumentException(

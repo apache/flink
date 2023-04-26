@@ -358,7 +358,7 @@ public class HiveParserDMLHelper {
             contextResolvedTable =
                     ContextResolvedTable.permanent(
                             tableIdentifier,
-                            catalogRegistry.getCatalog(tableIdentifier.getCatalogName()).get(),
+                            catalogRegistry.getCatalogOrError(tableIdentifier.getCatalogName()),
                             resolvedCatalogBaseTable);
         }
         return contextResolvedTable;
@@ -366,7 +366,7 @@ public class HiveParserDMLHelper {
 
     private ResolvedCatalogBaseTable<?> getTableOrError(ObjectIdentifier tableIdentifier) {
         Optional<ResolvedCatalogBaseTable<?>> table =
-                catalogRegistry.getResolvedCatalogBaseTable(tableIdentifier);
+                catalogRegistry.getCatalogBaseTable(tableIdentifier);
         return table.orElseThrow(
                 () ->
                         new TableException(
@@ -445,7 +445,7 @@ public class HiveParserDMLHelper {
         return ContextResolvedTable.permanent(
                 ObjectIdentifier.of(
                         currentCatalog, catalogRegistry.getCurrentDatabase(), objectName),
-                catalogRegistry.getCatalog(currentCatalog).get(),
+                catalogRegistry.getCatalogOrError(catalogRegistry.getCurrentCatalog()),
                 resolvedCatalogTable);
     }
 

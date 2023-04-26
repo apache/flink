@@ -2098,7 +2098,7 @@ public class HiveParserBaseSemanticAnalyzer {
     public static ResolvedCatalogBaseTable<?> getResolvedCatalogBaseTable(
             CatalogRegistry catalogRegistry, ObjectIdentifier tableIdentifier) {
         return catalogRegistry
-                .getResolvedCatalogBaseTable(tableIdentifier)
+                .getCatalogBaseTable(tableIdentifier)
                 .orElseThrow(
                         () ->
                                 new IllegalArgumentException(

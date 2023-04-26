@@ -2199,7 +2199,7 @@ public class HiveParserDDLSemanticAnalyzer {
     }
 
     private CatalogDatabase getDatabase(String databaseName) {
-        Catalog catalog = catalogRegistry.getCatalog(catalogRegistry.getCurrentCatalog()).get();
+        Catalog catalog = catalogRegistry.getCatalogOrError(catalogRegistry.getCurrentCatalog());
         CatalogDatabase database;
         try {
             database = catalog.getDatabase(databaseName);
@@ -2221,7 +2221,7 @@ public class HiveParserDDLSemanticAnalyzer {
                     String.format("Table or View %s is temporary.", tableIdentifier.toString()));
         }
         Optional<ResolvedCatalogBaseTable<?>> optionalCatalogTable =
-                catalogRegistry.getResolvedCatalogBaseTable(tableIdentifier);
+                catalogRegistry.getCatalogBaseTable(tableIdentifier);
         if (!optionalCatalogTable.isPresent()) {
             if (ifExists) {
                 return null;
