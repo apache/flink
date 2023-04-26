@@ -255,6 +255,17 @@ public final class CatalogManager implements CatalogRegistry {
     }
 
     /**
+     * Gets a catalog by name.
+     *
+     * @param catalogName name of the catalog to retrieve
+     * @return the requested catalog
+     * @throws CatalogNotExistException if the catalog does not exist
+     */
+    public Catalog getCatalogOrError(String catalogName) throws CatalogNotExistException {
+        return getCatalog(catalogName).orElseThrow(() -> new CatalogNotExistException(catalogName));
+    }
+
+    /**
      * Gets the current catalog that will be used when resolving table path.
      *
      * @return the current catalog
@@ -373,8 +384,15 @@ public final class CatalogManager implements CatalogRegistry {
         }
     }
 
+    /**
+     * Retrieves a fully qualified table. If the path is not yet fully qualified use {@link
+     * #qualifyIdentifier(UnresolvedIdentifier)} first.
+     *
+     * @param objectIdentifier full path of the table to retrieve
+     * @return resolved table that the path points to or empty if it does not exist.
+     */
     @Override
-    public Optional<ResolvedCatalogBaseTable<?>> getResolvedCatalogBaseTable(
+    public Optional<ResolvedCatalogBaseTable<?>> getCatalogBaseTable(
             ObjectIdentifier objectIdentifier) {
         ContextResolvedTable resolvedTable = getTable(objectIdentifier).orElse(null);
         return resolvedTable == null
@@ -382,6 +400,12 @@ public final class CatalogManager implements CatalogRegistry {
                 : Optional.of(resolvedTable.getResolvedTable());
     }
 
+    /**
+     * Return whether the table with a fully qualified table path is temporary or not.
+     *
+     * @param objectIdentifier full path of the table
+     * @return the table is temporary or not.
+     */
     @Override
     public boolean isTemporaryTable(ObjectIdentifier objectIdentifier) {
         return temporaryTables.containsKey(objectIdentifier);

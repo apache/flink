@@ -19,16 +19,18 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.CatalogNotExistException;
 
 import java.util.Optional;
 
 /** A catalog registry for dealing with catalogs. */
 @PublicEvolving
 public interface CatalogRegistry {
-    /** Get the current database. */
+
+    /** Get the name of the current database. */
     String getCurrentDatabase();
 
-    /** Gets the current catalog. */
+    /** Gets the name of the current catalog. */
     String getCurrentCatalog();
 
     /**
@@ -44,9 +46,10 @@ public interface CatalogRegistry {
      * Gets a catalog by name.
      *
      * @param catalogName name of the catalog to retrieve
-     * @return the requested catalog or empty if it does not exist
+     * @return the requested catalog
+     * @throws CatalogNotExistException if the catalog does not exist
      */
-    Optional<Catalog> getCatalog(String catalogName);
+    Catalog getCatalogOrError(String catalogName) throws CatalogNotExistException;
 
     /**
      * Retrieves a fully qualified table. If the path is not yet fully qualified use {@link
@@ -55,8 +58,7 @@ public interface CatalogRegistry {
      * @param objectIdentifier full path of the table to retrieve
      * @return resolved table that the path points to or empty if it does not exist.
      */
-    Optional<ResolvedCatalogBaseTable<?>> getResolvedCatalogBaseTable(
-            ObjectIdentifier objectIdentifier);
+    Optional<ResolvedCatalogBaseTable<?>> getCatalogBaseTable(ObjectIdentifier objectIdentifier);
 
     /**
      * Return whether the table with a fully qualified table path is temporary or not.
