@@ -24,11 +24,7 @@ from apache_beam.utils import proto_utils
 from pyflink import fn_execution
 
 if fn_execution.PYFLINK_CYTHON_ENABLED:
-    try:
-        import pyflink.fn_execution.beam.beam_operations_fast as beam_operations
-    except:
-        import pyflink.fn_execution.beam.beam_operations_slow as beam_operations
-        fn_execution.PYFLINK_CYTHON_ENABLED = False
+    import pyflink.fn_execution.beam.beam_operations_fast as beam_operations
 else:
     import pyflink.fn_execution.beam.beam_operations_slow as beam_operations
 
