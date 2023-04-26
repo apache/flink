@@ -246,6 +246,7 @@ public class DataStreamCsvITCase {
         return contents;
     }
 
+    /** Test pojo describing a city. */
     @JsonPropertyOrder({
         "city",
         "lat",
