@@ -321,7 +321,7 @@ Supported Environment:
 
 #### Ververica Platform
 
-[Website](https://www.ververica.com/platform-overview)
+[Website]https://www.ververica.com/platform)
 
 Supported Environments:
 {{< label AliCloud >}}
