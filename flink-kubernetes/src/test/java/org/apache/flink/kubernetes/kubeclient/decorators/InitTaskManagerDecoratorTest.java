@@ -25,6 +25,7 @@ import org.apache.flink.kubernetes.kubeclient.KubernetesTaskManagerTestBase;
 import org.apache.flink.kubernetes.utils.Constants;
 
 import io.fabric8.kubernetes.api.model.Container;
+import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.EnvVar;
@@ -289,5 +290,28 @@ class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase {
                                         KubernetesConfigOptions.KUBERNETES_NODE_NAME_LABEL),
                                 "NotIn",
                                 new ArrayList<>(BLOCKED_NODES)));
+    }
+
+    @Test
+    void testMainContainerPortsAsInput() {
+        Container podMainContainer = new ContainerBuilder().build();
+        ContainerPort rpcConatinerPort =
+                new ContainerPortBuilder()
+                        .withName(Constants.TASK_MANAGER_RPC_PORT_NAME)
+                        .withContainerPort(RPC_PORT)
+                        .build();
+        rpcConatinerPort.setAdditionalProperty("appProtocol", "tcp");
+        podMainContainer.setPorts(List.of(rpcConatinerPort));
+        final FlinkPod baseFlinkPodWithPorts =
+                new FlinkPod.Builder().withMainContainer(podMainContainer).build();
+
+        final InitTaskManagerDecorator initTaskManagerDecorator =
+                new InitTaskManagerDecorator(kubernetesTaskManagerParameters);
+
+        final FlinkPod resultFlinkPodWithPort =
+                initTaskManagerDecorator.decorateFlinkPod(baseFlinkPodWithPorts);
+        final List<ContainerPort> expectedContainerPorts = Arrays.asList(rpcConatinerPort);
+        assertThat(resultFlinkPodWithPort.getMainContainer().getPorts())
+                .isEqualTo(expectedContainerPorts);
     }
 }
