@@ -55,7 +55,7 @@ public final class ExecNodeConfig implements ReadableConfig {
         this.isCompiled = isCompiled;
     }
 
-    static ExecNodeConfig of(
+    public static ExecNodeConfig of(
             TableConfig tableConfig, ReadableConfig nodeConfig, boolean isCompiled) {
         return new ExecNodeConfig(tableConfig, nodeConfig, isCompiled);
     }

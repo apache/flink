@@ -34,6 +34,7 @@ import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty.RequiredDistribution;
+import org.apache.flink.table.planner.plan.nodes.exec.StateMetadata;
 import org.apache.flink.table.planner.plan.utils.ExecNodeMetadataUtil;
 import org.apache.flink.table.runtime.groupwindow.WindowReference;
 import org.apache.flink.table.types.DataType;
@@ -158,6 +159,7 @@ public class JsonSerdeUtil {
         module.addSerializer(new ResolvedExpressionJsonSerializer());
         module.addSerializer(new ResolvedSchemaJsonSerializer());
         module.addSerializer(new RequiredDistributionJsonSerializer());
+        module.addSerializer(new StateMetadataJsonSerializer());
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -186,6 +188,7 @@ public class JsonSerdeUtil {
         module.addDeserializer(ResolvedSchema.class, new ResolvedSchemaJsonDeserializer());
         module.addDeserializer(
                 RequiredDistribution.class, new RequiredDistributionJsonDeserializer());
+        module.addDeserializer(StateMetadata.class, new StateMetadataJsonDeserializer());
     }
 
     private static void registerMixins(SimpleModule module) {
