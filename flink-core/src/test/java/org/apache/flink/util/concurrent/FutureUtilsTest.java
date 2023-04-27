@@ -294,12 +294,13 @@ public class FutureUtilsTest extends TestLogger {
         final CompletableFuture<String> future = new CompletableFuture<>();
         final long timeout = 10L;
 
-        FutureUtils.orTimeout(future, timeout, TimeUnit.MILLISECONDS);
+        FutureUtils.orTimeout(future, timeout, TimeUnit.MILLISECONDS, "testOrTimeout");
 
         try {
             future.get();
         } catch (ExecutionException e) {
             assertTrue(ExceptionUtils.stripExecutionException(e) instanceof TimeoutException);
+            ExceptionUtils.assertThrowableWithMessage(e, "testOrTimeout");
         }
     }
 

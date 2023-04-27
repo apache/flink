@@ -42,5 +42,6 @@ export interface Configuration {
     'web-history': boolean;
     'web-submit': boolean;
     'web-cancel': boolean;
+    'web-rescale': boolean;
   };
 }

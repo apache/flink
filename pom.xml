@@ -602,14 +602,21 @@ under the License.
 				<!-- mockito/powermock mismatch -->
 				<groupId>net.bytebuddy</groupId>
 				<artifactId>byte-buddy</artifactId>
-				<version>1.10.14</version>
+				<version>1.14.4</version>
 			</dependency>
 
 			<dependency>
 				<!-- mockito/powermock mismatch -->
 				<groupId>net.bytebuddy</groupId>
 				<artifactId>byte-buddy-agent</artifactId>
-				<version>1.10.14</version>
+				<version>1.14.4</version>
+			</dependency>
+
+			<!-- For dependency convergence -->
+			<dependency>
+				<groupId>net.java.dev.jna</groupId>
+				<artifactId>jna</artifactId>
+				<version>5.12.1</version>
 			</dependency>
 
 			<!-- For dependency convergence -->
@@ -1948,7 +1955,7 @@ under the License.
 			<plugin>
 				<groupId>org.cyclonedx</groupId>
 				<artifactId>cyclonedx-maven-plugin</artifactId>
-				<version>2.7.3</version>
+				<version>2.7.7</version>
 				<executions>
 					<execution>
 						<phase>package</phase>

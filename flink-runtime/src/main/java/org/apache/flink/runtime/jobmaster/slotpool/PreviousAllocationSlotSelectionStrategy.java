@@ -51,7 +51,7 @@ public class PreviousAllocationSlotSelectionStrategy implements SlotSelectionStr
 
     @Override
     public Optional<SlotInfoAndLocality> selectBestSlotForProfile(
-            @Nonnull Collection<SlotInfoAndResources> availableSlots,
+            @Nonnull Collection<SlotInfoWithUtilization> availableSlots,
             @Nonnull SlotProfile slotProfile) {
 
         LOG.debug("Select best slot for profile {}.", slotProfile);
@@ -60,35 +60,34 @@ public class PreviousAllocationSlotSelectionStrategy implements SlotSelectionStr
 
         // First, if there was a prior allocation try to schedule to the same/old slot
         if (!priorAllocations.isEmpty()) {
-            for (SlotInfoAndResources availableSlot : availableSlots) {
-                if (priorAllocations.contains(availableSlot.getSlotInfo().getAllocationId())) {
-                    return Optional.of(
-                            SlotInfoAndLocality.of(availableSlot.getSlotInfo(), Locality.LOCAL));
+            for (SlotInfoWithUtilization availableSlot : availableSlots) {
+                if (priorAllocations.contains(availableSlot.getAllocationId())) {
+                    return Optional.of(SlotInfoAndLocality.of(availableSlot, Locality.LOCAL));
                 }
             }
         }
 
         // Second, select based on location preference, excluding blacklisted allocations
         Set<AllocationID> blackListedAllocations = slotProfile.getReservedAllocations();
-        Collection<SlotInfoAndResources> availableAndAllowedSlots =
+        Collection<SlotInfoWithUtilization> availableAndAllowedSlots =
                 computeWithoutBlacklistedSlots(availableSlots, blackListedAllocations);
         return fallbackSlotSelectionStrategy.selectBestSlotForProfile(
                 availableAndAllowedSlots, slotProfile);
     }
 
     @Nonnull
-    private Collection<SlotInfoAndResources> computeWithoutBlacklistedSlots(
-            @Nonnull Collection<SlotInfoAndResources> availableSlots,
+    private Collection<SlotInfoWithUtilization> computeWithoutBlacklistedSlots(
+            @Nonnull Collection<SlotInfoWithUtilization> availableSlots,
             @Nonnull Set<AllocationID> blacklistedAllocations) {
 
         if (blacklistedAllocations.isEmpty()) {
             return Collections.unmodifiableCollection(availableSlots);
         }
 
-        ArrayList<SlotInfoAndResources> availableAndAllowedSlots =
+        ArrayList<SlotInfoWithUtilization> availableAndAllowedSlots =
                 new ArrayList<>(availableSlots.size());
-        for (SlotInfoAndResources availableSlot : availableSlots) {
-            if (!blacklistedAllocations.contains(availableSlot.getSlotInfo().getAllocationId())) {
+        for (SlotInfoWithUtilization availableSlot : availableSlots) {
+            if (!blacklistedAllocations.contains(availableSlot.getAllocationId())) {
                 availableAndAllowedSlots.add(availableSlot);
             }
         }

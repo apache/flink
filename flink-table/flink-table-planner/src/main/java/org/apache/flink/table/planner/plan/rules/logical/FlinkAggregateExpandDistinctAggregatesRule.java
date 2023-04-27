@@ -470,7 +470,7 @@ public final class FlinkAggregateExpandDistinctAggregatesRule extends RelOptRule
                                 aggCall.left.filterArg,
                                 aggregate.getGroupCount(),
                                 fullGroupSet.cardinality());
-                distinctAggCalls.add(newAggCall.rename(aggCall.right));
+                distinctAggCalls.add(newAggCall.withName(aggCall.right));
             }
         }
 

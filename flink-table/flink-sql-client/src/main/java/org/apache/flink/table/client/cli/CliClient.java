@@ -20,6 +20,7 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.client.SqlClientException;
+import org.apache.flink.table.client.cli.parser.SqlClientSyntaxHighlighter;
 import org.apache.flink.table.client.cli.parser.SqlCommandParserImpl;
 import org.apache.flink.table.client.cli.parser.SqlMultiLineParser;
 import org.apache.flink.table.client.config.SqlClientOptions;
@@ -285,6 +286,7 @@ public class CliClient implements AutoCloseable {
 
         if (mode == ExecutionMode.INTERACTIVE_EXECUTION) {
             builder.completer(new SqlCompleter(executor));
+            builder.highlighter(new SqlClientSyntaxHighlighter(executor));
         }
         LineReader lineReader = builder.build();
 

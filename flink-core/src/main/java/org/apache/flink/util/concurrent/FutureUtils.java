@@ -419,20 +419,6 @@ public class FutureUtils {
      * @param future to time out
      * @param timeout after which the given future is timed out
      * @param timeUnit time unit of the timeout
-     * @param <T> type of the given future
-     * @return The timeout enriched future
-     */
-    public static <T> CompletableFuture<T> orTimeout(
-            CompletableFuture<T> future, long timeout, TimeUnit timeUnit) {
-        return orTimeout(future, timeout, timeUnit, Executors.directExecutor(), null);
-    }
-
-    /**
-     * Times the given future out after the timeout.
-     *
-     * @param future to time out
-     * @param timeout after which the given future is timed out
-     * @param timeUnit time unit of the timeout
      * @param timeoutMsg timeout message for exception
      * @param <T> type of the given future
      * @return The timeout enriched future
@@ -443,25 +429,6 @@ public class FutureUtils {
             TimeUnit timeUnit,
             @Nullable String timeoutMsg) {
         return orTimeout(future, timeout, timeUnit, Executors.directExecutor(), timeoutMsg);
-    }
-
-    /**
-     * Times the given future out after the timeout.
-     *
-     * @param future to time out
-     * @param timeout after which the given future is timed out
-     * @param timeUnit time unit of the timeout
-     * @param timeoutFailExecutor executor that will complete the future exceptionally after the
-     *     timeout is reached
-     * @param <T> type of the given future
-     * @return The timeout enriched future
-     */
-    public static <T> CompletableFuture<T> orTimeout(
-            CompletableFuture<T> future,
-            long timeout,
-            TimeUnit timeUnit,
-            Executor timeoutFailExecutor) {
-        return orTimeout(future, timeout, timeUnit, timeoutFailExecutor, null);
     }
 
     /**

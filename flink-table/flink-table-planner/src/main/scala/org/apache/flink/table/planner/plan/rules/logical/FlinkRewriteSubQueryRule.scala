@@ -56,7 +56,7 @@ class FlinkRewriteSubQueryRule(
     val filter: Filter = call.rel(0)
     val condition = filter.getCondition
     val newCondition = rewriteScalarQuery(condition)
-    if (RexUtil.eq(condition, newCondition)) {
+    if (condition.equals(newCondition)) {
       return
     }
 

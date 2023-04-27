@@ -280,7 +280,11 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
                         partitionRegistrationFuture,
                         partitionRegistrationTimeout.toMilliseconds(),
                         TimeUnit.MILLISECONDS,
-                        mainThreadExecutor);
+                        mainThreadExecutor,
+                        String.format(
+                                "Registering produced partitions for execution %s timed out after %d ms.",
+                                execution.getAttemptId(),
+                                partitionRegistrationTimeout.toMilliseconds()));
             } else {
                 return FutureUtils.completedVoidFuture();
             }

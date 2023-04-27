@@ -43,8 +43,7 @@ class StreamPhysicalGroupWindowAggregateRule(config: Config) extends ConverterRu
     val agg: FlinkLogicalWindowAggregate = call.rel(0)
 
     // check if we have grouping sets
-    val groupSets = agg.getGroupType != Group.SIMPLE
-    if (groupSets || agg.indicator) {
+    if (agg.getGroupType != Group.SIMPLE) {
       throw new TableException("GROUPING SETS are currently not supported.")
     }
 

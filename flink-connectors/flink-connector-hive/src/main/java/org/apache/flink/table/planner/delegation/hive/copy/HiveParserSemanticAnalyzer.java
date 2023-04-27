@@ -22,13 +22,13 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.CatalogBaseTable;
-import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
+import org.apache.flink.table.catalog.CatalogRegistry;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogView;
-import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
@@ -197,17 +197,17 @@ public class HiveParserSemanticAnalyzer {
     private final FrameworkConfig frameworkConfig;
     private final RelOptCluster cluster;
 
-    private final CatalogManager catalogManager;
+    private final CatalogRegistry catalogRegistry;
 
     public HiveParserSemanticAnalyzer(
             HiveParserQueryState queryState,
             FrameworkConfig frameworkConfig,
             RelOptCluster cluster,
-            CatalogManager catalogManager)
+            CatalogRegistry catalogRegistry)
             throws SemanticException {
         this.queryState = queryState;
         this.conf = queryState.getConf();
-        this.catalogManager = catalogManager;
+        this.catalogRegistry = catalogRegistry;
         nameToSplitSample = new HashMap<>();
         prunedPartitions = new HashMap<>();
         unparseTranslator = new HiveParserUnparseTranslator(conf);
@@ -476,8 +476,8 @@ public class HiveParserSemanticAnalyzer {
         String qualifiedTableName =
                 getUnescapedName(
                                 tableTree,
-                                catalogManager.getCurrentCatalog(),
-                                catalogManager.getCurrentDatabase())
+                                catalogRegistry.getCurrentCatalog(),
+                                catalogRegistry.getCurrentDatabase())
                         .toLowerCase();
         String originTableName = getUnescapedOriginTableName(tableTree);
 
@@ -575,8 +575,8 @@ public class HiveParserSemanticAnalyzer {
         if (!this.aliasToCTEs.containsKey(qualifiedTableName)) {
             unparseTranslator.addTableNameTranslation(
                     tableTree,
-                    catalogManager.getCurrentCatalog(),
-                    catalogManager.getCurrentDatabase());
+                    catalogRegistry.getCurrentCatalog(),
+                    catalogRegistry.getCurrentDatabase());
             if (aliasIndex != 0) {
                 unparseTranslator.addIdentifierTranslation(
                         (HiveParserASTNode) tabref.getChild(aliasIndex));
@@ -952,8 +952,8 @@ public class HiveParserSemanticAnalyzer {
                     String tabName =
                             getUnescapedName(
                                     (HiveParserASTNode) ast.getChild(0).getChild(0),
-                                    catalogManager.getCurrentCatalog(),
-                                    catalogManager.getCurrentDatabase());
+                                    catalogRegistry.getCurrentCatalog(),
+                                    catalogRegistry.getCurrentDatabase());
                     qbp.addInsertIntoTable(tabName, ast);
                     // TODO: hive doesn't break here, so we copy what's below here
                     handleTokDestination(ctx1, ast, qbp, plannerCtx);
@@ -1146,7 +1146,7 @@ public class HiveParserSemanticAnalyzer {
                             && destination.getChild(1).getType() == HiveASTParser.TOK_IFNOTEXISTS) {
                         ObjectIdentifier tableIdentifier =
                                 getObjectIdentifier(
-                                        catalogManager, (HiveParserASTNode) tab.getChild(0));
+                                        catalogRegistry, (HiveParserASTNode) tab.getChild(0));
 
                         Tree partitions = tab.getChild(1);
                         int numChildren = partitions.getChildCount();
@@ -1167,7 +1167,7 @@ public class HiveParserSemanticAnalyzer {
                                             partition.toString()));
                         }
                         Optional<CatalogPartition> catalogPartition =
-                                catalogManager.getPartition(
+                                catalogRegistry.getPartition(
                                         tableIdentifier, new CatalogPartitionSpec(partition));
                         // Check partition exists if it exists skip the overwrite
                         if (catalogPartition.isPresent()) {
@@ -1240,8 +1240,8 @@ public class HiveParserSemanticAnalyzer {
                     String fullTableName =
                             getUnescapedName(
                                     (HiveParserASTNode) ast.getChild(0).getChild(0),
-                                    catalogManager.getCurrentCatalog(),
-                                    catalogManager.getCurrentDatabase());
+                                    catalogRegistry.getCurrentCatalog(),
+                                    catalogRegistry.getCurrentDatabase());
                     qbp.getInsertOverwriteTables().put(fullTableName, ast);
                 }
             }
@@ -1305,8 +1305,8 @@ public class HiveParserSemanticAnalyzer {
             String fullTableName =
                     getUnescapedName(
                             (HiveParserASTNode) ast.getChild(0).getChild(0),
-                            catalogManager.getCurrentCatalog(),
-                            catalogManager.getCurrentDatabase());
+                            catalogRegistry.getCurrentCatalog(),
+                            catalogRegistry.getCurrentDatabase());
             qbp.setDestSchemaForClause(ctx1.dest, targetColNames);
             Set<String> targetColumns = new HashSet<>(targetColNames);
             if (targetColNames.size() != targetColumns.size()) {
@@ -1506,7 +1506,7 @@ public class HiveParserSemanticAnalyzer {
         for (String alias : tabAliases) {
             // tabName will always be "catalog.db.table"
             String tabName = qb.getTabNameForAlias(alias);
-            ObjectIdentifier tableIdentifier = parseCompoundName(catalogManager, tabName);
+            ObjectIdentifier tableIdentifier = parseCompoundName(catalogRegistry, tabName);
             // get the origin table name like "table", "db.table", "catalog.db.table" that user
             // specifies
             String originTabName = qb.getOriginTabNameForAlias(alias);
@@ -1516,7 +1516,7 @@ public class HiveParserSemanticAnalyzer {
             if (tab == null
                     || tableIdentifier
                             .getDatabaseName()
-                            .equals(catalogManager.getCurrentDatabase())) {
+                            .equals(catalogRegistry.getCurrentDatabase())) {
                 // we first look for this alias from CTE, and then from catalog.
                 HiveParserBaseSemanticAnalyzer.CTEClause cte = findCTEFromName(qb, cteName);
                 if (cte != null) {
@@ -1594,7 +1594,7 @@ public class HiveParserSemanticAnalyzer {
                 case HiveASTParser.TOK_TAB:
                     {
                         TableSpec ts =
-                                new TableSpec(catalogManager, conf, ast, frameworkConfig, cluster);
+                                new TableSpec(catalogRegistry, conf, ast, frameworkConfig, cluster);
                         if (ts.table instanceof CatalogView) {
                             throw new SemanticException(ErrorMsg.DML_AGAINST_VIEW.getMsg());
                         }
@@ -1691,7 +1691,7 @@ public class HiveParserSemanticAnalyzer {
                                         conf, HiveConf.ConfVars.HIVESTATSAUTOGATHER)) {
                                     TableSpec ts =
                                             new TableSpec(
-                                                    catalogManager,
+                                                    catalogRegistry,
                                                     conf,
                                                     this.ast,
                                                     frameworkConfig,
@@ -2089,14 +2089,15 @@ public class HiveParserSemanticAnalyzer {
         // the tableName passed is resolved as 'catalog.db.table', but the temp table is stored as
         // unresolved which only contains table name, so we need to get the actual table name from
         // the passed 'tableName'
-        String tempTableName = parseCompoundName(catalogManager, tableName).getObjectName();
+        String tempTableName = parseCompoundName(catalogRegistry, tableName).getObjectName();
         if (qb.getValuesTableToData().containsKey(tempTableName)) {
             return qb.getValuesTableToData().get(tempTableName).f0;
         }
         // then get the table from catalogs
         ObjectIdentifier tableIdentifier =
-                catalogManager.qualifyIdentifier(UnresolvedIdentifier.of(tableName.split("\\.")));
-        Optional<ContextResolvedTable> optionalTab = catalogManager.getTable(tableIdentifier);
+                catalogRegistry.qualifyIdentifier(UnresolvedIdentifier.of(tableName.split("\\.")));
+        Optional<ResolvedCatalogBaseTable<?>> optionalTab =
+                catalogRegistry.getCatalogBaseTable(tableIdentifier);
         if (!optionalTab.isPresent()) {
             if (throwException) {
                 throw new IllegalArgumentException(
@@ -2105,7 +2106,7 @@ public class HiveParserSemanticAnalyzer {
                 return null;
             }
         } else {
-            return optionalTab.get().getResolvedTable();
+            return optionalTab.get();
         }
     }
 

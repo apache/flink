@@ -25,11 +25,7 @@ import pytz
 from pyflink import fn_execution
 
 if fn_execution.PYFLINK_CYTHON_ENABLED:
-    try:
-        from pyflink.fn_execution import coder_impl_fast as coder_impl
-    except:
-        from pyflink.fn_execution import coder_impl_slow as coder_impl
-        fn_execution.PYFLINK_CYTHON_ENABLED = False
+    from pyflink.fn_execution import coder_impl_fast as coder_impl
 else:
     from pyflink.fn_execution import coder_impl_slow as coder_impl
 

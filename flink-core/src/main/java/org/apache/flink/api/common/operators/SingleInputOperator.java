@@ -28,7 +28,7 @@ import org.apache.flink.util.Visitor;
 import java.util.List;
 
 /**
- * Abstract superclass for for all operators that have one input like "map" or "reduce".
+ * Abstract superclass for all operators that have one input like "map" or "reduce".
  *
  * @param <IN> Input type of the user function
  * @param <OUT> Output type of the user function

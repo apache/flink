@@ -325,7 +325,10 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
                             pendingRequest.getSlotFuture(),
                             timeout.toMilliseconds(),
                             TimeUnit.MILLISECONDS,
-                            componentMainThreadExecutor)
+                            componentMainThreadExecutor,
+                            String.format(
+                                    "Pending slot request %s timed out after %d ms.",
+                                    pendingRequest.getSlotRequestId(), timeout.toMilliseconds()))
                     .whenComplete(
                             (physicalSlot, throwable) -> {
                                 if (throwable instanceof TimeoutException) {

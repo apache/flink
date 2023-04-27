@@ -2090,6 +2090,8 @@ components:
           type: boolean
         web-history:
           type: boolean
+        web-rescale:
+          type: boolean
         web-submit:
           type: boolean
     GarbageCollectorInfo:

@@ -59,7 +59,6 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
-import org.apache.flink.table.delegation.ExtendedOperationExecutor;
 import org.apache.flink.table.delegation.InternalPlan;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.delegation.Planner;
@@ -904,14 +903,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     @Override
     public TableResultInternal executeInternal(Operation operation) {
-        // try to use extended operation executor to execute the operation
-        Optional<TableResultInternal> tableResult =
-                getExtendedOperationExecutor().executeOperation(operation);
-        // if the extended operation executor return non-empty result, return it
-        if (tableResult.isPresent()) {
-            return tableResult.get();
-        }
-
         // delegate execution to Operation if it implements ExecutableOperation
         if (operation instanceof ExecutableOperation) {
             return ((ExecutableOperation) operation).execute(operationCtx);
@@ -1053,10 +1044,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     @Override
     public Parser getParser() {
         return getPlanner().getParser();
-    }
-
-    public ExtendedOperationExecutor getExtendedOperationExecutor() {
-        return getPlanner().getExtendedOperationExecutor();
     }
 
     @Override

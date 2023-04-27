@@ -21,7 +21,6 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.ExternallyInducedSourceReader;
 import org.apache.flink.api.connector.source.SourceReader;
-import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.SavepointType;
@@ -293,7 +292,6 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
         private final Output<StreamRecord<T>> output;
         private final InternalSourceReaderMetricGroup metricGroup;
         @Nullable private final WatermarkGauge inputWatermarkGauge;
-        private final Counter numRecordsOut;
 
         public AsyncDataOutputToOutput(
                 Output<StreamRecord<T>> output,
@@ -301,14 +299,12 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
                 @Nullable WatermarkGauge inputWatermarkGauge) {
 
             this.output = checkNotNull(output);
-            this.numRecordsOut = metricGroup.getIOMetricGroup().getNumRecordsOutCounter();
             this.inputWatermarkGauge = inputWatermarkGauge;
             this.metricGroup = metricGroup;
         }
 
         @Override
         public void emitRecord(StreamRecord<T> streamRecord) {
-            numRecordsOut.inc();
             metricGroup.recordEmitted(streamRecord.getTimestamp());
             output.collect(streamRecord);
         }

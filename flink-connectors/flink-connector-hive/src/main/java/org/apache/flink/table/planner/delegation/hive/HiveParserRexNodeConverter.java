@@ -761,8 +761,7 @@ public class HiveParserRexNodeConverter {
                             .makeNullLiteral(
                                     newChildRexNodeLst
                                             .get(newChildRexNodeLst.size() - 1)
-                                            .getType()
-                                            .getSqlTypeName()));
+                                            .getType()));
         }
         return newChildRexNodeLst;
     }

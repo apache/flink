@@ -21,24 +21,28 @@ package org.apache.flink.runtime.clusterframework.types;
 import org.apache.flink.runtime.jobmaster.slotpool.PreviousAllocationSlotSelectionStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotSelectionStrategy;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Tests for {@link PreviousAllocationSlotSelectionStrategy}. */
-public class PreviousAllocationSlotSelectionStrategyTest
+class PreviousAllocationSlotSelectionStrategyTest
         extends LocationPreferenceSlotSelectionStrategyTest {
 
-    public PreviousAllocationSlotSelectionStrategyTest() {
-        super(PreviousAllocationSlotSelectionStrategy.create());
+    @BeforeEach
+    @Override
+    void setUp() {
+        this.selectionStrategy = PreviousAllocationSlotSelectionStrategy.create();
     }
 
     @Test
-    public void matchPreviousAllocationOverridesPreferredLocation() {
+    void matchPreviousAllocationOverridesPreferredLocation() {
 
         SlotProfile slotProfile =
                 SlotProfile.priorAllocation(
@@ -48,8 +52,7 @@ public class PreviousAllocationSlotSelectionStrategyTest
                         Collections.singleton(aid3),
                         Collections.emptySet());
         Optional<SlotSelectionStrategy.SlotInfoAndLocality> match = runMatching(slotProfile);
-
-        Assert.assertEquals(slotInfo3, match.get().getSlotInfo());
+        assertMatchingSlotEqualsToSlotInfo(match, slotInfo3);
 
         slotProfile =
                 SlotProfile.priorAllocation(
@@ -59,12 +62,11 @@ public class PreviousAllocationSlotSelectionStrategyTest
                         new HashSet<>(Arrays.asList(aidX, aid2)),
                         Collections.emptySet());
         match = runMatching(slotProfile);
-
-        Assert.assertEquals(slotInfo2, match.get().getSlotInfo());
+        assertMatchingSlotEqualsToSlotInfo(match, slotInfo2);
     }
 
     @Test
-    public void matchPreviousLocationNotAvailableButByLocality() {
+    void matchPreviousLocationNotAvailableButByLocality() {
 
         SlotProfile slotProfile =
                 SlotProfile.priorAllocation(
@@ -74,12 +76,11 @@ public class PreviousAllocationSlotSelectionStrategyTest
                         Collections.singleton(aidX),
                         Collections.emptySet());
         Optional<SlotSelectionStrategy.SlotInfoAndLocality> match = runMatching(slotProfile);
-
-        Assert.assertEquals(slotInfo4, match.get().getSlotInfo());
+        assertMatchingSlotEqualsToSlotInfo(match, slotInfo4);
     }
 
     @Test
-    public void matchPreviousLocationNotAvailableAndAllOthersBlacklisted() {
+    void matchPreviousLocationNotAvailableAndAllOthersBlacklisted() {
         HashSet<AllocationID> blacklisted = new HashSet<>(4);
         blacklisted.add(aid1);
         blacklisted.add(aid2);
@@ -95,11 +96,11 @@ public class PreviousAllocationSlotSelectionStrategyTest
         Optional<SlotSelectionStrategy.SlotInfoAndLocality> match = runMatching(slotProfile);
 
         // there should be no valid option left and we expect null as return
-        Assert.assertFalse(match.isPresent());
+        assertThat(match).isNotPresent();
     }
 
     @Test
-    public void matchPreviousLocationNotAvailableAndSomeOthersBlacklisted() {
+    void matchPreviousLocationNotAvailableAndSomeOthersBlacklisted() {
         HashSet<AllocationID> blacklisted = new HashSet<>(3);
         blacklisted.add(aid2);
         blacklisted.add(aid3);
@@ -114,6 +115,6 @@ public class PreviousAllocationSlotSelectionStrategyTest
         Optional<SlotSelectionStrategy.SlotInfoAndLocality> match = runMatching(slotProfile);
 
         // we expect that the candidate that is not blacklisted is returned
-        Assert.assertEquals(slotInfo1, match.get().getSlotInfo());
+        assertMatchingSlotEqualsToSlotInfo(match, slotInfo1);
     }
 }

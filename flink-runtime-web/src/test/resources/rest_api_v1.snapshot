@@ -62,6 +62,9 @@
             "web-cancel" : {
               "type" : "boolean"
             },
+            "web-rescale" : {
+              "type" : "boolean"
+            },
             "web-history" : {
               "type" : "boolean"
             }

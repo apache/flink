@@ -53,6 +53,7 @@ public class MockRecordEmitter implements RecordEmitter<int[], Integer, MockSpli
             this.metricGroup.getNumRecordsInErrorsCounter().inc();
         }
         this.metricGroup.getIOMetricGroup().getNumBytesInCounter().inc(RECORD_SIZE_IN_BYTES);
+        this.metricGroup.getIOMetricGroup().getNumBytesOutCounter().inc(RECORD_SIZE_IN_BYTES);
 
         // The value is the first element.
         output.collect(record[0]);

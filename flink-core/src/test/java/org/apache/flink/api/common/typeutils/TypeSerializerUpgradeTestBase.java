@@ -53,7 +53,7 @@ import static org.hamcrest.CoreMatchers.not;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedElementT> {
 
-    public static final FlinkVersion CURRENT_VERSION = FlinkVersion.v1_16;
+    public static final FlinkVersion CURRENT_VERSION = FlinkVersion.v1_17;
 
     public static final Set<FlinkVersion> MIGRATION_VERSIONS =
             FlinkVersion.rangeOf(FlinkVersion.v1_11, CURRENT_VERSION);

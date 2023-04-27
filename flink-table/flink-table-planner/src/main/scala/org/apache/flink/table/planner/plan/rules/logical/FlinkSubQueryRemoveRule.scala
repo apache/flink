@@ -304,13 +304,13 @@ class FlinkSubQueryRemoveRule(
       replacement: RexNode): RexNode = {
     condition.accept(new RexShuttle() {
       override def visitSubQuery(subQuery: RexSubQuery): RexNode = {
-        if (RexUtil.eq(subQuery, oldSubQueryCall)) replacement else subQuery
+        if (subQuery.equals(oldSubQueryCall)) replacement else subQuery
       }
 
       override def visitCall(call: RexCall): RexNode = {
         call.getKind match {
           case SqlKind.NOT if call.operands.head.isInstanceOf[RexSubQuery] =>
-            if (RexUtil.eq(call, oldSubQueryCall)) replacement else call
+            if (call.equals(oldSubQueryCall)) replacement else call
           case _ =>
             super.visitCall(call)
         }

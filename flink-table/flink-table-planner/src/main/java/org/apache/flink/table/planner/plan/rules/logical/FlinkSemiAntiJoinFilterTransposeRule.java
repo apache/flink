@@ -17,6 +17,8 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableSet;
+
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.RelNode;
@@ -79,7 +81,7 @@ public class FlinkSemiAntiJoinFilterTransposeRule extends RelOptRule {
                         join.getJoinType());
 
         final RelFactories.FilterFactory factory = RelFactories.DEFAULT_FILTER_FACTORY;
-        RelNode newFilter = factory.createFilter(newJoin, filter.getCondition());
+        RelNode newFilter = factory.createFilter(newJoin, filter.getCondition(), ImmutableSet.of());
 
         call.transformTo(newFilter);
     }

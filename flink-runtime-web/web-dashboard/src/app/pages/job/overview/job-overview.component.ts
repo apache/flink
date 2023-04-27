@@ -34,8 +34,9 @@ import { DagreComponent } from '@flink-runtime-web/components/dagre/dagre.compon
 import { ResizeComponent } from '@flink-runtime-web/components/resize/resize.component';
 import { NodesItemCorrect, NodesItemLink } from '@flink-runtime-web/interfaces';
 import { JobOverviewListComponent } from '@flink-runtime-web/pages/job/overview/list/job-overview-list.component';
-import { MetricsService } from '@flink-runtime-web/services';
+import { JobService, MetricsService } from '@flink-runtime-web/services';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
+import { NzNotificationService } from 'ng-zorro-antd/notification';
 
 import { JobLocalService } from '../job-local.service';
 
@@ -65,6 +66,8 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
     public readonly elementRef: ElementRef,
     private readonly metricService: MetricsService,
     private readonly jobLocalService: JobLocalService,
+    private readonly jobService: JobService,
+    private readonly notificationService: NzNotificationService,
     private readonly cdr: ChangeDetectorRef
   ) {}
 
@@ -113,6 +116,15 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
     if (!(this.selectedNode && this.selectedNode.id === node.id)) {
       this.router.navigate([node.id], { relativeTo: this.activatedRoute }).then();
     }
+  }
+
+  public onRescale(desiredParallelism: Map<string, number>): void {
+    this.jobService.changeDesiredParallelism(this.jobId, desiredParallelism).subscribe(() => {
+      this.notificationService.success(
+        'Rescaling operation.',
+        'Job resources requirements have been updated. Job will now try to rescale.'
+      );
+    });
   }
 
   public onResizeEnd(): void {

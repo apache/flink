@@ -49,7 +49,11 @@ import static org.apache.flink.util.concurrent.FutureUtils.assertNoException;
  *
  * <p>The size of this pool can be dynamically changed at runtime ({@link #setNumBuffers(int)}. It
  * will then lazily return the required number of buffers to the {@link NetworkBufferPool} to match
- * its new size.
+ * its new size. New buffers can be requested only when {@code numberOfRequestedMemorySegments +
+ * numberOfRequestedOverdraftMemorySegments < currentPoolSize + maxOverdraftBuffersPerGate}. In
+ * order to meet this requirement, when the size of this pool changes,
+ * numberOfRequestedMemorySegments and numberOfRequestedOverdraftMemorySegments can be converted to
+ * each other.
  *
  * <p>Availability is defined as returning a non-overdraft segment on a subsequent {@link
  * #requestBuffer()}/ {@link #requestBufferBuilder()} and heaving a non-blocking {@link
@@ -671,11 +675,17 @@ class LocalBufferPool implements BufferPool {
 
             currentPoolSize = Math.min(numBuffers, maxNumberOfMemorySegments);
 
-            // reset overdraft buffers
+            // If pool size increases, try to convert overdraft buffer to ordinary buffer.
             while (numberOfRequestedOverdraftMemorySegments > 0
                     && numberOfRequestedMemorySegments < currentPoolSize) {
                 numberOfRequestedOverdraftMemorySegments--;
                 numberOfRequestedMemorySegments++;
+            }
+
+            // If pool size decreases, try to convert ordinary buffer to overdraft buffer.
+            while (numberOfRequestedMemorySegments > currentPoolSize) {
+                numberOfRequestedMemorySegments--;
+                numberOfRequestedOverdraftMemorySegments++;
             }
 
             returnExcessMemorySegments();

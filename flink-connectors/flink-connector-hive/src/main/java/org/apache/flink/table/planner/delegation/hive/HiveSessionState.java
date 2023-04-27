@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.delegation.hive;
 
 import org.apache.flink.connectors.hive.FlinkHiveException;
-import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.CatalogRegistry;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.util.FileUtils;
 
@@ -122,12 +122,12 @@ public class HiveSessionState extends SessionState {
         }
     }
 
-    public static void startSessionState(HiveConf hiveConf, CatalogManager catalogManager) {
+    public static void startSessionState(HiveConf hiveConf, CatalogRegistry catalogRegistry) {
         final ClassLoader contextCL = Thread.currentThread().getContextClassLoader();
         try {
             HiveSessionState sessionState = new HiveSessionState(hiveConf, contextCL);
             sessionState.initTxnMgr(hiveConf);
-            sessionState.setCurrentDatabase(catalogManager.getCurrentDatabase());
+            sessionState.setCurrentDatabase(catalogRegistry.getCurrentDatabase());
             // some Hive functions needs the timestamp
             setCurrentTimestamp(sessionState);
             SessionState.setCurrentSessionState(sessionState);

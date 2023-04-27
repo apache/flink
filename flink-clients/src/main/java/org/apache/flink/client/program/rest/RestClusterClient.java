@@ -1049,7 +1049,10 @@ public class RestClusterClient<T> implements ClusterClient<T> {
         return FutureUtils.orTimeout(
                         webMonitorLeaderRetriever.getLeaderFuture(),
                         restClusterClientConfiguration.getAwaitLeaderTimeout(),
-                        TimeUnit.MILLISECONDS)
+                        TimeUnit.MILLISECONDS,
+                        String.format(
+                                "Waiting for leader address of WebMonitorEndpoint timed out after %d ms.",
+                                restClusterClientConfiguration.getAwaitLeaderTimeout()))
                 .thenApplyAsync(
                         leaderAddressSessionId -> {
                             final String url = leaderAddressSessionId.f0;
