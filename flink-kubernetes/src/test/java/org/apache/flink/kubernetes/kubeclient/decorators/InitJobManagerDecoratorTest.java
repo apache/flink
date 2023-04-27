@@ -238,7 +238,7 @@ class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
                         .withContainerPort(RPC_PORT)
                         .build();
         rpcConatinerPort.setAdditionalProperty("appProtocol", "tcp");
-        podMainContainer.setPorts(List.of(rpcConatinerPort));
+        podMainContainer.setPorts(Arrays.asList(rpcConatinerPort));
         final FlinkPod baseFlinkPodWithPorts =
                 new FlinkPod.Builder().withMainContainer(podMainContainer).build();
 
