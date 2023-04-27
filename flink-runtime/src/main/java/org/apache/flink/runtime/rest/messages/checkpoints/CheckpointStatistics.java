@@ -332,7 +332,8 @@ public class CheckpointStatistics implements ResponseBody {
                     completedCheckpointStats.getNumberOfSubtasks(),
                     completedCheckpointStats.getNumberOfAcknowledgedSubtasks(),
                     RestAPICheckpointType.valueOf(
-                            completedCheckpointStats.getProperties().getCheckpointType()),
+                            completedCheckpointStats.getProperties().getCheckpointType(),
+                            completedCheckpointStats.isUnalignedCheckpoint()),
                     checkpointStatisticsPerTask,
                     completedCheckpointStats.getExternalPath(),
                     completedCheckpointStats.isDiscarded());
@@ -355,7 +356,8 @@ public class CheckpointStatistics implements ResponseBody {
                     failedCheckpointStats.getNumberOfSubtasks(),
                     failedCheckpointStats.getNumberOfAcknowledgedSubtasks(),
                     RestAPICheckpointType.valueOf(
-                            failedCheckpointStats.getProperties().getCheckpointType()),
+                            failedCheckpointStats.getProperties().getCheckpointType(),
+                            failedCheckpointStats.isUnalignedCheckpoint()),
                     checkpointStatisticsPerTask,
                     failedCheckpointStats.getFailureTimestamp(),
                     failedCheckpointStats.getFailureMessage());
@@ -378,7 +380,8 @@ public class CheckpointStatistics implements ResponseBody {
                     pendingCheckpointStats.getNumberOfSubtasks(),
                     pendingCheckpointStats.getNumberOfAcknowledgedSubtasks(),
                     RestAPICheckpointType.valueOf(
-                            pendingCheckpointStats.getProperties().getCheckpointType()),
+                            pendingCheckpointStats.getProperties().getCheckpointType(),
+                            pendingCheckpointStats.isUnalignedCheckpoint()),
                     checkpointStatisticsPerTask);
         } else {
             throw new IllegalArgumentException(
@@ -394,16 +397,23 @@ public class CheckpointStatistics implements ResponseBody {
      */
     enum RestAPICheckpointType {
         CHECKPOINT,
+        UNALIGNED_CHECKPOINT,
         SAVEPOINT,
         SYNC_SAVEPOINT;
 
-        public static RestAPICheckpointType valueOf(SnapshotType checkpointType) {
+        public static RestAPICheckpointType valueOf(
+                SnapshotType checkpointType, boolean isUnalignedCheckpoint) {
             if (checkpointType.isSavepoint()) {
+                Preconditions.checkArgument(
+                        !isUnalignedCheckpoint,
+                        "Currently the savepoint doesn't support unaligned checkpoint.");
                 SavepointType savepointType = (SavepointType) checkpointType;
                 return savepointType.isSynchronous() ? SYNC_SAVEPOINT : SAVEPOINT;
-            } else {
-                return CHECKPOINT;
             }
+            if (isUnalignedCheckpoint) {
+                return UNALIGNED_CHECKPOINT;
+            }
+            return CHECKPOINT;
         }
     }
 

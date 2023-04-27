@@ -26,10 +26,15 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointStatistics.RestAPICheckpointType;
 
+import org.junit.jupiter.api.Test;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link CheckpointingStatistics}. */
 public class CheckpointingStatisticsTest
@@ -81,7 +86,7 @@ public class CheckpointingStatisticsTest
                         44L,
                         10,
                         10,
-                        RestAPICheckpointType.valueOf(CheckpointType.CHECKPOINT),
+                        RestAPICheckpointType.valueOf(CheckpointType.CHECKPOINT, true),
                         Collections.emptyMap(),
                         null,
                         false);
@@ -98,11 +103,11 @@ public class CheckpointingStatisticsTest
                         1L,
                         0L,
                         31337L,
-                        4244L,
+                        0L,
                         9,
                         9,
                         RestAPICheckpointType.valueOf(
-                                SavepointType.savepoint(SavepointFormatType.CANONICAL)),
+                                SavepointType.savepoint(SavepointFormatType.CANONICAL), false),
                         checkpointStatisticsPerTask,
                         "externalPath",
                         false);
@@ -122,7 +127,7 @@ public class CheckpointingStatisticsTest
                         22L,
                         11,
                         9,
-                        RestAPICheckpointType.valueOf(CheckpointType.CHECKPOINT),
+                        RestAPICheckpointType.valueOf(CheckpointType.CHECKPOINT, true),
                         Collections.emptyMap(),
                         100L,
                         "Test failure");
@@ -145,7 +150,7 @@ public class CheckpointingStatisticsTest
                         16L,
                         10,
                         10,
-                        RestAPICheckpointType.valueOf(CheckpointType.CHECKPOINT),
+                        RestAPICheckpointType.valueOf(CheckpointType.CHECKPOINT, true),
                         Collections.emptyMap());
 
         final CheckpointingStatistics.LatestCheckpoints latestCheckpoints =
@@ -157,5 +162,40 @@ public class CheckpointingStatisticsTest
                 summary,
                 latestCheckpoints,
                 Arrays.asList(completed, savepoint, failed, pending));
+    }
+
+    @Test
+    void testRestAPICheckpointType() {
+        // Test for aligned checkpoint
+        assertThat(RestAPICheckpointType.valueOf(CheckpointType.CHECKPOINT, false))
+                .isEqualTo(RestAPICheckpointType.CHECKPOINT);
+        assertThat(RestAPICheckpointType.valueOf(CheckpointType.FULL_CHECKPOINT, false))
+                .isEqualTo(RestAPICheckpointType.CHECKPOINT);
+
+        // Test for unaligned checkpoint
+        assertThat(RestAPICheckpointType.valueOf(CheckpointType.CHECKPOINT, true))
+                .isEqualTo(RestAPICheckpointType.UNALIGNED_CHECKPOINT);
+        assertThat(RestAPICheckpointType.valueOf(CheckpointType.FULL_CHECKPOINT, true))
+                .isEqualTo(RestAPICheckpointType.UNALIGNED_CHECKPOINT);
+
+        // Test for savepoint
+        assertThat(
+                        RestAPICheckpointType.valueOf(
+                                SavepointType.savepoint(SavepointFormatType.NATIVE), false))
+                .isEqualTo(RestAPICheckpointType.SAVEPOINT);
+        assertThat(
+                        RestAPICheckpointType.valueOf(
+                                SavepointType.suspend(SavepointFormatType.NATIVE), false))
+                .isEqualTo(RestAPICheckpointType.SYNC_SAVEPOINT);
+        assertThat(
+                        RestAPICheckpointType.valueOf(
+                                SavepointType.terminate(SavepointFormatType.NATIVE), false))
+                .isEqualTo(RestAPICheckpointType.SYNC_SAVEPOINT);
+
+        assertThatThrownBy(
+                        () ->
+                                RestAPICheckpointType.valueOf(
+                                        SavepointType.terminate(SavepointFormatType.NATIVE), true))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

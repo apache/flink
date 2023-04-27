@@ -42,6 +42,7 @@ public class CompletedCheckpointStatsSummaryTest {
         long stateSize = Integer.MAX_VALUE + 17787L;
         long processedData = Integer.MAX_VALUE + 123123L;
         long persistedData = Integer.MAX_VALUE + 42L;
+        boolean unalignedCheckpoint = true;
 
         CompletedCheckpointStatsSummary summary = new CompletedCheckpointStatsSummary();
         assertThat(summary.getStateSizeStats().getCount()).isZero();
@@ -59,7 +60,8 @@ public class CompletedCheckpointStatsSummaryTest {
                             ackTimestamp + i,
                             stateSize + i,
                             processedData + i,
-                            persistedData + i);
+                            persistedData + i,
+                            unalignedCheckpoint);
 
             summary.updateSummary(completed);
 
@@ -93,7 +95,8 @@ public class CompletedCheckpointStatsSummaryTest {
             long ackTimestamp,
             long stateSize,
             long processedData,
-            long persistedData) {
+            long persistedData,
+            boolean unalignedCheckpoint) {
 
         SubtaskStateStats latest = mock(SubtaskStateStats.class);
         when(latest.getAckTimestamp()).thenReturn(ackTimestamp);
@@ -113,6 +116,7 @@ public class CompletedCheckpointStatsSummaryTest {
                 stateSize,
                 processedData,
                 persistedData,
+                unalignedCheckpoint,
                 latest,
                 null);
     }
@@ -123,6 +127,7 @@ public class CompletedCheckpointStatsSummaryTest {
         int stateSize = 100;
         int processedData = 200;
         int persistedData = 300;
+        boolean unalignedCheckpoint = true;
         long triggerTimestamp = 1234;
         long lastAck = triggerTimestamp + 123;
 
@@ -138,6 +143,7 @@ public class CompletedCheckpointStatsSummaryTest {
                         stateSize,
                         processedData,
                         persistedData,
+                        unalignedCheckpoint,
                         new SubtaskStateStats(0, lastAck),
                         ""));
         CompletedCheckpointStatsSummarySnapshot snapshot = summary.createSnapshot();
