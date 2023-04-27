@@ -28,7 +28,6 @@ import org.apache.flink.table.jdbc.utils.DriverUtils;
 import java.sql.DatabaseMetaData;
 import java.sql.SQLClientInfoException;
 import java.sql.SQLException;
-import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Statement;
 import java.util.Collections;
 import java.util.Properties;

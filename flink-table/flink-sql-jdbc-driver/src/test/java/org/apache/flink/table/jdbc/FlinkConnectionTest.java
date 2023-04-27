@@ -31,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link FlinkConnection}. */
-public class FlinkConnectionTest extends FlinkSqlDriverTestBase {
+public class FlinkConnectionTest extends FlinkJdbcDriverTestBase {
 
     @Test
     public void testCatalogSchema() throws Exception {

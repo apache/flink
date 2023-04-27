@@ -36,7 +36,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for flink database metadata. */
-public class FlinkDatabaseMetaDataTest extends FlinkSqlDriverTestBase {
+public class FlinkDatabaseMetaDataTest extends FlinkJdbcDriverTestBase {
     @Test
     public void testCatalogSchemas() throws Exception {
 
