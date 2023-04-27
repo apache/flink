@@ -318,17 +318,27 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
     private void testNodePortService(KubernetesConfigOptions.NodePortAddressType addressType) {
         flinkConfig.set(
                 KubernetesConfigOptions.REST_SERVICE_EXPOSED_NODE_PORT_ADDRESS_TYPE, addressType);
-        final List<String> internalAddresses =
+        final List<String[]> internalAddresses =
                 Arrays.asList(
-                        "InternalIP:10.0.0.1:true",
-                        "InternalIP:10.0.0.2:false",
-                        "InternalIP:10.0.0.3: ");
-        final List<String> externalAddresses =
+                        new String[] {"InternalIP", "10.0.0.1", "true"},
+                        new String[] {"InternalIP", "10.0.0.2", "false"},
+                        new String[] {"InternalIP", "10.0.0.3", " "},
+                        new String[] {"InternalIP", "2409:8c20:1833:2000::afd:ab7a", "true"},
+                        new String[] {"InternalIP", "2409:8c20:1833:2000::afd:ab7b", "false"},
+                        new String[] {"InternalIP", "2409:8c20:1833:2000::afd:ab7c", " "});
+        final List<String[]> externalAddresses =
                 Arrays.asList(
-                        "ExternalIP:7.7.7.7:true",
-                        "ExternalIP:8.8.8.8:false",
-                        "ExternalIP:9.9.9.9: ");
-        final List<String> addresses = new ArrayList<>();
+                        new String[] {"ExternalIP", "7.7.7.7", "true"},
+                        new String[] {"ExternalIP", "8.8.8.8", "false"},
+                        new String[] {"ExternalIP", "9.9.9.9", " "},
+                        new String[] {
+                            "ExternalIP", "fd83:fb51:44b4:1e1:a5c9:b9dc:7ff:2170", "true"
+                        },
+                        new String[] {
+                            "ExternalIP", "fd83:fb51:44b4:1e1:a5c9:b9dc:7ff:2171", "false"
+                        },
+                        new String[] {"ExternalIP", "fd83:fb51:44b4:1e1:a5c9:b9dc:7ff:2173", " "});
+        final List<String[]> addresses = new ArrayList<>();
         addresses.addAll(internalAddresses);
         addresses.addAll(externalAddresses);
         mockExpectedServiceFromServerSide(buildExternalServiceWithNodePort());
@@ -345,22 +355,22 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
                 case InternalIP:
                     expectedIps =
                             internalAddresses.stream()
-                                    .filter(s -> !"true".equals(s.split(":")[2]))
-                                    .map(s -> s.split(":")[1])
+                                    .filter(s -> !"true".equals(s[2]))
+                                    .map(s -> s[1])
                                     .collect(Collectors.toList());
                     break;
                 case ExternalIP:
                     expectedIps =
                             externalAddresses.stream()
-                                    .filter(s -> !"true".equals(s.split(":")[2]))
-                                    .map(s -> s.split(":")[1])
+                                    .filter(s -> !"true".equals(s[2]))
+                                    .map(s -> s[1])
                                     .collect(Collectors.toList());
                     break;
                 default:
                     throw new IllegalArgumentException(
                             String.format("Unexpected address type %s.", addressType));
             }
-            assertThat(expectedIps.size()).isEqualTo(2);
+            assertThat(expectedIps.size()).isEqualTo(4);
             assertThat(resultEndpoint.get().getAddress()).isIn(expectedIps);
             assertThat(resultEndpoint.get().getPort()).isEqualTo(NODE_PORT);
         }

@@ -6,5 +6,10 @@ The Apache Software Foundation (http://www.apache.org/).
 
 This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
-- com.squareup.okhttp3:okhttp:3.14.9
-- com.squareup.okio:okio:1.17.2
+- com.squareup.okhttp3:okhttp:4.11.0
+- com.squareup.okio:okio:3.2.0
+- com.squareup.okio:okio-jvm:3.2.0
+- org.jetbrains.kotlin:kotlin-stdlib-common:1.6.20
+- org.jetbrains.kotlin:kotlin-stdlib:1.6.20
+- org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.6.20
+- org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.6.20

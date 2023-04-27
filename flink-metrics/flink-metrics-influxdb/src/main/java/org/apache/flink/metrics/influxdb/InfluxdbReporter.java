@@ -96,11 +96,13 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
                         .connectTimeout(connectTimeout, TimeUnit.MILLISECONDS)
                         .writeTimeout(writeTimeout, TimeUnit.MILLISECONDS);
 
-        if (username != null && password != null) {
-            influxDB = InfluxDBFactory.connect(url, username, password, client);
-        } else {
-            influxDB = InfluxDBFactory.connect(url, client);
-        }
+        /*
+         Okhttp3 4.11 does not allow null value in BasicAuthInterceptor, in okhttp3 3.x,
+         when pass null value, "null" is used.
+        */
+        influxDB =
+                InfluxDBFactory.connect(
+                        url, String.valueOf(username), String.valueOf(password), client);
 
         log.info(
                 "Configured InfluxDBReporter with {host:{}, port:{}, db:{}, retentionPolicy:{} and consistency:{}}",
