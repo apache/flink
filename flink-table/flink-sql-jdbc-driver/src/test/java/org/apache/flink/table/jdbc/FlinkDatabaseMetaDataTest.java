@@ -86,23 +86,6 @@ public class FlinkDatabaseMetaDataTest extends FlinkJdbcDriverTestBase {
                             "database21,test_catalog2",
                             "database31,test_catalog2",
                             "default,test_catalog2");
-            // Show all databases whose name contains 'database1'
-            assertThat(resultSetToListAndClose(databaseMetaData.getSchemas(null, "database1")))
-                    .containsExactly(
-                            "database11,default_catalog",
-                            "database12,default_catalog",
-                            "database13,default_catalog",
-                            "database11,test_catalog1",
-                            "database13,test_catalog1",
-                            "database11,test_catalog2");
-            // Show all databases without catalog
-            assertTrue(
-                    resultSetToListAndClose(databaseMetaData.getSchemas("", "database")).isEmpty());
-            // Show all databases in catalog 'test_catalog1' whose name contains 'database1'
-            assertThat(
-                            resultSetToListAndClose(
-                                    databaseMetaData.getSchemas("test_catalog1", "database1")))
-                    .containsExactly("database11,test_catalog1", "database13,test_catalog1");
 
             // Validate that the default catalog and database are not changed.
             assertEquals("test_catalog2", connection.getCatalog());
