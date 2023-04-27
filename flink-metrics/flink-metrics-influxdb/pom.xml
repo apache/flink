@@ -94,6 +94,7 @@ under the License.
 									<include>com.squareup.moshi:*</include>
 									<include>com.squareup.okhttp3:*</include>
 									<include>com.squareup.okio:*</include>
+									<include>org.jetbrains.kotlin:*</include>
 									<include>com.squareup.retrofit2:*</include>
 									<!-- org.msgpack:msgpack-core is not required -->
 								</includes>

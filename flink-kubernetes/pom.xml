@@ -115,7 +115,8 @@ under the License.
 									<include>com.fasterxml.jackson.dataformat:jackson-dataformat-yaml</include>
 									<include>com.fasterxml.jackson.datatype:jackson-datatype-jsr310</include>
 									<include>com.squareup.okhttp3:*</include>
-									<include>com.squareup.okio:okio</include>
+									<include>com.squareup.okio:*</include>
+									<include>org.jetbrains.kotlin:*</include>
 									<include>org.yaml:*</include>
 									<include>dk.brics.automaton:*</include>
 
@@ -158,6 +159,10 @@ under the License.
 								<relocation>
 									<pattern>okio</pattern>
 									<shadedPattern>org.apache.flink.kubernetes.shaded.okio</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>kotlin</pattern>
+									<shadedPattern>org.apache.flink.kubernetes.shaded.kotlin</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>org.yaml</pattern>

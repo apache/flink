@@ -62,11 +62,10 @@ public class KubernetesClientTestBase extends KubernetesTestBase {
     protected static final int REST_PORT = 9021;
     protected static final int NODE_PORT = 31234;
 
-    protected void mockExpectedNodesFromServerSide(List<String> addresses) {
+    protected void mockExpectedNodesFromServerSide(List<String[]> addresses) {
         final List<Node> nodes = new ArrayList<>();
         Collections.shuffle(addresses);
-        for (String address : addresses) {
-            final String[] parts = address.split(":");
+        for (String[] parts : addresses) {
             Preconditions.checkState(
                     parts.length == 3,
                     "Address should be in format \"<type>:<ip>:<unschedulable>\".");
