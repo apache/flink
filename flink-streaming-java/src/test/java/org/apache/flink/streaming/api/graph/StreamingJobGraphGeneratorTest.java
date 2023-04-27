@@ -257,7 +257,7 @@ class StreamingJobGraphGeneratorTest {
     }
 
     @Test
-    public void testTransformationSetParallelism() {
+    void testTransformationSetParallelism() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         /* The default parallelism of the environment (that is inherited by the source)
         and the parallelism of the map operator needs to be different for this test */
@@ -284,7 +284,7 @@ class StreamingJobGraphGeneratorTest {
     }
 
     @Test
-    public void testChainNodeSetParallelism() {
+    void testChainNodeSetParallelism() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.fromSequence(1L, 3L).map(value -> value).print().setParallelism(env.getParallelism());
         StreamGraph streamGraph = env.getStreamGraph();
@@ -306,7 +306,7 @@ class StreamingJobGraphGeneratorTest {
     }
 
     @Test
-    public void testChainedSourcesSetParallelism() {
+    void testChainedSourcesSetParallelism() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         MultipleInputTransformation<Long> transform =
                 new MultipleInputTransformation<>(
@@ -350,7 +350,7 @@ class StreamingJobGraphGeneratorTest {
     }
 
     @Test
-    public void testDynamicGraphVertexParallelism() {
+    void testDynamicGraphVertexParallelism() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         int defaultParallelism = 20;
         env.setParallelism(defaultParallelism);
