@@ -368,6 +368,7 @@ public class CompletedCheckpointTest {
                         1,
                         1,
                         1,
+                        true,
                         mock(SubtaskStateStats.class),
                         null);
         CompletedCheckpoint completed =
@@ -408,6 +409,7 @@ public class CompletedCheckpointTest {
                         123129837912L,
                         42L,
                         44L,
+                        true,
                         new SubtaskStateStats(
                                 123, 213123, 123123, 123123, 0, 0, 0, 0, 0, 0, false, true),
                         null);
@@ -424,6 +426,7 @@ public class CompletedCheckpointTest {
         assertThat(copy.getStateSize()).isEqualTo(completed.getStateSize());
         assertThat(copy.getProcessedData()).isEqualTo(completed.getProcessedData());
         assertThat(copy.getPersistedData()).isEqualTo(completed.getPersistedData());
+        assertThat(copy.isUnalignedCheckpoint()).isEqualTo(completed.isUnalignedCheckpoint());
         assertThat(copy.getLatestAcknowledgedSubtaskStats().getSubtaskIndex())
                 .isEqualTo(completed.getLatestAcknowledgedSubtaskStats().getSubtaskIndex());
         assertThat(copy.getStatus()).isEqualTo(completed.getStatus());

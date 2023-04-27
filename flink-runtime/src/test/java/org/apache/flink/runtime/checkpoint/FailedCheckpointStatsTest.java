@@ -57,6 +57,7 @@ public class FailedCheckpointStatsTest {
                         0,
                         0,
                         0,
+                        false,
                         failureTimestamp,
                         null,
                         null);
@@ -87,6 +88,7 @@ public class FailedCheckpointStatsTest {
                         190890123,
                         4242,
                         4444,
+                        true,
                         failureTimestamp,
                         null,
                         new NotSerializableException("message"));
@@ -103,6 +105,7 @@ public class FailedCheckpointStatsTest {
         assertThat(copy.getStateSize()).isEqualTo(failed.getStateSize());
         assertThat(copy.getProcessedData()).isEqualTo(failed.getProcessedData());
         assertThat(copy.getPersistedData()).isEqualTo(failed.getPersistedData());
+        assertThat(copy.isUnalignedCheckpoint()).isEqualTo(failed.isUnalignedCheckpoint());
         assertThat(copy.getLatestAcknowledgedSubtaskStats())
                 .isEqualTo(failed.getLatestAcknowledgedSubtaskStats());
         assertThat(copy.getStatus()).isEqualTo(failed.getStatus());

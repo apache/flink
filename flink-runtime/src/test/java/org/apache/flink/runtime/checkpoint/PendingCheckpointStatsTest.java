@@ -68,17 +68,19 @@ public class PendingCheckpointStatsTest {
         assertThat(pending.getTaskStateStats(new JobVertexID())).isNull();
 
         // Report subtasks and check getters
-        assertThat(pending.reportSubtaskStats(new JobVertexID(), createSubtaskStats(0))).isFalse();
+        assertThat(pending.reportSubtaskStats(new JobVertexID(), createSubtaskStats(0, false)))
+                .isFalse();
 
         long stateSize = 0;
 
         // Report 1st task
         for (int i = 0; i < task1.getNumberOfSubtasks(); i++) {
-            SubtaskStateStats subtask = createSubtaskStats(i);
+            SubtaskStateStats subtask = createSubtaskStats(i, false);
             stateSize += subtask.getStateSize();
 
             pending.reportSubtaskStats(task1.getJobVertexId(), subtask);
 
+            assertThat(pending.isUnalignedCheckpoint()).isFalse();
             assertThat(pending.getLatestAcknowledgedSubtaskStats()).isEqualTo(subtask);
             assertThat(pending.getLatestAckTimestamp()).isEqualTo(subtask.getAckTimestamp());
             assertThat(pending.getEndToEndDuration())
@@ -92,11 +94,12 @@ public class PendingCheckpointStatsTest {
 
         // Report 2nd task
         for (int i = 0; i < task2.getNumberOfSubtasks(); i++) {
-            SubtaskStateStats subtask = createSubtaskStats(i);
+            SubtaskStateStats subtask = createSubtaskStats(i, true);
             stateSize += subtask.getStateSize();
 
             pending.reportSubtaskStats(task2.getJobVertexId(), subtask);
 
+            assertThat(pending.isUnalignedCheckpoint()).isTrue();
             assertThat(pending.getLatestAcknowledgedSubtaskStats()).isEqualTo(subtask);
             assertThat(pending.getLatestAckTimestamp()).isEqualTo(subtask.getAckTimestamp());
             assertThat(pending.getEndToEndDuration())
@@ -131,11 +134,13 @@ public class PendingCheckpointStatsTest {
 
         // Report subtasks
         for (int i = 0; i < task1.getNumberOfSubtasks(); i++) {
-            pending.reportSubtaskStats(task1.getJobVertexId(), createSubtaskStats(i));
+            pending.reportSubtaskStats(task1.getJobVertexId(), createSubtaskStats(i, false));
+            assertThat(pending.isUnalignedCheckpoint()).isFalse();
         }
 
         for (int i = 0; i < task2.getNumberOfSubtasks(); i++) {
-            pending.reportSubtaskStats(task2.getJobVertexId(), createSubtaskStats(i));
+            pending.reportSubtaskStats(task2.getJobVertexId(), createSubtaskStats(i, true));
+            assertThat(pending.isUnalignedCheckpoint()).isTrue();
         }
 
         // Report completed
@@ -164,6 +169,7 @@ public class PendingCheckpointStatsTest {
         assertThat(completed.getLatestAckTimestamp()).isEqualTo(pending.getLatestAckTimestamp());
         assertThat(completed.getEndToEndDuration()).isEqualTo(pending.getEndToEndDuration());
         assertThat(completed.getStateSize()).isEqualTo(pending.getStateSize());
+        assertThat(completed.isUnalignedCheckpoint()).isTrue();
         assertThat(completed.getTaskStateStats(task1.getJobVertexId())).isEqualTo(task1);
         assertThat(completed.getTaskStateStats(task2.getJobVertexId())).isEqualTo(task2);
     }
@@ -192,11 +198,13 @@ public class PendingCheckpointStatsTest {
 
         // Report subtasks
         for (int i = 0; i < task1.getNumberOfSubtasks(); i++) {
-            pending.reportSubtaskStats(task1.getJobVertexId(), createSubtaskStats(i));
+            pending.reportSubtaskStats(task1.getJobVertexId(), createSubtaskStats(i, false));
+            assertThat(pending.isUnalignedCheckpoint()).isFalse();
         }
 
         for (int i = 0; i < task2.getNumberOfSubtasks(); i++) {
-            pending.reportSubtaskStats(task2.getJobVertexId(), createSubtaskStats(i));
+            pending.reportSubtaskStats(task2.getJobVertexId(), createSubtaskStats(i, true));
+            assertThat(pending.isUnalignedCheckpoint()).isTrue();
         }
 
         // Report failed
@@ -223,6 +231,7 @@ public class PendingCheckpointStatsTest {
         assertThat(failed.getLatestAckTimestamp()).isEqualTo(pending.getLatestAckTimestamp());
         assertThat(failed.getEndToEndDuration()).isEqualTo(failureTimestamp - triggerTimestamp);
         assertThat(failed.getStateSize()).isEqualTo(pending.getStateSize());
+        assertThat(failed.isUnalignedCheckpoint()).isTrue();
         assertThat(failed.getTaskStateStats(task1.getJobVertexId())).isEqualTo(task1);
         assertThat(failed.getTaskStateStats(task2.getJobVertexId())).isEqualTo(task2);
     }
@@ -262,7 +271,7 @@ public class PendingCheckpointStatsTest {
 
     // ------------------------------------------------------------------------
 
-    private SubtaskStateStats createSubtaskStats(int index) {
+    private SubtaskStateStats createSubtaskStats(int index, boolean unalignedCheckpoint) {
         return new SubtaskStateStats(
                 index,
                 Integer.MAX_VALUE + (long) index,
@@ -274,7 +283,7 @@ public class PendingCheckpointStatsTest {
                 Integer.MAX_VALUE + (long) index,
                 Integer.MAX_VALUE + (long) index,
                 Integer.MAX_VALUE + (long) index,
-                false,
+                unalignedCheckpoint,
                 true);
     }
 }
