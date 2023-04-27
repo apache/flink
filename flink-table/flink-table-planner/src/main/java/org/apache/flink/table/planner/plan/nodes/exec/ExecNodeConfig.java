@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
@@ -62,6 +63,11 @@ public final class ExecNodeConfig implements ReadableConfig {
 
     public static ExecNodeConfig ofNodeConfig(ReadableConfig nodeConfig, boolean isCompiled) {
         return new ExecNodeConfig(new Configuration(), nodeConfig, isCompiled);
+    }
+
+    @VisibleForTesting
+    public static ExecNodeConfig ofTableConfig(TableConfig tableConfig, boolean isCompiled) {
+        return new ExecNodeConfig(tableConfig, TableConfig.getDefault(), isCompiled);
     }
 
     @Override
