@@ -23,24 +23,25 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests the {@link ImmutableValueState}. */
-public class ImmutableValueStateTest {
+class ImmutableValueStateTest {
 
     private final ValueStateDescriptor<Long> valueStateDesc =
             new ValueStateDescriptor<>("test", BasicTypeInfo.LONG_TYPE_INFO);
 
     private ValueState<Long> valueState;
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeEach
+    void setUp() throws Exception {
         if (!valueStateDesc.isSerializerInitialized()) {
             valueStateDesc.initializeSerializerUnlessSet(new ExecutionConfig());
         }
@@ -50,19 +51,19 @@ public class ImmutableValueStateTest {
                         valueStateDesc, ByteBuffer.allocate(Long.BYTES).putLong(42L).array());
     }
 
-    @Test(expected = UnsupportedOperationException.class)
-    public void testUpdate() throws IOException {
+    @Test
+    void testUpdate() throws IOException {
         long value = valueState.value();
-        assertEquals(42L, value);
-
-        valueState.update(54L);
+        assertThat(value).isEqualTo(42L);
+        assertThatThrownBy(() -> valueState.update(54L))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
-    @Test(expected = UnsupportedOperationException.class)
-    public void testClear() throws IOException {
+    @Test
+    void testClear() throws IOException {
         long value = valueState.value();
-        assertEquals(42L, value);
-
-        valueState.clear();
+        assertThat(value).isEqualTo(42L);
+        assertThatThrownBy(() -> valueState.clear())
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 }

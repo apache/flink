@@ -24,23 +24,24 @@ import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests the {@link ImmutableAggregatingStateTest}. */
-public class ImmutableAggregatingStateTest {
+class ImmutableAggregatingStateTest {
 
     private final AggregatingStateDescriptor<Long, String, String> aggrStateDesc =
             new AggregatingStateDescriptor<>("test", new SumAggr(), String.class);
 
     private AggregatingState<Long, String> aggrState;
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeEach
+    void setUp() throws Exception {
         if (!aggrStateDesc.isSerializerInitialized()) {
             aggrStateDesc.initializeSerializerUnlessSet(new ExecutionConfig());
         }
@@ -53,20 +54,20 @@ public class ImmutableAggregatingStateTest {
         aggrState = ImmutableAggregatingState.createState(aggrStateDesc, out.toByteArray());
     }
 
-    @Test(expected = UnsupportedOperationException.class)
-    public void testUpdate() throws Exception {
+    @Test
+    void testUpdate() throws Exception {
         String value = aggrState.get();
-        assertEquals("42", value);
-
-        aggrState.add(54L);
+        assertThat(value).isEqualTo("42");
+        assertThatThrownBy(() -> aggrState.add(54L))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
-    @Test(expected = UnsupportedOperationException.class)
-    public void testClear() throws Exception {
+    @Test
+    void testClear() throws Exception {
         String value = aggrState.get();
-        assertEquals("42", value);
-
-        aggrState.clear();
+        assertThat(value).isEqualTo("42");
+        assertThatThrownBy(() -> aggrState.clear())
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
     /**
