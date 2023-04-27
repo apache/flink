@@ -64,7 +64,8 @@ public class FlinkResultSetMetaDataTest {
                         Column.physical("c17", DataTypes.ROW()),
                         Column.physical(
                                 "c18", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())));
-        FlinkResultSetMetaData metaData = new FlinkResultSetMetaData(schema);
+        FlinkResultSetMetaData metaData =
+                new FlinkResultSetMetaData(schema.getColumnNames(), schema.getColumnDataTypes());
 
         assertEquals(18, metaData.getColumnCount());
         for (int i = 1; i <= 18; i++) {
@@ -118,7 +119,9 @@ public class FlinkResultSetMetaDataTest {
                 ResolvedSchema.of(Column.physical("c1", DataTypes.MULTISET(DataTypes.STRING())));
         assertThrowsExactly(
                 RuntimeException.class,
-                () -> new FlinkResultSetMetaData(schema),
+                () ->
+                        new FlinkResultSetMetaData(
+                                schema.getColumnNames(), schema.getColumnDataTypes()),
                 "Not supported type[MULTISET<STRING>]");
     }
 }

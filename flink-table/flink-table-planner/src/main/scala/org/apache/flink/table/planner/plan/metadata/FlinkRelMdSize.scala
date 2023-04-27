@@ -123,10 +123,12 @@ class FlinkRelMdSize private extends MetadataHandler[BuiltInMetadata.Size] {
 
   def averageColumnSizes(rel: Expand, mq: RelMetadataQuery): JList[JDouble] = {
     val fieldCount = rel.getRowType.getFieldCount
+    val fieldList = rel.getRowType.getFieldList
     // get each column's RexNode (RexLiteral, RexInputRef or null)
     val projectNodes = (0 until fieldCount).map {
       i =>
-        val initNode: RexNode = rel.getCluster.getRexBuilder.constantNull()
+        val initNode: RexNode =
+          rel.getCluster.getRexBuilder.makeNullLiteral(fieldList.get(i).getType)
         rel.projects.foldLeft(initNode) {
           (mergeNode, project) =>
             (mergeNode, project.get(i)) match {
@@ -149,7 +151,7 @@ class FlinkRelMdSize private extends MetadataHandler[BuiltInMetadata.Size] {
       case (p, i) =>
         val size = if (p == null || i == rel.expandIdIndex) {
           // use default value
-          FlinkRelMdSize.averageTypeValueSize(rel.getRowType.getFieldList.get(i).getType)
+          FlinkRelMdSize.averageTypeValueSize(fieldList.get(i).getType)
         } else {
           // use value from input
           averageRexSize(p, inputColumnSizes)

@@ -422,7 +422,11 @@ class FlinkTypeFactory(
         new GenericRelDataType(generic.genericType, isNullable, typeSystem)
 
       case it: TimeIndicatorRelDataType =>
-        new TimeIndicatorRelDataType(it.typeSystem, it.originalType, isNullable, it.isEventTime)
+        new TimeIndicatorRelDataType(
+          it.typeSystemField,
+          it.originalType,
+          isNullable,
+          it.isEventTime)
 
       // for nested rows we keep the nullability property,
       // top-level rows fall back to Calcite's default handling

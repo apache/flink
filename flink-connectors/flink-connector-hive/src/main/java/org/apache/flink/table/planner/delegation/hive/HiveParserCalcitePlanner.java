@@ -19,7 +19,8 @@
 package org.apache.flink.table.planner.delegation.hive;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.calcite.bridge.CalciteContext;
+import org.apache.flink.table.catalog.CatalogRegistry;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -27,8 +28,6 @@ import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
-import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
-import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseDriver;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseUtils;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserASTBuilder;
@@ -55,14 +54,16 @@ import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserCreateViewInfo;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserErrorMsg;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
-import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader;
 import org.apache.flink.table.planner.plan.nodes.hive.LogicalDistribution;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
+
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.plan.ViewExpanders;
+import org.apache.calcite.prepare.CalciteCatalogReader;
 import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelFieldCollation;
@@ -183,10 +184,9 @@ public class HiveParserCalcitePlanner {
     private static final Logger LOG = LoggerFactory.getLogger(HiveParserCalcitePlanner.class);
 
     private final HiveParserSemanticAnalyzer semanticAnalyzer;
-    private final CatalogManager catalogManager;
-    private final FlinkCalciteCatalogReader catalogReader;
-    private final FlinkPlannerImpl flinkPlanner;
-    private final PlannerContext plannerContext;
+    private final CatalogRegistry catalogRegistry;
+    private final CalciteCatalogReader catalogReader;
+    private final CalciteContext calciteContext;
     private final FrameworkConfig frameworkConfig;
     private final RelOptCluster cluster;
     private final SqlFunctionConverter funcConverter;
@@ -204,21 +204,20 @@ public class HiveParserCalcitePlanner {
 
     public HiveParserCalcitePlanner(
             HiveParserQueryState queryState,
-            PlannerContext plannerContext,
-            FlinkCalciteCatalogReader catalogReader,
+            CalciteContext calciteContext,
+            CalciteCatalogReader catalogReader,
             FrameworkConfig frameworkConfig,
-            CatalogManager catalogManager)
+            CatalogRegistry catalogRegistry)
             throws SemanticException {
-        this.catalogManager = catalogManager;
+        this.catalogRegistry = catalogRegistry;
         this.catalogReader = catalogReader;
-        flinkPlanner = plannerContext.createFlinkPlanner();
-        this.plannerContext = plannerContext;
+        this.calciteContext = calciteContext;
         this.frameworkConfig = frameworkConfig;
         this.hiveConf = queryState.getConf();
         this.semanticAnalyzer =
                 new HiveParserSemanticAnalyzer(
-                        queryState, frameworkConfig, plannerContext.getCluster(), catalogManager);
-        this.cluster = plannerContext.getCluster();
+                        queryState, frameworkConfig, calciteContext.getCluster(), catalogRegistry);
+        this.cluster = calciteContext.getCluster();
         this.funcConverter =
                 new SqlFunctionConverter(
                         cluster, frameworkConfig.getOperatorTable(), catalogReader.nameMatcher());
@@ -846,7 +845,8 @@ public class HiveParserCalcitePlanner {
                 }
 
                 ObjectIdentifier tableIdentifier =
-                        HiveParserBaseSemanticAnalyzer.parseCompoundName(catalogManager, tableName);
+                        HiveParserBaseSemanticAnalyzer.parseCompoundName(
+                                catalogRegistry, tableName);
 
                 // Build Hive Table Scan Rel
                 RelNode tableRel =
@@ -858,7 +858,7 @@ public class HiveParserCalcitePlanner {
                                                 tableIdentifier.getObjectName()))
                                 .toRel(
                                         ViewExpanders.toRelContext(
-                                                flinkPlanner.createToRelContext(), cluster));
+                                                calciteContext.createToRelContext(), cluster));
 
                 if (splitSample != null) {
                     tableRel =
@@ -1218,7 +1218,8 @@ public class HiveParserCalcitePlanner {
             gbInputRexNodes.add(cluster.getRexBuilder().makeInputRef(srcRel, 0));
         }
 
-        return LogicalAggregate.create(gbInputRel, groupSet, transformedGroupSets, aggregateCalls);
+        return LogicalAggregate.create(
+                gbInputRel, ImmutableList.of(), groupSet, transformedGroupSets, aggregateCalls);
     }
 
     // Generate GB plan.
@@ -2409,7 +2410,11 @@ public class HiveParserCalcitePlanner {
                     ImmutableBitSet.range(res.getRowType().getFieldList().size());
             res =
                     LogicalAggregate.create(
-                            res, groupSet, Collections.emptyList(), Collections.emptyList());
+                            res,
+                            ImmutableList.of(),
+                            groupSet,
+                            Collections.emptyList(),
+                            Collections.emptyList());
             HiveParserRowResolver groupByOutputRowResolver = new HiveParserRowResolver();
             for (int i = 0; i < outRR.getColumnInfos().size(); i++) {
                 ColumnInfo colInfo = outRR.getColumnInfos().get(i);
@@ -2609,7 +2614,7 @@ public class HiveParserCalcitePlanner {
         // create correlate node
         if (correlUse == null) {
             correlRel =
-                    plannerContext
+                    calciteContext
                             .createRelBuilder()
                             .push(input)
                             .push(tableFunctionScan)

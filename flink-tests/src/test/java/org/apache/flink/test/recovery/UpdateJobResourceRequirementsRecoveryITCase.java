@@ -24,6 +24,7 @@ import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.core.testutils.AllCallbackWrapper;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
@@ -44,6 +45,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
+import java.time.Duration;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 
@@ -61,15 +63,26 @@ class UpdateJobResourceRequirementsRecoveryITCase {
     /** Tests that a rescaled job graph will be recovered with the latest parallelism. */
     @Test
     void testRescaledJobGraphsWillBeRecoveredCorrectly(@TempDir Path tmpFolder) throws Exception {
+        final Configuration configuration = new Configuration();
+
         final JobVertex jobVertex = new JobVertex("operator");
         jobVertex.setParallelism(1);
         jobVertex.setInvokableClass(BlockingNoOpInvokable.class);
         final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(jobVertex);
         final JobID jobId = jobGraph.getJobID();
 
-        final Configuration configuration = new Configuration();
+        // We need to have a restart strategy set, to prevent the job from failing during the first
+        // cluster shutdown when TM disconnects.
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Integer.MAX_VALUE);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(100));
 
+        // The test is only supposed to pass with AdaptiveScheduler enabled.
         configuration.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
+
+        // High-Availability settings.
         configuration.set(HighAvailabilityOptions.HA_MODE, "zookeeper");
         configuration.set(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM,
@@ -103,7 +116,8 @@ class UpdateJobResourceRequirementsRecoveryITCase {
                                         .setParallelismForJobVertex(jobVertex.getID(), 1, 2)
                                         .build()))
                 .eventuallySucceeds();
-        miniCluster.closeAsyncWithoutCleaningHighAvailabilityData();
+        assertThatFuture(miniCluster.closeAsyncWithoutCleaningHighAvailabilityData())
+                .eventuallySucceeds();
 
         LOG.info("Start second mini cluster to recover the persisted job.");
 

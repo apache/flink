@@ -178,9 +178,18 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
                                     aggregator.getAggregatedWatermark().getTimestamp());
                         });
 
-        long maxAllowedWatermark =
-                globalCombinedWatermark.getTimestamp()
-                        + watermarkAlignmentParams.getMaxAllowedWatermarkDrift();
+        long maxAllowedWatermark;
+        try {
+            maxAllowedWatermark =
+                    Math.addExact(
+                            globalCombinedWatermark.getTimestamp(),
+                            watermarkAlignmentParams.getMaxAllowedWatermarkDrift());
+        } catch (ArithmeticException e) {
+            // when the source is idle, globalCombinedWatermark.getTimestamp() is Long.MAX_VALUE,
+            // and maxAllowedWatermark arithmetic overflow
+            maxAllowedWatermark = Watermark.MAX_WATERMARK.getTimestamp();
+        }
+
         Set<Integer> subTaskIds = combinedWatermark.keySet();
         LOG.info(
                 "Distributing maxAllowedWatermark={} to subTaskIds={}",

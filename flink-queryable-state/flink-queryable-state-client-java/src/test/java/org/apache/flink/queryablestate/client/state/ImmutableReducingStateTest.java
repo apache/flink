@@ -24,23 +24,24 @@ import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests the {@link ImmutableReducingState}. */
-public class ImmutableReducingStateTest {
+class ImmutableReducingStateTest {
 
     private final ReducingStateDescriptor<Long> reducingStateDesc =
             new ReducingStateDescriptor<>("test", new SumReduce(), BasicTypeInfo.LONG_TYPE_INFO);
 
     private ReducingState<Long> reduceState;
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeEach
+    void setUp() throws Exception {
         if (!reducingStateDesc.isSerializerInitialized()) {
             reducingStateDesc.initializeSerializerUnlessSet(new ExecutionConfig());
         }
@@ -50,20 +51,20 @@ public class ImmutableReducingStateTest {
                         reducingStateDesc, ByteBuffer.allocate(Long.BYTES).putLong(42L).array());
     }
 
-    @Test(expected = UnsupportedOperationException.class)
-    public void testUpdate() throws Exception {
+    @Test
+    void testUpdate() throws Exception {
         long value = reduceState.get();
-        assertEquals(42L, value);
-
-        reduceState.add(54L);
+        assertThat(value).isEqualTo(42L);
+        assertThatThrownBy(() -> reduceState.add(54L))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
-    @Test(expected = UnsupportedOperationException.class)
-    public void testClear() throws Exception {
+    @Test
+    void testClear() throws Exception {
         long value = reduceState.get();
-        assertEquals(42L, value);
-
-        reduceState.clear();
+        assertThat(value).isEqualTo(42L);
+        assertThatThrownBy(() -> reduceState.clear())
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
     /** Test {@link ReduceFunction} summing up its two arguments. */

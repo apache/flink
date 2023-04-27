@@ -47,7 +47,7 @@ public abstract class AbstractThreadsafeJobResultStore implements JobResultStore
     public void createDirtyResult(JobResultEntry jobResultEntry) throws IOException {
         Preconditions.checkState(
                 !hasJobResultEntry(jobResultEntry.getJobId()),
-                "Job result store already contains an entry for for job %s",
+                "Job result store already contains an entry for job %s",
                 jobResultEntry.getJobId());
 
         withWriteLock(() -> createDirtyResultInternal(jobResultEntry));

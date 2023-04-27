@@ -32,6 +32,7 @@ If you want to use Table API & SQL, check out the [documentation](https://nightl
 * `flink-table-api-java-uber`: 
   * Uber JAR bundling `flink-table-common` and all the Java API modules, including the bridging to DataStream API and 3rd party dependencies.
   * This module is intended to be used by the flink-dist, rather than from the users directly.
+* `flink-table-calcite-brdge`: Calcite dependencies for writing planner plugins (e.g. SQL dialects) that interact with Calcite API
 
 ### Runtime
 

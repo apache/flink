@@ -113,7 +113,7 @@ public class CheckpointCoordinator {
     /** The job whose checkpoint this coordinator coordinates. */
     private final JobID job;
 
-    /** Default checkpoint properties. * */
+    /** Default checkpoint properties. */
     private final CheckpointProperties checkpointProperties;
 
     /** The executor used for asynchronous calls, like potentially blocking I/O. */
@@ -222,8 +222,6 @@ public class CheckpointCoordinator {
 
     private final CheckpointPlanCalculator checkpointPlanCalculator;
 
-    private final ExecutionAttemptMappingProvider attemptMappingProvider;
-
     private boolean baseLocationsForCheckpointInitialized = false;
 
     private boolean forceFullSnapshot;
@@ -242,7 +240,6 @@ public class CheckpointCoordinator {
             ScheduledExecutor timer,
             CheckpointFailureManager failureManager,
             CheckpointPlanCalculator checkpointPlanCalculator,
-            ExecutionAttemptMappingProvider attemptMappingProvider,
             CheckpointStatsTracker statsTracker) {
 
         this(
@@ -257,7 +254,6 @@ public class CheckpointCoordinator {
                 timer,
                 failureManager,
                 checkpointPlanCalculator,
-                attemptMappingProvider,
                 SystemClock.getInstance(),
                 statsTracker,
                 VertexFinishedStateChecker::new);
@@ -276,7 +272,6 @@ public class CheckpointCoordinator {
             ScheduledExecutor timer,
             CheckpointFailureManager failureManager,
             CheckpointPlanCalculator checkpointPlanCalculator,
-            ExecutionAttemptMappingProvider attemptMappingProvider,
             Clock clock,
             CheckpointStatsTracker statsTracker,
             BiFunction<
@@ -314,7 +309,6 @@ public class CheckpointCoordinator {
         this.checkpointsCleaner = checkNotNull(checkpointsCleaner);
         this.failureManager = checkNotNull(failureManager);
         this.checkpointPlanCalculator = checkNotNull(checkpointPlanCalculator);
-        this.attemptMappingProvider = checkNotNull(attemptMappingProvider);
         this.clock = checkNotNull(clock);
         this.isExactlyOnceMode = chkConfig.isExactlyOnce();
         this.unalignedCheckpointsEnabled = chkConfig.isUnalignedCheckpointsEnabled();
@@ -806,7 +800,7 @@ public class CheckpointCoordinator {
     }
 
     /**
-     * Initialize the checkpoint location asynchronously. It will expected to be executed in io
+     * Initialize the checkpoint location asynchronously. It will be expected to be executed in io
      * thread due to it might be time-consuming.
      *
      * @param checkpointID checkpoint id
@@ -2070,11 +2064,8 @@ public class CheckpointCoordinator {
         }
     }
 
-    public void reportStats(long id, ExecutionAttemptID attemptId, CheckpointMetrics metrics)
-            throws CheckpointException {
-        attemptMappingProvider
-                .getVertex(attemptId)
-                .ifPresent(ev -> statsTracker.reportIncompleteStats(id, ev, metrics));
+    public void reportStats(long id, ExecutionAttemptID attemptId, CheckpointMetrics metrics) {
+        statsTracker.reportIncompleteStats(id, attemptId, metrics);
     }
 
     // ------------------------------------------------------------------------

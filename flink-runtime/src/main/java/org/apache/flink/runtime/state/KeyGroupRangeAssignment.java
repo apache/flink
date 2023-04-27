@@ -26,7 +26,7 @@ public final class KeyGroupRangeAssignment {
 
     /**
      * The default lower bound for max parallelism if nothing was configured by the user. We have
-     * this so allow users some degree of scale-up in case they forgot to configure maximum
+     * this to allow users some degree of scale-up in case they forgot to configure maximum
      * parallelism explicitly.
      */
     public static final int DEFAULT_LOWER_BOUND_MAX_PARALLELISM = 1 << 7;
@@ -87,7 +87,7 @@ public final class KeyGroupRangeAssignment {
      * @param maxParallelism Maximal parallelism that the job was initially created with.
      * @param parallelism The current parallelism under which the job runs. Must be <=
      *     maxParallelism.
-     * @param operatorIndex Id of a key-group. 0 <= keyGroupID < maxParallelism.
+     * @param operatorIndex index of a operatorIndex. 0 <= operatorIndex < parallelism.
      * @return the computed key-group range for the operator.
      */
     public static KeyGroupRange computeKeyGroupRangeForOperatorIndex(

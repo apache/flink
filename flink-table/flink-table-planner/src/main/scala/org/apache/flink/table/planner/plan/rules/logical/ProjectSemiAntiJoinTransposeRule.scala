@@ -108,7 +108,7 @@ class ProjectSemiAntiJoinTransposeRule
       inputNeededFields: ImmutableBitSet,
       offset: Int): RelNode = {
     val rexBuilder = originInput.getCluster.getRexBuilder
-    val typeBuilder = new RelDataTypeFactory.FieldInfoBuilder(relBuilder.getTypeFactory)
+    val typeBuilder = relBuilder.getTypeFactory.builder()
     val newProjects: util.List[RexNode] = new util.ArrayList[RexNode]()
     val newFieldNames: util.List[String] = new util.ArrayList[String]()
     inputNeededFields.toList.foreach {

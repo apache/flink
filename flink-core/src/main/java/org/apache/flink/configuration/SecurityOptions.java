@@ -167,8 +167,8 @@ public class SecurityOptions {
                     .noDefaultValue()
                     .withDeprecatedKeys("yarn.security.kerberos.additionalFileSystems")
                     .withDescription(
-                            "A comma-separated list of Kerberos-secured Hadoop filesystems Flink is going to access. For example, "
-                                    + "security.kerberos.access.hadoopFileSystems=hdfs://namenode2:9002,hdfs://namenode3:9003. "
+                            "A semicolon-separated list of Kerberos-secured Hadoop filesystems Flink is going to access. For example, "
+                                    + "security.kerberos.access.hadoopFileSystems=hdfs://namenode2:9002;hdfs://namenode3:9003. "
                                     + "The JobManager needs to have access to these filesystems to retrieve the security tokens.");
 
     // ------------------------------------------------------------------------

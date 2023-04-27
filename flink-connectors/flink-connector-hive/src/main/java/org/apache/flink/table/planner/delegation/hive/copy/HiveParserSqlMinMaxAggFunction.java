@@ -25,6 +25,7 @@ import org.apache.calcite.sql.SqlSplittableAggFunction;
 import org.apache.calcite.sql.type.SqlOperandTypeChecker;
 import org.apache.calcite.sql.type.SqlOperandTypeInference;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
+import org.apache.calcite.util.Optionality;
 
 /**
  * Counterpart of hive's
@@ -39,11 +40,15 @@ public class HiveParserSqlMinMaxAggFunction extends SqlAggFunction {
             boolean isMin) {
         super(
                 isMin ? "min" : "max",
+                null,
                 isMin ? SqlKind.MIN : SqlKind.MAX,
                 returnTypeInference,
                 operandTypeInference,
                 operandTypeChecker,
-                SqlFunctionCategory.NUMERIC);
+                SqlFunctionCategory.NUMERIC,
+                false,
+                false,
+                Optionality.FORBIDDEN);
     }
 
     @Override

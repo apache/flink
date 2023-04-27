@@ -33,11 +33,12 @@
       <th [nzSortFn]="sortReadRecordsFn" nzWidth="150px">Records Received</th>
       <th [nzSortFn]="sortWriteBytesFn" nzWidth="150px">Bytes Sent</th>
       <th [nzSortFn]="sortWriteRecordsFn" nzWidth="120px">Records Sent</th>
-      <th [nzSortFn]="sortParallelismFn" nzWidth="120px">Parallelism</th>
+      <th [nzSortFn]="sortParallelismFn" nzWidth="100px">Parallelism</th>
       <th [nzSortFn]="sortStartTimeFn" nzWidth="150px">Start Time</th>
       <th [nzSortFn]="sortDurationFn" nzWidth="150px">Duration</th>
       <th [nzSortFn]="sortEndTimeFn" nzWidth="150px">End Time</th>
-      <th nzWidth="100px" nzRight>Tasks</th>
+      <th nzWidth="60px" nzRight>Tasks</th>
+      <th *ngIf="webRescaleEnabled" nzWidth="80px" nzRight>Scale</th>
     </tr>
   </thead>
   <tbody>
@@ -95,12 +96,42 @@
           {{ node.detail.metrics['write-records'] | number: '1.0-0' }}
         </span>
       </td>
-      <td>{{ node.parallelism }}</td>
+      <td>
+        <span>
+          {{ node.parallelism }}
+        </span>
+        <span *ngIf="desiredParallelism.has(node.id)">
+          <b>
+            <i nz-icon nzType="sync"></i>
+            {{ desiredParallelism.get(node.id) }}
+          </b>
+        </span>
+      </td>
       <td>{{ node.detail['start-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
       <td>{{ node.detail?.duration | humanizeDuration }}</td>
       <td>{{ node.detail['end-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
       <td nzRight [class.selected]="selectedNode?.id === node.id">
         <flink-task-badge [tasks]="node.detail?.tasks"></flink-task-badge>
+      </td>
+      <td *ngIf="webRescaleEnabled" nzRight>
+        <nz-button-group>
+          <button
+            nz-button
+            nzSize="small"
+            nzType="default"
+            (click)="clickScaleUp(node); $event.stopPropagation()"
+          >
+            <span nz-icon nzType="plus"></span>
+          </button>
+          <button
+            nz-button
+            nzSize="small"
+            nzType="default"
+            (click)="clickScaleDown(node); $event.stopPropagation()"
+          >
+            <span nz-icon nzType="minus"></span>
+          </button>
+        </nz-button-group>
       </td>
     </tr>
   </tbody>

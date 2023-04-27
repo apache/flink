@@ -20,7 +20,6 @@ package org.apache.flink.runtime.rest.handler.job;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -30,6 +29,7 @@ import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.JobResourceRequirementsBody;
 import org.apache.flink.runtime.rest.messages.job.JobResourcesRequirementsUpdateHeaders;
+import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
@@ -46,13 +46,13 @@ import java.util.concurrent.CompletableFuture;
  */
 public class JobResourceRequirementsUpdateHandler
         extends AbstractRestHandler<
-                DispatcherGateway,
+                RestfulGateway,
                 JobResourceRequirementsBody,
                 EmptyResponseBody,
                 JobMessageParameters> {
 
     public JobResourceRequirementsUpdateHandler(
-            GatewayRetriever<? extends DispatcherGateway> leaderRetriever,
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
             Time timeout,
             Map<String, String> responseHeaders) {
         super(
@@ -65,7 +65,7 @@ public class JobResourceRequirementsUpdateHandler
     @Override
     protected CompletableFuture<EmptyResponseBody> handleRequest(
             @Nonnull HandlerRequest<JobResourceRequirementsBody> request,
-            @Nonnull DispatcherGateway gateway)
+            @Nonnull RestfulGateway gateway)
             throws RestHandlerException {
         final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
         final Optional<JobResourceRequirements> maybeJobResourceRequirements =

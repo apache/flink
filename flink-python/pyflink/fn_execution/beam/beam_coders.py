@@ -25,15 +25,9 @@ from pyflink.fn_execution.coders import LengthPrefixBaseCoder
 from pyflink.fn_execution.flink_fn_execution_pb2 import CoderInfoDescriptor
 
 if fn_execution.PYFLINK_CYTHON_ENABLED:
-    try:
-        from pyflink.fn_execution.beam import beam_coder_impl_fast as beam_coder_impl
-        from pyflink.fn_execution.beam.beam_coder_impl_fast import FlinkFieldCoderBeamWrapper
-        from pyflink.fn_execution.beam.beam_coder_impl_fast import FlinkLengthPrefixCoderBeamWrapper
-    except:
-        from pyflink.fn_execution.beam import beam_coder_impl_slow as beam_coder_impl
-        from pyflink.fn_execution.beam.beam_coder_impl_slow import FlinkFieldCoderBeamWrapper
-        from pyflink.fn_execution.beam.beam_coder_impl_slow import FlinkLengthPrefixCoderBeamWrapper
-        fn_execution.PYFLINK_CYTHON_ENABLED = False
+    from pyflink.fn_execution.beam import beam_coder_impl_fast as beam_coder_impl
+    from pyflink.fn_execution.beam.beam_coder_impl_fast import FlinkFieldCoderBeamWrapper
+    from pyflink.fn_execution.beam.beam_coder_impl_fast import FlinkLengthPrefixCoderBeamWrapper
 else:
     from pyflink.fn_execution.beam import beam_coder_impl_slow as beam_coder_impl
     from pyflink.fn_execution.beam.beam_coder_impl_slow import FlinkFieldCoderBeamWrapper

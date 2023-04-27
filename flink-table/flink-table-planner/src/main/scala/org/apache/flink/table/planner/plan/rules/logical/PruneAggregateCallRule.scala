@@ -45,7 +45,7 @@ abstract class PruneAggregateCallRule[T <: RelNode](topClass: Class[T])
     val relOnAgg: T = call.rel(0)
     val agg: Aggregate = call.rel(1)
     if (
-      agg.indicator || agg.getGroupType != Group.SIMPLE || agg.getAggCallList.isEmpty ||
+      agg.getGroupType != Group.SIMPLE || agg.getAggCallList.isEmpty ||
       // at least output one column
       (agg.getGroupCount == 0 && agg.getAggCallList.size() == 1)
     ) {
@@ -91,7 +91,6 @@ abstract class PruneAggregateCallRule[T <: RelNode](topClass: Class[T])
     val newAgg = agg.copy(
       agg.getTraitSet,
       agg.getInput,
-      agg.indicator,
       agg.getGroupSet,
       ImmutableList.of(agg.getGroupSet),
       newAggCalls

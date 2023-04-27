@@ -49,7 +49,7 @@ object TraitUtil {
         fieldCollation =>
           try {
             val i = mapping.getTargetOpt(fieldCollation.getFieldIndex)
-            if (i >= 0) newFieldCollations.add(fieldCollation.copy(i))
+            if (i >= 0) newFieldCollations.add(fieldCollation.withFieldIndex(i))
             else return RelCollations.EMPTY
           } catch {
             case _: IndexOutOfBoundsException => return RelCollations.EMPTY

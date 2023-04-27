@@ -18,17 +18,10 @@
 
 package org.apache.flink.table.jdbc;
 
-import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.client.gateway.Executor;
-import org.apache.flink.table.client.gateway.SingleSessionManager;
 import org.apache.flink.table.client.gateway.StatementResult;
-import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
-import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
-import org.apache.flink.test.junit5.MiniClusterExtension;
 
-import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.sql.SQLException;
 import java.util.Properties;
@@ -38,37 +31,11 @@ import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link FlinkConnection}. */
-public class FlinkConnectionTest {
-    @RegisterExtension
-    @Order(1)
-    private static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
-            new MiniClusterExtension(
-                    new MiniClusterResourceConfiguration.Builder()
-                            .setNumberTaskManagers(1)
-                            .setNumberSlotsPerTaskManager(4)
-                            .build());
-
-    @RegisterExtension
-    @Order(2)
-    public static final SqlGatewayServiceExtension SQL_GATEWAY_SERVICE_EXTENSION =
-            new SqlGatewayServiceExtension(
-                    MINI_CLUSTER_RESOURCE::getClientConfiguration, SingleSessionManager::new);
-
-    @RegisterExtension
-    @Order(3)
-    private static final SqlGatewayRestEndpointExtension SQL_GATEWAY_REST_ENDPOINT_EXTENSION =
-            new SqlGatewayRestEndpointExtension(SQL_GATEWAY_SERVICE_EXTENSION::getService);
+public class FlinkConnectionTest extends FlinkJdbcDriverTestBase {
 
     @Test
     public void testCatalogSchema() throws Exception {
-        DriverUri driverUri =
-                DriverUri.create(
-                        String.format(
-                                "jdbc:flink://%s:%s",
-                                SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetAddress(),
-                                SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetPort()),
-                        new Properties());
-        try (FlinkConnection connection = new FlinkConnection(driverUri)) {
+        try (FlinkConnection connection = new FlinkConnection(getDriverUri())) {
             assertEquals("default_catalog", connection.getCatalog());
             assertEquals("default_database", connection.getSchema());
 
@@ -106,14 +73,9 @@ public class FlinkConnectionTest {
     public void testClientInfo() throws Exception {
         Properties properties = new Properties();
         properties.setProperty("key3", "val3");
-        DriverUri driverUri =
-                DriverUri.create(
-                        String.format(
-                                "jdbc:flink://%s:%s?key1=val1&key2=val2",
-                                SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetAddress(),
-                                SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetPort()),
-                        properties);
-        try (FlinkConnection connection = new FlinkConnection(driverUri)) {
+        try (FlinkConnection connection =
+                new FlinkConnection(
+                        getDriverUri("jdbc:flink://%s:%s?key1=val1&key2=val2", properties))) {
             assertEquals("val1", connection.getClientInfo("key1"));
             assertEquals("val2", connection.getClientInfo("key2"));
             assertEquals("val3", connection.getClientInfo("key3"));

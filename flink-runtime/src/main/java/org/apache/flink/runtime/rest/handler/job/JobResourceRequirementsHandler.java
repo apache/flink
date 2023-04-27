@@ -20,7 +20,6 @@ package org.apache.flink.runtime.rest.handler.job;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -29,6 +28,7 @@ import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.JobResourceRequirementsBody;
 import org.apache.flink.runtime.rest.messages.job.JobResourceRequirementsHeaders;
+import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import javax.annotation.Nonnull;
@@ -42,13 +42,13 @@ import java.util.concurrent.CompletableFuture;
  */
 public class JobResourceRequirementsHandler
         extends AbstractRestHandler<
-                DispatcherGateway,
+                RestfulGateway,
                 EmptyRequestBody,
                 JobResourceRequirementsBody,
                 JobMessageParameters> {
 
     public JobResourceRequirementsHandler(
-            GatewayRetriever<? extends DispatcherGateway> leaderRetriever,
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
             Time timeout,
             Map<String, String> responseHeaders) {
         super(leaderRetriever, timeout, responseHeaders, JobResourceRequirementsHeaders.INSTANCE);
@@ -56,7 +56,7 @@ public class JobResourceRequirementsHandler
 
     @Override
     protected CompletableFuture<JobResourceRequirementsBody> handleRequest(
-            @Nonnull HandlerRequest<EmptyRequestBody> request, @Nonnull DispatcherGateway gateway)
+            @Nonnull HandlerRequest<EmptyRequestBody> request, @Nonnull RestfulGateway gateway)
             throws RestHandlerException {
         final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
         return gateway.requestJobResourceRequirements(jobId)

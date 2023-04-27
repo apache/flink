@@ -16,4 +16,4 @@
 org.apache.flink.table.catalog.hive.factories.HiveCatalogFactory
 org.apache.flink.table.endpoint.hive.HiveServer2EndpointFactory
 org.apache.flink.table.module.hive.HiveModuleFactory
-org.apache.flink.table.planner.delegation.hive.HiveDialectFactory
+org.apache.flink.table.planner.delegation.hive.HiveParserFactory

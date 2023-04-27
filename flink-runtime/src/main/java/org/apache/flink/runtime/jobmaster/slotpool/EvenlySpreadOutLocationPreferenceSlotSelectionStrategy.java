@@ -26,34 +26,34 @@ import javax.annotation.Nonnull;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 class EvenlySpreadOutLocationPreferenceSlotSelectionStrategy
         extends LocationPreferenceSlotSelectionStrategy {
     @Nonnull
     @Override
     protected Optional<SlotInfoAndLocality> selectWithoutLocationPreference(
-            @Nonnull Collection<SlotInfoAndResources> availableSlots,
+            @Nonnull Collection<SlotInfoWithUtilization> availableSlots,
             @Nonnull ResourceProfile resourceProfile) {
         return availableSlots.stream()
                 .filter(
-                        slotInfoAndResources ->
-                                slotInfoAndResources
-                                        .getRemainingResources()
+                        slotInfoWithUtilization ->
+                                slotInfoWithUtilization
+                                        .getResourceProfile()
                                         .isMatching(resourceProfile))
-                .min(Comparator.comparing(SlotInfoAndResources::getTaskExecutorUtilization))
+                .min(Comparator.comparing(SlotInfoWithUtilization::getTaskExecutorUtilization))
                 .map(
-                        slotInfoAndResources ->
+                        slotInfoWithUtilization ->
                                 SlotInfoAndLocality.of(
-                                        slotInfoAndResources.getSlotInfo(),
-                                        Locality.UNCONSTRAINED));
+                                        slotInfoWithUtilization, Locality.UNCONSTRAINED));
     }
 
     @Override
     protected double calculateCandidateScore(
-            int localWeigh, int hostLocalWeigh, double taskExecutorUtilization) {
+            int localWeigh, int hostLocalWeigh, Supplier<Double> taskExecutorUtilizationSupplier) {
         // taskExecutorUtilization in [0, 1] --> only affects choice if localWeigh and
         // hostLocalWeigh
         // between two candidates are equal
-        return localWeigh * 20 + hostLocalWeigh * 2 - taskExecutorUtilization;
+        return localWeigh * 20 + hostLocalWeigh * 2 - taskExecutorUtilizationSupplier.get();
     }
 }

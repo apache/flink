@@ -206,7 +206,7 @@ class FlinkRexUtilTest {
     assertEquals(RexUtil.toCnf(rexBuilder, predicate).toString, newPredicate3.toString)
 
     val newPredicate4 = FlinkRexUtil.toCnf(rexBuilder, Int.MaxValue, predicate)
-    assertFalse(RexUtil.eq(predicate, newPredicate4))
+    assertFalse(predicate.equals(newPredicate4))
     assertEquals(RexUtil.toCnf(rexBuilder, predicate).toString, newPredicate4.toString)
   }
 

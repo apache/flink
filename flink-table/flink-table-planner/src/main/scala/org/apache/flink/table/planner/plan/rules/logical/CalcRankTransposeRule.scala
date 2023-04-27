@@ -166,7 +166,7 @@ class CalcRankTransposeRule
     val oldOrderKey = rank.orderKey
     val oldFieldCollations = oldOrderKey.getFieldCollations
     val newFieldCollations = oldFieldCollations.map {
-      fc => fc.copy(fieldMapping(fc.getFieldIndex))
+      fc => fc.withFieldIndex(fieldMapping(fc.getFieldIndex))
     }
     val newOrderKey = if (newFieldCollations.eq(oldFieldCollations)) {
       oldOrderKey

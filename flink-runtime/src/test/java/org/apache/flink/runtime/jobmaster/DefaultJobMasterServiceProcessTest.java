@@ -274,7 +274,7 @@ class DefaultJobMasterServiceProcessTest {
         return new DefaultJobMasterServiceProcess(
                 jobId,
                 UUID.randomUUID(),
-                new TestingJobMasterServiceFactory(() -> jobMasterServiceFuture),
+                new TestingJobMasterServiceFactory(ignored -> jobMasterServiceFuture),
                 failedArchivedExecutionGraphFactory);
     }
 }

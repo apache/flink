@@ -43,7 +43,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.DefaultCheckpointPlanCalculator;
-import org.apache.flink.runtime.checkpoint.ExecutionAttemptMappingProvider;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.checkpoint.OperatorCoordinatorCheckpointContext;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -521,7 +520,6 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                         failureManager,
                         createCheckpointPlanCalculator(
                                 chkConfig.isEnableCheckpointsAfterTasksFinish()),
-                        new ExecutionAttemptMappingProvider(getAllExecutionVertices()),
                         checkpointStatsTracker);
 
         // register the master hooks on the checkpoint coordinator

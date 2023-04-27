@@ -213,7 +213,7 @@ public class ClusterOptions {
         }
     }
 
-    private static boolean isReactiveModeEnabled(Configuration configuration) {
+    public static boolean isReactiveModeEnabled(Configuration configuration) {
         return configuration.get(JobManagerOptions.SCHEDULER_MODE)
                 == SchedulerExecutionMode.REACTIVE;
     }

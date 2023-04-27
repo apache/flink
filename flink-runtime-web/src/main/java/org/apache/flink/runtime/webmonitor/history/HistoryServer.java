@@ -379,6 +379,7 @@ public class HistoryServer {
                                     ZonedDateTime.now(),
                                     false,
                                     false,
+                                    false,
                                     true)));
             fw.flush();
         } catch (IOException ioe) {

@@ -931,13 +931,18 @@ json:
 
 valueconstruction:
   - sql: |
-      -- implicit constructor with parenthesis
+      **implicit** constructor with parenthesis 
+      
       (value1 [, value2]*)
+
+      **explicit** ROW constructor with 
+      
+      ROW(value1 [, value2]*)
     table: row(ANY1, ANY2, ...)
     description: |
       Returns a row created from a list of values (value1, value2,...).
 
-      The implicit row constructor supports arbitrary expressions as fields but requires at least two fields. The explicit row constructor can deal with an arbitrary number of fields but does not support all kinds of field expressions well currently. 
+      The implicit row constructor requires at least two fields. The explicit row constructor can deal with an arbitrary number of fields. Both of them support arbitrary expressions as fields.
   - sql: ARRAY ‘[’ value1 [, value2 ]* ‘]’
     table: array(ANY1, ANY2, ...)
     description: Returns an array created from a list of values (value1, value2, ...).

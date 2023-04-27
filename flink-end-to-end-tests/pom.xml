@@ -78,19 +78,6 @@ under the License.
 		<module>flink-end-to-end-tests-sql</module>
     </modules>
 
-	<dependencyManagement>
-		<dependencies>
-			<!-- We pick an arbitrary version of net.java.dev.jna:jna to satisfy dependency
-				 convergence for org.testcontainers:testcontainers which transitively depends on
-				 two different versions.-->
-			<dependency>
-				<groupId>net.java.dev.jna</groupId>
-				<artifactId>jna</artifactId>
-				<version>5.8.0</version>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
-
 	<dependencies>
 		<dependency>
 			<!-- this module depends on the flink-yarn-tests's "target/yarn.classpath" file -->

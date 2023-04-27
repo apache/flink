@@ -74,7 +74,7 @@ class PauseOrResumeSplitsTask<SplitT extends SourceSplit> implements SplitFetche
 
     @Override
     public String toString() {
-        return "AlignmentTask{"
+        return "PauseOrResumeSplitsTask{"
                 + "splitsToResume="
                 + splitsToResume
                 + ", splitsToPause="

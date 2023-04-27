@@ -25,6 +25,7 @@ import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
+import org.apache.calcite.util.Optionality;
 
 /**
  * An internal [[SqlAggFunction]] to represents auxiliary group keys which will not be computed as
@@ -43,6 +44,7 @@ public class SqlAuxiliaryGroupAggFunction extends SqlAggFunction {
                 OperandTypes.ANY,
                 SqlFunctionCategory.SYSTEM,
                 false,
-                false);
+                false,
+                Optionality.FORBIDDEN);
     }
 }

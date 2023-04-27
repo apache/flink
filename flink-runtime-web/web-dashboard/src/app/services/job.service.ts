@@ -18,7 +18,7 @@
 
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { EMPTY, forkJoin, Observable } from 'rxjs';
+import { EMPTY, forkJoin, mergeMap, Observable } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
 import {
@@ -44,6 +44,7 @@ import {
   VerticesLink,
   JobVertexSubTaskDetail
 } from '@flink-runtime-web/interfaces';
+import { JobResourceRequirements } from '@flink-runtime-web/interfaces/job-resource-requirements';
 
 import { ConfigService } from './config.service';
 
@@ -173,6 +174,35 @@ export class JobService {
     return this.httpClient.get<CheckpointSubTask>(
       `${this.configService.BASE_URL}/jobs/${jobId}/checkpoints/details/${checkPointId}/subtasks/${vertexId}`
     );
+  }
+
+  public loadJobResourceRequirements(jobId: string): Observable<JobResourceRequirements> {
+    return this.httpClient.get<JobResourceRequirements>(
+      `${this.configService.BASE_URL}/jobs/${jobId}/resource-requirements`
+    );
+  }
+
+  public changeDesiredParallelism(jobId: string, desiredParallelism: Map<string, number>): Observable<void> {
+    return this.loadJobResourceRequirements(jobId)
+      .pipe(
+        map(jobResourceRequirements => {
+          for (const vertexId in jobResourceRequirements) {
+            const newUpperBound = desiredParallelism.get(vertexId);
+            if (newUpperBound != undefined) {
+              jobResourceRequirements[vertexId].parallelism.upperBound = newUpperBound;
+            }
+          }
+          return jobResourceRequirements;
+        })
+      )
+      .pipe(
+        mergeMap(jobResourceRequirements => {
+          return this.httpClient.put<void>(
+            `${this.configService.BASE_URL}/jobs/${jobId}/resource-requirements`,
+            jobResourceRequirements
+          );
+        })
+      );
   }
 
   /** nodes to nodes links in order to generate graph */

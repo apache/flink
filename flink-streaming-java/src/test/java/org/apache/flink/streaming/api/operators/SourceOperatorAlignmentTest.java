@@ -160,6 +160,8 @@ public class SourceOperatorAlignmentTest {
             expectedOutput.add(record1);
             context.getTimeService().advance(1);
             assertLatestReportedWatermarkEvent(context, record1);
+            // mock WatermarkAlignmentEvent from SourceCoordinator
+            operator.handleOperatorEvent(new WatermarkAlignmentEvent(record1 + 100));
             assertOutput(actualOutput, expectedOutput);
             assertTrue(operator.isAvailable());
 
@@ -167,6 +169,9 @@ public class SourceOperatorAlignmentTest {
             assertThat(operator.emitNext(actualOutput), is(DataInputStatus.NOTHING_AVAILABLE));
             context.getTimeService().advance(1);
             assertLatestReportedWatermarkEvent(context, Long.MAX_VALUE);
+            // If all source subtasks of the watermark group are idle,
+            // then the coordinator will report Long.MAX_VALUE
+            operator.handleOperatorEvent(new WatermarkAlignmentEvent(Long.MAX_VALUE));
 
             // it is easier to create a new split than add records the old one. The old one is
             // serialized, when sending the AddSplitEvent, so it is not as easy as
@@ -185,6 +190,7 @@ public class SourceOperatorAlignmentTest {
             // becomes active again, should go back to the previously emitted
             // watermark, as the record2 does not emit watermarks
             assertLatestReportedWatermarkEvent(context, record1);
+            operator.handleOperatorEvent(new WatermarkAlignmentEvent(record1 + 100));
             assertOutput(actualOutput, expectedOutput);
             assertTrue(operator.isAvailable());
         }
