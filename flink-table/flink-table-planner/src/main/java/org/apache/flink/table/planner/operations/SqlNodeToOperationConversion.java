@@ -123,6 +123,7 @@ import org.apache.flink.table.operations.CompileAndExecutePlanOperation;
 import org.apache.flink.table.operations.DeleteFromFilterOperation;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.EndStatementSetOperation;
+import org.apache.flink.table.operations.ExplainFileOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.ModifyOperation;
@@ -194,6 +195,7 @@ import org.apache.calcite.sql.SqlDelete;
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlUpdate;
@@ -1042,11 +1044,19 @@ public class SqlNodeToOperationConversion {
             operation = convertSqlStatementSet((SqlStatementSet) sqlNode);
         } else if (sqlNode.getKind().belongsTo(SqlKind.QUERY)) {
             operation = convertSqlQuery(sqlExplain.getStatement());
+        } else if (sqlNode.getKind().belongsTo(Collections.singleton(SqlKind.LITERAL))) {
+            return convertExplainPlanOperation(sqlExplain);
         } else {
             throw new ValidationException(
                     String.format("EXPLAIN statement doesn't support %s", sqlNode.getKind()));
         }
         return new ExplainOperation(operation, sqlExplain.getExplainDetails());
+    }
+
+    private Operation convertExplainPlanOperation(SqlRichExplain sqlExplainPlan) {
+        return new ExplainFileOperation(
+                sqlExplainPlan.getExplainDetails(),
+                ((NlsString) SqlLiteral.value(sqlExplainPlan.getStatement())).getValue());
     }
 
     /** Convert DESCRIBE [EXTENDED] [[catalogName.] dataBasesName].sqlIdentifier. */
