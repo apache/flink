@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 
 /** Operation to describe an EXPLAIN statement. */
 @Internal
-public final class ExplainOperation implements Operation {
+public class ExplainOperation implements Operation {
     private final Operation child;
     private final Set<String> explainDetails;
 

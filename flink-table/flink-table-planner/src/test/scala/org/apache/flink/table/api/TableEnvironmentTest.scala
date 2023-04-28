@@ -39,6 +39,8 @@ import org.apache.flink.table.types.DataType
 import org.apache.flink.table.utils.UserDefinedFunctions.{GENERATED_LOWER_UDF_CLASS, GENERATED_LOWER_UDF_CODE}
 import org.apache.flink.types.Row
 import org.apache.flink.util.UserClassLoaderJarTestUtils
+import org.apache.flink.util.FileUtils
+import org.apache.flink.util.IOUtils
 
 import _root_.java.util
 import _root_.scala.collection.JavaConverters._
@@ -50,8 +52,8 @@ import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
 import org.junit.rules.{ExpectedException, TemporaryFolder}
 
 import java.io.File
+import java.nio.file.Paths
 import java.util.{Collections, UUID}
-
 import scala.annotation.meta.getter
 
 class TableEnvironmentTest {
@@ -154,6 +156,41 @@ class TableEnvironmentTest {
     val expected = TableTestUtil.readFromResource("/explain/testStreamTableEnvironmentExplain.out")
     val actual = tEnv.explainSql("insert into MySink select first from MyTable")
     assertEquals(TableTestUtil.replaceStageId(expected), TableTestUtil.replaceStageId(actual))
+  }
+
+  @Test
+  def testExplainForJsonFile(): Unit = {
+    val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
+    execEnv.setParallelism(1)
+    val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
+    val tableEnv = StreamTableEnvironment.create(execEnv, settings)
+
+    val srcTableDdl =
+      "CREATE TABLE MyTable (\n" + "  a bigint,\n" + "  b int,\n" + "  c varchar\n" + ") with (\n" + "  'connector' = 'values',\n" + "  'bounded' = 'false')"
+    tableEnv.executeSql(srcTableDdl)
+
+    val sinkTableDdl =
+      "CREATE TABLE MySink (\n" + "  a bigint,\n" + "  b int,\n" + "  c varchar\n" + ") with (\n" + "  'connector' = 'values',\n" + "  'table-sink-class' = 'DEFAULT')"
+    tableEnv.executeSql(sinkTableDdl)
+
+    val planPath = Paths.get(tempFolder.newFolder(String.format("test-CompiledPlan")).getPath, "compiledPlan.json")
+
+    val plan = tableEnv.compilePlanSql("INSERT INTO MySink SELECT * FROM MyTable")
+    plan.writeToFile(planPath)
+
+    val sql = String.format("EXPLAIN PLAN FOR '%s'", planPath.toAbsolutePath)
+    val tableResult2 = tableEnv.executeSql(sql)
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
+    val it = tableResult2.collect()
+    assertTrue(it.hasNext)
+    val row = it.next()
+    assertEquals(1, row.getArity)
+    val actual = replaceNodeIdInOperator(replaceStreamNodeId(row.getField(0).toString.trim))
+    val expected = replaceNodeIdInOperator(
+      replaceStreamNodeId(FileUtils.readFileUtf8(planPath.toFile).trim))
+    assertEquals(replaceStageId(expected), replaceStageId(actual))
+    assertFalse(it.hasNext)
+
   }
 
   @Test
