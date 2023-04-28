@@ -77,6 +77,7 @@ import org.apache.flink.table.operations.CompileAndExecutePlanOperation;
 import org.apache.flink.table.operations.CreateTableASOperation;
 import org.apache.flink.table.operations.DeleteFromFilterOperation;
 import org.apache.flink.table.operations.ExecutableOperation;
+import org.apache.flink.table.operations.ExplainFileOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.NopOperation;
@@ -915,6 +916,16 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             return executeInternal(((StatementSetOperation) operation).getOperations());
         } else if (operation instanceof ExplainOperation) {
             ExplainOperation explainOperation = (ExplainOperation) operation;
+            if (explainOperation instanceof ExplainFileOperation) {
+                ExplainFileOperation explainfileOperation = (ExplainFileOperation) explainOperation;
+                CompiledPlan cp =
+                        loadPlan(PlanReference.fromFile(explainfileOperation.getFilePath()));
+                return TableResultImpl.builder()
+                        .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
+                        .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())))
+                        .data(Collections.singletonList(Row.of(cp.asJsonString())))
+                        .build();
+            }
             ExplainDetail[] explainDetails =
                     explainOperation.getExplainDetails().stream()
                             .map(ExplainDetail::valueOf)

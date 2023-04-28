@@ -157,6 +157,29 @@ class TableEnvironmentTest {
   }
 
   @Test
+  def testExplainForJsonFile(): Unit = {
+    val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
+    execEnv.setParallelism(1)
+    val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
+    val tableEnv = StreamTableEnvironment.create(execEnv, settings)
+
+    val srcTableDdl =
+      "CREATE TABLE MyTable (\n" + "  a bigint,\n" + "  b int,\n" + "  c varchar\n" + ") with (\n" + "  'connector' = 'values',\n" + "  'bounded' = 'false')"
+    tableEnv.executeSql(srcTableDdl)
+
+    val sinkTableDdl =
+      "CREATE TABLE MySink (\n" + "  a bigint,\n" + "  b int,\n" + "  c varchar\n" + ") with (\n" + "  'connector' = 'values',\n" + "  'table-sink-class' = 'DEFAULT')"
+    tableEnv.executeSql(sinkTableDdl)
+
+    val sql = "explain plan for '/Users/yeming/Downloads/flink_versions/testGetJsonPlan.json'"
+
+    val resultPath = "jsonplan/testGetJsonPlan.json"
+
+    val tableResult2 = tableEnv.executeSql(sql)
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
+  }
+
+  @Test
   def testExplainWithExecuteInsert(): Unit = {
     val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
     val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
