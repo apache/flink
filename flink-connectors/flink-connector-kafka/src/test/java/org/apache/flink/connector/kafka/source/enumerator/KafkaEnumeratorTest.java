@@ -296,12 +296,11 @@ public class KafkaEnumeratorTest {
                                 properties)) {
             enumerator.start();
 
-            AdminClient adminClient =
-                    (AdminClient) Whitebox.getInternalState(enumerator, "adminClient");
+            AdminClient adminClient = Whitebox.getInternalState(enumerator, "adminClient");
             assertThat(adminClient).isNotNull();
-            String clientId = (String) Whitebox.getInternalState(adminClient, "clientId");
+            String clientId = Whitebox.getInternalState(adminClient, "clientId");
             assertThat(clientId).isNotNull().startsWith(clientIdPrefix);
-            assertThat(Whitebox.getInternalState(adminClient, "defaultApiTimeoutMs"))
+            assertThat((Integer) Whitebox.getInternalState(adminClient, "defaultApiTimeoutMs"))
                     .isEqualTo(defaultTimeoutMs);
 
             assertThat(clientId).isNotNull().startsWith(clientIdPrefix);

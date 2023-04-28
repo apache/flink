@@ -31,9 +31,7 @@ import org.apache.flink.runtime.operators.testutils.types.IntPair;
 import org.apache.flink.util.MutableObjectIterator;
 
 import org.junit.Test;
-import org.powermock.reflect.Whitebox;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
@@ -289,7 +287,7 @@ public class CompactingHashTableTest extends MutableHashTableTestBase {
 
             // make sure there is enough memory for resize
             memory.addAll(getMemory(ADDITIONAL_MEM));
-            Boolean b = Whitebox.<Boolean>invokeMethod(table, "resizeHashTable");
+            Boolean b = table.resizeHashTable();
             assertTrue(b);
 
             for (int i = 0; i < NUM_PAIRS; i++) {
@@ -337,7 +335,7 @@ public class CompactingHashTableTest extends MutableHashTableTestBase {
 
             // make sure there is enough memory for resize
             memory.addAll(getMemory(ADDITIONAL_MEM));
-            Boolean b = Whitebox.<Boolean>invokeMethod(table, "resizeHashTable");
+            Boolean b = table.resizeHashTable();
             assertTrue(b);
 
             for (int i = 0; i < NUM_PAIRS; i++) {
@@ -349,7 +347,7 @@ public class CompactingHashTableTest extends MutableHashTableTestBase {
 
             // make sure there is enough memory for resize
             memory.addAll(getMemory(ADDITIONAL_MEM));
-            b = Whitebox.<Boolean>invokeMethod(table, "resizeHashTable");
+            b = table.resizeHashTable();
             assertTrue(b);
 
             for (int i = 0; i < NUM_PAIRS; i++) {
@@ -399,7 +397,7 @@ public class CompactingHashTableTest extends MutableHashTableTestBase {
 
             // make sure there is enough memory for resize
             memory.addAll(getMemory(ADDITIONAL_MEM));
-            Boolean b = Whitebox.<Boolean>invokeMethod(table, "resizeHashTable");
+            Boolean b = table.resizeHashTable();
             assertTrue(b);
 
             for (int i = 0; i < NUM_PAIRS; i++) {
@@ -411,7 +409,7 @@ public class CompactingHashTableTest extends MutableHashTableTestBase {
 
             // make sure there is enough memory for resize
             memory.addAll(getMemory(ADDITIONAL_MEM));
-            b = Whitebox.<Boolean>invokeMethod(table, "resizeHashTable");
+            b = table.resizeHashTable();
             assertTrue(b);
 
             for (int i = 0; i < NUM_PAIRS; i++) {
@@ -423,7 +421,7 @@ public class CompactingHashTableTest extends MutableHashTableTestBase {
 
             // make sure there is enough memory for resize
             memory.addAll(getMemory(2 * ADDITIONAL_MEM));
-            b = Whitebox.<Boolean>invokeMethod(table, "resizeHashTable");
+            b = table.resizeHashTable();
             assertTrue(b);
 
             for (int i = 0; i < NUM_PAIRS; i++) {
@@ -473,7 +471,7 @@ public class CompactingHashTableTest extends MutableHashTableTestBase {
 
             // make sure there is enough memory for resize
             memory.addAll(getMemory(ADDITIONAL_MEM));
-            Boolean b = Whitebox.<Boolean>invokeMethod(table, "resizeHashTable");
+            Boolean b = table.resizeHashTable();
             assertTrue(b);
 
             for (int i = 0; i < NUM_LISTS; i++) {
@@ -488,18 +486,11 @@ public class CompactingHashTableTest extends MutableHashTableTestBase {
                 table.insertOrReplaceRecord(overwriteLists[i]);
             }
 
-            Field list = Whitebox.getField(CompactingHashTable.class, "partitions");
-            @SuppressWarnings("unchecked")
-            ArrayList<InMemoryPartition<IntList>> partitions =
-                    (ArrayList<InMemoryPartition<IntList>>) list.get(table);
-            int numPartitions = partitions.size();
-            for (int i = 0; i < numPartitions; i++) {
-                Whitebox.invokeMethod(table, "compactPartition", i);
-            }
+            table.compactPartitions();
 
             // make sure there is enough memory for resize
             memory.addAll(getMemory(2 * ADDITIONAL_MEM));
-            b = Whitebox.<Boolean>invokeMethod(table, "resizeHashTable");
+            b = table.resizeHashTable();
             assertTrue(b);
 
             for (int i = 0; i < NUM_LISTS; i++) {
