@@ -32,8 +32,8 @@ import org.apache.flink.runtime.rest.messages.job.metrics.AbstractAggregatedMetr
 import org.apache.flink.runtime.rest.messages.job.metrics.AggregatedMetric;
 import org.apache.flink.runtime.rest.messages.job.metrics.AggregatedMetricsResponseBody;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
+import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
-import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
@@ -54,7 +54,6 @@ import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import static org.powermock.api.mockito.PowerMockito.mock;
 
 /** Test base for handlers that extend {@link AbstractAggregatingMetricsHandler}. */
 public abstract class AggregatingMetricsHandlerTestBase<
@@ -62,16 +61,13 @@ public abstract class AggregatingMetricsHandlerTestBase<
                 P extends AbstractAggregatedMetricsParameters<?>>
         extends TestLogger {
 
-    private static final CompletableFuture<String> TEST_REST_ADDRESS;
     private static final DispatcherGateway MOCK_DISPATCHER_GATEWAY;
     private static final GatewayRetriever<DispatcherGateway> LEADER_RETRIEVER;
     private static final Time TIMEOUT = Time.milliseconds(50);
     private static final Map<String, String> TEST_HEADERS = Collections.emptyMap();
 
     static {
-        TEST_REST_ADDRESS = CompletableFuture.completedFuture("localhost:12345");
-
-        MOCK_DISPATCHER_GATEWAY = mock(DispatcherGateway.class);
+        MOCK_DISPATCHER_GATEWAY = new TestingDispatcherGateway();
 
         LEADER_RETRIEVER =
                 new GatewayRetriever<DispatcherGateway>() {
@@ -89,9 +85,9 @@ public abstract class AggregatingMetricsHandlerTestBase<
     @Before
     public void setUp() throws Exception {
         MetricFetcher fetcher =
-                new MetricFetcherImpl<RestfulGateway>(
-                        mock(GatewayRetriever.class),
-                        mock(MetricQueryServiceRetriever.class),
+                new MetricFetcherImpl<>(
+                        () -> null,
+                        rpcServiceAddress -> null,
                         Executors.directExecutor(),
                         TestingUtils.TIMEOUT,
                         MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue());
