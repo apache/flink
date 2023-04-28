@@ -491,8 +491,7 @@ public class CEPOperatorTest extends TestLogger {
             harness.open();
 
             final ValueState nfaOperatorState =
-                    (ValueState)
-                            Whitebox.<ValueState>getInternalState(operator, "computationStates");
+                    Whitebox.getInternalState(operator, "computationStates");
             final ValueState nfaOperatorStateSpy = Mockito.spy(nfaOperatorState);
             Whitebox.setInternalState(operator, "computationStates", nfaOperatorStateSpy);
 
@@ -537,8 +536,7 @@ public class CEPOperatorTest extends TestLogger {
             harness.open();
 
             final ValueState nfaOperatorState =
-                    (ValueState)
-                            Whitebox.<ValueState>getInternalState(operator, "computationStates");
+                    Whitebox.getInternalState(operator, "computationStates");
             final ValueState nfaOperatorStateSpy = Mockito.spy(nfaOperatorState);
             Whitebox.setInternalState(operator, "computationStates", nfaOperatorStateSpy);
 
