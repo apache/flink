@@ -103,8 +103,8 @@ jobs:
         echo "Installing required software"
         sudo apt-get install -y bc libapr1
         # install libssl1.0.0 for netty tcnative
-        wget http://security.ubuntu.com/ubuntu/pool/main/o/openssl1.0/libssl1.0.0_1.0.2n-1ubuntu5.11_amd64.deb
-        sudo apt install ./libssl1.0.0_1.0.2n-1ubuntu5.11_amd64.deb
+        wget http://security.ubuntu.com/ubuntu/pool/main/o/openssl1.0/libssl1.0.0_1.0.2n-1ubuntu5.12_amd64.deb
+        sudo apt install ./libssl1.0.0_1.0.2n-1ubuntu5.12_amd64.deb
       displayName: Prepare E2E run
       condition: not(eq(variables['SKIP'], '1'))
     - script: ${{parameters.environment}} PROFILE="$PROFILE -Dfast -Pskip-webui-build" ./tools/ci/compile.sh

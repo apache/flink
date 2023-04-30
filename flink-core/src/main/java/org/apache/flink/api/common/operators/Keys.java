@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.operators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -495,7 +496,8 @@ public abstract class Keys<T> {
         return keyFields;
     }
 
-    private static void rangeCheckFields(int[] fields, int maxAllowedField) {
+    @VisibleForTesting
+    static void rangeCheckFields(int[] fields, int maxAllowedField) {
 
         for (int f : fields) {
             if (f < 0 || f > maxAllowedField) {

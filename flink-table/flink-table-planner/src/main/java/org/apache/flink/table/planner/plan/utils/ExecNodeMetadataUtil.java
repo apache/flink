@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.plan.utils;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
@@ -194,8 +193,7 @@ public final class ExecNodeMetadataUtil {
                 || UNSUPPORTED_JSON_SERDE_CLASSES.contains(execNode);
     }
 
-    @VisibleForTesting
-    static void addTestNode(Class<? extends ExecNode<?>> execNodeClass) {
+    public static void addTestNode(Class<? extends ExecNode<?>> execNodeClass) {
         addToLookupMap(execNodeClass);
     }
 
