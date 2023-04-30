@@ -257,7 +257,6 @@ class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
                                 .withName(Constants.BLOB_SERVER_PORT_NAME)
                                 .withContainerPort(BLOB_SERVER_PORT)
                                 .build());
-
         assertThat(resultFlinkPodWithPort.getMainContainer().getPorts())
                 .isEqualTo(expectedContainerPorts);
     }
