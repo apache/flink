@@ -27,6 +27,7 @@ jobs:
   #condition: or(eq(variables['MODE'], 'e2e'), eq(${{parameters.run_end_to_end}}, 'true'))
   # We are running this in a separate pool
   pool: ${{parameters.e2e_pool_definition}}
+  condition: not(eq(variables['MODE'], 'single-test'))
   timeoutInMinutes: 310
   cancelTimeoutInMinutes: 1
   workspace:

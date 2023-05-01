@@ -1,0 +1,87 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+parameters:
+  test_pool_definition: # defines the hardware pool for compilation and unit test execution.
+  e2e_pool_definion: # defines the hardware pool for end-to-end test execution
+  stage_name: # defines a unique identifier for all jobs in a stage (in case the jobs are added multiple times to a stage)
+  environment: # defines environment variables for downstream scripts
+  container: # the container name for the build
+  jdk: # the jdk version to use
+
+jobs:
+  - job: run_single_test_${{parameters.stage_name}}
+    pool: ${{parameters.test_pool_definition}}
+    container: ${{parameters.container}}
+    timeoutInMinutes: 240
+    cancelTimeoutInMinutes: 1
+    workspace:
+      clean: all
+    steps:
+      # if on Azure, free up disk space
+      - script: ./tools/azure-pipelines/free_disk_space.sh
+        target: host
+        condition: not(eq('${{parameters.test_pool_definition.name}}', 'Default'))
+        displayName: Free up disk space
+
+      - task: Cache@2
+        inputs:
+          key: '"$(module)" | $(DOCKER_IMAGES_CACHE_KEY)'
+          path: $(DOCKER_IMAGES_CACHE_FOLDER)
+          cacheHitVar: DOCKER_IMAGES_CACHE_HIT
+        continueOnError: true
+        condition: not(eq('${{parameters.test_pool_definition.name}}', 'Default'))
+        displayName: Cache docker images
+
+      - script: ./tools/azure-pipelines/cache_docker_images.sh load
+        displayName: Restore docker images
+        condition: and(not(canceled()), eq(variables.DOCKER_IMAGES_CACHE_HIT, 'true'))
+        continueOnError: true
+
+      - script: |
+          echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_${{parameters.jdk}}_X64"
+          echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_${{parameters.jdk}}_X64/bin:$PATH"
+        displayName: "Set JDK"
+
+      - script: sudo sysctl -w kernel.core_pattern=core.%p
+        displayName: Set coredump pattern
+
+      # Test
+      - script: ${{parameters.environment}} ./tools/azure-pipelines/uploading_watchdog.sh ./tools/ci/test_controller.sh single-test $(TEST_PATTERN)
+        displayName: Test - single-test
+        env:
+          IT_CASE_S3_BUCKET: $(SECRET_S3_BUCKET)
+          IT_CASE_S3_ACCESS_KEY: $(SECRET_S3_ACCESS_KEY)
+          IT_CASE_S3_SECRET_KEY: $(SECRET_S3_SECRET_KEY)
+          IT_CASE_GLUE_SCHEMA_ACCESS_KEY: $(SECRET_GLUE_SCHEMA_ACCESS_KEY)
+          IT_CASE_GLUE_SCHEMA_SECRET_KEY: $(SECRET_GLUE_SCHEMA_SECRET_KEY)
+
+      - task: PublishTestResults@2
+        condition: succeededOrFailed()
+        inputs:
+          testResultsFormat: 'JUnit'
+
+      # upload debug artifacts
+      - task: PublishPipelineArtifact@1
+        condition: not(eq('$(DEBUG_FILES_OUTPUT_DIR)', ''))
+        displayName: Upload Logs
+        inputs:
+          targetPath: $(DEBUG_FILES_OUTPUT_DIR)
+          artifact: logs-${{parameters.stage_name}}-$(DEBUG_FILES_NAME)
+
+      - script: ./tools/azure-pipelines/cache_docker_images.sh save
+        displayName: Save docker images
+        condition: and(not(canceled()), or(failed(), ne(variables.DOCKER_IMAGES_CACHE_HIT, 'true')))
+        continueOnError: true
