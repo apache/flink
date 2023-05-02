@@ -86,6 +86,7 @@ class FailureHandlingResultSnapshotTest {
                         rootCauseExecutionVertex.getCurrentExecutionAttempt(),
                         new RuntimeException("Expected exception: root cause"),
                         System.currentTimeMillis(),
+                        Collections.emptyMap(),
                         StreamSupport.stream(
                                         executionGraph.getAllExecutionVertices().spliterator(),
                                         false)
@@ -112,6 +113,7 @@ class FailureHandlingResultSnapshotTest {
                         rootCauseExecutionVertex.getCurrentExecutionAttempt(),
                         null,
                         rootCauseTimestamp,
+                        Collections.singletonMap("key2", "value2"),
                         StreamSupport.stream(
                                         executionGraph.getAllExecutionVertices().spliterator(),
                                         false)
@@ -119,6 +121,9 @@ class FailureHandlingResultSnapshotTest {
                                 .collect(Collectors.toSet()),
                         0L,
                         false);
+
+        // FailedExecution (with no labels) takes precedence over FailureHandlingResult labels
+        assertThat(failureHandlingResult.getFailureLabels()).isEmpty();
 
         final FailureHandlingResultSnapshot testInstance =
                 FailureHandlingResultSnapshot.create(
@@ -153,6 +158,7 @@ class FailureHandlingResultSnapshotTest {
                         rootCauseExecutionVertex.getCurrentExecutionAttempt(),
                         rootCause,
                         rootCauseTimestamp,
+                        Collections.emptyMap(),
                         StreamSupport.stream(
                                         executionGraph.getAllExecutionVertices().spliterator(),
                                         false)
@@ -184,6 +190,7 @@ class FailureHandlingResultSnapshotTest {
                                         rootCauseExecution,
                                         new RuntimeException("Expected exception"),
                                         System.currentTimeMillis(),
+                                        Collections.emptyMap(),
                                         Collections.singleton(rootCauseExecution)))
                 .isInstanceOf(IllegalArgumentException.class);
     }
@@ -206,6 +213,7 @@ class FailureHandlingResultSnapshotTest {
                         null,
                         rootCause,
                         timestamp,
+                        Collections.singletonMap("key2", "value2"),
                         StreamSupport.stream(
                                         executionGraph.getAllExecutionVertices().spliterator(),
                                         false)
@@ -213,6 +221,10 @@ class FailureHandlingResultSnapshotTest {
                                 .collect(Collectors.toSet()),
                         0L,
                         true);
+
+        // FailedExecution is null so labels of FailureHandlingResult take precedence
+        assertThat(failureHandlingResult.getFailureLabels())
+                .isEqualTo(Collections.singletonMap("key2", "value2"));
 
         final FailureHandlingResultSnapshot testInstance =
                 FailureHandlingResultSnapshot.create(

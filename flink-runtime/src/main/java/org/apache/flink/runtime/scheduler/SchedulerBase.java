@@ -107,6 +107,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -689,7 +690,8 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     private void archiveGlobalFailure(
             Throwable failure, long timestamp, Iterable<Execution> executions) {
         exceptionHistory.add(
-                RootExceptionHistoryEntry.fromGlobalFailure(failure, timestamp, executions));
+                RootExceptionHistoryEntry.fromGlobalFailure(
+                        failure, timestamp, Collections.emptyMap(), executions));
         log.debug("Archive global failure.", failure);
     }
 

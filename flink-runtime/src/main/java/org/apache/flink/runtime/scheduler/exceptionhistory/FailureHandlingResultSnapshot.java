@@ -30,6 +30,7 @@ import javax.annotation.Nullable;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
@@ -43,6 +44,7 @@ public class FailureHandlingResultSnapshot {
 
     @Nullable private final Execution rootCauseExecution;
     private final Throwable rootCause;
+    private final Map<String, String> labels;
     private final long timestamp;
     private final Set<Execution> concurrentlyFailedExecutions;
 
@@ -80,6 +82,7 @@ public class FailureHandlingResultSnapshot {
                 rootCauseExecution,
                 ErrorInfo.handleMissingThrowable(failureHandlingResult.getError()),
                 failureHandlingResult.getTimestamp(),
+                failureHandlingResult.getFailureLabels(),
                 concurrentlyFailedExecutions);
     }
 
@@ -88,6 +91,7 @@ public class FailureHandlingResultSnapshot {
             @Nullable Execution rootCauseExecution,
             Throwable rootCause,
             long timestamp,
+            Map<String, String> labels,
             Set<Execution> concurrentlyFailedExecutions) {
         Preconditions.checkArgument(
                 rootCauseExecution == null
@@ -95,6 +99,7 @@ public class FailureHandlingResultSnapshot {
                 "The rootCauseExecution should not be part of the concurrentlyFailedExecutions map.");
 
         this.rootCauseExecution = rootCauseExecution;
+        this.labels = labels;
         this.rootCause = Preconditions.checkNotNull(rootCause);
         this.timestamp = timestamp;
         this.concurrentlyFailedExecutions =
@@ -118,6 +123,15 @@ public class FailureHandlingResultSnapshot {
      */
     public Throwable getRootCause() {
         return rootCause;
+    }
+
+    /**
+     * Returns the labels associated with the failure.
+     *
+     * @return the map of String labels
+     */
+    public Map<String, String> getLabels() {
+        return labels;
     }
 
     /**

@@ -159,6 +159,7 @@ public class JobExceptionsHandlerTest extends TestLogger {
                 new RootExceptionHistoryEntry(
                         new RuntimeException("exception #1"),
                         System.currentTimeMillis(),
+                        Collections.singletonMap("key", "value"),
                         "task name",
                         new LocalTaskManagerLocation(),
                         Collections.emptySet());
@@ -178,6 +179,7 @@ public class JobExceptionsHandlerTest extends TestLogger {
                         historyContainsJobExceptionInfo(
                                 otherFailure.getException(),
                                 otherFailure.getTimestamp(),
+                                otherFailure.getLabels(),
                                 otherFailure.getFailingTaskName(),
                                 JobExceptionsHandler.toString(
                                         otherFailure.getTaskManagerLocation()),
@@ -193,6 +195,7 @@ public class JobExceptionsHandlerTest extends TestLogger {
                 new RootExceptionHistoryEntry(
                         new RuntimeException("exception #1"),
                         System.currentTimeMillis(),
+                        Collections.singletonMap("key", "value"),
                         "task name",
                         null,
                         Collections.emptySet());
@@ -209,6 +212,7 @@ public class JobExceptionsHandlerTest extends TestLogger {
                         historyContainsJobExceptionInfo(
                                 failure.getException(),
                                 failure.getTimestamp(),
+                                failure.getLabels(),
                                 failure.getFailingTaskName(),
                                 JobExceptionsHandler.toString(failure.getTaskManagerLocation()),
                                 JobExceptionsHandler.toTaskManagerId(
@@ -224,6 +228,7 @@ public class JobExceptionsHandlerTest extends TestLogger {
                 new RootExceptionHistoryEntry(
                         new RuntimeException("exception #1"),
                         System.currentTimeMillis(),
+                        Collections.singletonMap("key", "value"),
                         "task name",
                         new LocalTaskManagerLocation(),
                         Collections.emptySet());
@@ -318,6 +323,7 @@ public class JobExceptionsHandlerTest extends TestLogger {
                         new RootExceptionHistoryEntry(
                                 failureCause,
                                 failureTimestamp,
+                                Collections.emptyMap(),
                                 "test task #1",
                                 new LocalTaskManagerLocation(),
                                 Collections.emptySet()));
@@ -421,7 +427,8 @@ public class JobExceptionsHandlerTest extends TestLogger {
     }
 
     private static RootExceptionHistoryEntry fromGlobalFailure(Throwable cause, long timestamp) {
-        return new RootExceptionHistoryEntry(cause, timestamp, null, null, Collections.emptySet());
+        return new RootExceptionHistoryEntry(
+                cause, timestamp, Collections.emptyMap(), null, null, Collections.emptySet());
     }
 
     // -------- factory methods for instantiating new Matchers --------
@@ -430,6 +437,7 @@ public class JobExceptionsHandlerTest extends TestLogger {
     private static Matcher<RootExceptionInfo> historyContainsJobExceptionInfo(
             Throwable expectedFailureCause,
             long expectedFailureTimestamp,
+            Map<String, String> expectedFailureLabels,
             String expectedTaskNameWithSubtaskId,
             String expectedTaskManagerLocation,
             String expectedTaskManagerId,
@@ -438,6 +446,7 @@ public class JobExceptionsHandlerTest extends TestLogger {
                 matchesFailure(
                         expectedFailureCause,
                         expectedFailureTimestamp,
+                        expectedFailureLabels,
                         expectedTaskNameWithSubtaskId,
                         expectedTaskManagerLocation,
                         expectedTaskManagerId),
@@ -450,19 +459,22 @@ public class JobExceptionsHandlerTest extends TestLogger {
             long expectedFailureTimestamp,
             Matcher<ExceptionInfo>... concurrentExceptionMatchers) {
         return new RootExceptionInfoMatcher(
-                matchesFailure(expectedFailureCause, expectedFailureTimestamp, null, null, null),
+                matchesFailure(
+                        expectedFailureCause, expectedFailureTimestamp, null, null, null, null),
                 concurrentExceptionMatchers);
     }
 
     private static Matcher<ExceptionInfo> matchesFailure(
             Throwable expectedFailureCause,
             long expectedFailureTimestamp,
+            Map<String, String> expectedFailureLabels,
             String expectedTaskNameWithSubtaskId,
             String expectedTaskManagerLocation,
             String expectedTaskManagerId) {
         return new ExceptionInfoMatcher(
                 expectedFailureCause,
                 expectedFailureTimestamp,
+                expectedFailureLabels,
                 expectedTaskNameWithSubtaskId,
                 expectedTaskManagerLocation,
                 expectedTaskManagerId);
@@ -519,6 +531,7 @@ public class JobExceptionsHandlerTest extends TestLogger {
 
         private final Throwable expectedException;
         private final long expectedTimestamp;
+        private final Map<String, String> expectedLabels;
         private final String expectedTaskName;
         private final String expectedLocation;
         private final String expectedTaskManagerId;
@@ -526,11 +539,13 @@ public class JobExceptionsHandlerTest extends TestLogger {
         private ExceptionInfoMatcher(
                 Throwable expectedException,
                 long expectedTimestamp,
+                Map<String, String> expectedLabels,
                 String expectedTaskName,
                 String expectedLocation,
                 String expectedTaskManagerId) {
             this.expectedException = deserializeSerializedThrowable(expectedException);
             this.expectedTimestamp = expectedTimestamp;
+            this.expectedLabels = expectedLabels;
             this.expectedTaskName = expectedTaskName;
             this.expectedLocation = expectedLocation;
             this.expectedTaskManagerId = expectedTaskManagerId;
@@ -545,6 +560,8 @@ public class JobExceptionsHandlerTest extends TestLogger {
                     .appendText(getExpectedStacktrace())
                     .appendText(", timestamp=")
                     .appendText(String.valueOf(expectedTimestamp))
+                    .appendText(", labels=")
+                    .appendText(String.valueOf(expectedLabels))
                     .appendText(", taskName=")
                     .appendText(expectedTaskName)
                     .appendText(", location=")

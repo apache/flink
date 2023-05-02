@@ -183,6 +183,7 @@ public class ExecutionPartitionLifecycleTest extends TestLogger {
                                 new Exception("Test exception"),
                                 false,
                                 Collections.emptyMap(),
+                                Collections.emptyMap(),
                                 new IOMetrics(0, 0, 0, 0, 0, 0, 0),
                                 false,
                                 true),

@@ -26,6 +26,8 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
+import java.util.Collections;
+import java.util.Map;
 
 /** Simple container to hold an exception and the corresponding timestamp. */
 public class ErrorInfo implements Serializable {
@@ -39,17 +41,20 @@ public class ErrorInfo implements Serializable {
 
     private final long timestamp;
 
+    private final Map<String, String> labels;
+
     /**
      * Instantiates an {@code ErrorInfo} to cover inconsistent behavior due to FLINK-21376.
      *
      * @param exception The error cause that might be {@code null}.
      * @param timestamp The timestamp the error was noticed.
+     * @param labels The labels associated with the error.
      * @return a {@code ErrorInfo} containing a generic {@link FlinkException} in case of a missing
      *     error cause.
      */
     public static ErrorInfo createErrorInfoWithNullableCause(
-            @Nullable Throwable exception, long timestamp) {
-        return new ErrorInfo(handleMissingThrowable(exception), timestamp);
+            @Nullable Throwable exception, long timestamp, Map<String, String> labels) {
+        return new ErrorInfo(handleMissingThrowable(exception), timestamp, labels);
     }
 
     /**
@@ -66,6 +71,10 @@ public class ErrorInfo implements Serializable {
     }
 
     public ErrorInfo(@Nonnull Throwable exception, long timestamp) {
+        this(exception, timestamp, Collections.emptyMap());
+    }
+
+    public ErrorInfo(@Nonnull Throwable exception, long timestamp, Map<String, String> labels) {
         Preconditions.checkNotNull(exception);
         Preconditions.checkArgument(timestamp > 0);
 
@@ -74,6 +83,11 @@ public class ErrorInfo implements Serializable {
                         ? (SerializedThrowable) exception
                         : new SerializedThrowable(exception);
         this.timestamp = timestamp;
+        this.labels = Preconditions.checkNotNull(labels);
+    }
+
+    public ErrorInfo withLabels(Map<String, String> labels) {
+        return new ErrorInfo(this.exception, this.timestamp, labels);
     }
 
     /** Returns the serialized form of the original exception. */
@@ -97,5 +111,14 @@ public class ErrorInfo implements Serializable {
      */
     public long getTimestamp() {
         return timestamp;
+    }
+
+    /**
+     * Returns the labels associated with the exception.
+     *
+     * @return Map of exception labels
+     */
+    public Map<String, String> getLabels() {
+        return labels;
     }
 }

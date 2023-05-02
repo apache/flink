@@ -26,6 +26,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.core.failure.FailureEnricher;
+import org.apache.flink.core.failure.FailureEnricher.Context;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.blob.BlobWriter;
@@ -41,6 +43,8 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
+import org.apache.flink.runtime.failure.DefaultFailureEnricherContext;
+import org.apache.flink.runtime.failure.FailureEnricherUtils;
 import org.apache.flink.runtime.heartbeat.HeartbeatListener;
 import org.apache.flink.runtime.heartbeat.HeartbeatManager;
 import org.apache.flink.runtime.heartbeat.HeartbeatReceiver;
@@ -206,6 +210,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
     private final ExecutionDeploymentTracker executionDeploymentTracker;
     private final ExecutionDeploymentReconciler executionDeploymentReconciler;
+    private final Collection<FailureEnricher> failureEnrichers;
 
     // -------- Mutable fields ---------
 
@@ -243,6 +248,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
             ExecutionDeploymentTracker executionDeploymentTracker,
             ExecutionDeploymentReconciler.Factory executionDeploymentReconcilerFactory,
             BlocklistHandler.Factory blocklistHandlerFactory,
+            Collection<FailureEnricher> failureEnrichers,
             long initializationTimestamp)
             throws Exception {
 
@@ -345,6 +351,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
         this.jobManagerJobMetricGroup = jobMetricGroupFactory.create(jobGraph);
         this.jobStatusListener = new JobManagerJobStatusListener();
+
+        this.failureEnrichers = checkNotNull(failureEnrichers);
+
         this.schedulerNG =
                 createScheduler(
                         slotPoolServiceSchedulerFactory,
@@ -464,6 +473,24 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
         return CompletableFuture.completedFuture(Acknowledge.get());
     }
 
+    private CompletableFuture<TaskExecutionState> labelFailure(
+            final TaskExecutionState taskExecutionState) {
+        if (taskExecutionState.getExecutionState() != ExecutionState.FAILED
+                || failureEnrichers.isEmpty()) {
+            return CompletableFuture.completedFuture(taskExecutionState);
+        }
+        final Throwable cause = taskExecutionState.getError(userCodeLoader);
+        final Context ctx =
+                DefaultFailureEnricherContext.forTaskFailure(
+                        jobGraph.getJobID(),
+                        jobGraph.getName(),
+                        jobManagerJobMetricGroup,
+                        ioExecutor,
+                        userCodeLoader);
+        return FailureEnricherUtils.labelFailure(cause, ctx, failureEnrichers)
+                .thenApply(taskExecutionState::withLabels);
+    }
+
     /**
      * Updates the task execution state for a given task.
      *
@@ -473,18 +500,42 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     @Override
     public CompletableFuture<Acknowledge> updateTaskExecutionState(
             final TaskExecutionState taskExecutionState) {
-        FlinkException taskExecutionException;
+        checkNotNull(taskExecutionState, "taskExecutionState");
+        // Use the main/caller thread for all updates to make sure they are processed in order.
+        // (MainThreadExecutor i.e., the akka thread pool does not guarantee that)
+        // Only detach for a FAILED state update that is terminal and may perform io heavy labeling.
+        if (ExecutionState.FAILED.equals(taskExecutionState.getExecutionState())) {
+            return labelFailure(taskExecutionState)
+                    .thenApplyAsync(
+                            taskStateWithLabels -> {
+                                try {
+                                    return doUpdateTaskExecutionState(taskStateWithLabels);
+                                } catch (FlinkException e) {
+                                    throw new CompletionException(e);
+                                }
+                            },
+                            getMainThreadExecutor());
+        }
         try {
-            checkNotNull(taskExecutionState, "taskExecutionState");
+            return CompletableFuture.completedFuture(
+                    doUpdateTaskExecutionState(taskExecutionState));
+        } catch (FlinkException e) {
+            return FutureUtils.completedExceptionally(e);
+        }
+    }
 
+    private Acknowledge doUpdateTaskExecutionState(final TaskExecutionState taskExecutionState)
+            throws FlinkException {
+        @Nullable FlinkException taskExecutionException;
+        try {
             if (schedulerNG.updateTaskExecutionState(taskExecutionState)) {
-                return CompletableFuture.completedFuture(Acknowledge.get());
+                return Acknowledge.get();
             } else {
                 taskExecutionException =
                         new ExecutionGraphException(
-                                "The execution attempt "
-                                        + taskExecutionState.getID()
-                                        + " was not found.");
+                                String.format(
+                                        "The execution attempt %s was not found.",
+                                        taskExecutionState.getID()));
             }
         } catch (Exception e) {
             taskExecutionException =
@@ -492,7 +543,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                             "Could not update the state of task execution for JobMaster.", e);
             handleJobMasterError(taskExecutionException);
         }
-        return FutureUtils.completedExceptionally(taskExecutionException);
+        throw taskExecutionException;
     }
 
     @Override

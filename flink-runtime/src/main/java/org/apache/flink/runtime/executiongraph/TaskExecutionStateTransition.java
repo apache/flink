@@ -22,6 +22,8 @@ import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 
+import java.util.Map;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Wraps {@link TaskExecutionState}, along with actions to take if it is FAILED state. */
@@ -77,5 +79,9 @@ public class TaskExecutionStateTransition {
 
     public boolean getReleasePartitions() {
         return releasePartitions;
+    }
+
+    public Map<String, String> getFailureLabels() {
+        return taskExecutionState.getFailureLabels();
     }
 }

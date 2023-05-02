@@ -778,7 +778,7 @@ public class Execution
      */
     @Override
     public void fail(Throwable t) {
-        processFail(t, true);
+        processFail(t, true, Collections.emptyMap());
     }
 
     /**
@@ -916,17 +916,25 @@ public class Execution
      * @param t The exception that caused the task to fail.
      */
     public void markFailed(Throwable t) {
-        processFail(t, false);
+        processFail(t, false, Collections.emptyMap());
     }
 
     void markFailed(
             Throwable t,
             boolean cancelTask,
+            Map<String, String> labels,
             Map<String, Accumulator<?, ?>> userAccumulators,
             IOMetrics metrics,
             boolean releasePartitions,
             boolean fromSchedulerNg) {
-        processFail(t, cancelTask, userAccumulators, metrics, releasePartitions, fromSchedulerNg);
+        processFail(
+                t,
+                cancelTask,
+                labels,
+                userAccumulators,
+                metrics,
+                releasePartitions,
+                fromSchedulerNg);
     }
 
     @VisibleForTesting
@@ -1076,8 +1084,8 @@ public class Execution
     //  Internal Actions
     // --------------------------------------------------------------------------------------------
 
-    private void processFail(Throwable t, boolean cancelTask) {
-        processFail(t, cancelTask, null, null, true, false);
+    private void processFail(Throwable t, boolean cancelTask, Map<String, String> labels) {
+        processFail(t, cancelTask, labels, null, null, true, false);
     }
 
     /**
@@ -1094,6 +1102,7 @@ public class Execution
      * @param cancelTask Indicating whether to send a PRC call to remove task from TaskManager. True
      *     if the failure is fired by JobManager and the execution is already deployed. Otherwise it
      *     should be false.
+     * @param labels key value pairs associated with the failure.
      * @param userAccumulators User accumulators
      * @param metrics IO metrics
      * @param releasePartitions Indicating whether to release result partitions produced by this
@@ -1104,6 +1113,7 @@ public class Execution
     private void processFail(
             Throwable t,
             boolean cancelTask,
+            Map<String, String> labels,
             Map<String, Accumulator<?, ?>> userAccumulators,
             IOMetrics metrics,
             boolean releasePartitions,
@@ -1147,7 +1157,8 @@ public class Execution
         // success (in a manner of speaking)
         this.failureCause =
                 Optional.of(
-                        ErrorInfo.createErrorInfoWithNullableCause(t, getStateTimestamp(FAILED)));
+                        ErrorInfo.createErrorInfoWithNullableCause(
+                                t, getStateTimestamp(FAILED), labels));
 
         updateAccumulatorsAndMetrics(userAccumulators, metrics);
 

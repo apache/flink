@@ -25,12 +25,15 @@ import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
 
+import java.util.Collections;
+import java.util.Map;
+
 /** Matches {@link ExceptionHistoryEntry} instances. */
 public class ExceptionHistoryEntryMatcher extends TypeSafeDiagnosingMatcher<ExceptionHistoryEntry> {
 
     public static Matcher<ExceptionHistoryEntry> matchesGlobalFailure(
-            Throwable expectedException, long expectedTimestamp) {
-        return matchesFailure(expectedException, expectedTimestamp, null, null);
+            Throwable expectedException, long expectedTimestamp, Map<String, String> labels) {
+        return matchesFailure(expectedException, expectedTimestamp, labels, null, null);
     }
 
     public static Matcher<ExceptionHistoryEntry> matchesFailure(
@@ -41,22 +44,40 @@ public class ExceptionHistoryEntryMatcher extends TypeSafeDiagnosingMatcher<Exce
         return new ExceptionHistoryEntryMatcher(
                 expectedException,
                 expectedTimestamp,
+                Collections.emptyMap(),
+                expectedTaskName,
+                expectedTaskManagerLocation);
+    }
+
+    public static Matcher<ExceptionHistoryEntry> matchesFailure(
+            Throwable expectedException,
+            long expectedTimestamp,
+            Map<String, String> expectedLabels,
+            String expectedTaskName,
+            TaskManagerLocation expectedTaskManagerLocation) {
+        return new ExceptionHistoryEntryMatcher(
+                expectedException,
+                expectedTimestamp,
+                expectedLabels,
                 expectedTaskName,
                 expectedTaskManagerLocation);
     }
 
     private final Throwable expectedException;
     private final long expectedTimestamp;
+    private final Map<String, String> expectedLabels;
     private final String expectedTaskName;
     private final ArchivedTaskManagerLocationMatcher taskManagerLocationMatcher;
 
     public ExceptionHistoryEntryMatcher(
             Throwable expectedException,
             long expectedTimestamp,
+            Map<String, String> expectedLabels,
             String expectedTaskName,
             TaskManagerLocation expectedTaskManagerLocation) {
         this.expectedException = expectedException;
         this.expectedTimestamp = expectedTimestamp;
+        this.expectedLabels = expectedLabels;
         this.expectedTaskName = expectedTaskName;
         this.taskManagerLocationMatcher =
                 new ArchivedTaskManagerLocationMatcher(expectedTaskManagerLocation);
@@ -87,6 +108,13 @@ public class ExceptionHistoryEntryMatcher extends TypeSafeDiagnosingMatcher<Exce
             match = false;
         }
 
+        if (!exceptionHistoryEntry.getLabels().equals(expectedLabels)) {
+            description
+                    .appendText(" actualLabels=")
+                    .appendText(String.valueOf(exceptionHistoryEntry.getLabels()));
+            match = false;
+        }
+
         if (exceptionHistoryEntry.getFailingTaskName() == null) {
             if (expectedTaskName != null) {
                 description.appendText(" actualTaskName=null");
@@ -113,6 +141,8 @@ public class ExceptionHistoryEntryMatcher extends TypeSafeDiagnosingMatcher<Exce
                 .appendText(ExceptionUtils.stringifyException(expectedException))
                 .appendText(" expectedTimestamp=")
                 .appendText(String.valueOf(expectedTimestamp))
+                .appendText(" expectedLabels=")
+                .appendText(String.valueOf(expectedLabels))
                 .appendText(" expectedTaskName=")
                 .appendText(expectedTaskName)
                 .appendText(" expectedTaskManagerLocation=");

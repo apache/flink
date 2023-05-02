@@ -22,9 +22,12 @@ import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedThrowable;
 
 import java.io.Serializable;
+import java.util.Collections;
+import java.util.Map;
 
 /**
  * This class represents an update about a task's execution state.
@@ -49,6 +52,8 @@ public class TaskExecutionState implements Serializable {
 
     private final IOMetrics ioMetrics;
 
+    private final Map<String, String> failureLabels;
+
     /**
      * Creates a new task execution state update, with no attached exception and no accumulators.
      *
@@ -56,7 +61,7 @@ public class TaskExecutionState implements Serializable {
      * @param executionState the execution state to be reported
      */
     public TaskExecutionState(ExecutionAttemptID executionId, ExecutionState executionState) {
-        this(executionId, executionState, null, null, null);
+        this(executionId, executionState, null, Collections.emptyMap(), null, null);
     }
 
     /**
@@ -67,7 +72,16 @@ public class TaskExecutionState implements Serializable {
      */
     public TaskExecutionState(
             ExecutionAttemptID executionId, ExecutionState executionState, Throwable error) {
-        this(executionId, executionState, error, null, null);
+        this(executionId, executionState, error, Collections.emptyMap(), null, null);
+    }
+
+    public TaskExecutionState(
+            ExecutionAttemptID executionId,
+            ExecutionState executionState,
+            Throwable error,
+            AccumulatorSnapshot accumulators,
+            IOMetrics ioMetrics) {
+        this(executionId, executionState, error, Collections.emptyMap(), accumulators, ioMetrics);
     }
 
     /**
@@ -76,6 +90,7 @@ public class TaskExecutionState implements Serializable {
      *
      * @param executionId the ID of the task execution whose state is to be reported
      * @param executionState the execution state to be reported
+     * @param labels the labels propagated by FailureEnrichers in case of Failure
      * @param error an optional error
      * @param accumulators The flink and user-defined accumulators which may be null.
      */
@@ -83,6 +98,7 @@ public class TaskExecutionState implements Serializable {
             ExecutionAttemptID executionId,
             ExecutionState executionState,
             Throwable error,
+            Map<String, String> labels,
             AccumulatorSnapshot accumulators,
             IOMetrics ioMetrics) {
 
@@ -97,6 +113,7 @@ public class TaskExecutionState implements Serializable {
         } else {
             this.throwable = null;
         }
+        this.failureLabels = Preconditions.checkNotNull(labels);
         this.accumulators = accumulators;
         this.ioMetrics = ioMetrics;
     }
@@ -143,6 +160,27 @@ public class TaskExecutionState implements Serializable {
 
     public IOMetrics getIOMetrics() {
         return ioMetrics;
+    }
+
+    public Map<String, String> getFailureLabels() {
+        return failureLabels;
+    }
+
+    /**
+     * Creates a new task execution state copy of the original but with the provided labels
+     * (currently used for Failures).
+     *
+     * @param failureLabels to be passed to the new Execution state
+     * @return new execution state with the associated labels
+     */
+    public TaskExecutionState withLabels(Map<String, String> failureLabels) {
+        return new TaskExecutionState(
+                this.executionId,
+                this.executionState,
+                this.throwable,
+                failureLabels,
+                this.accumulators,
+                this.ioMetrics);
     }
 
     // --------------------------------------------------------------------------------------------

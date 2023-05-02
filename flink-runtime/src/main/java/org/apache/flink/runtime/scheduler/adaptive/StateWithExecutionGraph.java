@@ -64,6 +64,7 @@ import org.slf4j.Logger;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -333,7 +334,7 @@ abstract class StateWithExecutionGraph implements State {
 
     @Override
     public void handleGlobalFailure(Throwable cause) {
-        failureCollection.add(ExceptionHistoryEntry.createGlobal(cause));
+        failureCollection.add(ExceptionHistoryEntry.createGlobal(cause, Collections.emptyMap()));
         onFailure(cause);
     }
 

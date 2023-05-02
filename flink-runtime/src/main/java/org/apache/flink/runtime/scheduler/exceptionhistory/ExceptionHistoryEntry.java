@@ -29,6 +29,7 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
+import java.util.Map;
 import java.util.StringJoiner;
 
 /**
@@ -63,14 +64,19 @@ public class ExceptionHistoryEntry extends ErrorInfo {
         return new ExceptionHistoryEntry(
                 failure.getException(),
                 failure.getTimestamp(),
+                failure.getLabels(),
                 taskName,
                 failedExecution.getAssignedResourceLocation());
     }
 
     /** Creates an {@code ExceptionHistoryEntry} that is not based on an {@code Execution}. */
-    public static ExceptionHistoryEntry createGlobal(Throwable cause) {
+    public static ExceptionHistoryEntry createGlobal(Throwable cause, Map<String, String> labels) {
         return new ExceptionHistoryEntry(
-                cause, System.currentTimeMillis(), null, (ArchivedTaskManagerLocation) null);
+                cause,
+                System.currentTimeMillis(),
+                labels,
+                null,
+                (ArchivedTaskManagerLocation) null);
     }
 
     /**
@@ -78,6 +84,7 @@ public class ExceptionHistoryEntry extends ErrorInfo {
      *
      * @param cause The reason for the failure.
      * @param timestamp The time the failure was caught.
+     * @param labels The labels associated with the failure.
      * @param failingTaskName The name of the task that failed.
      * @param taskManagerLocation The host the task was running on.
      * @throws NullPointerException if {@code cause} is {@code null}.
@@ -87,11 +94,13 @@ public class ExceptionHistoryEntry extends ErrorInfo {
     protected ExceptionHistoryEntry(
             Throwable cause,
             long timestamp,
+            @Nullable Map<String, String> labels,
             @Nullable String failingTaskName,
             @Nullable TaskManagerLocation taskManagerLocation) {
         this(
                 cause,
                 timestamp,
+                labels,
                 failingTaskName,
                 ArchivedTaskManagerLocation.fromTaskManagerLocation(taskManagerLocation));
     }
@@ -99,9 +108,10 @@ public class ExceptionHistoryEntry extends ErrorInfo {
     private ExceptionHistoryEntry(
             Throwable cause,
             long timestamp,
+            @Nullable Map<String, String> labels,
             @Nullable String failingTaskName,
             @Nullable ArchivedTaskManagerLocation taskManagerLocation) {
-        super(cause, timestamp);
+        super(cause, timestamp, labels);
         this.failingTaskName = failingTaskName;
         this.taskManagerLocation = taskManagerLocation;
     }

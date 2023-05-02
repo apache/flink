@@ -24,6 +24,7 @@ import org.apache.flink.testutils.ClassLoaderUtils;
 import org.junit.Test;
 
 import java.io.Serializable;
+import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
 
@@ -33,12 +34,16 @@ public class ErrorInfoTest {
     @Test
     public void testSerializationWithExceptionOutsideClassLoader() throws Exception {
         final ErrorInfo error =
-                new ErrorInfo(new ExceptionWithCustomClassLoader(), System.currentTimeMillis());
+                new ErrorInfo(
+                        new ExceptionWithCustomClassLoader(),
+                        System.currentTimeMillis(),
+                        Collections.singletonMap("key", "value"));
         final ErrorInfo copy = CommonTestUtils.createCopySerializable(error);
 
         assertEquals(error.getTimestamp(), copy.getTimestamp());
         assertEquals(error.getExceptionAsString(), copy.getExceptionAsString());
         assertEquals(error.getException().getMessage(), copy.getException().getMessage());
+        assertEquals(error.getLabels(), copy.getLabels());
     }
 
     // ------------------------------------------------------------------------

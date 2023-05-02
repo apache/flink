@@ -43,6 +43,7 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -76,6 +77,7 @@ public class RootExceptionHistoryEntryTest extends TestLogger {
         final Throwable rootException = new RuntimeException("Expected root failure");
         final ExecutionVertex rootExecutionVertex = extractExecutionVertex(0);
         final long rootTimestamp = triggerFailure(rootExecutionVertex, rootException);
+        final Map<String, String> rootLabels = Collections.singletonMap("key", "value");
 
         final Throwable concurrentException = new IllegalStateException("Expected other failure");
         final ExecutionVertex concurrentlyFailedExecutionVertex = extractExecutionVertex(1);
@@ -87,6 +89,7 @@ public class RootExceptionHistoryEntryTest extends TestLogger {
                         rootExecutionVertex.getCurrentExecutionAttempt(),
                         rootException,
                         rootTimestamp,
+                        rootLabels,
                         Collections.singleton(
                                 concurrentlyFailedExecutionVertex.getCurrentExecutionAttempt()));
         final RootExceptionHistoryEntry actualEntry =
@@ -97,6 +100,7 @@ public class RootExceptionHistoryEntryTest extends TestLogger {
                 ExceptionHistoryEntryMatcher.matchesFailure(
                         rootException,
                         rootTimestamp,
+                        rootLabels,
                         rootExecutionVertex.getTaskNameWithSubtaskIndex(),
                         rootExecutionVertex.getCurrentAssignedResourceLocation()));
         assertThat(
@@ -126,10 +130,12 @@ public class RootExceptionHistoryEntryTest extends TestLogger {
 
         final Throwable rootCause = new Exception("Expected root failure");
         final long rootTimestamp = System.currentTimeMillis();
+        final Map<String, String> rootLabels = Collections.singletonMap("key", "value");
         final RootExceptionHistoryEntry actualEntry =
                 RootExceptionHistoryEntry.fromGlobalFailure(
                         rootCause,
                         rootTimestamp,
+                        rootLabels,
                         StreamSupport.stream(
                                         executionGraph.getAllExecutionVertices().spliterator(),
                                         false)
@@ -138,7 +144,8 @@ public class RootExceptionHistoryEntryTest extends TestLogger {
 
         assertThat(
                 actualEntry,
-                ExceptionHistoryEntryMatcher.matchesGlobalFailure(rootCause, rootTimestamp));
+                ExceptionHistoryEntryMatcher.matchesGlobalFailure(
+                        rootCause, rootTimestamp, rootLabels));
         assertThat(
                 actualEntry.getConcurrentExceptions(),
                 IsIterableContainingInAnyOrder.containsInAnyOrder(

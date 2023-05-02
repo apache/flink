@@ -366,7 +366,7 @@ class DefaultExecutionGraphDeploymentTest {
 
     /**
      * Verifies that {@link Execution#completeCancelling(Map, IOMetrics, boolean)} and {@link
-     * Execution#markFailed(Throwable, boolean, Map, IOMetrics, boolean, boolean)} store the given
+     * Execution#markFailed(ErrorInfo, boolean, Map, IOMetrics, boolean, boolean)} store the given
      * accumulators and metrics correctly.
      */
     @Test
@@ -392,7 +392,14 @@ class DefaultExecutionGraphDeploymentTest {
         assertThat(execution1.getUserAccumulators()).isEqualTo(accumulators);
 
         Execution execution2 = executions.values().iterator().next();
-        execution2.markFailed(new Throwable(), false, accumulators, ioMetrics, false, true);
+        execution2.markFailed(
+                new Throwable(),
+                false,
+                Collections.emptyMap(),
+                accumulators,
+                ioMetrics,
+                false,
+                true);
 
         assertIOMetricsEqual(execution2.getIOMetrics(), ioMetrics);
         assertThat(execution2.getUserAccumulators()).isEqualTo(accumulators);

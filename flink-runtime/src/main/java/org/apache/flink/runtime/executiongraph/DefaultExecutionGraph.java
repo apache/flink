@@ -1422,6 +1422,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                 attempt.markFailed(
                         state.getError(userClassLoader),
                         state.getCancelTask(),
+                        state.getFailureLabels(),
                         accumulators,
                         state.getIOMetrics(),
                         state.getReleasePartitions(),
