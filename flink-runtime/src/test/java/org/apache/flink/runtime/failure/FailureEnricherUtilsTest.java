@@ -24,6 +24,7 @@ import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.core.failure.FailureEnricherFactory;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.plugin.TestingPluginManager;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.commons.collections.IteratorUtils;
@@ -163,7 +164,11 @@ class FailureEnricherUtilsTest {
         failureEnrichers.add(validEnricher);
 
         final CompletableFuture<Map<String, String>> result =
-                FailureEnricherUtils.labelFailure(cause, null, failureEnrichers);
+                FailureEnricherUtils.labelFailure(
+                        cause,
+                        null,
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                        failureEnrichers);
 
         assertThatFuture(result)
                 .eventuallySucceeds()
@@ -188,7 +193,11 @@ class FailureEnricherUtilsTest {
         failureEnrichers.add(invalidEnricher);
 
         final CompletableFuture<Map<String, String>> result =
-                FailureEnricherUtils.labelFailure(cause, null, failureEnrichers);
+                FailureEnricherUtils.labelFailure(
+                        cause,
+                        null,
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                        failureEnrichers);
         // Ignoring labels
         assertThatFuture(result).eventuallySucceeds().satisfies(labels -> labels.isEmpty());
     }
@@ -208,7 +217,11 @@ class FailureEnricherUtilsTest {
                 };
 
         final CompletableFuture<Map<String, String>> result =
-                FailureEnricherUtils.labelFailure(cause, null, enrichers);
+                FailureEnricherUtils.labelFailure(
+                        cause,
+                        null,
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                        enrichers);
 
         try {
             result.get();

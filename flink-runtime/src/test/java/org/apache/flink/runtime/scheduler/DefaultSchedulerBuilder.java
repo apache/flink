@@ -22,6 +22,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint;
+import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.blocklist.BlocklistOperations;
@@ -62,7 +63,9 @@ import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
@@ -102,6 +105,7 @@ public class DefaultSchedulerBuilder {
     private ExecutionSlotAllocatorFactory executionSlotAllocatorFactory =
             new TestExecutionSlotAllocatorFactory();
     private JobStatusListener jobStatusListener = (ignoredA, ignoredB, ignoredC) -> {};
+    private Collection<FailureEnricher> failureEnrichers = new HashSet<>();
     private ExecutionDeployer.Factory executionDeployerFactory =
             new DefaultExecutionDeployer.Factory();
     private VertexParallelismAndInputInfosDecider vertexParallelismAndInputInfosDecider =
@@ -246,6 +250,12 @@ public class DefaultSchedulerBuilder {
         return this;
     }
 
+    public DefaultSchedulerBuilder setFailureEnrichers(
+            Collection<FailureEnricher> failureEnrichers) {
+        this.failureEnrichers = failureEnrichers;
+        return this;
+    }
+
     public DefaultSchedulerBuilder setExecutionDeployerFactory(
             ExecutionDeployer.Factory executionDeployerFactory) {
         this.executionDeployerFactory = executionDeployerFactory;
@@ -301,6 +311,7 @@ public class DefaultSchedulerBuilder {
                 System.currentTimeMillis(),
                 mainThreadExecutor,
                 jobStatusListener,
+                failureEnrichers,
                 createExecutionGraphFactory(false),
                 shuffleMaster,
                 rpcTimeout,
@@ -329,6 +340,7 @@ public class DefaultSchedulerBuilder {
                 System.currentTimeMillis(),
                 mainThreadExecutor,
                 jobStatusListener,
+                failureEnrichers,
                 createExecutionGraphFactory(true),
                 shuffleMaster,
                 rpcTimeout,
@@ -360,6 +372,7 @@ public class DefaultSchedulerBuilder {
                 System.currentTimeMillis(),
                 mainThreadExecutor,
                 jobStatusListener,
+                failureEnrichers,
                 createExecutionGraphFactory(true, new SpeculativeExecutionJobVertex.Factory()),
                 shuffleMaster,
                 rpcTimeout,

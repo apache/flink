@@ -35,6 +35,7 @@ import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
+import org.apache.flink.runtime.failure.FailureEnricherUtils;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -359,7 +360,9 @@ abstract class StateWithExecutionGraph implements State {
             final String taskName = maybeTaskName.orElseThrow(NoSuchElementException::new);
             final ExecutionState currentState = execution.getState();
             if (currentState == desiredState) {
-                failureCollection.add(ExceptionHistoryEntry.create(execution, taskName));
+                failureCollection.add(
+                        ExceptionHistoryEntry.create(
+                                execution, taskName, FailureEnricherUtils.EMPTY_FAILURE_LABELS));
                 onFailure(
                         ErrorInfo.handleMissingThrowable(
                                 taskExecutionStateTransition.getError(userCodeClassLoader)));
