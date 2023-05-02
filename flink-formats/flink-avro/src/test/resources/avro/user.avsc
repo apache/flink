@@ -19,6 +19,14 @@
 },
 {"namespace": "org.apache.flink.formats.avro.generated",
  "type": "record",
+ "name": "Coordinate",
+ "fields": [
+     {"name": "longitude", "type": "double"},
+     {"name": "latitude", "type": "double"}
+  ]
+},
+{"namespace": "org.apache.flink.formats.avro.generated",
+ "type": "record",
  "name": "User",
  "fields": [
      {"name": "name", "type": "string"},

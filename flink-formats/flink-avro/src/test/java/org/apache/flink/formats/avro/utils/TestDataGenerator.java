@@ -20,6 +20,7 @@ package org.apache.flink.formats.avro.utils;
 
 import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.generated.Colors;
+import org.apache.flink.formats.avro.generated.Coordinate;
 import org.apache.flink.formats.avro.generated.Fixed16;
 import org.apache.flink.formats.avro.generated.Fixed2;
 import org.apache.flink.formats.avro.generated.SimpleUser;
@@ -156,5 +157,9 @@ public class TestDataGenerator {
                 return rnd.nextDouble();
             }
         }
+    }
+
+    public static Coordinate generateRandomCoordinate(Random rnd) {
+        return new Coordinate(rnd.nextDouble(), rnd.nextDouble());
     }
 }

@@ -20,6 +20,7 @@ package org.apache.flink.formats.avro;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.formats.avro.generated.Address;
+import org.apache.flink.formats.avro.generated.Coordinate;
 import org.apache.flink.formats.avro.generated.UnionLogicalType;
 import org.apache.flink.formats.avro.utils.TestDataGenerator;
 
@@ -36,6 +37,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AvroDeserializationSchemaTest {
 
     private static final Address address = TestDataGenerator.generateRandomAddress(new Random());
+    private static final Coordinate coordinate =
+            TestDataGenerator.generateRandomCoordinate(new Random());
 
     @Test
     void testNullRecord() throws Exception {
@@ -78,5 +81,20 @@ class AvroDeserializationSchemaTest {
         byte[] encodedData = writeRecord(data);
         UnionLogicalType deserializedData = deserializer.deserialize(encodedData);
         assertThat(deserializedData).isEqualTo(data);
+    }
+
+    @Test
+    void testMixSchemaUsage() throws Exception {
+        DeserializationSchema<Address> deserializer =
+                AvroDeserializationSchema.forSpecific(Address.class);
+        byte[] encodedAddressData = writeRecord(address);
+        byte[] encodedCoordinate = writeRecord(coordinate);
+        try {
+            deserializer.deserialize(encodedCoordinate);
+        } catch (Exception e) {
+            // expected exception
+        }
+        Address deserializedData = deserializer.deserialize(encodedAddressData);
+        assertThat(deserializedData).isEqualTo(address);
     }
 }

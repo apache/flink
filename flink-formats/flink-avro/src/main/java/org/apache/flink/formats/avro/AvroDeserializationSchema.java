@@ -139,7 +139,12 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
 
         datumReader.setSchema(readerSchema);
 
-        return datumReader.read(null, decoder);
+        try {
+            return datumReader.read(null, decoder);
+        } catch (IOException e) {
+            setupDecoder();
+            throw e;
+        }
     }
 
     void checkAvroInitialized() {
@@ -160,7 +165,10 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
             GenericData genericData = new GenericData(cl);
             this.datumReader = new GenericDatumReader<>(null, this.reader, genericData);
         }
+        setupDecoder();
+    }
 
+    private void setupDecoder() {
         this.inputStream = new MutableByteArrayInputStream();
         this.decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
     }
