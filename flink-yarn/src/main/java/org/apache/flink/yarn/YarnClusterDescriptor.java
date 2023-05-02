@@ -1169,6 +1169,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         amContainer.setLocalResources(fileUploader.getRegisteredLocalResources());
         fileUploader.close();
 
+        Utils.setAclsFor(amContainer, flinkConfiguration);
+
         // Setup CLASSPATH and environment variables for ApplicationMaster
         final Map<String, String> appMasterEnv =
                 generateApplicationMasterEnv(

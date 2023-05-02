@@ -60,6 +60,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 class YARNSessionFIFOITCase extends YarnTestBase {
     private static final Logger log = LoggerFactory.getLogger(YARNSessionFIFOITCase.class);
 
+    protected static final String VIEW_ACLS = "user group";
+    protected static final String MODIFY_ACLS = "admin groupAdmin";
+    protected static final String VIEW_ACLS_WITH_WILDCARD = "*";
+    protected static final String MODIFY_ACLS_WITH_WILDCARD = "*";
+    protected static final String WILDCARD = "*";
+
     @RegisterExtension
     protected final LoggerAuditingExtension yarLoggerAuditingExtension =
             new LoggerAuditingExtension(YarnClusterDescriptor.class, Level.WARN);
@@ -82,11 +88,13 @@ class YARNSessionFIFOITCase extends YarnTestBase {
 
     @Test
     void testDetachedMode() throws Exception {
-        runTest(() -> runDetachedModeTest(Collections.emptyMap()));
+        runTest(() -> runDetachedModeTest(Collections.emptyMap(), VIEW_ACLS, MODIFY_ACLS));
     }
 
     /** Test regular operation, including command line parameter parsing. */
-    ApplicationId runDetachedModeTest(Map<String, String> securityProperties) throws Exception {
+    ApplicationId runDetachedModeTest(
+            Map<String, String> securityProperties, String viewAcls, String modifyAcls)
+            throws Exception {
         log.info("Starting testDetachedMode()");
 
         File exampleJarLocation = getTestJarPath("StreamingWordCount.jar");
@@ -113,6 +121,9 @@ class YARNSessionFIFOITCase extends YarnTestBase {
                 args.add("-D" + property.getKey() + "=" + property.getValue());
             }
         }
+
+        args.add("-D" + YarnConfigOptions.APPLICATION_VIEW_ACLS.key() + "=" + viewAcls);
+        args.add("-D" + YarnConfigOptions.APPLICATION_MODIFY_ACLS.key() + "=" + modifyAcls);
 
         args.add("--name");
         args.add("MyCustomName");
