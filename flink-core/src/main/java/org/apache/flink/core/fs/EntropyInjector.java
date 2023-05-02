@@ -103,9 +103,18 @@ public class EntropyInjector {
 
     // ------------------------------------------------------------------------
 
+    /** @deprecated Use {@link #isEntropyInjecting(FileSystem, Path)} instead. */
+    @Deprecated
     public static boolean isEntropyInjecting(FileSystem fs) {
         final EntropyInjectingFileSystem entropyFs = getEntropyFs(fs);
         return entropyFs != null && entropyFs.getEntropyInjectionKey() != null;
+    }
+
+    public static boolean isEntropyInjecting(FileSystem fs, Path target) {
+        final EntropyInjectingFileSystem entropyFs = getEntropyFs(fs);
+        return entropyFs != null
+                && entropyFs.getEntropyInjectionKey() != null
+                && target.getPath().contains(entropyFs.getEntropyInjectionKey());
     }
 
     @Nullable
