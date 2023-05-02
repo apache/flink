@@ -20,6 +20,8 @@ package org.apache.flink.runtime.scheduler.exceptionhistory;
 
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
+import java.util.Collections;
+import java.util.Map;
 import java.util.Objects;
 
 import static org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry.ArchivedTaskManagerLocation.fromTaskManagerLocation;
@@ -33,6 +35,20 @@ public class ExceptionHistoryEntryTestingUtils {
             long expectedTimestamp) {
         return matchesInternal(
                 exceptionHistoryEntry, expectedException, expectedTimestamp, null, null);
+    }
+
+    public static boolean matchesFailure(
+            ExceptionHistoryEntry exceptionHistoryEntry,
+            Throwable expectedException,
+            long expectedTimestamp,
+            Map<String, String> expectedFailureLabels) {
+        return matchesInternal(
+                exceptionHistoryEntry,
+                expectedException,
+                expectedTimestamp,
+                null,
+                expectedFailureLabels,
+                null);
     }
 
     public static boolean matchesFailure(
@@ -55,12 +71,31 @@ public class ExceptionHistoryEntryTestingUtils {
             long expectedTimestamp,
             String expectedTaskName,
             TaskManagerLocation expectedTaskManagerLocation) {
+        return matchesInternal(
+                exceptionHistoryEntry,
+                expectedException,
+                expectedTimestamp,
+                expectedTaskName,
+                Collections.emptyMap(),
+                expectedTaskManagerLocation);
+    }
+
+    private static boolean matchesInternal(
+            ExceptionHistoryEntry exceptionHistoryEntry,
+            Throwable expectedException,
+            long expectedTimestamp,
+            String expectedTaskName,
+            Map<String, String> expectedFailureLabels,
+            TaskManagerLocation expectedTaskManagerLocation) {
         boolean match =
                 exceptionHistoryEntry
                                 .getException()
                                 .deserializeError(ClassLoader.getSystemClassLoader())
                                 .equals(expectedException)
                         && exceptionHistoryEntry.getTimestamp() == expectedTimestamp
+                        && Objects.equals(
+                                exceptionHistoryEntry.getFailureLabelsFuture(),
+                                expectedFailureLabels)
                         && !Objects.equals(
                                 exceptionHistoryEntry.getFailingTaskName(), expectedTaskName);
 

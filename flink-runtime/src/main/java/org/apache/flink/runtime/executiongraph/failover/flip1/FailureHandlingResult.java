@@ -24,8 +24,10 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.Collections;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -55,6 +57,9 @@ public class FailureHandlingResult {
     /** Failure reason. {@code @Nullable} because of FLINK-21376. */
     @Nullable private final Throwable error;
 
+    /** Future Map of string labels characterizing the failure. */
+    private final CompletableFuture<Map<String, String>> failureLabels;
+
     /** Failure timestamp. */
     private final long timestamp;
 
@@ -68,6 +73,7 @@ public class FailureHandlingResult {
      *     {@code null} as a value indicates that the failure was issued by Flink itself.
      * @param cause the exception that caused this failure.
      * @param timestamp the time the failure was handled.
+     * @param failureLabels collection of string tags characterizing the failure.
      * @param verticesToRestart containing task vertices to restart to recover from the failure.
      *     {@code null} indicates that the failure is not restartable.
      * @param restartDelayMS indicate a delay before conducting the restart
@@ -76,6 +82,7 @@ public class FailureHandlingResult {
             @Nullable Execution failedExecution,
             @Nullable Throwable cause,
             long timestamp,
+            CompletableFuture<Map<String, String>> failureLabels,
             @Nullable Set<ExecutionVertexID> verticesToRestart,
             long restartDelayMS,
             boolean globalFailure) {
@@ -85,6 +92,7 @@ public class FailureHandlingResult {
         this.restartDelayMS = restartDelayMS;
         this.failedExecution = failedExecution;
         this.error = cause;
+        this.failureLabels = failureLabels;
         this.timestamp = timestamp;
         this.globalFailure = globalFailure;
     }
@@ -96,16 +104,20 @@ public class FailureHandlingResult {
      *     {@code null} as a value indicates that the failure was issued by Flink itself.
      * @param error reason why the failure is not recoverable
      * @param timestamp the time the failure was handled.
+     * @param failureLabels collection of tags characterizing the failure as produced by the
+     *     FailureEnrichers
      */
     private FailureHandlingResult(
             @Nullable Execution failedExecution,
             @Nonnull Throwable error,
             long timestamp,
+            CompletableFuture<Map<String, String>> failureLabels,
             boolean globalFailure) {
         this.verticesToRestart = null;
         this.restartDelayMS = -1;
         this.failedExecution = failedExecution;
         this.error = checkNotNull(error);
+        this.failureLabels = failureLabels;
         this.timestamp = timestamp;
         this.globalFailure = globalFailure;
     }
@@ -160,6 +172,15 @@ public class FailureHandlingResult {
     }
 
     /**
+     * Returns the labels future associated with the failure.
+     *
+     * @return the CompletableFuture Map of String labels
+     */
+    public CompletableFuture<Map<String, String>> getFailureLabels() {
+        return failureLabels;
+    }
+
+    /**
      * Returns the time of the failure.
      *
      * @return The timestamp.
@@ -195,6 +216,8 @@ public class FailureHandlingResult {
      *     {@code null} as a value indicates that the failure was issued by Flink itself.
      * @param cause The reason of the failure.
      * @param timestamp The time of the failure.
+     * @param failureLabels Map of labels characterizing the failure produced by the
+     *     FailureEnrichers.
      * @param verticesToRestart containing task vertices to restart to recover from the failure.
      *     {@code null} indicates that the failure is not restartable.
      * @param restartDelayMS indicate a delay before conducting the restart
@@ -204,6 +227,7 @@ public class FailureHandlingResult {
             @Nullable Execution failedExecution,
             @Nullable Throwable cause,
             long timestamp,
+            CompletableFuture<Map<String, String>> failureLabels,
             @Nullable Set<ExecutionVertexID> verticesToRestart,
             long restartDelayMS,
             boolean globalFailure) {
@@ -211,6 +235,7 @@ public class FailureHandlingResult {
                 failedExecution,
                 cause,
                 timestamp,
+                failureLabels,
                 verticesToRestart,
                 restartDelayMS,
                 globalFailure);
@@ -226,13 +251,17 @@ public class FailureHandlingResult {
      *     {@code null} as a value indicates that the failure was issued by Flink itself.
      * @param error reason why the failure is not recoverable
      * @param timestamp The time of the failure.
+     * @param failureLabels Map of labels characterizing the failure produced by the
+     *     FailureEnrichers.
      * @return result indicating the failure is not recoverable
      */
     public static FailureHandlingResult unrecoverable(
             @Nullable Execution failedExecution,
             @Nonnull Throwable error,
             long timestamp,
+            CompletableFuture<Map<String, String>> failureLabels,
             boolean globalFailure) {
-        return new FailureHandlingResult(failedExecution, error, timestamp, globalFailure);
+        return new FailureHandlingResult(
+                failedExecution, error, timestamp, failureLabels, globalFailure);
     }
 }
