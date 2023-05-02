@@ -30,11 +30,16 @@ import org.apache.flink.yarn.util.TestHadoopModuleFactory;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
+import org.apache.hadoop.yarn.api.records.ApplicationAccessType;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
+import org.apache.hadoop.yarn.server.nodemanager.NodeManager;
+import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.Container;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fifo.FifoScheduler;
+import org.junit.Assert;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -46,6 +51,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
@@ -196,6 +205,15 @@ class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
 
         assertThat(jobmanagerWithAmRmToken).isTrue();
         assertThat(taskmanagerWithAmRmToken).isFalse();
+
+        getRunningContainersAcls()
+                .forEach(
+                        (k, acls) -> {
+                            Assert.assertEquals(
+                                    VIEW_ACLS, acls.get(ApplicationAccessType.VIEW_APP));
+                            Assert.assertEquals(
+                                    MODIFY_ACLS, acls.get(ApplicationAccessType.MODIFY_APP));
+                        });
     }
 
     /* For secure cluster testing, it is enough to run only one test and override below test methods
@@ -203,4 +221,51 @@ class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
      */
     @Override
     public void testQueryCluster() {}
+
+    /**
+     * Returns a map of the application ACLs for all running containers in the YARN cluster. The map
+     * is keyed by container ID, and the values are maps of application access types to
+     * corresponding ACL strings.
+     *
+     * @return a map of the application ACLs for all running containers in the YARN cluster
+     */
+    private static Map<ContainerId, Map<ApplicationAccessType, String>> getRunningContainersAcls() {
+        return nodeManagersStream()
+                .flatMap(toContainersStream())
+                .collect(
+                        Collectors.toMap(
+                                Map.Entry::getKey, entry -> getApplicationACLs(entry.getValue())));
+    }
+
+    /**
+     * Returns a stream of NodeManager instances in the YARN cluster.
+     *
+     * @return a stream of NodeManager instances in the YARN cluster
+     */
+    private static Stream<NodeManager> nodeManagersStream() {
+        return IntStream.range(0, NUM_NODEMANAGERS).mapToObj(i -> yarnCluster.getNodeManager(i));
+    }
+
+    /**
+     * Returns a function that maps a NodeManager to a stream of container ID-container pairs. The
+     * resulting stream contains all containers currently running on the NodeManager.
+     *
+     * @return a function that maps a NodeManager to a stream of container ID-container pairs
+     */
+    private static Function<NodeManager, Stream<Map.Entry<ContainerId, Container>>>
+            toContainersStream() {
+        return nodeManager -> nodeManager.getNMContext().getContainers().entrySet().stream();
+    }
+
+    /**
+     * Returns a map of the application ACLs for the given container. The map is keyed by
+     * application access type, and the values are the corresponding ACL strings.
+     *
+     * @param container the container to retrieve the ACLs for
+     * @return a map of the application ACLs for the given container
+     */
+    private static Map<ApplicationAccessType, String> getApplicationACLs(
+            final Container container) {
+        return container.getLaunchContext().getApplicationACLs();
+    }
 }

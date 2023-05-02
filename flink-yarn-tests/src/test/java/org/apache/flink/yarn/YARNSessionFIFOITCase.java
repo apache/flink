@@ -61,6 +61,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 class YARNSessionFIFOITCase extends YarnTestBase {
     private static final Logger log = LoggerFactory.getLogger(YARNSessionFIFOITCase.class);
 
+    protected static final String VIEW_ACLS = "user groupUser";
+    protected static final String MODIFY_ACLS = "admin groupAdmin";
+
     @RegisterExtension
     protected final LoggerAuditingExtension yarLoggerAuditingExtension =
             new LoggerAuditingExtension(YarnClusterDescriptor.class, Level.WARN);
@@ -115,6 +118,9 @@ class YARNSessionFIFOITCase extends YarnTestBase {
                 args.add("-D" + property.getKey() + "=" + property.getValue());
             }
         }
+
+        args.add("-D" + YarnConfigOptions.APPLICATION_VIEW_ACLS.key() + "=" + VIEW_ACLS);
+        args.add("-D" + YarnConfigOptions.APPLICATION_MODIFY_ACLS.key() + "=" + MODIFY_ACLS);
 
         args.add("--name");
         args.add("MyCustomName");
