@@ -41,6 +41,7 @@ import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.util.StringInterner;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
+import org.apache.hadoop.yarn.api.records.ApplicationAccessType;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
@@ -425,6 +426,8 @@ public final class Utils {
 
         ctx.setEnvironment(containerEnv);
 
+        setAclsFor(ctx, flinkConfig);
+
         // For TaskManager YARN container context, read the tokens from the jobmanager yarn
         // container local file.
         // NOTE: must read the tokens from the local file, not from the UGI context, because if UGI
@@ -619,5 +622,31 @@ public final class Utils {
         }
 
         return yarnConfig;
+    }
+
+    /**
+     * Sets the application ACLs for the given ContainerLaunchContext based on the values specified
+     * in the given Flink configuration. Only ApplicationAccessType.VIEW_APP and
+     * ApplicationAccessType.MODIFY_APP ACLs are set, and only if they are configured in the Flink
+     * configuration.
+     *
+     * @param amContainer the ContainerLaunchContext to set the ACLs for
+     * @param flinkConfig the Flink configuration to read the ACL values from
+     */
+    public static void setAclsFor(
+            ContainerLaunchContext amContainer,
+            org.apache.flink.configuration.Configuration flinkConfig) {
+        Map<ApplicationAccessType, String> acls = new HashMap<>();
+        String viewAcls = flinkConfig.getString(YarnConfigOptions.APPLICATION_VIEW_ACLS, null);
+        String modifyAcls = flinkConfig.getString(YarnConfigOptions.APPLICATION_MODIFY_ACLS, null);
+        if (viewAcls != null) {
+            acls.put(ApplicationAccessType.VIEW_APP, viewAcls);
+        }
+        if (modifyAcls != null) {
+            acls.put(ApplicationAccessType.MODIFY_APP, modifyAcls);
+        }
+        if (!acls.isEmpty()) {
+            amContainer.setApplicationACLs(acls);
+        }
     }
 }
