@@ -94,7 +94,7 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
     }
 
     // ---------------------------------------------------------------------------------------------
-    // Register / unregister TaskManager and and slot status reconciliation
+    // Register / unregister TaskManager and slot status reconciliation
     // ---------------------------------------------------------------------------------------------
 
     /** Tests that we can register task manager at the slot manager. */

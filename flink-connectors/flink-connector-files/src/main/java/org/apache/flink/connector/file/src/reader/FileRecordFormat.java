@@ -154,7 +154,7 @@ public interface FileRecordFormat<T> extends Serializable, ResultTypeQueryable<T
      * Config option for the number of records to hand over in each fetch.
      *
      * <p>The number should be large enough so that the thread-to-thread handover overhead is
-     * amortized across the records, but small enough so that the these records together do not
+     * amortized across the records, but small enough so that these records together do not
      * consume too much memory.
      */
     ConfigOption<Integer> RECORDS_PER_FETCH =
