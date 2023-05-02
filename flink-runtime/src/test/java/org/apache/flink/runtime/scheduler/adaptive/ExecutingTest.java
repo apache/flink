@@ -87,6 +87,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -196,7 +197,8 @@ public class ExecutingTest extends TestLogger {
                         assertThat(failingArguments.getFailureCause().getMessage(), is(failureMsg));
                     }));
             ctx.setHowToHandleFailure(FailureResult::canNotRestart);
-            exec.handleGlobalFailure(new RuntimeException(failureMsg));
+            exec.handleGlobalFailure(
+                    new RuntimeException(failureMsg), FailureEnricherUtils.EMPTY_FAILURE_LABELS);
         }
     }
 
@@ -209,7 +211,9 @@ public class ExecutingTest extends TestLogger {
                     (restartingArguments ->
                             assertThat(restartingArguments.getBackoffTime(), is(duration))));
             ctx.setHowToHandleFailure((f) -> FailureResult.canRestart(f, duration));
-            exec.handleGlobalFailure(new RuntimeException("Recoverable error"));
+            exec.handleGlobalFailure(
+                    new RuntimeException("Recoverable error"),
+                    FailureEnricherUtils.EMPTY_FAILURE_LABELS);
         }
     }
 
@@ -808,7 +812,8 @@ public class ExecutingTest extends TestLogger {
         }
 
         @Override
-        public void handleGlobalFailure(Throwable cause) {}
+        public void handleGlobalFailure(
+                Throwable cause, CompletableFuture<Map<String, String>> failureLabels) {}
 
         @Override
         public Logger getLogger() {

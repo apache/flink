@@ -20,7 +20,6 @@ package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
-import org.apache.flink.runtime.scheduler.GlobalFailureHandler;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
@@ -32,7 +31,7 @@ import java.util.Optional;
  * State abstraction of the {@link AdaptiveScheduler}. This interface contains all methods every
  * state implementation must support.
  */
-interface State extends GlobalFailureHandler {
+interface State extends LabeledGlobalFailureHandler {
 
     /**
      * This method is called whenever one transitions out of this state.

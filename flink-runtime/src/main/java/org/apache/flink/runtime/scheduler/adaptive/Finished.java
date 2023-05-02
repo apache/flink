@@ -23,6 +23,9 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 
 import org.slf4j.Logger;
 
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+
 /** State which describes a finished job execution. */
 class Finished implements State {
 
@@ -54,7 +57,8 @@ class Finished implements State {
     }
 
     @Override
-    public void handleGlobalFailure(Throwable cause) {
+    public void handleGlobalFailure(
+            Throwable cause, CompletableFuture<Map<String, String>> failureLabels) {
         logger.debug(
                 "Ignore global failure because we already finished the job {}.",
                 archivedExecutionGraph.getJobID(),

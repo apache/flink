@@ -1156,6 +1156,31 @@ public class AdaptiveSchedulerTest {
     }
 
     @Test
+    void testExceptionHistoryWithGlobalFailureLabels() throws Exception {
+        final Exception expectedException = new Exception("Global Exception to label");
+        BiConsumer<AdaptiveScheduler, List<ExecutionAttemptID>> testLogic =
+                (scheduler, attemptIds) -> scheduler.handleGlobalFailure(expectedException);
+
+        final TestingFailureEnricher failureEnricher = new TestingFailureEnricher();
+        final Iterable<RootExceptionHistoryEntry> actualExceptionHistory =
+                new ExceptionHistoryTester(singleThreadMainThreadExecutor)
+                        .withTestLogic(testLogic)
+                        .withFailureEnrichers(Collections.singletonList(failureEnricher))
+                        .run();
+
+        assertThat(actualExceptionHistory).hasSize(1);
+
+        final RootExceptionHistoryEntry failure = actualExceptionHistory.iterator().next();
+        assertThat(failure.getTaskManagerLocation()).isNull();
+        assertThat(failure.getFailingTaskName()).isNull();
+        assertThat(failureEnricher.getSeenThrowables()).containsExactly(expectedException);
+        assertThat(failure.getFailureLabels()).isEqualTo(failureEnricher.getFailureLabels());
+
+        assertThat(failure.getException().deserializeError(classLoader))
+                .isEqualTo(expectedException);
+    }
+
+    @Test
     void testExceptionHistoryWithGlobalFailure() throws Exception {
         final Exception expectedException = new Exception("Expected Global Exception");
         BiConsumer<AdaptiveScheduler, List<ExecutionAttemptID>> testLogic =
@@ -1911,7 +1936,8 @@ public class AdaptiveSchedulerTest {
         }
 
         @Override
-        public void handleGlobalFailure(Throwable cause) {}
+        public void handleGlobalFailure(
+                Throwable cause, CompletableFuture<Map<String, String>> failureLabels) {}
 
         @Override
         public Logger getLogger() {
