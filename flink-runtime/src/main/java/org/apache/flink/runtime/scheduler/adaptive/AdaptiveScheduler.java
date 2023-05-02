@@ -520,7 +520,17 @@ public class AdaptiveScheduler
 
     @Override
     public void handleGlobalFailure(Throwable cause) {
-        state.handleGlobalFailure(cause);
+        final FailureEnricher.Context ctx =
+                DefaultFailureEnricherContext.forGlobalFailure(
+                        jobInformation.getJobID(),
+                        jobInformation.getName(),
+                        jobManagerJobMetricGroup,
+                        ioExecutor,
+                        userCodeClassLoader);
+        final CompletableFuture<Map<String, String>> failureLabels =
+                FailureEnricherUtils.labelFailure(
+                        cause, ctx, getMainThreadExecutor(), failureEnrichers);
+        state.handleGlobalFailure(cause, failureLabels);
     }
 
     private CompletableFuture<Map<String, String>> labelFailure(

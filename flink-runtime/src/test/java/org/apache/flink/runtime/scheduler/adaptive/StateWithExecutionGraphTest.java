@@ -226,7 +226,8 @@ public class StateWithExecutionGraphTest extends TestLogger {
         }
 
         @Override
-        public void handleGlobalFailure(Throwable cause) {}
+        public void handleGlobalFailure(
+                Throwable cause, CompletableFuture<Map<String, String>> failureLabels) {}
 
         @Override
         boolean updateTaskExecutionState(

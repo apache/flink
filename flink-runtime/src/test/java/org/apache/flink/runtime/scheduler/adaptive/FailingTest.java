@@ -97,7 +97,8 @@ public class FailingTest extends TestLogger {
         try (MockFailingContext ctx = new MockFailingContext()) {
             StateTrackingMockExecutionGraph meg = new StateTrackingMockExecutionGraph();
             Failing failing = createFailingState(ctx, meg);
-            failing.handleGlobalFailure(new RuntimeException());
+            failing.handleGlobalFailure(
+                    new RuntimeException(), FailureEnricherUtils.EMPTY_FAILURE_LABELS);
             ctx.assertNoStateTransition();
         }
     }

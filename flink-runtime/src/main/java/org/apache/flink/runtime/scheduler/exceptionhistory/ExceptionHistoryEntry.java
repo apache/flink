@@ -23,7 +23,6 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.Execution;
-import org.apache.flink.runtime.failure.FailureEnricherUtils;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.Preconditions;
 
@@ -81,11 +80,12 @@ public class ExceptionHistoryEntry extends ErrorInfo {
     }
 
     /** Creates an {@code ExceptionHistoryEntry} that is not based on an {@code Execution}. */
-    public static ExceptionHistoryEntry createGlobal(Throwable cause) {
+    public static ExceptionHistoryEntry createGlobal(
+            Throwable cause, CompletableFuture<Map<String, String>> failureLabels) {
         return new ExceptionHistoryEntry(
                 cause,
                 System.currentTimeMillis(),
-                FailureEnricherUtils.EMPTY_FAILURE_LABELS,
+                failureLabels,
                 null,
                 (ArchivedTaskManagerLocation) null);
     }
