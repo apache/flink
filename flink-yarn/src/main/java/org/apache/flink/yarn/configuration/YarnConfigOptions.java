@@ -244,7 +244,7 @@ public class YarnConfigOptions {
 
     /** Users and groups to give MODIFY access. */
     public static final ConfigOption<String> APPLICATION_MODIFY_ACLS =
-            key("yarn.admin.acls")
+            key("yarn.modify.acls")
                     .defaultValue("")
                     .withDescription(
                             "Users and groups to give MODIFY acess. The ACLs are of for"
