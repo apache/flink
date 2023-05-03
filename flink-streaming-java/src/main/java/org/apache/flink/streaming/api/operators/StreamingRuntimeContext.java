@@ -42,6 +42,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.CheckpointingMode;
@@ -157,6 +158,10 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
      */
     public TaskManagerRuntimeInfo getTaskManagerRuntimeInfo() {
         return taskEnvironment.getTaskManagerInfo();
+    }
+
+    public TaskIOMetricGroup getIOMetricGroup() {
+        return taskEnvironment.getMetricGroup().getIOMetricGroup();
     }
 
     @Override

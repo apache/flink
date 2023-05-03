@@ -19,12 +19,17 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * {@link StreamOperator} for streaming sources.
@@ -44,6 +49,8 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
     private transient SourceFunction.SourceContext<OUT> ctx;
 
     private transient volatile boolean canceledOrStopped = false;
+
+    protected static final Logger LOG = LoggerFactory.getLogger(StreamSource.class);
 
     public StreamSource(SRC sourceFunction, boolean emitProgressiveWatermarks) {
         super(sourceFunction);
@@ -66,6 +73,52 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 
         run(lockingObject, output, operatorChain);
     }
+
+    /**
+     * The periodic Task IdleTime emitter. The time task spent waiting for the input from the
+     * Source.
+     */
+    private class PeriodicIdleTimeEmitter implements Runnable {
+        private final long sourceIdleIntervalMillis;
+
+        public PeriodicIdleTimeEmitter(long sourceIdleIntervalMillis) {
+            this.sourceIdleIntervalMillis = sourceIdleIntervalMillis;
+        }
+
+        @Override
+        public void run() {
+            try {
+                TaskIOMetricGroup taskIOMetricGroup = null;
+                RuntimeContext runtimeContext = getRuntimeContext();
+                if (runtimeContext instanceof StreamingRuntimeContext) {
+                    StreamingRuntimeContext streamingRuntimeContext =
+                            (StreamingRuntimeContext) runtimeContext;
+                    taskIOMetricGroup = streamingRuntimeContext.getIOMetricGroup();
+                }
+
+                // IdleTimeMillis is emitted only for StreamingRuntimeContext
+                if (taskIOMetricGroup == null) {
+                    LOG.info("IdleTime metrics could be emitted only for StreamingRuntimeContext.");
+                    return;
+                }
+
+                while (!Thread.interrupted() && !canceledOrStopped) {
+                    Thread.sleep(sourceIdleIntervalMillis);
+                    long currentTimeMillis = System.currentTimeMillis();
+                    if (StreamSourceContexts.getIsSourceIdle()) {
+                        taskIOMetricGroup
+                                .getIdleTimeMsPerSecond()
+                                .markStart(currentTimeMillis - sourceIdleIntervalMillis);
+                        taskIOMetricGroup.getIdleTimeMsPerSecond().markEnd();
+                    }
+                    StreamSourceContexts.setIsSourceIdle(true);
+                }
+            } catch (Throwable t) {
+                LOG.warn("Failed to emit idleTime metrics: ", t);
+            }
+        }
+    }
+
 
     public void run(
             final Object lockingObject,
@@ -105,6 +158,21 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
                         watermarkInterval,
                         -1,
                         emitProgressiveWatermarks);
+        if (configuration.getBoolean(MetricOptions.ENABLE_LEGACYSOURCE_EMIT_IDLETIME)) {
+            long sourceIdleIntervalMillis =
+                    configuration.getLong(MetricOptions.LEGACYSOURCE_IDLE_INTERVAL_MILLIS);
+            // Start the PeriodicIdleTimeEmitter which emits idleTime metrics
+            Runnable idleTimeEmitterRunnable =
+                    new PeriodicIdleTimeEmitter(sourceIdleIntervalMillis);
+            Thread idleTimeEmitterThread = new Thread(idleTimeEmitterRunnable);
+            idleTimeEmitterThread.setName(
+                    "idleTimeEmitter-" + getRuntimeContext().getTaskNameWithSubtasks());
+            idleTimeEmitterThread.setDaemon(true);
+            idleTimeEmitterThread.start();
+            LOG.info(
+                    "Enabled IdleTime Metric Emitter with idleTime interval {}ms",
+                    sourceIdleIntervalMillis);
+        }
 
         try {
             userFunction.run(ctx);

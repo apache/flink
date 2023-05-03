@@ -109,7 +109,10 @@ public class SourceStreamTask<
         this.lock = Preconditions.checkNotNull(lock);
         this.sourceThread = new LegacySourceFunctionThread();
 
-        getEnvironment().getMetricGroup().getIOMetricGroup().setEnableBusyTime(false);
+
+        // This Commit emits idleTime metrics for Legacy Sources and so busyTime metrics will
+        // work properly and can be enabled.
+        // getEnvironment().getMetricGroup().getIOMetricGroup().setEnableBusyTime(false);
     }
 
     @Override

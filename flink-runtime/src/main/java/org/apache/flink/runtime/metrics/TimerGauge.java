@@ -64,6 +64,14 @@ public class TimerGauge implements Gauge<Long>, View {
         }
     }
 
+    public synchronized void markStart(long startTime) {
+        if (currentMeasurementStartTS == 0) {
+            currentUpdateTS = startTime;
+            currentMeasurementStartTS = currentUpdateTS;
+        }
+    }
+
+
     public synchronized void markEnd() {
         if (currentMeasurementStartTS != 0) {
             long currentMeasurement = clock.absoluteTimeMillis() - currentMeasurementStartTS;

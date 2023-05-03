@@ -32,6 +32,8 @@ import java.util.concurrent.ScheduledFuture;
 /** Source contexts for various stream time characteristics. */
 public class StreamSourceContexts {
 
+    private static volatile boolean isSourceIdle = true;
+
     /**
      * Depending on the {@link TimeCharacteristic}, this method will return the adequate {@link
      * org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext}. That is:
@@ -85,6 +87,14 @@ public class StreamSourceContexts {
         return new SwitchingOnClose<>(ctx);
     }
 
+    public static boolean getIsSourceIdle() {
+        return isSourceIdle;
+    }
+
+    public static void setIsSourceIdle(boolean isSourceIdle) {
+        StreamSourceContexts.isSourceIdle = isSourceIdle;
+    }
+
     /**
      * A thin wrapper that will substitute on close, a regular {@link SourceFunction.SourceContext}
      * with a one that throws an exception on any interaction. We do that instead of adding a flag
@@ -100,11 +110,13 @@ public class StreamSourceContexts {
 
         @Override
         public void collect(T element) {
+            isSourceIdle = false;
             nestedContext.collect(element);
         }
 
         @Override
         public void collectWithTimestamp(T element, long timestamp) {
+            isSourceIdle = false;
             nestedContext.collectWithTimestamp(element, timestamp);
         }
 

@@ -384,6 +384,25 @@ public class MetricOptions {
                     .withDescription(
                             "The selection of job status metrics that should be reported.");
 
+    /** Whether Flink should emit idleTime metrics for Legacy Sources. */
+    public static final ConfigOption<Boolean> ENABLE_LEGACYSOURCE_EMIT_IDLETIME =
+            key("metrics.legacysource.idletime.emit.enable")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Flag indicating whether Flink should wmit idleTime metrics for Legacy Sources");
+
+    /**
+     * The interval after which to consider a legacy source idle for purposes of idleTime metric
+     * generation.
+     */
+    public static final ConfigOption<Long> LEGACYSOURCE_IDLE_INTERVAL_MILLIS =
+            key("metrics.legacysource.idle.interval")
+                    .longType()
+                    .defaultValue(1000L)
+                    .withDescription(
+                            "The interval after which to consider a legacy source idle for purposes of idleTime metric generation.");
+
     /** Enum describing the different kinds of job status metrics. */
     public enum JobStatusMetrics implements DescribedEnum {
         STATE(
