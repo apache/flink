@@ -239,7 +239,7 @@ public class YarnConfigOptions {
             key("yarn.view.acls")
                     .defaultValue("")
                     .withDescription(
-                            "Users and groups to give VIEW acess. The ACLs are of for"
+                            "Users and groups to give VIEW access. The ACLs are of for"
                                     + " comma-separated-usersspacecomma-separated-groups");
 
     /** Users and groups to give MODIFY access. */
@@ -247,7 +247,7 @@ public class YarnConfigOptions {
             key("yarn.modify.acls")
                     .defaultValue("")
                     .withDescription(
-                            "Users and groups to give MODIFY acess. The ACLs are of for"
+                            "Users and groups to give MODIFY access. The ACLs are of for"
                                     + " comma-separated-usersspacecomma-separated-groups");
 
     // ----------------------- YARN CLI OPTIONS ------------------------------------
