@@ -105,7 +105,13 @@
             <td>When enabled objects that Flink internally uses for deserialization and passing data to user-code functions will be reused. Keep in mind that this can lead to bugs when the user-code function of an operation is not aware of this behaviour.</td>
         </tr>
         <tr>
-            <td><h5>pipeline.operator-chaining</h5></td>
+            <td><h5>pipeline.operator-chaining.chain-operators-with-different-max-parallelism</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Operators with different max parallelism can be chained together. Default behavior may prevent rescaling when the AdaptiveScheduler is used.</td>
+        </tr>
+        <tr>
+            <td><h5>pipeline.operator-chaining.enabled</h5></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>
             <td>Operator chaining allows non-shuffle operations to be co-located in the same thread fully avoiding serialization and de-serialization.</td>

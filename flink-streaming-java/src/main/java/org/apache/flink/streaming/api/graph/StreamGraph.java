@@ -103,6 +103,7 @@ public class StreamGraph implements Pipeline {
     private SavepointRestoreSettings savepointRestoreSettings = SavepointRestoreSettings.none();
 
     private boolean chaining;
+    private boolean chainingOfOperatorsWithDifferentMaxParallelism;
 
     private Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> userArtifacts =
             Collections.emptyList();
@@ -194,6 +195,12 @@ public class StreamGraph implements Pipeline {
 
     public void setChaining(boolean chaining) {
         this.chaining = chaining;
+    }
+
+    public void setChainingOfOperatorsWithDifferentMaxParallelism(
+            boolean chainingOfOperatorsWithDifferentMaxParallelism) {
+        this.chainingOfOperatorsWithDifferentMaxParallelism =
+                chainingOfOperatorsWithDifferentMaxParallelism;
     }
 
     public void setStateBackend(StateBackend backend) {
@@ -308,6 +315,10 @@ public class StreamGraph implements Pipeline {
 
     public boolean isChainingEnabled() {
         return chaining;
+    }
+
+    public boolean isChainingOfOperatorsWithDifferentMaxParallelismEnabled() {
+        return chainingOfOperatorsWithDifferentMaxParallelism;
     }
 
     public boolean isIterative() {

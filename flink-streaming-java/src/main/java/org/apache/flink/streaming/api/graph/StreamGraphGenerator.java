@@ -170,6 +170,8 @@ public class StreamGraphGenerator {
 
     private boolean chaining = true;
 
+    private boolean chainingOfOperatorsWithDifferentMaxParallelism = true;
+
     private Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> userArtifacts =
             Collections.emptyList();
 
@@ -269,6 +271,13 @@ public class StreamGraphGenerator {
         return this;
     }
 
+    public StreamGraphGenerator setChainingOfOperatorsWithDifferentMaxParallelism(
+            boolean chainingOfOperatorsWithDifferentMaxParallelism) {
+        this.chainingOfOperatorsWithDifferentMaxParallelism =
+                chainingOfOperatorsWithDifferentMaxParallelism;
+        return this;
+    }
+
     public StreamGraphGenerator setUserArtifacts(
             Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> userArtifacts) {
         this.userArtifacts = checkNotNull(userArtifacts);
@@ -360,6 +369,8 @@ public class StreamGraphGenerator {
         checkNotNull(graph);
 
         graph.setChaining(chaining);
+        graph.setChainingOfOperatorsWithDifferentMaxParallelism(
+                chainingOfOperatorsWithDifferentMaxParallelism);
         graph.setUserArtifacts(userArtifacts);
         graph.setTimeCharacteristic(timeCharacteristic);
         graph.setVertexDescriptionMode(configuration.get(PipelineOptions.VERTEX_DESCRIPTION_MODE));
