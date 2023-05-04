@@ -27,6 +27,7 @@ import org.apache.flink.table.gateway.rest.util.SqlGatewayRestAPIVersion;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.EnumSet;
 import java.util.stream.Collectors;
 
 /**
@@ -45,8 +46,16 @@ public interface SqlGatewayMessageHeaders<
 
     @Override
     default Collection<? extends RestAPIVersion<?>> getSupportedAPIVersions() {
+        final int firstSupportedVersionOrdinal = getFirstSupportedAPIVersion().ordinal();
         return Arrays.stream(SqlGatewayRestAPIVersion.values())
                 .filter(SqlGatewayRestAPIVersion::isStableVersion)
-                .collect(Collectors.toList());
+                .filter(v -> v.ordinal() >= firstSupportedVersionOrdinal)
+                .collect(
+                        Collectors.toCollection(
+                                () -> EnumSet.noneOf(SqlGatewayRestAPIVersion.class)));
+    }
+
+    default SqlGatewayRestAPIVersion getFirstSupportedAPIVersion() {
+        return SqlGatewayRestAPIVersion.V0;
     }
 }

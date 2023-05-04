@@ -70,6 +70,10 @@ public interface Executor extends Closeable {
      */
     List<String> completeStatement(String statement, int position);
 
+    String getCurrentCatalog();
+
+    String getCurrentDatabase();
+
     /** Close the {@link Executor} and process all exceptions. */
     void close();
 }

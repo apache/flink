@@ -199,6 +199,10 @@ public class OperationExecutor {
         return sessionContext.getSessionState().catalogManager.getCurrentCatalog();
     }
 
+    public String getCurrentDatabase() {
+        return sessionContext.getSessionState().catalogManager.getCurrentDatabase();
+    }
+
     public Set<String> listCatalogs() {
         return sessionContext.getSessionState().catalogManager.listCatalogs();
     }

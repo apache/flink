@@ -16,54 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.gateway.rest.header.statement;
+package org.apache.flink.table.gateway.rest.header.util;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
+import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.table.gateway.rest.header.SqlGatewayMessageHeaders;
 import org.apache.flink.table.gateway.rest.message.session.SessionHandleIdPathParameter;
 import org.apache.flink.table.gateway.rest.message.session.SessionMessageParameters;
-import org.apache.flink.table.gateway.rest.message.statement.CompleteStatementRequestBody;
-import org.apache.flink.table.gateway.rest.message.statement.CompleteStatementResponseBody;
+import org.apache.flink.table.gateway.rest.message.util.GetCurrentCatalogResponseBody;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestAPIVersion;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/** Message headers for completing a statement. */
-public class CompleteStatementHeaders
+/** GetCurrentCatalogHeaders. */
+public class GetCurrentCatalogHeaders
         implements SqlGatewayMessageHeaders<
-                CompleteStatementRequestBody,
-                CompleteStatementResponseBody,
-                SessionMessageParameters> {
-
-    private static final CompleteStatementHeaders INSTANCE = new CompleteStatementHeaders();
+                EmptyRequestBody, GetCurrentCatalogResponseBody, SessionMessageParameters> {
 
     private static final String URL =
-            "/sessions/:" + SessionHandleIdPathParameter.KEY + "/complete-statement";
+            "/sessions/:" + SessionHandleIdPathParameter.KEY + "/currentCatalog";
+    private static final GetCurrentCatalogHeaders INSTANCE = new GetCurrentCatalogHeaders();
 
-    @Override
-    public Class<CompleteStatementResponseBody> getResponseClass() {
-        return CompleteStatementResponseBody.class;
-    }
-
-    @Override
-    public HttpResponseStatus getResponseStatusCode() {
-        return HttpResponseStatus.OK;
-    }
-
-    @Override
-    public String getDescription() {
-        return "Get the completion hints for the given statement at the given position.";
-    }
-
-    @Override
-    public Class<CompleteStatementRequestBody> getRequestClass() {
-        return CompleteStatementRequestBody.class;
-    }
-
-    @Override
-    public SessionMessageParameters getUnresolvedMessageParameters() {
-        return new SessionMessageParameters();
-    }
+    private GetCurrentCatalogHeaders() {}
 
     @Override
     public HttpMethodWrapper getHttpMethod() {
@@ -76,16 +50,41 @@ public class CompleteStatementHeaders
     }
 
     @Override
-    public SqlGatewayRestAPIVersion getFirstSupportedAPIVersion() {
-        return SqlGatewayRestAPIVersion.V2;
+    public Class<GetCurrentCatalogResponseBody> getResponseClass() {
+        return GetCurrentCatalogResponseBody.class;
     }
 
-    public static CompleteStatementHeaders getInstance() {
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
+
+    @Override
+    public String getDescription() {
+        return "Get current catalog.";
+    }
+
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
+
+    @Override
+    public SessionMessageParameters getUnresolvedMessageParameters() {
+        return new SessionMessageParameters();
+    }
+
+    @Override
+    public SqlGatewayRestAPIVersion getFirstSupportedAPIVersion() {
+        return SqlGatewayRestAPIVersion.V3;
+    }
+
+    public static GetCurrentCatalogHeaders getInstance() {
         return INSTANCE;
     }
 
     @Override
     public String operationId() {
-        return "completeStatement";
+        return "getCurrentCatalog";
     }
 }

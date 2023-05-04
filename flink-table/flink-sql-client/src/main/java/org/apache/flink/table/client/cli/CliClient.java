@@ -175,13 +175,19 @@ public class CliClient implements AutoCloseable {
         String line;
 
         SqlMultiLineParser parser = (SqlMultiLineParser) lineReader.getParser();
+        final PromptHandler promptHandler = new PromptHandler(executor, terminalFactory);
         while (isRunning) {
             // make some space to previous command
             terminal.writer().append("\n");
             terminal.flush();
             try {
                 // read a statement from terminal and parse it
-                line = lineReader.readLine(NEWLINE_PROMPT, null, inputTransformer, null);
+                line =
+                        lineReader.readLine(
+                                promptHandler.getPrompt(),
+                                promptHandler.getRightPrompt(),
+                                inputTransformer,
+                                null);
                 if (line.trim().isEmpty()) {
                     continue;
                 }

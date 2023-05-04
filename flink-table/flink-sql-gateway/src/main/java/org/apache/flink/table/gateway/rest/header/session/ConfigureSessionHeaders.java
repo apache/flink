@@ -20,7 +20,6 @@ package org.apache.flink.table.gateway.rest.header.session;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
-import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.table.gateway.rest.header.SqlGatewayMessageHeaders;
 import org.apache.flink.table.gateway.rest.message.session.ConfigureSessionRequestBody;
 import org.apache.flink.table.gateway.rest.message.session.SessionHandleIdPathParameter;
@@ -28,9 +27,6 @@ import org.apache.flink.table.gateway.rest.message.session.SessionMessageParamet
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestAPIVersion;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
-
-import java.util.Collection;
-import java.util.Collections;
 
 /** Message headers for configuring a session. */
 public class ConfigureSessionHeaders
@@ -86,8 +82,8 @@ public class ConfigureSessionHeaders
     }
 
     @Override
-    public Collection<? extends RestAPIVersion<?>> getSupportedAPIVersions() {
-        return Collections.singleton(SqlGatewayRestAPIVersion.V2);
+    public SqlGatewayRestAPIVersion getFirstSupportedAPIVersion() {
+        return SqlGatewayRestAPIVersion.V2;
     }
 
     public static ConfigureSessionHeaders getInstance() {

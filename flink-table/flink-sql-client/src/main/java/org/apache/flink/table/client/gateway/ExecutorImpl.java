@@ -50,6 +50,8 @@ import org.apache.flink.table.gateway.rest.header.statement.ExecuteStatementHead
 import org.apache.flink.table.gateway.rest.header.statement.FetchResultsHeaders;
 import org.apache.flink.table.gateway.rest.header.util.GetApiVersionHeaders;
 import org.apache.flink.table.gateway.rest.header.util.UrlPrefixDecorator;
+import org.apache.flink.table.gateway.rest.header.util.GetCurrentCatalogHeaders;
+import org.apache.flink.table.gateway.rest.header.util.GetCurrentDatabaseHeaders;
 import org.apache.flink.table.gateway.rest.message.operation.OperationMessageParameters;
 import org.apache.flink.table.gateway.rest.message.operation.OperationStatusResponseBody;
 import org.apache.flink.table.gateway.rest.message.session.CloseSessionResponseBody;
@@ -282,6 +284,24 @@ public class ExecutorImpl implements Executor {
                                 new SessionMessageParameters(sessionHandle),
                                 new CompleteStatementRequestBody(statement, position)))
                 .getCandidates();
+    }
+
+    public String getCurrentCatalog() {
+        return getResponse(
+                        sendRequest(
+                                GetCurrentCatalogHeaders.getInstance(),
+                                new SessionMessageParameters(sessionHandle),
+                                EmptyRequestBody.getInstance()))
+                .getCurrentCatalog();
+    }
+
+    public String getCurrentDatabase() {
+        return getResponse(
+                        sendRequest(
+                                GetCurrentDatabaseHeaders.getInstance(),
+                                new SessionMessageParameters(sessionHandle),
+                                EmptyRequestBody.getInstance()))
+                .getCurrentDatabase();
     }
 
     @Override

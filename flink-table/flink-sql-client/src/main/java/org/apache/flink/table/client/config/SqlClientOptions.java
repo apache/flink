@@ -24,6 +24,9 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.client.cli.parser.SyntaxHighlightStyle;
 
+import org.jline.utils.AttributedStringBuilder;
+import org.jline.utils.AttributedStyle;
+
 /** Options used in sql client. */
 public class SqlClientOptions {
     private SqlClientOptions() {}
@@ -77,4 +80,28 @@ public class SqlClientOptions {
                     .defaultValue(SyntaxHighlightStyle.BuiltInStyle.DEFAULT.name())
                     .withDescription(
                             "SQL highlight color schema to be used at SQL client. Possible values: 'default', 'dark', 'light', 'chester', 'vs2010', 'solarized', 'obsidian', 'geshi'");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<String> PROMPT =
+            ConfigOptions.key("sql-client.display.prompt.pattern")
+                    .stringType()
+                    .defaultValue(
+                            new AttributedStringBuilder()
+                                    .style(
+                                            AttributedStyle.DEFAULT.foreground(
+                                                    AttributedStyle.GREEN))
+                                    .append("Flink SQL")
+                                    .style(AttributedStyle.DEFAULT)
+                                    .append("> ")
+                                    .toAnsi())
+                    .withDescription(
+                            "Determine what pattern will be used for prompt at the start of the line.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<String> RIGHT_PROMPT =
+            ConfigOptions.key("sql-client.display.right-prompt.pattern")
+                    .stringType()
+                    .defaultValue("")
+                    .withDescription(
+                            "Determine what pattern will be used for prompt at the end of the line.");
 }

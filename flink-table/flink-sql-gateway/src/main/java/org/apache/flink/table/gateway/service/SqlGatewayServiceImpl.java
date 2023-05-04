@@ -252,6 +252,11 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
     }
 
     @Override
+    public String getCurrentDatabase(SessionHandle sessionHandle) {
+        return getSession(sessionHandle).createExecutor().getCurrentDatabase();
+    }
+
+    @Override
     public Set<String> listCatalogs(SessionHandle sessionHandle) throws SqlGatewayException {
         try {
             return getSession(sessionHandle).createExecutor().listCatalogs();

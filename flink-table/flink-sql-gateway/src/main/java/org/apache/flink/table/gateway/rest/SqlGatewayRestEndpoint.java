@@ -36,6 +36,8 @@ import org.apache.flink.table.gateway.rest.handler.statement.CompleteStatementHa
 import org.apache.flink.table.gateway.rest.handler.statement.ExecuteStatementHandler;
 import org.apache.flink.table.gateway.rest.handler.statement.FetchResultsHandler;
 import org.apache.flink.table.gateway.rest.handler.util.GetApiVersionHandler;
+import org.apache.flink.table.gateway.rest.handler.util.GetCurrentCatalogHandler;
+import org.apache.flink.table.gateway.rest.handler.util.GetCurrentDatabaseHandler;
 import org.apache.flink.table.gateway.rest.handler.util.GetInfoHandler;
 import org.apache.flink.table.gateway.rest.header.operation.CancelOperationHeaders;
 import org.apache.flink.table.gateway.rest.header.operation.CloseOperationHeaders;
@@ -49,6 +51,8 @@ import org.apache.flink.table.gateway.rest.header.statement.CompleteStatementHea
 import org.apache.flink.table.gateway.rest.header.statement.ExecuteStatementHeaders;
 import org.apache.flink.table.gateway.rest.header.statement.FetchResultsHeaders;
 import org.apache.flink.table.gateway.rest.header.util.GetApiVersionHeaders;
+import org.apache.flink.table.gateway.rest.header.util.GetCurrentCatalogHeaders;
+import org.apache.flink.table.gateway.rest.header.util.GetCurrentDatabaseHeaders;
 import org.apache.flink.table.gateway.rest.header.util.GetInfoHeaders;
 import org.apache.flink.util.ConfigurationException;
 
@@ -114,6 +118,12 @@ public class SqlGatewayRestEndpoint extends RestServerEndpoint implements SqlGat
                 Tuple2.of(
                         TriggerSessionHeartbeatHeaders.getInstance(),
                         triggerSessionHeartbeatHandler));
+
+        // Get current catalog
+        GetCurrentCatalogHandler getCurrentCatalogHandler =
+                new GetCurrentCatalogHandler(
+                        service, responseHeaders, GetCurrentCatalogHeaders.getInstance());
+        handlers.add(Tuple2.of(GetCurrentCatalogHeaders.getInstance(), getCurrentCatalogHandler));
     }
 
     protected void addOperationRelatedHandlers(
@@ -150,6 +160,12 @@ public class SqlGatewayRestEndpoint extends RestServerEndpoint implements SqlGat
                 new GetApiVersionHandler(
                         service, responseHeaders, GetApiVersionHeaders.getInstance());
         handlers.add(Tuple2.of(GetApiVersionHeaders.getInstance(), getApiVersionHandler));
+
+        // Get current database
+        GetCurrentDatabaseHandler getCurrentDatabaseHandler =
+                new GetCurrentDatabaseHandler(
+                        service, responseHeaders, GetCurrentDatabaseHeaders.getInstance());
+        handlers.add(Tuple2.of(GetCurrentDatabaseHeaders.getInstance(), getCurrentDatabaseHandler));
     }
 
     private void addStatementRelatedHandlers(

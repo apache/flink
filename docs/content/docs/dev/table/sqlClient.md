@@ -344,6 +344,51 @@ SET 'key' = 'value';
 
 {{< generated/sql_client_configuration >}}
 
+### SQL client prompts
+
+The CLI supports left and right prompts: at the start and at the end of the line.
+The prompts can be customized to your preference.
+The value of the selected prompt's properties are printed literally, except where a backslash sign (`\`) is encountered.
+Depending on the next character, some other text is substituted instead. Defined substitutions are:
+
+| Pattern | Description                                                                                                                                                                                                                                                                                   |
+|:--------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `\c`    | Current catalog.                                                                                                                                                                                                                                                                              |
+| `\d`    | Current database.                                                                                                                                                                                                                                                                             |
+| `\[…\]` | Prompts can contain terminal control characters which, for example, change the color, background, or style of the prompt text. These non-printing control characters must be designated as invisible by surrounding them with \[ and \]. Multiple pairs of these can occur within the prompt. |
+| `\{…\}` | Datetime pattern to convert current datetime. Compatible with Java’s SimpleDateFormat.                                                                                                                                                                                                        |
+| `\:…\:` | The value of Flink property_name property.                                                                                                                                                                                                                                                    |
+| `\D`    | The full current date (`yyyy-MM-dd HH:mm:ss.SSS`).                                                                                                                                                                                                                                            |
+| `\m`    | Minutes of the current time.                                                                                                                                                                                                                                                                  |
+| `\O`    | The current month in three-letter format (Jan, Feb, …).                                                                                                                                                                                                                                       |
+| `\o`    | The current month in numeric format.                                                                                                                                                                                                                                                          |
+| `\P`    | am/pm.                                                                                                                                                                                                                                                                                        |
+| `\R`    | The current time, in 24-hour military time (0–23).                                                                                                                                                                                                                                            |
+| `\r`    | The current time, standard 12-hour time (1–12).                                                                                                                                                                                                                                               |
+| `\s`    | Seconds of the current time.                                                                                                                                                                                                                                                                  |
+| `\w`    | The current day of the week in three-letter format (Mon, Tue, …).                                                                                                                                                                                                                             |
+| `\Y`    | The current year, four digits.                                                                                                                                                                                                                                                                |
+| `\y`    | The current year, two digits.                                                                                                                                                                                                                                                                 |
+| `\\`    | A literal \ backslash character.                                                                                                                                                                                                                                                              |
+| `\x`    | x, for any x not listed above.                                                                                                                                                                                                                                                                |
+
+#### Styles in prompt
+
+It is possible to use styles in prompt's patterns e.g.
+```
+SET 'sql-client.display.prompt.pattern'='\[f:g,bold\]FlinkSQL\[default\]>'
+```
+will print `FlinkSQL` in green bold and `>` in a default style.
+
+Style formats are the following `\[colorMode:color\]` or `\[style\]` or `\[colorMode:color,style\]`.
+
+There are 2 modes foreground: `f`, `fg`, `foreground` (all 3 are synonyms)
+and background: `b`, `bg`, `background` (all 3 are synonyms).
+
+Available colors: `black` or `k`, `red` or `r`, `green` or `g`, `yellow` or `y`, `blue` or `b`, `magenta` or `m`, `cyan` or `c`, `white` or `w`.
+
+Available styles: `default`, `bold`, `italic`, `underline`, `faint`, `flink`, `inverse`, `inverse-neg` or `inverseneg`, `conceal`, `crossedout` or `crossed-out`, `hidden`.
+
 ### SQL Client result modes
 
 The CLI supports **three modes** for maintaining and visualizing results.

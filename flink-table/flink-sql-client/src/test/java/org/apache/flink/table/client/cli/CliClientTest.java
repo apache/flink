@@ -459,6 +459,16 @@ class CliClientTest {
         }
 
         @Override
+        public String getCurrentCatalog() {
+            return null;
+        }
+
+        @Override
+        public String getCurrentDatabase() {
+            return null;
+        }
+
+        @Override
         public void close() {
             // do nothing
         }

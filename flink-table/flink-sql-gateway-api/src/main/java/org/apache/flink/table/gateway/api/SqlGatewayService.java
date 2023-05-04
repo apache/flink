@@ -221,6 +221,14 @@ public interface SqlGatewayService {
     String getCurrentCatalog(SessionHandle sessionHandle) throws SqlGatewayException;
 
     /**
+     * Return current database name.
+     *
+     * @param sessionHandle handle to identify the session.
+     * @return name of the current catalog.
+     */
+    String getCurrentDatabase(SessionHandle sessionHandle) throws SqlGatewayException;
+
+    /**
      * Return all available catalogs in the current session.
      *
      * @param sessionHandle handle to identify the session.
