@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.blob.TestingBlobStoreBuilder;
@@ -36,6 +37,8 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
@@ -57,7 +60,8 @@ public class TestingPartialDispatcherServices extends PartialDispatcherServices 
             HistoryServerArchivist historyServerArchivist,
             @Nullable String metricQueryServiceAddress,
             Executor ioExecutor,
-            DispatcherOperationCaches operationCaches) {
+            DispatcherOperationCaches operationCaches,
+            Collection<FailureEnricher> failureEnrichers) {
         super(
                 configuration,
                 highAvailabilityServices,
@@ -70,7 +74,8 @@ public class TestingPartialDispatcherServices extends PartialDispatcherServices 
                 historyServerArchivist,
                 metricQueryServiceAddress,
                 ioExecutor,
-                operationCaches);
+                operationCaches,
+                failureEnrichers);
     }
 
     public static Builder builder() {
@@ -178,7 +183,8 @@ public class TestingPartialDispatcherServices extends PartialDispatcherServices 
                     historyServerArchivist,
                     metricQueryServiceAddress,
                     ioExecutor,
-                    operationCaches);
+                    operationCaches,
+                    Collections.emptySet());
         }
     }
 }

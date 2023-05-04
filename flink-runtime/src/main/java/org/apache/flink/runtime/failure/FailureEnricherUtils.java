@@ -32,7 +32,6 @@ import org.apache.flink.util.concurrent.FutureUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -85,31 +84,25 @@ public class FailureEnricherUtils {
                 pluginManager.load(FailureEnricherFactory.class);
         final Set<FailureEnricher> failureEnrichers = new HashSet<>();
         while (factoryIterator.hasNext()) {
-            try {
-                final FailureEnricherFactory failureEnricherFactory = factoryIterator.next();
-                final FailureEnricher failureEnricher =
-                        failureEnricherFactory.createFailureEnricher(configuration);
-                if (includedEnrichers.contains(failureEnricher.getClass().getName())) {
-                    failureEnrichers.add(failureEnricher);
-                    LOG.info(
-                            "Found failure enricher {} at {}.",
-                            failureEnricherFactory.getClass().getName(),
-                            new File(
-                                            failureEnricher
-                                                    .getClass()
-                                                    .getProtectionDomain()
-                                                    .getCodeSource()
-                                                    .getLocation()
-                                                    .toURI())
-                                    .getCanonicalPath());
-                } else {
-                    LOG.debug(
-                            "Excluding failure enricher {}, not configured in enricher list ({}).",
-                            failureEnricherFactory.getClass().getName(),
-                            includedEnrichers);
-                }
-            } catch (Exception e) {
-                LOG.warn("Error while loading failure enricher factory.", e);
+            final FailureEnricherFactory failureEnricherFactory = factoryIterator.next();
+            final FailureEnricher failureEnricher =
+                    failureEnricherFactory.createFailureEnricher(configuration);
+            if (includedEnrichers.contains(failureEnricher.getClass().getName())) {
+                failureEnrichers.add(failureEnricher);
+                LOG.info(
+                        "Found failure enricher {} at {}.",
+                        failureEnricherFactory.getClass().getName(),
+                        failureEnricher
+                                .getClass()
+                                .getProtectionDomain()
+                                .getCodeSource()
+                                .getLocation()
+                                .getPath());
+            } else {
+                LOG.debug(
+                        "Excluding failure enricher {}, not configured in enricher list ({}).",
+                        failureEnricherFactory.getClass().getName(),
+                        includedEnrichers);
             }
         }
 

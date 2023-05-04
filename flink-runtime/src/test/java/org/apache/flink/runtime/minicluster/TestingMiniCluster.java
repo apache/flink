@@ -37,6 +37,7 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -176,6 +177,7 @@ public class TestingMiniCluster extends MiniCluster {
                             metricRegistry,
                             new MemoryExecutionGraphInfoStore(),
                             metricQueryServiceRetriever,
+                            Collections.emptySet(),
                             fatalErrorHandler);
 
             final CompletableFuture<Void> shutDownFuture =

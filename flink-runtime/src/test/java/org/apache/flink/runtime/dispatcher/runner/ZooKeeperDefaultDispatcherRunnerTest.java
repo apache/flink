@@ -73,6 +73,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
@@ -178,7 +179,8 @@ class ZooKeeperDefaultDispatcherRunnerTest {
                             VoidHistoryServerArchivist.INSTANCE,
                             null,
                             ForkJoinPool.commonPool(),
-                            new DispatcherOperationCaches());
+                            new DispatcherOperationCaches(),
+                            Collections.emptySet());
 
             final DefaultDispatcherRunnerFactory defaultDispatcherRunnerFactory =
                     DefaultDispatcherRunnerFactory.createSessionRunner(

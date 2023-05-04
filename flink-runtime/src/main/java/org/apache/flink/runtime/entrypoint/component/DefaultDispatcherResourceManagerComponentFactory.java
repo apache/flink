@@ -21,6 +21,7 @@ package org.apache.flink.runtime.entrypoint.component;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
@@ -113,6 +114,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
             MetricRegistry metricRegistry,
             ExecutionGraphInfoStore executionGraphInfoStore,
             MetricQueryServiceRetriever metricQueryServiceRetriever,
+            Collection<FailureEnricher> failureEnrichers,
             FatalErrorHandler fatalErrorHandler)
             throws Exception {
 
@@ -217,7 +219,8 @@ public class DefaultDispatcherResourceManagerComponentFactory
                             historyServerArchivist,
                             metricRegistry.getMetricQueryServiceGatewayRpcAddress(),
                             ioExecutor,
-                            dispatcherOperationCaches);
+                            dispatcherOperationCaches,
+                            failureEnrichers);
 
             log.debug("Starting Dispatcher.");
             dispatcherRunner =
