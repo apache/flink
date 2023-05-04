@@ -103,11 +103,9 @@ public class EntropyInjector {
 
     // ------------------------------------------------------------------------
 
-    public static boolean isEntropyInjecting(FileSystem fs, Path target) {
+    public static boolean isEntropyInjecting(FileSystem fs) {
         final EntropyInjectingFileSystem entropyFs = getEntropyFs(fs);
-        return entropyFs != null
-                && entropyFs.getEntropyInjectionKey() != null
-                && target.getPath().contains(entropyFs.getEntropyInjectionKey());
+        return entropyFs != null && entropyFs.getEntropyInjectionKey() != null;
     }
 
     @Nullable
