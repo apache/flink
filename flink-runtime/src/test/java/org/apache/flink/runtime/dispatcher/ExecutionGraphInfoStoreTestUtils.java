@@ -245,6 +245,7 @@ public class ExecutionGraphInfoStoreTestUtils {
                             metricRegistry,
                             executionGraphInfoStore,
                             metricQueryServiceRetriever,
+                            Collections.emptySet(),
                             fatalErrorHandler));
         }
     }

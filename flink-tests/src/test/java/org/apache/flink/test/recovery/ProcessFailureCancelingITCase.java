@@ -68,6 +68,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
@@ -160,6 +161,7 @@ class ProcessFailureCancelingITCase {
                             NoOpMetricRegistry.INSTANCE,
                             new MemoryExecutionGraphInfoStore(),
                             VoidMetricQueryServiceRetriever.INSTANCE,
+                            Collections.emptySet(),
                             fatalErrorHandler);
 
             TestProcessBuilder taskManagerProcessBuilder =
