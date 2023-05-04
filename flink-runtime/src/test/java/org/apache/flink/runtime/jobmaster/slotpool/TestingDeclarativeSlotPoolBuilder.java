@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.slots.ResourceRequirement;
@@ -58,7 +59,7 @@ public class TestingDeclarativeSlotPoolBuilder {
             Collections::emptyList;
     private Supplier<Collection<? extends SlotInfo>> getAllSlotsInformationSupplier =
             Collections::emptyList;
-    private BiFunction<ResourceID, Exception, ResourceCounter> releaseSlotsFunction =
+    private BiFunction<ResourceID, ErrorInfo, ResourceCounter> releaseSlotsFunction =
             (ignoredA, ignoredB) -> ResourceCounter.empty();
     private BiFunction<AllocationID, Exception, ResourceCounter> releaseSlotFunction =
             (ignoredA, ignoredB) -> ResourceCounter.empty();
@@ -140,7 +141,7 @@ public class TestingDeclarativeSlotPoolBuilder {
     }
 
     public TestingDeclarativeSlotPoolBuilder setReleaseSlotsFunction(
-            BiFunction<ResourceID, Exception, ResourceCounter> failSlotsConsumer) {
+            BiFunction<ResourceID, ErrorInfo, ResourceCounter> failSlotsConsumer) {
         this.releaseSlotsFunction = failSlotsConsumer;
         return this;
     }

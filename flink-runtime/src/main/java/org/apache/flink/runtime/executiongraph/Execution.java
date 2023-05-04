@@ -549,12 +549,13 @@ public class Execution
             // race double check, did we fail/cancel and do we need to release the slot?
             if (this.state != DEPLOYING) {
                 slot.releaseSlot(
-                        new FlinkException(
-                                "Actual state of execution "
-                                        + this
-                                        + " ("
-                                        + state
-                                        + ") does not match expected state DEPLOYING."));
+                        ErrorInfo.of(
+                                new FlinkException(
+                                        "Actual state of execution "
+                                                + this
+                                                + " ("
+                                                + state
+                                                + ") does not match expected state DEPLOYING.")));
                 return;
             }
 
@@ -777,8 +778,8 @@ public class Execution
      * @param t The exception that caused the task to fail.
      */
     @Override
-    public void fail(Throwable t) {
-        processFail(t, true, Collections.emptyMap());
+    public void fail(ErrorInfo t) {
+        processFail(t.getException(), true, t.getLabels());
     }
 
     /**
@@ -1148,7 +1149,7 @@ public class Execution
         if (!fromSchedulerNg) {
             vertex.getExecutionGraphAccessor()
                     .notifySchedulerNgAboutInternalTaskFailure(
-                            attemptId, t, cancelTask, releasePartitions);
+                            attemptId, t, labels, cancelTask, releasePartitions);
             return;
         }
 
@@ -1278,7 +1279,9 @@ public class Execution
             cancelResultFuture.whenComplete(
                     (ack, failure) -> {
                         if (failure != null) {
-                            fail(new Exception("Task could not be canceled.", failure));
+                            fail(
+                                    ErrorInfo.of(
+                                            new Exception("Task could not be canceled.", failure)));
                         }
                     });
         }
@@ -1372,13 +1375,14 @@ public class Execution
                         // fail if there was a failure
                         if (failure != null) {
                             fail(
-                                    new IllegalStateException(
-                                            "Update to task ["
-                                                    + getVertexWithAttempt()
-                                                    + "] on TaskManager "
-                                                    + taskManagerLocation
-                                                    + " failed",
-                                            failure));
+                                    ErrorInfo.of(
+                                            new IllegalStateException(
+                                                    "Update to task ["
+                                                            + getVertexWithAttempt()
+                                                            + "] on TaskManager "
+                                                            + taskManagerLocation
+                                                            + " failed",
+                                                    failure)));
                         }
                     },
                     getVertex().getExecutionGraphAccessor().getJobMasterMainThreadExecutor());
@@ -1401,7 +1405,7 @@ public class Execution
             ComponentMainThreadExecutor jobMasterMainThreadExecutor =
                     getVertex().getExecutionGraphAccessor().getJobMasterMainThreadExecutor();
 
-            slot.releaseSlot(cause)
+            slot.releaseSlot(ErrorInfo.of(cause))
                     .whenComplete(
                             (Object ignored, Throwable throwable) -> {
                                 jobMasterMainThreadExecutor.assertRunningInMainThread();

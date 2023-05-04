@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler.adaptive.allocator;
 
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
@@ -42,10 +43,10 @@ import java.util.Map;
  *
  * <p>1) During normal execution all allocated logical slots will be returned, with the last return
  * triggering the {@code externalReleaseCallback} which must eventually result in a {@link
- * #release(Throwable)} call.
+ * #release(ErrorInfo)} call.
  *
  * <p>2) If the backing physical is lost (e.g., because the providing TaskManager crashed) then
- * {@link #release(Throwable)} is called without all logical slots having been returned. The runtime
+ * {@link #release(ErrorInfo)} is called without all logical slots having been returned. The runtime
  * relies on this also triggering the release of all logical slots. This will not trigger the {@code
  * externalReleaseCallback}.
  */
@@ -125,7 +126,7 @@ class SharedSlot implements SlotOwner, PhysicalSlot.Payload {
     }
 
     @Override
-    public void release(Throwable cause) {
+    public void release(ErrorInfo cause) {
         LOG.debug("Release shared slot ({})", physicalSlotRequestId);
         Preconditions.checkState(
                 state == State.ALLOCATED, "The shared slot has already been released.");

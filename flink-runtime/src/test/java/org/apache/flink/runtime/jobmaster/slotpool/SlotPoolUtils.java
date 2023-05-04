@@ -23,6 +23,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
@@ -146,7 +147,9 @@ public class SlotPoolUtils {
                         () ->
                                 slotPool.releaseTaskManager(
                                         taskManagerResourceId,
-                                        new FlinkException("Let's get rid of the offered slot.")),
+                                        ErrorInfo.of(
+                                                new FlinkException(
+                                                        "Let's get rid of the offered slot."))),
                         mainThreadExecutor)
                 .join();
     }

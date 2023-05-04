@@ -20,6 +20,7 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
@@ -193,7 +194,7 @@ public class SharedSlotTest extends TestLogger {
         sharedSlot.allocateLogicalSlot(EV1);
 
         try {
-            sharedSlot.release(new Throwable());
+            sharedSlot.release(ErrorInfo.of(new Throwable()));
             fail(
                     "IllegalStateException is expected trying to release a shared slot with incomplete physical slot request");
         } catch (IllegalStateException e) {
@@ -217,7 +218,7 @@ public class SharedSlotTest extends TestLogger {
         CompletableFuture<Object> terminalFuture = new CompletableFuture<>();
         logicalSlot.tryAssignPayload(new DummyPayload(terminalFuture));
         assertThat(terminalFuture.isDone(), is(false));
-        sharedSlot.release(new Throwable());
+        sharedSlot.release(ErrorInfo.of(new Throwable()));
 
         assertThat(terminalFuture.isDone(), is(true));
         assertThat(sharedSlot.isEmpty(), is(true));
@@ -258,7 +259,9 @@ public class SharedSlotTest extends TestLogger {
                                     // checks that release -> externalReleaseCallback -> release
                                     // does not lead to infinite recursion
                                     // due to SharedSlot.state.RELEASED check
-                                    sharedSlotReleaseFuture.join().release(new Throwable());
+                                    sharedSlotReleaseFuture
+                                            .join()
+                                            .release(ErrorInfo.of(new Throwable()));
                                     released.incrementAndGet();
                                 })
                         .build();
@@ -271,7 +274,7 @@ public class SharedSlotTest extends TestLogger {
         assertThat(released.get(), is(1));
 
         // slot is already released, it should not get released again
-        sharedSlot.release(new Throwable());
+        sharedSlot.release(ErrorInfo.of(new Throwable()));
         assertThat(released.get(), is(1));
     }
 
@@ -286,7 +289,7 @@ public class SharedSlotTest extends TestLogger {
         logicalSlot1.tryAssignPayload(
                 new LogicalSlot.Payload() {
                     @Override
-                    public void fail(Throwable cause) {
+                    public void fail(ErrorInfo cause) {
                         sharedSlot.returnLogicalSlot(logicalSlot2);
                     }
 
@@ -295,7 +298,7 @@ public class SharedSlotTest extends TestLogger {
                         return CompletableFuture.completedFuture(null);
                     }
                 });
-        sharedSlot.release(new Throwable());
+        sharedSlot.release(ErrorInfo.of(new Throwable()));
     }
 
     private static class SharedSlotBuilder {

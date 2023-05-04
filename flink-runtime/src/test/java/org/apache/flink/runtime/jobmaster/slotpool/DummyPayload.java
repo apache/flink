@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.util.Preconditions;
 
@@ -37,7 +38,7 @@ public final class DummyPayload implements LogicalSlot.Payload {
     }
 
     @Override
-    public void fail(Throwable cause) {
+    public void fail(ErrorInfo cause) {
         terminalStateFuture.complete(null);
     }
 

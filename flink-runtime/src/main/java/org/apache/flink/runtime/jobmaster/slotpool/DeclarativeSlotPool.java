@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.slots.ResourceRequirement;
@@ -166,7 +167,7 @@ public interface DeclarativeSlotPool {
      * @return the resource requirements that all slots were fulfilling; empty if all slots were
      *     currently free
      */
-    ResourceCounter releaseSlots(ResourceID owner, Exception cause);
+    ResourceCounter releaseSlots(ResourceID owner, ErrorInfo cause);
 
     /**
      * Releases the slot specified by allocationId if one exists.

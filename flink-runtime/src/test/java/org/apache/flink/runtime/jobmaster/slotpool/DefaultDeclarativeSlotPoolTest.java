@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.slots.ResourceRequirement;
@@ -249,7 +250,8 @@ class DefaultDeclarativeSlotPoolTest {
         notifyNewResourceRequirements.takeResourceRequirements();
 
         slotPool.releaseSlots(
-                taskManagerLocation.getResourceID(), new FlinkException("Test failure"));
+                taskManagerLocation.getResourceID(),
+                ErrorInfo.of(new FlinkException("Test failure")));
         assertThat(slotPool.getAllSlotsInformation()).isEmpty();
     }
 
@@ -275,7 +277,8 @@ class DefaultDeclarativeSlotPoolTest {
                         testingTaskExecutorGateway);
 
         slotPool.releaseSlots(
-                taskManagerLocation.getResourceID(), new FlinkException("Test failure"));
+                taskManagerLocation.getResourceID(),
+                ErrorInfo.of(new FlinkException("Test failure")));
 
         final Collection<AllocationID> freedSlots = freeSlotConsumer.drainFreedSlots();
 
@@ -298,7 +301,7 @@ class DefaultDeclarativeSlotPoolTest {
                     final ResourceCounter fulfilledRequirements =
                             slotPool.releaseSlots(
                                     taskManagerLocation.getResourceID(),
-                                    new FlinkException("Test failure"));
+                                    ErrorInfo.of(new FlinkException("Test failure")));
 
                     assertThat(
                                     fulfilledRequirements.getResourceCount(

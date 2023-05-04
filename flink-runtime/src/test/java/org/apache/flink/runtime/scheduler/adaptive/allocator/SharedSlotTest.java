@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.scheduler.adaptive.allocator;
 
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
@@ -104,7 +105,7 @@ public class SharedSlotTest extends TestLogger {
         final SharedSlot sharedSlot =
                 new SharedSlot(new SlotRequestId(), physicalSlot, false, () -> {});
         final LogicalSlot logicalSlot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
-        logicalSlot.releaseSlot(new Exception("test"));
+        logicalSlot.releaseSlot(ErrorInfo.of(new Exception("test")));
 
         sharedSlot.returnLogicalSlot(logicalSlot);
     }
@@ -123,10 +124,10 @@ public class SharedSlotTest extends TestLogger {
         final LogicalSlot logicalSlot2 = sharedSlot.allocateLogicalSlot();
 
         // this implicitly returns the slot
-        logicalSlot1.releaseSlot(new Exception("test"));
+        logicalSlot1.releaseSlot(ErrorInfo.of(new Exception("test")));
         assertThat(externalReleaseInitiated.get(), is(false));
 
-        logicalSlot2.releaseSlot(new Exception("test"));
+        logicalSlot2.releaseSlot(ErrorInfo.of(new Exception("test")));
         assertThat(externalReleaseInitiated.get(), is(true));
     }
 
@@ -141,7 +142,7 @@ public class SharedSlotTest extends TestLogger {
                         false,
                         () -> externalReleaseInitiated.set(true));
 
-        sharedSlot.release(new Exception("test"));
+        sharedSlot.release(ErrorInfo.of(new Exception("test")));
 
         assertThat(externalReleaseInitiated.get(), is(false));
     }
@@ -153,7 +154,7 @@ public class SharedSlotTest extends TestLogger {
                 new SharedSlot(new SlotRequestId(), physicalSlot, false, () -> {});
         final LogicalSlot logicalSlot = sharedSlot.allocateLogicalSlot();
 
-        sharedSlot.release(new Exception("test"));
+        sharedSlot.release(ErrorInfo.of(new Exception("test")));
 
         assertThat(logicalSlot.isAlive(), is(false));
     }
@@ -164,7 +165,7 @@ public class SharedSlotTest extends TestLogger {
         final SharedSlot sharedSlot =
                 new SharedSlot(new SlotRequestId(), physicalSlot, false, () -> {});
 
-        sharedSlot.release(new Exception("test"));
+        sharedSlot.release(ErrorInfo.of(new Exception("test")));
 
         sharedSlot.allocateLogicalSlot();
     }
@@ -183,18 +184,18 @@ public class SharedSlotTest extends TestLogger {
                 new TestLogicalSlotPayload(
                         cause -> {
                             if (logicalSlot2.isAlive()) {
-                                logicalSlot2.releaseSlot(cause);
+                                logicalSlot2.releaseSlot(ErrorInfo.of(cause));
                             }
                         }));
         logicalSlot2.tryAssignPayload(
                 new TestLogicalSlotPayload(
                         cause -> {
                             if (logicalSlot1.isAlive()) {
-                                logicalSlot1.releaseSlot(cause);
+                                logicalSlot1.releaseSlot(ErrorInfo.of(cause));
                             }
                         }));
 
-        sharedSlot.release(new Exception("test"));
+        sharedSlot.release(ErrorInfo.of(new Exception("test")));
 
         // if all logical slots were released, and the sharedSlot no longer allows the allocation of
         // logical slots, then the slot release was completed
@@ -218,7 +219,7 @@ public class SharedSlotTest extends TestLogger {
         logicalSlot.tryAssignPayload(
                 new TestLogicalSlotPayload(ignored -> sharedSlot.allocateLogicalSlot()));
 
-        sharedSlot.release(new Exception("test"));
+        sharedSlot.release(ErrorInfo.of(new Exception("test")));
     }
 
     private static class TestLogicalSlotPayload implements LogicalSlot.Payload {
@@ -234,8 +235,8 @@ public class SharedSlotTest extends TestLogger {
         }
 
         @Override
-        public void fail(Throwable cause) {
-            failConsumer.accept(cause);
+        public void fail(ErrorInfo cause) {
+            failConsumer.accept(cause.getException());
         }
 
         @Override

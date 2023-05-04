@@ -41,6 +41,7 @@ import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.failure.DefaultFailureEnricherContext;
@@ -576,26 +577,38 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     @Override
     public CompletableFuture<Acknowledge> disconnectTaskManager(
             final ResourceID resourceID, final Exception cause) {
-        log.info(
-                "Disconnect TaskExecutor {} because: {}",
-                resourceID.getStringWithMetadata(),
-                cause.getMessage(),
-                ExceptionUtils.returnExceptionIfUnexpected(cause.getCause()));
-        ExceptionUtils.logExceptionIfExcepted(cause.getCause(), log);
+        final Context ctx =
+                DefaultFailureEnricherContext.forTaskManagerFailure(
+                        jobGraph.getJobID(),
+                        jobGraph.getName(),
+                        jobManagerJobMetricGroup,
+                        ioExecutor,
+                        userCodeLoader);
+        return FailureEnricherUtils.labelFailure(cause, ctx, failureEnrichers)
+                .thenApplyAsync(
+                        failureLabels -> {
+                            log.info(
+                                    "Disconnect TaskExecutor {} because: {}",
+                                    resourceID.getStringWithMetadata(),
+                                    cause.getMessage(),
+                                    ExceptionUtils.returnExceptionIfUnexpected(cause.getCause()));
+                            ExceptionUtils.logExceptionIfExcepted(cause.getCause(), log);
+                            taskManagerHeartbeatManager.unmonitorTarget(resourceID);
+                            slotPoolService.releaseTaskManager(
+                                    resourceID, ErrorInfo.of(cause).withLabels(failureLabels));
+                            partitionTracker.stopTrackingPartitionsFor(resourceID);
 
-        taskManagerHeartbeatManager.unmonitorTarget(resourceID);
-        slotPoolService.releaseTaskManager(resourceID, cause);
-        partitionTracker.stopTrackingPartitionsFor(resourceID);
+                            TaskManagerRegistration taskManagerRegistration =
+                                    registeredTaskManagers.remove(resourceID);
 
-        TaskManagerRegistration taskManagerRegistration = registeredTaskManagers.remove(resourceID);
-
-        if (taskManagerRegistration != null) {
-            taskManagerRegistration
-                    .getTaskExecutorGateway()
-                    .disconnectJobManager(jobGraph.getJobID(), cause);
-        }
-
-        return CompletableFuture.completedFuture(Acknowledge.get());
+                            if (taskManagerRegistration != null) {
+                                taskManagerRegistration
+                                        .getTaskExecutorGateway()
+                                        .disconnectJobManager(jobGraph.getJobID(), cause);
+                            }
+                            return Acknowledge.get();
+                        },
+                        getMainThreadExecutor());
     }
 
     // TODO: This method needs a leader session ID

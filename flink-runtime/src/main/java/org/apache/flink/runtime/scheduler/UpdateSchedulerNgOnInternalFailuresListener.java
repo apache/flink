@@ -24,6 +24,8 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 
+import java.util.Map;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -43,11 +45,12 @@ public class UpdateSchedulerNgOnInternalFailuresListener implements InternalFail
     public void notifyTaskFailure(
             final ExecutionAttemptID attemptId,
             final Throwable t,
+            Map<String, String> labels,
             final boolean cancelTask,
             final boolean releasePartitions) {
 
         final TaskExecutionState state =
-                new TaskExecutionState(attemptId, ExecutionState.FAILED, t);
+                new TaskExecutionState(attemptId, ExecutionState.FAILED, t).withLabels(labels);
         schedulerNg.updateTaskExecutionState(
                 new TaskExecutionStateTransition(state, cancelTask, releasePartitions));
     }

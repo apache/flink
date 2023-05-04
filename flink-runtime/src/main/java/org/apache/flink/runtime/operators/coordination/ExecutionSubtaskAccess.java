@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.operators.coordination;
 
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
@@ -100,7 +101,7 @@ final class ExecutionSubtaskAccess implements SubtaskAccess {
 
     @Override
     public void triggerTaskFailover(Throwable cause) {
-        taskExecution.fail(cause);
+        taskExecution.fail(ErrorInfo.of(cause));
     }
 
     // ------------------------------------------------------------------------

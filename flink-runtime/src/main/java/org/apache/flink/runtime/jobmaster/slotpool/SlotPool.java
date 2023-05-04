@@ -23,6 +23,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -94,7 +95,7 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
      * @param cause for the releasing of the TaskManager
      * @return true iff a given registered resource id was removed
      */
-    boolean releaseTaskManager(final ResourceID resourceId, final Exception cause);
+    boolean releaseTaskManager(final ResourceID resourceId, final ErrorInfo cause);
 
     /**
      * Offers multiple slots to the {@link SlotPool}. The slot offerings can be individually

@@ -70,6 +70,17 @@ public class ErrorInfo implements Serializable {
                         "Unknown cause for Execution failure (this might be caused by FLINK-21376).");
     }
 
+    /**
+     * Utility method instantiating an {@code ErrorInfo} of a Throwable.
+     *
+     * @param throwable the error cause
+     * @return a {@code ErrorInfo} containing a Throwable
+     */
+    public static ErrorInfo of(@Nullable Throwable throwable) {
+        return createErrorInfoWithNullableCause(
+                throwable, System.currentTimeMillis(), Collections.emptyMap());
+    }
+
     public ErrorInfo(@Nonnull Throwable exception, long timestamp) {
         this(exception, timestamp, Collections.emptyMap());
     }

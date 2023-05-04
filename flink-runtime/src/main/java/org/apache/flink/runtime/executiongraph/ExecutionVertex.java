@@ -480,7 +480,7 @@ public class ExecutionVertex
     }
 
     public void fail(Throwable t) {
-        currentExecution.fail(t);
+        currentExecution.fail(ErrorInfo.of(t));
     }
 
     /**

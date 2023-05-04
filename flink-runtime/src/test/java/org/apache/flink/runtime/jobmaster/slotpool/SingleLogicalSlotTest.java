@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.instance.SimpleSlotContext;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
@@ -94,7 +95,7 @@ public class SingleLogicalSlotTest extends TestLogger {
         assertThat(singleLogicalSlot.isAlive(), is(true));
 
         final CompletableFuture<?> releaseFuture =
-                singleLogicalSlot.releaseSlot(new FlinkException("Test exception"));
+                singleLogicalSlot.releaseSlot(ErrorInfo.of(new FlinkException("Test exception")));
 
         assertThat(singleLogicalSlot.isAlive(), is(false));
 
@@ -108,13 +109,13 @@ public class SingleLogicalSlotTest extends TestLogger {
         final SingleLogicalSlot singleLogicalSlot = createSingleLogicalSlot();
         final DummyPayload dummyPayload = new DummyPayload();
 
-        singleLogicalSlot.releaseSlot(new FlinkException("Test exception"));
+        singleLogicalSlot.releaseSlot(ErrorInfo.of(new FlinkException("Test exception")));
 
         assertThat(singleLogicalSlot.tryAssignPayload(dummyPayload), is(false));
     }
 
     /**
-     * Tests that the {@link PhysicalSlot.Payload#release(Throwable)} does not wait for the payload
+     * Tests that the {@link PhysicalSlot.Payload#release(ErrorInfo)} does not wait for the payload
      * to reach a terminal state.
      */
     @Test
@@ -131,7 +132,7 @@ public class SingleLogicalSlotTest extends TestLogger {
 
         assertThat(singleLogicalSlot.tryAssignPayload(dummyPayload), is(true));
 
-        singleLogicalSlot.release(new FlinkException("Test exception"));
+        singleLogicalSlot.release(ErrorInfo.of(new FlinkException("Test exception")));
 
         assertThat(failFuture.isDone(), is(true));
         // we don't require the logical slot to return to the owner because
@@ -156,7 +157,7 @@ public class SingleLogicalSlotTest extends TestLogger {
         assertThat(singleLogicalSlot.tryAssignPayload(dummyPayload), is(true));
 
         final CompletableFuture<?> releaseFuture =
-                singleLogicalSlot.releaseSlot(new FlinkException("Test exception"));
+                singleLogicalSlot.releaseSlot(ErrorInfo.of(new FlinkException("Test exception")));
 
         assertThat(releaseFuture.isDone(), is(false));
         assertThat(returnedSlotFuture.isDone(), is(false));
@@ -196,7 +197,10 @@ public class SingleLogicalSlotTest extends TestLogger {
                                 () -> {
                                     try {
                                         singleLogicalSlot
-                                                .releaseSlot(new FlinkException("Test exception"))
+                                                .releaseSlot(
+                                                        ErrorInfo.of(
+                                                                new FlinkException(
+                                                                        "Test exception")))
                                                 .get();
                                     } catch (InterruptedException | ExecutionException e) {
                                         ExceptionUtils.checkInterrupted(e);
@@ -228,7 +232,7 @@ public class SingleLogicalSlotTest extends TestLogger {
         }
 
         @Override
-        public void fail(Throwable cause) {
+        public void fail(ErrorInfo cause) {
             failCounter.incrementAndGet();
         }
 
@@ -269,8 +273,8 @@ public class SingleLogicalSlotTest extends TestLogger {
         }
 
         @Override
-        public void fail(Throwable cause) {
-            failFuture.completeExceptionally(cause);
+        public void fail(ErrorInfo cause) {
+            failFuture.completeExceptionally(cause.getException());
         }
 
         @Override

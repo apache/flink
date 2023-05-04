@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.jobmaster.SlotContext;
 
 /**
@@ -43,7 +44,7 @@ public interface PhysicalSlot extends SlotContext {
          *
          * @param cause of the payload release
          */
-        void release(Throwable cause);
+        void release(ErrorInfo cause);
 
         /**
          * Returns whether the payload will occupy a physical slot indefinitely.

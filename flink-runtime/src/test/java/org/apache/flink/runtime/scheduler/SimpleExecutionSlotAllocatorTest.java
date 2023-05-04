@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
@@ -201,7 +202,7 @@ class SimpleExecutionSlotAllocatorTest {
         assertThat(payload.getTerminalStateFuture()).isNotDone();
         assertThat(physicalSlot.getPayload()).isNotNull();
 
-        physicalSlot.getPayload().release(new Throwable());
+        physicalSlot.getPayload().release(ErrorInfo.of(new Throwable()));
         assertThat(payload.getTerminalStateFuture()).isDone();
         assertThat(context.getSlotProvider().getCancellations()).containsKey(slotRequestId);
 

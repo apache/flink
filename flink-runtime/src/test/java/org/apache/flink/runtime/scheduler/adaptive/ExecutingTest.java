@@ -86,6 +86,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -964,6 +965,7 @@ public class ExecutingTest extends TestLogger {
         public void notifySchedulerNgAboutInternalTaskFailure(
                 ExecutionAttemptID attemptId,
                 Throwable t,
+                Map<String, String> labels,
                 boolean cancelTask,
                 boolean releasePartitions) {}
 

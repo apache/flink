@@ -20,6 +20,7 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
@@ -156,7 +157,7 @@ public class SimpleExecutionSlotAllocator implements ExecutionSlotAllocator {
         }
 
         @Override
-        public void release(Throwable cause) {
+        public void release(ErrorInfo cause) {
             logicalSlot.release(cause);
             releaseSlot(logicalSlot, new FlinkException("Physical slot releases its payload."));
         }

@@ -1433,9 +1433,10 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                 // we mark as failed and return false, which triggers the TaskManager
                 // to remove the task
                 attempt.fail(
-                        new Exception(
-                                "TaskManager sent illegal state update: "
-                                        + state.getExecutionState()));
+                        ErrorInfo.of(
+                                new Exception(
+                                        "TaskManager sent illegal state update: "
+                                                + state.getExecutionState())));
                 return false;
         }
     }
@@ -1657,10 +1658,12 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     public void notifySchedulerNgAboutInternalTaskFailure(
             final ExecutionAttemptID attemptId,
             final Throwable t,
+            Map<String, String> labels,
             final boolean cancelTask,
             final boolean releasePartitions) {
         checkState(internalTaskFailuresListener != null);
-        internalTaskFailuresListener.notifyTaskFailure(attemptId, t, cancelTask, releasePartitions);
+        internalTaskFailuresListener.notifyTaskFailure(
+                attemptId, t, labels, cancelTask, releasePartitions);
     }
 
     @Override

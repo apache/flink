@@ -428,7 +428,7 @@ public class DefaultSchedulerTest extends TestLogger {
         testRestartVerticesOnFailuresInScheduling(
                 vid -> {
                     final LogicalSlot slot = testExecutionSlotAllocator.completePendingRequest(vid);
-                    slot.releaseSlot(new Exception("Release slot for test"));
+                    slot.releaseSlot(ErrorInfo.of(new Exception("Release slot for test")));
                 });
     }
 

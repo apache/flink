@@ -24,6 +24,8 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 
+import java.util.Map;
+
 /**
  * This interface enables subscribing to failures that are detected from the JobMaster side (e.g.,
  * from within the {@link ExecutionGraph}). In contrast, there are also failures that are detected
@@ -35,6 +37,7 @@ public interface InternalFailuresListener {
     void notifyTaskFailure(
             ExecutionAttemptID attemptId,
             Throwable t,
+            Map<String, String> labels,
             boolean cancelTask,
             boolean releasePartitions);
 

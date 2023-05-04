@@ -127,7 +127,7 @@ public class SpeculativeExecutionVertex extends ExecutionVertex {
 
     @Override
     public void fail(Throwable t) {
-        currentExecutions.values().forEach(e -> e.fail(t));
+        currentExecutions.values().forEach(e -> e.fail(ErrorInfo.of(t)));
     }
 
     @Override

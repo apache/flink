@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -39,7 +40,7 @@ public interface LogicalSlot {
                         CompletableFuture.completedFuture(null);
 
                 @Override
-                public void fail(Throwable cause) {
+                public void fail(ErrorInfo cause) {
                     // ignore
                 }
 
@@ -110,7 +111,7 @@ public interface LogicalSlot {
      * @param cause why the slot was released or null if none
      * @return future which is completed once the slot has been released
      */
-    CompletableFuture<?> releaseSlot(@Nullable Throwable cause);
+    CompletableFuture<?> releaseSlot(@Nullable ErrorInfo cause);
 
     /**
      * Gets the allocation id of this slot. Multiple logical slots can share the same allocation id.
@@ -135,7 +136,7 @@ public interface LogicalSlot {
          *
          * @param cause of the failure
          */
-        void fail(Throwable cause);
+        void fail(ErrorInfo cause);
 
         /**
          * Gets the terminal state future which is completed once the payload has reached a terminal

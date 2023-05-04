@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -59,7 +60,7 @@ public class TestingSlotPoolServiceBuilder implements SlotPoolServiceFactory {
                     Optional<ResourceID>>
             failAllocationFunction = (ignoredA, ignoredB, ignoredC) -> Optional.empty();
     private Function<? super ResourceID, Boolean> registerTaskManagerFunction = ignored -> false;
-    private BiFunction<? super ResourceID, ? super Exception, Boolean> releaseTaskManagerFunction =
+    private BiFunction<? super ResourceID, ? super ErrorInfo, Boolean> releaseTaskManagerFunction =
             (ignoredA, ignoredB) -> false;
     private Consumer<? super ResourceManagerGateway> connectToResourceManagerConsumer =
             ignored -> {};

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
@@ -242,7 +243,7 @@ class SharedSlot implements SlotOwner, PhysicalSlot.Payload {
     }
 
     @Override
-    public void release(Throwable cause) {
+    public void release(ErrorInfo cause) {
         Preconditions.checkState(
                 slotContextFuture.isDone(),
                 "Releasing of the shared slot is expected only from its successfully allocated physical slot ({})",

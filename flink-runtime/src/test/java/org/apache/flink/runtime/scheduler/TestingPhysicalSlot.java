@@ -20,6 +20,7 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.instance.SimpleSlotContext;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
@@ -82,7 +83,7 @@ public class TestingPhysicalSlot extends SimpleSlotContext implements PhysicalSl
 
     public void releasePayload(Throwable cause) {
         if (payload != null) {
-            payload.release(cause);
+            payload.release(ErrorInfo.of(cause));
             payload = null;
         }
     }

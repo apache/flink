@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.jobmaster;
 
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
+
 import java.util.concurrent.CompletableFuture;
 
 /** Simple payload implementation for testing purposes. */
@@ -30,7 +32,7 @@ public class TestingPayload implements LogicalSlot.Payload {
     }
 
     @Override
-    public void fail(Throwable cause) {
+    public void fail(ErrorInfo cause) {
         terminationFuture.complete(null);
     }
 

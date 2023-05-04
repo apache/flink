@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
@@ -124,7 +125,7 @@ public class SingleLogicalSlot implements LogicalSlot, PhysicalSlot.Payload {
     }
 
     @Override
-    public CompletableFuture<?> releaseSlot(@Nullable Throwable cause) {
+    public CompletableFuture<?> releaseSlot(@Nullable ErrorInfo cause) {
         if (STATE_UPDATER.compareAndSet(this, State.ALIVE, State.RELEASING)) {
             signalPayloadRelease(cause);
             returnSlotToOwner(payload.getTerminalStateFuture());
@@ -177,7 +178,7 @@ public class SingleLogicalSlot implements LogicalSlot, PhysicalSlot.Payload {
      * @param cause of the payload release
      */
     @Override
-    public void release(Throwable cause) {
+    public void release(ErrorInfo cause) {
         if (STATE_UPDATER.compareAndSet(this, State.ALIVE, State.RELEASING)) {
             signalPayloadRelease(cause);
         }
@@ -190,7 +191,7 @@ public class SingleLogicalSlot implements LogicalSlot, PhysicalSlot.Payload {
         return willBeOccupiedIndefinitely;
     }
 
-    private void signalPayloadRelease(Throwable cause) {
+    private void signalPayloadRelease(ErrorInfo cause) {
         tryAssignPayload(TERMINATED_PAYLOAD);
         payload.fail(cause);
     }

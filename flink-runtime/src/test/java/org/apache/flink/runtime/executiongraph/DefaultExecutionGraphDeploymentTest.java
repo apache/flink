@@ -295,7 +295,7 @@ class DefaultExecutionGraphDeploymentTest {
                 new ArrayList<>(scheduler.getExecutionGraph().getRegisteredExecutions().values());
 
         for (Execution e : executions) {
-            e.fail(null);
+            e.fail(ErrorInfo.of(new Exception("Test Exception")));
         }
 
         assertThat(scheduler.getExecutionGraph().getRegisteredExecutions()).isEmpty();

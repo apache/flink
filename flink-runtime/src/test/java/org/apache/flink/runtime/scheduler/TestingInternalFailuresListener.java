@@ -23,6 +23,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 /** An {@link InternalFailuresListener} implementation for testing purpose. */
 public class TestingInternalFailuresListener implements InternalFailuresListener {
@@ -33,6 +34,7 @@ public class TestingInternalFailuresListener implements InternalFailuresListener
     public void notifyTaskFailure(
             ExecutionAttemptID attemptId,
             Throwable t,
+            Map<String, String> labels,
             boolean cancelTask,
             boolean releasePartitions) {
         failedTasks.add(attemptId);

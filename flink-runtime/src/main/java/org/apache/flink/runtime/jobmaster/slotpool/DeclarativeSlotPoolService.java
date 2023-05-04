@@ -23,6 +23,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotInfo;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
@@ -224,7 +225,7 @@ public class DeclarativeSlotPoolService implements SlotPoolService {
     }
 
     @Override
-    public boolean releaseTaskManager(ResourceID taskManagerId, Exception cause) {
+    public boolean releaseTaskManager(ResourceID taskManagerId, ErrorInfo cause) {
         assertHasBeenStarted();
 
         if (registeredTaskManagers.remove(taskManagerId)) {
@@ -262,13 +263,13 @@ public class DeclarativeSlotPoolService implements SlotPoolService {
 
     private void releaseAllTaskManagers(Exception cause) {
         for (ResourceID registeredTaskManager : registeredTaskManagers) {
-            internalReleaseTaskManager(registeredTaskManager, cause);
+            internalReleaseTaskManager(registeredTaskManager, ErrorInfo.of(cause));
         }
 
         registeredTaskManagers.clear();
     }
 
-    private void internalReleaseTaskManager(ResourceID taskManagerId, Exception cause) {
+    private void internalReleaseTaskManager(ResourceID taskManagerId, ErrorInfo cause) {
         assertHasBeenStarted();
 
         final ResourceCounter previouslyFulfilledRequirement =

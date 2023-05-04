@@ -22,6 +22,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
@@ -145,7 +146,7 @@ class AllocatedSlot implements PhysicalSlot {
      *
      * @param cause of the release operation
      */
-    public void releasePayload(Throwable cause) {
+    public void releasePayload(ErrorInfo cause) {
         final Payload payload = payloadReference.get();
 
         if (payload != null) {

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -100,7 +101,7 @@ public class TestingLogicalSlot implements LogicalSlot {
     }
 
     @Override
-    public CompletableFuture<?> releaseSlot(@Nullable Throwable cause) {
+    public CompletableFuture<?> releaseSlot(@Nullable ErrorInfo cause) {
         if (!released) {
             released = true;
 

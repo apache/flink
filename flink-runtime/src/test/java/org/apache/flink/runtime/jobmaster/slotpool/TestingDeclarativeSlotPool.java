@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.slots.ResourceRequirement;
@@ -68,7 +69,7 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
 
     private final Supplier<Collection<? extends SlotInfo>> getAllSlotsInformationSupplier;
 
-    private final BiFunction<ResourceID, Exception, ResourceCounter> releaseSlotsFunction;
+    private final BiFunction<ResourceID, ErrorInfo, ResourceCounter> releaseSlotsFunction;
 
     private final BiFunction<AllocationID, Exception, ResourceCounter> releaseSlotFunction;
 
@@ -105,7 +106,7 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
                     registerSlotsFunction,
             Supplier<Collection<SlotInfoWithUtilization>> getFreeSlotsInformationSupplier,
             Supplier<Collection<? extends SlotInfo>> getAllSlotsInformationSupplier,
-            BiFunction<ResourceID, Exception, ResourceCounter> releaseSlotsFunction,
+            BiFunction<ResourceID, ErrorInfo, ResourceCounter> releaseSlotsFunction,
             BiFunction<AllocationID, Exception, ResourceCounter> releaseSlotFunction,
             BiFunction<AllocationID, ResourceProfile, PhysicalSlot> reserveFreeSlotFunction,
             TriFunction<AllocationID, Throwable, Long, ResourceCounter> freeReservedSlotFunction,
@@ -186,7 +187,7 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
     }
 
     @Override
-    public ResourceCounter releaseSlots(ResourceID owner, Exception cause) {
+    public ResourceCounter releaseSlots(ResourceID owner, ErrorInfo cause) {
         return releaseSlotsFunction.apply(owner, cause);
     }
 

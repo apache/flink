@@ -177,7 +177,8 @@ public class ExecutionGraphRestartTest extends TestLogger {
             final ResourceID taskManagerResourceId = offerSlots(slotPool, NUM_TASKS);
 
             // Release the TaskManager and wait for the job to restart
-            slotPool.releaseTaskManager(taskManagerResourceId, new Exception("Test Exception"));
+            slotPool.releaseTaskManager(
+                    taskManagerResourceId, ErrorInfo.of(new Exception("Test Exception")));
             assertEquals(JobStatus.RESTARTING, executionGraph.getState());
 
             // Canceling needs to abort the restart
@@ -313,7 +314,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
             finishedExecution.markFinished();
 
-            failedExecution.fail(new Exception("Test Exception"));
+            failedExecution.fail(ErrorInfo.of(new Exception("Test Exception")));
             failedExecution.completeCancelling();
 
             taskRestartExecutor.triggerScheduledTasks();
@@ -330,7 +331,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
             }
 
             // fail old finished execution, this should not affect the execution
-            finishedExecution.fail(new Exception("This should have no effect"));
+            finishedExecution.fail(ErrorInfo.of(new Exception("This should have no effect")));
 
             for (ExecutionVertex vertex : eg.getAllExecutionVertices()) {
                 vertex.getCurrentExecutionAttempt().markFinished();
@@ -345,7 +346,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
     /**
      * Tests that a graph is not restarted after cancellation via a call to {@link
-     * Execution#fail(Throwable)}. This can happen when a slot is released concurrently with
+     * Execution#fail(ErrorInfo)}. This can happen when a slot is released concurrently with
      * cancellation.
      */
     @Test
@@ -372,7 +373,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
             scheduler.cancel();
 
             for (ExecutionVertex v : eg.getAllExecutionVertices()) {
-                v.getCurrentExecutionAttempt().fail(new Exception("Test Exception"));
+                v.getCurrentExecutionAttempt().fail(ErrorInfo.of(new Exception("Test Exception")));
             }
 
             assertEquals(JobStatus.CANCELED, eg.getTerminationFuture().get());

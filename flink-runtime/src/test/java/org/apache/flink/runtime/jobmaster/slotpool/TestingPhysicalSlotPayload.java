@@ -17,11 +17,13 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
+
 /** Dummy payload. */
 public class TestingPhysicalSlotPayload implements PhysicalSlot.Payload {
 
     @Override
-    public void release(Throwable cause) {}
+    public void release(ErrorInfo cause) {}
 
     @Override
     public boolean willOccupySlotIndefinitely() {

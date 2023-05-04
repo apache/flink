@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -66,7 +67,7 @@ public class TestingSlotPoolService implements SlotPoolService {
 
     private final Function<? super ResourceID, Boolean> registerTaskManagerFunction;
 
-    private final BiFunction<? super ResourceID, ? super Exception, Boolean>
+    private final BiFunction<? super ResourceID, ? super ErrorInfo, Boolean>
             releaseTaskManagerFunction;
 
     private final Consumer<? super ResourceManagerGateway> connectToResourceManagerConsumer;
@@ -94,7 +95,7 @@ public class TestingSlotPoolService implements SlotPoolService {
                             Optional<ResourceID>>
                     failAllocationFunction,
             Function<? super ResourceID, Boolean> registerTaskManagerFunction,
-            BiFunction<? super ResourceID, ? super Exception, Boolean> releaseTaskManagerFunction,
+            BiFunction<? super ResourceID, ? super ErrorInfo, Boolean> releaseTaskManagerFunction,
             Consumer<? super ResourceManagerGateway> connectToResourceManagerConsumer,
             Runnable disconnectResourceManagerRunnable,
             BiFunction<? super JobID, ? super ResourceID, ? extends AllocatedSlotReport>
@@ -143,7 +144,7 @@ public class TestingSlotPoolService implements SlotPoolService {
     }
 
     @Override
-    public boolean releaseTaskManager(ResourceID taskManagerId, Exception cause) {
+    public boolean releaseTaskManager(ResourceID taskManagerId, ErrorInfo cause) {
         return releaseTaskManagerFunction.apply(taskManagerId, cause);
     }
 

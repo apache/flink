@@ -24,6 +24,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -391,7 +392,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
 
         freedSlot.ifPresent(
                 allocatedSlot -> {
-                    releasePayload(Collections.singleton(allocatedSlot), cause);
+                    releasePayload(Collections.singleton(allocatedSlot), ErrorInfo.of(cause));
                     newSlotsListener.notifyNewSlotsAreAvailable(
                             Collections.singletonList(allocatedSlot));
                 });
@@ -432,7 +433,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
     }
 
     @Override
-    public ResourceCounter releaseSlots(ResourceID owner, Exception cause) {
+    public ResourceCounter releaseSlots(ResourceID owner, ErrorInfo cause) {
         final AllocatedSlotPool.AllocatedSlotsAndReservationStatus removedSlots =
                 slotPool.removeSlots(owner);
 
@@ -458,7 +459,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
             return freeAndReleaseSlots(
                     wasSlotFree ? Collections.emptySet() : slotAsCollection,
                     slotAsCollection,
-                    cause);
+                    ErrorInfo.of(cause));
         } else {
             return ResourceCounter.empty();
         }
@@ -467,18 +468,18 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
     private ResourceCounter freeAndReleaseSlots(
             Collection<AllocatedSlot> currentlyReservedSlots,
             Collection<AllocatedSlot> slots,
-            Exception cause) {
+            ErrorInfo cause) {
 
         ResourceCounter previouslyFulfilledRequirements =
                 getFulfilledRequirements(currentlyReservedSlots);
 
         releasePayload(currentlyReservedSlots, cause);
-        releaseSlots(slots, cause);
+        releaseSlots(slots, cause.getException());
 
         return previouslyFulfilledRequirements;
     }
 
-    private void releasePayload(Iterable<? extends AllocatedSlot> allocatedSlots, Throwable cause) {
+    private void releasePayload(Iterable<? extends AllocatedSlot> allocatedSlots, ErrorInfo cause) {
         for (AllocatedSlot allocatedSlot : allocatedSlots) {
             allocatedSlot.releasePayload(cause);
         }

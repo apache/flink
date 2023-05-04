@@ -23,6 +23,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfileTestingUtils;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
@@ -301,7 +302,7 @@ class SlotSharingExecutionSlotAllocatorTest {
         assertThat(payloads.stream().allMatch(payload -> payload.getTerminalStateFuture().isDone()))
                 .isFalse();
         assertThat(physicalSlot.getPayload()).isNotNull();
-        physicalSlot.getPayload().release(new Throwable());
+        physicalSlot.getPayload().release(ErrorInfo.of(new Throwable()));
         assertThat(payloads.stream().allMatch(payload -> payload.getTerminalStateFuture().isDone()))
                 .isTrue();
 
@@ -382,7 +383,7 @@ class SlotSharingExecutionSlotAllocatorTest {
 
     private static void releaseLogicalSlot(LogicalSlot slot) {
         slot.tryAssignPayload(new DummyPayload(CompletableFuture.completedFuture(null)));
-        slot.releaseSlot(new Throwable());
+        slot.releaseSlot(ErrorInfo.of(new Throwable()));
     }
 
     @Test

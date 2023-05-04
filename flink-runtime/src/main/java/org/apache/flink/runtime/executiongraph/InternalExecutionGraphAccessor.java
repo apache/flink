@@ -38,6 +38,7 @@ import org.apache.flink.util.SerializedValue;
 import javax.annotation.Nonnull;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executor;
 
 /**
@@ -100,6 +101,7 @@ public interface InternalExecutionGraphAccessor {
     void notifySchedulerNgAboutInternalTaskFailure(
             ExecutionAttemptID attemptId,
             Throwable t,
+            Map<String, String> labels,
             boolean cancelTask,
             boolean releasePartitions);
 
