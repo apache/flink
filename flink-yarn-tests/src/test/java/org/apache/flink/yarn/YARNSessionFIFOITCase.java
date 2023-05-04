@@ -61,7 +61,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class YARNSessionFIFOITCase extends YarnTestBase {
     private static final Logger log = LoggerFactory.getLogger(YARNSessionFIFOITCase.class);
 
-    protected static final String VIEW_ACLS = "user groupUser";
+    protected static final String VIEW_ACLS = "user group";
     protected static final String MODIFY_ACLS = "admin groupAdmin";
 
     @RegisterExtension
