@@ -47,16 +47,7 @@ public class TestProcessingTimeService implements TimerService {
     private final PriorityQueue<Tuple2<Long, CallbackTask>> priorityQueue;
 
     public TestProcessingTimeService() {
-        this.priorityQueue =
-                new PriorityQueue<>(
-                        16,
-                        new Comparator<Tuple2<Long, CallbackTask>>() {
-                            @Override
-                            public int compare(
-                                    Tuple2<Long, CallbackTask> o1, Tuple2<Long, CallbackTask> o2) {
-                                return Long.compare(o1.f0, o2.f0);
-                            }
-                        });
+        this.priorityQueue = new PriorityQueue<>(16, Comparator.comparingLong(t -> t.f0));
     }
 
     public void advance(long delta) throws Exception {
@@ -196,9 +187,9 @@ public class TestProcessingTimeService implements TimerService {
         }
 
         public void onProcessingTime(long timestamp) throws Exception {
-            processingTimeCallback.onProcessingTime(timestamp);
-
-            state.compareAndSet(CallbackTaskState.CREATED, CallbackTaskState.DONE);
+            if (state.compareAndSet(CallbackTaskState.CREATED, CallbackTaskState.DONE)) {
+                processingTimeCallback.onProcessingTime(timestamp);
+            }
         }
 
         @Override

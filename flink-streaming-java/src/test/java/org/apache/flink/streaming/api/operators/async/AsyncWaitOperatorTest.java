@@ -41,6 +41,7 @@ import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
+import org.apache.flink.streaming.api.functions.async.AsyncRetryPredicate;
 import org.apache.flink.streaming.api.functions.async.AsyncRetryStrategy;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
@@ -54,6 +55,7 @@ import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskMailboxTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskMailboxTestHarnessBuilder;
+import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.streaming.util.retryable.AsyncRetryStrategies;
@@ -75,6 +77,7 @@ import org.junit.rules.Timeout;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -83,6 +86,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -94,6 +98,8 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.LongPredicate;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
@@ -1280,23 +1286,28 @@ public class AsyncWaitOperatorTest extends TestLogger {
     private void testProcessingTimeAlwaysTimeoutFunctionWithRetry(AsyncDataStream.OutputMode mode)
             throws Exception {
 
-        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+        final TestProcessingTimeService testProcessingTimeService = new TestProcessingTimeService();
+        testProcessingTimeService.setCurrentTime(0);
+
+        final int timeout = 10_000;
+        final int retryInterval = 1;
+
+        final StreamTaskMailboxTestHarnessBuilder<Integer> harnessBuilder =
                 new StreamTaskMailboxTestHarnessBuilder<>(
-                                OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+                                environment ->
+                                        new OneInputStreamTask<>(
+                                                environment, testProcessingTimeService),
+                                BasicTypeInfo.INT_TYPE_INFO)
+                        .setupOutputForSingletonOperatorChain(
+                                new AsyncWaitOperatorFactory<>(
+                                        new AlwaysTimeoutWithDefaultValueAsyncFunction(),
+                                        timeout,
+                                        10,
+                                        mode,
+                                        new AlwaysRetryAsyncRetryStrategy<>(retryInterval)))
                         .addInput(BasicTypeInfo.INT_TYPE_INFO);
 
-        AsyncRetryStrategy exceptionRetryStrategy =
-                new AsyncRetryStrategies.FixedDelayRetryStrategyBuilder(5, 100L)
-                        .ifException(RetryPredicates.HAS_EXCEPTION_PREDICATE)
-                        .build();
-        AlwaysTimeoutWithDefaultValueAsyncFunction asyncFunction =
-                new AlwaysTimeoutWithDefaultValueAsyncFunction();
-
-        try (StreamTaskMailboxTestHarness<Integer> testHarness =
-                builder.setupOutputForSingletonOperatorChain(
-                                new AsyncWaitOperatorFactory<>(
-                                        asyncFunction, TIMEOUT, 10, mode, exceptionRetryStrategy))
-                        .build()) {
+        try (StreamTaskMailboxTestHarness<Integer> testHarness = harnessBuilder.build()) {
 
             final long initialTime = 0L;
             final Queue<Object> expectedOutput = new ArrayDeque<>();
@@ -1307,10 +1318,17 @@ public class AsyncWaitOperatorTest extends TestLogger {
             expectedOutput.add(new StreamRecord<>(-1, initialTime + 1));
             expectedOutput.add(new StreamRecord<>(-1, initialTime + 2));
 
-            while (testHarness.getOutput().size() < expectedOutput.size()) {
+            final int leastExpectedRetries = 5;
+            while (AlwaysTimeoutWithDefaultValueAsyncFunction.getTryCount(1) < leastExpectedRetries
+                    && AlwaysTimeoutWithDefaultValueAsyncFunction.getTryCount(2)
+                            < leastExpectedRetries) {
+                progressProcessingTime(testProcessingTimeService, timestamp -> timestamp < timeout);
                 testHarness.processAll();
-                //noinspection BusyWait
-                Thread.sleep(100);
+            }
+
+            while (testHarness.getOutput().size() < expectedOutput.size()) {
+                progressProcessingTime(testProcessingTimeService, timestamp -> true);
+                testHarness.processAll();
             }
 
             if (mode == AsyncDataStream.OutputMode.ORDERED) {
@@ -1323,11 +1341,18 @@ public class AsyncWaitOperatorTest extends TestLogger {
                         testHarness.getOutput(),
                         new StreamRecordComparator());
             }
+        }
+    }
 
-            // verify the elements' try count never beyond 2 (use <= instead of == to avoid unstable
-            // case when test machine under high load)
-            assertTrue(asyncFunction.getTryCount(1) <= 2);
-            assertTrue(asyncFunction.getTryCount(2) <= 2);
+    private static void progressProcessingTime(TestProcessingTimeService timerService, LongPredicate filter)
+            throws Exception {
+        final OptionalLong maybeTimer =
+                timerService.getActiveTimerTimestamps().stream()
+                        .mapToLong(timer -> timer)
+                        .filter(filter)
+                        .min();
+        if (maybeTimer.isPresent()) {
+            timerService.setCurrentTime(maybeTimer.getAsLong());
         }
     }
 
@@ -1404,38 +1429,66 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
         private static final long serialVersionUID = 1L;
 
-        private static Map<Integer, Integer> tryCounts = new HashMap<>();
+        private static final Map<Integer, Integer> tryCounts = new HashMap<>();
 
         @VisibleForTesting
-        public int getTryCount(Integer item) {
+        private static int getTryCount(Integer item) {
             return tryCounts.getOrDefault(item, 0);
         }
 
         @Override
         public void open(Configuration parameters) throws Exception {
             super.open(parameters);
-            tryCounts = new HashMap<>();
+            tryCounts.clear();
         }
 
         @Override
         public void asyncInvoke(Integer input, ResultFuture<Integer> resultFuture) {
             tryCounts.merge(input, 1, Integer::sum);
-
             CompletableFuture.runAsync(
-                    () -> {
-                        try {
-                            Thread.sleep(501L);
-                        } catch (InterruptedException e) {
-                            throw new RuntimeException(e);
-                        }
-                        resultFuture.completeExceptionally(new Exception("Dummy error"));
-                    });
+                    () ->
+                            resultFuture.completeExceptionally(
+                                    new Exception("You have no power here!")));
         }
 
         @Override
         public void timeout(Integer input, ResultFuture<Integer> resultFuture) {
             // collect a default value -1 when timeout
             resultFuture.complete(Collections.singletonList(-1));
+        }
+    }
+
+    private static class AlwaysRetryAsyncRetryStrategy<T> implements AsyncRetryStrategy<T> {
+
+        private final int retryInterval;
+
+        AlwaysRetryAsyncRetryStrategy(int retryInterval) {
+            this.retryInterval = retryInterval;
+        }
+
+        @Override
+        public boolean canRetry(int currentAttempts) {
+            return true;
+        }
+
+        @Override
+        public long getBackoffTimeMillis(int currentAttempts) {
+            return retryInterval;
+        }
+
+        @Override
+        public AsyncRetryPredicate<T> getRetryPredicate() {
+            return new AsyncRetryPredicate<T>() {
+                @Override
+                public Optional<Predicate<Collection<T>>> resultPredicate() {
+                    return Optional.empty();
+                }
+
+                @Override
+                public Optional<Predicate<Throwable>> exceptionPredicate() {
+                    return Optional.of(RetryPredicates.HAS_EXCEPTION_PREDICATE);
+                }
+            };
         }
     }
 }
