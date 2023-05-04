@@ -261,8 +261,7 @@ public class AsyncWaitOperator<IN, OUT>
             assert timeout > 0L;
             resultHandler.registerTimeout(timeout);
 
-            userFunction.asyncInvoke(element.getValue(), resultHandler);
-
+            userFunction.asyncInvoke(element.getValue(), new SafeResultFuture<>(resultHandler));
         } else {
             final ResultHandler resultHandler = new ResultHandler(element, entry);
 
@@ -416,7 +415,7 @@ public class AsyncWaitOperator<IN, OUT>
         // fire a new attempt
         userFunction.asyncInvoke(
                 resultHandlerDelegator.resultHandler.inputRecord.getValue(),
-                resultHandlerDelegator);
+                new SafeResultFuture<>(resultHandlerDelegator));
     }
 
     /** Utility method to register timeout timer. */
@@ -441,14 +440,7 @@ public class AsyncWaitOperator<IN, OUT>
         /** start from 1, when this entry created, the first attempt will happen. */
         private int currentAttempts = 1;
 
-        /**
-         * A guard similar to ResultHandler#complete to prevent repeated complete calls from
-         * ill-written AsyncFunction. This flag indicates a retry is in-flight, new retry will be
-         * rejected if it is true, and it will be reset to false after the retry fired.
-         */
-        private final AtomicBoolean retryAwaiting = new AtomicBoolean(false);
-
-        public RetryableResultHandlerDelegator(
+        RetryableResultHandlerDelegator(
                 StreamRecord<IN> inputRecord,
                 ResultFuture<OUT> resultFuture,
                 ProcessingTimeService processingTimeService) {
@@ -474,10 +466,8 @@ public class AsyncWaitOperator<IN, OUT>
                 // cancel delayed retry timer first
                 cancelRetryTimer();
 
-                // force reset retryAwaiting to prevent the handler to trigger retry unnecessarily
-                retryAwaiting.set(false);
-
-                userFunction.timeout(resultHandler.inputRecord.getValue(), this);
+                userFunction.timeout(
+                        resultHandler.inputRecord.getValue(), new SafeResultFuture<>(this));
             }
         }
 
@@ -510,10 +500,6 @@ public class AsyncWaitOperator<IN, OUT>
         }
 
         private void processRetry(Collection<OUT> results, Throwable error) {
-            // ignore repeated call(s) and only called in main thread can be safe
-            if (!retryAwaiting.compareAndSet(false, true)) {
-                return;
-            }
 
             boolean satisfy =
                     (null != results && retryResultPredicate.test(results))
@@ -531,7 +517,8 @@ public class AsyncWaitOperator<IN, OUT>
                 // timer thread will finally dispatch the task to mailbox executor,
                 // and it can only be submitted once for one attempt.
                 delayedRetryTimer =
-                        processingTimeService.registerTimer(delayedRetry, timestamp -> doRetry());
+                        processingTimeService.registerTimer(
+                                delayedRetry, timestamp -> tryOnce(this));
 
                 // add to incomplete retry handlers only for first time
                 if (currentAttempts == 1) {
@@ -549,13 +536,6 @@ public class AsyncWaitOperator<IN, OUT>
                 } else {
                     resultHandler.completeExceptionally(error);
                 }
-            }
-        }
-
-        private void doRetry() throws Exception {
-            // fire a retry only when it is in awaiting state, otherwise timeout may already happen
-            if (retryAwaiting.compareAndSet(true, false)) {
-                tryOnce(this);
             }
         }
     }
@@ -649,6 +629,36 @@ public class AsyncWaitOperator<IN, OUT>
         private void timerTriggered() throws Exception {
             if (!completed.get()) {
                 userFunction.timeout(inputRecord.getValue(), this);
+            }
+        }
+    }
+
+    /** A {@link ResultFuture} that can be completed only once. */
+    private static class SafeResultFuture<OUT> implements ResultFuture<OUT> {
+
+        private final AtomicBoolean complete = new AtomicBoolean(false);
+
+        private final ResultFuture<OUT> delegate;
+
+        private SafeResultFuture(ResultFuture<OUT> delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public void complete(Collection<OUT> result) {
+            if (complete.compareAndSet(false, true)) {
+                delegate.complete(result);
+            } else {
+                LOG.warn("The result future has been completed before.");
+            }
+        }
+
+        @Override
+        public void completeExceptionally(Throwable error) {
+            if (complete.compareAndSet(false, true)) {
+                delegate.completeExceptionally(error);
+            } else {
+                LOG.warn("The result future has been completed before.");
             }
         }
     }
