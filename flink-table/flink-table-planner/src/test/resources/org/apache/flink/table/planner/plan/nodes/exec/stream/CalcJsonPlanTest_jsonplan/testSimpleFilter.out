@@ -68,7 +68,7 @@
         "type" : "INT NOT NULL"
       }, {
         "kind" : "LITERAL",
-        "value" : "0",
+        "value" : 0,
         "type" : "INT NOT NULL"
       } ],
       "type" : "BOOLEAN NOT NULL"
