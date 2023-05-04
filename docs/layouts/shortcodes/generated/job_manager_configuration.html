@@ -51,6 +51,12 @@
             <td>This option specifies how the job computation recovers from task failures. Accepted values are:<ul><li>'full': Restarts all tasks to recover the job.</li><li>'region': Restarts all tasks that could be affected by the task failure. More details can be found <a href="{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/ops/state/task_failure_recovery/#restart-pipelined-region-failover-strategy">here</a>.</li></ul></td>
         </tr>
         <tr>
+            <td><h5>jobmanager.failure-enrichers</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>An optional list of failure enricher names. If empty, NO failure enrichers will be started. If configured, only enrichers whose name matches any of the names in the list will be started.</td>
+        </tr>
+        <tr>
             <td><h5>jobmanager.future-pool.size</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>Integer</td>
