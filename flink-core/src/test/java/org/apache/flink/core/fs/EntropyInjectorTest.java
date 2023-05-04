@@ -216,29 +216,17 @@ public class EntropyInjectorTest {
     }
 
     @Test
-    public void testIsEntropyFs() throws Exception {
-        final String entropyKey = "_test_";
-        final FileSystem efs = new TestEntropyInjectingFs(entropyKey, "ignored");
-        final File folder = TMP_FOLDER.newFolder();
-        final Path path = new Path(Path.fromLocalFile(folder), entropyKey + "/path/");
-        assertTrue(EntropyInjector.isEntropyInjecting(efs, path));
+    public void testIsEntropyFs() {
+        final FileSystem efs = new TestEntropyInjectingFs("test", "ignored");
+
+        assertTrue(EntropyInjector.isEntropyInjecting(efs));
     }
 
     @Test
-    public void testIsEntropyFsWithNullEntropyKey() throws Exception {
+    public void testIsEntropyFsWithNullEntropyKey() {
         final FileSystem efs = new TestEntropyInjectingFs(null, "ignored");
 
-        final File folder = TMP_FOLDER.newFolder();
-        assertFalse(EntropyInjector.isEntropyInjecting(efs, Path.fromLocalFile(folder)));
-    }
-
-    @Test
-    public void testIsEntropyFsPathDoesNotIncludeEntropyKey() throws Exception {
-        final String entropyKey = "_test_";
-        final FileSystem efs = new TestEntropyInjectingFs(entropyKey, "ignored");
-        final File folder = TMP_FOLDER.newFolder();
-        final Path path = new Path(Path.fromLocalFile(folder), "path"); // no entropy key
-        assertFalse(EntropyInjector.isEntropyInjecting(efs, path));
+        assertFalse(EntropyInjector.isEntropyInjecting(efs));
     }
 
     // ------------------------------------------------------------------------
