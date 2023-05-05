@@ -406,7 +406,7 @@ class DefaultResourceAllocationStrategyTest {
     }
 
     @Test
-    void testUselessResourcesShouldBeReleasedIfNonIdleResourceIsEnough() {
+    void testUnusedResourcesShouldBeReleasedIfNonIdleResourceIsEnough() {
         final TaskManagerInfo taskManagerInUse =
                 new TestingTaskManagerInfo(
                         DEFAULT_SLOT_RESOURCE.multiply(5),

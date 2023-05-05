@@ -178,12 +178,15 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
         }
 
         ResourceProfile resourcesToKeep = ResourceProfile.ZERO;
+        boolean redundantFulfilled = false;
 
         // check whether available resources of used (pending) task manager is enough.
         ResourceProfile availableResourcesOfNonIdle =
                 getAvailableResourceOfTaskManagers(taskManagersNonTimeout);
         resourcesToKeep = resourcesToKeep.merge(availableResourcesOfNonIdle);
-        if (!canFulfillRequirement(requiredRedundantResources, resourcesToKeep)) {
+        if (canFulfillRequirement(requiredRedundantResources, resourcesToKeep)) {
+            redundantFulfilled = true;
+        } else {
             ResourceProfile availableResourcesOfNonIdlePendingTaskManager =
                     getAvailableResourceOfPendingTaskManagers(pendingTaskManagersInuse);
             resourcesToKeep = resourcesToKeep.merge(availableResourcesOfNonIdlePendingTaskManager);
@@ -191,14 +194,18 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
 
         // try reserve or release unused (pending) task managers
         for (TaskManagerInfo taskManagerInfo : taskManagersIdleTimeout) {
-            if (canFulfillRequirement(requiredRedundantResources, resourcesToKeep)) {
+            if (redundantFulfilled
+                    || canFulfillRequirement(requiredRedundantResources, resourcesToKeep)) {
+                redundantFulfilled = true;
                 builder.addTaskManagerToRelease(taskManagerInfo);
             } else {
                 resourcesToKeep = resourcesToKeep.merge(taskManagerInfo.getAvailableResource());
             }
         }
         for (PendingTaskManager pendingTaskManager : pendingTaskManagersNonUse) {
-            if (canFulfillRequirement(requiredRedundantResources, resourcesToKeep)) {
+            if (redundantFulfilled
+                    || canFulfillRequirement(requiredRedundantResources, resourcesToKeep)) {
+                redundantFulfilled = true;
                 builder.addPendingTaskManagerToRelease(pendingTaskManager);
             } else {
                 resourcesToKeep = resourcesToKeep.merge(pendingTaskManager.getUnusedResource());
