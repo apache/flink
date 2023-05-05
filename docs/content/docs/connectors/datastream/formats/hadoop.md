@@ -77,10 +77,10 @@ The following example shows how to use Hadoop's `TextInputFormat`.
 
 ```java
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+KeyValueTextInputFormat textInputFormat = new KeyValueTextInputFormat();
 
-DataStream<Tuple2<LongWritable, Text>> input =
-    env.createInput(HadoopInputs.readHadoopFile(new TextInputFormat(),
-                        LongWritable.class, Text.class, textPath));
+DataStream<Tuple2<Text, Text>> input = env.createInput(HadoopInputs.readHadoopFile(
+  textInputFormat, Text.class, Text.class, textPath));
 
 // Do something with the data.
 [...]
@@ -91,10 +91,10 @@ DataStream<Tuple2<LongWritable, Text>> input =
 
 ```scala
 val env = StreamExecutionEnvironment.getExecutionEnvironment
-
-val input: DataStream[(LongWritable, Text)] =
+val textInputFormat = new KeyValueTextInputFormat
+val input: DataStream[(Text, Text)] =
   env.createInput(HadoopInputs.readHadoopFile(
-                    new TextInputFormat, classOf[LongWritable], classOf[Text], textPath))
+    textInputFormat, classOf[Text], classOf[Text], textPath))
 
 // Do something with the data.
 [...]
