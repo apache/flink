@@ -41,6 +41,7 @@ import org.apache.flink.runtime.io.network.partition.PrioritizedDeque;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageConsumerClient;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
@@ -213,6 +214,9 @@ public class SingleInputGate extends IndexedInputGate {
     private final BufferDebloater bufferDebloater;
     private boolean shouldDrainOnEndOfData = true;
 
+    // The consumer client will be null if the tiered storage is not enabled.
+    @Nullable private final TieredStorageConsumerClient tieredStorageConsumerClient;
+
     public SingleInputGate(
             String owningTaskName,
             int gateIndex,
@@ -226,7 +230,8 @@ public class SingleInputGate extends IndexedInputGate {
             MemorySegmentProvider memorySegmentProvider,
             int segmentSize,
             ThroughputCalculator throughputCalculator,
-            @Nullable BufferDebloater bufferDebloater) {
+            @Nullable BufferDebloater bufferDebloater,
+            @Nullable TieredStorageConsumerClient tieredStorageConsumerClient) {
 
         this.owningTaskName = checkNotNull(owningTaskName);
         Preconditions.checkArgument(0 <= gateIndex, "The gate index must be positive.");
@@ -259,6 +264,8 @@ public class SingleInputGate extends IndexedInputGate {
         this.unpooledSegment = MemorySegmentFactory.allocateUnpooledSegment(segmentSize);
         this.bufferDebloater = bufferDebloater;
         this.throughputCalculator = checkNotNull(throughputCalculator);
+
+        this.tieredStorageConsumerClient = tieredStorageConsumerClient;
     }
 
     protected PrioritizedDeque<InputChannel> getInputChannelsWithData() {
@@ -313,6 +320,12 @@ public class SingleInputGate extends IndexedInputGate {
             }
 
             requestedPartitionsFlag = true;
+            // Start the reader only when all InputChannels have been converted to either
+            // LocalInputChannel or RemoteInputChannel, as this will prevent RecoveredInputChannels
+            // from being queued again.
+            if (enabledTieredStore()) {
+                tieredStorageConsumerClient.start();
+            }
         }
     }
 
@@ -692,6 +705,9 @@ public class SingleInputGate extends IndexedInputGate {
             synchronized (inputChannelsWithData) {
                 inputChannelsWithData.notifyAll();
             }
+            if (enabledTieredStore()) {
+                tieredStorageConsumerClient.close();
+            }
         }
     }
 
@@ -745,9 +761,7 @@ public class SingleInputGate extends IndexedInputGate {
         if (closeFuture.isDone()) {
             throw new CancelTaskException("Input gate is already closed.");
         }
-
-        Optional<InputWithData<InputChannel, BufferAndAvailability>> next =
-                waitAndGetNextData(blocking);
+        Optional<InputWithData<InputChannel, Buffer>> next = waitAndGetNextData(blocking);
         if (!next.isPresent()) {
             throughputCalculator.pauseMeasurement();
             return Optional.empty();
@@ -755,10 +769,10 @@ public class SingleInputGate extends IndexedInputGate {
 
         throughputCalculator.resumeMeasurement();
 
-        InputWithData<InputChannel, BufferAndAvailability> inputWithData = next.get();
+        InputWithData<InputChannel, Buffer> inputWithData = next.get();
         final BufferOrEvent bufferOrEvent =
                 transformToBufferOrEvent(
-                        inputWithData.data.buffer(),
+                        inputWithData.data,
                         inputWithData.moreAvailable,
                         inputWithData.input,
                         inputWithData.morePriorityEvents);
@@ -766,8 +780,8 @@ public class SingleInputGate extends IndexedInputGate {
         return Optional.of(bufferOrEvent);
     }
 
-    private Optional<InputWithData<InputChannel, BufferAndAvailability>> waitAndGetNextData(
-            boolean blocking) throws IOException, InterruptedException {
+    private Optional<InputWithData<InputChannel, Buffer>> waitAndGetNextData(boolean blocking)
+            throws IOException, InterruptedException {
         while (true) {
             synchronized (inputChannelsWithData) {
                 Optional<InputChannel> inputChannelOpt = getChannel(blocking);
@@ -776,40 +790,59 @@ public class SingleInputGate extends IndexedInputGate {
                 }
 
                 final InputChannel inputChannel = inputChannelOpt.get();
-                Optional<BufferAndAvailability> bufferAndAvailabilityOpt =
-                        inputChannel.getNextBuffer();
-
-                if (!bufferAndAvailabilityOpt.isPresent()) {
+                Optional<Buffer> buffer;
+                if (enabledTieredStore()) {
+                    buffer = readBufferFromTieredStore(inputChannel.getChannelIndex());
+                } else {
+                    buffer = readBufferFromInputChannel(inputChannel);
+                }
+                if (!buffer.isPresent()) {
                     checkUnavailability();
                     continue;
                 }
 
-                final BufferAndAvailability bufferAndAvailability = bufferAndAvailabilityOpt.get();
-                if (bufferAndAvailability.moreAvailable()) {
-                    // enqueue the inputChannel at the end to avoid starvation
-                    queueChannelUnsafe(inputChannel, bufferAndAvailability.morePriorityEvents());
-                }
-
                 final boolean morePriorityEvents =
                         inputChannelsWithData.getNumPriorityElements() > 0;
-                if (bufferAndAvailability.hasPriority()) {
-                    lastPrioritySequenceNumber[inputChannel.getChannelIndex()] =
-                            bufferAndAvailability.getSequenceNumber();
+                if (buffer.get().getDataType().hasPriority()) {
                     if (!morePriorityEvents) {
                         priorityAvailabilityHelper.resetUnavailable();
                     }
                 }
-
                 checkUnavailability();
-
                 return Optional.of(
                         new InputWithData<>(
                                 inputChannel,
-                                bufferAndAvailability,
+                                buffer.get(),
                                 !inputChannelsWithData.isEmpty(),
                                 morePriorityEvents));
             }
         }
+    }
+
+    private Optional<Buffer> readBufferFromInputChannel(InputChannel inputChannel)
+            throws IOException, InterruptedException {
+        Optional<BufferAndAvailability> bufferAndAvailabilityOpt = inputChannel.getNextBuffer();
+        if (!bufferAndAvailabilityOpt.isPresent()) {
+            return Optional.empty();
+        }
+        final BufferAndAvailability bufferAndAvailability = bufferAndAvailabilityOpt.get();
+        if (bufferAndAvailability.moreAvailable()) {
+            // enqueue the inputChannel at the end to avoid starvation
+            queueChannelUnsafe(inputChannel, bufferAndAvailability.morePriorityEvents());
+        }
+        if (bufferAndAvailability.hasPriority()) {
+            lastPrioritySequenceNumber[inputChannel.getChannelIndex()] =
+                    bufferAndAvailability.getSequenceNumber();
+        }
+        return Optional.of(bufferAndAvailability.buffer());
+    }
+
+    private Optional<Buffer> readBufferFromTieredStore(int subpartitionId) {
+        return checkNotNull(tieredStorageConsumerClient).getNextBuffer(subpartitionId);
+    }
+
+    private boolean enabledTieredStore() {
+        return tieredStorageConsumerClient != null;
     }
 
     private void checkUnavailability() {
@@ -946,7 +979,9 @@ public class SingleInputGate extends IndexedInputGate {
     @Override
     public void acknowledgeAllRecordsProcessed(InputChannelInfo channelInfo) throws IOException {
         checkState(!isFinished(), "InputGate already finished.");
-        channels[channelInfo.getInputChannelIdx()].acknowledgeAllRecordsProcessed();
+        if (!enabledTieredStore()) {
+            channels[channelInfo.getInputChannelIdx()].acknowledgeAllRecordsProcessed();
+        }
     }
 
     // ------------------------------------------------------------------------

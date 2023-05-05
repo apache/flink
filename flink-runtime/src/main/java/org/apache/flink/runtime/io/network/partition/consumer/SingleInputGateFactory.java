@@ -34,6 +34,8 @@ import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageConfiguration;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageConsumerClient;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.NettyShuffleUtils;
@@ -52,6 +54,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -91,13 +94,16 @@ public class SingleInputGateFactory {
 
     private final BufferDebloatConfiguration debloatConfiguration;
 
+    private final TieredStorageConfiguration tieredStorageConfiguration;
+
     public SingleInputGateFactory(
             @Nonnull ResourceID taskExecutorResourceId,
             @Nonnull NettyShuffleEnvironmentConfiguration networkConfig,
             @Nonnull ConnectionManager connectionManager,
             @Nonnull ResultPartitionManager partitionManager,
             @Nonnull TaskEventPublisher taskEventPublisher,
-            @Nonnull NetworkBufferPool networkBufferPool) {
+            @Nonnull NetworkBufferPool networkBufferPool,
+            @Nullable TieredStorageConfiguration tieredStorageConfiguration) {
         this.taskExecutorResourceId = taskExecutorResourceId;
         this.partitionRequestInitialBackoff = networkConfig.partitionRequestInitialBackoff();
         this.partitionRequestMaxBackoff = networkConfig.partitionRequestMaxBackoff();
@@ -114,6 +120,7 @@ public class SingleInputGateFactory {
         this.taskEventPublisher = taskEventPublisher;
         this.networkBufferPool = networkBufferPool;
         this.debloatConfiguration = networkConfig.getDebloatConfiguration();
+        this.tieredStorageConfiguration = tieredStorageConfiguration;
     }
 
     /** Creates an input gate and all of its input channels. */
@@ -148,6 +155,11 @@ public class SingleInputGateFactory {
         final MetricGroup networkInputGroup = owner.getInputGroup();
 
         IndexRange subpartitionIndexRange = igdd.getConsumedSubpartitionIndexRange();
+        TieredStorageConsumerClient tieredStorageConsumerClient = null;
+        if (tieredStorageConfiguration != null) {
+            tieredStorageConsumerClient =
+                    new TieredStorageConsumerClient(tieredStorageConfiguration.getTierFactories());
+        }
         SingleInputGate inputGate =
                 new SingleInputGate(
                         owningTaskName,
@@ -164,7 +176,8 @@ public class SingleInputGateFactory {
                         networkBufferSize,
                         new ThroughputCalculator(SystemClock.getInstance()),
                         maybeCreateBufferDebloater(
-                                owningTaskName, gateIndex, networkInputGroup.addGroup(gateIndex)));
+                                owningTaskName, gateIndex, networkInputGroup.addGroup(gateIndex)),
+                        tieredStorageConsumerClient);
 
         createInputChannels(
                 owningTaskName, igdd, inputGate, subpartitionIndexRange, gateBuffersSpec, metrics);
