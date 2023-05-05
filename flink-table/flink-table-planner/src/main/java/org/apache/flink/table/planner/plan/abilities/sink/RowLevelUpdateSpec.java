@@ -38,14 +38,15 @@ import java.util.Objects;
 
 /**
  * A sub-class of {@link SinkAbilitySpec} that can not only serialize/deserialize the row-level
- * update mode & columns to/from JSON, but also can update existing data for {@link
- * org.apache.flink.table.connector.sink.abilities.SupportsRowLevelUpdate}.
+ * update mode, columns & required physical column indices to/from JSON, but also can update
+ * existing data for {@link org.apache.flink.table.connector.sink.abilities.SupportsRowLevelUpdate}.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeName("RowLevelUpdate")
 public class RowLevelUpdateSpec implements SinkAbilitySpec {
     public static final String FIELD_NAME_UPDATED_COLUMNS = "updatedColumns";
     public static final String FIELD_NAME_ROW_LEVEL_UPDATE_MODE = "rowLevelUpdateMode";
+    public static final String FIELD_NAME_REQUIRED_COLUMN_INDICES = "requiredColumnIndices";
 
     @JsonProperty(FIELD_NAME_UPDATED_COLUMNS)
     @Nonnull
@@ -55,6 +56,10 @@ public class RowLevelUpdateSpec implements SinkAbilitySpec {
     @Nonnull
     private final SupportsRowLevelUpdate.RowLevelUpdateMode rowLevelUpdateMode;
 
+    @JsonProperty(FIELD_NAME_REQUIRED_COLUMN_INDICES)
+    @Nonnull
+    private final int[] requireColumnIndices;
+
     @JsonIgnore @Nullable private final RowLevelModificationScanContext scanContext;
 
     @JsonCreator
@@ -62,10 +67,12 @@ public class RowLevelUpdateSpec implements SinkAbilitySpec {
             @JsonProperty(FIELD_NAME_UPDATED_COLUMNS) @Nonnull List<Column> updatedColumns,
             @JsonProperty(FIELD_NAME_ROW_LEVEL_UPDATE_MODE) @Nonnull
                     SupportsRowLevelUpdate.RowLevelUpdateMode rowLevelUpdateMode,
-            @Nullable RowLevelModificationScanContext scanContext) {
+            @Nullable RowLevelModificationScanContext scanContext,
+            @JsonProperty(FIELD_NAME_REQUIRED_COLUMN_INDICES) @Nonnull int[] requireColumnIndices) {
         this.updatedColumns = updatedColumns;
         this.rowLevelUpdateMode = rowLevelUpdateMode;
         this.scanContext = scanContext;
+        this.requireColumnIndices = requireColumnIndices;
     }
 
     @Override
@@ -83,6 +90,11 @@ public class RowLevelUpdateSpec implements SinkAbilitySpec {
     @Nonnull
     public SupportsRowLevelUpdate.RowLevelUpdateMode getRowLevelUpdateMode() {
         return rowLevelUpdateMode;
+    }
+
+    @Nonnull
+    public int[] getRequireColumnIndices() {
+        return requireColumnIndices;
     }
 
     @Override

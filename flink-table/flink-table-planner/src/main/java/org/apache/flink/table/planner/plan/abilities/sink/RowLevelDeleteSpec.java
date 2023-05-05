@@ -37,13 +37,15 @@ import java.util.Objects;
 
 /**
  * A sub-class of {@link SinkAbilitySpec} that can not only serialize/deserialize the row-level
- * delete mode to/from JSON, but also can delete existing data for {@link
- * org.apache.flink.table.connector.sink.abilities.SupportsRowLevelDelete}.
+ * delete mode & required physical column indices to/from JSON, but also can delete existing data
+ * for {@link org.apache.flink.table.connector.sink.abilities.SupportsRowLevelDelete}.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeName("RowLevelDelete")
 public class RowLevelDeleteSpec implements SinkAbilitySpec {
     public static final String FIELD_NAME_ROW_LEVEL_DELETE_MODE = "rowLevelDeleteMode";
+    public static final String FIELD_NAME_REQUIRED_PHYSICAL_COLUMN_INDICES =
+            "requiredPhysicalColumnIndices";
 
     @JsonProperty(FIELD_NAME_ROW_LEVEL_DELETE_MODE)
     @Nonnull
@@ -51,13 +53,20 @@ public class RowLevelDeleteSpec implements SinkAbilitySpec {
 
     @JsonIgnore @Nullable private final RowLevelModificationScanContext scanContext;
 
+    @JsonProperty(FIELD_NAME_REQUIRED_PHYSICAL_COLUMN_INDICES)
+    @Nonnull
+    private final int[] requiredPhysicalColumnIndices;
+
     @JsonCreator
     public RowLevelDeleteSpec(
             @JsonProperty(FIELD_NAME_ROW_LEVEL_DELETE_MODE) @Nonnull
                     SupportsRowLevelDelete.RowLevelDeleteMode rowLevelDeleteMode,
-            @Nullable RowLevelModificationScanContext scanContext) {
+            @Nullable RowLevelModificationScanContext scanContext,
+            @JsonProperty(FIELD_NAME_REQUIRED_PHYSICAL_COLUMN_INDICES) @Nonnull
+                    int[] requiredPhysicalColumnIndices) {
         this.rowLevelDeleteMode = Preconditions.checkNotNull(rowLevelDeleteMode);
         this.scanContext = scanContext;
+        this.requiredPhysicalColumnIndices = requiredPhysicalColumnIndices;
     }
 
     @Override
@@ -75,6 +84,11 @@ public class RowLevelDeleteSpec implements SinkAbilitySpec {
     @Nonnull
     public SupportsRowLevelDelete.RowLevelDeleteMode getRowLevelDeleteMode() {
         return rowLevelDeleteMode;
+    }
+
+    @Nonnull
+    public int[] getRequiredPhysicalColumnIndices() {
+        return requiredPhysicalColumnIndices;
     }
 
     @Override

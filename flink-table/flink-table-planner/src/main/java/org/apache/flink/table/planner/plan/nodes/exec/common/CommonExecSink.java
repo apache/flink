@@ -36,7 +36,9 @@ import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.ParallelismProvider;
 import org.apache.flink.table.connector.ProviderContext;
@@ -647,13 +649,49 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
     }
 
     private int[] getPrimaryKeyIndices(RowType sinkRowType, ResolvedSchema schema) {
-        return schema.getPrimaryKey()
-                .map(k -> k.getColumns().stream().mapToInt(sinkRowType::getFieldIndex).toArray())
-                .orElse(new int[0]);
+        if (schema.getPrimaryKey().isPresent()) {
+            UniqueConstraint uniqueConstraint = schema.getPrimaryKey().get();
+            int[] primaryKeyIndices = new int[uniqueConstraint.getColumns().size()];
+            // sinkRowType may not contain full primary keys in case of row-level update or delete.
+            // in such case, return an empty array
+            for (int i = 0; i < uniqueConstraint.getColumns().size(); i++) {
+                int fieldIndex = sinkRowType.getFieldIndex(uniqueConstraint.getColumns().get(i));
+                if (fieldIndex == -1) {
+                    return new int[0];
+                }
+                primaryKeyIndices[i] = fieldIndex;
+            }
+            return primaryKeyIndices;
+        } else {
+            return new int[0];
+        }
     }
 
     private RowType getPhysicalRowType(ResolvedSchema schema) {
+        // row-level modification may only write partial columns
+        if (tableSinkSpec.getSinkAbilities() != null) {
+            for (SinkAbilitySpec sinkAbilitySpec : tableSinkSpec.getSinkAbilities()) {
+                if (sinkAbilitySpec instanceof RowLevelUpdateSpec) {
+                    RowLevelUpdateSpec rowLevelUpdateSpec = (RowLevelUpdateSpec) sinkAbilitySpec;
+                    return getPhysicalRowType(schema, rowLevelUpdateSpec.getRequireColumnIndices());
+                } else if (sinkAbilitySpec instanceof RowLevelDeleteSpec) {
+                    RowLevelDeleteSpec rowLevelDeleteSpec = (RowLevelDeleteSpec) sinkAbilitySpec;
+                    return getPhysicalRowType(
+                            schema, rowLevelDeleteSpec.getRequiredPhysicalColumnIndices());
+                }
+            }
+        }
         return (RowType) schema.toPhysicalRowDataType().getLogicalType();
+    }
+
+    /** Get the physical row type with given column indices. */
+    private RowType getPhysicalRowType(ResolvedSchema schema, int[] columnIndices) {
+        List<Column> columns = schema.getColumns();
+        List<Column> requireColumns = new ArrayList<>();
+        for (int columnIndex : columnIndices) {
+            requireColumns.add(columns.get(columnIndex));
+        }
+        return (RowType) ResolvedSchema.of(requireColumns).toPhysicalRowDataType().getLogicalType();
     }
 
     private enum LengthEnforcerType {
