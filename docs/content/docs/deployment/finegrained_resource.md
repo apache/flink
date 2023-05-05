@@ -76,11 +76,7 @@ Please refer to [Resource Allocation Strategy](#resource-allocation-strategy) fo
 
 ## Usage
 
-To use fine-grained resource management, you need to:
-
-  - Specify the resource requirement.
-
-### Specify Resource Requirement for Slot Sharing Group
+To use fine-grained resource management, you need to specify the resource requirement.
 
 Fine-grained resource requirements are defined on slot sharing groups. A slot sharing group is a hint that tells the JobManager operators/tasks in it CAN be put into the same slot.
 
