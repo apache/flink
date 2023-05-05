@@ -221,7 +221,8 @@ public class NettyShuffleServiceFactory
                         connectionManager,
                         resultPartitionManager,
                         taskEventPublisher,
-                        networkBufferPool);
+                        networkBufferPool,
+                        config.getTieredStorageConfiguration());
 
         return new NettyShuffleEnvironment(
                 taskExecutorResourceId,
