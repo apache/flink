@@ -35,6 +35,8 @@ import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -102,7 +104,7 @@ class TaskExecutorManager implements AutoCloseable {
 
     private final Executor mainThreadExecutor;
 
-    private final ScheduledFuture<?> taskManagerTimeoutsAndRedundancyCheck;
+    @Nullable private final ScheduledFuture<?> taskManagerTimeoutsAndRedundancyCheck;
 
     private final Set<InstanceID> unWantedWorkers;
     private final ScheduledExecutor scheduledExecutor;
