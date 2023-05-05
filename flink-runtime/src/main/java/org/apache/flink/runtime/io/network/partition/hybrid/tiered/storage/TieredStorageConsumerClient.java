@@ -18,5 +18,50 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage;
 
-/** Client of the Tiered Storage used by the consumer. */
-public class TieredStorageConsumerClient {}
+import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierConsumerAgent;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierFactory;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+/** {@link TieredStorageConsumerClient} is used to read buffer from tiered store. */
+public class TieredStorageConsumerClient {
+
+    private final List<TierConsumerAgent> tierConsumerAgents;
+
+    public TieredStorageConsumerClient(List<TierFactory> tierFactories) {
+        this.tierConsumerAgents = createTierConsumerAgents(tierFactories);
+    }
+
+    public void start() {
+        for (TierConsumerAgent tierConsumerAgent : tierConsumerAgents) {
+            tierConsumerAgent.start();
+        }
+    }
+
+    public Optional<Buffer> getNextBuffer(int subpartitionId) {
+        // TODO, the detailed logic will be completed when the memory tier is introduced..
+        return Optional.empty();
+    }
+
+    public void close() throws IOException {
+        for (TierConsumerAgent tierConsumerAgent : tierConsumerAgents) {
+            tierConsumerAgent.close();
+        }
+    }
+
+    // --------------------------------------------------------------------------------------------
+    //  Internal methods
+    // --------------------------------------------------------------------------------------------
+
+    private List<TierConsumerAgent> createTierConsumerAgents(List<TierFactory> tierFactories) {
+        ArrayList<TierConsumerAgent> tierConsumerAgents = new ArrayList<>();
+        for (TierFactory tierFactory : tierFactories) {
+            tierConsumerAgents.add(tierFactory.createConsumerAgent());
+        }
+        return tierConsumerAgents;
+    }
+}
