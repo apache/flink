@@ -66,7 +66,6 @@ public class KubernetesMultipleComponentLeaderRetrievalDriverFactory
     public LeaderRetrievalDriver createLeaderRetrievalDriver(
             LeaderRetrievalEventHandler leaderEventHandler, FatalErrorHandler fatalErrorHandler) {
         return new KubernetesLeaderRetrievalDriver(
-                kubeClient,
                 configMapSharedWatcher,
                 watchExecutor,
                 configMapName,

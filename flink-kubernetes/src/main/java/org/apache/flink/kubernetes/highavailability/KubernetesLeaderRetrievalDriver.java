@@ -49,8 +49,6 @@ public class KubernetesLeaderRetrievalDriver implements LeaderRetrievalDriver {
     private static final Logger LOG =
             LoggerFactory.getLogger(KubernetesLeaderRetrievalDriver.class);
 
-    private final FlinkKubeClient kubeClient;
-
     private final String configMapName;
 
     private final LeaderRetrievalEventHandler leaderRetrievalEventHandler;
@@ -64,14 +62,12 @@ public class KubernetesLeaderRetrievalDriver implements LeaderRetrievalDriver {
     private final Function<KubernetesConfigMap, LeaderInformation> leaderInformationExtractor;
 
     public KubernetesLeaderRetrievalDriver(
-            FlinkKubeClient kubeClient,
             KubernetesConfigMapSharedWatcher configMapSharedWatcher,
             Executor watchExecutor,
             String configMapName,
             LeaderRetrievalEventHandler leaderRetrievalEventHandler,
             Function<KubernetesConfigMap, LeaderInformation> leaderInformationExtractor,
             FatalErrorHandler fatalErrorHandler) {
-        this.kubeClient = checkNotNull(kubeClient, "Kubernetes client");
         this.configMapName = checkNotNull(configMapName, "ConfigMap name");
         this.leaderRetrievalEventHandler =
                 checkNotNull(leaderRetrievalEventHandler, "LeaderRetrievalEventHandler");
