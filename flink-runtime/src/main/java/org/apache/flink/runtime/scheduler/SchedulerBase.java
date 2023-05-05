@@ -158,6 +158,8 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
     private final ComponentMainThreadExecutor mainThreadExecutor;
 
+    private final UpdateSchedulerNgOnInternalFailuresListener internalFailuresListener;
+
     private final BoundedFIFOQueue<RootExceptionHistoryEntry> exceptionHistory;
 
     private final ExecutionGraphFactory executionGraphFactory;
@@ -178,6 +180,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
             long initializationTimestamp,
             final ComponentMainThreadExecutor mainThreadExecutor,
             final JobStatusListener jobStatusListener,
+            final UpdateSchedulerNgOnInternalFailuresListener internalFailuresListener,
             final ExecutionGraphFactory executionGraphFactory,
             final VertexParallelismStore vertexParallelismStore)
             throws Exception {
@@ -189,6 +192,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         this.jobManagerJobMetricGroup = checkNotNull(jobManagerJobMetricGroup);
         this.executionVertexVersioner = checkNotNull(executionVertexVersioner);
         this.mainThreadExecutor = mainThreadExecutor;
+        this.internalFailuresListener = internalFailuresListener;
 
         this.checkpointsCleaner = checkpointsCleaner;
         this.completedCheckpointStore =
@@ -379,7 +383,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                         log);
 
         newExecutionGraph.setInternalTaskFailuresListener(
-                new UpdateSchedulerNgOnInternalFailuresListener(this));
+                internalFailuresListener.withScheduler(this));
         newExecutionGraph.registerJobStatusListener(jobStatusListener);
         newExecutionGraph.start(mainThreadExecutor);
 

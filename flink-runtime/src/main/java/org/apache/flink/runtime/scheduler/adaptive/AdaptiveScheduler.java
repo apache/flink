@@ -192,6 +192,7 @@ public class AdaptiveScheduler
     private final FatalErrorHandler fatalErrorHandler;
 
     private final Collection<JobStatusListener> jobStatusListeners;
+    private final UpdateSchedulerNgOnInternalFailuresListener internalFailuresListener;
 
     private final SlotAllocator slotAllocator;
 
@@ -244,6 +245,7 @@ public class AdaptiveScheduler
             ComponentMainThreadExecutor mainThreadExecutor,
             FatalErrorHandler fatalErrorHandler,
             JobStatusListener jobStatusListener,
+            UpdateSchedulerNgOnInternalFailuresListener internalFailuresListener,
             ExecutionGraphFactory executionGraphFactory)
             throws JobExecutionException {
 
@@ -313,6 +315,7 @@ public class AdaptiveScheduler
                 jobStatusMetricsSettings);
 
         jobStatusListeners = Collections.unmodifiableCollection(tmpJobStatusListeners);
+        this.internalFailuresListener = internalFailuresListener;
         this.exceptionHistory =
                 new BoundedFIFOQueue<>(
                         configuration.getInteger(WebOptions.MAX_EXCEPTION_HISTORY_SIZE));
@@ -1047,7 +1050,7 @@ public class AdaptiveScheduler
         executionGraph.transitionToRunning();
 
         executionGraph.setInternalTaskFailuresListener(
-                new UpdateSchedulerNgOnInternalFailuresListener(this));
+                this.internalFailuresListener.withScheduler(this));
 
         final JobSchedulingPlan jobSchedulingPlan =
                 executionGraphWithVertexParallelism.getJobSchedulingPlan();

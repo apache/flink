@@ -47,6 +47,7 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerFactory;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
+import org.apache.flink.runtime.scheduler.UpdateSchedulerNgOnInternalFailuresListener;
 import org.apache.flink.runtime.scheduler.adaptive.AdaptiveSchedulerFactory;
 import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchSchedulerFactory;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
@@ -114,6 +115,7 @@ public final class DefaultSlotPoolServiceSchedulerFactory
             ComponentMainThreadExecutor mainThreadExecutor,
             FatalErrorHandler fatalErrorHandler,
             JobStatusListener jobStatusListener,
+            UpdateSchedulerNgOnInternalFailuresListener internalFailuresListener,
             BlocklistOperations blocklistOperations)
             throws Exception {
         return schedulerNGFactory.createInstance(
@@ -136,6 +138,7 @@ public final class DefaultSlotPoolServiceSchedulerFactory
                 mainThreadExecutor,
                 fatalErrorHandler,
                 jobStatusListener,
+                internalFailuresListener,
                 blocklistOperations);
     }
 

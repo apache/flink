@@ -42,6 +42,7 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.scheduler.DefaultExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
+import org.apache.flink.runtime.scheduler.UpdateSchedulerNgOnInternalFailuresListener;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotAllocator;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
@@ -80,6 +81,8 @@ public class AdaptiveSchedulerBuilder {
                     FatalExitExceptionHandler.INSTANCE.uncaughtException(
                             Thread.currentThread(), error);
     private JobStatusListener jobStatusListener = (ignoredA, ignoredB, ignoredC) -> {};
+    private UpdateSchedulerNgOnInternalFailuresListener internalFailuresListener =
+            new UpdateSchedulerNgOnInternalFailuresListener(null);
     private long initializationTimestamp = System.currentTimeMillis();
 
     @Nullable private SlotAllocator slotAllocator;
@@ -221,6 +224,7 @@ public class AdaptiveSchedulerBuilder {
                 mainThreadExecutor,
                 fatalErrorHandler,
                 jobStatusListener,
+                internalFailuresListener,
                 executionGraphFactory);
     }
 }

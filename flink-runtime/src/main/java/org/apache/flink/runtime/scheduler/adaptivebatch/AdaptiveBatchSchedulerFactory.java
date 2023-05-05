@@ -62,6 +62,7 @@ import org.apache.flink.runtime.scheduler.ExecutionVertexVersioner;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.runtime.scheduler.SimpleExecutionSlotAllocator;
+import org.apache.flink.runtime.scheduler.UpdateSchedulerNgOnInternalFailuresListener;
 import org.apache.flink.runtime.scheduler.strategy.AllFinishedInputConsumableDecider;
 import org.apache.flink.runtime.scheduler.strategy.DefaultInputConsumableDecider;
 import org.apache.flink.runtime.scheduler.strategy.InputConsumableDecider;
@@ -113,6 +114,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
             ComponentMainThreadExecutor mainThreadExecutor,
             FatalErrorHandler fatalErrorHandler,
             JobStatusListener jobStatusListener,
+            UpdateSchedulerNgOnInternalFailuresListener internalFailuresListener,
             BlocklistOperations blocklistOperations)
             throws Exception {
 
@@ -206,6 +208,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                     initializationTimestamp,
                     mainThreadExecutor,
                     jobStatusListener,
+                    internalFailuresListener,
                     executionGraphFactory,
                     shuffleMaster,
                     rpcTimeout,
@@ -237,6 +240,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                     initializationTimestamp,
                     mainThreadExecutor,
                     jobStatusListener,
+                    internalFailuresListener,
                     executionGraphFactory,
                     shuffleMaster,
                     rpcTimeout,

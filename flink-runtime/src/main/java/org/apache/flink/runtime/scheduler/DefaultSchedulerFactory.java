@@ -74,6 +74,7 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
             final ComponentMainThreadExecutor mainThreadExecutor,
             final FatalErrorHandler fatalErrorHandler,
             final JobStatusListener jobStatusListener,
+            UpdateSchedulerNgOnInternalFailuresListener internalFailuresListener,
             final BlocklistOperations blocklistOperations)
             throws Exception {
 
@@ -146,6 +147,7 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
                     }
                     jobStatusListener.jobStatusChanges(jobId, jobStatus, timestamp);
                 },
+                internalFailuresListener,
                 executionGraphFactory,
                 shuffleMaster,
                 rpcTimeout,

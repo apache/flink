@@ -22,6 +22,7 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
+import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 
 import java.util.Map;
@@ -29,16 +30,27 @@ import java.util.Map;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Calls {@link SchedulerNG#updateTaskExecutionState(TaskExecutionStateTransition)} on task failure.
- * Calls {@link SchedulerNG#handleGlobalFailure(Throwable)} on global failures.
+ * Calls {@link JobMaster#updateTaskExecutionState(TaskExecutionState)} on task failure. Calls
+ * {@link SchedulerNG#handleGlobalFailure(Throwable)} on global failures.
  */
 public class UpdateSchedulerNgOnInternalFailuresListener implements InternalFailuresListener {
 
-    private final SchedulerNG schedulerNg;
+    SchedulerNG schedulerNg;
+    private final JobMaster jobMaster;
 
-    public UpdateSchedulerNgOnInternalFailuresListener(final SchedulerNG schedulerNg) {
+    public UpdateSchedulerNgOnInternalFailuresListener(final JobMaster jobMaster) {
+        this.jobMaster = jobMaster;
+    }
 
-        this.schedulerNg = checkNotNull(schedulerNg);
+    private UpdateSchedulerNgOnInternalFailuresListener(
+            final JobMaster jobMaster, SchedulerNG scheduler) {
+        this.jobMaster = jobMaster;
+        this.schedulerNg = scheduler;
+    }
+
+    public UpdateSchedulerNgOnInternalFailuresListener withScheduler(SchedulerNG scheduler) {
+        return new UpdateSchedulerNgOnInternalFailuresListener(
+                this.jobMaster, checkNotNull(scheduler));
     }
 
     @Override
@@ -51,8 +63,13 @@ public class UpdateSchedulerNgOnInternalFailuresListener implements InternalFail
 
         final TaskExecutionState state =
                 new TaskExecutionState(attemptId, ExecutionState.FAILED, t).withLabels(labels);
-        schedulerNg.updateTaskExecutionState(
-                new TaskExecutionStateTransition(state, cancelTask, releasePartitions));
+        if (jobMaster != null) {
+            jobMaster.updateTaskExecutionState(state);
+        } else {
+            // TODO only temporary to make tests pass
+            schedulerNg.updateTaskExecutionState(
+                    new TaskExecutionStateTransition(state, cancelTask, releasePartitions));
+        }
     }
 
     @Override

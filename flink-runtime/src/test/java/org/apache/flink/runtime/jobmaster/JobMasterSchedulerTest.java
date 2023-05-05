@@ -38,6 +38,7 @@ import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.runtime.scheduler.TestingSchedulerNG;
+import org.apache.flink.runtime.scheduler.UpdateSchedulerNgOnInternalFailuresListener;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TestLogger;
@@ -121,6 +122,7 @@ public class JobMasterSchedulerTest extends TestLogger {
                 ComponentMainThreadExecutor mainThreadExecutor,
                 FatalErrorHandler fatalErrorHandler,
                 JobStatusListener jobStatusListener,
+                UpdateSchedulerNgOnInternalFailuresListener internalFailuresListener,
                 BlocklistOperations blocklistOperations) {
             return TestingSchedulerNG.newBuilder()
                     .setStartSchedulingRunnable(

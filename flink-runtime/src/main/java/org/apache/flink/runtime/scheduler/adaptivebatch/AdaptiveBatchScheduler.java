@@ -40,7 +40,7 @@ import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.MarkPartitionFinishedStrategy;
 import org.apache.flink.runtime.executiongraph.ParallelismAndInputInfos;
 import org.apache.flink.runtime.executiongraph.ResultPartitionBytes;
-import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategy;
+import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategy.Factory;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -61,6 +61,7 @@ import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.ExecutionOperations;
 import org.apache.flink.runtime.scheduler.ExecutionSlotAllocatorFactory;
 import org.apache.flink.runtime.scheduler.ExecutionVertexVersioner;
+import org.apache.flink.runtime.scheduler.UpdateSchedulerNgOnInternalFailuresListener;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
@@ -113,7 +114,7 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
             final CheckpointRecoveryFactory checkpointRecoveryFactory,
             final JobManagerJobMetricGroup jobManagerJobMetricGroup,
             final SchedulingStrategyFactory schedulingStrategyFactory,
-            final FailoverStrategy.Factory failoverStrategyFactory,
+            final Factory failoverStrategyFactory,
             final RestartBackoffTimeStrategy restartBackoffTimeStrategy,
             final ExecutionOperations executionOperations,
             final ExecutionVertexVersioner executionVertexVersioner,
@@ -121,6 +122,7 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
             long initializationTimestamp,
             final ComponentMainThreadExecutor mainThreadExecutor,
             final JobStatusListener jobStatusListener,
+            final UpdateSchedulerNgOnInternalFailuresListener internalFailuresListener,
             final ExecutionGraphFactory executionGraphFactory,
             final ShuffleMaster<?> shuffleMaster,
             final Time rpcTimeout,
@@ -150,6 +152,7 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
                 initializationTimestamp,
                 mainThreadExecutor,
                 jobStatusListener,
+                internalFailuresListener,
                 executionGraphFactory,
                 shuffleMaster,
                 rpcTimeout,

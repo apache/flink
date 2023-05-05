@@ -39,7 +39,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.SpeculativeExecutionVertex;
-import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategy;
+import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategy.Factory;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailureHandlingResult;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
 import org.apache.flink.runtime.io.network.partition.PartitionException;
@@ -52,6 +52,7 @@ import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.ExecutionOperations;
 import org.apache.flink.runtime.scheduler.ExecutionSlotAllocatorFactory;
 import org.apache.flink.runtime.scheduler.ExecutionVertexVersioner;
+import org.apache.flink.runtime.scheduler.UpdateSchedulerNgOnInternalFailuresListener;
 import org.apache.flink.runtime.scheduler.slowtaskdetector.ExecutionTimeBasedSlowTaskDetector;
 import org.apache.flink.runtime.scheduler.slowtaskdetector.SlowTaskDetector;
 import org.apache.flink.runtime.scheduler.slowtaskdetector.SlowTaskDetectorListener;
@@ -112,7 +113,7 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
             final CheckpointRecoveryFactory checkpointRecoveryFactory,
             final JobManagerJobMetricGroup jobManagerJobMetricGroup,
             final SchedulingStrategyFactory schedulingStrategyFactory,
-            final FailoverStrategy.Factory failoverStrategyFactory,
+            final Factory failoverStrategyFactory,
             final RestartBackoffTimeStrategy restartBackoffTimeStrategy,
             final ExecutionOperations executionOperations,
             final ExecutionVertexVersioner executionVertexVersioner,
@@ -120,6 +121,7 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
             long initializationTimestamp,
             final ComponentMainThreadExecutor mainThreadExecutor,
             final JobStatusListener jobStatusListener,
+            final UpdateSchedulerNgOnInternalFailuresListener internalFailuresListener,
             final ExecutionGraphFactory executionGraphFactory,
             final ShuffleMaster<?> shuffleMaster,
             final Time rpcTimeout,
@@ -150,6 +152,7 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
                 initializationTimestamp,
                 mainThreadExecutor,
                 jobStatusListener,
+                internalFailuresListener,
                 executionGraphFactory,
                 shuffleMaster,
                 rpcTimeout,

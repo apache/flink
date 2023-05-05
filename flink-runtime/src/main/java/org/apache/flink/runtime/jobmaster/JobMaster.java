@@ -91,6 +91,7 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcServiceUtils;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
+import org.apache.flink.runtime.scheduler.UpdateSchedulerNgOnInternalFailuresListener;
 import org.apache.flink.runtime.shuffle.JobShuffleContext;
 import org.apache.flink.runtime.shuffle.JobShuffleContextImpl;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
@@ -212,6 +213,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     private final ExecutionDeploymentTracker executionDeploymentTracker;
     private final ExecutionDeploymentReconciler executionDeploymentReconciler;
     private final Collection<FailureEnricher> failureEnrichers;
+    private final UpdateSchedulerNgOnInternalFailuresListener internalFailuresListener;
 
     // -------- Mutable fields ---------
 
@@ -354,6 +356,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
         this.jobStatusListener = new JobManagerJobStatusListener();
 
         this.failureEnrichers = checkNotNull(failureEnrichers);
+        this.internalFailuresListener = new UpdateSchedulerNgOnInternalFailuresListener(this);
 
         this.schedulerNG =
                 createScheduler(
@@ -399,6 +402,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                         getMainThreadExecutor(),
                         fatalErrorHandler,
                         jobStatusListener,
+                        internalFailuresListener,
                         blocklistHandler::addNewBlockedNodes);
 
         return scheduler;

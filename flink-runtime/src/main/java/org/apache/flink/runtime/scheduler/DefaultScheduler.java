@@ -34,6 +34,7 @@ import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ExecutionFailureHandler;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategy;
+import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategy.Factory;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailureHandlingResult;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
 import org.apache.flink.runtime.io.network.partition.PartitionException;
@@ -118,7 +119,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
             final CheckpointRecoveryFactory checkpointRecoveryFactory,
             final JobManagerJobMetricGroup jobManagerJobMetricGroup,
             final SchedulingStrategyFactory schedulingStrategyFactory,
-            final FailoverStrategy.Factory failoverStrategyFactory,
+            final Factory failoverStrategyFactory,
             final RestartBackoffTimeStrategy restartBackoffTimeStrategy,
             final ExecutionOperations executionOperations,
             final ExecutionVertexVersioner executionVertexVersioner,
@@ -126,6 +127,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
             long initializationTimestamp,
             final ComponentMainThreadExecutor mainThreadExecutor,
             final JobStatusListener jobStatusListener,
+            UpdateSchedulerNgOnInternalFailuresListener internalFailuresListener,
             final ExecutionGraphFactory executionGraphFactory,
             final ShuffleMaster<?> shuffleMaster,
             final Time rpcTimeout,
@@ -145,6 +147,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                 initializationTimestamp,
                 mainThreadExecutor,
                 jobStatusListener,
+                internalFailuresListener,
                 executionGraphFactory,
                 vertexParallelismStore);
 

@@ -102,6 +102,8 @@ public class DefaultSchedulerBuilder {
     private ExecutionSlotAllocatorFactory executionSlotAllocatorFactory =
             new TestExecutionSlotAllocatorFactory();
     private JobStatusListener jobStatusListener = (ignoredA, ignoredB, ignoredC) -> {};
+    private UpdateSchedulerNgOnInternalFailuresListener internalFailuresListener =
+            new UpdateSchedulerNgOnInternalFailuresListener(null);
     private ExecutionDeployer.Factory executionDeployerFactory =
             new DefaultExecutionDeployer.Factory();
     private VertexParallelismAndInputInfosDecider vertexParallelismAndInputInfosDecider =
@@ -301,6 +303,7 @@ public class DefaultSchedulerBuilder {
                 System.currentTimeMillis(),
                 mainThreadExecutor,
                 jobStatusListener,
+                internalFailuresListener,
                 createExecutionGraphFactory(false),
                 shuffleMaster,
                 rpcTimeout,
@@ -329,6 +332,7 @@ public class DefaultSchedulerBuilder {
                 System.currentTimeMillis(),
                 mainThreadExecutor,
                 jobStatusListener,
+                internalFailuresListener,
                 createExecutionGraphFactory(true),
                 shuffleMaster,
                 rpcTimeout,
@@ -360,6 +364,7 @@ public class DefaultSchedulerBuilder {
                 System.currentTimeMillis(),
                 mainThreadExecutor,
                 jobStatusListener,
+                internalFailuresListener,
                 createExecutionGraphFactory(true, new SpeculativeExecutionJobVertex.Factory()),
                 shuffleMaster,
                 rpcTimeout,
