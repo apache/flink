@@ -35,7 +35,7 @@ import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
 
-import static org.apache.flink.kubernetes.utils.KubernetesUtils.checkConfigMaps;
+import static org.apache.flink.kubernetes.utils.KubernetesUtils.getOnlyConfigMap;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -105,7 +105,7 @@ public class KubernetesLeaderRetrievalDriver implements LeaderRetrievalDriver {
 
         @Override
         public void onModified(List<KubernetesConfigMap> configMaps) {
-            final KubernetesConfigMap configMap = checkConfigMaps(configMaps, configMapName);
+            final KubernetesConfigMap configMap = getOnlyConfigMap(configMaps, configMapName);
             leaderRetrievalEventHandler.notifyLeaderAddress(
                     leaderInformationExtractor.apply(configMap));
         }
