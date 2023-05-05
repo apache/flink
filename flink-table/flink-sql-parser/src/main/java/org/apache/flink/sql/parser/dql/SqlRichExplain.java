@@ -60,10 +60,6 @@ public class SqlRichExplain extends SqlCall {
         return statement;
     }
 
-    public String getPlanFile() {
-        return ((NlsString) SqlLiteral.value(statement)).getValue();
-    }
-
     @Override
     public SqlOperator getOperator() {
         return OPERATOR;

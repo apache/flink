@@ -916,20 +916,21 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             return executeInternal(((StatementSetOperation) operation).getOperations());
         } else if (operation instanceof ExplainOperation) {
             ExplainOperation explainOperation = (ExplainOperation) operation;
-            if (explainOperation instanceof ExplainFileOperation) {
-                ExplainFileOperation explainfileOperation = (ExplainFileOperation) explainOperation;
-                CompiledPlan cp =
-                        loadPlan(PlanReference.fromFile(explainfileOperation.getFilePath()));
-                return TableResultImpl.builder()
-                        .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-                        .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())))
-                        .data(Collections.singletonList(Row.of(cp.asJsonString())))
-                        .build();
-            }
             ExplainDetail[] explainDetails =
                     explainOperation.getExplainDetails().stream()
                             .map(ExplainDetail::valueOf)
                             .toArray(ExplainDetail[]::new);
+            if (explainOperation instanceof ExplainFileOperation) {
+                ExplainFileOperation explainfileOperation = (ExplainFileOperation) explainOperation;
+                CompiledPlan cp =
+                        loadPlan(PlanReference.fromFile(explainfileOperation.getFilePath()));
+                String cpExplain = cp.explain(explainDetails);
+                return TableResultImpl.builder()
+                        .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
+                        .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())))
+                        .data(Collections.singletonList(Row.of(cpExplain)))
+                        .build();
+            }
             Operation child = ((ExplainOperation) operation).getChild();
             List<Operation> operations;
             if (child instanceof StatementSetOperation) {

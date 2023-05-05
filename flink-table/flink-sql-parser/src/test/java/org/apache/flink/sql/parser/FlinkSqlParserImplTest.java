@@ -2073,9 +2073,26 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    void testExplainForJsonFile() {
+    void testExplainCompiledPlan() {
         String sql = "explain plan for 'file://path'";
         String expected = "EXPLAIN 'file://path'";
+        this.sql(sql).ok(expected);
+        sql = "explain changelog_mode 'file://path'";
+        expected = "EXPLAIN CHANGELOG_MODE 'file://path'";
+        this.sql(sql).ok(expected);
+        sql = "explain estimated_cost 'file://path'";
+        expected = "EXPLAIN ESTIMATED_COST 'file://path'";
+        this.sql(sql).ok(expected);
+        sql = "explain plan_advice 'file://path'";
+        expected = "EXPLAIN PLAN_ADVICE 'file://path'";
+        this.sql(sql).ok(expected);
+        sql = "explain json_execution_plan 'file://path'";
+        expected = "EXPLAIN JSON_EXECUTION_PLAN 'file://path'";
+        this.sql(sql).ok(expected);
+        sql =
+                "explain estimated_cost, changelog_mode, plan_advice, json_execution_plan 'file://path'";
+        expected =
+                "EXPLAIN JSON_EXECUTION_PLAN, CHANGELOG_MODE, PLAN_ADVICE, ESTIMATED_COST 'file://path'";
         this.sql(sql).ok(expected);
     }
 

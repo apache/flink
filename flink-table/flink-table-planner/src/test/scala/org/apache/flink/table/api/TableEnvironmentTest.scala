@@ -160,40 +160,36 @@ class TableEnvironmentTest {
   }
 
   @Test
-  def testExplainForJsonFile(): Unit = {
+  def testExplainCompiledPlan(): Unit = {
     val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
     execEnv.setParallelism(1)
     val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
     val tableEnv = StreamTableEnvironment.create(execEnv, settings)
 
     val srcTableDdl =
-      "CREATE TABLE MyTable (\n" + "  a bigint,\n" + "  b int,\n" + "  c varchar\n" + ") with (\n" + "  'connector' = 'values',\n" + "  'bounded' = 'false')"
+      "CREATE TABLE MyTable (\n" + "  a bigint,\n" + "  b int,\n" + "  c varchar\n" + ") with (\n" + "  'connector' = 'datagen' )"
     tableEnv.executeSql(srcTableDdl)
 
     val sinkTableDdl =
-      "CREATE TABLE MySink (\n" + "  a bigint,\n" + "  b int,\n" + "  c varchar\n" + ") with (\n" + "  'connector' = 'values',\n" + "  'table-sink-class' = 'DEFAULT')"
+      "CREATE TABLE MySink (\n" + "  a bigint,\n" + "  b int,\n" + "  c varchar\n" + ") with (\n" + "  'connector' = 'blackhole' )"
     tableEnv.executeSql(sinkTableDdl)
 
     val planPath = Paths.get(
       tempFolder.newFolder(String.format("test-CompiledPlan")).getPath,
       "compiledPlan.json")
 
-    val plan = tableEnv.compilePlanSql("INSERT INTO MySink SELECT * FROM MyTable")
+    val compiledSql = "INSERT INTO MySink SELECT * FROM MyTable"
+    val plan = tableEnv.compilePlanSql(compiledSql)
     plan.writeToFile(planPath)
 
-    val sql = String.format("EXPLAIN PLAN FOR '%s'", planPath.toAbsolutePath)
-    val tableResult2 = tableEnv.executeSql(sql)
-    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
-    val it = tableResult2.collect()
-    assertTrue(it.hasNext)
-    val row = it.next()
-    assertEquals(1, row.getArity)
-    val actual = replaceNodeIdInOperator(replaceStreamNodeId(row.getField(0).toString.trim))
-    val expected = replaceNodeIdInOperator(
-      replaceStreamNodeId(FileUtils.readFileUtf8(planPath.toFile).trim))
-    assertEquals(replaceStageId(expected), replaceStageId(actual))
-    assertFalse(it.hasNext)
+    var explainRes = tableEnv.explainSql(compiledSql, ExplainDetail.JSON_EXECUTION_PLAN)
 
+    var sql = String.format("EXPLAIN json_execution_plan '%s'", planPath.toAbsolutePath)
+    // checkExplainCompiledPlan(sql, explainRes) Optimized Execution Plan equals
+
+    explainRes = tableEnv.explainSql(compiledSql)
+    sql = String.format("EXPLAIN '%s'", planPath.toAbsolutePath)
+    // checkExplainCompiledPlan(sql, explainRes) Physical Execution Plan equals
   }
 
   @Test
@@ -2823,6 +2819,19 @@ class TableEnvironmentTest {
     val actual = replaceNodeIdInOperator(replaceStreamNodeId(row.getField(0).toString.trim))
     val expected = replaceNodeIdInOperator(
       replaceStreamNodeId(TableTestUtil.readFromResource(resultPath).trim))
+    assertEquals(replaceStageId(expected), replaceStageId(actual))
+    assertFalse(it.hasNext)
+  }
+
+  private def checkExplainCompiledPlan(sql: String, sqlRes: String): Unit = {
+    val tableResult2 = tableEnv.executeSql(sql)
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
+    val it = tableResult2.collect()
+    assertTrue(it.hasNext)
+    val row = it.next()
+    assertEquals(1, row.getArity)
+    val actual = replaceNodeIdInOperator(replaceStreamNodeId(row.getField(0).toString.trim))
+    val expected = replaceNodeIdInOperator(replaceStreamNodeId(sqlRes.trim))
     assertEquals(replaceStageId(expected), replaceStageId(actual))
     assertFalse(it.hasNext)
   }

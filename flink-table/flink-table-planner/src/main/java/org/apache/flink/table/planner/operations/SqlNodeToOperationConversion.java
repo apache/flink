@@ -195,6 +195,7 @@ import org.apache.calcite.sql.SqlDelete;
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlUpdate;
@@ -1053,7 +1054,9 @@ public class SqlNodeToOperationConversion {
     }
 
     private Operation convertExplainPlanOperation(SqlRichExplain sqlExplainPlan) {
-        return new ExplainFileOperation(sqlExplainPlan.getPlanFile());
+        return new ExplainFileOperation(
+                sqlExplainPlan.getExplainDetails(),
+                ((NlsString) SqlLiteral.value(sqlExplainPlan.getStatement())).getValue());
     }
 
     /** Convert DESCRIBE [EXTENDED] [[catalogName.] dataBasesName].sqlIdentifier. */

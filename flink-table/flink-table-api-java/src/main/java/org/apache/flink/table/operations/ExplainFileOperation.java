@@ -20,13 +20,15 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
 
+import java.util.Set;
+
 /** Operation to describe an EXPLAIN FOR JsonFile statement. */
 @Internal
 public final class ExplainFileOperation extends ExplainOperation {
     private final String filePath;
 
-    public ExplainFileOperation(String filePath) {
-        super(new NopOperation());
+    public ExplainFileOperation(Set<String> explainDetails, String filePath) {
+        super(new NopOperation(), explainDetails);
         this.filePath = filePath;
     }
 
