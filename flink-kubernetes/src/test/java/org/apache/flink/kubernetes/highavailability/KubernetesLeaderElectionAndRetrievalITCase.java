@@ -91,7 +91,6 @@ class KubernetesLeaderElectionAndRetrievalITCase {
                     new TestingLeaderRetrievalEventHandler();
             leaderRetrievalDriver =
                     new KubernetesLeaderRetrievalDriver(
-                            flinkKubeClient,
                             configMapSharedWatcher,
                             watchExecutorService,
                             configMapName,
