@@ -36,7 +36,7 @@ public class TestingResourceAllocationStrategy implements ResourceAllocationStra
             tryFulfillRequirementsFunction;
 
     private final Function<TaskManagerResourceInfoProvider, ResourceReleaseResult>
-            tryReleaseUselessResourcesFunction;
+            tryReleaseUnusedResourcesFunction;
 
     private TestingResourceAllocationStrategy(
             BiFunction<
@@ -45,11 +45,11 @@ public class TestingResourceAllocationStrategy implements ResourceAllocationStra
                             ResourceAllocationResult>
                     tryFulfillRequirementsFunction,
             Function<TaskManagerResourceInfoProvider, ResourceReleaseResult>
-                    tryReleaseUselessResourcesFunction) {
+                    tryReleaseUnusedResourcesFunction) {
         this.tryFulfillRequirementsFunction =
                 Preconditions.checkNotNull(tryFulfillRequirementsFunction);
-        this.tryReleaseUselessResourcesFunction =
-                Preconditions.checkNotNull(tryReleaseUselessResourcesFunction);
+        this.tryReleaseUnusedResourcesFunction =
+                Preconditions.checkNotNull(tryReleaseUnusedResourcesFunction);
     }
 
     @Override
@@ -64,7 +64,7 @@ public class TestingResourceAllocationStrategy implements ResourceAllocationStra
     @Override
     public ResourceReleaseResult tryReleaseUnusedResources(
             TaskManagerResourceInfoProvider taskManagerResourceInfoProvider) {
-        return tryReleaseUselessResourcesFunction.apply(taskManagerResourceInfoProvider);
+        return tryReleaseUnusedResourcesFunction.apply(taskManagerResourceInfoProvider);
     }
 
     public static Builder newBuilder() {
@@ -80,7 +80,7 @@ public class TestingResourceAllocationStrategy implements ResourceAllocationStra
                         (ignored0, ignored1) -> ResourceAllocationResult.builder().build();
 
         private Function<TaskManagerResourceInfoProvider, ResourceReleaseResult>
-                tryReleaseUselessResourcesFunction =
+                tryReleaseUnusedResourcesFunction =
                         ignored -> ResourceReleaseResult.builder().build();
 
         public Builder setTryFulfillRequirementsFunction(
@@ -93,16 +93,16 @@ public class TestingResourceAllocationStrategy implements ResourceAllocationStra
             return this;
         }
 
-        public Builder setTryReleaseUselessResourcesFunction(
+        public Builder setTryReleaseUnusedResourcesFunction(
                 Function<TaskManagerResourceInfoProvider, ResourceReleaseResult>
-                        tryReleaseUselessResourcesFunction) {
-            this.tryReleaseUselessResourcesFunction = tryReleaseUselessResourcesFunction;
+                        tryReleaseUnusedResourcesFunction) {
+            this.tryReleaseUnusedResourcesFunction = tryReleaseUnusedResourcesFunction;
             return this;
         }
 
         public TestingResourceAllocationStrategy build() {
             return new TestingResourceAllocationStrategy(
-                    tryFulfillRequirementsFunction, tryReleaseUselessResourcesFunction);
+                    tryFulfillRequirementsFunction, tryReleaseUnusedResourcesFunction);
         }
     }
 }

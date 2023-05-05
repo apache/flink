@@ -48,7 +48,7 @@ public interface ResourceAllocationStrategy {
             BlockedTaskManagerChecker blockedTaskManagerChecker);
 
     /**
-     * Try to make a release decision to release useless PendingTaskManagers and TaskManagers. This
+     * Try to make a release decision to release unused PendingTaskManagers and TaskManagers. This
      * is more light weighted than {@link #tryFulfillRequirements}, only consider empty registered /
      * pending workers and assume all requirements are fulfilled by registered / pending workers.
      *
