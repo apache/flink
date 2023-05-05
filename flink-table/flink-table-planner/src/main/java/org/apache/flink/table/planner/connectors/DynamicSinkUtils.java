@@ -386,36 +386,37 @@ public final class DynamicSinkUtils {
         RowLevelModificationScanContext context = RowLevelModificationContextUtils.getScanContext();
         SupportsRowLevelDelete.RowLevelDeleteInfo rowLevelDeleteInfo =
                 supportsRowLevelDelete.applyRowLevelDelete(context);
-        sinkAbilitySpecs.add(
-                new RowLevelDeleteSpec(rowLevelDeleteInfo.getRowLevelDeleteMode(), context));
 
         if (rowLevelDeleteInfo.getRowLevelDeleteMode()
-                == SupportsRowLevelDelete.RowLevelDeleteMode.DELETED_ROWS) {
-            // convert the LogicalTableModify node to a rel node representing row-level delete
-            return convertToRowLevelDelete(
-                    tableModify,
-                    contextResolvedTable,
-                    rowLevelDeleteInfo,
-                    tableDebugName,
-                    dataTypeFactory,
-                    typeFactory);
-        } else if (rowLevelDeleteInfo.getRowLevelDeleteMode()
+                        != SupportsRowLevelDelete.RowLevelDeleteMode.DELETED_ROWS
+                && rowLevelDeleteInfo.getRowLevelDeleteMode()
+                        != SupportsRowLevelDelete.RowLevelDeleteMode.REMAINING_ROWS) {
+            throw new TableException(
+                    "Unknown delete mode: " + rowLevelDeleteInfo.getRowLevelDeleteMode());
+        }
+
+        if (rowLevelDeleteInfo.getRowLevelDeleteMode()
                 == SupportsRowLevelDelete.RowLevelDeleteMode.REMAINING_ROWS) {
             // if it's for remaining row, convert the predicate in where clause
             // to the negative predicate
             convertPredicateToNegative(tableModify);
-            // convert the LogicalTableModify node to a rel node representing row-level delete
-            return convertToRowLevelDelete(
-                    tableModify,
-                    contextResolvedTable,
-                    rowLevelDeleteInfo,
-                    tableDebugName,
-                    dataTypeFactory,
-                    typeFactory);
-        } else {
-            throw new TableException(
-                    "Unknown delete mode: " + rowLevelDeleteInfo.getRowLevelDeleteMode());
         }
+
+        // convert the LogicalTableModify node to a RelNode representing row-level delete
+        Tuple2<RelNode, int[]> deleteRelNodeAndRequireIndices =
+                convertToRowLevelDelete(
+                        tableModify,
+                        contextResolvedTable,
+                        rowLevelDeleteInfo,
+                        tableDebugName,
+                        dataTypeFactory,
+                        typeFactory);
+        sinkAbilitySpecs.add(
+                new RowLevelDeleteSpec(
+                        rowLevelDeleteInfo.getRowLevelDeleteMode(),
+                        context,
+                        deleteRelNodeAndRequireIndices.f1));
+        return deleteRelNodeAndRequireIndices.f0;
     }
 
     private static RelNode convertUpdate(
@@ -445,16 +446,21 @@ public final class DynamicSinkUtils {
             throw new IllegalArgumentException(
                     "Unknown update mode:" + updateInfo.getRowLevelUpdateMode());
         }
+        Tuple2<RelNode, int[]> updateRelNodeAndRequireIndices =
+                convertToRowLevelUpdate(
+                        tableModify,
+                        contextResolvedTable,
+                        updateInfo,
+                        tableDebugName,
+                        dataTypeFactory,
+                        typeFactory);
         sinkAbilitySpecs.add(
                 new RowLevelUpdateSpec(
-                        updatedColumns, updateInfo.getRowLevelUpdateMode(), context));
-        return convertToRowLevelUpdate(
-                tableModify,
-                contextResolvedTable,
-                updateInfo,
-                tableDebugName,
-                dataTypeFactory,
-                typeFactory);
+                        updatedColumns,
+                        updateInfo.getRowLevelUpdateMode(),
+                        context,
+                        updateRelNodeAndRequireIndices.f1));
+        return updateRelNodeAndRequireIndices.f0;
     }
 
     private static List<Column> getUpdatedColumns(
@@ -469,8 +475,13 @@ public final class DynamicSinkUtils {
         return updatedColumns;
     }
 
-    /** Convert tableModify node to a rel node representing for row-level delete. */
-    private static RelNode convertToRowLevelDelete(
+    /**
+     * Convert tableModify node to a RelNode representing for row-level delete.
+     *
+     * @return a tuple contains the RelNode and the index for the required physical columns for
+     *     row-level delete.
+     */
+    private static Tuple2<RelNode, int[]> convertToRowLevelDelete(
             LogicalTableModify tableModify,
             ContextResolvedTable contextResolvedTable,
             SupportsRowLevelDelete.RowLevelDeleteInfo rowLevelDeleteInfo,
@@ -495,14 +506,25 @@ public final class DynamicSinkUtils {
                     addExtraMetaCols(
                             tableModify, tableScan, tableDebugName, metadataColumns, typeFactory);
         }
+
         // create a project only select the required columns for delete
-        return projectColumnsForDelete(
-                tableModify,
-                resolvedSchema,
-                colIndexes,
-                tableDebugName,
-                dataTypeFactory,
-                typeFactory);
+        return Tuple2.of(
+                projectColumnsForDelete(
+                        tableModify,
+                        resolvedSchema,
+                        colIndexes,
+                        tableDebugName,
+                        dataTypeFactory,
+                        typeFactory),
+                getPhysicalColumnIndices(colIndexes, resolvedSchema));
+    }
+
+    /** Return the indices from {@param colIndexes} that belong to physical column. */
+    private static int[] getPhysicalColumnIndices(List<Integer> colIndexes, ResolvedSchema schema) {
+        return colIndexes.stream()
+                .filter(i -> schema.getColumns().get(i).isPhysical())
+                .mapToInt(i -> i)
+                .toArray();
     }
 
     /** Convert the predicate in WHERE clause to the negative predicate. */
@@ -606,8 +628,13 @@ public final class DynamicSinkUtils {
         return (LogicalTableScan) relNode;
     }
 
-    /** Convert tableModify node to a RelNode representing for row-level update. */
-    private static RelNode convertToRowLevelUpdate(
+    /**
+     * Convert tableModify node to a RelNode representing for row-level update.
+     *
+     * @return a tuple contains the RelNode and the index for the required physical columns for
+     *     row-level update.
+     */
+    private static Tuple2<RelNode, int[]> convertToRowLevelUpdate(
             LogicalTableModify tableModify,
             ContextResolvedTable contextResolvedTable,
             SupportsRowLevelUpdate.RowLevelUpdateInfo rowLevelUpdateInfo,
@@ -622,7 +649,7 @@ public final class DynamicSinkUtils {
         LogicalTableScan tableScan = getSourceTableScan(tableModify);
         Tuple2<List<Integer>, List<MetadataColumn>> colsIndexAndExtraMetaCols =
                 getRequireColumnsIndexAndExtraMetaCols(tableScan, requiredColumns, resolvedSchema);
-        List<Integer> updatedIndexes = colsIndexAndExtraMetaCols.f0;
+        List<Integer> colIndexes = colsIndexAndExtraMetaCols.f0;
         List<MetadataColumn> metadataColumns = colsIndexAndExtraMetaCols.f1;
         // if meta columns size is greater than 0, we need to modify the underlying
         // LogicalTableScan to make it can read meta column
@@ -632,16 +659,17 @@ public final class DynamicSinkUtils {
                     addExtraMetaCols(
                             tableModify, tableScan, tableDebugName, metadataColumns, typeFactory);
         }
-
-        return projectColumnsForUpdate(
-                tableModify,
-                originColsCount,
-                resolvedSchema,
-                updatedIndexes,
-                rowLevelUpdateInfo.getRowLevelUpdateMode(),
-                tableDebugName,
-                dataTypeFactory,
-                typeFactory);
+        return Tuple2.of(
+                projectColumnsForUpdate(
+                        tableModify,
+                        originColsCount,
+                        resolvedSchema,
+                        colIndexes,
+                        rowLevelUpdateInfo.getRowLevelUpdateMode(),
+                        tableDebugName,
+                        dataTypeFactory,
+                        typeFactory),
+                getPhysicalColumnIndices(colIndexes, resolvedSchema));
     }
 
     // create a project only select the required column or expression for update
