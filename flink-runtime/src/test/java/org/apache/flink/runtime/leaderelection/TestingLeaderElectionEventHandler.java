@@ -31,7 +31,7 @@ import java.util.function.Consumer;
  * testing purposes.
  */
 public class TestingLeaderElectionEventHandler extends TestingLeaderBase
-        implements LeaderElectionEventHandler {
+        implements LeaderElectionEventHandler, AutoCloseable {
 
     private final Object lock = new Object();
 
@@ -135,6 +135,7 @@ public class TestingLeaderElectionEventHandler extends TestingLeaderBase
         }
     }
 
+    @Override
     public void close() {
         synchronized (lock) {
             running = false;

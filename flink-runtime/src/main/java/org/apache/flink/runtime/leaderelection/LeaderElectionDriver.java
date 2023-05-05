@@ -28,7 +28,7 @@ package org.apache.flink.runtime.leaderelection;
  * <p><strong>Important</strong>: The {@link LeaderElectionDriver} could not guarantee that there is
  * no {@link LeaderElectionEventHandler} callbacks happen after {@link #close()}.
  */
-public interface LeaderElectionDriver {
+public interface LeaderElectionDriver extends AutoCloseable {
 
     /**
      * Write the current leader information to external persistent storage(e.g. Zookeeper,
@@ -49,7 +49,4 @@ public interface LeaderElectionDriver {
      * @return Return whether the driver has leadership.
      */
     boolean hasLeadership();
-
-    /** Close the services used for leader election. */
-    void close() throws Exception;
 }
