@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.operations;
 
+import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.Operation;
@@ -30,16 +31,20 @@ import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.UseModulesOperation;
 import org.apache.flink.table.operations.command.AddJarOperation;
 import org.apache.flink.table.operations.command.ClearOperation;
+import org.apache.flink.table.operations.command.ExecutePlanOperation;
 import org.apache.flink.table.operations.command.HelpOperation;
 import org.apache.flink.table.operations.command.QuitOperation;
 import org.apache.flink.table.operations.command.RemoveJarOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
 import org.apache.flink.table.operations.command.ShowJarsOperation;
+import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
+import org.apache.flink.table.planner.parse.CalciteParser;
 import org.apache.flink.table.planner.parse.ExtendedParser;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.Arrays;
@@ -320,5 +325,24 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
 
         assertThat(showFunctionsOperation.getFunctionScope()).isEqualTo(expectedScope);
         assertThat(showFunctionsOperation.asSummaryString()).isEqualTo(expectedSummary);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "execute plan 'oss:///loalhost:9000/path/to.json', oss:/loalhost:9000/path/to.json",
+        "execute plan 'hdfs:///loalhost:9000/path/to.json', hdfs:/loalhost:9000/path/to.json",
+        "execute plan 'file:///loalhost:9000/path/to.json', file:/loalhost:9000/path/to.json",
+        "execute plan 's3:///loalhost:9000/path/to.json', s3:/loalhost:9000/path/to.json"
+    })
+    void testSqlExecutePlanPath(String sql, String expected) {
+        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+        Operation operation;
+        operation = parse(sql, planner, parser);
+        assertThat(operation).isInstanceOf(ExecutePlanOperation.class);
+        assertThat((ExecutePlanOperation) operation)
+                .satisfies(
+                        execute ->
+                                assertThat(execute.getFilePath().toString()).isEqualTo(expected));
     }
 }

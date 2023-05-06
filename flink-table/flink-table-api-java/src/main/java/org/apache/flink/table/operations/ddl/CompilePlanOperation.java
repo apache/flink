@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.StatementSetOperation;
@@ -26,7 +27,7 @@ import org.apache.flink.util.Preconditions;
 /** Operation to describe an {@code COMPILE PLAN} statement. */
 public class CompilePlanOperation implements Operation {
 
-    private final String filePath;
+    private final Path filePath;
     private final boolean ifNotExists;
     private final Operation operation;
 
@@ -34,12 +35,12 @@ public class CompilePlanOperation implements Operation {
         Preconditions.checkArgument(
                 operation instanceof StatementSetOperation || operation instanceof ModifyOperation,
                 "child operation of CompileOperation must be either a ModifyOperation or a StatementSetOperation");
-        this.filePath = filePath;
+        this.filePath = new Path(filePath);
         this.ifNotExists = ifNotExists;
         this.operation = operation;
     }
 
-    public String getFilePath() {
+    public Path getFilePath() {
         return filePath;
     }
 
@@ -55,7 +56,7 @@ public class CompilePlanOperation implements Operation {
     public String asSummaryString() {
         return String.format(
                 ifNotExists ? "COMPILE PLAN '%s' IF NOT EXISTS FOR %s" : "COMPILE PLAN '%s' FOR %s",
-                filePath,
+                filePath.toString(),
                 operation.asSummaryString());
     }
 }

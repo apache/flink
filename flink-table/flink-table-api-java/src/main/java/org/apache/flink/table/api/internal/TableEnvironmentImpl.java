@@ -24,6 +24,8 @@ import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
@@ -104,10 +106,8 @@ import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.MutableURLClassLoader;
 import org.apache.flink.util.Preconditions;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -731,9 +731,16 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     private CompiledPlan compilePlanAndWrite(
-            String filePath, boolean ifNotExists, Operation operation) {
-        File file = Paths.get(filePath).toFile();
-        if (file.exists()) {
+            Path filePath, boolean ifNotExists, Operation operation) {
+        FileSystem fs;
+        boolean exists;
+        try {
+            fs = filePath.getFileSystem();
+            exists = fs.exists(filePath);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        if (exists) {
             if (ifNotExists) {
                 return loadPlan(PlanReference.fromFile(filePath));
             }
@@ -748,7 +755,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                 filePath, TableConfigOptions.PLAN_FORCE_RECOMPILE.key()));
             }
         }
-
         CompiledPlan compiledPlan;
         if (operation instanceof StatementSetOperation) {
             compiledPlan = compilePlan(((StatementSetOperation) operation).getOperations());
@@ -760,8 +766,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                             + operation.getClass()
                             + ". This is a bug, please file an issue.");
         }
-
-        compiledPlan.writeToFile(file, false);
+        compiledPlan.writeToFile(filePath, false);
         return compiledPlan;
     }
 
