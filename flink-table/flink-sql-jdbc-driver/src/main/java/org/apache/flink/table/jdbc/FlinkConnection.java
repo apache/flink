@@ -19,7 +19,6 @@
 package org.apache.flink.table.jdbc;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.StatementResult;
 import org.apache.flink.table.gateway.service.context.DefaultContext;
@@ -35,6 +34,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
 
@@ -53,13 +53,10 @@ public class FlinkConnection extends BaseConnection {
     public FlinkConnection(DriverUri driverUri) {
         this.url = driverUri.getURL();
         this.statements = new ArrayList<>();
-        // TODO Support default context from map to get gid of flink core for jdbc driver in
-        // https://issues.apache.org/jira/browse/FLINK-31687.
         this.executor =
                 Executor.create(
                         new DefaultContext(
-                                Configuration.fromMap(
-                                        DriverUtils.fromProperties(driverUri.getProperties())),
+                                DriverUtils.fromProperties(driverUri.getProperties()),
                                 Collections.emptyList()),
                         driverUri.getAddress(),
                         UUID.randomUUID().toString());
@@ -165,20 +162,16 @@ public class FlinkConnection extends BaseConnection {
     @Override
     public String getClientInfo(String name) throws SQLException {
         ensureOpen();
-        // TODO Executor should return Map<String, String> here to get rid of flink core for jdbc
-        // driver in https://issues.apache.org/jira/browse/FLINK-31687.
-        Configuration configuration = (Configuration) executor.getSessionConfig();
-        return configuration.toMap().get(name);
+        Map<String, String> configuration = executor.getSessionConfigMap();
+        return configuration.get(name);
     }
 
     @Override
     public Properties getClientInfo() throws SQLException {
         ensureOpen();
         Properties properties = new Properties();
-        // TODO Executor should return Map<String, String> here to get rid of flink core for jdbc
-        // driver in https://issues.apache.org/jira/browse/FLINK-31687.
-        Configuration configuration = (Configuration) executor.getSessionConfig();
-        configuration.toMap().forEach(properties::setProperty);
+        Map<String, String> configuration = executor.getSessionConfigMap();
+        configuration.forEach(properties::setProperty);
         return properties;
     }
 

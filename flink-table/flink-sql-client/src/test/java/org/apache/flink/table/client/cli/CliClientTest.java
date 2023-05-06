@@ -20,6 +20,7 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ResultKind;
@@ -61,6 +62,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
 import static org.apache.flink.table.api.internal.StaticResultProvider.SIMPLE_ROW_DATA_TO_STRING_CONVERTER;
@@ -406,8 +408,13 @@ class CliClientTest {
         public void configureSession(String statement) {}
 
         @Override
-        public Configuration getSessionConfig() {
+        public ReadableConfig getSessionConfig() {
             return configuration;
+        }
+
+        @Override
+        public Map<String, String> getSessionConfigMap() {
+            return configuration.toMap();
         }
 
         @Override
