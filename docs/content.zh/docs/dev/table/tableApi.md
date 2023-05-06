@@ -410,8 +410,8 @@ Table orders = tableEnv.from("Orders");
 Table result = orders.as("x, y, z, t");
 ```
 {{< /tab >}}
-{{< tab "scala" >}}
-```java
+{{< tab "Scala" >}}
+```scala
 val orders: Table = tableEnv.from("Orders").as("x", "y", "z", "t")
 ```
 {{< /tab >}}
