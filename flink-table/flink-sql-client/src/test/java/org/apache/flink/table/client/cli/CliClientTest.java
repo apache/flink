@@ -61,6 +61,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
 import static org.apache.flink.table.api.internal.StaticResultProvider.SIMPLE_ROW_DATA_TO_STRING_CONVERTER;
@@ -406,8 +407,8 @@ class CliClientTest {
         public void configureSession(String statement) {}
 
         @Override
-        public Configuration getSessionConfig() {
-            return configuration;
+        public Map<String, String> getSessionConfig() {
+            return configuration.toMap();
         }
 
         @Override
