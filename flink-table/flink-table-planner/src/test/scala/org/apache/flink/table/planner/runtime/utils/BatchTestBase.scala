@@ -478,6 +478,7 @@ object BatchTestBase {
   }
 
   def binaryRow(types: Array[LogicalType], fields: Any*): BinaryRowData = {
+    // TODO, replace the failure check with a new and simpler checking method
     if (fields.length != types.length) {
       fail("Filed count inconsistent with type information")
     }
@@ -530,6 +531,7 @@ object BatchTestBase {
       s"and received ${resultStrings.length}\n " +
       s"expected: ${expectedStrings.mkString}\n " +
       s"received: ${resultStrings.mkString}"
+    // TODO, replace these two failure checks with new and simpler checking methods
     if (expectedStrings.length != resultStrings.length) {
       fail(msg)
     }
