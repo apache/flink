@@ -51,6 +51,7 @@ import org.apache.flink.table.operations.SourceQueryOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterTableChangeOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
+import org.apache.flink.table.operations.ddl.CompilePlanOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
@@ -70,6 +71,8 @@ import org.apache.flink.table.types.DataType;
 import org.apache.calcite.sql.SqlNode;
 import org.assertj.core.api.HamcrestCondition;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import javax.annotation.Nullable;
 
@@ -2163,6 +2166,25 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
 
         Operation operation = parse(sql);
         assertThat(operation).isInstanceOf(CreateViewOperation.class);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "compile plan 'oss:///loalhost:9000/path/to.json' for insert into t1 select * from t2, oss:/loalhost:9000/path/to.json",
+        "compile plan 'hdfs:///loalhost:9000/path/to.json' for insert into t1 select * from t2, hdfs:/loalhost:9000/path/to.json",
+        "compile plan 'file:///loalhost:9000/path/to.json' for insert into t1 select * from t2, file:/loalhost:9000/path/to.json",
+        "compile plan 's3:///loalhost:9000/path/to.json' for insert into t1 select * from t2, s3:/loalhost:9000/path/to.json"
+    })
+    void testSqlCompilePlanPath(String sql, String expected) {
+        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+        Operation operation;
+        operation = parse(sql, planner, parser);
+        assertThat(operation).isInstanceOf(CompilePlanOperation.class);
+        assertThat((CompilePlanOperation) operation)
+                .satisfies(
+                        compile ->
+                                assertThat(compile.getFilePath().toString()).isEqualTo(expected));
     }
 
     // ~ Tool Methods ----------------------------------------------------------

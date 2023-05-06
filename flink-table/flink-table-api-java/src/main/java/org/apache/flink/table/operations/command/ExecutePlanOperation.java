@@ -19,19 +19,20 @@
 package org.apache.flink.table.operations.command;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.operations.Operation;
 
 /** Operation to describe an EXECUTE PLAN statement. */
 @Internal
 public class ExecutePlanOperation implements Operation {
 
-    private final String filePath;
+    private final Path filePath;
 
     public ExecutePlanOperation(String filePath) {
-        this.filePath = filePath;
+        this.filePath = new Path(filePath);
     }
 
-    public String getFilePath() {
+    public Path getFilePath() {
         return filePath;
     }
 

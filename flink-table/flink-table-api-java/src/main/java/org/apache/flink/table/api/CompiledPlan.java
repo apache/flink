@@ -109,6 +109,8 @@ public interface CompiledPlan extends Explainable<CompiledPlan>, Executable {
      */
     void writeToFile(File file, boolean ignoreIfExists);
 
+    void writeToFile(org.apache.flink.core.fs.Path path, boolean ignoreIfExists);
+
     // --- Accessors
 
     /** Returns the Flink version used to compile the plan. */

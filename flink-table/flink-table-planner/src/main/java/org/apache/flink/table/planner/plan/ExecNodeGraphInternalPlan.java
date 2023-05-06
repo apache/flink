@@ -20,6 +20,9 @@ package org.apache.flink.table.planner.plan;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.TableConfigOptions;
@@ -82,6 +85,41 @@ public class ExecNodeGraphInternalPlan implements InternalPlan {
                     StandardOpenOption.WRITE);
         } catch (IOException e) {
             throw new TableException("Cannot write the compiled plan to file '" + file + "'.", e);
+        }
+    }
+
+    @Override
+    public void writeToFile(Path path, boolean ignoreIfExists, boolean failIfExists) {
+        FileSystem fs;
+        boolean exists;
+        try {
+            fs = path.getFileSystem();
+            exists = fs.exists(path);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        if (exists) {
+            if (ignoreIfExists) {
+                return;
+            }
+            if (failIfExists) {
+                throw new TableException(
+                        String.format(
+                                "Cannot overwrite the plan file '%s'. "
+                                        + "Either manually remove the file or, "
+                                        + "if you're debugging your job, "
+                                        + "set the option '%s' to true.",
+                                path, TableConfigOptions.PLAN_FORCE_RECOMPILE.key()));
+            }
+        }
+
+        try {
+            FSDataOutputStream outputStream;
+            outputStream = fs.create(path, FileSystem.WriteMode.OVERWRITE);
+            outputStream.write(serializedPlan.getBytes(StandardCharsets.UTF_8));
+            outputStream.close();
+        } catch (IOException e) {
+            throw new TableException("Cannot write the compiled plan to file '" + path + "'.", e);
         }
     }
 

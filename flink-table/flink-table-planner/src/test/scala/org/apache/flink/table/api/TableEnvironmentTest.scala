@@ -50,6 +50,7 @@ import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
 import org.junit.rules.{ExpectedException, TemporaryFolder}
 
 import java.io.File
+import java.nio.file.Paths
 import java.util.{Collections, UUID}
 
 import scala.annotation.meta.getter
@@ -2153,6 +2154,44 @@ class TableEnvironmentTest {
     testUnsupportedExplain("explain plan without implementation for select * from MyTable")
     testUnsupportedExplain("explain plan as xml for select * from MyTable")
     testUnsupportedExplain("explain plan as json for select * from MyTable")
+  }
+
+  @Test
+  def testCompileAndExecutePlanWithFlinkFilesystem(): Unit = {
+    val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
+    execEnv.setParallelism(1)
+    val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
+    val tableEnv = StreamTableEnvironment.create(execEnv, settings)
+
+    val srcTableDdl =
+      "CREATE TABLE MyTable (\n" + "  a bigint,\n" + "  b int,\n" + "  c varchar\n" + ") with (\n" + "  'connector' = 'values',\n" + "  'bounded' = 'false')"
+    tableEnv.executeSql(srcTableDdl)
+
+    val sinkTableDdl =
+      "CREATE TABLE MySink (\n" + "  a bigint,\n" + "  b int,\n" + "  c varchar\n" + ") with (\n" + "  'connector' = 'values',\n" + "  'table-sink-class' = 'DEFAULT')"
+    tableEnv.executeSql(sinkTableDdl)
+
+    val planPath = Paths.get(
+      tempFolder.newFolder(String.format("test-CompiledPlan-filesystem")).getPath,
+      "test1.json")
+    var path = "file://" + planPath.toString
+
+    var sql = String.format("COMPILE PLAN %s FOR INSERT INTO MySink SELECT * FROM MyTable", path)
+
+    tableEnv.executeSql(sql)
+
+    sql = String.format("EXECUTE PLAN %s", path)
+    tableEnv.executeSql(sql)
+
+    val planPath2 = Paths.get(
+      tempFolder.newFolder(String.format("test-CompiledPlan-filesystem")).getPath,
+      "test2.json")
+    path = "file://" + planPath2.toString
+
+    sql = String.format(
+      "COMPILE and EXECUTE plan %s FOR INSERT INTO MySink SELECT * FROM MyTable",
+      path)
+    tableEnv.executeSql(sql)
   }
 
   private def testUnsupportedExplain(explain: String): Unit = {

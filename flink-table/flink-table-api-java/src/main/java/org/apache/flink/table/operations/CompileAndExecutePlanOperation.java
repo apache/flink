@@ -19,13 +19,14 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.Preconditions;
 
 /** Operation to describe an {@code COMPILE AND EXECUTE PLAN} statement. */
 @Internal
 public class CompileAndExecutePlanOperation implements Operation {
 
-    private final String filePath;
+    private final Path filePath;
     private final Operation operation;
 
     public CompileAndExecutePlanOperation(String filePath, Operation operation) {
@@ -33,11 +34,11 @@ public class CompileAndExecutePlanOperation implements Operation {
                 operation instanceof StatementSetOperation || operation instanceof ModifyOperation,
                 "Child operation of CompileAndExecuteOperation must be either a "
                         + "ModifyOperation or a StatementSetOperation.");
-        this.filePath = filePath;
+        this.filePath = new Path(filePath);
         this.operation = operation;
     }
 
-    public String getFilePath() {
+    public Path getFilePath() {
         return filePath;
     }
 
