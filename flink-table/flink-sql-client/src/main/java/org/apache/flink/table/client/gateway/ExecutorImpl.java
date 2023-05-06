@@ -19,8 +19,6 @@
 package org.apache.flink.table.client.gateway;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.AutoCloseableRegistry;
 import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
@@ -83,6 +81,7 @@ import java.net.URL;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -205,7 +204,7 @@ public class ExecutorImpl implements Executor {
         }
     }
 
-    public ReadableConfig getSessionConfig() {
+    public Map<String, String> getSessionConfig() {
         try {
             GetSessionConfigResponseBody response =
                     getResponse(
@@ -213,7 +212,7 @@ public class ExecutorImpl implements Executor {
                                     GetSessionConfigHeaders.getInstance(),
                                     new SessionMessageParameters(sessionHandle),
                                     EmptyRequestBody.getInstance()));
-            return Configuration.fromMap(response.getProperties());
+            return response.getProperties();
         } catch (Exception e) {
             throw new SqlExecutionException("Failed to get the get session config.", e);
         }

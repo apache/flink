@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.client.cli.parser;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.config.TableConfigOptions;
@@ -57,16 +58,15 @@ public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
 
     @Override
     public AttributedString highlight(LineReader reader, String buffer) {
+        Configuration configuration = Configuration.fromMap(executor.getSessionConfig());
         final SyntaxHighlightStyle.BuiltInStyle style =
                 SyntaxHighlightStyle.BuiltInStyle.fromString(
-                        executor.getSessionConfig()
-                                .get(SqlClientOptions.DISPLAY_DEFAULT_COLOR_SCHEMA));
+                        configuration.get(SqlClientOptions.DISPLAY_DEFAULT_COLOR_SCHEMA));
 
         if (style == SyntaxHighlightStyle.BuiltInStyle.DEFAULT) {
             return super.highlight(reader, buffer);
         }
-        final String dialectName =
-                executor.getSessionConfig().get(TableConfigOptions.TABLE_SQL_DIALECT);
+        final String dialectName = configuration.get(TableConfigOptions.TABLE_SQL_DIALECT);
         final SqlDialect dialect =
                 SqlDialect.HIVE.name().equalsIgnoreCase(dialectName)
                         ? SqlDialect.HIVE

@@ -83,14 +83,6 @@
 
 	<build>
 		<plugins>
-			<plugin>
-				<groupId>io.github.zentol.japicmp</groupId>
-				<artifactId>japicmp-maven-plugin</artifactId>
-				<configuration>
-					<!-- TODO this should be removed after get rid of flink core in issue https://issues.apache.org/jira/browse/FLINK-31687. -->
-					<skip>true</skip>
-				</configuration>
-			</plugin>
 			<!-- Build flink-sql-gateway jar -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -112,7 +104,6 @@
 									<include>org.apache.flink:flink-sql-gateway</include>
 									<include>org.apache.flink:flink-table-common</include>
 									<include>org.apache.flink:flink-annotations</include>
-									<include>org.apache.flink:flink-core</include>
 								</includes>
 							</artifactSet>
 						</configuration>
