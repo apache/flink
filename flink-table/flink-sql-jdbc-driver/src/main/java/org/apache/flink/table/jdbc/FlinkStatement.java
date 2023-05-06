@@ -30,10 +30,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 
-/** Statement for flink jdbc driver. */
+/** Statement for flink jdbc driver. Notice that the statement is not thread safe. */
 @NotThreadSafe
 public class FlinkStatement extends BaseStatement {
-    private final Connection connection;
+    private final FlinkConnection connection;
     private final Executor executor;
     private FlinkResultSet currentResults;
     private boolean closed;
@@ -78,6 +78,7 @@ public class FlinkStatement extends BaseStatement {
         }
 
         cancel();
+        connection.removeStatement(this);
         closed = true;
     }
 
