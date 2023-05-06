@@ -37,7 +37,7 @@ import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.schema.Schemas;
 import org.apache.calcite.schema.Table;
 
-import java.util.HashSet;
+import java.util.Collections;
 import java.util.Set;
 
 import static java.lang.String.format;
@@ -130,7 +130,7 @@ class DatabaseCalciteSchema extends FlinkSchema {
 
     @Override
     public Set<String> getSubSchemaNames() {
-        return new HashSet<>();
+        return Collections.emptySet();
     }
 
     @Override

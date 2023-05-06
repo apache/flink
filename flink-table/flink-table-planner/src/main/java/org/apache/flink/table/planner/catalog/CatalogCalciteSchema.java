@@ -27,7 +27,7 @@ import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.schema.Schemas;
 import org.apache.calcite.schema.Table;
 
-import java.util.HashSet;
+import java.util.Collections;
 import java.util.Set;
 
 /**
@@ -78,7 +78,7 @@ public class CatalogCalciteSchema extends FlinkSchema {
 
     @Override
     public Set<String> getTableNames() {
-        return new HashSet<>();
+        return Collections.emptySet();
     }
 
     @Override
