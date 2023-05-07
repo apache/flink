@@ -65,7 +65,8 @@ class FlinkPlannerImpl(
   val operatorTable: SqlOperatorTable = config.getOperatorTable
   val parser: CalciteParser = new CalciteParser(config.getParserConfig)
   val convertletTable: SqlRexConvertletTable = config.getConvertletTable
-  val sqlToRelConverterConfig: SqlToRelConverter.Config = config.getSqlToRelConverterConfig
+  val sqlToRelConverterConfig: SqlToRelConverter.Config =
+    config.getSqlToRelConverterConfig.withAddJsonTypeOperatorEnabled(false)
 
   var validator: FlinkCalciteSqlValidator = _
 
@@ -75,7 +76,7 @@ class FlinkPlannerImpl(
       catalogReaderSupplier.apply(true), // ignore cases for lenient completion
       typeFactory,
       SqlValidator.Config.DEFAULT
-        .withSqlConformance(config.getParserConfig.conformance()))
+        .withConformance(config.getParserConfig.conformance()))
   }
 
   /**

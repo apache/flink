@@ -45,20 +45,21 @@ under the License.
 			<version>${calcite.version}</version>
 			<exclusions>
 				<!--
-				"mvn dependency:tree" as of Calcite 1.30.0:
-				[INFO] +- org.apache.calcite:calcite-core:jar:1.30.0:compile
-				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.30.0:compile
+				"mvn dependency:tree" as of Calcite 1.31.0:
+				[INFO] +- org.apache.calcite:calcite-core:jar:1.31.0:compile
+				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.31.0:compile
 				[INFO] |  +- com.esri.geometry:esri-geometry-api:jar:2.2.0:compile
 				[INFO] |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.13.4:compile
-				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.20.0:compile
+				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.22.0:compile
+				[INFO] |  +- org.apiguardian:apiguardian-api:jar:1.1.2:compile
 				[INFO] |  +- com.fasterxml.jackson.core:jackson-core:jar:2.13.4:compile
 				[INFO] |  +- com.fasterxml.jackson.core:jackson-databind:jar:2.13.4.2:compile
-				[INFO] |  +- com.jayway.jsonpath:json-path:jar:2.4.0:runtime
-				[INFO] |  |  \- net.minidev:json-smart:jar:2.3:runtime
-				[INFO] |  |     \- net.minidev:accessors-smart:jar:1.2:runtime
-				[INFO] |  |        \- org.ow2.asm:asm:jar:5.0.4:runtime
+				[INFO] |  +- com.jayway.jsonpath:json-path:jar:2.7.0:runtime
+				[INFO] |  |  \- net.minidev:json-smart:jar:2.4.7:runtime
+				[INFO] |  |     \- net.minidev:accessors-smart:jar:2.4.7:runtime
+				[INFO] |  |        \- org.ow2.asm:asm:jar:9.1:runtime
 				[INFO] |  +- commons-codec:commons-codec:jar:1.15:runtime
-				[INFO] |  \- commons-io:commons-io:jar:2.11.0:compile
+				[INFO] |  \- commons-io:commons-io:jar:2.11.0:runtime
 
 
 				Dependencies that are not needed for how we use Calcite right now.
@@ -107,11 +108,6 @@ under the License.
 					<groupId>net.hydromatic</groupId>
 					<artifactId>aggdesigner-algorithm</artifactId>
 				</exclusion>
-				<!-- Excluding org.apiguardian:apiguardian-api v1.1.0 because org.junit.jupiter:junit-jupiter contains newer version v1.1.2 -->
-				<exclusion>
-					<groupId>org.apiguardian</groupId>
-					<artifactId>apiguardian-api</artifactId>
-				</exclusion>
 				<exclusion>
 					<groupId>com.google.errorprone</groupId>
 					<artifactId>error_prone_annotations</artifactId>
@@ -127,6 +123,26 @@ under the License.
 				<exclusion>
 					<groupId>org.jetbrains.kotlin</groupId>
 					<artifactId>kotlin-stdlib-jdk8</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.codehaus.janino</groupId>
+					<artifactId>janino</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.codehaus.janino</groupId>
+					<artifactId>commons-compiler</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.httpcomponents.client5</groupId>
+					<artifactId>httpclient5</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.httpcomponents.core5</groupId>
+					<artifactId>httpcore5</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.checkerframework</groupId>
+					<artifactId>checker-qual</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
