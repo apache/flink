@@ -59,7 +59,7 @@ public class KubernetesLeaderElector {
             Executors.newSingleThreadExecutor(
                     new ExecutorThreadFactory("KubernetesLeaderElector-ExecutorService"));
 
-    private final LeaderElector<NamespacedKubernetesClient> internalLeaderElector;
+    private final LeaderElector internalLeaderElector;
 
     public KubernetesLeaderElector(
             NamespacedKubernetesClient kubernetesClient,
@@ -86,7 +86,8 @@ public class KubernetesLeaderElector {
                                                         newLeader,
                                                         leaderConfig.getConfigMapName())))
                         .build();
-        internalLeaderElector = new LeaderElector<>(kubernetesClient, leaderElectionConfig);
+        internalLeaderElector =
+                new LeaderElector(kubernetesClient, leaderElectionConfig, executorService);
         LOG.info(
                 "Create KubernetesLeaderElector {} with lock identity {}.",
                 leaderConfig.getConfigMapName(),
@@ -99,7 +100,7 @@ public class KubernetesLeaderElector {
                 LOG.debug(
                         "Ignoring KubernetesLeaderElector.run call because the leader elector has already been shut down.");
             } else {
-                executorService.execute(internalLeaderElector::run);
+                internalLeaderElector.run();
             }
         }
     }
