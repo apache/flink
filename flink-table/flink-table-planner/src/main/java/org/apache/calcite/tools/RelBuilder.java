@@ -77,6 +77,7 @@ import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexCallBinding;
 import org.apache.calcite.rex.RexCorrelVariable;
+import org.apache.calcite.rex.RexDynamicParam;
 import org.apache.calcite.rex.RexExecutor;
 import org.apache.calcite.rex.RexFieldCollation;
 import org.apache.calcite.rex.RexInputRef;
@@ -138,6 +139,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
@@ -154,7 +156,7 @@ import static org.apache.calcite.util.Static.RESOURCE;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>Should be removed after fix of FLINK-29804: Lines 2928 ~ 2931
+ *   <li>Should be removed after fix of FLINK-29804: Lines 2945 ~ 2948
  * </ol>
  */
 @Value.Enclosing
@@ -162,7 +164,7 @@ public class RelBuilder {
     protected final RelOptCluster cluster;
     protected final @Nullable RelOptSchema relOptSchema;
     private final Deque<Frame> stack = new ArrayDeque<>();
-    private final RexSimplify simplifier;
+    private RexSimplify simplifier;
     private final Config config;
     private final RelOptTable.ViewExpander viewExpander;
     private RelFactories.Struct struct;
@@ -426,6 +428,25 @@ public class RelBuilder {
         } finally {
             stack.pop();
         }
+    }
+
+    /** Performs an action with a temporary simplifier. */
+    public <E> E withSimplifier(
+            BiFunction<RelBuilder, RexSimplify, RexSimplify> simplifierTransform,
+            Function<RelBuilder, E> fn) {
+        final RexSimplify previousSimplifier = this.simplifier;
+        try {
+            this.simplifier = simplifierTransform.apply(this, previousSimplifier);
+            return fn.apply(this);
+        } finally {
+            this.simplifier = previousSimplifier;
+        }
+    }
+
+    /** Performs an action using predicates of the {@link #peek() current node} to simplify. */
+    public <E> E withPredicates(RelMetadataQuery mq, Function<RelBuilder, E> fn) {
+        final RelOptPredicateList predicates = mq.getPulledUpPredicates(peek());
+        return withSimplifier((r, s) -> s.withPredicates(predicates), fn);
     }
 
     // Methods that return scalar expressions
@@ -2107,12 +2128,8 @@ public class RelBuilder {
 
         // Simplify expressions.
         if (config.simplify()) {
-            final RexShuttle shuttle = RexUtil.searchShuttle(getRexBuilder(), null, 2);
             for (int i = 0; i < nodeList.size(); i++) {
-                final RexNode node0 = nodeList.get(i);
-                final RexNode node1 = simplifier.simplifyPreservingType(node0);
-                final RexNode node2 = node1.accept(shuttle);
-                nodeList.set(i, node2);
+                nodeList.set(i, simplifier.simplifyPreservingType(nodeList.get(i)));
             }
         }
 
@@ -3389,11 +3406,40 @@ public class RelBuilder {
      * @param nodes Sort expressions
      */
     public RelBuilder sortLimit(int offset, int fetch, Iterable<? extends RexNode> nodes) {
+        final @Nullable RexNode offsetNode = offset <= 0 ? null : literal(offset);
+        final @Nullable RexNode fetchNode = fetch < 0 ? null : literal(fetch);
+        return sortLimit(offsetNode, fetchNode, nodes);
+    }
+
+    /**
+     * Creates a {@link Sort} by a list of expressions, with limitNode and offsetNode.
+     *
+     * @param offsetNode RexLiteral means number of rows to skip is deterministic, RexDynamicParam
+     *     means number of rows to skip is dynamic.
+     * @param fetchNode RexLiteral means maximum number of rows to fetch is deterministic,
+     *     RexDynamicParam mean maximum number is dynamic.
+     * @param nodes Sort expressions
+     */
+    public RelBuilder sortLimit(
+            @Nullable RexNode offsetNode,
+            @Nullable RexNode fetchNode,
+            Iterable<? extends RexNode> nodes) {
+        if (offsetNode != null) {
+            if (!(offsetNode instanceof RexLiteral || offsetNode instanceof RexDynamicParam)) {
+                throw new IllegalArgumentException(
+                        "OFFSET node must be RexLiteral or RexDynamicParam");
+            }
+        }
+        if (fetchNode != null) {
+            if (!(fetchNode instanceof RexLiteral || fetchNode instanceof RexDynamicParam)) {
+                throw new IllegalArgumentException(
+                        "FETCH node must be RexLiteral or RexDynamicParam");
+            }
+        }
+
         final Registrar registrar = new Registrar(fields(), ImmutableList.of());
         final List<RelFieldCollation> fieldCollations = registrar.registerFieldCollations(nodes);
-
-        final RexNode offsetNode = offset <= 0 ? null : literal(offset);
-        final RexNode fetchNode = fetch < 0 ? null : literal(fetch);
+        final int fetch = fetchNode instanceof RexLiteral ? RexLiteral.intValue(fetchNode) : -1;
         if (offsetNode == null && fetch == 0 && config.simplifyLimit()) {
             return empty();
         }

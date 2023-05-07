@@ -98,6 +98,7 @@ public abstract class Snapshot extends SingleRel implements Hintable {
 
     public abstract Snapshot copy(RelTraitSet traitSet, RelNode input, RexNode period);
 
+    @Override
     public RelNode accept(RexShuttle shuttle) {
         RexNode condition = shuttle.apply(this.period);
         if (this.period == condition) {
