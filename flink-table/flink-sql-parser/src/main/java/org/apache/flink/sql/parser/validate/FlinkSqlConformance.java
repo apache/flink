@@ -133,6 +133,11 @@ public enum FlinkSqlConformance implements SqlConformance {
     }
 
     @Override
+    public boolean isOffsetLimitAllowed() {
+        return false;
+    }
+
+    @Override
     public boolean allowGeometry() {
         return false;
     }

@@ -1416,12 +1416,14 @@ SqlNode RichSqlInsert() :
     final SqlNodeList keywordList;
     final List<SqlLiteral> extendedKeywords = new ArrayList<SqlLiteral>();
     final SqlNodeList extendedKeywordList;
-    SqlNode table;
-    SqlNodeList extendList = null;
+    final SqlIdentifier tableName;
+    SqlNode tableRef;
+    final SqlNodeList extendList;
     SqlNode source;
     final SqlNodeList partitionList = new SqlNodeList(getPos());
     SqlNodeList columnList = null;
     final Span s;
+    final Pair<SqlNodeList, SqlNodeList> p;
 }
 {
     (
@@ -1445,31 +1447,28 @@ SqlNode RichSqlInsert() :
         keywordList = new SqlNodeList(keywords, s.addAll(keywords).pos());
         extendedKeywordList = new SqlNodeList(extendedKeywords, s.addAll(extendedKeywords).pos());
     }
-    table = TableRefWithHintsOpt()
-    [
-        LOOKAHEAD(5)
-        [ <EXTEND> ]
-        extendList = ExtendList() {
-            table = extend(table, extendList);
-        }
-    ]
+    tableName = CompoundTableIdentifier()
+    ( tableRef = TableHints(tableName) | { tableRef = tableName; } )
+    [ LOOKAHEAD(5) tableRef = ExtendTable(tableRef) ]
     [
         <PARTITION> PartitionSpecCommaList(partitionList)
     ]
-    [
+    (
         LOOKAHEAD(2)
-        { final Pair<SqlNodeList, SqlNodeList> p; }
         p = ParenthesizedCompoundIdentifierList() {
             if (p.right.size() > 0) {
-                table = extend(table, p.right);
+                tableRef = extend(tableRef, p.right);
             }
             if (p.left.size() > 0) {
                 columnList = p.left;
+            } else {
+                columnList = null;
             }
         }
-    ]
+        |   { columnList = null; }
+    )
     source = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY) {
-        return new RichSqlInsert(s.end(source), keywordList, extendedKeywordList, table, source,
+        return new RichSqlInsert(s.end(source), keywordList, extendedKeywordList, tableRef, source,
             columnList, partitionList);
     }
 }
@@ -2443,7 +2442,7 @@ SqlNodeList SimpleIdentifierCommaListWithPosition() :
 }
 {
     { s = span(); }
-    SimpleIdentifierCommaList(list) {
+    AddSimpleIdentifiers(list) {
         return new SqlNodeList(list, s.end(this));
     }
 }
