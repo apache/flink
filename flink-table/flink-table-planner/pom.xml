@@ -118,16 +118,10 @@ under the License.
 				</exclusion>
 			</exclusions>
 		</dependency>
-		<!-- Use newer version v1.1.2 as in Calcite because org.junit.jupiter:junit-jupiter contains it -->
-		<dependency>
-			<artifactId>apiguardian-api</artifactId>
-			<groupId>org.apiguardian</groupId>
-			<version>1.1.2</version>
-		</dependency>
 		<dependency>
 			<groupId>org.checkerframework</groupId>
 			<artifactId>checker-qual</artifactId>
-			<version>3.10.0</version>
+			<version>3.12.0</version>
 			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
