@@ -20,7 +20,7 @@ package org.apache.flink.runtime.util;
 
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava30.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.flink.shaded.guava31.com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import org.junit.Assert;
 import org.junit.Test;

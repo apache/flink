@@ -30,7 +30,7 @@ import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
 
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import org.apache.commons.lang3.StringUtils;
@@ -40,7 +40,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.List;
 
-import static org.apache.flink.shaded.guava30.com.google.common.base.Predicates.not;
+import static org.apache.flink.shaded.guava31.com.google.common.base.Predicates.not;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**

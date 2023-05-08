@@ -28,7 +28,7 @@ import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.ThrowingRunnable;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Streams;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Streams;
 
 import java.io.IOException;
 import java.io.OutputStream;

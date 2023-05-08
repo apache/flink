@@ -39,7 +39,7 @@ import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.concurrent.Executors;
 
-import org.apache.flink.shaded.guava30.com.google.common.net.InetAddresses;
+import org.apache.flink.shaded.guava31.com.google.common.net.InetAddresses;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;

@@ -20,7 +20,7 @@ package org.apache.flink.runtime.state.ttl;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Sets;
 
 import java.util.Arrays;
 import java.util.Collections;

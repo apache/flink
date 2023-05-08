@@ -31,7 +31,7 @@ import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamGroupedReduceOperator;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.EvictingQueue;
+import org.apache.flink.shaded.guava31.com.google.common.collect.EvictingQueue;
 
 import org.junit.Assert;
 

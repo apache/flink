@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.util;
 
-import org.apache.flink.shaded.guava30.com.google.common.base.Ticker;
+import org.apache.flink.shaded.guava31.com.google.common.base.Ticker;
 
 import java.util.concurrent.TimeUnit;
 

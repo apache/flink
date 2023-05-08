@@ -27,10 +27,10 @@ import org.apache.flink.table.functions.python.PythonFunction;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
-import org.apache.flink.shaded.guava30.com.google.common.cache.CacheBuilder;
-import org.apache.flink.shaded.guava30.com.google.common.cache.CacheLoader;
-import org.apache.flink.shaded.guava30.com.google.common.cache.LoadingCache;
-import org.apache.flink.shaded.guava30.com.google.common.cache.RemovalListener;
+import org.apache.flink.shaded.guava31.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava31.com.google.common.cache.CacheLoader;
+import org.apache.flink.shaded.guava31.com.google.common.cache.LoadingCache;
+import org.apache.flink.shaded.guava31.com.google.common.cache.RemovalListener;
 
 import py4j.GatewayServer;
 
