@@ -82,8 +82,6 @@ class PlannerModule {
 
         KNOWN_MODULE_ASSOCIATIONS.put("org.codehaus.janino", "flink-table-runtime");
         KNOWN_MODULE_ASSOCIATIONS.put("org.codehaus.commons", "flink-table-runtime");
-        KNOWN_MODULE_ASSOCIATIONS.put(
-                "org.apache.flink.table.shaded.com.jayway", "flink-table-runtime");
     }
 
     private final ClassLoader submoduleClassLoader;

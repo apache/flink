@@ -388,6 +388,7 @@ under the License.
 							<include>commons-codec:commons-codec</include>
 							<include>commons-io:commons-io</include>
 							<include>org.checkerframework:checker-qual</include>
+							<include>com.jayway.jsonpath:json-path</include>
 
 							<!-- flink-table-planner dependencies -->
 							<include>org.apache.flink:flink-sql-parser</include>
@@ -418,17 +419,16 @@ under the License.
 							<pattern>org.checkerframework</pattern>
 							<shadedPattern>org.apache.flink.calcite.shaded.org.checkerframework</shadedPattern>
 						</relocation>
+						<relocation>
+							<pattern>com.jayway</pattern>
+							<shadedPattern>org.apache.flink.calcite.shaded.com.jayway</shadedPattern>
+						</relocation>
 
 						<!-- These are relocated to match package names, but not included in this jar -->
 						<relocation>
 							<pattern>com.fasterxml</pattern>
 							<!-- From flink-shaded-jackson -->
 							<shadedPattern>org.apache.flink.shaded.jackson2.com.fasterxml</shadedPattern>
-						</relocation>
-						<relocation>
-							<pattern>com.jayway</pattern>
-							<!-- From flink-table-runtime -->
-							<shadedPattern>org.apache.flink.table.shaded.com.jayway</shadedPattern>
 						</relocation>
 
 						<relocation>
