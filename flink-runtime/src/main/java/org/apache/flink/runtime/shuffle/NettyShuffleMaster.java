@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.shuffle.TieredInternalShuffleMaster;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor.LocalExecutionPartitionConnectionInfo;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor.NetworkPartitionConnectionInfo;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor.PartitionConnectionInfo;
@@ -49,6 +50,8 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
 
     private final int networkBufferSize;
 
+    private final TieredInternalShuffleMaster tieredInternalShuffleMaster;
+
     public NettyShuffleMaster(Configuration conf) {
         checkNotNull(conf);
         buffersPerInputChannel =
@@ -64,6 +67,7 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
         sortShuffleMinBuffers =
                 conf.getInteger(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS);
         networkBufferSize = ConfigurationParserUtils.getPageSize(conf);
+        tieredInternalShuffleMaster = new TieredInternalShuffleMaster(conf);
 
         checkArgument(
                 !maxRequiredBuffersPerGate.isPresent() || maxRequiredBuffersPerGate.get() >= 1,
@@ -96,11 +100,20 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
                                 producerDescriptor, partitionDescriptor.getConnectionIndex()),
                         resultPartitionID);
 
+        tieredInternalShuffleMaster.addPartition(jobID, resultPartitionID);
+
         return CompletableFuture.completedFuture(shuffleDeploymentDescriptor);
     }
 
     @Override
-    public void releasePartitionExternally(ShuffleDescriptor shuffleDescriptor) {}
+    public void releasePartitionExternally(ShuffleDescriptor shuffleDescriptor) {
+        tieredInternalShuffleMaster.releasePartition(shuffleDescriptor.getResultPartitionID());
+    }
+
+    @Override
+    public void unregisterJob(JobID jobID) {
+        tieredInternalShuffleMaster.unregisterJob(jobID);
+    }
 
     private static PartitionConnectionInfo createConnectionInfo(
             ProducerDescriptor producerDescriptor, int connectionIndex) {
