@@ -37,11 +37,11 @@ public interface JobVertexStatsTracker<T extends Statistics> {
      *
      * @param jobId job the vertex belongs to
      * @param vertex Vertex to get the stats for.
-     * @return Statistics for a vertex. This interface is intended to be used for polling request
-     *     and for the duration while the statistics are being gathered, the returned Optional can
-     *     be empty.
+     * @return Statistics for a job vertex. This interface is intended to be used for polling
+     *     request and for the duration while the statistics are being gathered, the returned
+     *     Optional can be empty.
      */
-    Optional<T> getVertexStats(JobID jobId, AccessExecutionJobVertex vertex);
+    Optional<T> getJobVertexStats(JobID jobId, AccessExecutionJobVertex vertex);
 
     /**
      * Shuts the {@link JobVertexStatsTracker} down.

@@ -22,7 +22,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.stats.Statistics;
-import org.apache.flink.runtime.webmonitor.threadinfo.JobVertexThreadInfoTracker.Key;
+import org.apache.flink.runtime.webmonitor.threadinfo.JobVertexThreadInfoTracker.JobVertexKey;
 
 import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;
 import org.apache.flink.shaded.guava30.com.google.common.cache.CacheBuilder;
@@ -52,7 +52,7 @@ public class JobVertexThreadInfoTrackerBuilder<T extends Statistics> {
     private Duration statsRefreshInterval;
     private Duration delayBetweenSamples;
     private int maxThreadInfoDepth;
-    private Cache<Key, T> vertexStatsCache;
+    private Cache<JobVertexKey, T> jobVertexStatsCache;
 
     JobVertexThreadInfoTrackerBuilder(
             GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
@@ -137,15 +137,16 @@ public class JobVertexThreadInfoTrackerBuilder<T extends Statistics> {
     }
 
     /**
-     * Sets {@code vertexStatsCache}. This is currently only used for testing.
+     * Sets {@code jobVertexStatsCache}. This is currently only used for testing.
      *
-     * @param vertexStatsCache The Cache instance to use for caching statistics. Will use the
+     * @param jobVertexStatsCache The Cache instance to use for caching statistics. Will use the
      *     default defined in {@link JobVertexThreadInfoTrackerBuilder#defaultCache()} if not set.
      * @return Builder.
      */
     @VisibleForTesting
-    JobVertexThreadInfoTrackerBuilder<T> setVertexStatsCache(Cache<Key, T> vertexStatsCache) {
-        this.vertexStatsCache = vertexStatsCache;
+    JobVertexThreadInfoTrackerBuilder<T> setJobVertexStatsCache(
+            Cache<JobVertexThreadInfoTracker.JobVertexKey, T> jobVertexStatsCache) {
+        this.jobVertexStatsCache = jobVertexStatsCache;
         return this;
     }
 
@@ -155,8 +156,8 @@ public class JobVertexThreadInfoTrackerBuilder<T extends Statistics> {
      * @return a new {@link JobVertexThreadInfoTracker} instance.
      */
     public JobVertexThreadInfoTracker<T> build() {
-        if (vertexStatsCache == null) {
-            vertexStatsCache = defaultCache();
+        if (jobVertexStatsCache == null) {
+            jobVertexStatsCache = defaultCache();
         }
         return new JobVertexThreadInfoTracker<>(
                 coordinator,
@@ -169,10 +170,10 @@ public class JobVertexThreadInfoTrackerBuilder<T extends Statistics> {
                 delayBetweenSamples,
                 maxThreadInfoDepth,
                 restTimeout,
-                vertexStatsCache);
+                jobVertexStatsCache);
     }
 
-    private Cache<Key, T> defaultCache() {
+    private Cache<JobVertexKey, T> defaultCache() {
         checkArgument(cleanUpInterval.toMillis() > 0, "Clean up interval must be greater than 0");
         return CacheBuilder.newBuilder()
                 .concurrencyLevel(1)

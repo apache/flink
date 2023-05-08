@@ -205,7 +205,7 @@ public class JobVertexFlameGraphHandlerTest extends TestLogger {
         }
 
         @Override
-        public Optional<VertexThreadInfoStats> getVertexStats(
+        public Optional<VertexThreadInfoStats> getJobVertexStats(
                 JobID jobId, AccessExecutionJobVertex vertex) {
             return Optional.of(stats);
         }
