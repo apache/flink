@@ -21,18 +21,41 @@ import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
+import javax.annotation.Nullable;
+
+import java.util.List;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Extension which starts/stops an {@link ExecutorService} for testing purposes. */
 public class TestExecutorExtension<T extends ExecutorService>
         implements BeforeAllCallback, AfterAllCallback {
     private final Supplier<T> serviceFactory;
 
-    private T executorService;
+    private Consumer<List<Runnable>> postShutdownAction = list -> {};
+
+    @Nullable private T executorService;
 
     public TestExecutorExtension(Supplier<T> serviceFactory) {
         this.serviceFactory = serviceFactory;
+    }
+
+    /**
+     * Enables an assert that checks during shutdown that the executor's task queue is empty. This
+     * can be used as an additional invariant in tests to assert improper cleanup.
+     */
+    public TestExecutorExtension<T> withOutstandingTasksAssert() {
+        postShutdownAction =
+                list ->
+                        assertThat(list)
+                                .as(
+                                        "No task should be left running at the end of the test execution.")
+                                .isEmpty();
+
+        return this;
     }
 
     @Override
@@ -48,7 +71,8 @@ public class TestExecutorExtension<T extends ExecutorService>
     @Override
     public void afterAll(ExtensionContext context) throws Exception {
         if (executorService != null) {
-            executorService.shutdown();
+            final List<Runnable> outstandingTasks = executorService.shutdownNow();
+            postShutdownAction.accept(outstandingTasks);
         }
     }
 }

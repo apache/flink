@@ -19,18 +19,40 @@ package org.apache.flink.testutils.executor;
 
 import org.junit.rules.ExternalResource;
 
+import javax.annotation.Nullable;
+
+import java.util.List;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Resource which starts/stops an {@link ExecutorService} for testing purposes. */
 public class TestExecutorResource<T extends ExecutorService> extends ExternalResource {
 
     private final Supplier<T> serviceFactory;
 
-    private T executorService;
+    private Consumer<List<Runnable>> postShutdownAction = list -> {};
+    @Nullable private T executorService;
 
     public TestExecutorResource(Supplier<T> serviceFactory) {
         this.serviceFactory = serviceFactory;
+    }
+
+    /**
+     * Enables an assert that checks during shutdown that the executor's task queue is empty. This
+     * can be used as an additional invariant in tests to assert improper cleanup.
+     */
+    public TestExecutorResource<T> withOutstandingTasksAssert() {
+        postShutdownAction =
+                list ->
+                        assertThat(list)
+                                .as(
+                                        "No task should be left running at the end of the test execution.")
+                                .isEmpty();
+
+        return this;
     }
 
     @Override
@@ -46,7 +68,8 @@ public class TestExecutorResource<T extends ExecutorService> extends ExternalRes
     @Override
     protected void after() {
         if (executorService != null) {
-            executorService.shutdown();
+            final List<Runnable> outstandingTasks = executorService.shutdownNow();
+            postShutdownAction.accept(outstandingTasks);
         }
     }
 }
