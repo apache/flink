@@ -85,7 +85,7 @@ public class JobVertexFlameGraphHandler
         }
 
         Optional<VertexThreadInfoStats> threadInfoSample =
-                threadInfoOperatorTracker.getVertexStats(
+                threadInfoOperatorTracker.getJobVertexStats(
                         request.getPathParameter(JobIDPathParameter.class), jobVertex);
 
         if (subtaskIndex != null) {

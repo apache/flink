@@ -84,10 +84,10 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
     private final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
 
     @GuardedBy("lock")
-    private final Cache<Key, T> vertexStatsCache;
+    private final Cache<JobVertexKey, T> jobVertexStatsCache;
 
     @GuardedBy("lock")
-    private final Set<Key> pendingStats = new HashSet<>();
+    private final Set<JobVertexKey> pendingJobVertexStats = new HashSet<>();
 
     private final int numSamples;
 
@@ -116,7 +116,7 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
             Duration delayBetweenSamples,
             int maxStackTraceDepth,
             Time rpcTimeout,
-            Cache<Key, T> vertexStatsCache) {
+            Cache<JobVertexKey, T> jobVertexStatsCache) {
 
         this.coordinator = checkNotNull(coordinator, "Thread info samples coordinator");
         this.resourceManagerGatewayRetriever =
@@ -141,25 +141,25 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
         checkArgument(maxStackTraceDepth > 0, "Max stack trace depth must be greater than 0");
         this.maxThreadInfoDepth = maxStackTraceDepth;
 
-        this.vertexStatsCache = checkNotNull(vertexStatsCache, "Vertex stats cache");
+        this.jobVertexStatsCache = checkNotNull(jobVertexStatsCache, "Job vertex stats cache");
 
         executor.scheduleWithFixedDelay(
-                this::cleanUpVertexStatsCache,
+                this::cleanUpStatsCache,
                 cleanUpInterval.toMillis(),
                 cleanUpInterval.toMillis(),
                 TimeUnit.MILLISECONDS);
     }
 
     @Override
-    public Optional<T> getVertexStats(JobID jobId, AccessExecutionJobVertex vertex) {
+    public Optional<T> getJobVertexStats(JobID jobId, AccessExecutionJobVertex vertex) {
         synchronized (lock) {
-            final Key key = getKey(jobId, vertex);
+            final JobVertexKey jobVertexKey = getKey(jobId, vertex);
 
-            final T stats = vertexStatsCache.getIfPresent(key);
+            final T stats = jobVertexStatsCache.getIfPresent(jobVertexKey);
             if (stats == null
                     || System.currentTimeMillis()
                             >= stats.getEndTime() + statsRefreshInterval.toMillis()) {
-                triggerThreadInfoSampleInternal(key, vertex);
+                triggerThreadInfoSampleInternal(jobVertexKey, vertex);
             }
             return Optional.ofNullable(stats);
         }
@@ -169,19 +169,19 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
      * Triggers a request for a vertex to gather the thread info statistics. If there is a sample in
      * progress for the vertex, the call is ignored.
      *
-     * @param key cache key
+     * @param jobVertexKey cache key
      * @param vertex Vertex to get the stats for.
      */
     private void triggerThreadInfoSampleInternal(
-            final Key key, final AccessExecutionJobVertex vertex) {
+            final JobVertexKey jobVertexKey, final AccessExecutionJobVertex vertex) {
         assert (Thread.holdsLock(lock));
 
         if (shutDown) {
             return;
         }
 
-        if (!pendingStats.contains(key)) {
-            pendingStats.add(key);
+        if (!pendingJobVertexStats.contains(jobVertexKey)) {
+            pendingJobVertexStats.add(jobVertexKey);
 
             if (LOG.isDebugEnabled()) {
                 LOG.debug(
@@ -203,7 +203,8 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
                                             delayBetweenSamples,
                                             maxThreadInfoDepth));
 
-            sample.whenCompleteAsync(new ThreadInfoSampleCompletionCallback(key, vertex), executor);
+            sample.whenCompleteAsync(
+                    new ThreadInfoSampleCompletionCallback(jobVertexKey, vertex), executor);
         }
     }
 
@@ -280,16 +281,16 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
     }
 
     @VisibleForTesting
-    void cleanUpVertexStatsCache() {
-        vertexStatsCache.cleanUp();
+    void cleanUpStatsCache() {
+        jobVertexStatsCache.cleanUp();
     }
 
     @Override
     public void shutDown() {
         synchronized (lock) {
             if (!shutDown) {
-                vertexStatsCache.invalidateAll();
-                pendingStats.clear();
+                jobVertexStatsCache.invalidateAll();
+                pendingJobVertexStats.clear();
 
                 shutDown = true;
             }
@@ -301,15 +302,15 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
         return resultAvailableFuture;
     }
 
-    private static Key getKey(JobID jobId, AccessExecutionJobVertex vertex) {
-        return new Key(jobId, vertex.getJobVertexId());
+    private static JobVertexKey getKey(JobID jobId, AccessExecutionJobVertex vertex) {
+        return new JobVertexKey(jobId, vertex.getJobVertexId());
     }
 
-    static class Key {
+    static class JobVertexKey {
         private final JobID jobId;
         private final JobVertexID jobVertexId;
 
-        private Key(JobID jobId, JobVertexID jobVertexId) {
+        private JobVertexKey(JobID jobId, JobVertexID jobVertexId) {
             this.jobId = jobId;
             this.jobVertexId = jobVertexId;
         }
@@ -322,8 +323,9 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
             if (o == null || getClass() != o.getClass()) {
                 return false;
             }
-            Key key = (Key) o;
-            return Objects.equals(jobId, key.jobId) && Objects.equals(jobVertexId, key.jobVertexId);
+            JobVertexKey jobVertexKey = (JobVertexKey) o;
+            return Objects.equals(jobId, jobVertexKey.jobId)
+                    && Objects.equals(jobVertexId, jobVertexKey.jobVertexId);
         }
 
         @Override
@@ -336,11 +338,12 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
     private class ThreadInfoSampleCompletionCallback
             implements BiConsumer<VertexThreadInfoStats, Throwable> {
 
-        private final Key key;
+        private final JobVertexKey jobVertexKey;
         private final AccessExecutionJobVertex vertex;
 
-        ThreadInfoSampleCompletionCallback(Key key, AccessExecutionJobVertex vertex) {
-            this.key = key;
+        ThreadInfoSampleCompletionCallback(
+                JobVertexKey jobVertexKey, AccessExecutionJobVertex vertex) {
+            this.jobVertexKey = jobVertexKey;
             this.vertex = vertex;
         }
 
@@ -352,7 +355,7 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
                         return;
                     }
                     if (threadInfoStats != null) {
-                        vertexStatsCache.put(key, createStatsFn.apply(threadInfoStats));
+                        jobVertexStatsCache.put(jobVertexKey, createStatsFn.apply(threadInfoStats));
                         resultAvailableFuture.complete(null);
                     } else {
                         LOG.error(
@@ -363,7 +366,7 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
                 } catch (Throwable t) {
                     LOG.error("Error during stats completion.", t);
                 } finally {
-                    pendingStats.remove(key);
+                    pendingJobVertexStats.remove(jobVertexKey);
                 }
             }
         }
