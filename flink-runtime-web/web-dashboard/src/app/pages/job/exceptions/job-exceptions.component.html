@@ -78,7 +78,10 @@
                   </nz-option>
                 </nz-select>
               </td>
-              <td class="clickable" (click)="navigateTo(item.selected.taskManagerId)">
+              <td
+                [class.clickable]="item.selected.taskManagerAlive"
+                (click)="item.selected.taskManagerAlive && navigateTo(item.selected.taskManagerId)"
+              >
                 <a>
                   {{
                     item.selected.location
