@@ -768,6 +768,47 @@ class FutureUtilsTest {
         assertThat(uncaughtExceptionHandler.hasBeenCalled()).isTrue();
     }
 
+    /**
+     * Tests the behavior of {@link FutureUtils#handleUncaughtException(CompletableFuture,
+     * Thread.UncaughtExceptionHandler)} with a custom fallback exception handler to avoid
+     * triggering {@code System.exit}.
+     */
+    @Test
+    void testHandleUncaughtExceptionWithBuggyErrorHandlingCode() {
+        final Exception actualProductionCodeError =
+                new Exception(
+                        "Actual production code error that should be caught by the error handler.");
+
+        final RuntimeException errorHandlingException =
+                new RuntimeException("Expected test error in error handling code.");
+        final Thread.UncaughtExceptionHandler buggyActualExceptionHandler =
+                (thread, ignoredActualException) -> {
+                    throw errorHandlingException;
+                };
+
+        final AtomicReference<Throwable> caughtErrorHandlingException = new AtomicReference<>();
+        final Thread.UncaughtExceptionHandler fallbackExceptionHandler =
+                (thread, errorHandlingEx) -> caughtErrorHandlingException.set(errorHandlingEx);
+
+        FutureUtils.handleUncaughtException(
+                FutureUtils.completedExceptionally(actualProductionCodeError),
+                buggyActualExceptionHandler,
+                fallbackExceptionHandler);
+
+        assertThat(caughtErrorHandlingException)
+                .hasValueSatisfying(
+                        actualError -> {
+                            assertThat(actualError)
+                                    .isInstanceOf(IllegalStateException.class)
+                                    .hasRootCause(errorHandlingException)
+                                    .satisfies(
+                                            cause ->
+                                                    assertThat(cause.getSuppressed())
+                                                            .containsExactly(
+                                                                    actualProductionCodeError));
+                        });
+    }
+
     private static class TestingUncaughtExceptionHandler
             implements Thread.UncaughtExceptionHandler {
 
