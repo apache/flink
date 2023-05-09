@@ -82,6 +82,9 @@ public final class Utils {
     /** Yarn site xml file name populated in YARN container for secure IT run. */
     public static final String YARN_SITE_FILE_NAME = "yarn-site.xml";
 
+    /** Constant representing a wildcard access control list. */
+    private static final String WILDCARD_ACL = "*";
+
     /** The prefixes that Flink adds to the YARN config. */
     private static final String[] FLINK_CONFIG_PREFIXES = {"flink.yarn."};
 
@@ -628,7 +631,9 @@ public final class Utils {
      * Sets the application ACLs for the given ContainerLaunchContext based on the values specified
      * in the given Flink configuration. Only ApplicationAccessType.VIEW_APP and
      * ApplicationAccessType.MODIFY_APP ACLs are set, and only if they are configured in the Flink
-     * configuration.
+     * configuration. If the viewAcls or modifyAcls string contains the WILDCARD_ACL constant, it
+     * will replace the entire string with the WILDCARD_ACL. The resulting map is then set as the
+     * application acls for the given container launch context.
      *
      * @param amContainer the ContainerLaunchContext to set the ACLs for
      * @param flinkConfig the Flink configuration to read the ACL values from
@@ -640,9 +645,15 @@ public final class Utils {
         String viewAcls = flinkConfig.getString(YarnConfigOptions.APPLICATION_VIEW_ACLS, null);
         String modifyAcls = flinkConfig.getString(YarnConfigOptions.APPLICATION_MODIFY_ACLS, null);
         if (viewAcls != null) {
+            if (viewAcls.contains(WILDCARD_ACL)) {
+                viewAcls = WILDCARD_ACL;
+            }
             acls.put(ApplicationAccessType.VIEW_APP, viewAcls);
         }
         if (modifyAcls != null) {
+            if (modifyAcls.contains(WILDCARD_ACL)) {
+                modifyAcls = WILDCARD_ACL;
+            }
             acls.put(ApplicationAccessType.MODIFY_APP, modifyAcls);
         }
         if (!acls.isEmpty()) {
