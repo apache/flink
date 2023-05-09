@@ -89,6 +89,7 @@ under the License.
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-mapreduce-client-core</artifactId>
 			<version>3.1.0</version>
+			<scope>provided</scope>
 			<exclusions>
 				<exclusion>
 					<groupId>log4j</groupId>
