@@ -86,7 +86,7 @@ public class DefaultVertexParallelismAndInputInfosDecider
             int globalMinParallelism,
             MemorySize dataVolumePerTask,
             int globalDefaultSourceParallelism,
-            int defaultParallelism) {
+            int defaultExecutionParallelism) {
 
         checkArgument(globalMinParallelism > 0, "The minimum parallelism must be larger than 0.");
         checkArgument(
@@ -97,14 +97,14 @@ public class DefaultVertexParallelismAndInputInfosDecider
                 "The default source parallelism must be greater than or equal to 0.");
         checkNotNull(dataVolumePerTask);
         checkArgument(
-                defaultParallelism > 0,
+                defaultExecutionParallelism > 0,
                 "The default execution parallelism must be larger than 0.");
 
         this.globalMaxParallelism = globalMaxParallelism;
         this.globalMinParallelism = globalMinParallelism;
         this.dataVolumePerTask = dataVolumePerTask.getBytes();
         this.globalDefaultSourceParallelism = globalDefaultSourceParallelism == 0
-                ? defaultParallelism
+                ? defaultExecutionParallelism
                 : globalDefaultSourceParallelism;
     }
 

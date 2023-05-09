@@ -20,6 +20,7 @@ package org.apache.flink.runtime.scheduler.adaptivebatch;
 
 import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.executiongraph.ExecutionVertexInputInfo;
 import org.apache.flink.runtime.executiongraph.IndexRange;
@@ -55,6 +56,7 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
     private static final int MAX_PARALLELISM = 100;
     private static final int MIN_PARALLELISM = 3;
     private static final int DEFAULT_SOURCE_PARALLELISM = 10;
+    private static final int DEFAULT_EXECUTION_PARALLELISM = 12;
     private static final long DATA_VOLUME_PER_TASK = 1024 * 1024 * 1024L;
 
     @Test
@@ -385,14 +387,16 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
     static DefaultVertexParallelismAndInputInfosDecider createDecider(
             int minParallelism, int maxParallelism, long dataVolumePerTask) {
         return createDecider(
-                minParallelism, maxParallelism, dataVolumePerTask, DEFAULT_SOURCE_PARALLELISM);
+                minParallelism, maxParallelism, dataVolumePerTask, DEFAULT_SOURCE_PARALLELISM,
+                DEFAULT_EXECUTION_PARALLELISM);
     }
 
     static DefaultVertexParallelismAndInputInfosDecider createDecider(
             int minParallelism,
             int maxParallelism,
             long dataVolumePerTask,
-            int defaultSourceParallelism) {
+            int defaultSourceParallelism,
+            int defaultExecutionParallelism) {
         Configuration configuration = new Configuration();
 
         configuration.setInteger(
@@ -403,6 +407,9 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
         configuration.setInteger(
                 BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_DEFAULT_SOURCE_PARALLELISM,
                 defaultSourceParallelism);
+        configuration.setInteger(
+                CoreOptions.DEFAULT_PARALLELISM,
+                defaultExecutionParallelism);
 
         return DefaultVertexParallelismAndInputInfosDecider.from(maxParallelism, configuration);
     }
