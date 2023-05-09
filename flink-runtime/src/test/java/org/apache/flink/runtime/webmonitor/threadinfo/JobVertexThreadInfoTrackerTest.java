@@ -130,7 +130,7 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
     public void testCachedStatsNotUpdatedWithinRefreshInterval() throws Exception {
         final VertexThreadInfoStats unusedThreadInfoStats = createThreadInfoStats(1, TIME_GAP);
 
-        final JobVertexThreadInfoTracker<VertexThreadInfoStats> tracker =
+        final JobVertexThreadInfoTracker tracker =
                 createThreadInfoTracker(
                         STATS_REFRESH_INTERVAL,
                         threadInfoStatsDefaultSample,
@@ -161,7 +161,7 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
         CountDownLatch cacheRefreshed = new CountDownLatch(1);
         Cache<JobVertexThreadInfoTracker.JobVertexKey, VertexThreadInfoStats> jobVertexStatsCache =
                 createCache(CLEAN_UP_INTERVAL, new LatchRemovalListener<>(cacheRefreshed));
-        final JobVertexThreadInfoTracker<VertexThreadInfoStats> tracker =
+        final JobVertexThreadInfoTracker tracker =
                 createThreadInfoTracker(
                         CLEAN_UP_INTERVAL,
                         shortRefreshInterval,
@@ -196,7 +196,7 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
         CountDownLatch cacheExpired = new CountDownLatch(1);
         Cache<JobVertexThreadInfoTracker.JobVertexKey, VertexThreadInfoStats> jobVertexStatsCache =
                 createCache(shortCleanUpInterval, new LatchRemovalListener<>(cacheExpired));
-        final JobVertexThreadInfoTracker<VertexThreadInfoStats> tracker =
+        final JobVertexThreadInfoTracker tracker =
                 createThreadInfoTracker(
                         shortCleanUpInterval,
                         STATS_REFRESH_INTERVAL,
@@ -214,7 +214,7 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
     /** Tests that cached results are NOT removed within the cleanup interval. */
     @Test
     public void testCachedStatsNotCleanedWithinCleanupInterval() throws Exception {
-        final JobVertexThreadInfoTracker<VertexThreadInfoStats> tracker = createThreadInfoTracker();
+        final JobVertexThreadInfoTracker tracker = createThreadInfoTracker();
 
         doInitialRequestAndVerifyResult(tracker);
 
@@ -228,7 +228,7 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
     /** Tests that cached results are not served after the shutdown. */
     @Test
     public void testShutDown() throws Exception {
-        final JobVertexThreadInfoTracker<VertexThreadInfoStats> tracker = createThreadInfoTracker();
+        final JobVertexThreadInfoTracker tracker = createThreadInfoTracker();
         doInitialRequestAndVerifyResult(tracker);
 
         // shutdown directly
@@ -251,8 +251,7 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
                 .build();
     }
 
-    private void doInitialRequestAndVerifyResult(
-            JobVertexThreadInfoTracker<VertexThreadInfoStats> tracker)
+    private void doInitialRequestAndVerifyResult(JobVertexThreadInfoTracker tracker)
             throws InterruptedException, ExecutionException {
         // no stats yet, but the request triggers async collection of stats
         assertThat(tracker.getJobVertexStats(JOB_ID, EXECUTION_JOB_VERTEX)).isNotPresent();
@@ -278,16 +277,16 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
         }
     }
 
-    private JobVertexThreadInfoTracker<VertexThreadInfoStats> createThreadInfoTracker() {
+    private JobVertexThreadInfoTracker createThreadInfoTracker() {
         return createThreadInfoTracker(STATS_REFRESH_INTERVAL, threadInfoStatsDefaultSample);
     }
 
-    private JobVertexThreadInfoTracker<VertexThreadInfoStats> createThreadInfoTracker(
+    private JobVertexThreadInfoTracker createThreadInfoTracker(
             Duration statsRefreshInterval, VertexThreadInfoStats... stats) {
         return createThreadInfoTracker(CLEAN_UP_INTERVAL, statsRefreshInterval, null, stats);
     }
 
-    private JobVertexThreadInfoTracker<VertexThreadInfoStats> createThreadInfoTracker(
+    private JobVertexThreadInfoTracker createThreadInfoTracker(
             Duration cleanUpInterval,
             Duration statsRefreshInterval,
             Cache<JobVertexThreadInfoTracker.JobVertexKey, VertexThreadInfoStats>
@@ -298,7 +297,6 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
 
         return JobVertexThreadInfoTrackerBuilder.newBuilder(
                         JobVertexThreadInfoTrackerTest::createMockResourceManagerGateway,
-                        Function.identity(),
                         executor,
                         TestingUtils.TIMEOUT)
                 .setCoordinator(coordinator)

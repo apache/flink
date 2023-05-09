@@ -21,7 +21,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
-import org.apache.flink.runtime.webmonitor.stats.Statistics;
 import org.apache.flink.runtime.webmonitor.threadinfo.JobVertexThreadInfoTracker.JobVertexKey;
 
 import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;
@@ -30,19 +29,13 @@ import org.apache.flink.shaded.guava30.com.google.common.cache.CacheBuilder;
 import java.time.Duration;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/**
- * Builder for {@link JobVertexThreadInfoTracker}.
- *
- * @param <T> Type of the derived statistics to return.
- */
-public class JobVertexThreadInfoTrackerBuilder<T extends Statistics> {
+/** Builder for {@link JobVertexThreadInfoTracker}. */
+public class JobVertexThreadInfoTrackerBuilder {
 
     private final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
-    private final Function<VertexThreadInfoStats, T> createStatsFn;
     private final ScheduledExecutorService executor;
     private final Time restTimeout;
 
@@ -52,15 +45,13 @@ public class JobVertexThreadInfoTrackerBuilder<T extends Statistics> {
     private Duration statsRefreshInterval;
     private Duration delayBetweenSamples;
     private int maxThreadInfoDepth;
-    private Cache<JobVertexKey, T> jobVertexStatsCache;
+    private Cache<JobVertexKey, VertexThreadInfoStats> jobVertexStatsCache;
 
     JobVertexThreadInfoTrackerBuilder(
             GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
-            Function<VertexThreadInfoStats, T> createStatsFn,
             ScheduledExecutorService executor,
             Time restTimeout) {
         this.resourceManagerGatewayRetriever = resourceManagerGatewayRetriever;
-        this.createStatsFn = createStatsFn;
         this.executor = executor;
         this.restTimeout = restTimeout;
     }
@@ -71,7 +62,7 @@ public class JobVertexThreadInfoTrackerBuilder<T extends Statistics> {
      * @param coordinator Coordinator for thread info stats request.
      * @return Builder.
      */
-    public JobVertexThreadInfoTrackerBuilder<T> setCoordinator(
+    public JobVertexThreadInfoTrackerBuilder setCoordinator(
             ThreadInfoRequestCoordinator coordinator) {
         this.coordinator = coordinator;
         return this;
@@ -83,7 +74,7 @@ public class JobVertexThreadInfoTrackerBuilder<T extends Statistics> {
      * @param cleanUpInterval Clean up interval for completed stats.
      * @return Builder.
      */
-    public JobVertexThreadInfoTrackerBuilder<T> setCleanUpInterval(Duration cleanUpInterval) {
+    public JobVertexThreadInfoTrackerBuilder setCleanUpInterval(Duration cleanUpInterval) {
         this.cleanUpInterval = cleanUpInterval;
         return this;
     }
@@ -94,7 +85,7 @@ public class JobVertexThreadInfoTrackerBuilder<T extends Statistics> {
      * @param numSamples Number of thread info samples to collect for each subtask.
      * @return Builder.
      */
-    public JobVertexThreadInfoTrackerBuilder<T> setNumSamples(int numSamples) {
+    public JobVertexThreadInfoTrackerBuilder setNumSamples(int numSamples) {
         this.numSamples = numSamples;
         return this;
     }
@@ -106,7 +97,7 @@ public class JobVertexThreadInfoTrackerBuilder<T extends Statistics> {
      *     deprecated and need to be refreshed.
      * @return Builder.
      */
-    public JobVertexThreadInfoTrackerBuilder<T> setStatsRefreshInterval(
+    public JobVertexThreadInfoTrackerBuilder setStatsRefreshInterval(
             Duration statsRefreshInterval) {
         this.statsRefreshInterval = statsRefreshInterval;
         return this;
@@ -118,8 +109,7 @@ public class JobVertexThreadInfoTrackerBuilder<T extends Statistics> {
      * @param delayBetweenSamples Delay between individual samples per task.
      * @return Builder.
      */
-    public JobVertexThreadInfoTrackerBuilder<T> setDelayBetweenSamples(
-            Duration delayBetweenSamples) {
+    public JobVertexThreadInfoTrackerBuilder setDelayBetweenSamples(Duration delayBetweenSamples) {
         this.delayBetweenSamples = delayBetweenSamples;
         return this;
     }
@@ -131,7 +121,7 @@ public class JobVertexThreadInfoTrackerBuilder<T extends Statistics> {
      *     threads.
      * @return Builder.
      */
-    public JobVertexThreadInfoTrackerBuilder<T> setMaxThreadInfoDepth(int maxThreadInfoDepth) {
+    public JobVertexThreadInfoTrackerBuilder setMaxThreadInfoDepth(int maxThreadInfoDepth) {
         this.maxThreadInfoDepth = maxThreadInfoDepth;
         return this;
     }
@@ -144,8 +134,9 @@ public class JobVertexThreadInfoTrackerBuilder<T extends Statistics> {
      * @return Builder.
      */
     @VisibleForTesting
-    JobVertexThreadInfoTrackerBuilder<T> setJobVertexStatsCache(
-            Cache<JobVertexThreadInfoTracker.JobVertexKey, T> jobVertexStatsCache) {
+    JobVertexThreadInfoTrackerBuilder setJobVertexStatsCache(
+            Cache<JobVertexThreadInfoTracker.JobVertexKey, VertexThreadInfoStats>
+                    jobVertexStatsCache) {
         this.jobVertexStatsCache = jobVertexStatsCache;
         return this;
     }
@@ -155,14 +146,13 @@ public class JobVertexThreadInfoTrackerBuilder<T extends Statistics> {
      *
      * @return a new {@link JobVertexThreadInfoTracker} instance.
      */
-    public JobVertexThreadInfoTracker<T> build() {
+    public JobVertexThreadInfoTracker build() {
         if (jobVertexStatsCache == null) {
             jobVertexStatsCache = defaultCache();
         }
-        return new JobVertexThreadInfoTracker<>(
+        return new JobVertexThreadInfoTracker(
                 coordinator,
                 resourceManagerGatewayRetriever,
-                createStatsFn,
                 executor,
                 cleanUpInterval,
                 numSamples,
@@ -173,7 +163,7 @@ public class JobVertexThreadInfoTrackerBuilder<T extends Statistics> {
                 jobVertexStatsCache);
     }
 
-    private Cache<JobVertexKey, T> defaultCache() {
+    private Cache<JobVertexKey, VertexThreadInfoStats> defaultCache() {
         checkArgument(cleanUpInterval.toMillis() > 0, "Clean up interval must be greater than 0");
         return CacheBuilder.newBuilder()
                 .concurrencyLevel(1)
@@ -184,15 +174,13 @@ public class JobVertexThreadInfoTrackerBuilder<T extends Statistics> {
     /**
      * Create a new {@link JobVertexThreadInfoTrackerBuilder}.
      *
-     * @param <T> Type of the derived statistics to return.
      * @return Builder.
      */
-    public static <T extends Statistics> JobVertexThreadInfoTrackerBuilder<T> newBuilder(
+    public static JobVertexThreadInfoTrackerBuilder newBuilder(
             GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
-            Function<VertexThreadInfoStats, T> createStatsFn,
             ScheduledExecutorService executor,
             Time restTimeout) {
-        return new JobVertexThreadInfoTrackerBuilder<>(
-                resourceManagerGatewayRetriever, createStatsFn, executor, restTimeout);
+        return new JobVertexThreadInfoTrackerBuilder(
+                resourceManagerGatewayRetriever, executor, restTimeout);
     }
 }

@@ -156,7 +156,6 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.threadinfo.JobVertexThreadInfoTracker;
 import org.apache.flink.runtime.webmonitor.threadinfo.JobVertexThreadInfoTrackerBuilder;
 import org.apache.flink.runtime.webmonitor.threadinfo.ThreadInfoRequestCoordinator;
-import org.apache.flink.runtime.webmonitor.threadinfo.VertexThreadInfoStats;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
@@ -183,7 +182,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 
 /**
  * Rest endpoint which serves the web frontend REST calls.
@@ -247,7 +245,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
         this.fatalErrorHandler = Preconditions.checkNotNull(fatalErrorHandler);
     }
 
-    private JobVertexThreadInfoTracker<VertexThreadInfoStats> initializeThreadInfoTracker(
+    private JobVertexThreadInfoTracker initializeThreadInfoTracker(
             ScheduledExecutorService executor) {
         final Duration akkaTimeout = clusterConfiguration.get(AkkaOptions.ASK_TIMEOUT_DURATION);
 
@@ -257,10 +255,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                 new ThreadInfoRequestCoordinator(executor, akkaTimeout);
 
         return JobVertexThreadInfoTrackerBuilder.newBuilder(
-                        resourceManagerRetriever,
-                        Function.identity(),
-                        executor,
-                        restConfiguration.getTimeout())
+                        resourceManagerRetriever, executor, restConfiguration.getTimeout())
                 .setCoordinator(threadInfoRequestCoordinator)
                 .setCleanUpInterval(flameGraphCleanUpInterval)
                 .setNumSamples(clusterConfiguration.getInteger(RestOptions.FLAMEGRAPH_NUM_SAMPLES))
