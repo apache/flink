@@ -99,7 +99,7 @@ public class BatchExecutionOptions {
     public static final ConfigOption<Integer> ADAPTIVE_AUTO_PARALLELISM_DEFAULT_SOURCE_PARALLELISM =
             key("execution.batch.adaptive.auto-parallelism.default-source-parallelism")
                     .intType()
-                    .defaultValue(1)
+                    .defaultValue(0)
                     .withDeprecatedKeys(
                             "jobmanager.adaptive-batch-scheduler.default-source-parallelism")
                     .withDescription(

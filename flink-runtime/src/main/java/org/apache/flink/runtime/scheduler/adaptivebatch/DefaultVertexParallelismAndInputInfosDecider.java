@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler.adaptivebatch;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.executiongraph.ExecutionVertexInputInfo;
 import org.apache.flink.runtime.executiongraph.IndexRange;
@@ -84,21 +85,27 @@ public class DefaultVertexParallelismAndInputInfosDecider
             int globalMaxParallelism,
             int globalMinParallelism,
             MemorySize dataVolumePerTask,
-            int globalDefaultSourceParallelism) {
+            int globalDefaultSourceParallelism,
+            int defaultParallelism) {
 
         checkArgument(globalMinParallelism > 0, "The minimum parallelism must be larger than 0.");
         checkArgument(
                 globalMaxParallelism >= globalMinParallelism,
                 "Maximum parallelism should be greater than or equal to the minimum parallelism.");
         checkArgument(
-                globalDefaultSourceParallelism > 0,
-                "The default source parallelism must be larger than 0.");
+                globalDefaultSourceParallelism >= 0,
+                "The default source parallelism must be greater than or equal to 0.");
         checkNotNull(dataVolumePerTask);
+        checkArgument(
+                defaultParallelism > 0,
+                "The default execution parallelism must be larger than 0.");
 
         this.globalMaxParallelism = globalMaxParallelism;
         this.globalMinParallelism = globalMinParallelism;
         this.dataVolumePerTask = dataVolumePerTask.getBytes();
-        this.globalDefaultSourceParallelism = globalDefaultSourceParallelism;
+        this.globalDefaultSourceParallelism = globalDefaultSourceParallelism == 0
+                ? defaultParallelism
+                : globalDefaultSourceParallelism;
     }
 
     @Override
@@ -272,7 +279,6 @@ public class DefaultVertexParallelismAndInputInfosDecider
                     jobVertexId);
             parallelism = maxParallelism;
         }
-
         return parallelism;
     }
 
@@ -547,6 +553,7 @@ public class DefaultVertexParallelismAndInputInfosDecider
                         BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_AVG_DATA_VOLUME_PER_TASK),
                 configuration.get(
                         BatchExecutionOptions
-                                .ADAPTIVE_AUTO_PARALLELISM_DEFAULT_SOURCE_PARALLELISM));
+                                .ADAPTIVE_AUTO_PARALLELISM_DEFAULT_SOURCE_PARALLELISM),
+                configuration.get(CoreOptions.DEFAULT_PARALLELISM));
     }
 }
