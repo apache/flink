@@ -33,7 +33,6 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.stats.JobVertexStatsTracker;
-import org.apache.flink.runtime.webmonitor.stats.Statistics;
 
 import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableSet;
@@ -56,18 +55,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Tracker of thread infos for {@link ExecutionJobVertex}.
- *
- * @param <T> Type of the derived statistics to return.
- */
-public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVertexStatsTracker<T> {
+/** Tracker of thread infos for {@link ExecutionJobVertex}. */
+public class JobVertexThreadInfoTracker implements JobVertexStatsTracker<VertexThreadInfoStats> {
 
     private static final Logger LOG = LoggerFactory.getLogger(JobVertexThreadInfoTracker.class);
 
@@ -77,14 +71,12 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
     @GuardedBy("lock")
     private final ThreadInfoRequestCoordinator coordinator;
 
-    private final Function<VertexThreadInfoStats, T> createStatsFn;
-
     private final ExecutorService executor;
 
     private final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
 
     @GuardedBy("lock")
-    private final Cache<JobVertexKey, T> jobVertexStatsCache;
+    private final Cache<JobVertexKey, VertexThreadInfoStats> jobVertexStatsCache;
 
     @GuardedBy("lock")
     private final Set<JobVertexKey> pendingJobVertexStats = new HashSet<>();
@@ -108,7 +100,6 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
     JobVertexThreadInfoTracker(
             ThreadInfoRequestCoordinator coordinator,
             GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
-            Function<VertexThreadInfoStats, T> createStatsFn,
             ScheduledExecutorService executor,
             Duration cleanUpInterval,
             int numSamples,
@@ -116,12 +107,11 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
             Duration delayBetweenSamples,
             int maxStackTraceDepth,
             Time rpcTimeout,
-            Cache<JobVertexKey, T> jobVertexStatsCache) {
+            Cache<JobVertexKey, VertexThreadInfoStats> jobVertexStatsCache) {
 
         this.coordinator = checkNotNull(coordinator, "Thread info samples coordinator");
         this.resourceManagerGatewayRetriever =
                 checkNotNull(resourceManagerGatewayRetriever, "Gateway retriever");
-        this.createStatsFn = checkNotNull(createStatsFn, "Create stats function");
         this.executor = checkNotNull(executor, "Scheduled executor");
         this.statsRefreshInterval =
                 checkNotNull(statsRefreshInterval, "Statistics refresh interval");
@@ -151,11 +141,12 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
     }
 
     @Override
-    public Optional<T> getJobVertexStats(JobID jobId, AccessExecutionJobVertex vertex) {
+    public Optional<VertexThreadInfoStats> getJobVertexStats(
+            JobID jobId, AccessExecutionJobVertex vertex) {
         synchronized (lock) {
             final JobVertexKey jobVertexKey = getKey(jobId, vertex);
 
-            final T stats = jobVertexStatsCache.getIfPresent(jobVertexKey);
+            final VertexThreadInfoStats stats = jobVertexStatsCache.getIfPresent(jobVertexKey);
             if (stats == null
                     || System.currentTimeMillis()
                             >= stats.getEndTime() + statsRefreshInterval.toMillis()) {
@@ -355,7 +346,7 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
                         return;
                     }
                     if (threadInfoStats != null) {
-                        jobVertexStatsCache.put(jobVertexKey, createStatsFn.apply(threadInfoStats));
+                        jobVertexStatsCache.put(jobVertexKey, threadInfoStats);
                         resultAvailableFuture.complete(null);
                     } else {
                         LOG.error(
