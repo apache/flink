@@ -21,7 +21,8 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
-import org.apache.flink.runtime.webmonitor.threadinfo.JobVertexThreadInfoTracker.JobVertexKey;
+import org.apache.flink.runtime.webmonitor.threadinfo.VertexThreadInfoTracker.ExecutionVertexKey;
+import org.apache.flink.runtime.webmonitor.threadinfo.VertexThreadInfoTracker.JobVertexKey;
 
 import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;
 import org.apache.flink.shaded.guava30.com.google.common.cache.CacheBuilder;
@@ -32,8 +33,8 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/** Builder for {@link JobVertexThreadInfoTracker}. */
-public class JobVertexThreadInfoTrackerBuilder {
+/** Builder for {@link VertexThreadInfoTracker}. */
+public class VertexThreadInfoTrackerBuilder {
 
     private final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
     private final ScheduledExecutorService executor;
@@ -46,8 +47,9 @@ public class JobVertexThreadInfoTrackerBuilder {
     private Duration delayBetweenSamples;
     private int maxThreadInfoDepth;
     private Cache<JobVertexKey, VertexThreadInfoStats> jobVertexStatsCache;
+    private Cache<ExecutionVertexKey, VertexThreadInfoStats> executionVertexStatsCache;
 
-    JobVertexThreadInfoTrackerBuilder(
+    VertexThreadInfoTrackerBuilder(
             GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
             ScheduledExecutorService executor,
             Time restTimeout) {
@@ -62,8 +64,7 @@ public class JobVertexThreadInfoTrackerBuilder {
      * @param coordinator Coordinator for thread info stats request.
      * @return Builder.
      */
-    public JobVertexThreadInfoTrackerBuilder setCoordinator(
-            ThreadInfoRequestCoordinator coordinator) {
+    public VertexThreadInfoTrackerBuilder setCoordinator(ThreadInfoRequestCoordinator coordinator) {
         this.coordinator = coordinator;
         return this;
     }
@@ -74,7 +75,7 @@ public class JobVertexThreadInfoTrackerBuilder {
      * @param cleanUpInterval Clean up interval for completed stats.
      * @return Builder.
      */
-    public JobVertexThreadInfoTrackerBuilder setCleanUpInterval(Duration cleanUpInterval) {
+    public VertexThreadInfoTrackerBuilder setCleanUpInterval(Duration cleanUpInterval) {
         this.cleanUpInterval = cleanUpInterval;
         return this;
     }
@@ -85,7 +86,7 @@ public class JobVertexThreadInfoTrackerBuilder {
      * @param numSamples Number of thread info samples to collect for each subtask.
      * @return Builder.
      */
-    public JobVertexThreadInfoTrackerBuilder setNumSamples(int numSamples) {
+    public VertexThreadInfoTrackerBuilder setNumSamples(int numSamples) {
         this.numSamples = numSamples;
         return this;
     }
@@ -97,8 +98,7 @@ public class JobVertexThreadInfoTrackerBuilder {
      *     deprecated and need to be refreshed.
      * @return Builder.
      */
-    public JobVertexThreadInfoTrackerBuilder setStatsRefreshInterval(
-            Duration statsRefreshInterval) {
+    public VertexThreadInfoTrackerBuilder setStatsRefreshInterval(Duration statsRefreshInterval) {
         this.statsRefreshInterval = statsRefreshInterval;
         return this;
     }
@@ -109,7 +109,7 @@ public class JobVertexThreadInfoTrackerBuilder {
      * @param delayBetweenSamples Delay between individual samples per task.
      * @return Builder.
      */
-    public JobVertexThreadInfoTrackerBuilder setDelayBetweenSamples(Duration delayBetweenSamples) {
+    public VertexThreadInfoTrackerBuilder setDelayBetweenSamples(Duration delayBetweenSamples) {
         this.delayBetweenSamples = delayBetweenSamples;
         return this;
     }
@@ -121,7 +121,7 @@ public class JobVertexThreadInfoTrackerBuilder {
      *     threads.
      * @return Builder.
      */
-    public JobVertexThreadInfoTrackerBuilder setMaxThreadInfoDepth(int maxThreadInfoDepth) {
+    public VertexThreadInfoTrackerBuilder setMaxThreadInfoDepth(int maxThreadInfoDepth) {
         this.maxThreadInfoDepth = maxThreadInfoDepth;
         return this;
     }
@@ -130,27 +130,45 @@ public class JobVertexThreadInfoTrackerBuilder {
      * Sets {@code jobVertexStatsCache}. This is currently only used for testing.
      *
      * @param jobVertexStatsCache The Cache instance to use for caching statistics. Will use the
-     *     default defined in {@link JobVertexThreadInfoTrackerBuilder#defaultCache()} if not set.
+     *     default defined in {@link VertexThreadInfoTrackerBuilder#defaultCache()} if not set.
      * @return Builder.
      */
     @VisibleForTesting
-    JobVertexThreadInfoTrackerBuilder setJobVertexStatsCache(
-            Cache<JobVertexThreadInfoTracker.JobVertexKey, VertexThreadInfoStats>
+    VertexThreadInfoTrackerBuilder setJobVertexStatsCache(
+            Cache<VertexThreadInfoTracker.JobVertexKey, VertexThreadInfoStats>
                     jobVertexStatsCache) {
         this.jobVertexStatsCache = jobVertexStatsCache;
         return this;
     }
 
     /**
-     * Constructs a new {@link JobVertexThreadInfoTracker}.
+     * Sets {@code executionVertexStatsCache}. This is currently only used for testing.
      *
-     * @return a new {@link JobVertexThreadInfoTracker} instance.
+     * @param executionVertexStatsCache The Cache instance to use for caching statistics. Will use
+     *     the default defined in {@link VertexThreadInfoTrackerBuilder#defaultCache()} if not set.
+     * @return Builder.
      */
-    public JobVertexThreadInfoTracker build() {
+    @VisibleForTesting
+    VertexThreadInfoTrackerBuilder setExecutionVertexStatsCache(
+            Cache<VertexThreadInfoTracker.ExecutionVertexKey, VertexThreadInfoStats>
+                    executionVertexStatsCache) {
+        this.executionVertexStatsCache = executionVertexStatsCache;
+        return this;
+    }
+
+    /**
+     * Constructs a new {@link VertexThreadInfoTracker}.
+     *
+     * @return a new {@link VertexThreadInfoTracker} instance.
+     */
+    public VertexThreadInfoTracker build() {
         if (jobVertexStatsCache == null) {
             jobVertexStatsCache = defaultCache();
         }
-        return new JobVertexThreadInfoTracker(
+        if (executionVertexStatsCache == null) {
+            executionVertexStatsCache = defaultCache();
+        }
+        return new VertexThreadInfoTracker(
                 coordinator,
                 resourceManagerGatewayRetriever,
                 executor,
@@ -160,10 +178,11 @@ public class JobVertexThreadInfoTrackerBuilder {
                 delayBetweenSamples,
                 maxThreadInfoDepth,
                 restTimeout,
-                jobVertexStatsCache);
+                jobVertexStatsCache,
+                executionVertexStatsCache);
     }
 
-    private Cache<JobVertexKey, VertexThreadInfoStats> defaultCache() {
+    private <K> Cache<K, VertexThreadInfoStats> defaultCache() {
         checkArgument(cleanUpInterval.toMillis() > 0, "Clean up interval must be greater than 0");
         return CacheBuilder.newBuilder()
                 .concurrencyLevel(1)
@@ -172,15 +191,15 @@ public class JobVertexThreadInfoTrackerBuilder {
     }
 
     /**
-     * Create a new {@link JobVertexThreadInfoTrackerBuilder}.
+     * Create a new {@link VertexThreadInfoTrackerBuilder}.
      *
      * @return Builder.
      */
-    public static JobVertexThreadInfoTrackerBuilder newBuilder(
+    public static VertexThreadInfoTrackerBuilder newBuilder(
             GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
             ScheduledExecutorService executor,
             Time restTimeout) {
-        return new JobVertexThreadInfoTrackerBuilder(
+        return new VertexThreadInfoTrackerBuilder(
                 resourceManagerGatewayRetriever, executor, restTimeout);
     }
 }
