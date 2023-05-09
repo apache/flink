@@ -230,7 +230,7 @@ class PartitionedFileWriteReadTest {
     }
 
     @Test
-    public void testNotWriteDataOfTheSameSubpartitionTogether() throws Exception {
+    void testNotWriteDataOfTheSameSubpartitionTogether() throws Exception {
         PartitionedFileWriter partitionedFileWriter = createPartitionedFileWriter(2);
         try {
             MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(1024);
@@ -257,7 +257,7 @@ class PartitionedFileWriteReadTest {
     }
 
     @Test
-    public void testWriteFinishedPartitionedFile() throws Exception {
+    void testWriteFinishedPartitionedFile() throws Exception {
         PartitionedFileWriter partitionedFileWriter = createAndFinishPartitionedFileWriter();
 
         MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(1024);
@@ -269,14 +269,14 @@ class PartitionedFileWriteReadTest {
     }
 
     @Test
-    public void testFinishPartitionedFileWriterTwice() throws Exception {
+    void testFinishPartitionedFileWriterTwice() throws Exception {
         PartitionedFileWriter partitionedFileWriter = createAndFinishPartitionedFileWriter();
         assertThatThrownBy(() -> partitionedFileWriter.finish())
                 .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
-    public void testReadEmptyPartitionedFile() throws Exception {
+    void testReadEmptyPartitionedFile() throws Exception {
         int bufferSize = 1024;
         int numSubpartitions = 2;
         int targetSubpartition = 1;
