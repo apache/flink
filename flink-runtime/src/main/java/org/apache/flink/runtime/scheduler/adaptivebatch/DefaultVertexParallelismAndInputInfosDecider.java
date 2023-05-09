@@ -103,9 +103,10 @@ public class DefaultVertexParallelismAndInputInfosDecider
         this.globalMaxParallelism = globalMaxParallelism;
         this.globalMinParallelism = globalMinParallelism;
         this.dataVolumePerTask = dataVolumePerTask.getBytes();
-        this.globalDefaultSourceParallelism = globalDefaultSourceParallelism == 0
-                ? defaultExecutionParallelism
-                : globalDefaultSourceParallelism;
+        this.globalDefaultSourceParallelism =
+                globalDefaultSourceParallelism == 0
+                        ? defaultExecutionParallelism
+                        : globalDefaultSourceParallelism;
     }
 
     @Override
@@ -552,8 +553,7 @@ public class DefaultVertexParallelismAndInputInfosDecider
                 configuration.get(
                         BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_AVG_DATA_VOLUME_PER_TASK),
                 configuration.get(
-                        BatchExecutionOptions
-                                .ADAPTIVE_AUTO_PARALLELISM_DEFAULT_SOURCE_PARALLELISM),
+                        BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_DEFAULT_SOURCE_PARALLELISM),
                 configuration.get(CoreOptions.DEFAULT_PARALLELISM));
     }
 }

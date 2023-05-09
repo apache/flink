@@ -387,7 +387,10 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
     static DefaultVertexParallelismAndInputInfosDecider createDecider(
             int minParallelism, int maxParallelism, long dataVolumePerTask) {
         return createDecider(
-                minParallelism, maxParallelism, dataVolumePerTask, DEFAULT_SOURCE_PARALLELISM,
+                minParallelism,
+                maxParallelism,
+                dataVolumePerTask,
+                DEFAULT_SOURCE_PARALLELISM,
                 DEFAULT_EXECUTION_PARALLELISM);
     }
 
@@ -407,9 +410,7 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
         configuration.setInteger(
                 BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_DEFAULT_SOURCE_PARALLELISM,
                 defaultSourceParallelism);
-        configuration.setInteger(
-                CoreOptions.DEFAULT_PARALLELISM,
-                defaultExecutionParallelism);
+        configuration.setInteger(CoreOptions.DEFAULT_PARALLELISM, defaultExecutionParallelism);
 
         return DefaultVertexParallelismAndInputInfosDecider.from(maxParallelism, configuration);
     }
