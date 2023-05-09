@@ -581,38 +581,26 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     @Override
     public CompletableFuture<Acknowledge> disconnectTaskManager(
             final ResourceID resourceID, final Exception cause) {
-        final Context ctx =
-                DefaultFailureEnricherContext.forTaskManagerFailure(
-                        jobGraph.getJobID(),
-                        jobGraph.getName(),
-                        jobManagerJobMetricGroup,
-                        ioExecutor,
-                        userCodeLoader);
-        return FailureEnricherUtils.labelFailure(cause, ctx, failureEnrichers)
-                .thenApplyAsync(
-                        failureLabels -> {
-                            log.info(
-                                    "Disconnect TaskExecutor {} because: {}",
-                                    resourceID.getStringWithMetadata(),
-                                    cause.getMessage(),
-                                    ExceptionUtils.returnExceptionIfUnexpected(cause.getCause()));
-                            ExceptionUtils.logExceptionIfExcepted(cause.getCause(), log);
-                            taskManagerHeartbeatManager.unmonitorTarget(resourceID);
-                            slotPoolService.releaseTaskManager(
-                                    resourceID, ErrorInfo.of(cause).withLabels(failureLabels));
-                            partitionTracker.stopTrackingPartitionsFor(resourceID);
+        log.info(
+                "Disconnect TaskExecutor {} because: {}",
+                resourceID.getStringWithMetadata(),
+                cause.getMessage(),
+                ExceptionUtils.returnExceptionIfUnexpected(cause.getCause()));
+        ExceptionUtils.logExceptionIfExcepted(cause.getCause(), log);
 
-                            TaskManagerRegistration taskManagerRegistration =
-                                    registeredTaskManagers.remove(resourceID);
+        taskManagerHeartbeatManager.unmonitorTarget(resourceID);
+        slotPoolService.releaseTaskManager(resourceID, ErrorInfo.of(cause));
+        partitionTracker.stopTrackingPartitionsFor(resourceID);
 
-                            if (taskManagerRegistration != null) {
-                                taskManagerRegistration
-                                        .getTaskExecutorGateway()
-                                        .disconnectJobManager(jobGraph.getJobID(), cause);
-                            }
-                            return Acknowledge.get();
-                        },
-                        getMainThreadExecutor());
+        TaskManagerRegistration taskManagerRegistration = registeredTaskManagers.remove(resourceID);
+
+        if (taskManagerRegistration != null) {
+            taskManagerRegistration
+                    .getTaskExecutorGateway()
+                    .disconnectJobManager(jobGraph.getJobID(), cause);
+        }
+
+        return CompletableFuture.completedFuture(Acknowledge.get());
     }
 
     // TODO: This method needs a leader session ID

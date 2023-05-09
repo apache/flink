@@ -108,6 +108,10 @@ class SharedSlot implements SlotOwner, PhysicalSlot.Payload {
     @Override
     public void returnLogicalSlot(LogicalSlot logicalSlot) {
         LOG.debug("Returning logical slot to shared slot ({})", physicalSlotRequestId);
+        if (state == State.RELEASED) {
+            LOG.debug("Ignoring return of logical slot because shared slot has already been released");
+            return;
+        }
         Preconditions.checkState(
                 state != State.RELEASED, "The shared slot has already been released.");
 
@@ -145,7 +149,7 @@ class SharedSlot implements SlotOwner, PhysicalSlot.Payload {
             allocatedLogicalSlot.releaseSlot(cause);
         }
         allocatedLogicalSlots.clear();
-
+//
         state = State.RELEASED;
     }
 
