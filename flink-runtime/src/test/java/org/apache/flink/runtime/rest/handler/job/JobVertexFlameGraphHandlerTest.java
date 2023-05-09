@@ -40,7 +40,7 @@ import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexFlameGraphParameters;
 import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
 import org.apache.flink.runtime.rest.messages.SubtaskIndexQueryParameter;
-import org.apache.flink.runtime.webmonitor.stats.JobVertexStatsTracker;
+import org.apache.flink.runtime.webmonitor.stats.VertexStatsTracker;
 import org.apache.flink.runtime.webmonitor.threadinfo.VertexFlameGraph;
 import org.apache.flink.runtime.webmonitor.threadinfo.VertexThreadInfoStats;
 import org.apache.flink.util.FlinkException;
@@ -192,11 +192,9 @@ public class JobVertexFlameGraphHandlerTest extends TestLogger {
                 new ExecutionHistory(0));
     }
 
-    /**
-     * A {@link JobVertexStatsTracker} which returns the pre-generated thread info stats directly.
-     */
+    /** A {@link VertexStatsTracker} which returns the pre-generated thread info stats directly. */
     private static class TestThreadInfoTracker
-            implements JobVertexStatsTracker<VertexThreadInfoStats> {
+            implements VertexStatsTracker<VertexThreadInfoStats> {
 
         private final VertexThreadInfoStats stats;
 
@@ -207,6 +205,12 @@ public class JobVertexFlameGraphHandlerTest extends TestLogger {
         @Override
         public Optional<VertexThreadInfoStats> getJobVertexStats(
                 JobID jobId, AccessExecutionJobVertex vertex) {
+            return Optional.of(stats);
+        }
+
+        @Override
+        public Optional<VertexThreadInfoStats> getExecutionVertexStats(
+                JobID jobId, AccessExecutionJobVertex vertex, int subtaskIndex) {
             return Optional.of(stats);
         }
 
