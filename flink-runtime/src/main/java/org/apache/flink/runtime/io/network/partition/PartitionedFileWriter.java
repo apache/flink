@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.IOUtils;
@@ -104,6 +105,13 @@ public class PartitionedFileWriter implements AutoCloseable {
 
     public PartitionedFileWriter(int numSubpartitions, int maxIndexBufferSize, String basePath)
             throws IOException {
+        this(numSubpartitions, MIN_INDEX_BUFFER_SIZE, maxIndexBufferSize, basePath);
+    }
+
+    @VisibleForTesting
+    PartitionedFileWriter(
+            int numSubpartitions, int minIndexBufferSize, int maxIndexBufferSize, String basePath)
+            throws IOException {
         checkArgument(numSubpartitions > 0, "Illegal number of subpartitions.");
         checkArgument(maxIndexBufferSize > 0, "Illegal maximum index cache size.");
         checkArgument(basePath != null, "Base path must not be null.");
@@ -115,7 +123,7 @@ public class PartitionedFileWriter implements AutoCloseable {
         this.dataFilePath = new File(basePath + PartitionedFile.DATA_FILE_SUFFIX).toPath();
         this.indexFilePath = new File(basePath + PartitionedFile.INDEX_FILE_SUFFIX).toPath();
 
-        this.indexBuffer = ByteBuffer.allocate(MIN_INDEX_BUFFER_SIZE);
+        this.indexBuffer = ByteBuffer.allocate(minIndexBufferSize);
         BufferReaderWriterUtil.configureByteBuffer(indexBuffer);
 
         this.dataFileChannel = openFileChannel(dataFilePath);
