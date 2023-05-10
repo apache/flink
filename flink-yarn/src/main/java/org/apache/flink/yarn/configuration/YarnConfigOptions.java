@@ -237,6 +237,7 @@ public class YarnConfigOptions {
      */
     public static final ConfigOption<String> APPLICATION_VIEW_ACLS =
             key("yarn.view.acls")
+                    .stringType()
                     .defaultValue("")
                     .withDescription(
                             "Users and groups to give VIEW access. The ACLs are of for"
@@ -245,6 +246,7 @@ public class YarnConfigOptions {
     /** Users and groups to give MODIFY access. */
     public static final ConfigOption<String> APPLICATION_MODIFY_ACLS =
             key("yarn.modify.acls")
+                    .stringType()
                     .defaultValue("")
                     .withDescription(
                             "Users and groups to give MODIFY access. The ACLs are of for"
