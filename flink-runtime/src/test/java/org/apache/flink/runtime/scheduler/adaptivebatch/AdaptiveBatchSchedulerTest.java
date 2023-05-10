@@ -321,7 +321,7 @@ class AdaptiveBatchSchedulerTest {
         SchedulerBase scheduler =
                 createScheduler(
                         new JobGraph(new JobID(), "test job", source),
-                        createDecider(1, 128, 1L, 32, 12),
+                        createDecider(1, 128, 1L, 32),
                         128);
 
         scheduler.startScheduling();

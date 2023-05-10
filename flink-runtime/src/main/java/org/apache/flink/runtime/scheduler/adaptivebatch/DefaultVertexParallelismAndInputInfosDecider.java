@@ -85,8 +85,7 @@ public class DefaultVertexParallelismAndInputInfosDecider
             int globalMaxParallelism,
             int globalMinParallelism,
             MemorySize dataVolumePerTask,
-            int globalDefaultSourceParallelism,
-            int defaultExecutionParallelism) {
+            int globalDefaultSourceParallelism) {
 
         checkArgument(globalMinParallelism > 0, "The minimum parallelism must be larger than 0.");
         checkArgument(
@@ -94,19 +93,13 @@ public class DefaultVertexParallelismAndInputInfosDecider
                 "Maximum parallelism should be greater than or equal to the minimum parallelism.");
         checkArgument(
                 globalDefaultSourceParallelism >= 0,
-                "The default source parallelism must be greater than or equal to 0.");
+                "The default source parallelism must be larger than 0.");
         checkNotNull(dataVolumePerTask);
-        checkArgument(
-                defaultExecutionParallelism > 0,
-                "The default execution parallelism must be larger than 0.");
 
         this.globalMaxParallelism = globalMaxParallelism;
         this.globalMinParallelism = globalMinParallelism;
         this.dataVolumePerTask = dataVolumePerTask.getBytes();
-        this.globalDefaultSourceParallelism =
-                globalDefaultSourceParallelism == 0
-                        ? defaultExecutionParallelism
-                        : globalDefaultSourceParallelism;
+        this.globalDefaultSourceParallelism = globalDefaultSourceParallelism;
     }
 
     @Override
@@ -546,14 +539,15 @@ public class DefaultVertexParallelismAndInputInfosDecider
 
     static DefaultVertexParallelismAndInputInfosDecider from(
             int maxParallelism, Configuration configuration) {
+
+        Optional<Integer> defaultSourceParallelism = configuration.getOptional(
+                BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_DEFAULT_SOURCE_PARALLELISM);
         return new DefaultVertexParallelismAndInputInfosDecider(
                 maxParallelism,
                 configuration.getInteger(
                         BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MIN_PARALLELISM),
                 configuration.get(
                         BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_AVG_DATA_VOLUME_PER_TASK),
-                configuration.get(
-                        BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_DEFAULT_SOURCE_PARALLELISM),
-                configuration.get(CoreOptions.DEFAULT_PARALLELISM));
+                defaultSourceParallelism.orElse(ExecutionConfig.PARALLELISM_DEFAULT));
     }
 }
