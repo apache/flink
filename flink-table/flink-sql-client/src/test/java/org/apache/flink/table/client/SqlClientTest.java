@@ -162,12 +162,10 @@ class SqlClientTest {
                 new String[] {
                     "gateway",
                     "-e",
-                    new URL(
-                                    "http",
-                                    SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetAddress(),
-                                    SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetPort(),
-                                    "")
-                            .toString()
+                    String.format(
+                            "http://%s:%d",
+                            SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetAddress(),
+                            SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetPort())
                 };
         String actual = runSqlClient(args, String.join("\n", "SET;", "QUIT;"), false);
         assertThat(actual).contains("execution.target", "yarn-session");
