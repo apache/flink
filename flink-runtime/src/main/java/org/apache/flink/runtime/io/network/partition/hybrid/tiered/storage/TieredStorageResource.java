@@ -16,19 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier;
+package org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage;
 
-import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageResourceRegistry;
+/** The resource (e.g., local files, remote storage files, etc.) for the Tiered Storage. */
+public interface TieredStorageResource {
 
-/** A factory that creates all the components of a tier. */
-public interface TierFactory {
-
-    /** Creates the master-side agent of a Tier. */
-    TierMasterAgent createMasterAgent(TieredStorageResourceRegistry tieredStorageResourceRegistry);
-
-    /** Creates the producer-side agent of a Tier. */
-    TierProducerAgent createProducerAgent();
-
-    /** Creates the consumer-side agent of a Tier. */
-    TierConsumerAgent createConsumerAgent();
+    /** Release all the resources, e.g. delete the files, recycle the occupied memory, etc. */
+    void release();
 }
