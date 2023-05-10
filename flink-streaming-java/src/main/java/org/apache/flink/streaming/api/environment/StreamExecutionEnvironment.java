@@ -990,9 +990,6 @@ public class StreamExecutionEnvironment implements AutoCloseable {
                 .getOptional(PipelineOptions.OPERATOR_CHAINING)
                 .ifPresent(c -> this.isChainingEnabled = c);
         configuration
-                .getOptional(ExecutionOptions.BUFFER_TIMEOUT)
-                .ifPresent(t -> this.setBufferTimeout(t.toMillis()));
-        configuration
                 .getOptional(DeploymentOptions.JOB_LISTENERS)
                 .ifPresent(listeners -> registerCustomListeners(classLoader, listeners));
         configuration
@@ -1043,6 +1040,8 @@ public class StreamExecutionEnvironment implements AutoCloseable {
                 .getOptional(PipelineOptions.JARS)
                 .ifPresent(jars -> this.configuration.set(PipelineOptions.JARS, jars));
 
+        configBufferTimeout(configuration);
+
         config.configure(configuration, classLoader);
         checkpointCfg.configure(configuration);
     }
@@ -1065,6 +1064,16 @@ public class StreamExecutionEnvironment implements AutoCloseable {
             return StateBackendLoader.loadStateBackendFromConfig(configuration, classLoader, null);
         } catch (DynamicCodeLoadingException | IOException e) {
             throw new WrappingRuntimeException(e);
+        }
+    }
+
+    private void configBufferTimeout(ReadableConfig configuration) {
+        if (configuration.get(ExecutionOptions.BUFFER_TIMEOUT_ENABLED)) {
+            configuration
+                    .getOptional(ExecutionOptions.BUFFER_TIMEOUT)
+                    .ifPresent(t -> this.setBufferTimeout(t.toMillis()));
+        } else {
+            this.setBufferTimeout(ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT);
         }
     }
 
