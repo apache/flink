@@ -21,7 +21,6 @@ package org.apache.flink.runtime.scheduler.adaptivebatch;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.executiongraph.ExecutionVertexInputInfo;
 import org.apache.flink.runtime.executiongraph.IndexRange;
@@ -540,8 +539,9 @@ public class DefaultVertexParallelismAndInputInfosDecider
     static DefaultVertexParallelismAndInputInfosDecider from(
             int maxParallelism, Configuration configuration) {
 
-        Optional<Integer> defaultSourceParallelism = configuration.getOptional(
-                BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_DEFAULT_SOURCE_PARALLELISM);
+        Optional<Integer> defaultSourceParallelism =
+                configuration.getOptional(
+                        BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_DEFAULT_SOURCE_PARALLELISM);
         return new DefaultVertexParallelismAndInputInfosDecider(
                 maxParallelism,
                 configuration.getInteger(
