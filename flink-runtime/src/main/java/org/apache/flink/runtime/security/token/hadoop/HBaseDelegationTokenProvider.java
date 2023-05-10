@@ -81,7 +81,7 @@ public class HBaseDelegationTokenProvider implements DelegationTokenProvider {
                 | IllegalAccessException
                 | ClassNotFoundException
                 | NoClassDefFoundError e) {
-            LOG.info(
+            LOG.debug(
                     "HBase is not available (not packaged with this application): {} : \"{}\".",
                     e.getClass().getSimpleName(),
                     e.getMessage());
