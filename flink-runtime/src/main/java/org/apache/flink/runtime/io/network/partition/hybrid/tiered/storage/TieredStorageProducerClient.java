@@ -54,7 +54,7 @@ public class TieredStorageProducerClient {
         this.bufferCompressor = bufferCompressor;
         this.tierProducerAgents = tierProducerAgents;
 
-        bufferAccumulator.setup(numSubpartitions, this::writeAccumulatedBuffers);
+        bufferAccumulator.setup(this::writeAccumulatedBuffers);
     }
 
     /**

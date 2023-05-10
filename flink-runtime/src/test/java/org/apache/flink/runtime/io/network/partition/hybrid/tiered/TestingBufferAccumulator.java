@@ -31,9 +31,7 @@ import java.util.function.BiConsumer;
 public class TestingBufferAccumulator implements BufferAccumulator {
 
     @Override
-    public void setup(
-            int numSubpartitions,
-            BiConsumer<TieredStorageSubpartitionId, List<Buffer>> bufferFlusher) {}
+    public void setup(BiConsumer<TieredStorageSubpartitionId, List<Buffer>> bufferFlusher) {}
 
     @Override
     public void receive(
