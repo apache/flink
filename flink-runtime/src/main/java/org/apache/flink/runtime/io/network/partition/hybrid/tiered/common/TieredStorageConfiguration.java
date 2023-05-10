@@ -19,9 +19,20 @@
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.common;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierFactory;
+
+import java.util.Arrays;
+import java.util.List;
 
 /** Configurations for the Tiered Storage. */
 public class TieredStorageConfiguration {
+
+    // TODO, after implementing the tier factory, add appreciate implementations to the array.
+    private static final TierFactory[] DEFAULT_MEMORY_DISK_TIER_FACTORIES = new TierFactory[0];
+
+    public List<TierFactory> getTierFactories() {
+        return Arrays.asList(DEFAULT_MEMORY_DISK_TIER_FACTORIES);
+    }
 
     public static TieredStorageConfiguration.Builder builder() {
         return new TieredStorageConfiguration.Builder();
