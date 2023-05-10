@@ -538,7 +538,7 @@ public class DefaultVertexParallelismAndInputInfosDecider
 
     static DefaultVertexParallelismAndInputInfosDecider from(
             int maxParallelism, Configuration configuration) {
-
+        ExecutionConfig config = new ExecutionConfig();
         Optional<Integer> defaultSourceParallelism =
                 configuration.getOptional(
                         BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_DEFAULT_SOURCE_PARALLELISM);
@@ -548,6 +548,6 @@ public class DefaultVertexParallelismAndInputInfosDecider
                         BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MIN_PARALLELISM),
                 configuration.get(
                         BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_AVG_DATA_VOLUME_PER_TASK),
-                defaultSourceParallelism.orElse(ExecutionConfig.PARALLELISM_DEFAULT));
+                defaultSourceParallelism.orElse(config.getParallelism()));
     }
 }
