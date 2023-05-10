@@ -92,7 +92,7 @@ public class DefaultVertexParallelismAndInputInfosDecider
                 globalMaxParallelism >= globalMinParallelism,
                 "Maximum parallelism should be greater than or equal to the minimum parallelism.");
         checkArgument(
-                globalDefaultSourceParallelism >= 0,
+                globalDefaultSourceParallelism > 0,
                 "The default source parallelism must be larger than 0.");
         checkNotNull(dataVolumePerTask);
 
