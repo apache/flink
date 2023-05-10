@@ -19,38 +19,31 @@
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
+import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.List;
-import java.util.function.BiConsumer;
 
 /**
- * Accumulates received records into buffers. The {@link BufferAccumulator} receives the records
- * from tiered store producer and the records will accumulate and transform into buffers.
+ * This interface is used by {@link HashSubpartitionBufferAccumulator} to operate {@link
+ * HashBufferAccumulator}.
  */
-public interface BufferAccumulator extends AutoCloseable {
+public interface HashSubpartitionBufferAccumulatorContext {
 
     /**
-     * Setup the accumulator.
+     * Request {@link BufferBuilder} from the {@link BufferPool}.
      *
-     * @param bufferFlusher accepts the accumulated buffers. The first field is the subpartition id,
-     *     while the list in the second field contains accumulated buffers in order for that
-     *     subpartition.
+     * @return the requested buffer
      */
-    void setup(BiConsumer<TieredStorageSubpartitionId, List<Buffer>> bufferFlusher);
+    BufferBuilder requestBufferBlocking();
 
     /**
-     * Receives the records from tiered store producer, these records will be accumulated and
-     * transformed into finished buffers.
+     * Flush the accumulated {@link Buffer}s of the subpartition.
+     *
+     * @param subpartitionId the subpartition id
+     * @param accumulatedBuffers the accumulated buffers
      */
-    void receive(
-            ByteBuffer record, TieredStorageSubpartitionId subpartitionId, Buffer.DataType dataType)
-            throws IOException;
-
-    /**
-     * Close the accumulator. This will flush all the remaining data and release all the resources.
-     */
-    void close();
+    void flushAccumulatedBuffers(
+            TieredStorageSubpartitionId subpartitionId, List<Buffer> accumulatedBuffers);
 }
