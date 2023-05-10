@@ -303,7 +303,14 @@ public final class FunctionCatalog {
                         .collect(Collectors.toSet()));
 
         // add catalog functions
-        Catalog catalog = catalogManager.getCatalog(catalogName).get();
+        Catalog catalog =
+                catalogManager
+                        .getCatalog(catalogName)
+                        .orElseThrow(
+                                () ->
+                                        new ValidationException(
+                                                String.format(
+                                                        "Catalog %s not exists.", catalogName)));
         try {
             catalog.listFunctions(databaseName)
                     .forEach(
