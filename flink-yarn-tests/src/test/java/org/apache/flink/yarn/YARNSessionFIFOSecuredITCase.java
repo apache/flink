@@ -157,8 +157,9 @@ class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
                                 SecurityOptions.KERBEROS_LOGIN_PRINCIPAL.key(),
                                 SecureTestEnvironment.getHadoopServicePrincipal());
                     }
-                    final ApplicationId applicationId = runDetachedModeTest(securityProperties);
-                    verifyResultContainsKerberosKeytab(applicationId);
+                    final ApplicationId applicationId =
+                            runDetachedModeTest(securityProperties, VIEW_ACLS, MODIFY_ACLS);
+                    verifyResultContainsKerberosKeytab(applicationId, VIEW_ACLS, MODIFY_ACLS);
                 });
     }
 
@@ -179,13 +180,21 @@ class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
                                 SecurityOptions.KERBEROS_LOGIN_PRINCIPAL.key(),
                                 SecureTestEnvironment.getHadoopServicePrincipal());
                     }
-                    final ApplicationId applicationId = runDetachedModeTest(securityProperties);
-                    verifyResultContainsKerberosKeytab(applicationId);
+                    final ApplicationId applicationId =
+                            runDetachedModeTest(securityProperties, VIEW_ACLS, MODIFY_ACLS);
+                    verifyResultContainsKerberosKeytab(applicationId, VIEW_ACLS, MODIFY_ACLS);
+                    final ApplicationId applicationIdWithWildcard =
+                            runDetachedModeTest(
+                                    securityProperties,
+                                    VIEW_ACLS_WITH_WILDCARD,
+                                    MODIFY_ACLS_WITH_WILDCARD);
+                    verifyResultContainsKerberosKeytab(
+                            applicationIdWithWildcard, WILDCARD, WILDCARD);
                 });
     }
 
-    private static void verifyResultContainsKerberosKeytab(ApplicationId applicationId)
-            throws Exception {
+    private static void verifyResultContainsKerberosKeytab(
+            ApplicationId applicationId, String viewAcls, String modifyAcls) throws Exception {
         final String[] mustHave = {"Login successful for user", "using keytab file"};
         final boolean jobManagerRunsWithKerberos =
                 verifyStringsInNamedLogFiles(mustHave, applicationId, "jobmanager.log");
@@ -209,10 +218,9 @@ class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
         getRunningContainersAcls()
                 .forEach(
                         (k, acls) -> {
+                            Assert.assertEquals(viewAcls, acls.get(ApplicationAccessType.VIEW_APP));
                             Assert.assertEquals(
-                                    VIEW_ACLS, acls.get(ApplicationAccessType.VIEW_APP));
-                            Assert.assertEquals(
-                                    MODIFY_ACLS, acls.get(ApplicationAccessType.MODIFY_APP));
+                                    modifyAcls, acls.get(ApplicationAccessType.MODIFY_APP));
                         });
     }
 
