@@ -35,7 +35,6 @@ __all__ = [
     'StopCursor',
     'PulsarSink',
     'PulsarSinkBuilder',
-    'PulsarSerializationSchema',
     'MessageDelayer',
     'TopicRoutingMode'
 ]
@@ -543,29 +542,6 @@ class PulsarSourceBuilder(object):
 
 # ---- PulsarSink ----
 
-
-class PulsarSerializationSchema(object):
-    """
-    The serialization schema for how to serialize records into Pulsar.
-    """
-
-    def __init__(self, _j_pulsar_serialization_schema):
-        self._j_pulsar_serialization_schema = _j_pulsar_serialization_schema
-
-    @staticmethod
-    def flink_schema(serialization_schema: SerializationSchema) \
-            -> 'PulsarSerializationSchema':
-        """
-        Create a PulsarSerializationSchema by using the flink's SerializationSchema. It would
-        serialize the message into byte array and send it to Pulsar with Schema#BYTES.
-        """
-        JPulsarSerializationSchema = get_gateway().jvm.org.apache.flink \
-            .connector.pulsar.sink.writer.serializer.PulsarSerializationSchema
-        _j_pulsar_serialization_schema = JPulsarSerializationSchema.flinkSchema(
-            serialization_schema._j_serialization_schema)
-        return PulsarSerializationSchema(_j_pulsar_serialization_schema)
-
-
 class TopicRoutingMode(Enum):
     """
     The routing policy for choosing the desired topic by the given message.
@@ -642,8 +618,7 @@ class PulsarSink(Sink):
         ...     .set_service_url(PULSAR_BROKER_URL) \\
         ...     .set_admin_url(PULSAR_BROKER_HTTP_URL) \\
         ...     .set_topics(topic) \\
-        ...     .set_serialization_schema(
-        ...         PulsarSerializationSchema.flink_schema(SimpleStringSchema())) \\
+        ...     .set_value_serialization_schema(SimpleStringSchema()) \\
         ...     .build()
 
     The sink supports all delivery guarantees described by DeliveryGuarantee.
@@ -693,8 +668,7 @@ class PulsarSinkBuilder(object):
         ...     .set_service_url(PULSAR_BROKER_URL) \\
         ...     .set_admin_url(PULSAR_BROKER_HTTP_URL) \\
         ...     .set_topics([TOPIC1, TOPIC2]) \\
-        ...     .set_serialization_schema(
-        ...         PulsarSerializationSchema.flink_schema(SimpleStringSchema())) \\
+        ...     .set_value_serialization_schema(SimpleStringSchema()) \\
         ...     .build()
 
     The service url, admin url, and the record serializer are required fields that must be set. If
@@ -713,8 +687,7 @@ class PulsarSinkBuilder(object):
         ...     .set_service_url(PULSAR_BROKER_URL) \\
         ...     .set_admin_url(PULSAR_BROKER_HTTP_URL) \\
         ...     .set_topics([TOPIC1, TOPIC2]) \\
-        ...     .set_serialization_schema(
-        ...         PulsarSerializationSchema.flink_schema(SimpleStringSchema())) \\
+        ...     .set_value_serialization_schema(SimpleStringSchema()) \\
         ...     .set_delivery_guarantee(DeliveryGuarantee.EXACTLY_ONCE)
         ...     .build()
     """
@@ -780,13 +753,13 @@ class PulsarSinkBuilder(object):
         self._j_pulsar_sink_builder.setTopicRouter(j_topic_router)
         return self
 
-    def set_serialization_schema(self, pulsar_serialization_schema: PulsarSerializationSchema) \
+    def set_serialization_schema(self, serialization_schema: SerializationSchema) \
             -> 'PulsarSinkBuilder':
         """
-        Sets the PulsarSerializationSchema that transforms incoming records to bytes.
+        Sets the SerializationSchema of the PulsarSinkBuilder.
         """
         self._j_pulsar_sink_builder.setSerializationSchema(
-            pulsar_serialization_schema._j_pulsar_serialization_schema)
+            serialization_schema._j_serialization_schema)
         return self
 
     def delay_sending_message(self, message_delayer: MessageDelayer) -> 'PulsarSinkBuilder':

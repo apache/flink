@@ -21,9 +21,8 @@ import sys
 
 from pyflink.common import SimpleStringSchema, WatermarkStrategy
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.datastream.connectors.pulsar import PulsarSource, PulsarSink,\
-    PulsarSerializationSchema, StartCursor, StopCursor, SubscriptionType, \
-    PulsarDeserializationSchema, DeliveryGuarantee, TopicRoutingMode
+from pyflink.datastream.connectors.pulsar import PulsarSource, PulsarSink, StartCursor, \
+    StopCursor, SubscriptionType, PulsarDeserializationSchema, DeliveryGuarantee, TopicRoutingMode
 
 if __name__ == '__main__':
     logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(message)s")
@@ -59,8 +58,7 @@ if __name__ == '__main__':
         .set_admin_url(ADMIN_URL) \
         .set_producer_name('pyflink_producer') \
         .set_topics('beta') \
-        .set_serialization_schema(
-            PulsarSerializationSchema.flink_schema(SimpleStringSchema())) \
+        .set_value_serialization_schema(SimpleStringSchema()) \
         .set_delivery_guarantee(DeliveryGuarantee.AT_LEAST_ONCE) \
         .set_topic_routing_mode(TopicRoutingMode.ROUND_ROBIN) \
         .set_config('pulsar.producer.maxPendingMessages', 1000) \

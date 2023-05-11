@@ -165,7 +165,6 @@ Pulsar Sink
 .. autosummary::
     :toctree: api/
 
-    PulsarSerializationSchema
     TopicRoutingMode
     MessageDelayer
     PulsarSink

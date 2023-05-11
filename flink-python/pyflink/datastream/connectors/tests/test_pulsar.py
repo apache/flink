@@ -17,9 +17,8 @@
 ################################################################################
 from pyflink.common import WatermarkStrategy, SimpleStringSchema, Types, ConfigOptions, Duration
 from pyflink.datastream.connectors import DeliveryGuarantee
-from pyflink.datastream.connectors.pulsar import PulsarSerializationSchema, TopicRoutingMode, \
-    MessageDelayer, PulsarSink, PulsarSource, StartCursor, PulsarDeserializationSchema, \
-    StopCursor, SubscriptionType
+from pyflink.datastream.connectors.pulsar import TopicRoutingMode, MessageDelayer, PulsarSink, \
+    PulsarSource, StartCursor, PulsarDeserializationSchema, StopCursor, SubscriptionType
 from pyflink.testing.test_case_utils import PyFlinkUTTestCase
 from pyflink.util.java_utils import get_field_value, is_instance_of
 
@@ -162,8 +161,7 @@ class FlinkPulsarTest(PyFlinkUTTestCase):
             .set_admin_url('http://localhost:8080') \
             .set_producer_name('fo') \
             .set_topics('ada') \
-            .set_serialization_schema(
-                PulsarSerializationSchema.flink_schema(SimpleStringSchema())) \
+            .set_value_serialization_schema(SimpleStringSchema()) \
             .set_delivery_guarantee(DeliveryGuarantee.AT_LEAST_ONCE) \
             .set_topic_routing_mode(TopicRoutingMode.ROUND_ROBIN) \
             .delay_sending_message(MessageDelayer.fixed(Duration.of_seconds(12))) \
@@ -232,6 +230,5 @@ class FlinkPulsarTest(PyFlinkUTTestCase):
             .set_service_url('pulsar://localhost:6650') \
             .set_admin_url('http://localhost:8080') \
             .set_topics(['ada', 'beta']) \
-            .set_serialization_schema(
-                PulsarSerializationSchema.flink_schema(SimpleStringSchema())) \
+            .set_value_serialization_schema(SimpleStringSchema()) \
             .build()
