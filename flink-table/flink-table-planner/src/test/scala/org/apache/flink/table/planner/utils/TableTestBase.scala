@@ -813,11 +813,34 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     // add the postfix to the path to avoid conflicts
     // between the test class name and the result file name
     val clazz = test.getClass
-    val testClassDirPath = clazz.getName.replaceAll("\\.", "/") + "_jsonplan"
-    val testMethodFileName = test.testName.getMethodName + ".out"
-    val resourceTestFilePath = s"/$testClassDirPath/$testMethodFileName"
-    val plannerDirPath = clazz.getResource("/").getFile.replace("/target/test-classes/", "")
-    val file = new File(s"$plannerDirPath/src/test/resources$resourceTestFilePath")
+
+    // load compiled plan with version
+    val testClassParentDirPath =
+      s"${clazz.getResource("/").getFile.replace("/target/test-classes/", "")}/src/test/resources/${clazz.getName
+          .replaceAll("\\.", "/")}_jsonplan"
+
+    val subDirs = new File(testClassParentDirPath).listFiles.filter(_.isDirectory)
+    // sort plan by exec node version
+    util.Arrays.sort(subDirs, (dir1: File, dir2: File) => dir1.getName.compareTo(dir2.getName))
+
+    subDirs.zipWithIndex.foreach {
+      case (subDir, index) =>
+        val testClassDirPath = s"$testClassParentDirPath/${subDir.getName}"
+        val testMethodFileName = s"${test.testName.getMethodName}.out"
+        val resourceTestFilePath = s"$testClassDirPath/$testMethodFileName"
+        val file = new File(resourceTestFilePath)
+
+        if (index == subDirs.length - 1) {
+          // regeneration only happens for the compiled plan using latest version
+          verifyLatestVersionPlan(jsonPlanWithoutFlinkVersion, file)
+        } else {
+          // for the old versions, check json serde round trip as well
+          verifyJsonSerde(String.join("\n", Files.readAllLines(file.toPath)))
+        }
+    }
+  }
+
+  private def verifyLatestVersionPlan(jsonPlanWithoutFlinkVersion: String, file: File): Unit = {
     val path = file.toPath
     if (!file.exists() || "true".equalsIgnoreCase(System.getenv(PLAN_TEST_FORCE_OVERWRITE))) {
       Files.deleteIfExists(path)
@@ -825,26 +848,30 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       assertTrue(file.createNewFile())
       val prettyJson = TableTestUtil.getPrettyJson(jsonPlanWithoutFlinkVersion)
       Files.write(path, prettyJson.getBytes)
-      fail(s"$testMethodFileName regenerated.")
+      fail(s"Cannot find ${file.getName} for ${file.getParent}")
     } else {
       val expected = String.join("\n", Files.readAllLines(path))
       assertEquals(
-        TableTestUtil.replaceExecNodeId(TableTestUtil.getPrettyJson(expected)),
-        TableTestUtil.replaceExecNodeId(TableTestUtil.getPrettyJson(jsonPlanWithoutFlinkVersion))
+        TableTestUtil.replaceExecNodeId(TableTestUtil.getFormattedJson(expected)),
+        TableTestUtil.replaceExecNodeId(TableTestUtil.getFormattedJson(jsonPlanWithoutFlinkVersion))
       )
-      // check json serde round trip as well
-      val expectedWithFlinkVersion = JsonTestUtils.writeToString(
-        JsonTestUtils
-          .setFlinkVersion(JsonTestUtils.readFromString(expected), FlinkVersion.current()))
-      assertEquals(
-        TableTestUtil.replaceExecNodeId(TableTestUtil.getFormattedJson(expectedWithFlinkVersion)),
-        TableTestUtil.replaceExecNodeId(
-          TableTestUtil.getFormattedJson(
-            getPlanner
-              .loadPlan(PlanReference.fromJsonString(expectedWithFlinkVersion))
-              .asJsonString()))
-      )
+      verifyJsonSerde(expected)
     }
+  }
+
+  private def verifyJsonSerde(expected: String): Unit = {
+    // pad current flink version to check json serde round trip
+    val expectedWithFlinkVersion = JsonTestUtils.writeToString(
+      JsonTestUtils
+        .setFlinkVersion(JsonTestUtils.readFromString(expected), FlinkVersion.current()))
+    assertEquals(
+      TableTestUtil.replaceExecNodeId(TableTestUtil.getFormattedJson(expectedWithFlinkVersion)),
+      TableTestUtil.replaceExecNodeId(
+        TableTestUtil.getFormattedJson(
+          getPlanner
+            .loadPlan(PlanReference.fromJsonString(expectedWithFlinkVersion))
+            .asJsonString()))
+    )
   }
 
   /**
