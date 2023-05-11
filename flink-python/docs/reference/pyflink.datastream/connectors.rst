@@ -149,8 +149,6 @@ Pulsar Source
 .. autosummary::
     :toctree: api/
 
-    PulsarDeserializationSchema
-    SubscriptionType
     StartCursor
     StopCursor
     PulsarSource
@@ -165,7 +163,6 @@ Pulsar Sink
 .. autosummary::
     :toctree: api/
 
-    PulsarSerializationSchema
     TopicRoutingMode
     MessageDelayer
     PulsarSink

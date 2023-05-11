@@ -290,7 +290,7 @@ under the License.
 			<!-- Indirectly accessed in pyflink_gateway_server -->
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-sql-connector-pulsar</artifactId>
-			<version>3.0.0-1.16</version>
+			<version>4.0.0-1.17</version>
 			<scope>test</scope>
 		</dependency>
 
