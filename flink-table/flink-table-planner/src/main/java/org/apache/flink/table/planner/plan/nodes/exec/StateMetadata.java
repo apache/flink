@@ -96,7 +96,6 @@ public class StateMetadata {
 
     public static List<StateMetadata> getOneInputOperatorDefaultMeta(
             ReadableConfig tableConfig, String stateName) {
-        long time = tableConfig.get(ExecutionConfigOptions.IDLE_STATE_RETENTION).toMillis();
         return Collections.singletonList(
                 new StateMetadata(
                         0,
@@ -176,7 +175,7 @@ public class StateMetadata {
                         stateMetadataList.size(),
                         inputNumOfOperator > 2
                                 ? "Multiple"
-                                : inputNumOfOperator == 2 ? "Two" : "Single"));
+                                : inputNumOfOperator == 2 ? "Two" : "One"));
 
         // the state index should not contain duplicates, and should start from 0 to inputNum - 1
         List<Integer> normalizedIndexList =

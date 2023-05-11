@@ -288,7 +288,7 @@ public class StateMetadataTest {
                         Arrays.asList(
                                 new StateMetadata(1, 60000L, "fooState"),
                                 new StateMetadata(3, 3600000L, "barState")),
-                        "Received 2 state meta for a SingleInputStreamOperator."),
+                        "Received 2 state meta for a OneInputStreamOperator."),
                 Arguments.of(
                         2,
                         Collections.singletonList(new StateMetadata(1, 60000L, "fooState")),
