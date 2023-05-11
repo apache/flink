@@ -94,7 +94,9 @@ public class SingleInputGateFactory {
 
     private final BufferDebloatConfiguration debloatConfiguration;
 
-    private final TieredStorageConfiguration tieredStorageConfiguration;
+    @Nullable
+    private final TieredStorageConfiguration
+            tieredStorageConfiguration; // is null if tiered storage shuffle is disabled.
 
     public SingleInputGateFactory(
             @Nonnull ResourceID taskExecutorResourceId,

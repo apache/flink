@@ -396,6 +396,7 @@ public class NettyShuffleEnvironmentConfiguration {
                         "The configured floating buffer should be at least 1, please increase the value of %s.",
                         NettyShuffleEnvironmentOptions.NETWORK_EXTRA_BUFFERS_PER_GATE.key()));
 
+        // TODO: use TieredStorageConfiguration.fromConfiguration() when enabling the feature
         TieredStorageConfiguration tieredStorageConfiguration = null;
 
         return new NettyShuffleEnvironmentConfiguration(
