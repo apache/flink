@@ -44,7 +44,8 @@ public class FlinkDataSource implements DataSource {
 
     @Override
     public Connection getConnection(String username, String password) throws SQLException {
-        return getConnection();
+        throw new SQLFeatureNotSupportedException(
+                "FlinkDataSource#getConnection with username and password is not supported");
     }
 
     @Override
