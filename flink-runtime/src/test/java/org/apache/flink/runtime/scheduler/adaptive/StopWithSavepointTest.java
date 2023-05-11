@@ -25,6 +25,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
+import org.apache.flink.runtime.failure.FailureEnricherUtils;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
@@ -245,7 +246,11 @@ class StopWithSavepointTest {
             executionGraph.registerExecution(execution);
             TaskExecutionStateTransition taskExecutionStateTransition =
                     ExecutingTest.createFailingStateTransition(execution.getAttemptId(), exception);
-            assertThat(sws.updateTaskExecutionState(taskExecutionStateTransition)).isTrue();
+            assertThat(
+                            sws.updateTaskExecutionState(
+                                    taskExecutionStateTransition,
+                                    FailureEnricherUtils.EMPTY_FAILURE_LABELS))
+                    .isTrue();
         }
     }
 
@@ -269,7 +274,11 @@ class StopWithSavepointTest {
             executionGraph.registerExecution(execution);
             TaskExecutionStateTransition taskExecutionStateTransition =
                     ExecutingTest.createFailingStateTransition(execution.getAttemptId(), exception);
-            assertThat(sws.updateTaskExecutionState(taskExecutionStateTransition)).isTrue();
+            assertThat(
+                            sws.updateTaskExecutionState(
+                                    taskExecutionStateTransition,
+                                    FailureEnricherUtils.EMPTY_FAILURE_LABELS))
+                    .isTrue();
         }
     }
 
@@ -349,7 +358,11 @@ class StopWithSavepointTest {
             executionGraph.registerExecution(execution);
             TaskExecutionStateTransition taskExecutionStateTransition =
                     ExecutingTest.createFailingStateTransition(execution.getAttemptId(), exception);
-            assertThat(sws.updateTaskExecutionState(taskExecutionStateTransition)).isTrue();
+            assertThat(
+                            sws.updateTaskExecutionState(
+                                    taskExecutionStateTransition,
+                                    FailureEnricherUtils.EMPTY_FAILURE_LABELS))
+                    .isTrue();
         }
     }
 
