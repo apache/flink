@@ -30,6 +30,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import static org.hamcrest.Matchers.is;
@@ -229,7 +230,8 @@ public class StateWithExecutionGraphTest extends TestLogger {
 
         @Override
         boolean updateTaskExecutionState(
-                TaskExecutionStateTransition taskExecutionStateTransition) {
+                TaskExecutionStateTransition taskExecutionStateTransition,
+                CompletableFuture<Map<String, String>> failureLabels) {
             return false;
         }
     }

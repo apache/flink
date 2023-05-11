@@ -35,7 +35,6 @@ import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
-import org.apache.flink.runtime.failure.FailureEnricherUtils;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -66,6 +65,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -343,9 +343,12 @@ abstract class StateWithExecutionGraph implements State {
      *
      * @param taskExecutionStateTransition taskExecutionStateTransition to update the ExecutionGraph
      *     with
+     * @param failureLabels the failure labels to attach to the task failure cause
      * @return {@code true} if the update was successful; otherwise {@code false}
      */
-    boolean updateTaskExecutionState(TaskExecutionStateTransition taskExecutionStateTransition) {
+    boolean updateTaskExecutionState(
+            TaskExecutionStateTransition taskExecutionStateTransition,
+            CompletableFuture<Map<String, String>> failureLabels) {
         // collect before updateState, as updateState may deregister the execution
         final Optional<AccessExecution> maybeExecution =
                 executionGraph.findExecution(taskExecutionStateTransition.getID());
@@ -361,8 +364,7 @@ abstract class StateWithExecutionGraph implements State {
             final ExecutionState currentState = execution.getState();
             if (currentState == desiredState) {
                 failureCollection.add(
-                        ExceptionHistoryEntry.create(
-                                execution, taskName, FailureEnricherUtils.EMPTY_FAILURE_LABELS));
+                        ExceptionHistoryEntry.create(execution, taskName, failureLabels));
                 onFailure(
                         ErrorInfo.handleMissingThrowable(
                                 taskExecutionStateTransition.getError(userCodeClassLoader)));

@@ -53,6 +53,7 @@ import org.apache.flink.runtime.executiongraph.MarkPartitionFinishedStrategy;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.TestingDefaultExecutionGraphBuilder;
 import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionGroupReleaseStrategy;
+import org.apache.flink.runtime.failure.FailureEnricherUtils;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
@@ -297,7 +298,8 @@ public class ExecutingTest extends TestLogger {
             returnsFailedStateExecutionGraph.registerExecution(execution);
             TaskExecutionStateTransition taskExecutionStateTransition =
                     createFailingStateTransition(execution.getAttemptId(), exception);
-            exec.updateTaskExecutionState(taskExecutionStateTransition);
+            exec.updateTaskExecutionState(
+                    taskExecutionStateTransition, FailureEnricherUtils.EMPTY_FAILURE_LABELS);
         }
     }
 
@@ -323,7 +325,8 @@ public class ExecutingTest extends TestLogger {
             returnsFailedStateExecutionGraph.registerExecution(execution);
             TaskExecutionStateTransition taskExecutionStateTransition =
                     createFailingStateTransition(execution.getAttemptId(), exception);
-            exec.updateTaskExecutionState(taskExecutionStateTransition);
+            exec.updateTaskExecutionState(
+                    taskExecutionStateTransition, FailureEnricherUtils.EMPTY_FAILURE_LABELS);
         }
     }
 
@@ -346,7 +349,8 @@ public class ExecutingTest extends TestLogger {
             returnsFailedStateExecutionGraph.registerExecution(execution);
             TaskExecutionStateTransition taskExecutionStateTransition =
                     createFailingStateTransition(execution.getAttemptId(), exception);
-            exec.updateTaskExecutionState(taskExecutionStateTransition);
+            exec.updateTaskExecutionState(
+                    taskExecutionStateTransition, FailureEnricherUtils.EMPTY_FAILURE_LABELS);
 
             ctx.assertNoStateTransition();
         }

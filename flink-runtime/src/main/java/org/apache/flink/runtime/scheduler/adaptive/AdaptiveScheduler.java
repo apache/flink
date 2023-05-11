@@ -28,6 +28,8 @@ import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.core.failure.FailureEnricher;
+import org.apache.flink.core.failure.FailureEnricher.Context;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
@@ -57,6 +59,8 @@ import org.apache.flink.runtime.executiongraph.MutableVertexAttemptNumberStore;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ExecutionFailureHandler;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
+import org.apache.flink.runtime.failure.DefaultFailureEnricherContext;
+import org.apache.flink.runtime.failure.FailureEnricherUtils;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
@@ -131,6 +135,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -190,6 +195,7 @@ public class AdaptiveScheduler
 
     private final ComponentMainThreadExecutor componentMainThreadExecutor;
     private final FatalErrorHandler fatalErrorHandler;
+    private final Collection<FailureEnricher> failureEnrichers;
 
     private final Collection<JobStatusListener> jobStatusListeners;
 
@@ -244,6 +250,7 @@ public class AdaptiveScheduler
             ComponentMainThreadExecutor mainThreadExecutor,
             FatalErrorHandler fatalErrorHandler,
             JobStatusListener jobStatusListener,
+            Collection<FailureEnricher> failureEnrichers,
             ExecutionGraphFactory executionGraphFactory)
             throws JobExecutionException {
 
@@ -313,6 +320,7 @@ public class AdaptiveScheduler
                 jobStatusMetricsSettings);
 
         jobStatusListeners = Collections.unmodifiableCollection(tmpJobStatusListeners);
+        this.failureEnrichers = failureEnrichers;
         this.exceptionHistory =
                 new BoundedFIFOQueue<>(
                         configuration.getInteger(WebOptions.MAX_EXCEPTION_HISTORY_SIZE));
@@ -515,13 +523,31 @@ public class AdaptiveScheduler
         state.handleGlobalFailure(cause);
     }
 
+    private CompletableFuture<Map<String, String>> labelFailure(
+            final TaskExecutionStateTransition taskExecutionStateTransition) {
+        if (taskExecutionStateTransition.getExecutionState() == ExecutionState.FAILED
+                && !failureEnrichers.isEmpty()) {
+            final Throwable cause = taskExecutionStateTransition.getError(userCodeClassLoader);
+            final Context ctx =
+                    DefaultFailureEnricherContext.forTaskFailure(
+                            jobGraph.getJobID(),
+                            jobGraph.getName(),
+                            jobManagerJobMetricGroup,
+                            ioExecutor,
+                            userCodeClassLoader);
+            return FailureEnricherUtils.labelFailure(
+                    cause, ctx, getMainThreadExecutor(), failureEnrichers);
+        }
+        return FailureEnricherUtils.EMPTY_FAILURE_LABELS;
+    }
+
     @Override
     public boolean updateTaskExecutionState(TaskExecutionStateTransition taskExecutionState) {
         return state.tryCall(
                         StateWithExecutionGraph.class,
                         stateWithExecutionGraph ->
                                 stateWithExecutionGraph.updateTaskExecutionState(
-                                        taskExecutionState),
+                                        taskExecutionState, labelFailure(taskExecutionState)),
                         "updateTaskExecutionState")
                 .orElse(false);
     }

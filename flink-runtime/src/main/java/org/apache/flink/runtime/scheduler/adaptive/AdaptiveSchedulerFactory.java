@@ -143,6 +143,7 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
                 mainThreadExecutor,
                 fatalErrorHandler,
                 jobStatusListener,
+                failureEnrichers,
                 executionGraphFactory);
     }
 
