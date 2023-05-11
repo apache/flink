@@ -39,7 +39,7 @@ The [predefined data sinks]({{< ref "docs/dev/datastream/overview" >}}#data-sink
 Connectors provide code for interfacing with various third-party systems. Currently these systems are supported:
 
  * [Apache Kafka]({{< ref "docs/connectors/datastream/kafka" >}}) (source/sink)
- * [Apache Cassandra]({{< ref "docs/connectors/datastream/cassandra" >}}) (sink)
+ * [Apache Cassandra]({{< ref "docs/connectors/datastream/cassandra" >}}) (source/sink)
  * [Amazon DynamoDB]({{< ref "docs/connectors/datastream/dynamodb" >}}) (sink)
  * [Amazon Kinesis Data Streams]({{< ref "docs/connectors/datastream/kinesis" >}}) (source/sink)
  * [Amazon Kinesis Data Firehose]({{< ref "docs/connectors/datastream/firehose" >}}) (sink)
