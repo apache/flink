@@ -20,16 +20,16 @@ package org.apache.flink.table.planner.runtime.batch.sql
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.{DataTypes, TableSchema, Types}
-import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData}
 import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.{createFileInTempFolder, createTempFolder}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
-import org.apache.flink.table.planner.utils.{TableTestUtil, TestDataTypeTableSource, TestFileInputFormatTableSource, TestInputFormatTableSource, TestLegacyFilterableTableSource, TestLegacyProjectableTableSource, TestNestedProjectableTableSource, TestPartitionableSourceFactory, TestTableSourceSinks}
+import org.apache.flink.table.planner.utils._
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
 import org.apache.flink.types.Row
 
-import org.junit.{Assert, Before, Test}
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 import java.io.FileWriter
 import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
@@ -40,7 +40,7 @@ import scala.collection.mutable
 
 class LegacyTableSourceITCase extends BatchTestBase {
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     env.setParallelism(1) // set sink parallelism to 1
@@ -373,6 +373,6 @@ class LegacyTableSourceITCase extends BatchTestBase {
 
     val result = TableTestUtil.readFromFile(resultPath)
     val expected = Seq("31,31,31.0", "32,32,32.0", "32,32,32.0")
-    Assert.assertEquals(expected.sorted, result.sorted)
+    assertThat(expected.sorted).isEqualTo(result.sorted)
   }
 }

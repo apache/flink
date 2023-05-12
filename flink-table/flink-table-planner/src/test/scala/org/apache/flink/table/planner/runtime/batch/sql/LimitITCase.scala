@@ -21,7 +21,11 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData}
 import org.apache.flink.table.planner.runtime.utils.TestData.{data3, nullablesOfData3, type3}
 
+import org.junit.jupiter.api.BeforeEach
+
 class LimitITCase extends LegacyLimitITCase {
+
+  @BeforeEach
   override def before(): Unit = {
     BatchTestBase.configForMiniCluster(tableConfig)
     registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
