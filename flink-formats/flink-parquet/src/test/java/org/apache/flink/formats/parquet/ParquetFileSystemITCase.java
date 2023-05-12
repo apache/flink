@@ -20,15 +20,18 @@ package org.apache.flink.formats.parquet;
 
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.planner.runtime.batch.sql.BatchFileSystemITCaseBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
 import java.io.IOException;
@@ -44,21 +47,18 @@ import static org.apache.parquet.hadoop.ParquetFileReader.readFooter;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** ITCase for {@link ParquetFileFormatFactory}. */
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public class ParquetFileSystemITCase extends BatchFileSystemITCaseBase {
 
-    private final boolean configure;
+    @Parameter public boolean configure;
 
-    @Parameterized.Parameters(name = "{0}")
+    @Parameters(name = "configure={0}")
     public static Collection<Boolean> parameters() {
         return Arrays.asList(false, true);
     }
 
-    public ParquetFileSystemITCase(boolean configure) {
-        this.configure = configure;
-    }
-
     @Override
+    @BeforeEach
     public void before() {
         super.before();
         super.tableEnv()
@@ -87,6 +87,7 @@ public class ParquetFileSystemITCase extends BatchFileSystemITCaseBase {
     }
 
     @Override
+    @TestTemplate
     public void testNonPartition() {
         super.testNonPartition();
 
@@ -112,8 +113,8 @@ public class ParquetFileSystemITCase extends BatchFileSystemITCaseBase {
         }
     }
 
-    @Test
-    public void testLimitableBulkFormat() throws ExecutionException, InterruptedException {
+    @TestTemplate
+    void testLimitableBulkFormat() throws ExecutionException, InterruptedException {
         super.tableEnv()
                 .executeSql(
                         "insert into parquetLimitTable select x, y, "

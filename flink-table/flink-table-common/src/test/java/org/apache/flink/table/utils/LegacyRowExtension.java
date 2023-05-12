@@ -15,32 +15,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.planner.runtime.batch.table
 
-import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData}
+package org.apache.flink.table.utils;
 
-import org.junit.jupiter.api.BeforeEach
+import org.apache.flink.core.testutils.CustomExtension;
+import org.apache.flink.types.Row;
+import org.apache.flink.types.RowUtils;
 
-class LimitITCase extends LegacyLimitITCase {
+import org.junit.jupiter.api.extension.ExtensionContext;
 
-  @BeforeEach
-  override def before(): Unit = {
-    BatchTestBase.configForMiniCluster(tableConfig)
+/**
+ * Enables the old behavior of {@link Row#toString()} for legacy tests.
+ *
+ * <p>It ignores the changes applied in FLINK-16998 and FLINK-19981.
+ */
+public class LegacyRowExtension implements CustomExtension {
+    @Override
+    public void before(ExtensionContext context) throws Exception {
+        RowUtils.USE_LEGACY_TO_STRING = true;
+    }
 
-    val myTableDataId = TestValuesTableFactory.registerData(TestData.data3)
-    val ddl =
-      s"""
-         |CREATE TABLE LimitTable (
-         |  a int,
-         |  b bigint,
-         |  c string
-         |) WITH (
-         |  'connector' = 'values',
-         |  'data-id' = '$myTableDataId',
-         |  'bounded' = 'true'
-         |)
-       """.stripMargin
-    tEnv.executeSql(ddl)
-  }
+    @Override
+    public void after(ExtensionContext context) throws Exception {
+        RowUtils.USE_LEGACY_TO_STRING = false;
+    }
 }

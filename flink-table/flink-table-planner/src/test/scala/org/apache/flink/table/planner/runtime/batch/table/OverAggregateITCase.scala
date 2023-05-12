@@ -23,13 +23,13 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 
-import org.junit.{Before, Ignore, Test}
+import org.junit.jupiter.api.{BeforeEach, Disabled, Test}
 
 // TODO OverWindow on Batch should support to order by non-time attribute
-@Ignore
+@Disabled
 class OverAggregateITCase extends BatchTestBase {
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     registerCollection("Table1", data1, type1, "month, area, product", nullablesOfData1)
