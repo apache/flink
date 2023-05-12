@@ -41,13 +41,6 @@ public interface InternalPlan {
     /**
      * Note that {@code ignoreIfExists} has precedence over {@code failIfExists}.
      *
-     * @see CompiledPlan#writeToFile(File, boolean)
-     */
-    void writeToFile(File file, boolean ignoreIfExists, boolean failIfExists);
-
-    /**
-     * Note that {@code ignoreIfExists} has precedence over {@code failIfExists}.
-     *
      * @see CompiledPlan#writeToFile(Path, boolean)
      */
     void writeToFile(Path path, boolean ignoreIfExists, boolean failIfExists);

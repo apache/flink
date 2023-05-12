@@ -70,7 +70,7 @@ public interface CompiledPlan extends Explainable<CompiledPlan>, Executable {
         writeToFile(Paths.get(path));
     }
 
-    /** @see #writeToFile(File, boolean) */
+    /** @see #writeToFile(Path, boolean) */
     default void writeToFile(String path, boolean ignoreIfExists) {
         writeToFile(Paths.get(path), ignoreIfExists);
     }
@@ -80,9 +80,9 @@ public interface CompiledPlan extends Explainable<CompiledPlan>, Executable {
         writeToFile(path.toFile());
     }
 
-    /** @see #writeToFile(File, boolean) */
+    /** @see #writeToFile(org.apache.flink.core.fs.Path, boolean) */
     default void writeToFile(Path path, boolean ignoreIfExists) {
-        writeToFile(path.toFile(), ignoreIfExists);
+        writeToFile(new org.apache.flink.core.fs.Path(path.toString()), ignoreIfExists);
     }
 
     /**
@@ -93,13 +93,13 @@ public interface CompiledPlan extends Explainable<CompiledPlan>, Executable {
      * @throws TableException if the file cannot be written.
      */
     default void writeToFile(File file) {
-        writeToFile(file, false);
+        writeToFile(org.apache.flink.core.fs.Path.fromLocalFile(file), false);
     }
 
     /**
      * Writes this plan to a file using the JSON representation.
      *
-     * @param file the target file
+     * @param path the path of target file
      * @param ignoreIfExists If a plan exists in the given file and this flag is set, no operation
      *     is executed and the plan is not overwritten. An exception is thrown otherwise. If this
      *     flag is not set and {@link TableConfigOptions#PLAN_FORCE_RECOMPILE} is set, the plan file
@@ -107,8 +107,6 @@ public interface CompiledPlan extends Explainable<CompiledPlan>, Executable {
      * @throws TableException if the file cannot be written or if {@code ignoreIfExists} is false
      *     and a plan already exists.
      */
-    void writeToFile(File file, boolean ignoreIfExists);
-
     void writeToFile(org.apache.flink.core.fs.Path path, boolean ignoreIfExists);
 
     // --- Accessors

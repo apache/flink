@@ -61,34 +61,6 @@ public class ExecNodeGraphInternalPlan implements InternalPlan {
     }
 
     @Override
-    public void writeToFile(File file, boolean ignoreIfExists, boolean failIfExists) {
-        if (file.exists()) {
-            if (ignoreIfExists) {
-                return;
-            }
-
-            if (failIfExists) {
-                throw new TableException(
-                        String.format(
-                                "Cannot overwrite the plan file '%s'. "
-                                        + "Either manually remove the file or, "
-                                        + "if you're debugging your job, "
-                                        + "set the option '%s' to true.",
-                                file, TableConfigOptions.PLAN_FORCE_RECOMPILE.key()));
-            }
-        }
-        try {
-            Files.write(
-                    file.toPath(),
-                    serializedPlan.getBytes(StandardCharsets.UTF_8),
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.WRITE);
-        } catch (IOException e) {
-            throw new TableException("Cannot write the compiled plan to file '" + file + "'.", e);
-        }
-    }
-
-    @Override
     public void writeToFile(Path path, boolean ignoreIfExists, boolean failIfExists) {
         FileSystem fs;
         boolean exists;

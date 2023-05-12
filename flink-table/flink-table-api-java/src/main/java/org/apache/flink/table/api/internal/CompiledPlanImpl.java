@@ -52,14 +52,6 @@ class CompiledPlanImpl implements CompiledPlan {
     }
 
     @Override
-    public void writeToFile(File file, boolean ignoreIfExists) {
-        internalPlan.writeToFile(
-                file,
-                ignoreIfExists,
-                !tableEnvironment.getConfig().get(TableConfigOptions.PLAN_FORCE_RECOMPILE));
-    }
-
-    @Override
     public void writeToFile(Path path, boolean ignoreIfExists) {
         internalPlan.writeToFile(
                 path,

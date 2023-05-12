@@ -113,6 +113,13 @@ public abstract class SqlITCaseBase extends TestLogger {
         }
     }
 
+    public void runSQL(String sqlPath, Map<String, String> varsMap) throws Exception {
+        try (ClusterController clusterController = flink.startCluster(1)) {
+            List<String> sqlLines = initializeSqlLines(sqlPath, varsMap);
+            executeSqlStatements(clusterController, sqlLines);
+        }
+    }
+
     protected Map<String, String> generateReplaceVars() {
         Map<String, String> varsMap = new HashMap<>();
         varsMap.put("$RESULT", this.result.toAbsolutePath().toString());
