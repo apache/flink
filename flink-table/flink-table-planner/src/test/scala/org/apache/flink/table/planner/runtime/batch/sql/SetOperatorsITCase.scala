@@ -21,23 +21,25 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_T
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinITCaseHelper
-import org.apache.flink.table.planner.runtime.batch.sql.join.JoinType.{JoinType, _}
+import org.apache.flink.table.planner.runtime.batch.sql.join.JoinType._
 import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
+import org.apache.flink.testutils.junit.extensions.parameterized.{Parameter, ParameterizedTestExtension, Parameters}
 
-import org.junit.{Before, Test}
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.util
 
 import scala.util.Random
 
-@RunWith(classOf[Parameterized])
-class SetOperatorsITCase(joinType: JoinType) extends BatchTestBase {
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
+class SetOperatorsITCase extends BatchTestBase {
 
-  @Before
+  @Parameter var joinType: JoinType = _
+
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     registerCollection("AllNullTable3", allNullData3, type3, "a, b, c")
@@ -47,7 +49,7 @@ class SetOperatorsITCase(joinType: JoinType) extends BatchTestBase {
     JoinITCaseHelper.disableOtherJoinOpForJoin(tEnv, joinType)
   }
 
-  @Test
+  @TestTemplate
   def testIntersect(): Unit = {
     val data = List(
       row(1, 1L, "Hi"),
@@ -66,14 +68,14 @@ class SetOperatorsITCase(joinType: JoinType) extends BatchTestBase {
     checkResult("SELECT c FROM SmallTable3 INTERSECT SELECT c FROM T", Seq(row("Hi"), row("Hello")))
   }
 
-  @Test
+  @TestTemplate
   def testIntersectWithFilter(): Unit = {
     checkResult(
       "SELECT c FROM ((SELECT * FROM SmallTable3) INTERSECT (SELECT * FROM Table3)) WHERE a > 1",
       Seq(row("Hello"), row("Hello world")))
   }
 
-  @Test
+  @TestTemplate
   def testExcept(): Unit = {
     val data = List(row(1, 1L, "Hi"))
     BatchTableEnvUtil.registerCollection(
@@ -88,7 +90,7 @@ class SetOperatorsITCase(joinType: JoinType) extends BatchTestBase {
       Seq(row("Hello"), row("Hello world")))
   }
 
-  @Test
+  @TestTemplate
   def testExceptWithFilter(): Unit = {
     checkResult(
       "SELECT c FROM (" +
@@ -97,24 +99,24 @@ class SetOperatorsITCase(joinType: JoinType) extends BatchTestBase {
       Seq(row("Hi")))
   }
 
-  @Test
+  @TestTemplate
   def testIntersectWithNulls(): Unit = {
     checkResult("SELECT c FROM AllNullTable3 INTERSECT SELECT c FROM AllNullTable3", Seq(row(null)))
   }
 
-  @Test
+  @TestTemplate
   def testExceptWithNulls(): Unit = {
     checkResult("SELECT c FROM AllNullTable3 EXCEPT SELECT c FROM AllNullTable3", Seq())
   }
 
-  @Test
+  @TestTemplate
   def testIntersectAll(): Unit = {
     BatchTableEnvUtil.registerCollection(tEnv, "T1", Seq(1, 1, 1, 2, 2), "c")
     BatchTableEnvUtil.registerCollection(tEnv, "T2", Seq(1, 2, 2, 2, 3), "c")
     checkResult("SELECT c FROM T1 INTERSECT ALL SELECT c FROM T2", Seq(row(1), row(2), row(2)))
   }
 
-  @Test
+  @TestTemplate
   def testMinusAll(): Unit = {
     BatchTableEnvUtil.registerCollection(tEnv, "T2", Seq((1, 1L, "Hi")), "a, b, c")
     val t1 = "SELECT * FROM SmallTable3"
@@ -134,13 +136,13 @@ class SetOperatorsITCase(joinType: JoinType) extends BatchTestBase {
 }
 
 object SetOperatorsITCase {
-  @Parameterized.Parameters(name = "{0}")
+  @Parameters(name = "{0}")
   def parameters(): util.Collection[Array[_]] = {
     util.Arrays.asList(
       // TODO
-//      Array(BroadcastHashJoin),
-//      Array(HashJoin),
-//      Array(NestedLoopJoin),
+      //      Array(BroadcastHashJoin),
+      //      Array(HashJoin),
+      //      Array(NestedLoopJoin),
       Array(SortMergeJoin))
   }
 }

@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.utils.{TestTableSourceWithTime, WithoutTimeAttributesTableSource}
 import org.apache.flink.table.utils.DateTimeUtils.toLocalDateTime
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.lang.{Integer => JInt}
 
