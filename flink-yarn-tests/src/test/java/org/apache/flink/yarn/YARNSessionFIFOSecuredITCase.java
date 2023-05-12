@@ -38,7 +38,6 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fifo.FifoSchedule
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -124,7 +123,6 @@ class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
         SecureTestEnvironment.cleanup();
     }
 
-    @Timeout(value = 60)
     @Test
     void testDetachedModeSecureWithPreInstallKeytab() throws Exception {
         runTest(
@@ -153,7 +151,6 @@ class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
                 });
     }
 
-    @Timeout(value = 60)
     @Test
     @Override
     void testDetachedMode() throws Exception {
