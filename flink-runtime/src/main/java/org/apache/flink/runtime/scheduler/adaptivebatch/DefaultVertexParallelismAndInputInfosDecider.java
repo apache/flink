@@ -548,6 +548,7 @@ public class DefaultVertexParallelismAndInputInfosDecider
                         BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MIN_PARALLELISM),
                 configuration.get(
                         BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_AVG_DATA_VOLUME_PER_TASK),
-                defaultSourceParallelism.orElse(configuration.get(CoreOptions.DEFAULT_PARALLELISM)));
+                defaultSourceParallelism.orElse(
+                        configuration.get(CoreOptions.DEFAULT_PARALLELISM)));
     }
 }
