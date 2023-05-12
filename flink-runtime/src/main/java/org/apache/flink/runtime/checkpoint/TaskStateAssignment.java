@@ -206,6 +206,11 @@ class TaskStateAssignment {
                 .anyMatch(assignment -> assignment.hasOutputState);
     }
 
+    public boolean hasDownstreamInputStates() {
+        return Arrays.stream(getDownstreamAssignments())
+                .anyMatch(assignment -> assignment.hasInputState);
+    }
+
     private InflightDataGateOrPartitionRescalingDescriptor log(
             InflightDataGateOrPartitionRescalingDescriptor descriptor, int subtask, int partition) {
         LOG.debug(
