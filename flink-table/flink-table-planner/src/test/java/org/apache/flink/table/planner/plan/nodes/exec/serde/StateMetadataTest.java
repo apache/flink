@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.StateMetadata;
 
@@ -31,7 +30,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.jupiter.params.provider.ValueSource;
 
 import javax.annotation.Nullable;
 
@@ -50,7 +48,6 @@ import static org.apache.flink.table.api.config.ExecutionConfigOptions.IDLE_STAT
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.configuredSerdeContext;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.testJsonRoundTrip;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.toObject;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.StateMetadataJsonDeserializer.DEFAULT_STATE_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -70,43 +67,28 @@ public class StateMetadataTest {
         tableConfig = TableConfig.getDefault();
     }
 
-    @CsvSource({"0,0,fooState", "1,600000,barState"})
+    @CsvSource({"0,0hour,fooState", "1,600000ms,barState", "2,10minute,meowState"})
     @ParameterizedTest
-    public void testStateMetadataSerde(int index, long ttl, String name) throws IOException {
+    public void testStateMetadataSerde(int index, String ttl, String name) throws IOException {
         testJsonRoundTrip(new StateMetadata(index, ttl, name), StateMetadata.class);
     }
 
     @CsvSource(
             value = {
-                "{\"index\":0,\"name\":\"fooState\"}|ttl",
-                "{\"ttl\":\"3600000ms\",\"name\":\"barState\"}|index"
+                "{\"index\":0,\"name\":\"fooState\"}|state ttl should not be null",
+                "{\"index\":-1,\"ttl\":\"3600000ms\",\"name\":\"barState\"}|state index should start from 0",
+                "{\"ttl\":\"3600000ms\",\"index\":1}|state name should not be null"
             },
             delimiterString = "|")
     @ParameterizedTest
-    public void testDeserializeFromMalformedJson(String malformedJson, String expectedMissingProp) {
+    public void testDeserializeFromMalformedJson(String malformedJson, String expectedMsg) {
         assertThatThrownBy(
                         () ->
                                 toObject(
                                         configuredSerdeContext(),
                                         malformedJson,
                                         StateMetadata.class))
-                .isInstanceOf(TableException.class)
-                .hasMessageContaining(
-                        "Cannot deserialize state metadata. No value for property '%s'",
-                        expectedMissingProp);
-    }
-
-    @ValueSource(
-            strings = {
-                "{\"index\":0,\"ttl\":\"3600000 ms\"}",
-                "{\"index\":1,\"ttl\":\"600000 ms\"}"
-            })
-    @ParameterizedTest
-    public void testLenientOnMissingStateName(String malformedJson) throws IOException {
-        assertThat(
-                        toObject(configuredSerdeContext(), malformedJson, StateMetadata.class)
-                                .getStateName())
-                .isEqualTo(DEFAULT_STATE_NAME);
+                .hasMessageContaining(expectedMsg);
     }
 
     @MethodSource("provideConfigForOneInput")
@@ -234,7 +216,8 @@ public class StateMetadataTest {
                 Arguments.of(
                         (Function<TableConfig, ExecNodeConfig>)
                                 (config) -> ExecNodeConfig.of(config, PERSISTED_NODE_CONFIG, true),
-                        Collections.singletonList(new StateMetadata(0, 3600000L, "fooState")),
+                        Collections.singletonList(
+                                new StateMetadata(0, Duration.ofMillis(3600000L), "fooState")),
                         3600000L),
                 Arguments.of(
                         (Function<TableConfig, ExecNodeConfig>)
@@ -242,7 +225,8 @@ public class StateMetadataTest {
                                     config.set(IDLE_STATE_RETENTION, Duration.ofDays(1));
                                     return ExecNodeConfig.of(config, PERSISTED_NODE_CONFIG, true);
                                 },
-                        Collections.singletonList(new StateMetadata(0, 172800000L, "barState")),
+                        Collections.singletonList(
+                                new StateMetadata(0, Duration.ofMillis(172800000L), "barState")),
                         172800000L));
     }
 
@@ -265,8 +249,8 @@ public class StateMetadataTest {
                         (Function<TableConfig, ExecNodeConfig>)
                                 (config) -> ExecNodeConfig.of(config, PERSISTED_NODE_CONFIG, true),
                         Arrays.asList(
-                                new StateMetadata(1, 86400000L, "fooState"),
-                                new StateMetadata(0, 3600000L, "barState")),
+                                new StateMetadata(1, Duration.ofMillis(86400000L), "fooState"),
+                                new StateMetadata(0, Duration.ofMillis(3600000L), "barState")),
                         Arrays.asList(3600000L, 86400000L)),
                 Arguments.of(
                         (Function<TableConfig, ExecNodeConfig>)
@@ -275,9 +259,9 @@ public class StateMetadataTest {
                                     return ExecNodeConfig.of(config, PERSISTED_NODE_CONFIG, true);
                                 },
                         Arrays.asList(
-                                new StateMetadata(1, 86400000L, "fooState"),
-                                new StateMetadata(0, 3600000L, "barState"),
-                                new StateMetadata(2, 3600000L, "meowState")),
+                                new StateMetadata(1, Duration.ofMillis(86400000L), "fooState"),
+                                new StateMetadata(0, Duration.ofMillis(3600000L), "barState"),
+                                new StateMetadata(2, Duration.ofMillis(3600000L), "meowState")),
                         Arrays.asList(3600000L, 86400000L, 3600000L)));
     }
 
@@ -286,29 +270,31 @@ public class StateMetadataTest {
                 Arguments.of(
                         1,
                         Arrays.asList(
-                                new StateMetadata(1, 60000L, "fooState"),
-                                new StateMetadata(3, 3600000L, "barState")),
+                                new StateMetadata(1, Duration.ofMillis(60000L), "fooState"),
+                                new StateMetadata(3, Duration.ofMillis(3600000L), "barState")),
                         "Received 2 state meta for a OneInputStreamOperator."),
                 Arguments.of(
                         2,
-                        Collections.singletonList(new StateMetadata(1, 60000L, "fooState")),
+                        Collections.singletonList(
+                                new StateMetadata(1, Duration.ofMillis(60000L), "fooState")),
                         "Received 1 state meta for a TwoInputStreamOperator."),
                 Arguments.of(
                         3,
-                        Collections.singletonList(new StateMetadata(0, 60000L, "fooState")),
+                        Collections.singletonList(
+                                new StateMetadata(0, Duration.ofMillis(60000L), "fooState")),
                         "Received 1 state meta for a MultipleInputStreamOperator."),
                 Arguments.of(
                         2,
                         Arrays.asList(
-                                new StateMetadata(0, 60000L, "fooState"),
-                                new StateMetadata(0, 3600000L, "barState")),
+                                new StateMetadata(0, Duration.ofMillis(60000L), "fooState"),
+                                new StateMetadata(0, Duration.ofMillis(3600000L), "barState")),
                         "The state index should not contain duplicates and start from 0 (inclusive) and monotonically increase to the "
                                 + "input size (exclusive) of the operator."),
                 Arguments.of(
                         2,
                         Arrays.asList(
-                                new StateMetadata(1, 3600000L, "barState"),
-                                new StateMetadata(3, 3600000L, "barState")),
+                                new StateMetadata(1, Duration.ofMillis(3600000L), "barState"),
+                                new StateMetadata(3, Duration.ofMillis(3600000L), "barState")),
                         "The state index should not contain duplicates and start from 0 (inclusive) and monotonically increase to the "
                                 + "input size (exclusive) of the operator."));
     }
