@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
-import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.StateMetadata;
@@ -57,8 +56,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 @Execution(ExecutionMode.CONCURRENT)
 public class StateMetadataTest {
-
-    private static final ReadableConfig PERSISTED_NODE_CONFIG = TableConfig.getDefault();
 
     private TableConfig tableConfig;
 
@@ -168,7 +165,7 @@ public class StateMetadataTest {
         assertThatThrownBy(
                         () ->
                                 StateMetadata.getStateTtlForMultiInputOperator(
-                                        ExecNodeConfig.of(tableConfig, PERSISTED_NODE_CONFIG, true),
+                                        ExecNodeConfig.ofTableConfig(tableConfig, true),
                                         expectedInputNumOfOperator,
                                         malformedStateMetadataList))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -202,20 +199,20 @@ public class StateMetadataTest {
         return Stream.of(
                 Arguments.of(
                         (Function<TableConfig, ExecNodeConfig>)
-                                (config) -> ExecNodeConfig.of(config, PERSISTED_NODE_CONFIG, true),
+                                (config) -> ExecNodeConfig.ofTableConfig(config, true),
                         null,
                         0L),
                 Arguments.of(
                         (Function<TableConfig, ExecNodeConfig>)
                                 (config) -> {
                                     config.set(IDLE_STATE_RETENTION, Duration.ofDays(1));
-                                    return ExecNodeConfig.of(config, PERSISTED_NODE_CONFIG, true);
+                                    return ExecNodeConfig.ofTableConfig(config, true);
                                 },
                         Collections.emptyList(),
                         86400000L),
                 Arguments.of(
                         (Function<TableConfig, ExecNodeConfig>)
-                                (config) -> ExecNodeConfig.of(config, PERSISTED_NODE_CONFIG, true),
+                                (config) -> ExecNodeConfig.ofTableConfig(config, true),
                         Collections.singletonList(
                                 new StateMetadata(0, Duration.ofMillis(3600000L), "fooState")),
                         3600000L),
@@ -223,7 +220,7 @@ public class StateMetadataTest {
                         (Function<TableConfig, ExecNodeConfig>)
                                 (config) -> {
                                     config.set(IDLE_STATE_RETENTION, Duration.ofDays(1));
-                                    return ExecNodeConfig.of(config, PERSISTED_NODE_CONFIG, true);
+                                    return ExecNodeConfig.ofTableConfig(config, true);
                                 },
                         Collections.singletonList(
                                 new StateMetadata(0, Duration.ofMillis(172800000L), "barState")),
@@ -234,20 +231,20 @@ public class StateMetadataTest {
         return Stream.of(
                 Arguments.of(
                         (Function<TableConfig, ExecNodeConfig>)
-                                (config) -> ExecNodeConfig.of(config, PERSISTED_NODE_CONFIG, true),
+                                (config) -> ExecNodeConfig.ofTableConfig(config, true),
                         null,
                         Stream.generate(() -> 0L).limit(2).collect(Collectors.toList())),
                 Arguments.of(
                         (Function<TableConfig, ExecNodeConfig>)
                                 (config) -> {
                                     config.set(IDLE_STATE_RETENTION, Duration.ofDays(1));
-                                    return ExecNodeConfig.of(config, PERSISTED_NODE_CONFIG, true);
+                                    return ExecNodeConfig.ofTableConfig(config, true);
                                 },
                         Collections.emptyList(),
                         Stream.generate(() -> 86400000L).limit(3).collect(Collectors.toList())),
                 Arguments.of(
                         (Function<TableConfig, ExecNodeConfig>)
-                                (config) -> ExecNodeConfig.of(config, PERSISTED_NODE_CONFIG, true),
+                                (config) -> ExecNodeConfig.ofTableConfig(config, true),
                         Arrays.asList(
                                 new StateMetadata(1, Duration.ofMillis(86400000L), "fooState"),
                                 new StateMetadata(0, Duration.ofMillis(3600000L), "barState")),
@@ -256,7 +253,7 @@ public class StateMetadataTest {
                         (Function<TableConfig, ExecNodeConfig>)
                                 (config) -> {
                                     config.set(IDLE_STATE_RETENTION, Duration.ofMinutes(30));
-                                    return ExecNodeConfig.of(config, PERSISTED_NODE_CONFIG, true);
+                                    return ExecNodeConfig.ofTableConfig(config, true);
                                 },
                         Arrays.asList(
                                 new StateMetadata(1, Duration.ofMillis(86400000L), "fooState"),

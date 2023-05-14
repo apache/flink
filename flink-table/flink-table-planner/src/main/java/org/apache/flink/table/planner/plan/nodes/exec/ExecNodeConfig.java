@@ -56,14 +56,18 @@ public final class ExecNodeConfig implements ReadableConfig {
         this.isCompiled = isCompiled;
     }
 
-    @VisibleForTesting
-    public static ExecNodeConfig of(
+    static ExecNodeConfig of(
             TableConfig tableConfig, ReadableConfig nodeConfig, boolean isCompiled) {
         return new ExecNodeConfig(tableConfig, nodeConfig, isCompiled);
     }
 
     public static ExecNodeConfig ofNodeConfig(ReadableConfig nodeConfig, boolean isCompiled) {
         return new ExecNodeConfig(new Configuration(), nodeConfig, isCompiled);
+    }
+
+    @VisibleForTesting
+    public static ExecNodeConfig ofTableConfig(TableConfig tableConfig, boolean isCompiled) {
+        return new ExecNodeConfig(tableConfig, TableConfig.getDefault(), isCompiled);
     }
 
     @Override
