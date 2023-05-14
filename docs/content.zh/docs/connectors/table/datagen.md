@@ -148,7 +148,7 @@ CREATE TABLE datagen (
     <tr>
       <td><h5>fields.#.end</h5></td>
       <td>可选</td>
-      <td style="word-wrap: break-word;">Integer.MAX_VALUE</td>
+      <td style="word-wrap: break-word;">1048576</td>
       <td>Long</td>
       <td>序列生成器的结束值。</td>
     </tr>

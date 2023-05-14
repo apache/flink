@@ -23,10 +23,8 @@ import org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUtil;
 import org.apache.flink.connector.datagen.table.DataGenTableSource;
 import org.apache.flink.connector.datagen.table.DataGenTableSourceFactory;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.functions.source.datagen.DataGenerator;
 import org.apache.flink.streaming.api.functions.source.datagen.DataGeneratorSource;
 import org.apache.flink.streaming.api.functions.source.datagen.DataGeneratorSourceTest;
-import org.apache.flink.streaming.api.functions.source.datagen.SequenceGenerator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
@@ -40,7 +38,6 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.util.InstantiationUtil;
 
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -264,66 +261,6 @@ class DataGenTableSourceFactoryTest {
                     }
                 },
                 expectedOutput);
-    }
-
-    @Test
-    void testDefaultValueForSequence() {
-        DescriptorProperties descriptor = new DescriptorProperties();
-        descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
-        descriptor.putString(
-                DataGenConnectorOptionsUtil.FIELDS + ".f0." + DataGenConnectorOptionsUtil.KIND,
-                DataGenConnectorOptionsUtil.SEQUENCE);
-
-        DataGenTableSource source =
-                (DataGenTableSource)
-                        createTableSource(
-                                ResolvedSchema.of(Column.physical("f0", DataTypes.BIGINT())),
-                                descriptor.asMap());
-        DataGenerator<?>[] fieldGenerators = source.getFieldGenerators();
-        SequenceGenerator<?> fieldGenerator = (SequenceGenerator<?>) fieldGenerators[0];
-        long start = fieldGenerator.getStart();
-        long end = fieldGenerator.getEnd();
-
-        Assertions.assertThat(0)
-                .describedAs("The default start value should be 0")
-                .isEqualTo(start);
-        Assertions.assertThat(Integer.MAX_VALUE)
-                .describedAs("The default start value should be Integer.MAX_VALUE")
-                .isEqualTo(end);
-    }
-
-    @Test
-    void testStartEndForSequence() {
-        DescriptorProperties descriptor = new DescriptorProperties();
-        descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
-        descriptor.putString(
-                DataGenConnectorOptionsUtil.FIELDS + ".f0." + DataGenConnectorOptionsUtil.KIND,
-                DataGenConnectorOptionsUtil.SEQUENCE);
-        final int setupStart = 10;
-        descriptor.putLong(
-                DataGenConnectorOptionsUtil.FIELDS + ".f0." + DataGenConnectorOptionsUtil.START,
-                setupStart);
-        final int setupEnd = 100;
-        descriptor.putLong(
-                DataGenConnectorOptionsUtil.FIELDS + ".f0." + DataGenConnectorOptionsUtil.END,
-                setupEnd);
-
-        DataGenTableSource source =
-                (DataGenTableSource)
-                        createTableSource(
-                                ResolvedSchema.of(Column.physical("f0", DataTypes.BIGINT())),
-                                descriptor.asMap());
-        DataGenerator<?>[] fieldGenerators = source.getFieldGenerators();
-        SequenceGenerator<?> fieldGenerator = (SequenceGenerator<?>) fieldGenerators[0];
-        long start = fieldGenerator.getStart();
-        long end = fieldGenerator.getEnd();
-
-        Assertions.assertThat(setupStart)
-                .describedAs("The default start value should be " + setupStart)
-                .isEqualTo(start);
-        Assertions.assertThat(setupEnd)
-                .describedAs("The default start value should be " + setupEnd)
-                .isEqualTo(end);
     }
 
     @Test

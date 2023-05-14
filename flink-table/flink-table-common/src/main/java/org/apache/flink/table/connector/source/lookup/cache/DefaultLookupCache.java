@@ -244,7 +244,6 @@ public class DefaultLookupCache implements LookupCache {
                             + "potential memory issues as the cache size may grow infinitely.");
         }
     }
-
     /** Builder for {@link DefaultLookupCache}. */
     @PublicEvolving
     public static class Builder {

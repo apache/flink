@@ -50,20 +50,26 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
     /**
      * Creates a DataGenerator that emits all numbers from the given interval exactly once.
      *
-     * <p>He requires that the end must be greater than the start and that the total number cannot
-     * be greater than max-1.
+     * <p>The {@code SequenceGenerator} requires that the {@code inclEnd} must be greater than the
+     * {@code inclStart} and that the total number cannot be greater than {@code Long.MAX_VALUE -
+     * 1}.
      *
-     * @param start Start of the range of numbers to emit.
-     * @param end End of the range of numbers to emit.
+     * @param inclStart Start of the range of numbers to emit.
+     * @param inclEnd End of the range of numbers to emit.
      */
-    public SequenceGenerator(long start, long end) {
+    protected SequenceGenerator(long inclStart, long inclEnd) {
         Preconditions.checkArgument(
-                start < end, "The start value cannot be greater than the end value.");
+                inclEnd > inclStart,
+                "The start value (%s) cannot be greater than the end value (%s).",
+                inclStart,
+                inclEnd);
         Preconditions.checkArgument(
-                end - start <= Long.MAX_VALUE - 1,
-                "The total quantity exceeds the maximum limit: Long.MAX_VALUE - 1.");
-        this.start = start;
-        this.end = end;
+                inclEnd - inclStart <= Long.MAX_VALUE - 1,
+                "The total size of range (%s, %s) exceeds the maximum limit: Long.MAX_VALUE - 1.",
+                inclStart,
+                inclEnd);
+        this.start = inclStart;
+        this.end = inclEnd;
     }
 
     @Override
@@ -93,7 +99,8 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
             final long congruence = start + taskIdx;
 
             long totalNoOfElements = Math.abs(end - start + 1);
-            final long baseSize = safeDivide(totalNoOfElements, stepSize);
+            final long baseSize = totalNoOfElements / stepSize;
+
             final long toCollect =
                     (totalNoOfElements % stepSize > taskIdx) ? baseSize + 1 : baseSize;
 
@@ -118,12 +125,6 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
     @Override
     public boolean hasNext() {
         return !this.valuesToEmit.isEmpty();
-    }
-
-    private static long safeDivide(long totalRows, long stepSize) {
-        Preconditions.checkArgument(stepSize > 0, "cannot be equal to 0");
-        Preconditions.checkArgument(totalRows >= 0, "Cannot be less than 0");
-        return totalRows / stepSize;
     }
 
     @VisibleForTesting

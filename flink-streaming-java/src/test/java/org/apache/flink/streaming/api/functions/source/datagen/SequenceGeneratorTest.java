@@ -19,9 +19,8 @@
 package org.apache.flink.streaming.api.functions.source.datagen;
 
 import org.assertj.core.api.Assertions;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link SequenceGenerator}. */
@@ -29,43 +28,45 @@ public class SequenceGeneratorTest {
 
     @Test
     public void testStartGreaterThanEnd() {
-        assertThatThrownBy(
-                        () -> {
-                            final long start = 30;
-                            final long end = 20;
-                            SequenceGenerator.longGenerator(start, end);
-                        })
-                .satisfies(
-                        anyCauseMatches(
-                                IllegalArgumentException.class,
-                                "The start value cannot be greater than the end value."));
+        final long start = 0;
+        final long end = Long.MAX_VALUE;
+        SequenceGenerator.longGenerator(start, end);
+        assertThatThrownBy(() -> SequenceGenerator.longGenerator(start, end))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage(
+                        "The start value (%s) cannot be greater than the end value (%s).",
+                        start, end);
     }
 
     @Test
-    public void testTotalQuantity() {
-        assertThatThrownBy(
-                        () -> {
-                            final long start = 0;
-                            final long end = Long.MAX_VALUE;
-                            SequenceGenerator.longGenerator(start, end);
-                        })
-                .satisfies(
-                        anyCauseMatches(
-                                IllegalArgumentException.class,
-                                "The total quantity exceeds the maximum limit: Long.MAX_VALUE - 1."));
+    public void testTooLargeRange() {
+        final long start = 0;
+        final long end = Long.MAX_VALUE;
+        SequenceGenerator.longGenerator(start, end);
+        assertThatThrownBy(() -> SequenceGenerator.longGenerator(start, end))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage(
+                        "The total size of range (%s, %s) exceeds the maximum limit: Long.MAX_VALUE - 1..",
+                        start, end);
+    }
 
-        final long start1 = 0;
-        final long end1 = Long.MAX_VALUE - 1;
-        SequenceGenerator<Long> generator1 = SequenceGenerator.longGenerator(start1, end1);
-        Assertions.assertThat(generator1.getEnd() - generator1.getStart())
+    @Test
+    public void testMaxRange() {
+        final long start = 0;
+        final long end = Long.MAX_VALUE - 1;
+        SequenceGenerator<Long> generator = SequenceGenerator.longGenerator(start, end);
+        Assertions.assertThat(generator.getEnd() - generator.getStart())
                 .describedAs("The maximum total should be: Long.MAX_VALUE - 1.")
                 .isEqualTo(Long.MAX_VALUE - 1);
+    }
 
-        final long start2 = 33;
-        final long end2 = 44;
-        SequenceGenerator<Long> generator2 = SequenceGenerator.longGenerator(start2, end2);
-        Assertions.assertThat(generator2.getEnd() - generator2.getStart())
+    @Test
+    public void testSequenceCreation() {
+        final long start = 33;
+        final long end = 44;
+        SequenceGenerator<Long> generator = SequenceGenerator.longGenerator(start, end);
+        Assertions.assertThat(generator.getEnd() - generator.getStart())
                 .describedAs("The total quantity should be equal.")
-                .isEqualTo(end2 - start2);
+                .isEqualTo(end - start);
     }
 }

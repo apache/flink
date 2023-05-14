@@ -48,10 +48,6 @@ public class SequenceGeneratorVisitor extends DataGenVisitorBase {
 
     private final ReadableConfig config;
 
-    private final String startKeyStr;
-
-    private final String endKeyStr;
-
     private final ConfigOption<Integer> intStart;
 
     private final ConfigOption<Integer> intEnd;
@@ -60,32 +56,35 @@ public class SequenceGeneratorVisitor extends DataGenVisitorBase {
 
     private final ConfigOption<Long> longEnd;
 
+    static final int START_DEFAULT_VALUE = 0;
+    static final int END_DEFAULT_VALUE = 1048576;
+
     public SequenceGeneratorVisitor(String name, ReadableConfig config) {
         super(name, config);
 
         this.config = config;
 
-        this.startKeyStr =
-                DataGenConnectorOptionsUtil.FIELDS
-                        + "."
-                        + name
-                        + "."
-                        + DataGenConnectorOptionsUtil.START;
-        this.endKeyStr =
-                DataGenConnectorOptionsUtil.FIELDS
-                        + "."
-                        + name
-                        + "."
-                        + DataGenConnectorOptionsUtil.END;
+        String startKeyStr =
+                String.join(
+                        ".",
+                        DataGenConnectorOptionsUtil.FIELDS,
+                        name,
+                        DataGenConnectorOptionsUtil.START);
+        String endKeyStr =
+                String.join(
+                        ".",
+                        DataGenConnectorOptionsUtil.FIELDS,
+                        name,
+                        DataGenConnectorOptionsUtil.END);
 
         ConfigOptions.OptionBuilder startKey = key(startKeyStr);
         ConfigOptions.OptionBuilder endKey = key(endKeyStr);
 
         // Under sequence, if end and start are not set, the default value is used
-        this.intStart = startKey.intType().defaultValue(0);
-        this.intEnd = endKey.intType().defaultValue(Integer.MAX_VALUE);
-        this.longStart = startKey.longType().defaultValue(0L);
-        this.longEnd = endKey.longType().defaultValue((long) Integer.MAX_VALUE);
+        this.intStart = startKey.intType().defaultValue(START_DEFAULT_VALUE);
+        this.intEnd = endKey.intType().defaultValue(END_DEFAULT_VALUE);
+        this.longStart = startKey.longType().defaultValue((long) START_DEFAULT_VALUE);
+        this.longEnd = endKey.longType().defaultValue((long) END_DEFAULT_VALUE);
     }
 
     @Override

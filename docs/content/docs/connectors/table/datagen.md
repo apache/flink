@@ -293,7 +293,7 @@ Connector Options
     <tr>
       <td><h5>fields.#.end</h5></td>
       <td>optional</td>
-      <td style="word-wrap: break-word;">Integer.MAX_VALUE</td>
+      <td style="word-wrap: break-word;">1048576</td>
       <td>Long</td>
       <td>End value of sequence generator.</td>
     </tr>
