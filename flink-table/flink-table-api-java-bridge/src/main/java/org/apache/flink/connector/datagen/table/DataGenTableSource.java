@@ -95,7 +95,7 @@ public class DataGenTableSource implements ScanTableSource, SupportsLimitPushDow
     }
 
     @VisibleForTesting
-    public DataGenerator<?>[] getFieldGenerators() {
+    DataGenerator<?>[] getFieldGenerators() {
         return fieldGenerators;
     }
 }
