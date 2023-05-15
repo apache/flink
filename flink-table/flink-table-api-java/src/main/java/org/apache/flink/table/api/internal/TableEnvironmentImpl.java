@@ -898,9 +898,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 deleteFromFilterOperation.getSupportsDeletePushDownSink().executeDeletion();
         if (rows.isPresent()) {
             return TableResultImpl.builder()
-                    .resultKind(ResultKind.SUCCESS)
-                    .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())))
-                    .data(Arrays.asList(Row.of(String.valueOf(rows.get())), Row.of("OK")))
+                    .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
+                    .schema(ResolvedSchema.of(Column.physical("rows affected", DataTypes.BIGINT())))
+                    .data(Collections.singletonList(Row.of(rows.get())))
                     .build();
         } else {
             return TableResultImpl.TABLE_RESULT_OK;
@@ -2021,6 +2021,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             SinkModifyOperation sinkModifyOperation = (SinkModifyOperation) operation;
             return sinkModifyOperation.isDelete() || sinkModifyOperation.isUpdate();
         }
-        return true;
+        return false;
     }
 }

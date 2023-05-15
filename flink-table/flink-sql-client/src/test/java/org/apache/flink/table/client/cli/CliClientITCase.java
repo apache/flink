@@ -25,9 +25,13 @@ import org.apache.flink.table.client.cli.utils.SqlScriptReader;
 import org.apache.flink.table.client.cli.utils.TestSqlStatement;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SingleSessionManager;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
 import org.apache.flink.table.gateway.service.context.DefaultContext;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
+import org.apache.flink.table.planner.factories.TestUpdateDeleteTableFactory;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.flink.test.junit5.InjectClusterClientConfiguration;
 import org.apache.flink.test.junit5.MiniClusterExtension;
@@ -165,6 +169,7 @@ class CliClientITCase {
         replaceVars.put("$VAR_PIPELINE_JARS_URL", udfDependency.toString());
         replaceVars.put("$VAR_REST_PORT", configuration.get(PORT).toString());
         replaceVars.put("$VAR_JOBMANAGER_RPC_ADDRESS", configuration.get(ADDRESS));
+        replaceVars.put("$VAR_DELETE_TABLE_DATA_ID", prepareDataForDeleteStatement());
     }
 
     @BeforeEach
@@ -288,6 +293,14 @@ class CliClientITCase {
             }
             return false;
         }
+    }
+
+    private static String prepareDataForDeleteStatement() {
+        List<RowData> values = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            values.add(GenericRowData.of(i, StringData.fromString("b_" + i), i * 2.0));
+        }
+        return TestUpdateDeleteTableFactory.registerRowData(values);
     }
 
     private static String getInputFromPath(String sqlPath) throws IOException {
