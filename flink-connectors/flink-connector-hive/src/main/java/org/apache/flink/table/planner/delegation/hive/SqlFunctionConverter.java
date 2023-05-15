@@ -22,7 +22,6 @@ import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserBetween;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserSqlFunctionConverter;
-import org.apache.flink.table.planner.functions.sql.FlinkTimestampWithPrecisionDynamicFunction;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.plan.RelOptCluster;
@@ -95,10 +94,9 @@ public class SqlFunctionConverter extends RexShuttle {
             RelDataType type = call.getType();
             return builder.makeCall(type, convertedOp, visitList(operands, update));
         } else {
-            if (convertedOp instanceof FlinkTimestampWithPrecisionDynamicFunction
-                    && convertedOp
-                            .getName()
-                            .equalsIgnoreCase(SqlStdOperatorTable.CURRENT_TIMESTAMP.getName())) {
+            if (convertedOp
+                    .getName()
+                    .equalsIgnoreCase(SqlStdOperatorTable.CURRENT_TIMESTAMP.getName())) {
                 // flink's current_timestamp(no localtimestamp or now or current_row_timestamp in
                 // hive built-in functions) has different type from hive's, convert it to a literal
                 Timestamp currentTS =
