@@ -12,55 +12,55 @@
             <td><h5>state.backend.incremental</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
-            <td>Option whether the state backend should create incremental checkpoints, if possible. For an incremental checkpoint, only a diff from the previous checkpoint is stored, rather than the complete checkpoint state. Once enabled, the state size shown in web UI or fetched from rest API only represents the delta checkpoint size instead of full checkpoint size. Some state backends may not support incremental checkpoints and ignore this option.</td>
+            <td>选择是否启用 State Backend 创建增量 checkpoint（如果可能）。对于增量 checkpoint，只会存储与上一个 checkpoint 的差异，而不是完整的 Checkpoint State。一旦启用，Web UI 中显示的 State 大小或从 REST API 获取的 State 大小仅表示增量 checkpoint 大小，而不是完整的 checkpoint 大小。某些 State Backend 可能不支持增量 checkpoint 并忽略此选项。</td>
         </tr>
         <tr>
             <td><h5>state.backend.local-recovery</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
-            <td>This option configures local recovery for this state backend. By default, local recovery is deactivated. Local recovery currently only covers keyed state backends (including both the EmbeddedRocksDBStateBackend and the HashMapStateBackend).</td>
+            <td>此选项配置了此 State Backend 的本地恢复。默认情况下，本地恢复处于停用状态。目前，本地恢复仅适用于keyed state backend（包括 EmbeddedRocksDBStateBackend 和 HashMapStateBackend）。</td>
         </tr>
         <tr>
             <td><h5>state.checkpoint-storage</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>The checkpoint storage implementation to be used to checkpoint state.<br />The implementation can be specified either via their shortcut  name, or via the class name of a <code class="highlighter-rouge">CheckpointStorageFactory</code>. If a factory is specified it is instantiated via its zero argument constructor and its <code class="highlighter-rouge">CheckpointStorageFactory#createFromConfig(ReadableConfig, ClassLoader)</code>  method is called.<br />Recognized shortcut names are 'jobmanager' and 'filesystem'.</td>
+            <td>用于 Checkpoint State 的 Checkpoint storage 实现。<br />可以通过其简称或 <code class="highlighter-rouge">CheckpointStorageFactory</code> 的类名来指定实现。如果指定了工厂，将通过其无参构造函数实例化，并调用其 <code class="highlighter-rouge">CheckpointStorageFactory#createFromConfig(ReadableConfig, ClassLoader)</code>方法。<br />已识别的简称包括 'jobmanager' 和 'filesystem'。</td>
         </tr>
         <tr>
             <td><h5>state.checkpoints.dir</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>The default directory used for storing the data files and meta data of checkpoints in a Flink supported filesystem. The storage path must be accessible from all participating processes/nodes(i.e. all TaskManagers and JobManagers).</td>
+            <td>在 Flink 支持的文件系统中，用于存储 Checkpoint 的数据文件和元数据的默认目录。存储路径必须对所有参与的进程/节点（即所有 TaskManagers 和 JobManagers）可访问。</td>
         </tr>
         <tr>
             <td><h5>state.checkpoints.num-retained</h5></td>
             <td style="word-wrap: break-word;">1</td>
             <td>Integer</td>
-            <td>The maximum number of completed checkpoints to retain.</td>
+            <td>要保留的完成的 Checkpoint 的最大数量。</td>
         </tr>
         <tr>
             <td><h5>state.savepoints.dir</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>The default directory for savepoints. Used by the state backends that write savepoints to file systems (HashMapStateBackend, EmbeddedRocksDBStateBackend).</td>
+            <td>Savepoint 的默认目录。用于将 Savepoint 写入文件系统的 State Backend（HashMapStateBackend、EmbeddedRocksDBStateBackend）。</td>
         </tr>
         <tr>
             <td><h5>state.storage.fs.memory-threshold</h5></td>
             <td style="word-wrap: break-word;">20 kb</td>
             <td>MemorySize</td>
-            <td>The minimum size of state data files. All state chunks smaller than that are stored inline in the root checkpoint metadata file. The max memory threshold for this configuration is 1MB.</td>
+            <td>State data files的最小值。所有小于此大小的 state chunks 都会直接存储在根 checkpoint 元数据文件中。此配置的最大内存阈值为1MB。</td>
         </tr>
         <tr>
             <td><h5>state.storage.fs.write-buffer-size</h5></td>
             <td style="word-wrap: break-word;">4096</td>
             <td>Integer</td>
-            <td>The default size of the write buffer for the checkpoint streams that write to file systems. The actual write buffer size is determined to be the maximum of the value of this option and option 'state.storage.fs.memory-threshold'.</td>
+            <td>用于写入文件系统的 checkpoint streams 的写缓冲区的默认大小。实际的写缓冲区大小确定为此选项值和选项 'state.storage.fs.memory-threshold' 值的较大者。</td>
         </tr>
         <tr>
             <td><h5>taskmanager.state.local.root-dirs</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>The config parameter defining the root directories for storing file-based state for local recovery. Local recovery currently only covers keyed state backends. If not configured it will default to &lt;WORKING_DIR&gt;/localState. The &lt;WORKING_DIR&gt; can be configured via <code class="highlighter-rouge">process.taskmanager.working-dir</code></td>
+            <td>用于本地恢复存储文件 state 的根目录的配置参数。当前本地恢复仅适用于 keyed state backend。如果未配置，它将默认为&lt;WORKING_DIR&gt;/localState。<WORKING_DIR>可以通过<code class="highlighter-rouge">process.taskmanager.working-dir</code> 进行配置。</td>
         </tr>
     </tbody>
 </table>
