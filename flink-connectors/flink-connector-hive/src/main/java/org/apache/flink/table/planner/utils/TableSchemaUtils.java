@@ -18,27 +18,22 @@
 
 package org.apache.flink.table.planner.utils;
 
-import org.apache.flink.sql.parser.ddl.SqlTableColumn;
-import org.apache.flink.sql.parser.ddl.SqlTableOption;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableChange;
-
-import org.apache.calcite.sql.SqlCharStringLiteral;
-import org.apache.calcite.sql.SqlNodeList;
 
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
-/** Utils methods for converting sql to operations. */
-public class OperationConverterUtils {
-
-    private OperationConverterUtils() {}
+/** Utils methods for converting table schema. */
+public class TableSchemaUtils {
+    private TableSchemaUtils() {}
 
     public static List<TableChange> buildModifyColumnChange(
             Column oldColumn,
@@ -78,23 +73,42 @@ public class OperationConverterUtils {
         }
     }
 
-    public static @Nullable String getComment(SqlTableColumn column) {
-        return column.getComment()
-                .map(SqlCharStringLiteral.class::cast)
-                .map(c -> c.getValueAs(String.class))
-                .orElse(null);
-    }
-
-    public static Map<String, String> extractProperties(SqlNodeList propList) {
-        Map<String, String> properties = new HashMap<>();
-        if (propList != null) {
-            propList.getList()
-                    .forEach(
-                            p ->
-                                    properties.put(
-                                            ((SqlTableOption) p).getKeyString(),
-                                            ((SqlTableOption) p).getValueString()));
+    // change a column in the old table schema and return the updated table schema
+    public static ResolvedSchema changeColumn(
+            ResolvedSchema oldSchema,
+            String oldName,
+            Column newTableColumn,
+            boolean first,
+            String after) {
+        int oldIndex = oldSchema.getColumnNames().indexOf(oldName);
+        if (oldIndex < 0) {
+            throw new ValidationException(
+                    String.format("Old column %s not found for CHANGE COLUMN", oldName));
         }
-        return properties;
+        List<Column> tableColumns = new ArrayList<>(oldSchema.getColumns());
+        if ((!first && after == null) || oldName.equals(after)) {
+            tableColumns.set(oldIndex, newTableColumn);
+        } else {
+            // need to change column position
+            tableColumns.remove(oldIndex);
+            if (first) {
+                tableColumns.add(0, newTableColumn);
+            } else {
+                int newIndex =
+                        tableColumns.stream()
+                                .map(Column::getName)
+                                .collect(Collectors.toList())
+                                .indexOf(after);
+                if (newIndex < 0) {
+                    throw new ValidationException(
+                            String.format("After column %s not found for CHANGE COLUMN", after));
+                }
+                tableColumns.add(newIndex + 1, newTableColumn);
+            }
+        }
+        return new ResolvedSchema(
+                tableColumns,
+                oldSchema.getWatermarkSpecs(),
+                oldSchema.getPrimaryKey().orElse(null));
     }
 }
