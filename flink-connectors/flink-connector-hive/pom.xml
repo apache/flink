@@ -45,6 +45,7 @@ under the License.
 		Using this dedicated property avoids CI failures with the Hadoop 3 profile
 		-->
 		<hive.hadoop.version>2.10.2</hive.hadoop.version>
+		<guava.version>29.0-jre</guava.version>
 	</properties>
 
 	<dependencyManagement>
@@ -204,6 +205,7 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
+		<!-- test dependencies for table planner -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
