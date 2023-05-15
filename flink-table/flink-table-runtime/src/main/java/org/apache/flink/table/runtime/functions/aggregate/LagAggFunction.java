@@ -44,6 +44,15 @@ public class LagAggFunction<T> extends BuiltInAggregateFunction<T, LagAggFunctio
                 Arrays.stream(valueTypes)
                         .map(DataTypeUtils::toInternalDataType)
                         .toArray(DataType[]::new);
+        // The output value can only be not null if the default input arguments include a non-null
+        // default value.
+        if (!valueDataTypes[0].getLogicalType().isNullable()) {
+            if (valueDataTypes.length < 3
+                    || (valueDataTypes.length == 3
+                            && valueDataTypes[2].getLogicalType().isNullable())) {
+                valueDataTypes[0] = valueDataTypes[0].nullable();
+            }
+        }
         if (valueDataTypes.length == 3
                 && valueDataTypes[2].getLogicalType().getTypeRoot() != LogicalTypeRoot.NULL) {
             if (valueDataTypes[0].getConversionClass() != valueDataTypes[2].getConversionClass()) {

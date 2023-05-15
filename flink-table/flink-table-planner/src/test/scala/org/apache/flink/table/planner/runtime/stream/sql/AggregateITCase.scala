@@ -1765,4 +1765,35 @@ class AggregateITCase(aggMode: AggMode, miniBatch: MiniBatchMode, backend: State
     val expected = List("3")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
+
+  @Test
+  def testLagAggFunction(): Unit = {
+    val data =
+      List(rowOf(2L, 15, "Hello"), rowOf(8L, 11, "Hello world"), rowOf(9L, 12, "Hello world!"))
+    val dataId = TestValuesTableFactory.registerData(data)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE src(
+                       |  `id` BIGINT,
+                       |  `len` INT NOT NULL,
+                       |  `content` STRING,
+                       |  `proctime` AS PROCTIME()
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$dataId'
+                       |)
+                       |""".stripMargin)
+    val sink = new TestingRetractSink
+    val sql =
+      s"""
+         |select
+         |  LAG(len, 1, cast(null as int)) OVER w AS prev_quantity,
+         |  LAG(len) OVER w AS prev_quantity
+         |from src
+         |WINDOW w AS (ORDER BY proctime)
+         |""".stripMargin
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+    val expected = List("null,null", "15,15", "11,11")
+    assertEquals(expected, sink.getRetractResults)
+  }
 }
