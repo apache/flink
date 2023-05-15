@@ -46,6 +46,7 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveParserASTNode;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserContext;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserQueryState;
 import org.apache.flink.table.planner.delegation.hive.operations.HiveExecutableOperation;
+import org.apache.flink.table.planner.delegation.hive.parse.FlinkExtendedParser;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserCreateViewInfo;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserDDLSemanticAnalyzer;
@@ -187,6 +188,13 @@ public class HiveParser extends ParserImpl {
 
     @Override
     public List<Operation> parse(String statement) {
+        // first try to use flink extended parser to parse some special commands
+        Optional<Operation> flinkExtendedOperation =
+                FlinkExtendedParser.parseFlinkExtendedCommand(trimSemicolon(statement));
+        if (flinkExtendedOperation.isPresent()) {
+            return Collections.singletonList(flinkExtendedOperation.get());
+        }
+
         Catalog currentCatalog =
                 catalogRegistry.getCatalogOrError(catalogRegistry.getCurrentCatalog());
         if (!(currentCatalog instanceof HiveCatalog)) {
@@ -219,21 +227,24 @@ public class HiveParser extends ParserImpl {
         }
     }
 
-    private Optional<Operation> tryProcessHiveNonSqlStatement(HiveConf hiveConf, String statement) {
+    private String trimSemicolon(String statement) {
         statement = statement.trim();
         if (statement.endsWith(";")) {
             // the command may end with ";" since it won't be removed by Flink SQL CLI,
             // so, we need to remove ";"
             statement = statement.substring(0, statement.length() - 1);
         }
+        return statement;
+    }
+
+    private Optional<Operation> tryProcessHiveNonSqlStatement(HiveConf hiveConf, String statement) {
+        statement = trimSemicolon(statement);
         String[] commandTokens = statement.split("\\s+");
         HiveCommand hiveCommand = HiveCommand.find(commandTokens);
         if (hiveCommand != null) {
             String cmdArgs = statement.substring(commandTokens[0].length()).trim();
             if (hiveCommand == HiveCommand.SET) {
                 return Optional.of(processSetCmd(statement, cmdArgs));
-            } else if (hiveCommand == HiveCommand.RESET) {
-                return Optional.of(super.parse(statement).get(0));
             } else if (hiveCommand == HiveCommand.ADD) {
                 return Optional.of(processAddCmd(substituteVariables(hiveConf, cmdArgs)));
             } else {
