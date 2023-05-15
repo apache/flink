@@ -22,7 +22,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
-import org.apache.flink.table.planner.expressions.ExpressionBuilder;
+import org.apache.flink.table.planner.delegation.hive.expressions.ExpressionBuilder;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 
@@ -30,9 +30,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
-import static org.apache.flink.table.planner.expressions.ExpressionBuilder.ifThenElse;
-import static org.apache.flink.table.planner.expressions.ExpressionBuilder.literal;
-import static org.apache.flink.table.planner.expressions.ExpressionBuilder.plus;
+import static org.apache.flink.table.planner.delegation.hive.expressions.ExpressionBuilder.ifThenElse;
+import static org.apache.flink.table.planner.delegation.hive.expressions.ExpressionBuilder.literal;
+import static org.apache.flink.table.planner.delegation.hive.expressions.ExpressionBuilder.plus;
 
 /** built-in hive count aggregate function. */
 public class HiveCountAggFunction extends HiveDeclarativeAggregateFunction {
