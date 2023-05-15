@@ -43,8 +43,8 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.sql.Date;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -52,7 +52,6 @@ import java.util.Map;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.orc.OrcColumnarRowInputFormatTest.copyFileFromResource;
-import static org.apache.flink.table.utils.DateTimeUtils.toSQLDate;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link OrcColumnarRowSplitReader}. */
@@ -308,7 +307,7 @@ public class OrcColumnarRowSplitReaderTest {
         int cnt = 0;
         Map<String, Object> partSpec = new HashMap<>();
         partSpec.put("f5", true);
-        partSpec.put("f6", new Date(562423));
+        partSpec.put("f6", LocalDate.of(1999, 8, 7));
         partSpec.put("f7", LocalDateTime.of(1999, 1, 1, 1, 1));
         partSpec.put("f8", 6.6);
         partSpec.put("f9", null);
@@ -361,8 +360,7 @@ public class OrcColumnarRowSplitReaderTest {
                     assertThat(row.getShort(4)).isEqualTo((short) cnt);
                 }
                 assertThat(row.getBoolean(5)).isTrue();
-                assertThat(toSQLDate(row.getInt(6)).toString())
-                        .isEqualTo(new Date(562423).toString());
+                assertThat(LocalDate.ofEpochDay(row.getInt(6))).isEqualTo(LocalDate.of(1999, 8, 7));
 
                 assertThat(row.getTimestamp(7, 9).toLocalDateTime())
                         .isEqualTo(LocalDateTime.of(1999, 1, 1, 1, 1));
