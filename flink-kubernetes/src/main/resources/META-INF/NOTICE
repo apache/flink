@@ -40,4 +40,5 @@ This project bundles the following dependencies under the Apache Software Licens
 - io.fabric8:kubernetes-model-scheduling:6.5.1
 - io.fabric8:kubernetes-model-storageclass:6.5.1
 - io.fabric8:zjsonpatch:0.3.0
+- org.snakeyaml:snakeyaml-engine:2.6
 - org.yaml:snakeyaml:1.33
