@@ -53,7 +53,6 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveParserWindowingSp
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserCreateViewInfo;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserErrorMsg;
-import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.plan.nodes.hive.LogicalDistribution;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
@@ -2586,9 +2585,9 @@ public class HiveParserCalcitePlanner {
 
         SqlOperator convertedOperator = convertedCall.getOperator();
         Preconditions.checkState(
-                convertedOperator instanceof BridgingSqlFunction,
+                HiveParserUtils.isBridgingSqlFunction(convertedOperator),
                 "Expect operator to be "
-                        + BridgingSqlFunction.class.getSimpleName()
+                        + HiveParserUtils.BRIDGING_SQL_FUNCTION_CLZ_NAME
                         + ", actually got "
                         + convertedOperator.getClass().getSimpleName());
 
