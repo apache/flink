@@ -63,6 +63,18 @@ public class FlinkExtendedParser {
     }
 
     /**
+     * Convert the statement to {@link SetOperation} with Flink's parse rule.
+     *
+     * @return the {@link SetOperation}, empty if the statement is not set command.
+     */
+    public static Optional<Operation> parseSet(String statement) {
+        if (SetOperationParseStrategy.INSTANCE.match(statement)) {
+            return Optional.of(SetOperationParseStrategy.INSTANCE.convert(statement));
+        }
+        return Optional.empty();
+    }
+
+    /**
      * Strategy to parse some special command which cannot be supported by {@link
      * org.apache.flink.table.planner.delegation.hive.HiveParser}, e.g. {@code QUIT}, {@code CLEAR},
      * to {@link Operation}.

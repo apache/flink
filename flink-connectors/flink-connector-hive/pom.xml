@@ -206,9 +206,18 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
+			<artifactId>flink-table-calcite-bridge</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
+			<optional>${flink.markBundledAsOptional}</optional>
+		</dependency>
+
+		<!-- test dependencies for table planner -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
 		</dependency>
 
 		<!-- HiveServer2 Endpoint -->
@@ -676,6 +685,7 @@ under the License.
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
@@ -1198,6 +1208,15 @@ under the License.
 					<systemPropertyVariables>
 						<derby.stream.error.file>${project.build.directory}/derby.log</derby.stream.error.file>
 					</systemPropertyVariables>
+					<!-- todo: remove it after FLINK-32286 -->
+					<classpathDependencyExcludes>
+						<!-- Exclude calcite-related dependency to avoid it conflicts with the classes packed in flink-table-planner.
+						     Note: but it will cause NoClassDefFoundError when runing test in IntelliJ since IntelliJ does not run the test on the
+						     shaded flink-table-planner jar and then we will miss the calcite-core dependency.
+						     When you encounter such exception when runing test in IntelliJ, please remember to remove the following line temporarily.
+						 -->
+						<classpathDependencyExclude>org.apache.calcite:calcite-core</classpathDependencyExclude>
+					</classpathDependencyExcludes>
 				</configuration>
 			</plugin>
 
