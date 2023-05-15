@@ -574,11 +574,11 @@ public class HiveServer2EndpointITCase extends TestLogger {
                     try (Statement statement = connection.createStatement()) {
                         statement.execute(
                                 String.format(
-                                        "CREATE FUNCTION `hive`.`db_test2`.`my_abs` as '%s'",
+                                        "CREATE FUNCTION `db_test2`.`my_abs` as '%s'",
                                         JavaFunc0.class.getName()));
                         statement.execute(
                                 String.format(
-                                        "CREATE FUNCTION `hive`.`db_diff`.`your_abs` as '%s'",
+                                        "CREATE FUNCTION `db_diff`.`your_abs` as '%s'",
                                         JavaFunc0.class.getName()));
                     }
                     return connection.getMetaData().getFunctions("hive", "db.*", "my.*");
@@ -632,7 +632,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
         TCLIService.Client client = createClient();
         TSessionHandle sessionHandle = client.OpenSession(new TOpenSessionReq()).getSessionHandle();
         TOperationHandle operationHandle =
-                client.ExecuteStatement(new TExecuteStatementReq(sessionHandle, "SHOW CATALOGS"))
+                client.ExecuteStatement(new TExecuteStatementReq(sessionHandle, "SHOW DATABASES"))
                         .getOperationHandle();
 
         assertThat(
@@ -654,7 +654,11 @@ public class HiveServer2EndpointITCase extends TestLogger {
         while (iterator.hasNext()) {
             actual.add(new ArrayList<>(Arrays.asList(iterator.next())));
         }
-        assertThat(actual).isEqualTo(Collections.singletonList(Collections.singletonList("hive")));
+        List<List<String>> expected = new ArrayList<>();
+        for (String s : Arrays.asList("db_diff", "db_test1", "db_test2", "default")) {
+            expected.add(Collections.singletonList(s));
+        }
+        assertThat(actual).isEqualTo(expected);
     }
 
     @Test

@@ -469,7 +469,7 @@ class HiveTableSinkITCase {
 
         // insert overwrite partition
         tEnv.executeSql(
-                        "INSERT OVERWRITE target_table partition (dt='2022-07-28') SELECT name FROM src_table where dt = '2022-07-28'")
+                        "INSERT OVERWRITE TABLE target_table partition (dt='2022-07-28') SELECT name FROM src_table where dt = '2022-07-28'")
                 .await();
         partitions =
                 CollectionUtil.iteratorToList(
@@ -494,7 +494,7 @@ class HiveTableSinkITCase {
 
         // insert overwrite a partition with data
         tEnv.executeSql(
-                        "INSERT OVERWRITE target_table partition (dt='2022-07-29') SELECT name FROM src_table where dt = '2022-07-29'")
+                        "INSERT OVERWRITE TABLE target_table partition (dt='2022-07-29') SELECT name FROM src_table where dt = '2022-07-29'")
                 .await();
         partitions =
                 CollectionUtil.iteratorToList(
