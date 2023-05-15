@@ -24,6 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.calcite.bridge.CalciteContext;
+import org.apache.flink.table.calcite.bridge.PlannerExternalQueryOperation;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogRegistry;
@@ -47,9 +48,9 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveParserQB;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserSqlFunctionConverter;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserTypeConverter;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserDDLSemanticAnalyzer;
-import org.apache.flink.table.planner.operations.PlannerQueryOperation;
 import org.apache.flink.table.planner.plan.nodes.hive.LogicalDistribution;
 import org.apache.flink.table.planner.plan.nodes.hive.LogicalScriptTransform;
+import org.apache.flink.table.planner.utils.TableSchemaUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
@@ -249,7 +250,8 @@ public class HiveParserDMLHelper {
 
         return Tuple4.of(
                 destTableIdentifier,
-                new PlannerQueryOperation(queryRelNode),
+                new PlannerExternalQueryOperation(
+                        queryRelNode, TableSchemaUtils.resolvedSchema(queryRelNode)),
                 staticPartSpec,
                 overwrite);
     }
@@ -417,7 +419,9 @@ public class HiveParserDMLHelper {
         props.put("columns", colNames);
         props.put("columns.types", colTypes);
 
-        PlannerQueryOperation plannerQueryOperation = new PlannerQueryOperation(queryRelNode);
+        PlannerExternalQueryOperation plannerQueryOperation =
+                new PlannerExternalQueryOperation(
+                        queryRelNode, TableSchemaUtils.resolvedSchema(queryRelNode));
         return new SinkModifyOperation(
                 createDummyTableForInsertDirectory(
                         plannerQueryOperation.getResolvedSchema(), props),

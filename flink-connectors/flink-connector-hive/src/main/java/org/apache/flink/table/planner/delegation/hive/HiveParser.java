@@ -23,8 +23,10 @@ import org.apache.flink.table.api.SqlParserException;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.calcite.bridge.CalciteContext;
+import org.apache.flink.table.calcite.bridge.PlannerExternalQueryOperation;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogRegistry;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
@@ -48,7 +50,7 @@ import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserCreateViewInfo;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserDDLSemanticAnalyzer;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserLoadSemanticAnalyzer;
-import org.apache.flink.table.planner.operations.PlannerQueryOperation;
+import org.apache.flink.table.planner.utils.TableSchemaUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.prepare.CalciteCatalogReader;
@@ -496,7 +498,8 @@ public class HiveParser extends ParserImpl {
         if (!analyzer.getQB().getIsQuery()) {
             return dmlHelper.createInsertOperation(analyzer, relNode);
         } else {
-            return new PlannerQueryOperation(relNode);
+            ResolvedSchema resolvedSchema = TableSchemaUtils.resolvedSchema(relNode);
+            return new PlannerExternalQueryOperation(relNode, resolvedSchema);
         }
     }
 }
