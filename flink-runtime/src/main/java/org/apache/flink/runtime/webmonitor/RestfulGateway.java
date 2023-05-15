@@ -28,6 +28,7 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.TriggerSavepointMode;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -277,5 +278,29 @@ public interface RestfulGateway extends RpcGateway {
     default CompletableFuture<Void> reportJobClientHeartbeat(
             JobID jobId, long expiredTimestamp, Time timeout) {
         return FutureUtils.completedVoidFuture();
+    }
+
+    /**
+     * Read current {@link JobResourceRequirements job resource requirements} for a given job.
+     *
+     * @param jobId job to read the resource requirements for
+     * @return Future which that contains current resource requirements.
+     */
+    default CompletableFuture<JobResourceRequirements> requestJobResourceRequirements(JobID jobId) {
+        throw new UnsupportedOperationException("Operation is not yet implemented.");
+    }
+
+    /**
+     * Update {@link JobResourceRequirements job resource requirements} for a given job. When the
+     * returned future is complete the requirements have been updated and were persisted in HA, but
+     * the job may not have been rescaled (yet).
+     *
+     * @param jobId job the given requirements belong to
+     * @param jobResourceRequirements new resource requirements for the job
+     * @return Future which is completed successfully when requirements are updated
+     */
+    default CompletableFuture<Acknowledge> updateJobResourceRequirements(
+            JobID jobId, JobResourceRequirements jobResourceRequirements) {
+        throw new UnsupportedOperationException("Operation is not yet implemented.");
     }
 }

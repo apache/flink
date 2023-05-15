@@ -23,10 +23,10 @@ import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.test.util.MigrationTest;
 
 import org.assertj.core.api.HamcrestCondition;
 import org.hamcrest.Matcher;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -35,8 +35,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Set;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -44,19 +45,10 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
 import static org.hamcrest.CoreMatchers.not;
 
-/**
- * A test base for testing {@link TypeSerializer} upgrades.
- *
- * <p>You can run {@link #generateTestSetupFiles(TestSpecification)} on a Flink branch to
- * (re-)generate the test data files.
- */
+/** A test base for testing {@link TypeSerializer} upgrades. */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedElementT> {
-
-    public static final FlinkVersion CURRENT_VERSION = FlinkVersion.v1_16;
-
-    public static final Set<FlinkVersion> MIGRATION_VERSIONS =
-            FlinkVersion.rangeOf(FlinkVersion.v1_11, CURRENT_VERSION);
+public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedElementT>
+        implements MigrationTest {
 
     // ------------------------------------------------------------------------------
     //  APIs
@@ -66,7 +58,22 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
      * Creates a collection of {@link TestSpecification} which will be used as input for
      * parametrized tests.
      */
-    public abstract Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception;
+    public abstract Collection<TestSpecification<?, ?>> createTestSpecifications(
+            FlinkVersion currentVersion) throws Exception;
+
+    public Collection<FlinkVersion> getMigrationVersions() {
+        return FlinkVersion.rangeOf(
+                FlinkVersion.v1_11, MigrationTest.getMostRecentlyPublishedVersion());
+    }
+
+    public final Collection<TestSpecification<?, ?>> createTestSpecificationsForAllVersions()
+            throws Exception {
+        List<TestSpecification<?, ?>> specificationList = new ArrayList<>();
+        for (FlinkVersion version : getMigrationVersions()) {
+            specificationList.addAll(createTestSpecifications(version));
+        }
+        return specificationList;
+    }
 
     /**
      * Setup code for a {@link TestSpecification}. This creates the serializer before upgrade and
@@ -242,10 +249,8 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
      * generating the test files, e.g. to generate test files for {@link FlinkVersion#v1_8}, you
      * should be under the release-1.8 branch.
      */
-    @Disabled
-    @ParameterizedTest(name = "Test Specification = {0}")
-    @MethodSource("createTestSpecifications")
-    void generateTestSetupFiles(
+    @ParameterizedSnapshotsGenerator("createTestSpecifications")
+    public void generateTestSetupFiles(
             TestSpecification<PreviousElementT, UpgradedElementT> testSpecification)
             throws Exception {
         Files.createDirectories(getSerializerSnapshotFilePath(testSpecification).getParent());
@@ -268,7 +273,8 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
             // ... then write the serializer snapshot
             DataOutputSerializer serializerSnapshotOut =
                     new DataOutputSerializer(INITIAL_OUTPUT_BUFFER_SIZE);
-            writeSerializerSnapshot(serializerSnapshotOut, priorSerializer, CURRENT_VERSION);
+            writeSerializerSnapshot(
+                    serializerSnapshotOut, priorSerializer, testSpecification.flinkVersion);
             writeContentsTo(
                     getGenerateSerializerSnapshotFilePath(testSpecification),
                     serializerSnapshotOut.getCopyOfBuffer());
@@ -280,7 +286,7 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
     // ------------------------------------------------------------------------------
 
     @ParameterizedTest(name = "Test Specification = {0}")
-    @MethodSource("createTestSpecifications")
+    @MethodSource("createTestSpecificationsForAllVersions")
     void restoreSerializerIsValid(
             TestSpecification<PreviousElementT, UpgradedElementT> testSpecification)
             throws Exception {
@@ -308,7 +314,7 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
     }
 
     @ParameterizedTest(name = "Test Specification = {0}")
-    @MethodSource("createTestSpecifications")
+    @MethodSource("createTestSpecificationsForAllVersions")
     void upgradedSerializerHasExpectedSchemaCompatibility(
             TestSpecification<PreviousElementT, UpgradedElementT> testSpecification)
             throws Exception {
@@ -331,7 +337,7 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
     }
 
     @ParameterizedTest(name = "Test Specification = {0}")
-    @MethodSource("createTestSpecifications")
+    @MethodSource("createTestSpecificationsForAllVersions")
     void upgradedSerializerIsValidAfterMigration(
             TestSpecification<PreviousElementT, UpgradedElementT> testSpecification)
             throws Exception {
@@ -369,7 +375,7 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
     }
 
     @ParameterizedTest(name = "Test Specification = {0}")
-    @MethodSource("createTestSpecifications")
+    @MethodSource("createTestSpecificationsForAllVersions")
     void upgradedSerializerIsValidAfterReconfiguration(
             TestSpecification<PreviousElementT, UpgradedElementT> testSpecification)
             throws Exception {
@@ -400,7 +406,7 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
     }
 
     @ParameterizedTest(name = "Test Specification = {0}")
-    @MethodSource("createTestSpecifications")
+    @MethodSource("createTestSpecificationsForAllVersions")
     void upgradedSerializerIsValidWhenCompatibleAsIs(
             TestSpecification<PreviousElementT, UpgradedElementT> testSpecification)
             throws Exception {
@@ -481,7 +487,7 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
                 + "/src/test/resources/"
                 + testSpecification.name
                 + "-"
-                + CURRENT_VERSION;
+                + testSpecification.flinkVersion;
     }
 
     private Path getSerializerSnapshotFilePath(

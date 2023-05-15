@@ -102,7 +102,7 @@ public class JsonBatchFileSystemITCase extends BatchFileSystemITCaseBase {
     }
 
     private static File generateTestData(int numRecords) throws IOException {
-        File tempDir = TEMPORARY_FOLDER.newFolder();
+        File tempDir = createTempFolder();
 
         File root = new File(tempDir, "id=0");
         root.mkdir();

@@ -199,6 +199,22 @@ public class HighAvailabilityOptions {
                                             TextElement.code("true"))
                                     .build());
 
+    @Documentation.Section(Documentation.Sections.EXPERT_ZOOKEEPER_HIGH_AVAILABILITY)
+    public static final ConfigOption<Boolean> ZOOKEEPER_ENSEMBLE_TRACKING =
+            key("high-availability.zookeeper.client.ensemble-tracker")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Defines whether Curator should enable ensemble tracker. This can be useful in certain scenarios "
+                                                    + "in which CuratorFramework is accessing to ZK clusters via load balancer or Virtual IPs. "
+                                                    + "Default Curator EnsembleTracking logic watches CuratorEventType.GET_CONFIG events and "
+                                                    + "changes ZooKeeper connection string. It is not desired behaviour when ZooKeeper is running under the Virtual IPs. "
+                                                    + "Under certain configurations EnsembleTracking can lead to setting of ZooKeeper connection string "
+                                                    + "with unresolvable hostnames.")
+                                    .build());
+
     // ------------------------------------------------------------------------
     //  Deprecated options
     // ------------------------------------------------------------------------

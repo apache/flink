@@ -344,7 +344,7 @@ public class SortMergeResultPartition extends ResultPartition {
                 freeSegments.add(checkNotNull(bufferPool.requestMemorySegmentBlocking()));
             }
         } catch (InterruptedException exception) {
-            freeSegments.forEach(bufferPool::recycle);
+            releaseFreeBuffers();
             throw new IOException("Failed to allocate buffers for result partition.", exception);
         }
     }

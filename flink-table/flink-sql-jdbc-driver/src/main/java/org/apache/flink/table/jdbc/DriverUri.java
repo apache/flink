@@ -75,6 +75,10 @@ public class DriverUri {
         return database;
     }
 
+    public String getURL() {
+        return String.format("%s%s", URL_PREFIX, uri);
+    }
+
     private void initCatalogAndSchema() throws SQLException {
         String path = uri.getPath();
         if (isNullOrWhitespaceOnly(uri.getPath()) || path.equals("/")) {

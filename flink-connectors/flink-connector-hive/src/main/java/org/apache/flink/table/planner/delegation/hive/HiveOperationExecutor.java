@@ -33,17 +33,17 @@ import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
-import org.apache.flink.table.delegation.ExtendedOperationExecutor;
 import org.apache.flink.table.operations.DescribeTableOperation;
+import org.apache.flink.table.operations.ExecutableOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.HiveSetOperation;
 import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveSetProcessor;
 import org.apache.flink.table.planner.delegation.hive.operations.HiveLoadDataOperation;
 import org.apache.flink.table.planner.delegation.hive.operations.HiveShowCreateTableOperation;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -63,19 +63,20 @@ import java.util.stream.Collectors;
  * A Hive's operation executor used to execute operation in custom way instead of Flink's
  * implementation.
  */
-public class HiveOperationExecutor implements ExtendedOperationExecutor {
+public class HiveOperationExecutor {
 
+    private final ExecutableOperation.Context context;
     private final CatalogManager catalogManager;
     private final Map<String, String> hiveVariables;
     private final TableConfig tableConfig;
 
-    public HiveOperationExecutor(CatalogManager catalogManager, PlannerContext plannerContext) {
-        this.catalogManager = catalogManager;
-        tableConfig = plannerContext.getFlinkContext().getTableConfig();
+    public HiveOperationExecutor(ExecutableOperation.Context context) {
+        this.context = context;
+        this.catalogManager = context.getCatalogManager();
+        this.tableConfig = context.getTableConfig();
         this.hiveVariables = tableConfig.get(HiveInternalOptions.HIVE_VARIABLES);
     }
 
-    @Override
     public Optional<TableResultInternal> executeOperation(Operation operation) {
         if (operation instanceof HiveSetOperation) {
             return executeHiveSetOperation((HiveSetOperation) operation);
@@ -87,12 +88,16 @@ public class HiveOperationExecutor implements ExtendedOperationExecutor {
             return executeDescribeTableOperation((DescribeTableOperation) operation);
         } else if (operation instanceof ExplainOperation) {
             ExplainOperation explainOperation = (ExplainOperation) operation;
-            if (explainOperation.getChild() instanceof HiveLoadDataOperation) {
-                return explainHiveLoadDataOperation(
-                        (HiveLoadDataOperation) explainOperation.getChild());
-            }
+            Preconditions.checkArgument(
+                    explainOperation.getChild() instanceof HiveLoadDataOperation);
+            return explainHiveLoadDataOperation(
+                    (HiveLoadDataOperation) explainOperation.getChild());
+        } else {
+            throw new FlinkHiveException(
+                    String.format(
+                            "Unknown operation %s for HiveOperationExecutor.",
+                            operation.getClass().getName()));
         }
-        return Optional.empty();
     }
 
     private Optional<TableResultInternal> executeHiveSetOperation(
@@ -278,14 +283,14 @@ public class HiveOperationExecutor implements ExtendedOperationExecutor {
             DescribeTableOperation describeTableOperation) {
         // currently, if it's 'describe extended', we still delegate to Flink's own implementation
         if (describeTableOperation.isExtended()) {
-            return Optional.empty();
+            return Optional.of(describeTableOperation.execute(context));
         } else {
             ObjectIdentifier tableIdentifier = describeTableOperation.getSqlIdentifier();
             Catalog currentCatalog =
                     catalogManager.getCatalog(catalogManager.getCurrentCatalog()).orElse(null);
             if (!(currentCatalog instanceof HiveCatalog)) {
                 // delegate to Flink's own implementation
-                return Optional.empty();
+                return Optional.of(describeTableOperation.execute(context));
             }
             HiveCatalog hiveCatalog = (HiveCatalog) currentCatalog;
             ObjectPath tablePath =
@@ -303,7 +308,7 @@ public class HiveOperationExecutor implements ExtendedOperationExecutor {
             }
             if (!HiveCatalog.isHiveTable(table.getParameters())) {
                 // if it's not a Hive table, delegate to Flink's own implementation
-                return Optional.empty();
+                return Optional.of(describeTableOperation.execute(context));
             }
             List<Row> result = new ArrayList<>();
             // describe table's columns

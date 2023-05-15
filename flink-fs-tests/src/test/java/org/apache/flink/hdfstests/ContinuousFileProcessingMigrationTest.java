@@ -41,6 +41,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
+import org.apache.flink.test.util.MigrationTest;
 import org.apache.flink.util.OperatingSystem;
 
 import org.apache.commons.io.FileUtils;
@@ -48,7 +49,6 @@ import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
@@ -57,48 +57,30 @@ import org.junit.runners.Parameterized;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.Arrays;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Collection;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /** Tests that verify the migration from previous Flink version snapshots. */
 @RunWith(Parameterized.class)
-public class ContinuousFileProcessingMigrationTest {
+public class ContinuousFileProcessingMigrationTest implements MigrationTest {
 
     private static final int LINES_PER_FILE = 10;
 
     private static final long INTERVAL = 100;
 
-    @Parameterized.Parameters(name = "Migration Savepoint / Mod Time: {0}")
-    public static Collection<Tuple2<FlinkVersion, Long>> parameters() {
-        return Arrays.asList(
-                Tuple2.of(FlinkVersion.v1_8, 1555215710000L),
-                Tuple2.of(FlinkVersion.v1_9, 1567499868000L),
-                Tuple2.of(FlinkVersion.v1_10, 1594559333000L),
-                Tuple2.of(FlinkVersion.v1_11, 1594561663000L),
-                Tuple2.of(FlinkVersion.v1_12, 1613720148000L),
-                Tuple2.of(FlinkVersion.v1_13, 1627550216000L),
-                Tuple2.of(FlinkVersion.v1_14, 1633938795000L),
-                Tuple2.of(FlinkVersion.v1_15, 1651918450000L),
-                Tuple2.of(FlinkVersion.v1_16, 1666860418000L));
+    @Parameterized.Parameters(name = "Migration Savepoint: {0}")
+    public static Collection<FlinkVersion> parameters() {
+        return FlinkVersion.rangeOf(
+                FlinkVersion.v1_8, MigrationTest.getMostRecentlyPublishedVersion());
     }
 
-    /**
-     * TODO change this to the corresponding savepoint version to be written (e.g. {@link
-     * FlinkVersion#v1_3} for 1.3) TODO and remove all @Ignore annotations on write*Snapshot()
-     * methods to generate savepoints TODO Note: You should generate the savepoint based on the
-     * release branch instead of the master.
-     */
-    private final FlinkVersion flinkGenerateSavepointVersion = null;
-
     private final FlinkVersion testMigrateVersion;
-    private final Long expectedModTime;
 
-    public ContinuousFileProcessingMigrationTest(
-            Tuple2<FlinkVersion, Long> migrationVersionAndModTime) {
-        this.testMigrateVersion = migrationVersionAndModTime.f0;
-        this.expectedModTime = migrationVersionAndModTime.f1;
+    public ContinuousFileProcessingMigrationTest(FlinkVersion testMigrateVersion) {
+        this.testMigrateVersion = testMigrateVersion;
     }
 
     @ClassRule public static TemporaryFolder tempFolder = new TemporaryFolder();
@@ -110,12 +92,10 @@ public class ContinuousFileProcessingMigrationTest {
                 !OperatingSystem.isWindows());
     }
 
-    /** Manually run this to write binary snapshot data. Remove @Ignore to run. */
-    @Ignore
-    @Test
-    public void writeReaderSnapshot() throws Exception {
+    @SnapshotsGenerator
+    public void writeReaderSnapshot(FlinkVersion flinkGenerateSavepointVersion) throws Exception {
 
-        File testFolder = tempFolder.newFolder();
+        File testFolder = Files.createTempDirectory("tmpDirPrefix").toFile();
 
         TimestampedFileInputSplit split1 =
                 new TimestampedFileInputSplit(0, 3, new Path("test/test1"), 0, 100, null);
@@ -211,10 +191,9 @@ public class ContinuousFileProcessingMigrationTest {
         Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split4)));
     }
 
-    /** Manually run this to write binary snapshot data. Remove @Ignore to run. */
-    @Ignore
-    @Test
-    public void writeMonitoringSourceSnapshot() throws Exception {
+    @SnapshotsGenerator
+    public void writeMonitoringSourceSnapshot(FlinkVersion flinkGenerateSavepointVersion)
+            throws Exception {
 
         File testFolder = tempFolder.newFolder();
 
@@ -309,17 +288,34 @@ public class ContinuousFileProcessingMigrationTest {
 
         testHarness.setup();
 
-        testHarness.initializeState(
-                OperatorSnapshotUtil.getResourceFilename(
-                        "monitoring-function-migration-test-"
-                                + expectedModTime
-                                + "-flink"
-                                + testMigrateVersion
-                                + "-snapshot"));
+        // Get the exact filename
+        Tuple2<String, Long> fileNameAndModTime = getResourceFilename(testMigrateVersion);
+
+        testHarness.initializeState(fileNameAndModTime.f0);
 
         testHarness.open();
 
-        Assert.assertEquals((long) expectedModTime, monitoringFunction.getGlobalModificationTime());
+        Assert.assertEquals(
+                fileNameAndModTime.f1.longValue(), monitoringFunction.getGlobalModificationTime());
+    }
+
+    private Tuple2<String, Long> getResourceFilename(FlinkVersion version) throws IOException {
+        String resourceDirectory = OperatorSnapshotUtil.getResourceFilename("");
+        Pattern fileNamePattern =
+                Pattern.compile(
+                        "monitoring-function-migration-test-(\\d+)-flink"
+                                + version.toString()
+                                + "-snapshot");
+
+        for (java.nio.file.Path file : Files.newDirectoryStream(Paths.get(resourceDirectory))) {
+            String fileName = file.getFileName().toString();
+            Matcher matcher = fileNamePattern.matcher(fileName);
+            if (matcher.matches()) {
+                return new Tuple2<>(file.toString(), Long.parseLong(matcher.group(1)));
+            }
+        }
+
+        throw new IllegalArgumentException("The snapshot for " + version + " not found");
     }
 
     private static class BlockingFileInputFormat extends FileInputFormat<FileInputSplit> {
@@ -410,17 +406,6 @@ public class ContinuousFileProcessingMigrationTest {
 
         Assert.assertTrue("No result file present", file.exists());
         return new Tuple2<>(file, str.toString());
-    }
-
-    private FileInputSplit createSplitFromTimestampedSplit(TimestampedFileInputSplit split) {
-        checkNotNull(split);
-
-        return new FileInputSplit(
-                split.getSplitNumber(),
-                split.getPath(),
-                split.getStart(),
-                split.getLength(),
-                split.getHostnames());
     }
 
     private OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, FileInputSplit>

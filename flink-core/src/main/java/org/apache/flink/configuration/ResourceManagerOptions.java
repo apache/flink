@@ -102,6 +102,10 @@ public class ResourceManagerOptions {
      * The number of redundant task managers. Redundant task managers are extra task managers
      * started by Flink, in order to speed up job recovery in case of failures due to task manager
      * lost. Note that this feature is available only to the active deployments (native K8s, Yarn).
+     * For fine-grained resource requirement, Redundant resources will be reserved, but it is
+     * possible that we have many small pieces of free resources form multiple TMs, which added up
+     * larger than the desired redundant resources, but each piece is too small to match the
+     * resource requirement of tasks from the failed worker.
      */
     public static final ConfigOption<Integer> REDUNDANT_TASK_MANAGER_NUM =
             ConfigOptions.key("slotmanager.redundant-taskmanager-num")
@@ -110,7 +114,10 @@ public class ResourceManagerOptions {
                     .withDescription(
                             "The number of redundant task managers. Redundant task managers are extra task managers "
                                     + "started by Flink, in order to speed up job recovery in case of failures due to task manager lost. "
-                                    + "Note that this feature is available only to the active deployments (native K8s, Yarn).");
+                                    + "Note that this feature is available only to the active deployments (native K8s, Yarn)."
+                                    + "For fine-grained resource requirement, Redundant resources will be reserved, but it is possible that "
+                                    + "we have many small pieces of free resources form multiple TMs, which added up larger than the desired "
+                                    + "redundant resources, but each piece is too small to match the resource requirement of tasks from the failed worker.");
 
     /**
      * The maximum number of start worker failures (Native Kubernetes / Yarn) per minute before

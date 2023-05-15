@@ -29,17 +29,18 @@ import org.apache.flink.queryablestate.client.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.io.File;
 
 /**
  * Additional tests for the serialization and deserialization using the KvStateSerializer with a
  * RocksDB state back-end.
  */
-public final class KVStateRequestSerializerRocksDBTest {
+final class KVStateRequestSerializerRocksDBTest {
 
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir static File tmpFile;
 
     /**
      * Tests list serialization and deserialization match.
@@ -48,13 +49,11 @@ public final class KVStateRequestSerializerRocksDBTest {
      *     KvStateRequestSerializerTest#testListSerialization() using the heap state back-end test
      */
     @Test
-    public void testListSerialization() throws Exception {
+    void testListSerialization() throws Exception {
         final long key = 0L;
 
         final RocksDBKeyedStateBackend<Long> longHeapKeyedStateBackend =
-                RocksDBTestUtils.builderForTestDefaults(
-                                temporaryFolder.getRoot(), LongSerializer.INSTANCE)
-                        .build();
+                RocksDBTestUtils.builderForTestDefaults(tmpFile, LongSerializer.INSTANCE).build();
 
         longHeapKeyedStateBackend.setCurrentKey(key);
 
@@ -74,14 +73,12 @@ public final class KVStateRequestSerializerRocksDBTest {
      *     KvStateRequestSerializerTest#testMapSerialization() using the heap state back-end test
      */
     @Test
-    public void testMapSerialization() throws Exception {
+    void testMapSerialization() throws Exception {
         final long key = 0L;
 
         // objects for RocksDB state list serialisation
         final RocksDBKeyedStateBackend<Long> longHeapKeyedStateBackend =
-                RocksDBTestUtils.builderForTestDefaults(
-                                temporaryFolder.getRoot(), LongSerializer.INSTANCE)
-                        .build();
+                RocksDBTestUtils.builderForTestDefaults(tmpFile, LongSerializer.INSTANCE).build();
 
         longHeapKeyedStateBackend.setCurrentKey(key);
 

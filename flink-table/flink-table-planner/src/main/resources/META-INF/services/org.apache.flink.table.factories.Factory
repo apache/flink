@@ -14,5 +14,5 @@
 # limitations under the License.
 
 org.apache.flink.table.planner.delegation.DefaultExecutorFactory
-org.apache.flink.table.planner.delegation.DefaultDialectFactory
+org.apache.flink.table.planner.delegation.DefaultParserFactory
 org.apache.flink.table.planner.delegation.DefaultPlannerFactory

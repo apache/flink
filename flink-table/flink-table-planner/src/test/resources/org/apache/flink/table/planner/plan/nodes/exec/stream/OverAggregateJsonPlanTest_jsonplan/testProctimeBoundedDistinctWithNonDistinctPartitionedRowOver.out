@@ -341,7 +341,7 @@
       } ],
       "constants" : [ {
         "kind" : "LITERAL",
-        "value" : "2",
+        "value" : 2,
         "type" : "INT NOT NULL"
       } ],
       "originalInputFields" : 4
@@ -425,7 +425,7 @@
             "type" : "BIGINT NOT NULL"
           }, {
             "kind" : "LITERAL",
-            "value" : "0",
+            "value" : 0,
             "type" : "BIGINT NOT NULL"
           } ],
           "type" : "BOOLEAN NOT NULL"
@@ -465,7 +465,7 @@
           "type" : "BIGINT NOT NULL"
         }, {
           "kind" : "LITERAL",
-          "value" : "0",
+          "value" : 0,
           "type" : "BIGINT NOT NULL"
         } ],
         "type" : "BOOLEAN NOT NULL"

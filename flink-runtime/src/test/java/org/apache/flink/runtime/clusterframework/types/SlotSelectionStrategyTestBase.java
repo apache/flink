@@ -24,7 +24,6 @@ import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotInfoWithUtilization;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotSelectionStrategy;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.util.TestLogger;
 
 import java.net.InetAddress;
 import java.util.Collections;
@@ -33,7 +32,7 @@ import java.util.Optional;
 import java.util.Set;
 
 /** Test base for {@link SlotSelectionStrategy}. */
-public abstract class SlotSelectionStrategyTestBase extends TestLogger {
+abstract class SlotSelectionStrategyTestBase {
 
     protected final ResourceProfile resourceProfile = ResourceProfile.fromResources(2, 1024);
     protected final ResourceProfile biggerResourceProfile = ResourceProfile.fromResources(3, 1024);
@@ -59,33 +58,32 @@ public abstract class SlotSelectionStrategyTestBase extends TestLogger {
 
     protected final SlotInfoWithUtilization slotInfo1 =
             SlotInfoWithUtilization.from(
-                    new SimpleSlotContext(aid1, tml1, 1, taskManagerGateway, resourceProfile), 0);
+                    new SimpleSlotContext(aid1, tml1, 1, taskManagerGateway, resourceProfile),
+                    ignored -> 0.0d);
     protected final SlotInfoWithUtilization slotInfo2 =
             SlotInfoWithUtilization.from(
                     new SimpleSlotContext(aid2, tml2, 2, taskManagerGateway, biggerResourceProfile),
-                    0);
+                    ignored -> 0.0d);
     protected final SlotInfoWithUtilization slotInfo3 =
             SlotInfoWithUtilization.from(
-                    new SimpleSlotContext(aid3, tml3, 3, taskManagerGateway, resourceProfile), 0);
+                    new SimpleSlotContext(aid3, tml3, 3, taskManagerGateway, resourceProfile),
+                    ignored -> 0.0d);
     protected final SlotInfoWithUtilization slotInfo4 =
             SlotInfoWithUtilization.from(
-                    new SimpleSlotContext(aid4, tml4, 4, taskManagerGateway, resourceProfile), 0);
+                    new SimpleSlotContext(aid4, tml4, 4, taskManagerGateway, resourceProfile),
+                    ignored -> 0.0d);
 
-    protected final Set<SlotSelectionStrategy.SlotInfoAndResources> candidates =
+    protected final Set<SlotInfoWithUtilization> candidates =
             Collections.unmodifiableSet(createCandidates());
 
-    protected final SlotSelectionStrategy selectionStrategy;
+    protected SlotSelectionStrategy selectionStrategy;
 
-    public SlotSelectionStrategyTestBase(SlotSelectionStrategy slotSelectionStrategy) {
-        this.selectionStrategy = slotSelectionStrategy;
-    }
-
-    private Set<SlotSelectionStrategy.SlotInfoAndResources> createCandidates() {
-        Set<SlotSelectionStrategy.SlotInfoAndResources> candidates = new HashSet<>(4);
-        candidates.add(SlotSelectionStrategy.SlotInfoAndResources.fromSingleSlot(slotInfo1));
-        candidates.add(SlotSelectionStrategy.SlotInfoAndResources.fromSingleSlot(slotInfo2));
-        candidates.add(SlotSelectionStrategy.SlotInfoAndResources.fromSingleSlot(slotInfo3));
-        candidates.add(SlotSelectionStrategy.SlotInfoAndResources.fromSingleSlot(slotInfo4));
+    private Set<SlotInfoWithUtilization> createCandidates() {
+        Set<SlotInfoWithUtilization> candidates = new HashSet<>(4);
+        candidates.add(slotInfo1);
+        candidates.add(slotInfo2);
+        candidates.add(slotInfo3);
+        candidates.add(slotInfo4);
         return candidates;
     }
 

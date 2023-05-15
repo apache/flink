@@ -35,6 +35,13 @@
         <dt>
           {{ node.detail.parallelism }}
         </dt>
+        <dd>
+          Max Parallelism
+          <i nz-tooltip [nzTooltipTitle]="maxParallelismTitle" nz-icon nzType="info-circle"></i>
+        </dd>
+        <dt>
+          {{ node.detail.maxParallelism }}
+        </dt>
         <dd>Start Time</dd>
         <dt>
           {{ node.detail['start-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}
@@ -87,5 +94,9 @@
   </div>
   <ng-template #loadingTemplate>
     <i nz-icon nzType="loading"></i>
+  </ng-template>
+  <ng-template #maxParallelismTitle>
+    This value represents the maximum parallelism the vertex can scale to, calculated as the minimum
+    of maximum parallelisms of underlying operators that the vertex consists of.
   </ng-template>
 </ng-container>

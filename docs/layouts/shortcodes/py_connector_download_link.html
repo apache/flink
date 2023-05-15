@@ -1,0 +1,62 @@
+{{/*
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+*/}}{{/*
+Generates an XML snippet for the externalized connector python download table.
+*/}}
+{{ $name := .Get 0 }}
+{{ $connector := index .Site.Data $name }}
+{{ $connector_version := $connector.version  }}
+{{ $flink_version := .Site.Params.VersionTitle }}
+{{ $full_version := printf "%s-%s" $connector_version $flink_version }}
+
+<p>
+{{ if eq $.Site.Language.Lang "en" }}
+In order to use the {{ $connector.name }} in PyFlink jobs, the following
+dependencies are required:
+{{ else if eq $.Site.Language.Lang "zh" }}
+为了在 PyFlink 作业中使用 {{ $connector.name }} ，需要添加下列依赖：
+{{ end }}
+<table>
+    <thead>
+    <th style="text-align: left">Version</th>
+    <th style="text-align: left">PyFlink JAR</th>
+    </thead>
+    <tbody>
+    {{ range $connector.variants }}
+    <tr>
+        <td style="text-align: left">{{- .maven -}}</td>
+        {{ if $.Site.Params.IsStable }}
+        {{ if eq .sql_url nil}}
+        <td style="text-align:left">There is no sql jar available yet.</td>
+        {{ else }}
+        <td style="text-align:left"><a href="{{ replace .sql_url "$full_version" $full_version}}">Download</a></td>
+        {{ end }}
+        {{ else }}
+        <td>Only available for stable releases.</td>
+        {{ end }}
+    </tr>
+    {{ end }}
+    </tbody>
+</table>
+{{ if eq .Site.Language.Lang "en" }}
+See <a href="{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/dev/python/dependency_management/#jar-dependencies">Python dependency management</a>
+for more details on how to use JARs in PyFlink.
+{{ else if eq .Site.Language.Lang "zh" }}
+在 PyFlink 中如何添加 JAR 包依赖请参考 <a href="{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/dev/python/dependency_management/#jar-dependencies">Python 依赖管理</a>。
+{{ end }}
+</p>

@@ -29,6 +29,7 @@ import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 import org.apache.flink.util.CloseableIterator;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -61,6 +62,7 @@ public class StateChangelogStorageTest<T extends ChangelogStateHandle> {
         return Stream.of(true);
     }
 
+    @Disabled("FLINK-30729")
     @MethodSource("parameters")
     @ParameterizedTest(name = "compression = {0}")
     public void testNoAppendAfterClose(boolean compression) throws IOException {

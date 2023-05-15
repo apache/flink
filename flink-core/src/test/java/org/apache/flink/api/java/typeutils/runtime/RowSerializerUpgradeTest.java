@@ -34,6 +34,7 @@ import org.hamcrest.Matcher;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 import static org.hamcrest.Matchers.is;
@@ -42,23 +43,25 @@ import static org.hamcrest.Matchers.is;
 @VisibleForTesting
 public class RowSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Row, Row> {
 
-    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
-        ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
+    @Override
+    public Collection<FlinkVersion> getMigrationVersions() {
         // for RowSerializer we also test against 1.10 and newer because we have snapshots
         // for this which go beyond what we have for the usual subclasses of
         // TypeSerializerUpgradeTestBase
         List<FlinkVersion> testVersions = new ArrayList<>();
         testVersions.add(FlinkVersion.v1_10);
-        testVersions.addAll(MIGRATION_VERSIONS);
-        for (FlinkVersion flinkVersion : testVersions) {
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "row-serializer",
-                            flinkVersion,
-                            RowSerializerSetup.class,
-                            RowSerializerVerifier.class));
-        }
-        return testSpecifications;
+        testVersions.addAll(super.getMigrationVersions());
+        return testVersions;
+    }
+
+    public Collection<TestSpecification<?, ?>> createTestSpecifications(FlinkVersion flinkVersion)
+            throws Exception {
+        return Collections.singletonList(
+                new TestSpecification<>(
+                        "row-serializer",
+                        flinkVersion,
+                        RowSerializerSetup.class,
+                        RowSerializerVerifier.class));
     }
 
     public static TypeSerializer<Row> createRowSerializer() {

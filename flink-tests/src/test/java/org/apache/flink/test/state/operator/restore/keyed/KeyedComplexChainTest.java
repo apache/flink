@@ -31,6 +31,11 @@ public class KeyedComplexChainTest extends AbstractKeyedOperatorRestoreTestBase 
         super(flinkVersion);
     }
 
+    @SnapshotsGenerator
+    public void generateSnapshots(FlinkVersion targetVersion) throws Exception {
+        internalGenerateSnapshots(targetVersion);
+    }
+
     @Override
     protected void createRestoredJob(StreamExecutionEnvironment env) {
         /** Source -> keyBy -> C(Window -> StatefulMap2) -> StatefulMap1 */

@@ -43,11 +43,11 @@
       "type" : "INT NOT NULL"
     }, {
       "kind" : "LITERAL",
-      "value" : "10",
+      "value" : 10,
       "type" : "INT NOT NULL"
     }, {
       "kind" : "LITERAL",
-      "value" : "5",
+      "value" : 5,
       "type" : "INT NOT NULL"
     }, {
       "kind" : "INPUT_REF",

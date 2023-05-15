@@ -25,26 +25,27 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests the {@link ImmutableListState}. */
-public class ImmutableListStateTest {
+class ImmutableListStateTest {
 
     private final ListStateDescriptor<Long> listStateDesc =
             new ListStateDescriptor<>("test", BasicTypeInfo.LONG_TYPE_INFO);
 
     private ListState<Long> listState;
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeEach
+    void setUp() throws Exception {
         if (!listStateDesc.isSerializerInitialized()) {
             listStateDesc.initializeSerializerUnlessSet(new ExecutionConfig());
         }
@@ -56,26 +57,20 @@ public class ImmutableListStateTest {
         listState = ImmutableListState.createState(listStateDesc, serInit);
     }
 
-    @Test(expected = UnsupportedOperationException.class)
-    public void testUpdate() throws Exception {
+    @Test
+    void testUpdate() throws Exception {
         List<Long> list = getStateContents();
-        assertEquals(1L, list.size());
-
-        long element = list.get(0);
-        assertEquals(42L, element);
-
-        listState.add(54L);
+        assertThat(list).containsExactly(42L);
+        assertThatThrownBy(() -> listState.add(54L))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
-    @Test(expected = UnsupportedOperationException.class)
-    public void testClear() throws Exception {
+    @Test
+    void testClear() throws Exception {
         List<Long> list = getStateContents();
-        assertEquals(1L, list.size());
-
-        long element = list.get(0);
-        assertEquals(42L, element);
-
-        listState.clear();
+        assertThat(list).containsExactly(42L);
+        assertThatThrownBy(() -> listState.clear())
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
     /** Copied from HeapListState.getSerializedValue(Object, Object). */

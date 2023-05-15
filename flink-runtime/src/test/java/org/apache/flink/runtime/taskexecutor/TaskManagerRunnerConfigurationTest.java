@@ -39,10 +39,11 @@ import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.concurrent.Executors;
 
+import org.apache.flink.shaded.guava30.com.google.common.net.InetAddresses;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.opentest4j.TestAbortedException;
-import sun.net.util.IPAddressUtil;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -132,11 +133,7 @@ class TaskManagerRunnerConfigurationTest {
             taskManagerRpcService =
                     TaskManagerRunner.createRpcService(
                             config, highAvailabilityServices, RPC_SYSTEM);
-            assertThat(taskManagerRpcService.getAddress())
-                    .matches(
-                            value ->
-                                    (IPAddressUtil.isIPv4LiteralAddress(value)
-                                            || IPAddressUtil.isIPv6LiteralAddress(value)));
+            assertThat(taskManagerRpcService.getAddress()).matches(InetAddresses::isInetAddress);
         } finally {
             maybeCloseRpcService(taskManagerRpcService);
             highAvailabilityServices.closeAndCleanupAllData();

@@ -88,7 +88,7 @@
           "type" : "BIGINT"
         }, {
           "kind" : "LITERAL",
-          "value" : "1",
+          "value" : 1,
           "type" : "INT NOT NULL"
         } ],
         "type" : "BOOLEAN"

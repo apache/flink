@@ -63,6 +63,17 @@ public final class ResourceCounter {
     }
 
     /**
+     * Computes the total resources in this counter.
+     *
+     * @return the total resources in this counter
+     */
+    public ResourceProfile getTotalResource() {
+        return resources.entrySet().stream()
+                .map(entry -> entry.getKey().multiply(entry.getValue()))
+                .reduce(ResourceProfile.ZERO, ResourceProfile::merge);
+    }
+
+    /**
      * Adds increment to this resource counter value and returns the resulting value.
      *
      * @param increment increment to add to this resource counter value

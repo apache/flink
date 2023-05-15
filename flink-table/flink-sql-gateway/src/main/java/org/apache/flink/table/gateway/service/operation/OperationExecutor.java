@@ -67,6 +67,7 @@ import org.apache.flink.table.gateway.service.result.ResultFetcher;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.BeginStatementSetOperation;
+import org.apache.flink.table.operations.DeleteFromFilterOperation;
 import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.ModifyOperation;
@@ -506,6 +507,12 @@ public class OperationExecutor {
             OperationHandle handle,
             List<ModifyOperation> modifyOperations) {
         TableResultInternal result = tableEnv.executeInternal(modifyOperations);
+        // DeleteFromFilterOperation doesn't have a JobClient
+        if (modifyOperations.size() == 1
+                && modifyOperations.get(0) instanceof DeleteFromFilterOperation) {
+            return ResultFetcher.fromTableResult(handle, result, false);
+        }
+
         JobID jobID =
                 result.getJobClient()
                         .orElseThrow(

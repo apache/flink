@@ -62,22 +62,26 @@ under the License.
 			<groupId>org.scala-lang</groupId>
 			<artifactId>scala-library</artifactId>
 			<scope>compile</scope>
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 		<dependency>
 			<groupId>org.scala-lang</groupId>
 			<artifactId>scala-compiler</artifactId>
 			<scope>compile</scope>
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
 		<dependency>
 			<groupId>com.typesafe.akka</groupId>
 			<artifactId>akka-actor_${scala.binary.version}</artifactId>
 			<version>${akka.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 		<dependency>
 			<groupId>com.typesafe.akka</groupId>
 			<artifactId>akka-remote_${scala.binary.version}</artifactId>
 			<version>${akka.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
 			<exclusions>
 				<exclusion>
 					<!-- optional dependency for UDP transport which we don't need -->
@@ -95,11 +99,13 @@ under the License.
 			<groupId>com.typesafe.akka</groupId>
 			<artifactId>akka-slf4j_${scala.binary.version}</artifactId>
 			<version>${akka.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 		<dependency>
 			<groupId>io.netty</groupId>
 			<artifactId>netty</artifactId>
 			<version>3.10.6.Final</version>
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
 		<dependency>

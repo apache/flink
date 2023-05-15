@@ -41,16 +41,15 @@ class ValueSerializerUpgradeTest
         extends TypeSerializerUpgradeTestBase<
                 ValueSerializerUpgradeTest.NameValue, ValueSerializerUpgradeTest.NameValue> {
 
-    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications(FlinkVersion flinkVersion)
+            throws Exception {
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "value-serializer",
-                            flinkVersion,
-                            ValueSerializerSetup.class,
-                            ValueSerializerVerifier.class));
-        }
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "value-serializer",
+                        flinkVersion,
+                        ValueSerializerSetup.class,
+                        ValueSerializerVerifier.class));
 
         return testSpecifications;
     }

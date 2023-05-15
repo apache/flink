@@ -21,7 +21,8 @@ import org.apache.flink.configuration.MemorySize
 import org.apache.flink.core.testutils.FlinkMatchers
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.runtime.utils.{BatchAbstractTestBase, BatchTestBase}
+import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.createTempFolder
+import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData.smallData3
 import org.apache.flink.table.planner.utils.TableTestUtil
@@ -47,7 +48,7 @@ class TableSinkITCase extends BatchTestBase {
                        |)
        """.stripMargin)
 
-    val resultPath = BatchAbstractTestBase.TEMPORARY_FOLDER.newFolder().getAbsolutePath
+    val resultPath = createTempFolder().getAbsolutePath
     tEnv.executeSql(s"""
                        |CREATE TABLE MySink (
                        |  `a` INT,
@@ -60,10 +61,10 @@ class TableSinkITCase extends BatchTestBase {
                        |)
        """.stripMargin)
     val stmtSet = tEnv.createStatementSet()
-    val newPath1 = BatchAbstractTestBase.TEMPORARY_FOLDER.newFolder().getAbsolutePath
+    val newPath1 = createTempFolder().getAbsolutePath
     stmtSet.addInsertSql(
       s"insert into MySink /*+ OPTIONS('path' = '$newPath1') */ select * from MyTable")
-    val newPath2 = BatchAbstractTestBase.TEMPORARY_FOLDER.newFolder().getAbsolutePath
+    val newPath2 = createTempFolder().getAbsolutePath
     stmtSet.addInsertSql(
       s"insert into MySink /*+ OPTIONS('path' = '$newPath2') */ select * from MyTable")
     stmtSet.execute().await()
@@ -110,7 +111,7 @@ class TableSinkITCase extends BatchTestBase {
                        |)
        """.stripMargin)
 
-    val resultPath = BatchAbstractTestBase.TEMPORARY_FOLDER.newFolder().getAbsolutePath
+    val resultPath = createTempFolder().getAbsolutePath
     tEnv
       .executeSql(s"""
                      |CREATE TABLE MyCtasTable
@@ -128,7 +129,8 @@ class TableSinkITCase extends BatchTestBase {
 
     // test statement set
     val statementSet = tEnv.createStatementSet()
-    val useStatementResultPath = BatchAbstractTestBase.TEMPORARY_FOLDER.newFolder().getAbsolutePath
+    val useStatementResultPath =
+      createTempFolder().getAbsolutePath
     statementSet.addInsertSql(s"""
                                  |CREATE TABLE MyCtasTableUseStatement
                                  | WITH (

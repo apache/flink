@@ -63,6 +63,7 @@ import org.apache.calcite.util.Sarg;
 import java.io.IOException;
 import java.math.BigDecimal;
 
+import static org.apache.calcite.sql.type.SqlTypeName.SARG;
 import static org.apache.flink.table.functions.UserDefinedFunctionHelper.isClassNameSerializable;
 import static org.apache.flink.table.planner.typeutils.SymbolUtil.calciteToSerializable;
 
@@ -192,22 +193,17 @@ final class RexNodeJsonSerializer extends StdSerializer<RexNode> {
         gen.writeStartObject();
         gen.writeStringField(FIELD_NAME_KIND, KIND_LITERAL);
         final Comparable<?> value = literal.getValueAs(Comparable.class);
-        serializeLiteralValue(
-                value,
-                literal.getTypeName(),
-                literal.getType().getSqlTypeName(),
-                gen,
-                serializerProvider);
+        if (literal.getTypeName() == SARG) {
+            serializeSargValue((Sarg<?>) value, literal.getType().getSqlTypeName(), gen);
+        } else {
+            serializeLiteralValue(value, literal.getType().getSqlTypeName(), gen);
+        }
         serializerProvider.defaultSerializeField(FIELD_NAME_TYPE, literal.getType(), gen);
         gen.writeEndObject();
     }
 
     private static void serializeLiteralValue(
-            Comparable<?> value,
-            SqlTypeName literalTypeName,
-            SqlTypeName elementTypeName,
-            JsonGenerator gen,
-            SerializerProvider serializerProvider)
+            Comparable<?> value, SqlTypeName literalTypeName, JsonGenerator gen)
             throws IOException {
         if (value == null) {
             gen.writeNullField(FIELD_NAME_VALUE);
@@ -230,12 +226,8 @@ final class RexNodeJsonSerializer extends StdSerializer<RexNode> {
             case BIGINT:
                 gen.writeNumberField(FIELD_NAME_VALUE, ((BigDecimal) value).longValue());
                 break;
-            case FLOAT:
-                gen.writeNumberField(FIELD_NAME_VALUE, ((BigDecimal) value).floatValue());
-                break;
             case DOUBLE:
-                gen.writeNumberField(FIELD_NAME_VALUE, ((BigDecimal) value).doubleValue());
-                break;
+            case FLOAT:
             case DECIMAL:
             case INTERVAL_YEAR:
             case INTERVAL_YEAR_MONTH:
@@ -269,9 +261,6 @@ final class RexNodeJsonSerializer extends StdSerializer<RexNode> {
                 gen.writeStringField(FIELD_NAME_SYMBOL, symbol.getKind());
                 gen.writeStringField(FIELD_NAME_VALUE, symbol.getValue());
                 break;
-            case SARG:
-                serializeSargValue((Sarg<?>) value, elementTypeName, gen, serializerProvider);
-                break;
             default:
                 throw new TableException(
                         String.format(
@@ -282,11 +271,7 @@ final class RexNodeJsonSerializer extends StdSerializer<RexNode> {
 
     @SuppressWarnings("UnstableApiUsage")
     private static void serializeSargValue(
-            Sarg<?> value,
-            SqlTypeName sqlTypeName,
-            JsonGenerator gen,
-            SerializerProvider serializerProvider)
-            throws IOException {
+            Sarg<?> value, SqlTypeName sqlTypeName, JsonGenerator gen) throws IOException {
         gen.writeFieldName(FIELD_NAME_SARG);
         gen.writeStartObject();
         gen.writeFieldName(FIELD_NAME_RANGES);
@@ -296,8 +281,7 @@ final class RexNodeJsonSerializer extends StdSerializer<RexNode> {
             if (range.hasLowerBound()) {
                 gen.writeFieldName(FIELD_NAME_BOUND_LOWER);
                 gen.writeStartObject();
-                serializeLiteralValue(
-                        range.lowerEndpoint(), sqlTypeName, sqlTypeName, gen, serializerProvider);
+                serializeLiteralValue(range.lowerEndpoint(), sqlTypeName, gen);
                 final SerializableSymbol symbol = calciteToSerializable(range.lowerBoundType());
                 gen.writeStringField(FIELD_NAME_BOUND_TYPE, symbol.getValue());
                 gen.writeEndObject();
@@ -305,8 +289,7 @@ final class RexNodeJsonSerializer extends StdSerializer<RexNode> {
             if (range.hasUpperBound()) {
                 gen.writeFieldName(FIELD_NAME_BOUND_UPPER);
                 gen.writeStartObject();
-                serializeLiteralValue(
-                        range.upperEndpoint(), sqlTypeName, sqlTypeName, gen, serializerProvider);
+                serializeLiteralValue(range.upperEndpoint(), sqlTypeName, gen);
                 final SerializableSymbol symbol = calciteToSerializable(range.upperBoundType());
                 gen.writeStringField(FIELD_NAME_BOUND_TYPE, symbol.getValue());
                 gen.writeEndObject();

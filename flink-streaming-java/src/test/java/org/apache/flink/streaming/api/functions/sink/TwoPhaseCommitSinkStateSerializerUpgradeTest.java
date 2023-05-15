@@ -44,17 +44,16 @@ public class TwoPhaseCommitSinkStateSerializerUpgradeTest
                 TwoPhaseCommitSinkFunction.State<Integer, String>,
                 TwoPhaseCommitSinkFunction.State<Integer, String>> {
 
-    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications(FlinkVersion flinkVersion)
+            throws Exception {
 
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "two-phase-commit-sink-state-serializer",
-                            flinkVersion,
-                            TwoPhaseCommitSinkStateSerializerSetup.class,
-                            TwoPhaseCommitSinkStateSerializerVerifier.class));
-        }
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "two-phase-commit-sink-state-serializer",
+                        flinkVersion,
+                        TwoPhaseCommitSinkStateSerializerSetup.class,
+                        TwoPhaseCommitSinkStateSerializerVerifier.class));
         return testSpecifications;
     }
 

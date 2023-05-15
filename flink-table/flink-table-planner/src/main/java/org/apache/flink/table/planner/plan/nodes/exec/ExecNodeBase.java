@@ -82,7 +82,7 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
      */
     @JsonProperty(value = FIELD_NAME_TYPE, access = JsonProperty.Access.READ_ONLY, index = 1)
     protected final ExecNodeContext getContextFromAnnotation() {
-        return ExecNodeContext.newContext(this.getClass()).withId(getId());
+        return isCompiled ? context : ExecNodeContext.newContext(this.getClass()).withId(getId());
     }
 
     @JsonProperty(value = FIELD_NAME_CONFIGURATION, access = JsonProperty.Access.WRITE_ONLY)

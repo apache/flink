@@ -143,6 +143,9 @@ public class SlotManagerConfigurationBuilder {
                 requirementCheckDelay,
                 declareNeededResourceDelay,
                 waitResultConsumedBeforeRelease,
+                evenlySpreadOutSlots
+                        ? LeastUtilizationSlotMatchingStrategy.INSTANCE
+                        : AnyMatchingSlotMatchingStrategy.INSTANCE,
                 evenlySpreadOutSlots,
                 defaultWorkerResourceSpec,
                 numSlotsPerWorker,

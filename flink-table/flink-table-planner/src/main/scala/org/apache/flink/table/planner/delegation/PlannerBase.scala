@@ -26,7 +26,7 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.catalog.ManagedTableListener.isManagedTable
 import org.apache.flink.table.connector.sink.DynamicTableSink
-import org.apache.flink.table.delegation.{Executor, ExtendedOperationExecutor, Parser, Planner}
+import org.apache.flink.table.delegation.{Executor, Parser, ParserFactory, Planner}
 import org.apache.flink.table.factories.{DynamicTableSinkFactory, FactoryUtil, TableFactoryUtil}
 import org.apache.flink.table.module.{Module, ModuleManager}
 import org.apache.flink.table.operations._
@@ -36,7 +36,6 @@ import org.apache.flink.table.planner.calcite._
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
 import org.apache.flink.table.planner.connectors.DynamicSinkUtils
 import org.apache.flink.table.planner.connectors.DynamicSinkUtils.validateSchemaAndApplyImplicitCast
-import org.apache.flink.table.planner.delegation.DialectFactory.DefaultParserContext
 import org.apache.flink.table.planner.expressions.PlannerTypeInferenceUtilImpl
 import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.operations.PlannerQueryOperation
@@ -100,9 +99,8 @@ abstract class PlannerBase(
   // temporary utility until we don't use planner expressions anymore
   functionCatalog.setPlannerTypeInferenceUtil(PlannerTypeInferenceUtilImpl.INSTANCE)
 
-  private var dialectFactory: DialectFactory = _
+  private var parserFactory: ParserFactory = _
   private var parser: Parser = _
-  private var extendedOperationExecutor: ExtendedOperationExecutor = _
   private var currentDialect: SqlDialect = getTableConfig.getSqlDialect
   // the transformations generated in translateToPlan method, they are not connected
   // with sink transformations but also are needed in the final graph.
@@ -152,36 +150,25 @@ abstract class PlannerBase(
     executor.asInstanceOf[DefaultExecutor].getExecutionEnvironment
   }
 
-  def getDialectFactory: DialectFactory = {
-    if (dialectFactory == null || getTableConfig.getSqlDialect != currentDialect) {
+  def getParserFactory: ParserFactory = {
+    if (parserFactory == null || getTableConfig.getSqlDialect != currentDialect) {
       val factoryIdentifier = getTableConfig.getSqlDialect.name().toLowerCase
-      dialectFactory = FactoryUtil.discoverFactory(
+      parserFactory = FactoryUtil.discoverFactory(
         getClass.getClassLoader,
-        classOf[DialectFactory],
+        classOf[ParserFactory],
         factoryIdentifier)
       currentDialect = getTableConfig.getSqlDialect
       parser = null
-      extendedOperationExecutor = null
     }
-    dialectFactory
+    parserFactory
   }
 
   override def getParser: Parser = {
     if (parser == null || getTableConfig.getSqlDialect != currentDialect) {
-      dialectFactory = getDialectFactory
-      parser =
-        dialectFactory.create(new DefaultParserContext(catalogManager, plannerContext, executor))
+      parserFactory = getParserFactory
+      parser = parserFactory.create(new DefaultCalciteContext(catalogManager, plannerContext))
     }
     parser
-  }
-
-  override def getExtendedOperationExecutor: ExtendedOperationExecutor = {
-    if (extendedOperationExecutor == null || getTableConfig.getSqlDialect != currentDialect) {
-      dialectFactory = getDialectFactory
-      extendedOperationExecutor = dialectFactory.createExtendedOperationExecutor(
-        new DefaultParserContext(catalogManager, plannerContext, executor))
-    }
-    extendedOperationExecutor
   }
 
   override def translate(

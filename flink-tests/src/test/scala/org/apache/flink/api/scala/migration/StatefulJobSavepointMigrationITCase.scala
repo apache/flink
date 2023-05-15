@@ -25,7 +25,6 @@ import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.tuple.Tuple2
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.migration.CustomEnum.CustomEnum
-import org.apache.flink.api.scala.migration.StatefulJobSavepointMigrationITCase.executionMode
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend
 import org.apache.flink.runtime.state.{FunctionInitializationContext, FunctionSnapshotContext, StateBackendLoader}
@@ -39,29 +38,49 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.test.checkpointing.utils.SnapshotMigrationTestBase
 import org.apache.flink.test.checkpointing.utils.SnapshotMigrationTestBase.{ExecutionMode, SnapshotSpec, SnapshotType}
+import org.apache.flink.test.util.MigrationTest
+import org.apache.flink.test.util.MigrationTest.ParameterizedSnapshotsGenerator
 import org.apache.flink.util.Collector
 
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
+import javax.annotation.Nullable
+
 import java.util
+import java.util.function.BiFunction
 import java.util.stream.Collectors
 
 import scala.util.{Failure, Try}
 
 object StatefulJobSavepointMigrationITCase {
 
-  // TODO increase this to newer version to create and test snapshot migration for newer versions
-  val currentVersion = FlinkVersion.v1_16
-
-  // TODO change this to CREATE_SNAPSHOT to (re)create binary snapshots
-  // TODO Note: You should generate the snapshot based on the release branch instead of the
-  // master.
-  val executionMode = ExecutionMode.VERIFY_SNAPSHOT
-
   @Parameterized.Parameters(name = "Test snapshot: {0}")
-  def parameters: util.Collection[SnapshotSpec] = {
+  def createSpecsForTestRuns: util.Collection[SnapshotSpec] =
+    internalParameters(null)
+
+  def createSpecsForTestDataGeneration(version: FlinkVersion): util.Collection[SnapshotSpec] =
+    internalParameters(version)
+
+  private def internalParameters(
+      @Nullable targetGeneratingVersion: FlinkVersion): util.Collection[SnapshotSpec] = {
+    val getFlinkVersions =
+      new BiFunction[FlinkVersion, FlinkVersion, util.Collection[FlinkVersion]] {
+        override def apply(
+            minInclVersion: FlinkVersion,
+            maxInclVersion: FlinkVersion): util.Collection[FlinkVersion] = if (
+          targetGeneratingVersion != null
+        )
+          FlinkVersion
+            .rangeOf(minInclVersion, maxInclVersion)
+            .stream()
+            .filter(v => v.equals(targetGeneratingVersion))
+            .collect(Collectors.toList())
+        else
+          FlinkVersion.rangeOf(minInclVersion, maxInclVersion)
+      }
+
     // Note: It is not safe to restore savepoints created in a Scala applications with Flink
     // version 1.7 or below. The reason is that up to version 1.7 the underlying Scala serializer
     // used names of anonymous classes that depend on the relative position/order in code, e.g.,
@@ -69,48 +88,49 @@ object StatefulJobSavepointMigrationITCase {
     // change order in the code their names are switched.
     // As a consequence, changes in code may result in restore failures.
     // This was fixed in version 1.8, see: https://issues.apache.org/jira/browse/FLINK-10493
-    var parameters: util.List[SnapshotSpec] = new util.LinkedList[SnapshotSpec]()
+    val parameters: util.List[SnapshotSpec] = new util.LinkedList[SnapshotSpec]()
     parameters.addAll(
       SnapshotSpec.withVersions(
         StateBackendLoader.MEMORY_STATE_BACKEND_NAME,
         SnapshotType.SAVEPOINT_CANONICAL,
-        FlinkVersion.rangeOf(FlinkVersion.v1_8, FlinkVersion.v1_13)))
+        getFlinkVersions.apply(FlinkVersion.v1_8, FlinkVersion.v1_13)
+      ))
     parameters.addAll(
       SnapshotSpec.withVersions(
         StateBackendLoader.HASHMAP_STATE_BACKEND_NAME,
         SnapshotType.SAVEPOINT_CANONICAL,
-        FlinkVersion.rangeOf(FlinkVersion.v1_14, currentVersion)))
+        getFlinkVersions.apply(FlinkVersion.v1_14, MigrationTest.getMostRecentlyPublishedVersion)
+      ))
     parameters.addAll(
       SnapshotSpec.withVersions(
         StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME,
         SnapshotType.SAVEPOINT_CANONICAL,
-        FlinkVersion.rangeOf(FlinkVersion.v1_15, currentVersion)))
+        getFlinkVersions.apply(FlinkVersion.v1_15, MigrationTest.getMostRecentlyPublishedVersion)
+      ))
     parameters.addAll(
       SnapshotSpec.withVersions(
         StateBackendLoader.HASHMAP_STATE_BACKEND_NAME,
         SnapshotType.SAVEPOINT_NATIVE,
-        FlinkVersion.rangeOf(FlinkVersion.v1_15, currentVersion)))
+        getFlinkVersions.apply(FlinkVersion.v1_15, MigrationTest.getMostRecentlyPublishedVersion)
+      ))
     parameters.addAll(
       SnapshotSpec.withVersions(
         StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME,
         SnapshotType.SAVEPOINT_NATIVE,
-        FlinkVersion.rangeOf(FlinkVersion.v1_15, currentVersion)))
+        getFlinkVersions.apply(FlinkVersion.v1_15, MigrationTest.getMostRecentlyPublishedVersion)
+      ))
     parameters.addAll(
       SnapshotSpec.withVersions(
         StateBackendLoader.HASHMAP_STATE_BACKEND_NAME,
         SnapshotType.CHECKPOINT,
-        FlinkVersion.rangeOf(FlinkVersion.v1_15, currentVersion)))
+        getFlinkVersions.apply(FlinkVersion.v1_15, MigrationTest.getMostRecentlyPublishedVersion)
+      ))
     parameters.addAll(
       SnapshotSpec.withVersions(
         StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME,
         SnapshotType.CHECKPOINT,
-        FlinkVersion.rangeOf(FlinkVersion.v1_15, currentVersion)))
-    if (executionMode == ExecutionMode.CREATE_SNAPSHOT) {
-      parameters = parameters
-        .stream()
-        .filter(x => x.getFlinkVersion().equals(currentVersion))
-        .collect(Collectors.toList())
-    }
+        getFlinkVersions.apply(FlinkVersion.v1_15, MigrationTest.getMostRecentlyPublishedVersion)
+      ))
     parameters
   }
 
@@ -137,10 +157,23 @@ object StatefulJobSavepointMigrationITCase {
 @RunWith(classOf[Parameterized])
 class StatefulJobSavepointMigrationITCase(snapshotSpec: SnapshotSpec)
   extends SnapshotMigrationTestBase
-  with Serializable {
+  with Serializable
+  with MigrationTest {
+
+  /** Generates all the required states. */
+  @ParameterizedSnapshotsGenerator("createSpecsForTestDataGeneration")
+  def generateSnapshots(snapshotSpec: SnapshotSpec): Unit = {
+    testOrCreateSavepoint(ExecutionMode.CREATE_SNAPSHOT, snapshotSpec)
+  }
 
   @Test
   def testSavepoint(): Unit = {
+    testOrCreateSavepoint(ExecutionMode.VERIFY_SNAPSHOT, snapshotSpec)
+  }
+
+  private def testOrCreateSavepoint(
+      executionMode: ExecutionMode,
+      snapshotSpec: SnapshotSpec): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
@@ -176,7 +209,7 @@ class StatefulJobSavepointMigrationITCase(snapshotSpec: SnapshotSpec)
       .flatMap(new StatefulFlatMapper)
       .addSink(new AccumulatorCountingSink)
 
-    if (StatefulJobSavepointMigrationITCase.executionMode == ExecutionMode.CREATE_SNAPSHOT) {
+    if (executionMode == ExecutionMode.CREATE_SNAPSHOT) {
       executeAndSnapshot(
         env,
         s"src/test/resources/"
@@ -187,7 +220,7 @@ class StatefulJobSavepointMigrationITCase(snapshotSpec: SnapshotSpec)
           StatefulJobSavepointMigrationITCase.NUM_ELEMENTS
         )
       )
-    } else if (StatefulJobSavepointMigrationITCase.executionMode == ExecutionMode.VERIFY_SNAPSHOT) {
+    } else if (executionMode == ExecutionMode.VERIFY_SNAPSHOT) {
       restoreAndExecute(
         env,
         SnapshotMigrationTestBase.getResourceFilename(
@@ -345,5 +378,4 @@ class StatefulJobSavepointMigrationITCase(snapshotSpec: SnapshotSpec)
       collector.collect(in)
     }
   }
-
 }

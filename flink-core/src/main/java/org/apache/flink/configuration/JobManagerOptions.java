@@ -264,6 +264,30 @@ public class JobManagerOptions {
                             "The maximum number of historical execution attempts kept in history.");
 
     /**
+     * Flag indicating whether JobManager should load available Failure Enricher plugins at startup.
+     * An optional list of Failure Enricher names. If empty, NO enrichers will be started. If
+     * configured, only enrichers whose name (as returned by class.getName()) matches any of the
+     * names in the list will be started.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * jobmanager.failure-enrichers = org.apache.flink.test.plugin.jar.failure.TypeFailureEnricher, org.apache.flink.runtime.failure.FailureEnricherUtilsTest$TestEnricher
+     *
+     * }</pre>
+     */
+    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
+    public static final ConfigOption<String> FAILURE_ENRICHERS_LIST =
+            key("jobmanager.failure-enrichers")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "An optional list of failure enricher names."
+                                    + " If empty, NO failure enrichers will be started."
+                                    + " If configured, only enrichers whose name matches"
+                                    + " any of the names in the list will be started.");
+
+    /**
      * This option specifies the failover strategy, i.e. how the job computation recovers from task
      * failures.
      */

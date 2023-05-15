@@ -162,7 +162,6 @@ class KubernetesHighAvailabilityTestBase {
         private LeaderRetrievalDriver createLeaderRetrievalDriver() {
             final KubernetesLeaderRetrievalDriverFactory factory =
                     new KubernetesLeaderRetrievalDriverFactory(
-                            flinkKubeClient,
                             kubernetesTestFixture.getConfigMapSharedWatcher(),
                             watchCallbackExecutorService,
                             LEADER_CONFIGMAP_NAME);

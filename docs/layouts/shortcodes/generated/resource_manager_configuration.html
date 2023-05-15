@@ -78,7 +78,7 @@
             <td><h5>slotmanager.redundant-taskmanager-num</h5></td>
             <td style="word-wrap: break-word;">0</td>
             <td>Integer</td>
-            <td>The number of redundant task managers. Redundant task managers are extra task managers started by Flink, in order to speed up job recovery in case of failures due to task manager lost. Note that this feature is available only to the active deployments (native K8s, Yarn).</td>
+            <td>The number of redundant task managers. Redundant task managers are extra task managers started by Flink, in order to speed up job recovery in case of failures due to task manager lost. Note that this feature is available only to the active deployments (native K8s, Yarn).For fine-grained resource requirement, Redundant resources will be reserved, but it is possible that we have many small pieces of free resources form multiple TMs, which added up larger than the desired redundant resources, but each piece is too small to match the resource requirement of tasks from the failed worker.</td>
         </tr>
     </tbody>
 </table>
