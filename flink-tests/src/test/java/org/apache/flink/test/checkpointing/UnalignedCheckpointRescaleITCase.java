@@ -481,6 +481,8 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
     @Parameterized.Parameters(
             name = "{0} {1} from {2} to {3}, sourceSleepMs = {4}, buffersPerChannel = {5}")
     public static Object[][] getScaleFactors() {
+        // We use `sourceSleepMs` > 0 to test rescaling without backpressure and only very few
+        // captured in-flight records, see FLINK-31963.
         Object[][] parameters =
                 new Object[][] {
                     new Object[] {"downscale", Topology.KEYED_DIFFERENT_PARALLELISM, 12, 7, 0L},

@@ -86,6 +86,7 @@ import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNew
 import static org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper.ARBITRARY;
 import static org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper.RANGE;
 import static org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper.ROUND_ROBIN;
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -829,11 +830,10 @@ public class StateAssignmentOperationTest extends TestLogger {
             int expectedDownstreamCount)
             throws JobException, JobExecutionException {
 
-        if ((upstreamOpState == null && downstreamOpState == null)
-                || (upstreamOpState != null && downstreamOpState != null)) {
-            // Either upstream or downstream state must exist, but not both.
-            return;
-        }
+        checkArgument(
+                upstreamOpState != downstreamOpState
+                        && (upstreamOpState == null || downstreamOpState == null),
+                "Either upstream or downstream state must exist, but not both");
 
         // Start from parallelism 5 for both operators
         int upstreamParallelism = 5;
@@ -879,18 +879,18 @@ public class StateAssignmentOperationTest extends TestLogger {
         ExecutionJobVertex upstreamExecutionJobVertex = vertices.get(operatorIds.get(0));
         ExecutionJobVertex downstreamExecutionJobVertex = vertices.get(operatorIds.get(1));
 
-        List<TaskStateSnapshot> upstreamRescalingDescriptors =
+        List<TaskStateSnapshot> upstreamTaskStateSnapshots =
                 getRescalingDescriptorsFromVertex(upstreamExecutionJobVertex);
-        List<TaskStateSnapshot> downstreamRescalingDescriptors =
+        List<TaskStateSnapshot> downstreamTaskStateSnapshots =
                 getRescalingDescriptorsFromVertex(downstreamExecutionJobVertex);
 
         checkMappings(
-                upstreamRescalingDescriptors,
+                upstreamTaskStateSnapshots,
                 TaskStateSnapshot::getOutputRescalingDescriptor,
                 expectedUpstreamCount);
 
         checkMappings(
-                downstreamRescalingDescriptors,
+                downstreamTaskStateSnapshots,
                 TaskStateSnapshot::getInputRescalingDescriptor,
                 expectedDownstreamCount);
     }
