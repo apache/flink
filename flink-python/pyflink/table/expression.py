@@ -1519,6 +1519,13 @@ class Expression(Generic[T]):
         """
         return _binary_op("arrayUnion")(self, array)
 
+    def array_except(self, array) -> 'Expression':
+        """
+        Returns an array of the elements in array1 but not in array2, without duplicates.
+        If array1 is null, the function will return null.
+        """
+        return _binary_op("arrayExcept")(self, array)
+
     @property
     def map_keys(self) -> 'Expression':
         """
