@@ -752,7 +752,9 @@ class JobMasterServiceLeadershipRunnerTest {
                                         .setJobMasterServiceProcessFunction(
                                                 ignoredSessionId -> jobMasterServiceProcess)
                                         .build())
-                        .setLeaderElection(defaultLeaderElectionService.createLeaderElection())
+                        .setLeaderElection(
+                                defaultLeaderElectionService.createLeaderElection(
+                                        "random-contender-id"))
                         .build()) {
             jobManagerRunner.start();
 

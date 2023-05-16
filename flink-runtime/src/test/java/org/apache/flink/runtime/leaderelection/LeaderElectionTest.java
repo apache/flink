@@ -204,7 +204,7 @@ public class LeaderElectionTest {
 
         @Override
         public LeaderElection createLeaderElection() {
-            return leaderElectionService.createLeaderElection();
+            return leaderElectionService.createLeaderElection("random-contender-id");
         }
     }
 
