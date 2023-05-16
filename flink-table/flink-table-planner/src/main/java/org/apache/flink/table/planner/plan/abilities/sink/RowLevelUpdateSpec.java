@@ -33,6 +33,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTyp
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
@@ -108,11 +109,14 @@ public class RowLevelUpdateSpec implements SinkAbilitySpec {
         RowLevelUpdateSpec that = (RowLevelUpdateSpec) o;
         return Objects.equals(updatedColumns, that.updatedColumns)
                 && rowLevelUpdateMode == that.rowLevelUpdateMode
+                && Arrays.equals(requireColumnIndices, that.requireColumnIndices)
                 && Objects.equals(scanContext, that.scanContext);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(updatedColumns, rowLevelUpdateMode, scanContext);
+        int result = Objects.hash(updatedColumns, rowLevelUpdateMode, scanContext);
+        result = 31 * result + Arrays.hashCode(requireColumnIndices);
+        return result;
     }
 }

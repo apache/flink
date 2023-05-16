@@ -33,6 +33,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTyp
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.Arrays;
 import java.util.Objects;
 
 /**
@@ -101,11 +102,14 @@ public class RowLevelDeleteSpec implements SinkAbilitySpec {
         }
         RowLevelDeleteSpec that = (RowLevelDeleteSpec) o;
         return rowLevelDeleteMode == that.rowLevelDeleteMode
-                && Objects.equals(scanContext, that.scanContext);
+                && Objects.equals(scanContext, that.scanContext)
+                && Arrays.equals(requiredPhysicalColumnIndices, that.requiredPhysicalColumnIndices);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(rowLevelDeleteMode, scanContext);
+        int result = Objects.hash(rowLevelDeleteMode, scanContext);
+        result = 31 * result + Arrays.hashCode(requiredPhysicalColumnIndices);
+        return result;
     }
 }
