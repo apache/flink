@@ -23,6 +23,9 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
+import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
+
 import java.io.Serializable;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionAttemptID.randomId;
@@ -54,6 +57,15 @@ public final class ResultPartitionID implements Serializable {
         this.producerId = checkNotNull(producerId);
     }
 
+    public ResultPartitionID(byte[] bytes) {
+        ByteBuf byteBuf = Unpooled.buffer();
+        byteBuf.writeBytes(bytes);
+
+        this.partitionId = IntermediateResultPartitionID.fromByteBuf(byteBuf);
+        this.producerId = ExecutionAttemptID.fromByteBuf(byteBuf);
+        byteBuf.release();
+    }
+
     public IntermediateResultPartitionID getPartitionId() {
         return partitionId;
     }
@@ -81,5 +93,16 @@ public final class ResultPartitionID implements Serializable {
     @Override
     public String toString() {
         return partitionId.toString() + "@" + producerId.toString();
+    }
+
+    public byte[] getBytes() {
+        ByteBuf byteBuf = Unpooled.buffer();
+        partitionId.writeTo(byteBuf);
+        producerId.writeTo(byteBuf);
+
+        byte[] bytes = new byte[byteBuf.readableBytes()];
+        byteBuf.readBytes(bytes);
+        byteBuf.release();
+        return bytes;
     }
 }

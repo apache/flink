@@ -25,24 +25,34 @@ import org.apache.flink.table.client.gateway.StatementResult;
 import org.apache.flink.table.gateway.service.context.DefaultContext;
 import org.apache.flink.table.jdbc.utils.DriverUtils;
 
+import javax.annotation.concurrent.NotThreadSafe;
+
 import java.sql.DatabaseMetaData;
 import java.sql.SQLClientInfoException;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
 
 import static org.apache.flink.table.jdbc.utils.DriverUtils.checkArgument;
 
-/** Connection to flink sql gateway for jdbc driver. */
+/**
+ * Connection to flink sql gateway for jdbc driver. Notice that the connection is not thread safe.
+ */
+@NotThreadSafe
 public class FlinkConnection extends BaseConnection {
     private final String url;
     private final Executor executor;
-    private volatile boolean closed = false;
+    private final List<Statement> statements;
+    private boolean closed = false;
 
     public FlinkConnection(DriverUri driverUri) {
         this.url = driverUri.getURL();
+        this.statements = new ArrayList<>();
         // TODO Support default context from map to get gid of flink core for jdbc driver in
         // https://issues.apache.org/jira/browse/FLINK-31687.
         this.executor =
@@ -59,7 +69,10 @@ public class FlinkConnection extends BaseConnection {
 
     @Override
     public Statement createStatement() throws SQLException {
-        return new FlinkStatement(this);
+        ensureOpen();
+        final Statement statement = new FlinkStatement(this);
+        statements.add(statement);
+        return statement;
     }
 
     @VisibleForTesting
@@ -67,11 +80,24 @@ public class FlinkConnection extends BaseConnection {
         return this.executor;
     }
 
+    private void ensureOpen() throws SQLException {
+        if (isClosed()) {
+            throw new SQLException("The current connection is closed.");
+        }
+    }
+
     @Override
     public void close() throws SQLException {
         if (closed) {
             return;
         }
+        List<Statement> remainStatements = new ArrayList<>(statements);
+        for (Statement statement : remainStatements) {
+            statement.close();
+        }
+        remainStatements.clear();
+        statements.clear();
+
         try {
             this.executor.close();
         } catch (Exception e) {
@@ -87,11 +113,13 @@ public class FlinkConnection extends BaseConnection {
 
     @Override
     public DatabaseMetaData getMetaData() throws SQLException {
+        ensureOpen();
         return new FlinkDatabaseMetaData(url, this, createStatement());
     }
 
     @Override
     public void setCatalog(String catalog) throws SQLException {
+        ensureOpen();
         try {
             setSessionCatalog(catalog);
         } catch (Exception e) {
@@ -105,6 +133,7 @@ public class FlinkConnection extends BaseConnection {
 
     @Override
     public String getCatalog() throws SQLException {
+        ensureOpen();
         try (StatementResult result = executor.executeStatement("SHOW CURRENT CATALOG;")) {
             if (result.hasNext()) {
                 String catalog = result.next().getString(0).toString();
@@ -118,6 +147,11 @@ public class FlinkConnection extends BaseConnection {
 
     @Override
     public void setClientInfo(String name, String value) throws SQLClientInfoException {
+        try {
+            ensureOpen();
+        } catch (SQLException e) {
+            throw new SQLClientInfoException("Connection is closed", new HashMap<>(), e);
+        }
         executor.configureSession(String.format("SET '%s'='%s';", name, value));
     }
 
@@ -130,6 +164,7 @@ public class FlinkConnection extends BaseConnection {
 
     @Override
     public String getClientInfo(String name) throws SQLException {
+        ensureOpen();
         // TODO Executor should return Map<String, String> here to get rid of flink core for jdbc
         // driver in https://issues.apache.org/jira/browse/FLINK-31687.
         Configuration configuration = (Configuration) executor.getSessionConfig();
@@ -138,6 +173,7 @@ public class FlinkConnection extends BaseConnection {
 
     @Override
     public Properties getClientInfo() throws SQLException {
+        ensureOpen();
         Properties properties = new Properties();
         // TODO Executor should return Map<String, String> here to get rid of flink core for jdbc
         // driver in https://issues.apache.org/jira/browse/FLINK-31687.
@@ -148,6 +184,7 @@ public class FlinkConnection extends BaseConnection {
 
     @Override
     public void setSchema(String schema) throws SQLException {
+        ensureOpen();
         try {
             setSessionSchema(schema);
         } catch (Exception e) {
@@ -161,6 +198,7 @@ public class FlinkConnection extends BaseConnection {
 
     @Override
     public String getSchema() throws SQLException {
+        ensureOpen();
         try (StatementResult result = executor.executeStatement("SHOW CURRENT DATABASE;")) {
             if (result.hasNext()) {
                 String schema = result.next().getString(0).toString();
@@ -170,5 +208,9 @@ public class FlinkConnection extends BaseConnection {
                 throw new SQLException("No database");
             }
         }
+    }
+
+    void removeStatement(FlinkStatement statement) {
+        statements.remove(statement);
     }
 }

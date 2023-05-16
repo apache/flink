@@ -73,12 +73,11 @@ import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
+import org.assertj.core.api.Assertions;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import javax.annotation.Nullable;
 
@@ -103,11 +102,8 @@ import static org.apache.flink.runtime.state.FullSnapshotUtil.hasMetaDataFollows
 import static org.apache.flink.runtime.state.FullSnapshotUtil.setMetaDataFollowsFlagInKey;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
 
 /** Tests for asynchronous RocksDB Key/Value state checkpoints. */
-@RunWith(PowerMockRunner.class)
 @SuppressWarnings("serial")
 public class RocksDBAsyncSnapshotTest extends TestLogger {
 
@@ -406,7 +402,7 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
         MockEnvironment env = MockEnvironment.builder().build();
 
         final IOException testException = new IOException("Test exception");
-        CheckpointStateOutputStream outputStream = spy(new FailingStream(testException));
+        FailingStream outputStream = new FailingStream(testException);
 
         RocksDBStateBackend backend =
                 new RocksDBStateBackend((StateBackend) new MemoryStateBackend());
@@ -448,7 +444,7 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
                 Assert.assertEquals(testException, e.getCause());
             }
 
-            verify(outputStream).close();
+            Assertions.assertThat(outputStream.isCloseCalled()).isEqualTo(true);
         } finally {
             IOUtils.closeQuietly(keyedStateBackend);
             keyedStateBackend.dispose();
@@ -530,6 +526,8 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 
         private final IOException testException;
 
+        private boolean closeCalled = false;
+
         FailingStream(IOException testException) {
             this.testException = testException;
         }
@@ -562,7 +560,12 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 
         @Override
         public void close() {
+            closeCalled = true;
             throw new UnsupportedOperationException();
+        }
+
+        public boolean isCloseCalled() {
+            return closeCalled;
         }
     }
 }

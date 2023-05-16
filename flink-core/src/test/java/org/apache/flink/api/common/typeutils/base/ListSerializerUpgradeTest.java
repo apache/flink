@@ -37,17 +37,16 @@ class ListSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<List<Strin
 
     private static final String SPEC_NAME = "list-serializer";
 
-    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications(FlinkVersion flinkVersion)
+            throws Exception {
 
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            SPEC_NAME,
-                            flinkVersion,
-                            ListSerializerSetup.class,
-                            ListSerializerVerifier.class));
-        }
+        testSpecifications.add(
+                new TestSpecification<>(
+                        SPEC_NAME,
+                        flinkVersion,
+                        ListSerializerSetup.class,
+                        ListSerializerVerifier.class));
 
         return testSpecifications;
     }

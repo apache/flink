@@ -18,13 +18,16 @@
 package org.apache.flink.table.planner.runtime.batch.table
 
 import org.apache.flink.api.scala._
+import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase}
 import org.apache.flink.table.planner.utils.CountAggFunction
-import org.apache.flink.table.utils.LegacyRowResource
+import org.apache.flink.table.utils.LegacyRowExtension
 import org.apache.flink.test.util.TestBaseUtils
 
-import org.junit._
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.RegisterExtension
 
 import java.math.BigDecimal
 
@@ -32,8 +35,8 @@ import scala.collection.JavaConverters._
 
 class GroupWindowITCase extends BatchTestBase {
 
-  @Rule
-  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
+  @RegisterExtension private val _: EachCallbackWrapper[LegacyRowExtension] =
+    new EachCallbackWrapper[LegacyRowExtension](new LegacyRowExtension)
 
   val data = List(
     (1L, 1, 1d, 1f, new BigDecimal("1"), "Hi"),
@@ -45,7 +48,7 @@ class GroupWindowITCase extends BatchTestBase {
     (8L, 3, 3d, 3f, new BigDecimal("3"), "Hello world")
   )
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testAllEventTimeTumblingWindowOverCount(): Unit = {
     val table =
       BatchTableEnvUtil.fromCollection(tEnv, data, "long, int, double, float, bigdec, string")
@@ -55,10 +58,10 @@ class GroupWindowITCase extends BatchTestBase {
       .window(Tumble.over(2.rows).on('long).as('w))
       .groupBy('w)
       .select('int.count)
-    executeQuery(result)
+    assertThatThrownBy(() => executeQuery(result)).isInstanceOf(classOf[TableException])
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testEventTimeTumblingGroupWindowOverCount(): Unit = {
     val table =
       BatchTableEnvUtil.fromCollection(tEnv, data, "long, int, double, float, bigdec, string")
@@ -92,8 +95,12 @@ class GroupWindowITCase extends BatchTestBase {
 
     val expected = "Hello,7,2,5,2,3,7.0,2,5.0,2.0,3.5,7.0,2,5.0,2.0,3.5,7,2,5,2,3.5\n" +
       "Hello world,7,2,4,3,3,7.0,2,4.0,3.0,3.5,7.0,2,4.0,3.0,3.5,7,2,4,3,3.5\n"
-    val results = executeQuery(windowedTable)
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    assertThatThrownBy(
+      () => {
+        val results = executeQuery(windowedTable)
+        TestBaseUtils.compareResultAsText(results.asJava, expected)
+      })
+      .isInstanceOf(classOf[TableException])
   }
 
   @Test
@@ -137,7 +144,7 @@ class GroupWindowITCase extends BatchTestBase {
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testEventTimeSessionGroupWindow(): Unit = {
     val table =
       BatchTableEnvUtil.fromCollection(tEnv, data, "long, int, double, float, bigdec, string")
@@ -146,18 +153,22 @@ class GroupWindowITCase extends BatchTestBase {
       .groupBy('string, 'w)
       .select('string, 'string.count, 'w.start, 'w.end, 'w.rowtime)
 
-    val results = executeQuery(windowedTable)
-
     val expected =
       "Hallo,1,1970-01-01 00:00:00.002,1970-01-01 00:00:00.009,1970-01-01 00:00:00.008\n" +
         "Hello world,1,1970-01-01 00:00:00.008,1970-01-01 00:00:00.015,1970-01-01 00:00:00.014\n" +
         "Hello world,1,1970-01-01 00:00:00.016,1970-01-01 00:00:00.023,1970-01-01 00:00:00.022\n" +
         "Hello,3,1970-01-01 00:00:00.003,1970-01-01 00:00:00.014,1970-01-01 00:00:00.013\n" +
         "Hi,1,1970-01-01 00:00:00.001,1970-01-01 00:00:00.008,1970-01-01 00:00:00.007"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+
+    assertThatThrownBy(
+      () => {
+        val results = executeQuery(windowedTable)
+        TestBaseUtils.compareResultAsText(results.asJava, expected)
+      })
+      .isInstanceOf(classOf[TableException])
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testAllEventTimeSessionGroupWindow(): Unit = {
     val table =
       BatchTableEnvUtil.fromCollection(tEnv, data, "long, int, double, float, bigdec, string")
@@ -167,13 +178,17 @@ class GroupWindowITCase extends BatchTestBase {
       .groupBy('w)
       .select('string.count, 'w.start, 'w.end, 'w.rowtime)
 
-    val results = executeQuery(windowedTable)
-
     val expected =
       "4,1970-01-01 00:00:00.001,1970-01-01 00:00:00.006,1970-01-01 00:00:00.005\n" +
         "2,1970-01-01 00:00:00.007,1970-01-01 00:00:00.010,1970-01-01 00:00:00.009\n" +
         "1,1970-01-01 00:00:00.016,1970-01-01 00:00:00.018,1970-01-01 00:00:00.017"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+
+    assertThatThrownBy(
+      () => {
+        val results = executeQuery(windowedTable)
+        TestBaseUtils.compareResultAsText(results.asJava, expected)
+      })
+      .isInstanceOf(classOf[TableException])
   }
 
   @Test
@@ -205,7 +220,7 @@ class GroupWindowITCase extends BatchTestBase {
   // Sliding windows
   // ----------------------------------------------------------------------------------------------
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testAllEventTimeSlidingGroupWindowOverCount(): Unit = {
     val table =
       BatchTableEnvUtil.fromCollection(tEnv, data, "long, int, double, float, bigdec, string")
@@ -216,7 +231,7 @@ class GroupWindowITCase extends BatchTestBase {
       .groupBy('w)
       .select('int.count)
 
-    executeQuery(windowedTable)
+    assertThatThrownBy(() => executeQuery(windowedTable)).isInstanceOf(classOf[TableException])
   }
 
   @Test
@@ -360,5 +375,4 @@ class GroupWindowITCase extends BatchTestBase {
     val results = executeQuery(windowedTable)
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
-
 }

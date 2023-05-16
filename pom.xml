@@ -124,6 +124,7 @@ under the License.
 		<flink.surefire.baseArgLine>-XX:+UseG1GC -Xms256m</flink.surefire.baseArgLine>
 		<flink.shaded.version>16.1</flink.shaded.version>
 		<flink.shaded.jackson.version>2.13.4</flink.shaded.jackson.version>
+		<flink.markBundledAsOptional>true</flink.markBundledAsOptional>
 		<target.java.version>1.8</target.java.version>
 		<slf4j.version>1.7.36</slf4j.version>
 		<log4j.version>2.17.1</log4j.version>
@@ -206,6 +207,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-force-shading</artifactId>
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
 		<!-- Root dependencies for all projects -->
@@ -939,6 +941,20 @@ under the License.
 
 	<profiles>
 		<profile>
+			<id>intellij</id>
+			<activation>
+				<property>
+					<name>idea.version</name>
+				</property>
+			</activation>
+			<properties>
+				<!-- Set to false so that all required dependencies are put on the classpath,
+				     since IntelliJ does not work against jars produced by the shade plugin
+				     (which may bundled said classes). -->
+				<flink.markBundledAsOptional>false</flink.markBundledAsOptional>
+			</properties>
+		</profile>
+		<profile>
 			<id>scala-2.12</id>
 			<properties>
 				<scala.version>2.12.7</scala.version>
@@ -1320,8 +1336,7 @@ under the License.
 								<configuration>
 									<rules>
 										<requireMavenVersion>
-											<!-- maven version must be lower than 3.3. See FLINK-3158 -->
-											<version>(,3.3)</version>
+											<version>3.8.6</version>
 										</requireMavenVersion>
 										<requireJavaVersion>
 											<version>1.8.0</version>
@@ -1577,8 +1592,6 @@ under the License.
 						<exclude>tools/japicmp-output/**</exclude>
 						<!-- artifacts created during release process -->
 						<exclude>tools/releasing/release/**</exclude>
-						<!-- manually installed version on travis -->
-						<exclude>apache-maven-3.2.5/**</exclude>
 						<!-- PyCharm -->
 						<exclude>**/.idea/**</exclude>
 						<!-- Generated code via Avro -->
@@ -1593,6 +1606,9 @@ under the License.
 
 						<!-- AWS SDK config that does not support license headers -->
 						<exclude>**/awssdk/global/handlers/execution.interceptors</exclude>
+
+						<!-- The most recently published version configuration file -->
+						<exclude>flink-test-utils-parent/flink-migration-test-utils/src/main/resources/most_recently_published_version</exclude>
 					</excludes>
 				</configuration>
 			</plugin>

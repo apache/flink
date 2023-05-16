@@ -53,18 +53,21 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-hadoop-fs</artifactId>
 			<version>${project.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-fs-hadoop-shaded</artifactId>
 			<version>${project.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
 		<dependency>
 			<groupId>com.google.cloud</groupId>
 			<artifactId>google-cloud-storage</artifactId>
 			<version>${fs.gs.sdk.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
 			<exclusions>
 				<!-- the following conflict with flink-fs-hadoop-shaded so exclude here -->
 				<exclusion>
@@ -99,6 +102,7 @@ under the License.
 			<groupId>com.google.cloud.bigdataoss</groupId>
 			<artifactId>gcs-connector</artifactId>
 			<version>${fs.gs.connector.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
 			<exclusions>
 				<!-- the following conflict with flink-fs-hadoop-shaded so exclude here -->
 				<exclusion>

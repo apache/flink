@@ -43,34 +43,33 @@ import static org.hamcrest.Matchers.is;
 @SuppressWarnings("WeakerAccess")
 class KryoSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Object> {
 
-    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications(FlinkVersion flinkVersion)
+            throws Exception {
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "kryo-type-serializer-empty-config",
-                            flinkVersion,
-                            KryoTypeSerializerEmptyConfigSetup.class,
-                            KryoTypeSerializerEmptyConfigVerifier.class));
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "kryo-type-serializer-unrelated-config-after-restore",
-                            flinkVersion,
-                            KryoTypeSerializerEmptyConfigSetup.class,
-                            KryoTypeSerializerWithUnrelatedConfigVerifier.class));
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "kryo-type-serializer-changed-registration-order",
-                            flinkVersion,
-                            KryoTypeSerializerChangedRegistrationOrderSetup.class,
-                            KryoTypeSerializerChangedRegistrationOrderVerifier.class));
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "kryo-custom-type-serializer-changed-registration-order",
-                            flinkVersion,
-                            KryoCustomTypeSerializerChangedRegistrationOrderSetup.class,
-                            KryoCustomTypeSerializerChangedRegistrationOrderVerifier.class));
-        }
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "kryo-type-serializer-empty-config",
+                        flinkVersion,
+                        KryoTypeSerializerEmptyConfigSetup.class,
+                        KryoTypeSerializerEmptyConfigVerifier.class));
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "kryo-type-serializer-unrelated-config-after-restore",
+                        flinkVersion,
+                        KryoTypeSerializerEmptyConfigSetup.class,
+                        KryoTypeSerializerWithUnrelatedConfigVerifier.class));
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "kryo-type-serializer-changed-registration-order",
+                        flinkVersion,
+                        KryoTypeSerializerChangedRegistrationOrderSetup.class,
+                        KryoTypeSerializerChangedRegistrationOrderVerifier.class));
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "kryo-custom-type-serializer-changed-registration-order",
+                        flinkVersion,
+                        KryoCustomTypeSerializerChangedRegistrationOrderSetup.class,
+                        KryoCustomTypeSerializerChangedRegistrationOrderVerifier.class));
 
         return testSpecifications;
     }

@@ -84,6 +84,8 @@ class TaskStateAssignment {
 
     @Nullable private TaskStateAssignment[] downstreamAssignments;
     @Nullable private TaskStateAssignment[] upstreamAssignments;
+    @Nullable private Boolean hasUpstreamOutputStates;
+    @Nullable private Boolean hasDownstreamInputStates;
 
     private final Map<IntermediateDataSetID, TaskStateAssignment> consumerAssignment;
     private final Map<ExecutionJobVertex, TaskStateAssignment> vertexAssignments;
@@ -202,8 +204,21 @@ class TaskStateAssignment {
     }
 
     public boolean hasUpstreamOutputStates() {
-        return Arrays.stream(getUpstreamAssignments())
-                .anyMatch(assignment -> assignment.hasOutputState);
+        if (hasUpstreamOutputStates == null) {
+            hasUpstreamOutputStates =
+                    Arrays.stream(getUpstreamAssignments())
+                            .anyMatch(assignment -> assignment.hasOutputState);
+        }
+        return hasUpstreamOutputStates;
+    }
+
+    public boolean hasDownstreamInputStates() {
+        if (hasDownstreamInputStates == null) {
+            hasDownstreamInputStates =
+                    Arrays.stream(getDownstreamAssignments())
+                            .anyMatch(assignment -> assignment.hasInputState);
+        }
+        return hasDownstreamInputStates;
     }
 
     private InflightDataGateOrPartitionRescalingDescriptor log(

@@ -36,10 +36,10 @@ trigger:
 
 resources:
   containers:
-  # Container with Maven 3.2.5, SSL to have the same environment everywhere.
-  # see https://github.com/flink-ci/flink-ci-docker
+  # Container with Maven 3.8.6, SSL to have the same environment everywhere.
+  # see https://github.com/apache/flink-connector-shared-utils/tree/ci_utils
   - container: flink-build-container
-    image: chesnay/flink-ci:java_8_11_17
+    image: chesnay/flink-ci:java_8_11_17_maven_386
     # On AZP provided machines, set this flag to allow writing coredumps in docker
     options: --privileged
 

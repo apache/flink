@@ -27,6 +27,8 @@ import org.apache.flink.util.UserClassLoaderJarTestUtils;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.File;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
@@ -48,10 +50,12 @@ public class FunctionITCase extends BatchTestBase {
     public void before() throws Exception {
         super.before();
         udfClassName = GENERATED_LOWER_UDF_CLASS + random.nextInt(50);
+        File tmpJarDir =
+                new File(createTempFolder(), String.format("test-jar-%s", UUID.randomUUID()));
+        Files.createDirectory(tmpJarDir.toPath());
         jarPath =
                 UserClassLoaderJarTestUtils.createJarFile(
-                                TEMPORARY_FOLDER.newFolder(
-                                        String.format("test-jar-%s", UUID.randomUUID())),
+                                tmpJarDir,
                                 "test-classloader-udf.jar",
                                 udfClassName,
                                 String.format(GENERATED_LOWER_UDF_CODE, udfClassName))

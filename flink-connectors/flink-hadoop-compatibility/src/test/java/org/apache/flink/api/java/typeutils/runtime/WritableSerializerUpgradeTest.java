@@ -41,17 +41,16 @@ import static org.hamcrest.Matchers.is;
 class WritableSerializerUpgradeTest
         extends TypeSerializerUpgradeTestBase<WritableName, WritableName> {
 
-    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications(FlinkVersion flinkVersion)
+            throws Exception {
 
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "writeable-serializer",
-                            flinkVersion,
-                            WritableSerializerSetup.class,
-                            WritableSerializerVerifier.class));
-        }
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "writeable-serializer",
+                        flinkVersion,
+                        WritableSerializerSetup.class,
+                        WritableSerializerVerifier.class));
         return testSpecifications;
     }
 

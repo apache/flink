@@ -19,8 +19,8 @@ under the License.
 Generates an XML snippet for the externalized connector python download table.
 */}}
 {{ $name := .Get 0 }}
-{{ $connector_version := .Get 1 }}
 {{ $connector := index .Site.Data $name }}
+{{ $connector_version := $connector.version  }}
 {{ $flink_version := .Site.Params.VersionTitle }}
 {{ $full_version := printf "%s-%s" $connector_version $flink_version }}
 

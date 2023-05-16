@@ -1337,7 +1337,8 @@ public class SingleInputGateTest extends InputGateTestBase {
                                 ? resultPartitionManager
                                 : netEnv.getResultPartitionManager(),
                         new TaskEventDispatcher(),
-                        netEnv.getNetworkBufferPool())
+                        netEnv.getNetworkBufferPool(),
+                        null)
                 .create(
                         netEnv.createShuffleIOOwnerContext(
                                 "TestTask", taskMetricGroup.executionId(), taskMetricGroup),

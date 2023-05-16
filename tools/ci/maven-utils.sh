@@ -83,7 +83,7 @@ function collect_coredumps {
 
 CI_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
-MAVEN_VERSION="3.2.5"
+MAVEN_VERSION="3.8.6"
 MAVEN_CACHE_DIR=${HOME}/maven_cache
 MAVEN_VERSIONED_DIR=${MAVEN_CACHE_DIR}/apache-maven-${MAVEN_VERSION}
 

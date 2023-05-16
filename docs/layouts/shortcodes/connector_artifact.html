@@ -22,8 +22,9 @@ under the License.
   rendered documentation. 
 */}}
 {{ $artifactId := .Get 0 }}
-{{ $version := .Get 1 }}
-
+{{ $name := .Get 1 }}
+{{ $connector := index .Site.Data $name }}
+{{ $version := $connector.version  }}
 {{ $path := .Page.Path }}
 
 {{ $hash := md5 now }}

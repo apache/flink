@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.runtime.batch.table
 
 import org.apache.flink.api.scala._
+import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils.FuncWithOpen
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinITCaseHelper.disableOtherJoinOpForJoin
@@ -25,21 +26,22 @@ import org.apache.flink.table.planner.runtime.batch.sql.join.JoinType
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinType.JoinType
 import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase, CollectionBatchExecTable}
 import org.apache.flink.table.planner.utils.TableFunc2
-import org.apache.flink.table.utils.LegacyRowResource
+import org.apache.flink.table.utils.LegacyRowExtension
 import org.apache.flink.test.util.TestBaseUtils
 
-import org.junit._
+import org.junit.jupiter.api.{BeforeEach, Test}
+import org.junit.jupiter.api.extension.RegisterExtension
 
 import scala.collection.JavaConverters._
 
 class JoinITCase extends BatchTestBase {
 
-  @Rule
-  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
+  @RegisterExtension private val _: EachCallbackWrapper[LegacyRowExtension] =
+    new EachCallbackWrapper[LegacyRowExtension](new LegacyRowExtension)
 
   val expectedJoinType: JoinType = JoinType.SortMergeJoin
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     disableOtherJoinOpForJoin(tEnv, expectedJoinType)

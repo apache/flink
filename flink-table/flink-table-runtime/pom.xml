@@ -59,6 +59,7 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-code-splitter</artifactId>
 			<version>${project.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
 		<!-- Flink dependencies -->
@@ -72,10 +73,12 @@ under the License.
 		<dependency>
 			<groupId>org.codehaus.janino</groupId>
 			<artifactId>janino</artifactId>
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 		<dependency>
 			<groupId>org.codehaus.janino</groupId>
 			<artifactId>commons-compiler</artifactId>
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
 		<!-- JsonPath -->
@@ -84,6 +87,7 @@ under the License.
 			<groupId>com.jayway.jsonpath</groupId>
 			<artifactId>json-path</artifactId>
 			<version>${jsonpath.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
 		<!-- Test dependencies -->
@@ -116,6 +120,13 @@ under the License.
 			<artifactId>flink-table-common</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>fink-migration-test-utils</artifactId>
+			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
@@ -170,4 +181,48 @@ under the License.
 			</plugin>
 		</plugins>
 	</build>
+
+	<profiles>
+		<profile>
+			<id>generate-migration-test-data</id>
+			<build>
+				<plugins>
+					<plugin>
+						<artifactId>maven-antrun-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>generate-migration-test-data</id>
+								<phase>package</phase>
+								<goals>
+									<goal>run</goal>
+								</goals>
+								<configuration>
+									<target>
+										<condition property="optional.classes" value="--classes '${generate.classes}'"
+												   else="">
+											<isset property="generate.classes"/>
+										</condition>
+										<condition property="optional.prefixes"
+												   value="--prefixes '${generate.prefixes}'" else="">
+											<isset property="generate.prefixes"/>
+										</condition>
+										<java classname="org.apache.flink.test.migration.MigrationTestsSnapshotGenerator"
+											  fork="true" failonerror="true" dir="${project.basedir}">
+											<classpath refid="maven.test.classpath"/>
+											<arg value="--dir"/>
+											<arg line="${project.basedir}"/>
+											<arg value="--version"/>
+											<arg value="${generate.version}"/>
+											<arg line="${optional.classes}"/>
+											<arg line="${optional.prefixes}"/>
+										</java>
+									</target>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 </project>

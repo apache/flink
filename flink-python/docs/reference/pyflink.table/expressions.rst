@@ -230,6 +230,7 @@ advanced type helper functions
     Expression.array_position
     Expression.array_remove
     Expression.array_reverse
+    Expression.array_union
     Expression.map_keys
     Expression.map_values
 

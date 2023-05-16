@@ -120,4 +120,19 @@ public class FlinkStatementTest extends FlinkJdbcDriverTestBase {
             }
         }
     }
+
+    @Test
+    public void testCloseAllStatements() throws Exception {
+        FlinkConnection connection = new FlinkConnection(getDriverUri());
+        Statement statement1 = connection.createStatement();
+        Statement statement2 = connection.createStatement();
+        Statement statement3 = connection.createStatement();
+
+        statement1.close();
+        connection.close();
+
+        assertTrue(statement1.isClosed());
+        assertTrue(statement2.isClosed());
+        assertTrue(statement3.isClosed());
+    }
 }

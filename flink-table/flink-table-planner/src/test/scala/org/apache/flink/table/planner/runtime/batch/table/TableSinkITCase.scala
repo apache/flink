@@ -17,27 +17,24 @@
  */
 package org.apache.flink.table.planner.runtime.batch.table
 
+import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.TestData._
-import org.apache.flink.table.utils.LegacyRowResource
+import org.apache.flink.table.utils.LegacyRowExtension
 
-import org.junit.{Rule, Test}
-import org.junit.Assert.assertEquals
-import org.junit.rules.ExpectedException
+import org.assertj.core.api.Assertions
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.RegisterExtension
 
 import scala.collection.JavaConversions._
 
 class TableSinkITCase extends BatchTestBase {
 
-  @Rule
-  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
-
-  var _expectedEx: ExpectedException = ExpectedException.none
-
-  @Rule
-  def expectedEx: ExpectedException = _expectedEx
+  @RegisterExtension private val _: EachCallbackWrapper[LegacyRowExtension] =
+    new EachCallbackWrapper[LegacyRowExtension](new LegacyRowExtension)
 
   @Test
   def testDecimalOnOutputFormatTableSink(): Unit = {
@@ -63,7 +60,7 @@ class TableSinkITCase extends BatchTestBase {
 
     val result = TestValuesTableFactory.getResults("sink")
     val expected = Seq("12345,55,12345")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -89,7 +86,7 @@ class TableSinkITCase extends BatchTestBase {
 
     val result = TestValuesTableFactory.getResults("sink")
     val expected = Seq("12345,55,12345")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -115,7 +112,7 @@ class TableSinkITCase extends BatchTestBase {
 
     val result = TestValuesTableFactory.getResults("testSink")
     val expected = List("1,0.1", "2,0.4", "3,1.0", "4,2.2", "5,3.9")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -140,7 +137,7 @@ class TableSinkITCase extends BatchTestBase {
 
     val result = TestValuesTableFactory.getResults("testSink")
     val expected = List("1,0.1", "2,0.4", "3,1.0", "4,2.2", "5,3.9")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -171,7 +168,7 @@ class TableSinkITCase extends BatchTestBase {
     val expected =
       List("1,2021,1,0.1", "2,2021,1,0.4", "3,2021,1,1.0", "4,2021,1,2.2", "5,2021,1,3.9")
     val result = TestValuesTableFactory.getResults("testSink")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -197,7 +194,7 @@ class TableSinkITCase extends BatchTestBase {
       .await()
     val expected = List("null,0.1", "null,0.4", "null,1.0", "null,2.2", "null,3.9")
     val result = TestValuesTableFactory.getResults("testSink")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -232,7 +229,7 @@ class TableSinkITCase extends BatchTestBase {
       "null,2021,1,2.2",
       "null,2021,1,3.9")
     val result = TestValuesTableFactory.getResults("testSink")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -263,7 +260,7 @@ class TableSinkITCase extends BatchTestBase {
     val expected =
       List("1,2021,1,0.1", "2,2021,1,0.4", "3,2021,1,1.0", "4,2021,1,2.2", "5,2021,1,3.9")
     val result = TestValuesTableFactory.getResults("testSink")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -298,7 +295,7 @@ class TableSinkITCase extends BatchTestBase {
       "null,null,null,2.2",
       "null,null,null,3.9")
     val result = TestValuesTableFactory.getResults("testSink")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -333,7 +330,7 @@ class TableSinkITCase extends BatchTestBase {
       "null,2021,1,2.2",
       "null,2021,1,3.9")
     val result = TestValuesTableFactory.getResults("testSink")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -368,7 +365,7 @@ class TableSinkITCase extends BatchTestBase {
       "null,2021,1,2.2",
       "null,2021,1,3.9")
     val result = TestValuesTableFactory.getResults("testSink")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -403,7 +400,7 @@ class TableSinkITCase extends BatchTestBase {
       "null,2021,1,2.2",
       "null,2021,1,3.9")
     val result = TestValuesTableFactory.getResults("testSink")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -438,7 +435,7 @@ class TableSinkITCase extends BatchTestBase {
       "null,2021,null,2.2",
       "null,2021,null,3.9")
     val result = TestValuesTableFactory.getResults("testSink")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -460,14 +457,16 @@ class TableSinkITCase extends BatchTestBase {
 
     registerCollection("MyTable", simpleData2, simpleType2, "x, y", nullableOfSimpleData2)
 
-    expectedEx.expect(classOf[ValidationException])
-    expectedEx.expectMessage("Target column 'e' is assigned more than once")
-
-    tEnv
-      .executeSql(s"""
-                     |INSERT INTO testSink PARTITION(`c`='2021') (e, e)
-                     |SELECT 1, sum(y) FROM MyTable GROUP BY x
-                     |""".stripMargin)
-      .await()
+    Assertions
+      .assertThatThrownBy(
+        () => {
+          tEnv
+            .executeSql(s"""
+                           |INSERT INTO testSink PARTITION(`c`='2021') (e, e)
+                           |SELECT 1, sum(y) FROM MyTable GROUP BY x
+                           |""".stripMargin)
+            .await()
+        })
+      .hasMessageContaining("Target column 'e' is assigned more than once")
   }
 }

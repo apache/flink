@@ -205,6 +205,7 @@ under the License.
 			<groupId>io.airlift</groupId>
 			<artifactId>aircompressor</artifactId>
 			<version>0.21</version>
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
 		<!-- test dependencies -->
@@ -253,6 +254,13 @@ under the License.
 			<groupId>com.squareup.okhttp3</groupId>
 			<artifactId>okhttp</artifactId>
 			<version>3.7.0</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>fink-migration-test-utils</artifactId>
+			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -382,4 +390,48 @@ under the License.
 			</plugin>
 		</plugins>
 	</build>
+
+	<profiles>
+		<profile>
+			<id>generate-migration-test-data</id>
+			<build>
+				<plugins>
+					<plugin>
+						<artifactId>maven-antrun-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>generate-migration-test-data</id>
+								<phase>package</phase>
+								<goals>
+									<goal>run</goal>
+								</goals>
+								<configuration>
+									<target>
+										<condition property="optional.classes" value="--classes '${generate.classes}'"
+												   else="">
+											<isset property="generate.classes"/>
+										</condition>
+										<condition property="optional.prefixes"
+												   value="--prefixes '${generate.prefixes}'" else="">
+											<isset property="generate.prefixes"/>
+										</condition>
+										<java classname="org.apache.flink.test.migration.MigrationTestsSnapshotGenerator"
+											  fork="true" failonerror="true" dir="${project.basedir}">
+											<classpath refid="maven.test.classpath"/>
+											<arg value="--dir"/>
+											<arg line="${project.basedir}"/>
+											<arg value="--version"/>
+											<arg value="${generate.version}"/>
+											<arg line="${optional.classes}"/>
+											<arg line="${optional.prefixes}"/>
+										</java>
+									</target>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 </project>
