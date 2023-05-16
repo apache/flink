@@ -160,7 +160,7 @@ public class AdaptiveSchedulerTest {
 
     @RegisterExtension
     public static final TestExecutorExtension<ScheduledExecutorService> TEST_EXECUTOR_RESOURCE =
-            new TestExecutorExtension<>(Executors::newSingleThreadScheduledExecutor);
+            TestingUtils.defaultExecutorExtensionWithOutstandingTaskAssertion();
 
     private final ManuallyTriggeredComponentMainThreadExecutor mainThreadExecutor =
             new ManuallyTriggeredComponentMainThreadExecutor(Thread.currentThread());

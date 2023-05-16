@@ -56,7 +56,7 @@ class FutureUtilsTest {
 
     @RegisterExtension
     static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorExtension();
+            TestingUtils.defaultExecutorExtensionWithOutstandingTaskAssertion();
 
     /** Tests that we can retry an operation. */
     @Test

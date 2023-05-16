@@ -53,7 +53,7 @@ public class LeaderElectionTest {
 
     @RegisterExtension
     private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorExtension();
+            TestingUtils.defaultExecutorExtensionWithOutstandingTaskAssertion();
 
     @RegisterExtension
     private final TestingFatalErrorHandlerExtension testingFatalErrorHandlerResource =
