@@ -33,11 +33,13 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesDeploymentTarget;
+import org.apache.flink.kubernetes.kubeclient.Fabric8FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClientFactory;
 import org.apache.flink.kubernetes.kubeclient.decorators.InternalServiceDecorator;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.util.concurrent.Executors;
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.EnvVar;
@@ -79,7 +81,10 @@ class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
                             @Override
                             public FlinkKubeClient fromConfiguration(
                                     Configuration flinkConfig, String useCase) {
-                                return flinkKubeClient;
+                                return new Fabric8FlinkKubeClient(
+                                        flinkConfig,
+                                        server.createClient().inNamespace(NAMESPACE),
+                                        Executors.newDirectExecutorService());
                             }
                         });
     }
