@@ -28,10 +28,12 @@ import org.apache.flink.kubernetes.kubeclient.resources.TestingLeaderCallbackHan
 import org.apache.flink.runtime.persistence.TestingLongStateHandleHelper;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.UUID;
 
+import static org.apache.flink.kubernetes.KubernetesExtension.KUBE_CONF_ENV;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -41,6 +43,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  * org.apache.flink.runtime.jobmanager.JobGraphStore} and {@link
  * org.apache.flink.runtime.checkpoint.CompletedCheckpointStore} implementation for Kubernetes.
  */
+@EnabledIf(
+        value = "org.apache.flink.kubernetes.KubernetesExtension#checkEnv",
+        disabledReason = "Disabled as " + KUBE_CONF_ENV + " is not set.")
 class KubernetesStateHandleStoreITCase {
 
     private static final String LEADER_CONFIGMAP_NAME = "leader-test-cluster";

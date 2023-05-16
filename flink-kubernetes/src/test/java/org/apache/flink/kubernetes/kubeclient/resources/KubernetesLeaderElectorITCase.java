@@ -25,16 +25,21 @@ import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClientFactory;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.UUID;
 
+import static org.apache.flink.kubernetes.KubernetesExtension.KUBE_CONF_ENV;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * IT Tests for the {@link KubernetesLeaderElector}. Start multiple leader contenders currently, one
  * should elect successfully. And if current leader dies, a new one could take over.
  */
+@EnabledIf(
+        value = "org.apache.flink.kubernetes.KubernetesExtension#checkEnv",
+        disabledReason = "Disabled as " + KUBE_CONF_ENV + " is not set.")
 class KubernetesLeaderElectorITCase {
     @RegisterExtension
     private static final KubernetesExtension kubernetesExtension = new KubernetesExtension();

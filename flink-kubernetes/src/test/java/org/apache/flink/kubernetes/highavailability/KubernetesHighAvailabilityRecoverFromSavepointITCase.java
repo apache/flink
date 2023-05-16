@@ -54,6 +54,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.File;
@@ -63,12 +64,16 @@ import java.nio.file.Path;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.kubernetes.KubernetesExtension.KUBE_CONF_ENV;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for recovering from savepoint when Kubernetes HA is enabled. The savepoint will be
  * persisted as a checkpoint and stored in the ConfigMap when recovered successfully.
  */
+@EnabledIf(
+        value = "org.apache.flink.kubernetes.KubernetesExtension#checkEnv",
+        disabledReason = "Disabled as " + KUBE_CONF_ENV + " is not set.")
 class KubernetesHighAvailabilityRecoverFromSavepointITCase {
 
     private static final long TIMEOUT = 60 * 1000;

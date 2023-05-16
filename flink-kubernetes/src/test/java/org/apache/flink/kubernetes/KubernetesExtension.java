@@ -22,40 +22,55 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClientFactory;
+import org.apache.flink.util.StringUtils;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.rules.ExternalResource;
-
-import static org.assertj.core.api.Assumptions.assumeThat;
 
 /**
  * {@link ExternalResource} which has a configured real Kubernetes cluster and client. We assume
  * that one already has a running Kubernetes cluster. And all the ITCases assume that the
  * environment ITCASE_KUBECONFIG is set with a valid kube config file. In the E2E tests, we will use
  * a minikube for the testing.
+ *
+ * <p>If a test depends on this extension, please annotation it with {@code @EnabledIf(value =
+ * "org.apache.flink.kubernetes.KubernetesExtension#checkEnv", disabledReason = "Disabled as " +
+ * KubernetesExtension.KUBE_CONF_ENV + " is not set.")} to avoid failure in the environment without
+ * Kubernetes cluster.
  */
 public class KubernetesExtension implements BeforeAllCallback, AfterAllCallback {
 
     private static final String CLUSTER_ID = "flink-itcase-cluster";
+
+    public static final String KUBE_CONF_ENV = "ITCASE_KUBECONFIG";
+
     private static final int KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES = 100;
 
     private static String kubeConfigFile;
     private Configuration configuration;
     private FlinkKubeClient flinkKubeClient;
 
-    public static void checkEnv() {
-        final String kubeConfigEnv = System.getenv("ITCASE_KUBECONFIG");
-        assumeThat(kubeConfigEnv)
-                .withFailMessage("ITCASE_KUBECONFIG environment is not set.")
-                .isNotBlank();
-        kubeConfigFile = kubeConfigEnv;
+    public static boolean checkEnv() {
+        final String kubeConfigEnv = System.getenv(KUBE_CONF_ENV);
+        return !StringUtils.isNullOrWhitespaceOnly(kubeConfigEnv);
+    }
+
+    private void checkAndSetKubeConfigFile() {
+        Assertions.assertThat(checkEnv())
+                .withFailMessage(
+                        "This extension can be used only when "
+                                + KUBE_CONF_ENV
+                                + " environment is set.")
+                .isTrue();
+        kubeConfigFile = System.getenv(KUBE_CONF_ENV);
     }
 
     @Override
     public void beforeAll(ExtensionContext extensionContext) throws Exception {
-        checkEnv();
+        checkAndSetKubeConfigFile();
         configuration = new Configuration();
         configuration.set(KubernetesConfigOptions.KUBE_CONFIG_FILE, kubeConfigFile);
         configuration.setString(KubernetesConfigOptions.CLUSTER_ID, CLUSTER_ID);

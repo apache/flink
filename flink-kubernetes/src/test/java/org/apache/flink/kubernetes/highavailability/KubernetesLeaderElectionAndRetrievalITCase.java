@@ -32,6 +32,7 @@ import org.apache.flink.runtime.leaderretrieval.TestingLeaderRetrievalEventHandl
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.time.Duration;
@@ -42,6 +43,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Function;
 
+import static org.apache.flink.kubernetes.KubernetesExtension.KUBE_CONF_ENV;
 import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -51,6 +53,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  * become the leader and {@link KubernetesLeaderRetrievalDriver} could retrieve the leader address
  * from Kubernetes.
  */
+@EnabledIf(
+        value = "org.apache.flink.kubernetes.KubernetesExtension#checkEnv",
+        disabledReason = "Disabled as " + KUBE_CONF_ENV + " is not set.")
 class KubernetesLeaderElectionAndRetrievalITCase {
 
     private static final String LEADER_CONFIGMAP_NAME = "leader-test-cluster";

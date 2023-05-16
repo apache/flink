@@ -32,6 +32,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.ArrayList;
@@ -44,10 +45,14 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static org.apache.flink.kubernetes.KubernetesExtension.KUBE_CONF_ENV;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
 /** IT Tests for the {@link KubernetesSharedInformer}. */
+@EnabledIf(
+        value = "org.apache.flink.kubernetes.KubernetesExtension#checkEnv",
+        disabledReason = "Disabled as " + KUBE_CONF_ENV + " is not set.")
 class KubernetesSharedInformerITCase {
 
     @RegisterExtension
