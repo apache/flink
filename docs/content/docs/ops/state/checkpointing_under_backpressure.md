@@ -34,7 +34,7 @@ all operators/subtasks. This is explained in the overview of the
 and can be observed by high
 [alignment time and start delay metrics]({{< ref "docs/ops/monitoring/checkpoint_monitoring" >}}#history-tab).
 When this happens and becomes an issue, there are three ways to address the problem:
-1. Remove the backpressure source by optimizing the Flink job, by adjusting Flink or JVM , or by scaling up.
+1. Remove the backpressure source by optimizing the Flink job, by adjusting Flink or JVM configurations, or by scaling up.
 2. Reduce the amount of buffered in-flight data in the Flink job.
 3. Enable unaligned checkpoints.
 
