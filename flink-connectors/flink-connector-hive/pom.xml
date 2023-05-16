@@ -205,6 +205,13 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-calcite-bridge</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
 		<!-- test dependencies for table planner -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -1200,6 +1207,11 @@ under the License.
 					<systemPropertyVariables>
 						<derby.stream.error.file>${project.build.directory}/derby.log</derby.stream.error.file>
 					</systemPropertyVariables>
+					<classpathDependencyExcludes>
+						<classpathDependencyExclude>org.apache.calcite:calcite-core</classpathDependencyExclude>
+						<classpathDependencyExclude>org.apache.calcite:calcite-linq4j</classpathDependencyExclude>
+						<classpathDependencyExclude>org.apache.calcite.avatica:avatica-core</classpathDependencyExclude>
+					</classpathDependencyExcludes>
 				</configuration>
 			</plugin>
 

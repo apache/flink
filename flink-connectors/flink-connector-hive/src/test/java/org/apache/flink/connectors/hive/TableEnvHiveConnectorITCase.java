@@ -135,7 +135,7 @@ public class TableEnvHiveConnectorITCase {
                     .addRow(new Object[] {"4", "val4"})
                     .commit();
             tableEnv.executeSql(
-                            "INSERT OVERWRITE dest\n"
+                            "INSERT OVERWRITE TABLE dest\n"
                                     + "SELECT j.*\n"
                                     + "FROM (SELECT t1.key, p1.val\n"
                                     + "      FROM src2 t1\n"
@@ -414,9 +414,11 @@ public class TableEnvHiveConnectorITCase {
         try {
             tableEnv.executeSql(
                     "create table db1.dest (x int) partitioned by (p string) stored as rcfile");
-            tableEnv.executeSql("insert overwrite db1.dest partition (p='1') select 1").await();
+            tableEnv.executeSql("insert overwrite table db1.dest partition (p='1') select 1")
+                    .await();
             tableEnv.executeSql("alter table db1.dest set fileformat sequencefile");
-            tableEnv.executeSql("insert overwrite db1.dest partition (p='1') select 1").await();
+            tableEnv.executeSql("insert overwrite table db1.dest partition (p='1') select 1")
+                    .await();
             assertThat(
                             CollectionUtil.iteratorToList(
                                             tableEnv.sqlQuery("select * from db1.dest")

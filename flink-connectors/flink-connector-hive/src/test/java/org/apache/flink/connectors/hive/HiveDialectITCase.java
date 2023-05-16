@@ -351,7 +351,7 @@ public class HiveDialectITCase {
         tableEnv.executeSql("insert into dest select x from src").await();
         List<Row> results = queryResult(tableEnv.sqlQuery("select * from dest"));
         assertThat(results.toString()).isEqualTo("[+I[1], +I[2], +I[3]]");
-        tableEnv.executeSql("insert overwrite dest values (3),(4),(5)").await();
+        tableEnv.executeSql("insert overwrite table dest values (3),(4),(5)").await();
         results = queryResult(tableEnv.sqlQuery("select * from dest"));
         assertThat(results.toString()).isEqualTo("[+I[3], +I[4], +I[5]]");
 

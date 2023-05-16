@@ -646,21 +646,21 @@ public class HiveParserUtils {
 
     public static boolean isBridgingSqlFunction(SqlOperator sqlOperator) {
         return sqlOperator != null
-                && sqlOperator.getClass().getName().equals(BRIDGING_SQL_FUNCTION_CLZ_NAME);
+                && HiveReflectionUtils.tryGetClass(BRIDGING_SQL_FUNCTION_CLZ_NAME)
+                        .isInstance(sqlOperator);
     }
 
     private static boolean isBridgingSqlAggFunction(SqlOperator sqlOperator) {
         return sqlOperator != null
-                && sqlOperator.getClass().getName().equals(bridgingSqlAggFunctionClzName);
+                && HiveReflectionUtils.tryGetClass(bridgingSqlAggFunctionClzName)
+                        .isInstance(sqlOperator);
     }
 
     private static FunctionDefinition getBridgingSqlFunctionDefinition(SqlOperator sqlOperator) {
-        Class<?> bridgingSqlFunction =
-                HiveReflectionUtils.tryGetClass(BRIDGING_SQL_FUNCTION_CLZ_NAME);
         try {
             return (FunctionDefinition)
                     HiveReflectionUtils.invokeMethod(
-                            bridgingSqlFunction,
+                            sqlOperator.getClass(),
                             sqlOperator,
                             "getDefinition",
                             new Class[] {},
@@ -671,12 +671,10 @@ public class HiveParserUtils {
     }
 
     private static FunctionDefinition getBridgingAggSqlFunctionDefinition(SqlOperator sqlOperator) {
-        Class<?> bridgingSqlAggFunction =
-                HiveReflectionUtils.tryGetClass(bridgingSqlAggFunctionClzName);
         try {
             return (FunctionDefinition)
                     HiveReflectionUtils.invokeMethod(
-                            bridgingSqlAggFunction,
+                            sqlOperator.getClass(),
                             sqlOperator,
                             "getDefinition",
                             new Class[] {},
@@ -1062,7 +1060,7 @@ public class HiveParserUtils {
     }
 
     public static boolean isUDTF(SqlOperator sqlOperator) {
-        if (isBridgingSqlAggFunction(sqlOperator)) {
+        if (isBridgingSqlFunction(sqlOperator)) {
             return getBridgingSqlFunctionDefinition(sqlOperator).getKind() == FunctionKind.TABLE;
         } else {
             return sqlOperator instanceof SqlUserDefinedTableFunction;

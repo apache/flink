@@ -295,7 +295,7 @@ public class HiveRunnerITCase {
                     .commit();
             verifyHiveQueryResult("select * from db1.dest", Arrays.asList("1\ta", "2\tb"));
 
-            tableEnv.executeSql("insert overwrite db1.dest values (3, 'c')").await();
+            tableEnv.executeSql("insert overwrite table db1.dest values (3, 'c')").await();
             verifyHiveQueryResult("select * from db1.dest", Collections.singletonList("3\tc"));
 
             // static partition
@@ -307,12 +307,13 @@ public class HiveRunnerITCase {
                     .addRow(new Object[] {2})
                     .commit("y=2");
             tableEnv = getTableEnvWithHiveCatalog();
-            tableEnv.executeSql("insert overwrite db1.part partition (y=1) select 100").await();
+            tableEnv.executeSql("insert overwrite table db1.part partition (y=1) select 100")
+                    .await();
             verifyHiveQueryResult("select * from db1.part", Arrays.asList("100\t1", "2\t2"));
 
             // dynamic partition
             tableEnv = getTableEnvWithHiveCatalog();
-            tableEnv.executeSql("insert overwrite db1.part values (200,2),(3,3)").await();
+            tableEnv.executeSql("insert overwrite table db1.part values (200,2),(3,3)").await();
             // only overwrite dynamically matched partitions, other existing partitions remain
             // intact
             verifyHiveQueryResult(
