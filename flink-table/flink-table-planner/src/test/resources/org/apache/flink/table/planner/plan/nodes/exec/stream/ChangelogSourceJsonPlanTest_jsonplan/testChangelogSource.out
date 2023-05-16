@@ -76,7 +76,7 @@
     "description" : "Exchange(distribution=[hash[a, b]])"
   }, {
     "id" : 4,
-    "type" : "stream-exec-changelog-normalize_1",
+    "type" : "stream-exec-changelog-normalize_2",
     "configuration" : {
       "table.exec.mini-batch.enabled" : "false",
       "table.exec.mini-batch.size" : "-1"
@@ -91,10 +91,15 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`a` BIGINT NOT NULL, `b` INT NOT NULL>",
-    "description" : "ChangelogNormalize(key=[a, b])"
+    "description" : "ChangelogNormalize(key=[a, b])",
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "changelogNormalizeState"
+    } ]
   }, {
     "id" : 5,
-    "type" : "stream-exec-sink_1",
+    "type" : "stream-exec-sink_2",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",

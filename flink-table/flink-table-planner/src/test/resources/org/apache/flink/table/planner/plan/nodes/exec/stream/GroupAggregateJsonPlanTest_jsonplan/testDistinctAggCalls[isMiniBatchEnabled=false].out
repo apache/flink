@@ -93,7 +93,7 @@
     "description" : "Exchange(distribution=[hash[d]])"
   }, {
     "id" : 4,
-    "type" : "stream-exec-group-aggregate_1",
+    "type" : "stream-exec-group-aggregate_2",
     "configuration" : {
       "table.exec.mini-batch.enabled" : "false",
       "table.exec.mini-batch.size" : "-1"
@@ -168,7 +168,12 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`d` BIGINT, `cnt_a1` BIGINT NOT NULL, `cnt_a2` BIGINT NOT NULL, `sum_a` BIGINT, `sum_b` INT NOT NULL, `avg_b` INT NOT NULL, `cnt_d` BIGINT NOT NULL>",
-    "description" : "GroupAggregate(groupBy=[d], select=[d, COUNT(DISTINCT a) FILTER $f2 AS cnt_a1, COUNT(DISTINCT a) AS cnt_a2, SUM(DISTINCT a) AS sum_a, SUM(DISTINCT b) AS sum_b, AVG(b) AS avg_b, COUNT(DISTINCT c) AS cnt_d])"
+    "description" : "GroupAggregate(groupBy=[d], select=[d, COUNT(DISTINCT a) FILTER $f2 AS cnt_a1, COUNT(DISTINCT a) AS cnt_a2, SUM(DISTINCT a) AS sum_a, SUM(DISTINCT b) AS sum_b, AVG(b) AS avg_b, COUNT(DISTINCT c) AS cnt_d])",
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "groupAggregateState"
+    } ]
   }, {
     "id" : 5,
     "type" : "stream-exec-calc_1",
@@ -243,7 +248,7 @@
     "description" : "Calc(select=[d, CAST(cnt_a1 AS BIGINT) AS cnt_a1, CAST(cnt_a2 AS BIGINT) AS cnt_a2, sum_a, CAST(sum_b AS INTEGER) AS sum_b, CAST(avg_b AS DOUBLE) AS avg_b, CAST(cnt_d AS BIGINT) AS cnt_c])"
   }, {
     "id" : 6,
-    "type" : "stream-exec-sink_1",
+    "type" : "stream-exec-sink_2",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",

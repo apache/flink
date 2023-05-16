@@ -37,6 +37,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
+import org.apache.flink.table.planner.plan.nodes.exec.StateMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
@@ -50,7 +51,10 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
+import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
@@ -71,6 +75,16 @@ import java.util.List;
         producedTransformations = StreamExecChangelogNormalize.CHANGELOG_NORMALIZE_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
+@ExecNodeMetadata(
+        name = "stream-exec-changelog-normalize",
+        version = 2,
+        consumedOptions = {
+            "table.exec.mini-batch.enabled",
+            "table.exec.mini-batch.size",
+        },
+        producedTransformations = StreamExecChangelogNormalize.CHANGELOG_NORMALIZE_TRANSFORMATION,
+        minPlanVersion = FlinkVersion.v1_18,
+        minStateVersion = FlinkVersion.v1_15)
 public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
@@ -78,12 +92,18 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
 
     public static final String FIELD_NAME_UNIQUE_KEYS = "uniqueKeys";
     public static final String FIELD_NAME_GENERATE_UPDATE_BEFORE = "generateUpdateBefore";
+    public static final String STATE_NAME = "changelogNormalizeState";
 
     @JsonProperty(FIELD_NAME_UNIQUE_KEYS)
     private final int[] uniqueKeys;
 
     @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE)
     private final boolean generateUpdateBefore;
+
+    @Nullable
+    @JsonProperty(FIELD_NAME_STATE)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final List<StateMetadata> stateMetadataList;
 
     public StreamExecChangelogNormalize(
             ReadableConfig tableConfig,
@@ -100,7 +120,8 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
                 generateUpdateBefore,
                 Collections.singletonList(inputProperty),
                 outputType,
-                description);
+                description,
+                StateMetadata.getOneInputOperatorDefaultMeta(tableConfig, STATE_NAME));
     }
 
     @JsonCreator
@@ -112,10 +133,12 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
             @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE) boolean generateUpdateBefore,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
-            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description,
+            @Nullable @JsonProperty(FIELD_NAME_STATE) List<StateMetadata> stateMetadataList) {
         super(id, context, persistedConfig, inputProperties, outputType, description);
         this.uniqueKeys = uniqueKeys;
         this.generateUpdateBefore = generateUpdateBefore;
+        this.stateMetadataList = stateMetadataList;
     }
 
     @SuppressWarnings("unchecked")
@@ -129,7 +152,9 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
                 (InternalTypeInfo<RowData>) inputTransform.getOutputType();
 
         final OneInputStreamOperator<RowData, RowData> operator;
-        final long stateIdleTime = config.getStateRetentionTime();
+
+        final long stateRetentionTime =
+                StateMetadata.getStateTtlForOneInputOperator(config, stateMetadataList);
         final boolean isMiniBatchEnabled =
                 config.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED);
 
@@ -145,7 +170,7 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
                     new ProcTimeMiniBatchDeduplicateKeepLastRowFunction(
                             rowTypeInfo,
                             rowSerializer,
-                            stateIdleTime,
+                            stateRetentionTime,
                             generateUpdateBefore,
                             true, // generateInsert
                             false, // inputInsertOnly
@@ -156,7 +181,7 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
             ProcTimeDeduplicateKeepLastRowFunction processFunction =
                     new ProcTimeDeduplicateKeepLastRowFunction(
                             rowTypeInfo,
-                            stateIdleTime,
+                            stateRetentionTime,
                             generateUpdateBefore,
                             true, // generateInsert
                             false, // inputInsertOnly

@@ -26,10 +26,10 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TimeUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonGetter;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.time.Duration;
@@ -84,22 +84,23 @@ public class StateMetadata {
                 stateIndex,
                 TimeUtils.parseDuration(
                         Preconditions.checkNotNull(stateTtl, "state ttl should not be null")),
-                Preconditions.checkNotNull(stateName, "state name should not be null"));
+                stateName);
     }
 
-    public StateMetadata(int stateIndex, @Nonnull Duration stateTtl, @Nonnull String stateName) {
+    public StateMetadata(int stateIndex, Duration stateTtl, String stateName) {
         Preconditions.checkArgument(stateIndex >= 0, "state index should start from 0");
         this.stateIndex = stateIndex;
-        this.stateTtl = stateTtl;
-        this.stateName = stateName;
+        this.stateTtl = Preconditions.checkNotNull(stateTtl, "state ttl should not be null");
+        this.stateName = Preconditions.checkNotNull(stateName, "state name should not be null");
     }
 
     public int getStateIndex() {
         return stateIndex;
     }
 
-    public long getStateTtl() {
-        return stateTtl.toMillis();
+    @JsonGetter(value = "ttl")
+    public String getStateTtl() {
+        return TimeUtils.formatWithHighestUnit(stateTtl);
     }
 
     public String getStateName() {
@@ -143,7 +144,7 @@ public class StateMetadata {
         validateStateMetadata(inputNumOfOperator, stateMetadataList);
         return stateMetadataList.stream()
                 .sorted(Comparator.comparing(StateMetadata::getStateIndex))
-                .map(StateMetadata::getStateTtl)
+                .map(metadata -> metadata.stateTtl.toMillis())
                 .collect(Collectors.toList());
     }
 

@@ -98,7 +98,7 @@
     "description" : "Exchange(distribution=[hash[b]])"
   }, {
     "id" : 4,
-    "type" : "stream-exec-group-aggregate_1",
+    "type" : "stream-exec-group-aggregate_2",
     "configuration" : {
       "table.exec.mini-batch.enabled" : "false",
       "table.exec.mini-batch.size" : "-1"
@@ -144,7 +144,12 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`b` INT NOT NULL, `cnt_a` BIGINT NOT NULL, `max_b` INT, `min_c` VARCHAR(2147483647)>",
-    "description" : "GroupAggregate(groupBy=[b], select=[b, COUNT(a) AS cnt_a, MAX(b) FILTER $f2 AS max_b, MIN(c) AS min_c])"
+    "description" : "GroupAggregate(groupBy=[b], select=[b, COUNT(a) AS cnt_a, MAX(b) FILTER $f2 AS max_b, MIN(c) AS min_c])",
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "groupAggregateState"
+    } ]
   }, {
     "id" : 5,
     "type" : "stream-exec-calc_1",
@@ -195,7 +200,7 @@
     "description" : "Calc(select=[CAST(b AS BIGINT) AS b, CAST(cnt_a AS BIGINT) AS cnt_a, CAST(max_b AS BIGINT) AS max_b, min_c])"
   }, {
     "id" : 6,
-    "type" : "stream-exec-sink_1",
+    "type" : "stream-exec-sink_2",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",

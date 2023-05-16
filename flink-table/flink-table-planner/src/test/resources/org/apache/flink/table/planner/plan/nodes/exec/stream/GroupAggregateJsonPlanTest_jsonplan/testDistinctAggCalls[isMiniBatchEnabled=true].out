@@ -340,7 +340,7 @@
     "description" : "Exchange(distribution=[hash[d]])"
   }, {
     "id" : 6,
-    "type" : "stream-exec-global-group-aggregate_1",
+    "type" : "stream-exec-global-group-aggregate_2",
     "configuration" : {
       "table.exec.mini-batch.enabled" : "true",
       "table.exec.mini-batch.size" : "5"
@@ -416,7 +416,12 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`d` BIGINT, `cnt_a1` BIGINT NOT NULL, `cnt_a2` BIGINT NOT NULL, `sum_a` BIGINT, `sum_b` INT NOT NULL, `avg_b` INT NOT NULL, `cnt_d` BIGINT NOT NULL>",
-    "description" : "GlobalGroupAggregate(groupBy=[d], select=[d, COUNT(distinct$0 count$0) AS cnt_a1, COUNT(distinct$0 count$1) AS cnt_a2, SUM(distinct$0 sum$2) AS sum_a, SUM(distinct$1 sum$3) AS sum_b, AVG((sum$4, count$5)) AS avg_b, COUNT(distinct$2 count$6) AS cnt_d])"
+    "description" : "GlobalGroupAggregate(groupBy=[d], select=[d, COUNT(distinct$0 count$0) AS cnt_a1, COUNT(distinct$0 count$1) AS cnt_a2, SUM(distinct$0 sum$2) AS sum_a, SUM(distinct$1 sum$3) AS sum_b, AVG((sum$4, count$5)) AS avg_b, COUNT(distinct$2 count$6) AS cnt_d])",
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "globalGroupAggregateState"
+    } ]
   }, {
     "id" : 7,
     "type" : "stream-exec-calc_1",
@@ -491,7 +496,7 @@
     "description" : "Calc(select=[d, CAST(cnt_a1 AS BIGINT) AS cnt_a1, CAST(cnt_a2 AS BIGINT) AS cnt_a2, sum_a, CAST(sum_b AS INTEGER) AS sum_b, CAST(avg_b AS DOUBLE) AS avg_b, CAST(cnt_d AS BIGINT) AS cnt_c])"
   }, {
     "id" : 8,
-    "type" : "stream-exec-sink_1",
+    "type" : "stream-exec-sink_2",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",

@@ -91,17 +91,17 @@ public class StateMetadataTest {
     @MethodSource("provideConfigForOneInput")
     @ParameterizedTest
     public void testGetOneInputOperatorDefaultMeta(
-            Consumer<TableConfig> configModifier, String expectedStateName, long expectedStateTtl) {
+            Consumer<TableConfig> configModifier,
+            String expectedStateName,
+            long expectedTtlMillis) {
         configModifier.accept(tableConfig);
         List<StateMetadata> stateMetadataList =
                 StateMetadata.getOneInputOperatorDefaultMeta(tableConfig, expectedStateName);
         assertThat(stateMetadataList).hasSize(1);
         assertThat(stateMetadataList.get(0))
-                .matches(
-                        (stateMetadata) ->
-                                stateMetadata.getStateIndex() == 0
-                                        && stateMetadata.getStateName().equals(expectedStateName)
-                                        && stateMetadata.getStateTtl() == expectedStateTtl);
+                .isEqualTo(
+                        new StateMetadata(
+                                0, Duration.ofMillis(expectedTtlMillis), expectedStateName));
     }
 
     @MethodSource("provideConfigForMultiInput")
@@ -109,7 +109,7 @@ public class StateMetadataTest {
     public void testGetMultiInputOperatorDefaultMeta(
             Consumer<TableConfig> configModifier,
             List<String> expectedStateNameList,
-            List<Long> expectedStateTtlList) {
+            List<Long> expectedTtlMillisList) {
         configModifier.accept(tableConfig);
         List<StateMetadata> stateMetadataList =
                 StateMetadata.getMultiInputOperatorDefaultMeta(
@@ -119,17 +119,12 @@ public class StateMetadataTest {
                 .forEach(
                         i ->
                                 assertThat(stateMetadataList.get(i))
-                                        .matches(
-                                                (stateMetadata) ->
-                                                        stateMetadata.getStateIndex() == i
-                                                                && stateMetadata
-                                                                        .getStateName()
-                                                                        .equals(
-                                                                                expectedStateNameList
-                                                                                        .get(i))
-                                                                && stateMetadata.getStateTtl()
-                                                                        == expectedStateTtlList.get(
-                                                                                i)));
+                                        .isEqualTo(
+                                                new StateMetadata(
+                                                        i,
+                                                        Duration.ofMillis(
+                                                                expectedTtlMillisList.get(i)),
+                                                        expectedStateNameList.get(i))));
     }
 
     @MethodSource("provideStateMetaForOneInput")

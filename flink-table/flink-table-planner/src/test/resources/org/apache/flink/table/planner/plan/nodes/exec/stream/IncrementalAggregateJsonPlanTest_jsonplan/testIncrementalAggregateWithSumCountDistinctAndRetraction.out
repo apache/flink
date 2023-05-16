@@ -113,7 +113,7 @@
     "description" : "Exchange(distribution=[hash[a]])"
   }, {
     "id" : 5,
-    "type" : "stream-exec-global-group-aggregate_1",
+    "type" : "stream-exec-global-group-aggregate_2",
     "configuration" : {
       "table.exec.mini-batch.enabled" : "true",
       "table.exec.mini-batch.size" : "5"
@@ -151,7 +151,12 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`a` BIGINT, `b` BIGINT NOT NULL, `b1` INT NOT NULL>",
-    "description" : "GlobalGroupAggregate(groupBy=[a], select=[a, COUNT(count1$0) AS b, MAX(max$1) AS b1])"
+    "description" : "GlobalGroupAggregate(groupBy=[a], select=[a, COUNT(count1$0) AS b, MAX(max$1) AS b1])",
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "globalGroupAggregateState"
+    } ]
   }, {
     "id" : 6,
     "type" : "stream-exec-calc_1",
@@ -326,7 +331,7 @@
     "description" : "Exchange(distribution=[hash[b, $f2]])"
   }, {
     "id" : 9,
-    "type" : "stream-exec-incremental-group-aggregate_1",
+    "type" : "stream-exec-incremental-group-aggregate_2",
     "configuration" : {
       "table.exec.mini-batch.enabled" : "true",
       "table.exec.mini-batch.size" : "5"
@@ -374,7 +379,12 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`b` BIGINT NOT NULL, `sum$0` INT, `count$1` BIGINT, `count$2` BIGINT, `count1$3` BIGINT>",
-    "description" : "IncrementalGroupAggregate(partialAggGrouping=[b, $f2], finalAggGrouping=[b], select=[b, SUM_RETRACT((sum$0, count$1)) AS (sum$0, count$1), COUNT_RETRACT(distinct$0 count$2) AS count$2, COUNT_RETRACT(count1$3) AS count1$3])"
+    "description" : "IncrementalGroupAggregate(partialAggGrouping=[b, $f2], finalAggGrouping=[b], select=[b, SUM_RETRACT((sum$0, count$1)) AS (sum$0, count$1), COUNT_RETRACT(distinct$0 count$2) AS count$2, COUNT_RETRACT(count1$3) AS count1$3])",
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "incrementalGroupAggregateState"
+    } ]
   }, {
     "id" : 10,
     "type" : "stream-exec-exchange_1",
@@ -390,7 +400,7 @@
     "description" : "Exchange(distribution=[hash[b]])"
   }, {
     "id" : 11,
-    "type" : "stream-exec-global-group-aggregate_1",
+    "type" : "stream-exec-global-group-aggregate_2",
     "configuration" : {
       "table.exec.mini-batch.enabled" : "true",
       "table.exec.mini-batch.size" : "5"
@@ -437,10 +447,15 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`b` BIGINT NOT NULL, `$f1` INT NOT NULL, `$f2` BIGINT NOT NULL, `$f3` BIGINT NOT NULL>",
-    "description" : "GlobalGroupAggregate(groupBy=[b], partialFinalType=[FINAL], select=[b, SUM_RETRACT((sum$0, count$1)) AS $f1, $SUM0_RETRACT(count$2) AS $f2, $SUM0_RETRACT(count1$3) AS $f3], indexOfCountStar=[2])"
+    "description" : "GlobalGroupAggregate(groupBy=[b], partialFinalType=[FINAL], select=[b, SUM_RETRACT((sum$0, count$1)) AS $f1, $SUM0_RETRACT(count$2) AS $f2, $SUM0_RETRACT(count1$3) AS $f3], indexOfCountStar=[2])",
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "globalGroupAggregateState"
+    } ]
   }, {
     "id" : 12,
-    "type" : "stream-exec-sink_1",
+    "type" : "stream-exec-sink_2",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",

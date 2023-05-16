@@ -176,7 +176,7 @@
     "description" : "Exchange(distribution=[single])"
   }, {
     "id" : 6,
-    "type" : "stream-exec-global-group-aggregate_1",
+    "type" : "stream-exec-global-group-aggregate_2",
     "configuration" : {
       "table.exec.mini-batch.enabled" : "true",
       "table.exec.mini-batch.size" : "5"
@@ -232,7 +232,12 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`avg_a` BIGINT, `cnt` BIGINT NOT NULL, `min_b` INT, `max_c` VARCHAR(2147483647)>",
-    "description" : "GlobalGroupAggregate(select=[AVG((sum$0, count$1)) AS avg_a, COUNT(count1$2) AS cnt, MIN(min$3) AS min_b, MAX(max$4) AS max_c])"
+    "description" : "GlobalGroupAggregate(select=[AVG((sum$0, count$1)) AS avg_a, COUNT(count1$2) AS cnt, MIN(min$3) AS min_b, MAX(max$4) AS max_c])",
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "globalGroupAggregateState"
+    } ]
   }, {
     "id" : 7,
     "type" : "stream-exec-calc_1",
@@ -293,7 +298,7 @@
     "description" : "Calc(select=[CAST(avg_a AS DOUBLE) AS avg_a, CAST(cnt AS BIGINT) AS cnt, CAST(cnt AS BIGINT) AS cnt_b, CAST(min_b AS BIGINT) AS min_b, max_c])"
   }, {
     "id" : 8,
-    "type" : "stream-exec-sink_1",
+    "type" : "stream-exec-sink_2",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",

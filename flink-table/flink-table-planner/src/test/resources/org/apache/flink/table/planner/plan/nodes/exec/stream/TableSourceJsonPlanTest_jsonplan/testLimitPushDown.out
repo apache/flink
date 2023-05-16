@@ -49,7 +49,7 @@
     "description" : "Exchange(distribution=[single])"
   }, {
     "id" : 3,
-    "type" : "stream-exec-limit_1",
+    "type" : "stream-exec-limit_2",
     "configuration" : {
       "table.exec.rank.topn-cache-size" : "10000"
     },
@@ -71,6 +71,11 @@
     } ],
     "outputType" : "ROW<`a` BIGINT, `b` INT, `c` VARCHAR(2147483647)>",
     "description" : "Limit(offset=[0], fetch=[3])",
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "rankState"
+    } ],
     "rankType" : "ROW_NUMBER",
     "partition" : {
       "fields" : [ ]
@@ -81,7 +86,7 @@
     "outputRowNumber" : false
   }, {
     "id" : 4,
-    "type" : "stream-exec-sink_1",
+    "type" : "stream-exec-sink_2",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",

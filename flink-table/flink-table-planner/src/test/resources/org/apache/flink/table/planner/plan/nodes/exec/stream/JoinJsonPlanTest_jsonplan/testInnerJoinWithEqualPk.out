@@ -55,7 +55,7 @@
     "description" : "Exchange(distribution=[hash[a1]])"
   }, {
     "id" : 3,
-    "type" : "stream-exec-group-aggregate_1",
+    "type" : "stream-exec-group-aggregate_2",
     "configuration" : {
       "table.exec.mini-batch.enabled" : "false",
       "table.exec.mini-batch.size" : "-1"
@@ -73,7 +73,12 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`a1` INT>",
-    "description" : "GroupAggregate(groupBy=[a1], select=[a1])"
+    "description" : "GroupAggregate(groupBy=[a1], select=[a1])",
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "groupAggregateState"
+    } ]
   }, {
     "id" : 4,
     "type" : "stream-exec-exchange_1",
@@ -142,7 +147,7 @@
     "description" : "Exchange(distribution=[hash[b1]])"
   }, {
     "id" : 7,
-    "type" : "stream-exec-group-aggregate_1",
+    "type" : "stream-exec-group-aggregate_2",
     "configuration" : {
       "table.exec.mini-batch.enabled" : "false",
       "table.exec.mini-batch.size" : "-1"
@@ -160,7 +165,12 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`b1` INT>",
-    "description" : "GroupAggregate(groupBy=[b1], select=[b1])"
+    "description" : "GroupAggregate(groupBy=[b1], select=[b1])",
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "groupAggregateState"
+    } ]
   }, {
     "id" : 8,
     "type" : "stream-exec-exchange_1",
@@ -176,7 +186,7 @@
     "description" : "Exchange(distribution=[hash[b1]])"
   }, {
     "id" : 9,
-    "type" : "stream-exec-join_1",
+    "type" : "stream-exec-join_2",
     "joinSpec" : {
       "joinType" : "INNER",
       "leftKeys" : [ 0 ],
@@ -200,10 +210,19 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`a1` INT, `b1` INT>",
-    "description" : "Join(joinType=[InnerJoin], where=[(a1 = b1)], select=[a1, b1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])"
+    "description" : "Join(joinType=[InnerJoin], where=[(a1 = b1)], select=[a1, b1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])",
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "leftState"
+    }, {
+      "index" : 1,
+      "ttl" : "0 ms",
+      "name" : "rightState"
+    } ]
   }, {
     "id" : 10,
-    "type" : "stream-exec-sink_1",
+    "type" : "stream-exec-sink_2",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",

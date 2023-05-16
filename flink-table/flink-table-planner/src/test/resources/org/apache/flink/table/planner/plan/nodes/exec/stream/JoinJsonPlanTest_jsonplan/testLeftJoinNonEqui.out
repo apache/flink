@@ -108,7 +108,7 @@
     "description" : "Exchange(distribution=[hash[b1]])"
   }, {
     "id" : 5,
-    "type" : "stream-exec-join_1",
+    "type" : "stream-exec-join_2",
     "joinSpec" : {
       "joinType" : "LEFT",
       "leftKeys" : [ 0 ],
@@ -144,7 +144,16 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`a1` INT, `a2` BIGINT, `b1` INT, `b2` BIGINT>",
-    "description" : "Join(joinType=[LeftOuterJoin], where=[((a1 = b1) AND (a2 > b2))], select=[a1, a2, b1, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])"
+    "description" : "Join(joinType=[LeftOuterJoin], where=[((a1 = b1) AND (a2 > b2))], select=[a1, a2, b1, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])",
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "leftState"
+    }, {
+      "index" : 1,
+      "ttl" : "0 ms",
+      "name" : "rightState"
+    } ]
   }, {
     "id" : 6,
     "type" : "stream-exec-calc_1",
@@ -169,7 +178,7 @@
     "description" : "Calc(select=[a1, b1])"
   }, {
     "id" : 7,
-    "type" : "stream-exec-sink_1",
+    "type" : "stream-exec-sink_2",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",

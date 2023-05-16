@@ -103,7 +103,7 @@
     "description" : "Exchange(distribution=[hash[b]])"
   }, {
     "id" : 5,
-    "type" : "stream-exec-group-aggregate_1",
+    "type" : "stream-exec-group-aggregate_2",
     "configuration" : {
       "table.exec.mini-batch.enabled" : "true",
       "table.exec.mini-batch.size" : "5"
@@ -158,7 +158,12 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`b` INT NOT NULL, `a1` BIGINT, `a2` BIGINT, `a3` BIGINT, `c1` BIGINT>",
-    "description" : "GroupAggregate(groupBy=[b], select=[b, my_sum1(b, $f1) AS a1, my_sum2($f2, b) AS a2, my_avg(d, a) AS a3, my_count(c) AS c1])"
+    "description" : "GroupAggregate(groupBy=[b], select=[b, my_sum1(b, $f1) AS a1, my_sum2($f2, b) AS a2, my_avg(d, a) AS a3, my_count(c) AS c1])",
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "groupAggregateState"
+    } ]
   }, {
     "id" : 6,
     "type" : "stream-exec-calc_1",
@@ -201,7 +206,7 @@
     "description" : "Calc(select=[CAST(b AS BIGINT) AS b, a1, a2, a3, c1])"
   }, {
     "id" : 7,
-    "type" : "stream-exec-sink_1",
+    "type" : "stream-exec-sink_2",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",

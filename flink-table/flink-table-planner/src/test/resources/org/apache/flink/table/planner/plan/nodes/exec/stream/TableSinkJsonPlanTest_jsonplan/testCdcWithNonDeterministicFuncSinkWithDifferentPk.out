@@ -76,7 +76,7 @@
     "description" : "Calc(select=[user_id, ndFunc(user_name) AS EXPR$1, email, balance])"
   }, {
     "id" : 3,
-    "type" : "stream-exec-sink_1",
+    "type" : "stream-exec-sink_2",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",
@@ -127,7 +127,12 @@
     "outputType" : "ROW<`user_id` VARCHAR(2147483647) NOT NULL, `EXPR$1` VARCHAR(2147483647), `email` VARCHAR(2147483647), `balance` DECIMAL(18, 2)>",
     "requireUpsertMaterialize" : true,
     "inputUpsertKey" : [ 0 ],
-    "description" : "Sink(table=[default_catalog.default_database.sink], fields=[user_id, EXPR$1, email, balance], upsertMaterialize=[true])"
+    "description" : "Sink(table=[default_catalog.default_database.sink], fields=[user_id, EXPR$1, email, balance], upsertMaterialize=[true])",
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "sinkMaterializeState"
+    } ]
   } ],
   "edges" : [ {
     "source" : 1,

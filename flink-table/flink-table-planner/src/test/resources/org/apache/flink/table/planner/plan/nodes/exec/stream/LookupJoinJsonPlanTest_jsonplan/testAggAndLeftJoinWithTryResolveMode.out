@@ -217,7 +217,7 @@
     "description" : "Exchange(distribution=[hash[b]])"
   }, {
     "id" : 6,
-    "type" : "stream-exec-group-aggregate_1",
+    "type" : "stream-exec-group-aggregate_2",
     "configuration" : {
       "table.exec.mini-batch.enabled" : "false",
       "table.exec.mini-batch.size" : "-1"
@@ -244,7 +244,12 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`b` VARCHAR(2147483647), `a` INT>",
-    "description" : "GroupAggregate(groupBy=[b], select=[b, MAX(a) AS a])"
+    "description" : "GroupAggregate(groupBy=[b], select=[b, MAX(a) AS a])",
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "groupAggregateState"
+    } ]
   }, {
     "id" : 7,
     "type" : "stream-exec-calc_1",
@@ -265,7 +270,7 @@
     "description" : "Calc(select=[a])"
   }, {
     "id" : 8,
-    "type" : "stream-exec-lookup-join_1",
+    "type" : "stream-exec-lookup-join_2",
     "joinType" : "LEFT",
     "joinCondition" : null,
     "temporalTable" : {
@@ -315,7 +320,12 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`a` INT, `id` INT, `name` VARCHAR(2147483647), `age` INT>",
-    "description" : "LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[LeftOuterJoin], lookup=[id=a], select=[a, id, name, age], upsertMaterialize=[true])"
+    "description" : "LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[LeftOuterJoin], lookup=[id=a], select=[a, id, name, age], upsertMaterialize=[true])",
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "lookupJoinState"
+    } ]
   }, {
     "id" : 9,
     "type" : "stream-exec-calc_1",
@@ -344,7 +354,7 @@
     "description" : "Calc(select=[a, name, age])"
   }, {
     "id" : 10,
-    "type" : "stream-exec-sink_1",
+    "type" : "stream-exec-sink_2",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",
