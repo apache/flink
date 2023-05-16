@@ -146,7 +146,8 @@ class ZooKeeperLeaderElectionConnectionHandlingTest {
         client.getConnectionStateListenable().addListener(connectionStateListener);
 
         final TestingContender contender = new TestingContender();
-        try (LeaderElection leaderElection = leaderElectionService.createLeaderElection()) {
+        try (LeaderElection leaderElection =
+                leaderElectionService.createLeaderElection("random-contender-id")) {
             leaderElection.startLeaderElection(contender);
 
             contender.awaitGrantLeadership();

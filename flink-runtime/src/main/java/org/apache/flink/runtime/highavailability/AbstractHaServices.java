@@ -247,7 +247,12 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
         leaderElectionService.startLeaderElectionBackend();
 
         closeableRegistry.registerCloseable(leaderElectionService);
-        return leaderElectionService.createLeaderElection();
+        // the leaderName which is passed as a contenderID here is not actively used within the
+        // DefaultLeaderElectionService for now - this will change in a future step where the
+        // DefaultLeaderElectionService will start to use MultipleComponentLeaderElectionDriver
+        // instead of LeaderElectionDriver and fully replace
+        // DefaultMultipleComponentLeaderElectionService (FLINK-31783)
+        return leaderElectionService.createLeaderElection("unused-contender-id");
     }
 
     /**

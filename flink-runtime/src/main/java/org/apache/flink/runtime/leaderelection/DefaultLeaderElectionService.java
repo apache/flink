@@ -55,13 +55,17 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
     private final LeaderElectionDriverFactory leaderElectionDriverFactory;
 
     /**
-     * {@code leaderContender} being {@code null} indicates that no {@link LeaderContender} is
-     * registered that participates in the leader election, yet. See {@link
-     * #register(LeaderContender)} and {@link #remove(LeaderContender)} for lifecycle management.
+     * {@code contenderID} being {@code null} indicates that no {@link LeaderContender} is
+     * registered that participates in the leader election, yet. See {@link #register(String,
+     * LeaderContender)} and {@link #remove(String)} for lifecycle management.
      *
      * <p>{@code @Nullable} isn't used here to avoid having multiple warnings spread over this class
      * in a supporting IDE.
      */
+    @GuardedBy("lock")
+    private String contenderID;
+
+    /** {@code leaderContender} is closely linked to the {@link #contenderID}. */
     @GuardedBy("lock")
     private LeaderContender leaderContender;
 
@@ -161,7 +165,8 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
     }
 
     @Override
-    protected void register(LeaderContender contender) throws Exception {
+    protected void register(String contenderID, LeaderContender contender) throws Exception {
+        checkNotNull(contenderID, "ContenderID must not be null.");
         checkNotNull(contender, "Contender must not be null.");
 
         synchronized (lock) {
@@ -169,10 +174,13 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
                     leaderContender == null,
                     "Only one LeaderContender is allowed to be registered to this service.");
             Preconditions.checkState(
+                    this.contenderID == null, "The contenderID is only allowed to be set once.");
+            Preconditions.checkState(
                     running,
                     "The DefaultLeaderElectionService should have established a connection to the backend before it's started.");
 
             leaderContender = contender;
+            this.contenderID = contenderID;
 
             LOG.info(
                     "LeaderContender {} has been registered for {}.",
@@ -188,17 +196,20 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
     }
 
     @Override
-    protected final void remove(LeaderContender contender) {
-        Preconditions.checkArgument(contender == this.leaderContender);
-        LOG.info("Stopping DefaultLeaderElectionService.");
-
+    protected final void remove(String contenderID) {
         synchronized (lock) {
-            if (leaderContender == null) {
+            if (this.contenderID == null) {
                 LOG.debug(
                         "The stop procedure was called on an already stopped DefaultLeaderElectionService instance. No action necessary.");
                 return;
             }
 
+            LOG.info("Stopping DefaultLeaderElectionService for {}.", this.contenderID);
+
+            Preconditions.checkNotNull(
+                    leaderContender,
+                    "There should be a LeaderContender registered under the given contenderID '%s'.",
+                    this.contenderID);
             if (issuedLeaderSessionID != null) {
                 notifyLeaderContenderOfLeadershipLoss();
                 LOG.debug(
@@ -217,6 +228,7 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
                         "DefaultLeaderElectionService is stopping while not having the leadership acquired. No cleanup necessary.");
             }
 
+            this.contenderID = null;
             leaderContender = null;
         }
     }
@@ -253,13 +265,19 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
     }
 
     @Override
-    protected void confirmLeadership(UUID leaderSessionID, String leaderAddress) {
-        LOG.debug("Confirm leader session ID {} for leader {}.", leaderSessionID, leaderAddress);
+    protected void confirmLeadership(
+            String contenderID, UUID leaderSessionID, String leaderAddress) {
+        Preconditions.checkArgument(contenderID.equals(this.contenderID));
+        LOG.debug(
+                "The leader session of {} is confirmed with session ID {} for and address {}.",
+                this.contenderID,
+                leaderSessionID,
+                leaderAddress);
 
         checkNotNull(leaderSessionID);
 
         synchronized (lock) {
-            if (hasLeadership(leaderSessionID)) {
+            if (hasLeadership(contenderID, leaderSessionID)) {
                 Preconditions.checkState(
                         confirmedLeaderInformation.isEmpty(),
                         "No confirmation should have happened, yet.");
@@ -284,15 +302,16 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
     }
 
     @Override
-    protected boolean hasLeadership(UUID leaderSessionId) {
+    protected boolean hasLeadership(String contenderID, UUID leaderSessionId) {
         synchronized (lock) {
             if (leaderElectionDriver != null) {
-                if (leaderContender != null) {
+                if (contenderID.equals(this.contenderID)) {
                     return leaderElectionDriver.hasLeadership()
                             && leaderSessionId.equals(issuedLeaderSessionID);
                 } else {
                     LOG.debug(
-                            "hasLeadership is called after the service is stopped, returning false.");
+                            "hasLeadership is called for contender ID '{}' while there is no contender registered under that ID in service, returning false.",
+                            contenderID);
                     return false;
                 }
             } else {
@@ -302,12 +321,17 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
         }
     }
 
-    /** Returns the current leader session ID or {@code null}, if the session wasn't confirmed. */
+    /**
+     * Returns the current leader session ID for the given {@code contenderID} or {@code null}, if
+     * the session wasn't confirmed.
+     */
     @VisibleForTesting
     @Nullable
-    public UUID getLeaderSessionID() {
+    public UUID getLeaderSessionID(String contenderID) {
         synchronized (lock) {
-            return confirmedLeaderInformation.getLeaderSessionID();
+            return contenderID.equals(this.contenderID)
+                    ? confirmedLeaderInformation.getLeaderSessionID()
+                    : null;
         }
     }
 
