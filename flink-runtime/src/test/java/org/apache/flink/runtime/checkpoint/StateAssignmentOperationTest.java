@@ -880,9 +880,9 @@ public class StateAssignmentOperationTest extends TestLogger {
         ExecutionJobVertex downstreamExecutionJobVertex = vertices.get(operatorIds.get(1));
 
         List<TaskStateSnapshot> upstreamTaskStateSnapshots =
-                getRescalingDescriptorsFromVertex(upstreamExecutionJobVertex);
+                getTaskStateSnapshotFromVertex(upstreamExecutionJobVertex);
         List<TaskStateSnapshot> downstreamTaskStateSnapshots =
-                getRescalingDescriptorsFromVertex(downstreamExecutionJobVertex);
+                getTaskStateSnapshotFromVertex(downstreamExecutionJobVertex);
 
         checkMappings(
                 upstreamTaskStateSnapshots,
@@ -1192,7 +1192,7 @@ public class StateAssignmentOperationTest extends TestLogger {
         return jobVertex;
     }
 
-    private List<TaskStateSnapshot> getRescalingDescriptorsFromVertex(
+    private List<TaskStateSnapshot> getTaskStateSnapshotFromVertex(
             ExecutionJobVertex executionJobVertex) {
         return Arrays.stream(executionJobVertex.getTaskVertices())
                 .map(ExecutionVertex::getCurrentExecutionAttempt)
