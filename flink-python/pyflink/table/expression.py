@@ -1512,6 +1512,13 @@ class Expression(Generic[T]):
         """
         return _binary_op("arrayReverse")(self)
 
+    def array_union(self, array) -> 'Expression':
+        """
+        Returns an array of the elements in the union of array1 and array2, without duplicates.
+        If any of the array is null, the function will return null.
+        """
+        return _binary_op("arrayUnion")(self, array)
+
     @property
     def map_keys(self) -> 'Expression':
         """
