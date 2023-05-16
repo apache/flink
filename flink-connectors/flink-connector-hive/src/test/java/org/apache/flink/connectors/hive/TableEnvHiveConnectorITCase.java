@@ -279,22 +279,22 @@ public class TableEnvHiveConnectorITCase {
             List<Row> results =
                     CollectionUtil.iteratorToList(
                             tableEnv.sqlQuery(
-                                            "select x from db1.simple, lateral table(hiveudtf(a)) as T(x)")
+                                            "select x from db1.simple lateral view hiveudtf(a) udtf_t as x")
                                     .execute()
                                     .collect());
             assertThat(results.toString()).isEqualTo("[+I[1], +I[2], +I[3]]");
             results =
                     CollectionUtil.iteratorToList(
                             tableEnv.sqlQuery(
-                                            "select x from db1.nested, lateral table(hiveudtf(a)) as T(x)")
+                                            "select x from db1.nested lateral view hiveudtf(a) udtf_t as x")
                                     .execute()
                                     .collect());
             assertThat(results.toString()).isEqualTo("[+I[{1=a, 2=b}], +I[{3=c}]]");
             results =
                     CollectionUtil.iteratorToList(
                             tableEnv.sqlQuery(
-                                            "select foo.i, b.role_id from db1.simple foo,"
-                                                    + " lateral table(json_tuple('{\"a\": \"0\", \"b\": \"1\"}', 'a')) as b(role_id)")
+                                            "select foo.i, b.role_id from db1.simple foo "
+                                                    + " lateral view json_tuple('{\"a\": \"0\", \"b\": \"1\"}', 'a') b as role_id")
                                     .execute()
                                     .collect());
             assertThat(results.toString()).isEqualTo("[+I[3, 0]]");
@@ -311,7 +311,7 @@ public class TableEnvHiveConnectorITCase {
             results =
                     CollectionUtil.iteratorToList(
                             tableEnv.sqlQuery(
-                                            "select x from db1.ts, lateral table(hiveudtf(a)) as T(x)")
+                                            "select x from db1.ts lateral view hiveudtf(a) udtf_t as x")
                                     .execute()
                                     .collect());
             assertThat(results.toString())

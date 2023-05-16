@@ -25,6 +25,7 @@ import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.rex.RexFieldCollation;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexOver;
@@ -35,6 +36,7 @@ import org.apache.calcite.util.Pair;
 import org.apache.hadoop.hive.ql.exec.ColumnInfo;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -204,13 +206,23 @@ public class HiveParserProjectWindowTrimmer {
         // reference in over windows
         for (RexOver rexOver : rexOverList) {
             RexWindow rexWindow = rexOver.getWindow();
-            // reference in partition-By
-            referenceFinder.visitEach(rexWindow.partitionKeys);
-            // reference in order-By
-            referenceFinder.visitEach(
-                    rexWindow.orderKeys.stream().map(Pair::getKey).collect(Collectors.toList()));
-            // reference in operand
-            referenceFinder.visitEach(rexOver.getOperands());
+            try {
+                // reference in partition-By
+                Collection<RexNode> rexNodeCollection =
+                        (Collection<RexNode>)
+                                rexWindow.getClass().getField("partitionKeys").get(rexWindow);
+                referenceFinder.visitEach(rexNodeCollection);
+                // reference in order-By
+                Collection<RexFieldCollation> rexFieldCollations =
+                        (Collection<RexFieldCollation>)
+                                rexWindow.getClass().getField("orderKeys").get(rexWindow);
+                referenceFinder.visitEach(
+                        rexFieldCollations.stream().map(Pair::getKey).collect(Collectors.toList()));
+                // reference in operand
+                referenceFinder.visitEach(rexOver.getOperands());
+            } catch (Exception e) {
+                throw new RuntimeException("sd");
+            }
         }
         return beReferred.build();
     }

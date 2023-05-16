@@ -188,7 +188,7 @@ public class HiveParser implements Parser {
     public List<Operation> parse(String statement) {
         // first try to use flink extended parser to parse some special commands
         Optional<Operation> flinkExtendedOperation =
-                FlinkExtendedParser.parseFlinkExtendedCommand(statement);
+                FlinkExtendedParser.parseFlinkExtendedCommand(trimSemicolon(statement));
         if (flinkExtendedOperation.isPresent()) {
             return Collections.singletonList(flinkExtendedOperation.get());
         }
@@ -266,13 +266,18 @@ public class HiveParser implements Parser {
                 .toArray(String[]::new);
     }
 
-    private Optional<Operation> tryProcessHiveNonSqlStatement(HiveConf hiveConf, String statement) {
+    private String trimSemicolon(String statement) {
         statement = statement.trim();
         if (statement.endsWith(";")) {
             // the command may end with ";" since it won't be removed by Flink SQL CLI,
             // so, we need to remove ";"
             statement = statement.substring(0, statement.length() - 1);
         }
+        return statement;
+    }
+
+    private Optional<Operation> tryProcessHiveNonSqlStatement(HiveConf hiveConf, String statement) {
+        statement = trimSemicolon(statement);
         String[] commandTokens = statement.split("\\s+");
         HiveCommand hiveCommand = HiveCommand.find(commandTokens);
         if (hiveCommand != null) {

@@ -19,6 +19,11 @@
 # test hive catalog
 # ==========================================================================
 
+# set to default dialect to execute the statements supported only in Flink default dialect
+SET table.sql-dialect = default;
+[INFO] Execute statement succeed.
+!info
+
 show current catalog;
 !output
 +----------------------+
@@ -64,6 +69,11 @@ use additional_test_database;
 1 row in set
 !ok
 
+# set to hive dialect to execute the statements supported in Hive dialect
+SET table.sql-dialect = hive;
+[INFO] Execute statement succeed.
+!info
+
 create table param_types_table (
     dec DECIMAL(10, 10),
     ch CHAR(5),
@@ -87,6 +97,11 @@ show tables;
 +-------------------+
 1 row in set
 !ok
+
+# set to flink dialect to execute the statements supported only in Flink default dialect
+SET table.sql-dialect = default;
+[INFO] Execute statement succeed.
+!info
 
 show current database;
 !output

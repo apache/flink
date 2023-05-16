@@ -20,10 +20,6 @@ SET 'sql-client.execution.result-mode' = 'tableau';
 [INFO] Execute statement succeed.
 !info
 
-SET 'table.sql-dialect' = 'hive';
-[INFO] Execute statement succeed.
-!info
-
 create catalog hivecatalog with (
  'type' = 'hive-test',
  'hive-version' = '2.3.4'
@@ -32,6 +28,10 @@ create catalog hivecatalog with (
 !info
 
 use catalog hivecatalog;
+[INFO] Execute statement succeed.
+!info
+
+SET 'table.sql-dialect' = 'hive';
 [INFO] Execute statement succeed.
 !info
 
@@ -101,15 +101,6 @@ ADD JAR $VAR_UDF_JAR_PATH;
 [INFO] Execute statement succeed.
 !info
 
-SHOW JARS;
-+-$VAR_UDF_JAR_PATH_DASH-----+
-| $VAR_UDF_JAR_PATH_SPACEjars |
-+-$VAR_UDF_JAR_PATH_DASH-----+
-| $VAR_UDF_JAR_PATH |
-+-$VAR_UDF_JAR_PATH_DASH-----+
-1 row in set
-!ok
-
 CREATE FUNCTION hive_add_one as 'HiveAddOneFunc';
 [INFO] Execute statement succeed.
 !info
@@ -123,6 +114,20 @@ SELECT hive_add_one(1);
 Received a total of 1 row
 !ok
 
+# set to default dialect
+SET table.sql-dialect = default;
+[INFO] Execute statement succeed.
+!info
+
+SHOW JARS;
++-$VAR_UDF_JAR_PATH_DASH-----+
+| $VAR_UDF_JAR_PATH_SPACEjars |
++-$VAR_UDF_JAR_PATH_DASH-----+
+| $VAR_UDF_JAR_PATH |
++-$VAR_UDF_JAR_PATH_DASH-----+
+1 row in set
+!ok
+
 REMOVE JAR '$VAR_UDF_JAR_PATH';
 [INFO] Execute statement succeed.
 !info
@@ -131,7 +136,7 @@ SHOW JARS;
 Empty set
 !ok
 
-reset table.resources.download-dir;
+reset 'table.resources.download-dir';
 [INFO] Execute statement succeed.
 !info
 
@@ -152,7 +157,7 @@ set;
 |                                  rest.port |     $VAR_REST_PORT |
 |           sql-client.execution.result-mode |   tableau |
 |           table.exec.legacy-cast-behaviour |  DISABLED |
-|                          table.sql-dialect |      hive |
+|                          table.sql-dialect |   default |
 +--------------------------------------------+-----------+
 13 rows in set
 !ok

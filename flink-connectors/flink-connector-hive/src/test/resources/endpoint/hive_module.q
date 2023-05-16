@@ -19,6 +19,11 @@
 # test load module
 # ==========================================================================
 
+# set to default dialect to execute the statements supported only in Flink default dialect
+SET table.sql-dialect = default;
+[INFO] Execute statement succeed.
+!info
+
 # list default loaded and enabled module
 SHOW MODULES;
 !output
@@ -62,6 +67,11 @@ SELECT SUBSTRING_INDEX('www.apache.org', '.', 2) FROM (VALUES (1, 'Hello World')
 # ==========================================================================
 # test use built-in native agg function of hive module
 # ==========================================================================
+
+# set to hive dialect to execute the statements supported in Hive dialect
+SET table.sql-dialect = hive;
+[INFO] Execute statement succeed.
+!info
 
 CREATE TABLE source (
     a INT
@@ -123,6 +133,11 @@ HashAggregate(isMerge=[false], select=[sum(a) AS $f0])
 +- Exchange(distribution=[single])
    +- TableSourceScan(table=[[hive, default, source]], fields=[a])
 !ok
+
+# set to default dialect to execute the statements supported in Flink default dialect
+SET table.sql-dialect = default;
+[INFO] Execute statement succeed.
+!info
 
 # load hive module with module name as string literal
 LOAD MODULE 'hive';

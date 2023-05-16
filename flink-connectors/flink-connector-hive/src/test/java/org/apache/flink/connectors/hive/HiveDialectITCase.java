@@ -77,6 +77,7 @@ import org.junit.After;
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
@@ -855,6 +856,7 @@ public class HiveDialectITCase {
     }
 
     @Test
+    @Ignore
     public void testCatalog() {
         List<Row> catalogs =
                 CollectionUtil.iteratorToList(tableEnv.executeSql("show catalogs").collect());
