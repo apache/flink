@@ -35,6 +35,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInfo;
 
+import java.util.Set;
+import java.util.function.Function;
+
 /** Base test class for {@link AbstractStreamingJoinOperator}. */
 public abstract class StreamingJoinOperatorTestBase {
 
@@ -94,9 +97,6 @@ public abstract class StreamingJoinOperatorTestBase {
     protected final RowDataHarnessAssertor assertor =
             new RowDataHarnessAssertor(getOutputType().getChildren().toArray(new LogicalType[0]));
 
-    protected final long leftStateRetentionTime = 4000L;
-    protected final long rightStateRetentionTime = 1000L;
-
     protected KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData>
             testHarness;
 
@@ -115,6 +115,24 @@ public abstract class StreamingJoinOperatorTestBase {
     public void afterEach() throws Exception {
         testHarness.close();
     }
+
+    protected static final Function<Set<String>, Long[]> STATE_RETENTION_TIME_EXTRACTOR =
+            (tags) -> {
+                if (tags.isEmpty()) {
+                    return new Long[] {0L, 0L};
+                }
+                Long[] ttl = new Long[2];
+                for (String tag : tags) {
+                    String[] splits = tag.split("=");
+                    long value = Long.parseLong(splits[1].trim());
+                    if (splits[0].trim().startsWith("left")) {
+                        ttl[0] = value;
+                    } else {
+                        ttl[1] = value;
+                    }
+                }
+                return ttl;
+            };
 
     /** Create streaming join operator according to {@link TestInfo}. */
     protected abstract AbstractStreamingJoinOperator createJoinOperator(TestInfo testInfo);
