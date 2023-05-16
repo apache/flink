@@ -28,8 +28,6 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.delegation.InternalPlan;
 
-import java.io.File;
-
 /** Implementation of {@link CompiledPlan}, wrapping {@link InternalPlan}. */
 @Internal
 class CompiledPlanImpl implements CompiledPlan {

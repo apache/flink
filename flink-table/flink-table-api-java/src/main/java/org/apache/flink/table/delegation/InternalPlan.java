@@ -24,7 +24,6 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.TableEnvironment;
 
-import java.io.File;
 import java.util.List;
 
 /**
