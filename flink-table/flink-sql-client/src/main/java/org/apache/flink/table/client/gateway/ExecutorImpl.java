@@ -49,9 +49,9 @@ import org.apache.flink.table.gateway.rest.header.statement.CompleteStatementHea
 import org.apache.flink.table.gateway.rest.header.statement.ExecuteStatementHeaders;
 import org.apache.flink.table.gateway.rest.header.statement.FetchResultsHeaders;
 import org.apache.flink.table.gateway.rest.header.util.GetApiVersionHeaders;
-import org.apache.flink.table.gateway.rest.header.util.UrlPrefixDecorator;
 import org.apache.flink.table.gateway.rest.header.util.GetCurrentCatalogHeaders;
 import org.apache.flink.table.gateway.rest.header.util.GetCurrentDatabaseHeaders;
+import org.apache.flink.table.gateway.rest.header.util.UrlPrefixDecorator;
 import org.apache.flink.table.gateway.rest.message.operation.OperationMessageParameters;
 import org.apache.flink.table.gateway.rest.message.operation.OperationStatusResponseBody;
 import org.apache.flink.table.gateway.rest.message.session.CloseSessionResponseBody;

@@ -27,6 +27,9 @@ import org.jline.utils.AttributedStringBuilder;
 import org.jline.utils.AttributedStyle;
 import org.jline.utils.StyleResolver;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -80,7 +83,8 @@ public class PromptHandler {
                 SqlClientOptions.RIGHT_PROMPT.defaultValue());
     }
 
-    private String buildPrompt(String pattern, String defaultValue) {
+    @Nonnull
+    private String buildPrompt(@Nullable String pattern, String defaultValue) {
         if (pattern == null) {
             return defaultValue;
         }
