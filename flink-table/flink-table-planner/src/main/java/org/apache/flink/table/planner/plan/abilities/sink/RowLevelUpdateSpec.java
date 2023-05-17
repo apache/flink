@@ -47,7 +47,8 @@ import java.util.Objects;
 public class RowLevelUpdateSpec implements SinkAbilitySpec {
     public static final String FIELD_NAME_UPDATED_COLUMNS = "updatedColumns";
     public static final String FIELD_NAME_ROW_LEVEL_UPDATE_MODE = "rowLevelUpdateMode";
-    public static final String FIELD_NAME_REQUIRED_COLUMN_INDICES = "requiredColumnIndices";
+    public static final String FIELD_NAME_REQUIRED_PHYSICAL_COLUMN_INDICES =
+            "requiredPhysicalColumnIndices";
 
     @JsonProperty(FIELD_NAME_UPDATED_COLUMNS)
     @Nonnull
@@ -57,9 +58,9 @@ public class RowLevelUpdateSpec implements SinkAbilitySpec {
     @Nonnull
     private final SupportsRowLevelUpdate.RowLevelUpdateMode rowLevelUpdateMode;
 
-    @JsonProperty(FIELD_NAME_REQUIRED_COLUMN_INDICES)
+    @JsonProperty(FIELD_NAME_REQUIRED_PHYSICAL_COLUMN_INDICES)
     @Nonnull
-    private final int[] requireColumnIndices;
+    private final int[] requiredPhysicalColumnIndices;
 
     @JsonIgnore @Nullable private final RowLevelModificationScanContext scanContext;
 
@@ -69,11 +70,12 @@ public class RowLevelUpdateSpec implements SinkAbilitySpec {
             @JsonProperty(FIELD_NAME_ROW_LEVEL_UPDATE_MODE) @Nonnull
                     SupportsRowLevelUpdate.RowLevelUpdateMode rowLevelUpdateMode,
             @Nullable RowLevelModificationScanContext scanContext,
-            @JsonProperty(FIELD_NAME_REQUIRED_COLUMN_INDICES) @Nonnull int[] requireColumnIndices) {
+            @JsonProperty(FIELD_NAME_REQUIRED_PHYSICAL_COLUMN_INDICES) @Nonnull
+                    int[] requiredPhysicalColumnIndices) {
         this.updatedColumns = updatedColumns;
         this.rowLevelUpdateMode = rowLevelUpdateMode;
         this.scanContext = scanContext;
-        this.requireColumnIndices = requireColumnIndices;
+        this.requiredPhysicalColumnIndices = requiredPhysicalColumnIndices;
     }
 
     @Override
@@ -93,9 +95,8 @@ public class RowLevelUpdateSpec implements SinkAbilitySpec {
         return rowLevelUpdateMode;
     }
 
-    @Nonnull
-    public int[] getRequireColumnIndices() {
-        return requireColumnIndices;
+    public int[] getRequiredPhysicalColumnIndices() {
+        return requiredPhysicalColumnIndices;
     }
 
     @Override
@@ -109,14 +110,14 @@ public class RowLevelUpdateSpec implements SinkAbilitySpec {
         RowLevelUpdateSpec that = (RowLevelUpdateSpec) o;
         return Objects.equals(updatedColumns, that.updatedColumns)
                 && rowLevelUpdateMode == that.rowLevelUpdateMode
-                && Arrays.equals(requireColumnIndices, that.requireColumnIndices)
+                && Arrays.equals(requiredPhysicalColumnIndices, that.requiredPhysicalColumnIndices)
                 && Objects.equals(scanContext, that.scanContext);
     }
 
     @Override
     public int hashCode() {
         int result = Objects.hash(updatedColumns, rowLevelUpdateMode, scanContext);
-        result = 31 * result + Arrays.hashCode(requireColumnIndices);
+        result = 31 * result + Arrays.hashCode(requiredPhysicalColumnIndices);
         return result;
     }
 }

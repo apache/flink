@@ -87,7 +87,6 @@ public class RowLevelDeleteSpec implements SinkAbilitySpec {
         return rowLevelDeleteMode;
     }
 
-    @Nonnull
     public int[] getRequiredPhysicalColumnIndices() {
         return requiredPhysicalColumnIndices;
     }
