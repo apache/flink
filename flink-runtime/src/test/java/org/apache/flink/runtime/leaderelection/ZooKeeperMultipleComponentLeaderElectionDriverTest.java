@@ -360,7 +360,7 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
             return leaderElectionDriver.hasLeadership();
         }
 
-        CompletableFuture<Void> getLeadershipFuture() {
+        CompletableFuture<UUID> getLeadershipFuture() {
             return leaderElectionListener.getLeadershipFuture();
         }
 
@@ -373,15 +373,15 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
     private static final class SimpleLeaderElectionListener
             implements MultipleComponentLeaderElectionDriver.Listener {
 
-        private final CompletableFuture<Void> leadershipFuture = new CompletableFuture<>();
+        private final CompletableFuture<UUID> leadershipFuture = new CompletableFuture<>();
 
-        CompletableFuture<Void> getLeadershipFuture() {
+        CompletableFuture<UUID> getLeadershipFuture() {
             return leadershipFuture;
         }
 
         @Override
-        public void isLeader() {
-            leadershipFuture.complete(null);
+        public void isLeader(UUID newLeaderSessionID) {
+            leadershipFuture.complete(newLeaderSessionID);
         }
 
         @Override

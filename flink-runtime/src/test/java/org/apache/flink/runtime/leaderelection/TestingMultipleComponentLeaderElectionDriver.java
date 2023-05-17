@@ -23,6 +23,7 @@ import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.util.Optional;
+import java.util.UUID;
 
 /** Testing implementation of {@link MultipleComponentLeaderElectionDriver}. */
 public class TestingMultipleComponentLeaderElectionDriver
@@ -45,10 +46,10 @@ public class TestingMultipleComponentLeaderElectionDriver
         listener = Optional.empty();
     }
 
-    public void grantLeadership() {
+    public void grantLeadership(UUID newLeaderSessionID) {
         if (!hasLeadership) {
             hasLeadership = true;
-            listener.ifPresent(Listener::isLeader);
+            listener.ifPresent(listener -> listener.isLeader(newLeaderSessionID));
         }
     }
 

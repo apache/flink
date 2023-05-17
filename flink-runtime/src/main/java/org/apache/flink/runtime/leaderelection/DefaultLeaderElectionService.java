@@ -31,6 +31,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -46,7 +47,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>{@code DefaultLeaderElectionService} handles a single {@link LeaderContender}.
  */
 public class DefaultLeaderElectionService extends AbstractLeaderElectionService
-        implements LeaderElectionEventHandler, AutoCloseable {
+        implements LeaderElectionEventHandler,
+                MultipleComponentLeaderElectionDriver.Listener,
+                AutoCloseable {
 
     private static final Logger LOG = LoggerFactory.getLogger(DefaultLeaderElectionService.class);
 
@@ -494,6 +497,45 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
                 leaderContender.handleError(new LeaderElectionException(t));
             }
         }
+    }
+
+    @Override
+    public void isLeader(UUID newLeaderSessionID) {
+        onGrantLeadership(newLeaderSessionID);
+    }
+
+    @Override
+    public void notLeader() {
+        onRevokeLeadership();
+    }
+
+    @Override
+    public void notifyLeaderInformationChange(
+            String contenderID, LeaderInformation leaderInformation) {
+        if (contenderID.equals(this.contenderID)) {
+            onLeaderInformationChange(leaderInformation);
+        }
+    }
+
+    @Override
+    public void notifyAllKnownLeaderInformation(
+            Map<String, LeaderInformation> leaderInformationWithComponentIds) {
+        final long matchingContenderIDEntryCount =
+                leaderInformationWithComponentIds.entrySet().stream()
+                        .filter(entry -> entry.getKey().equals(contenderID))
+                        .map(
+                                leaderInformationWithComponentId -> {
+                                    final LeaderInformation leaderInformation =
+                                            leaderInformationWithComponentId.getValue();
+                                    onLeaderInformationChange(
+                                            leaderInformationWithComponentId.getValue());
+                                    return null;
+                                })
+                        .count();
+
+        Preconditions.checkArgument(
+                matchingContenderIDEntryCount < 2,
+                "There shouldn't be more than one LeaderInformation per contenderID.");
     }
 
     private class LeaderElectionFatalErrorHandler implements FatalErrorHandler {
