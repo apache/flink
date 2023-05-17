@@ -155,6 +155,7 @@ public class ParameterizedTestExtension implements TestTemplateInvocationContext
             @Override
             public void beforeEach(ExtensionContext context) throws Exception {
                 for (int i = 0; i < parameterValues.length; i++) {
+                    getParameterField(i, context).setAccessible(true);
                     getParameterField(i, context)
                             .set(context.getRequiredTestInstance(), parameterValues[i]);
                 }
