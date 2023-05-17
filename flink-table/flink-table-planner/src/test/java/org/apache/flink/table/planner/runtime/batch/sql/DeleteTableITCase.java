@@ -181,7 +181,7 @@ public class DeleteTableITCase extends BatchTestBase {
     @Test
     public void testStatementSetContainDeleteAndInsert() throws Exception {
         tEnv().executeSql(
-                        "CREATE TABLE t (a int , b string, c double) WITH"
+                        "CREATE TABLE t (a int, b string, c double) WITH"
                                 + " ('connector' = 'test-update-delete')");
         StatementSet statementSet = tEnv().createStatementSet();
         // should throw exception when statement set contains insert and delete statement
