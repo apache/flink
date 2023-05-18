@@ -413,7 +413,6 @@ services:
   ```
   
   and reference it (e.g via the `build`) command in the Dockerfile.
-  and reference it (e.g via the `build`) command in the Dockerfile. 
   SQL Commands like `ADD JAR` will not work for JARs located on the host machine as they only work with the local filesystem, which in this case is Docker's overlay filesystem. 
 
 ## Using Flink Python on Docker
