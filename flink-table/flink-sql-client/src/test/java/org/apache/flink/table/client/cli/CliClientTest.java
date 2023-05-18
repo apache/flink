@@ -20,6 +20,7 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ResultKind;
@@ -407,7 +408,12 @@ class CliClientTest {
         public void configureSession(String statement) {}
 
         @Override
-        public Map<String, String> getSessionConfig() {
+        public ReadableConfig getSessionConfig() {
+            return configuration;
+        }
+
+        @Override
+        public Map<String, String> getSessionConfigMap() {
             return configuration.toMap();
         }
 

@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.client.cli.parser;
 
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.config.TableConfigOptions;
@@ -58,7 +58,7 @@ public class SqlClientSyntaxHighlighter extends DefaultHighlighter {
 
     @Override
     public AttributedString highlight(LineReader reader, String buffer) {
-        Configuration configuration = Configuration.fromMap(executor.getSessionConfig());
+        ReadableConfig configuration = executor.getSessionConfig();
         final SyntaxHighlightStyle.BuiltInStyle style =
                 SyntaxHighlightStyle.BuiltInStyle.fromString(
                         configuration.get(SqlClientOptions.DISPLAY_DEFAULT_COLOR_SCHEMA));

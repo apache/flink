@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.client.cli.parser;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.SqlParserEOFException;
 import org.apache.flink.table.client.cli.CliClient;
@@ -101,8 +100,7 @@ public class SqlMultiLineParser extends DefaultParser {
                             printer = Printer.createInitializationCommandPrinter();
                         } else {
                             StatementResult result = executor.executeStatement(line);
-                            ReadableConfig sessionConfig =
-                                    Configuration.fromMap(executor.getSessionConfig());
+                            ReadableConfig sessionConfig = executor.getSessionConfig();
                             if (mode == CliClient.ExecutionMode.NON_INTERACTIVE_EXECUTION
                                     && result.isQueryResult()
                                     && sessionConfig.get(SqlClientOptions.EXECUTION_RESULT_MODE)

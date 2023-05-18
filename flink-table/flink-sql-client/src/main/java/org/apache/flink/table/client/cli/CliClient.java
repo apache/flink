@@ -19,7 +19,6 @@
 package org.apache.flink.table.client.cli;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.cli.parser.SqlClientSyntaxHighlighter;
 import org.apache.flink.table.client.cli.parser.SqlCommandParserImpl;
@@ -260,8 +259,7 @@ public class CliClient implements AutoCloseable {
     private void printExecutionException(Throwable t) {
         final String errorMessage = CliStrings.MESSAGE_SQL_EXECUTION_ERROR;
         LOG.warn(errorMessage, t);
-        boolean isVerbose =
-                Configuration.fromMap(executor.getSessionConfig()).get(SqlClientOptions.VERBOSE);
+        boolean isVerbose = executor.getSessionConfig().get(SqlClientOptions.VERBOSE);
         terminal.writer().println(CliStrings.messageError(errorMessage, t, isVerbose).toAnsi());
         terminal.flush();
     }

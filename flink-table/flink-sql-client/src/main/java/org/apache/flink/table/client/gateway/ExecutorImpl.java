@@ -19,6 +19,8 @@
 package org.apache.flink.table.client.gateway;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.AutoCloseableRegistry;
 import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
@@ -204,7 +206,15 @@ public class ExecutorImpl implements Executor {
         }
     }
 
-    public Map<String, String> getSessionConfig() {
+    public ReadableConfig getSessionConfig() {
+        try {
+            return Configuration.fromMap(getSessionConfigMap());
+        } catch (Exception e) {
+            throw new SqlExecutionException("Failed to get the get session config.", e);
+        }
+    }
+
+    public Map<String, String> getSessionConfigMap() {
         try {
             GetSessionConfigResponseBody response =
                     getResponse(

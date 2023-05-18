@@ -635,9 +635,7 @@ class ExecutorImplITCase {
     }
 
     private ResultDescriptor executeQuery(Executor executor, String query) {
-        return new ResultDescriptor(
-                executor.executeStatement(query),
-                Configuration.fromMap(executor.getSessionConfig()));
+        return new ResultDescriptor(executor.executeStatement(query), executor.getSessionConfig());
     }
 
     private Executor createRestServiceExecutor() {

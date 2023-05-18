@@ -162,7 +162,7 @@ public class FlinkConnection extends BaseConnection {
     @Override
     public String getClientInfo(String name) throws SQLException {
         ensureOpen();
-        Map<String, String> configuration = executor.getSessionConfig();
+        Map<String, String> configuration = executor.getSessionConfigMap();
         return configuration.get(name);
     }
 
@@ -170,7 +170,7 @@ public class FlinkConnection extends BaseConnection {
     public Properties getClientInfo() throws SQLException {
         ensureOpen();
         Properties properties = new Properties();
-        Map<String, String> configuration = executor.getSessionConfig();
+        Map<String, String> configuration = executor.getSessionConfigMap();
         configuration.forEach(properties::setProperty);
         return properties;
     }

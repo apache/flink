@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.client.gateway;
 
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.gateway.service.context.DefaultContext;
 
 import java.io.Closeable;
@@ -51,7 +52,14 @@ public interface Executor extends Closeable {
      *
      * @return the session configuration.
      */
-    Map<String, String> getSessionConfig();
+    ReadableConfig getSessionConfig();
+
+    /**
+     * Get the map configuration of the session.
+     *
+     * @return the map session configuration.
+     */
+    Map<String, String> getSessionConfigMap();
 
     /**
      * Execute statement.
