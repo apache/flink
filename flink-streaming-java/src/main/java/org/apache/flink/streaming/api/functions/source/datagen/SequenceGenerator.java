@@ -44,12 +44,11 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
 
     private final long start;
     private final long end;
-    private long totalNoOfElements;
     /**
      * Save the intermediate state of the data to be sent by the current subtask,when the state
      * restore, the sequence values continue to be sent based on the intermediate state.
      */
-    private ArrayList<InternalState> internalStates;
+    private transient ArrayList<InternalState> internalStates;
 
     private transient ListState<InternalState> checkpointedState;
 
@@ -78,40 +77,34 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
         this.checkpointedState = context.getOperatorStateStore().getListState(stateDescriptor);
         this.internalStates = Lists.newArrayList();
 
-        totalNoOfElements = Math.abs(end - start + 1);
         if (context.isRestored()) {
             checkpointedState.get().forEach(state -> internalStates.add(state));
         } else {
             // the first time the job is executed
-            final int taskIdx = runtimeContext.getTaskInfo().getIndexOfThisSubtask();
-            final long stepSize = runtimeContext.getTaskInfo().getNumberOfParallelSubtasks();
-            internalStates.add(new InternalState(0, taskIdx, stepSize));
+            final int taskIdx = runtimeContext.getIndexOfThisSubtask();
+            final long stepSize = runtimeContext.getNumberOfParallelSubtasks();
+            InternalState state = new InternalState(taskIdx, stepSize);
+            internalStates.add(state);
         }
-    }
-
-    private long toCollect(long baseSize, long stepSize, int taskIdx) {
-        return (totalNoOfElements % stepSize > taskIdx) ? baseSize + 1 : baseSize;
     }
 
     public Long nextValue() {
         Iterator<InternalState> iterator = internalStates.iterator();
         if (iterator.hasNext()) {
             InternalState state = iterator.next();
-            long nextSequence = state.collected * state.stepSize + (start + state.taskId);
-            state.collected++;
+            long nextSequence =
+                    state.currentValue == 0 ? this.start + state.taskId : state.currentValue;
+            state.currentValue = nextSequence + state.stepSize;
             // All sequence values are cleared from the stateList after they have been sent
-            if (state.collected
-                    >= toCollect(
-                            safeDivide(totalNoOfElements, state.stepSize),
-                            state.stepSize,
-                            state.taskId)) {
+            if (state.currentValue > this.end) {
                 iterator.remove();
             }
             return nextSequence;
         }
 
-        // Before calling this method, you should call hasNext to check
-        throw new IllegalStateException();
+        // Before calling nextValue method, you should call hasNext to check.
+        throw new IllegalStateException(
+                "SequenceGenerator.nextValue() was called with no remaining values.");
     }
 
     @Override
@@ -127,13 +120,6 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
     @Override
     public boolean hasNext() {
         return !internalStates.isEmpty();
-    }
-
-    private static long safeDivide(long left, long right) {
-        Preconditions.checkArgument(right > 0);
-        Preconditions.checkArgument(left >= 0);
-        Preconditions.checkArgument(left <= Integer.MAX_VALUE * right);
-        return left / right;
     }
 
     public static SequenceGenerator<Long> longGenerator(long start, long end) {
@@ -212,12 +198,11 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
     }
 
     private static class InternalState {
-        long collected;
         int taskId;
         long stepSize;
+        long currentValue;
 
-        public InternalState(long collected, int taskId, long stepSize) {
-            this.collected = collected;
+        public InternalState(int taskId, long stepSize) {
             this.taskId = taskId;
             this.stepSize = stepSize;
         }
