@@ -146,6 +146,12 @@ HashAggregate(isMerge=[false], select=[sum(a) AS $f0])
    +- TableSourceScan(table=[[hive, default, source]], fields=[a])
 !ok
 
+# load hive module with module name as string literal
+LOAD MODULE 'hive';
+!output
+org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseException: line 1:5 mismatched input 'MODULE' expecting DATA near 'LOAD' in load statement
+!error
+
 # set to default dialect to execute the statements supported in Flink default dialect
 SET table.sql-dialect = default;
 !output
@@ -156,12 +162,6 @@ SET table.sql-dialect = default;
 +--------+
 1 row in set
 !ok
-
-# load hive module with module name as string literal
-LOAD MODULE 'hive';
-!output
-org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseException: line 1:5 mismatched input 'MODULE' expecting DATA near 'LOAD' in load statement
-!error
 
 # load hive module with module name capitalized
 LOAD MODULE Hive;

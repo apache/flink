@@ -135,6 +135,17 @@ show current database;
 # test hive table with parameterized types
 # ==========================================================================
 
+# set to hive dialect to test the result of describe table since it's behavior is different from default dialect
+SET table.sql-dialect = hive;
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
+
 describe additional_test_database.param_types_table;
 !output
 +----------+----------------+---------+
