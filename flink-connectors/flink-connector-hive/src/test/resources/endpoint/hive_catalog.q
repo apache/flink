@@ -21,8 +21,14 @@
 
 # set to default dialect to execute the statements supported only in Flink default dialect
 SET table.sql-dialect = default;
-[INFO] Execute statement succeed.
-!info
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
 
 show current catalog;
 !output
@@ -71,8 +77,14 @@ use additional_test_database;
 
 # set to hive dialect to execute the statements supported in Hive dialect
 SET table.sql-dialect = hive;
-[INFO] Execute statement succeed.
-!info
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
 
 create table param_types_table (
     dec DECIMAL(10, 10),
@@ -100,8 +112,14 @@ show tables;
 
 # set to flink dialect to execute the statements supported only in Flink default dialect
 SET table.sql-dialect = default;
-[INFO] Execute statement succeed.
-!info
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
 
 show current database;
 !output

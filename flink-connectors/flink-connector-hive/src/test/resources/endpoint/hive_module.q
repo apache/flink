@@ -20,9 +20,15 @@
 # ==========================================================================
 
 # set to default dialect to execute the statements supported only in Flink default dialect
-SET table.sql-dialect = default;
-[INFO] Execute statement succeed.
-!info
+SET table.sql-dialect=default;
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
 
 # list default loaded and enabled module
 SHOW MODULES;
@@ -70,8 +76,14 @@ SELECT SUBSTRING_INDEX('www.apache.org', '.', 2) FROM (VALUES (1, 'Hello World')
 
 # set to hive dialect to execute the statements supported in Hive dialect
 SET table.sql-dialect = hive;
-[INFO] Execute statement succeed.
-!info
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
 
 CREATE TABLE source (
     a INT
@@ -136,8 +148,14 @@ HashAggregate(isMerge=[false], select=[sum(a) AS $f0])
 
 # set to default dialect to execute the statements supported in Flink default dialect
 SET table.sql-dialect = default;
-[INFO] Execute statement succeed.
-!info
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
 
 # load hive module with module name as string literal
 LOAD MODULE 'hive';
