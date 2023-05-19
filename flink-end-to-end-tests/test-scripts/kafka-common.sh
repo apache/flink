@@ -37,7 +37,7 @@ MAX_RETRY_SECONDS=120
 function setup_kafka_dist {
   # download Kafka
   mkdir -p $TEST_DATA_DIR
-  KAFKA_URL="https://downloads.apache.org/kafka/$KAFKA_VERSION/kafka_2.12-$KAFKA_VERSION.tgz"
+  KAFKA_URL="https://archive.apache.org/dist/kafka/$KAFKA_VERSION/kafka_2.12-$KAFKA_VERSION.tgz"
   echo "Downloading Kafka from $KAFKA_URL"
   cache_path=$(get_artifact $KAFKA_URL)
   ln "$cache_path" "${TEST_DATA_DIR}/kafka.tgz"
