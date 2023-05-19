@@ -112,6 +112,37 @@ public class SharedStateRegistryTest {
         assertTrue(firstState.isDiscarded());
     }
 
+    @Test
+    public void testConCurrentCheckpointStateDiscard() {
+        // If SharedStateRegistry discard old state object when it was not be confirmed, and maximum
+        // concurrent checkpoints > 1, the following case will fail (take RocksDBStateBackend as an
+        // example):
+        // 1. cp1 trigger: 1.sst be uploaded to file-1, and register <1.sst,file-1>, cp1 reference
+        // file-1
+        // 2. cp1 is not yet complete， cp2 trigger: 1.sst be uploaded to file-2, and try register
+        // <1.sst,file-2>
+        // 3. cp1 completed and cp2 failed, if registry discard file-1 in step 2, the cp1 is broken
+
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
+
+        String registrationKey = "1.sst";
+
+        long checkpointId = 0L;
+
+        // checkpoint-1 upload 1.sst to file-1
+        TestSharedState stateUploadByCp1 = new TestSharedState(registrationKey);
+        sharedStateRegistry.registerReference(
+                stateUploadByCp1.getRegistrationKey(), stateUploadByCp1, ++checkpointId);
+
+        // checkpoint-2 triggered before checkpoint-1 completed, re-upload 1.sst to file-2
+        TestSharedState stateUploadByCp2 = new TestSharedState(registrationKey);
+        sharedStateRegistry.registerReference(
+                stateUploadByCp2.getRegistrationKey(), stateUploadByCp2, ++checkpointId);
+
+        // checkpoint-2 failed but checkpoint-1 success
+        assertFalse(stateUploadByCp1.isDiscarded());
+    }
+
     /** Validate that unregister a nonexistent checkpoint will not throw exception */
     @Test
     public void testUnregisterWithUnexistedKey() {
