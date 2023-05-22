@@ -53,9 +53,6 @@ public abstract class MetricsHandlerTestBase<T extends AbstractMetricsHandler> e
 
     private static final int TEST_METRIC_VALUE = 1000;
 
-    static final CompletableFuture<String> TEST_REST_ADDRESS =
-            CompletableFuture.completedFuture("localhost:12345");
-
     static final Time TIMEOUT = Time.milliseconds(50);
 
     static final Map<String, String> TEST_HEADERS = Collections.emptyMap();
