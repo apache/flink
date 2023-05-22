@@ -29,15 +29,15 @@ public class HBaseTimestampGeneratorTest {
         HBaseTimestampGenerator timestampGenerator = HBaseTimestampGenerator.stronglyIncreasing();
         long lastTimestamp = 0;
         for (int i = 0; i < 100_000_000; i++) {
-            long now = timestampGenerator.get();
+            final long now = timestampGenerator.get();
             if (lastTimestamp > 0) {
-                assertTrue(lastTimestamp < now);
+                assertTrue(now > lastTimestamp);
             }
             lastTimestamp = now;
         }
-        final long now = timestampGenerator.getCurrentSystemTimeNano();
+        final long realNow = timestampGenerator.getCurrentSystemTimeNano();
         assertTrue(
                 "The increasing timestamp should not exceed the current actual timestamp after 100 million tests",
-                lastTimestamp <= now);
+                realNow >= lastTimestamp);
     }
 }

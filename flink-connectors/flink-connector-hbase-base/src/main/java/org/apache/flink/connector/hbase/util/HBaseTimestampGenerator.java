@@ -18,7 +18,7 @@
 
 package org.apache.flink.connector.hbase.util;
 
-/** Generate timestamp for hbase mutation. */
+/** Generate timestamp for HBase mutation. */
 public abstract class HBaseTimestampGenerator {
     private static final long START_SYSTEM_TIME_NANO = System.currentTimeMillis() * 1_000_000L;
     private static final long START_JVM_TIME_NANO = System.nanoTime();
