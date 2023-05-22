@@ -46,6 +46,6 @@ public class InputStreamFSInputWrapperTest {
                 };
         InputStreamFSInputWrapper wrapper = new InputStreamFSInputWrapper(mockedInputStream);
         wrapper.close();
-        assertThat(closeCalled.get()).isEqualTo(true);
+        assertThat(closeCalled).isTrue();
     }
 }

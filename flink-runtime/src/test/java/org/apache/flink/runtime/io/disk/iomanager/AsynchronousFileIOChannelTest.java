@@ -81,7 +81,7 @@ public class AsynchronousFileIOChannelTest {
 
                 // The mock requests
                 final Buffer buffer = mock(Buffer.class);
-                final WriteRequest request = mock(WriteRequest.class);
+                final WriteRequest request = new NoOpWriteRequest();
 
                 // Add requests task
                 Callable<Void> addRequestsTask =
@@ -210,7 +210,7 @@ public class AsynchronousFileIOChannelTest {
 
                 final CountDownLatch sync = new CountDownLatch(2);
 
-                final WriteRequest request = mock(WriteRequest.class);
+                final WriteRequest request = new NoOpWriteRequest();
 
                 ioChannel.close();
 
@@ -383,6 +383,14 @@ public class AsynchronousFileIOChannelTest {
 
         @Override
         public void requestFailed(T buffer, IOException e) {}
+    }
+
+    private static class NoOpWriteRequest implements WriteRequest {
+        @Override
+        public void requestDone(IOException ioex) {}
+
+        @Override
+        public void write() {}
     }
 
     private static class FailingWriteRequest implements WriteRequest {
