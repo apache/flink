@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.disk.iomanager;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.util.TestNotificationListener;
 
 import org.junit.Test;
@@ -43,7 +44,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
 
 public class AsynchronousFileIOChannelTest {
 
@@ -80,7 +80,7 @@ public class AsynchronousFileIOChannelTest {
                 final CountDownLatch sync = new CountDownLatch(3);
 
                 // The mock requests
-                final Buffer buffer = mock(Buffer.class);
+                final Buffer buffer = BufferBuilderTestUtils.buildSomeBuffer();
                 final WriteRequest request = new NoOpWriteRequest();
 
                 // Add requests task
