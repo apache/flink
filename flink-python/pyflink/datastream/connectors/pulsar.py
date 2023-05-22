@@ -438,7 +438,7 @@ class PulsarSourceBuilder(object):
         self._j_pulsar_source_builder.setBoundedStopCursor(stop_cursor._j_stop_cursor)
         return self
 
-    def set_value_only_deserializer(self, deserialization_schema: DeserializationSchema) \
+    def set_deserialization_schema(self, deserialization_schema: DeserializationSchema) \
             -> 'PulsarSourceBuilder':
         """
         Sets the :class:`~pyflink.common.serialization.DeserializationSchema` for deserializing the
@@ -448,7 +448,8 @@ class PulsarSourceBuilder(object):
             deserialization.
         :return: this PulsarSourceBuilder.
         """
-        self._j_builder.setValueOnlyDeserializer(deserialization_schema._j_deserialization_schema)
+        self._j_pulsar_source_builder.setDeserializationSchema(
+            deserialization_schema._j_deserialization_schema)
         return self
 
     def set_config(self, key: Union[str, ConfigOption], value) -> 'PulsarSourceBuilder':
@@ -623,7 +624,7 @@ class PulsarSinkBuilder(object):
         ...     .set_service_url(PULSAR_BROKER_URL) \\
         ...     .set_admin_url(PULSAR_BROKER_HTTP_URL) \\
         ...     .set_topics([TOPIC1, TOPIC2]) \\
-        ...     .set_value_serialization_schema(SimpleStringSchema()) \\
+        ...     .set_serialization_schema(SimpleStringSchema()) \\
         ...     .build()
 
     The service url, admin url, and the record serializer are required fields that must be set. If
