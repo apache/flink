@@ -535,7 +535,7 @@ The endpoint depends on the scope of these metrics. Metrics scoped to a Job can 
 
 **Request**
 ```bash
-curl "localhost:8081/jobs/<jod-id>/metrics?get=lastCheckpointSize"
+curl "localhost:8081/jobs/<job-id>/metrics?get=lastCheckpointSize"
 ```
 **Expected Response (pretty-printed; no placeholders)**
 ```json
@@ -553,7 +553,7 @@ about the status of a running Job.
 **Request**
 ```bash
 # find the vertex-id of the vertex of interest
-curl localhost:8081/jobs/<jod-id>
+curl localhost:8081/jobs/<job-id>
 ```
 
 **Expected Response (pretty-printed)**
