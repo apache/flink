@@ -574,7 +574,7 @@ class PulsarSink(Sink):
         ...     .set_service_url(PULSAR_BROKER_URL) \\
         ...     .set_admin_url(PULSAR_BROKER_HTTP_URL) \\
         ...     .set_topics(topic) \\
-        ...     .set_value_serialization_schema(SimpleStringSchema()) \\
+        ...     .set_serialization_schema(SimpleStringSchema()) \\
         ...     .build()
 
     The sink supports all delivery guarantees described by DeliveryGuarantee.
@@ -643,7 +643,7 @@ class PulsarSinkBuilder(object):
         ...     .set_service_url(PULSAR_BROKER_URL) \\
         ...     .set_admin_url(PULSAR_BROKER_HTTP_URL) \\
         ...     .set_topics([TOPIC1, TOPIC2]) \\
-        ...     .set_value_serialization_schema(SimpleStringSchema()) \\
+        ...     .set_serialization_schema(SimpleStringSchema()) \\
         ...     .set_delivery_guarantee(DeliveryGuarantee.EXACTLY_ONCE)
         ...     .build()
     """

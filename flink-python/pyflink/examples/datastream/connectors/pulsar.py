@@ -57,7 +57,7 @@ if __name__ == '__main__':
         .set_admin_url(ADMIN_URL) \
         .set_producer_name('pyflink_producer') \
         .set_topics('beta') \
-        .set_value_serialization_schema(SimpleStringSchema()) \
+        .set_serialization_schema(SimpleStringSchema()) \
         .set_delivery_guarantee(DeliveryGuarantee.AT_LEAST_ONCE) \
         .set_topic_routing_mode(TopicRoutingMode.ROUND_ROBIN) \
         .set_config('pulsar.producer.maxPendingMessages', 1000) \

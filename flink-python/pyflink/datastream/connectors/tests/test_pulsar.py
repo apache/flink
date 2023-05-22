@@ -153,7 +153,7 @@ class FlinkPulsarTest(PyFlinkUTTestCase):
             .set_admin_url('http://localhost:8080') \
             .set_producer_name('fo') \
             .set_topics('ada') \
-            .set_value_serialization_schema(SimpleStringSchema()) \
+            .set_serialization_schema(SimpleStringSchema()) \
             .set_delivery_guarantee(DeliveryGuarantee.AT_LEAST_ONCE) \
             .set_topic_routing_mode(TopicRoutingMode.ROUND_ROBIN) \
             .delay_sending_message(MessageDelayer.fixed(Duration.of_seconds(12))) \
@@ -222,5 +222,5 @@ class FlinkPulsarTest(PyFlinkUTTestCase):
             .set_service_url('pulsar://localhost:6650') \
             .set_admin_url('http://localhost:8080') \
             .set_topics(['ada', 'beta']) \
-            .set_value_serialization_schema(SimpleStringSchema()) \
+            .set_serialization_schema(SimpleStringSchema()) \
             .build()
