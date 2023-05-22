@@ -35,7 +35,6 @@ class FlinkPulsarTest(PyFlinkUTTestCase):
             .set_unbounded_stop_cursor(StopCursor.never()) \
             .set_bounded_stop_cursor(StopCursor.at_publish_time(22)) \
             .set_subscription_name('ff') \
-            .set_subscription_type(SubscriptionType.Exclusive) \
             .set_deserialization_schema(SimpleStringSchema()) \
             .set_config(TEST_OPTION_NAME, True) \
             .set_properties({'pulsar.source.autoCommitCursorInterval': '1000'}) \

@@ -42,7 +42,6 @@ if __name__ == '__main__':
         .set_start_cursor(StartCursor.latest()) \
         .set_unbounded_stop_cursor(StopCursor.never()) \
         .set_subscription_name('pyflink_subscription') \
-        .set_subscription_type(SubscriptionType.Exclusive) \
         .set_deserialization_schema(SimpleStringSchema()) \
         .set_config('pulsar.source.enableAutoAcknowledgeMessage', True) \
         .set_properties({'pulsar.source.autoCommitCursorInterval': '1000'}) \

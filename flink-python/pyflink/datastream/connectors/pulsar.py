@@ -359,16 +359,6 @@ class PulsarSourceBuilder(object):
         self._j_pulsar_source_builder.setSubscriptionName(subscription_name)
         return self
 
-    def set_subscription_type(self, subscription_type: SubscriptionType) -> 'PulsarSourceBuilder':
-        """
-        SubscriptionType is the consuming behavior for pulsar, we would generator different split
-        by the given subscription type. Please take some time to consider which subscription type
-        matches your application best. Default is SubscriptionType.Shared.
-        """
-        self._j_pulsar_source_builder.setSubscriptionType(
-            subscription_type._to_j_subscription_type())
-        return self
-
     def set_topics(self, topics: Union[str, List[str]]) -> 'PulsarSourceBuilder':
         """
         Set a pulsar topic list for flink source. Some topic may not exist currently, consuming this
