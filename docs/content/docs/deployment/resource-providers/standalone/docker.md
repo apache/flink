@@ -267,7 +267,7 @@ The next sections show examples of configuration files to run Flink.
 * Scale the cluster up or down to `N` TaskManagers
 
     ```sh
-    $ docker-compose scale taskmanager=<N>
+    $ docker-compose up -d --scale taskmanager=<N>
     ```
 
 * Access the JobManager container

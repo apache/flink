@@ -517,7 +517,7 @@ curl -X POST http://localhost:8081/jars/<jar-id>/run \
 Now, the Job has been resubmitted, but it will not start as there are not enough TaskSlots to
 execute it with the increased parallelism (2 available, 3 needed). With
 ```bash
-docker-compose scale taskmanager=2
+docker compose-up -d --scale taskmanager=2
 ```
 you can add a second TaskManager with two TaskSlots to the Flink Cluster, which will automatically register with the 
 JobManager. Shortly after adding the TaskManager the Job should start running again.
