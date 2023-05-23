@@ -94,7 +94,7 @@ public class StateMetadataTest {
             Consumer<TableConfig> configModifier, String expectedStateName, long expectedStateTtl) {
         configModifier.accept(tableConfig);
         List<StateMetadata> stateMetadataList =
-                StateMetadata.getOneInputOperatorDefaultMeta(tableConfig, expectedStateName);
+                StateMetadata.getInputOperatorDefaultMeta(tableConfig, expectedStateName);
         assertThat(stateMetadataList).hasSize(1);
         assertThat(stateMetadataList.get(0))
                 .matches(
@@ -112,7 +112,7 @@ public class StateMetadataTest {
             List<Long> expectedStateTtlList) {
         configModifier.accept(tableConfig);
         List<StateMetadata> stateMetadataList =
-                StateMetadata.getMultiInputOperatorDefaultMeta(
+                StateMetadata.getInputOperatorDefaultMeta(
                         tableConfig, expectedStateNameList.toArray(new String[0]));
         assertThat(stateMetadataList).hasSameSizeAs(expectedStateNameList);
         IntStream.range(0, stateMetadataList.size())
@@ -139,7 +139,7 @@ public class StateMetadataTest {
             @Nullable List<StateMetadata> stateMetadataList,
             long expectedStateTtl) {
         ExecNodeConfig nodeConfig = configModifier.apply(tableConfig);
-        assertThat(StateMetadata.getStateTtlForOneInputOperator(nodeConfig, stateMetadataList))
+        assertThat(StateMetadata.getStateTtlForInputOperator(nodeConfig, 1, stateMetadataList))
                 .isEqualTo(expectedStateTtl);
     }
 
@@ -151,7 +151,7 @@ public class StateMetadataTest {
             List<Long> expectedStateTtlList) {
         ExecNodeConfig nodeConfig = configModifier.apply(tableConfig);
         assertThat(
-                        StateMetadata.getStateTtlForMultiInputOperator(
+                        StateMetadata.getStateTtlForInputOperator(
                                 nodeConfig, expectedStateTtlList.size(), stateMetadataList))
                 .containsExactlyElementsOf(expectedStateTtlList);
     }
@@ -164,7 +164,7 @@ public class StateMetadataTest {
             String expectedMessage) {
         assertThatThrownBy(
                         () ->
-                                StateMetadata.getStateTtlForMultiInputOperator(
+                                StateMetadata.getStateTtlForInputOperator(
                                         ExecNodeConfig.ofTableConfig(tableConfig, true),
                                         expectedInputNumOfOperator,
                                         malformedStateMetadataList))

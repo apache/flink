@@ -33,7 +33,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.time.Duration;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -106,16 +105,7 @@ public class StateMetadata {
         return stateName;
     }
 
-    public static List<StateMetadata> getOneInputOperatorDefaultMeta(
-            ReadableConfig tableConfig, String stateName) {
-        return Collections.singletonList(
-                new StateMetadata(
-                        0,
-                        tableConfig.get(ExecutionConfigOptions.IDLE_STATE_RETENTION),
-                        stateName));
-    }
-
-    public static List<StateMetadata> getMultiInputOperatorDefaultMeta(
+    public static List<StateMetadata> getInputOperatorDefaultMeta(
             ReadableConfig tableConfig, String... stateNameList) {
         Duration stateRetentionTime = tableConfig.get(ExecutionConfigOptions.IDLE_STATE_RETENTION);
         return IntStream.range(0, stateNameList.length)
@@ -124,12 +114,7 @@ public class StateMetadata {
                 .collect(Collectors.toList());
     }
 
-    public static long getStateTtlForOneInputOperator(
-            ExecNodeConfig config, @Nullable List<StateMetadata> stateMetadataList) {
-        return getStateTtlForMultiInputOperator(config, 1, stateMetadataList).get(0);
-    }
-
-    public static List<Long> getStateTtlForMultiInputOperator(
+    public static List<Long> getStateTtlForInputOperator(
             ExecNodeConfig config,
             int inputNumOfOperator,
             @Nullable List<StateMetadata> stateMetadataList) {
