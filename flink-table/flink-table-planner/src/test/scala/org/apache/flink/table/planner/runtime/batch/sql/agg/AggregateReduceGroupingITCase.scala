@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.localDateTime
 import org.apache.flink.table.utils.DateTimeUtils.toLocalDateTime
 
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 import java.sql.Date
 import java.time.LocalDateTime
@@ -37,7 +37,7 @@ import scala.collection.Seq
 
 class AggregateReduceGroupingITCase extends BatchTestBase {
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     registerCollection(
