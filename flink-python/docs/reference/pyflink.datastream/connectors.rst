@@ -151,6 +151,7 @@ Pulsar Source
 
     StartCursor
     StopCursor
+    RangeGenerator
     PulsarSource
     PulsarSourceBuilder
 
