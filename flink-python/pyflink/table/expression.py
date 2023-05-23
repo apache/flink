@@ -1540,7 +1540,7 @@ class Expression(Generic[T]):
     @property
     def map_entries(self) -> 'Expression':
         """
-        Returns an unordered array of all entries in the given map. No order guaranteed.
+        Returns an array of all entries in the given map. No order guaranteed.
 
         .. seealso:: :py:attr:`~Expression.map_entries`
         """

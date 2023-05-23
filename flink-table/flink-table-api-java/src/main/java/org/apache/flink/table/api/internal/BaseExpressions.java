@@ -1418,7 +1418,7 @@ public abstract class BaseExpressions<InType, OutType> {
         return toApiSpecificExpression(unresolvedCall(MAP_VALUES, toExpr()));
     }
 
-    /** Returns an unordered array of all entries in the given map. */
+    /** Returns an array of all entries in the given map. */
     public OutType mapEntries() {
         return toApiSpecificExpression(unresolvedCall(MAP_ENTRIES, toExpr()));
     }
