@@ -20,9 +20,9 @@ package org.apache.flink.contrib.streaming.state.snapshot;
 
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.contrib.streaming.state.RocksDBExtension;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
 import org.apache.flink.contrib.streaming.state.RocksDBOptions;
-import org.apache.flink.contrib.streaming.state.RocksDBResource;
 import org.apache.flink.contrib.streaming.state.RocksDBStateUploader;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -36,18 +36,19 @@ import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.ResourceGuard;
 
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -57,17 +58,18 @@ import java.util.UUID;
 
 import static org.apache.flink.core.fs.Path.fromLocalFile;
 import static org.apache.flink.core.fs.local.LocalFileSystem.getSharedInstance;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link RocksIncrementalSnapshotStrategy}. */
-public class RocksIncrementalSnapshotStrategyTest {
+class RocksIncrementalSnapshotStrategyTest {
 
-    @Rule public final TemporaryFolder tmp = new TemporaryFolder();
+    @TempDir public Path tmp;
 
-    @Rule public RocksDBResource rocksDBResource = new RocksDBResource();
+    @RegisterExtension public RocksDBExtension rocksDBExtension = new RocksDBExtension();
 
     // Verify the next checkpoint is still incremental after a savepoint completed.
     @Test
-    public void testCheckpointIsIncremental() throws Exception {
+    void testCheckpointIsIncremental() throws Exception {
 
         try (CloseableRegistry closeableRegistry = new CloseableRegistry();
                 RocksIncrementalSnapshotStrategy checkpointSnapshotStrategy =
@@ -98,15 +100,15 @@ public class RocksIncrementalSnapshotStrategyTest {
                             .filter(e -> e.getValue() instanceof PlaceholderStreamStateHandle)
                             .count();
 
-            Assert.assertTrue(placeholderStateHandleCount > 0);
+            assertThat(placeholderStateHandleCount).isGreaterThan(0);
         }
     }
 
     public RocksIncrementalSnapshotStrategy createSnapshotStrategy(
             CloseableRegistry closeableRegistry) throws IOException, RocksDBException {
 
-        ColumnFamilyHandle columnFamilyHandle = rocksDBResource.createNewColumnFamily("test");
-        RocksDB rocksDB = rocksDBResource.getRocksDB();
+        ColumnFamilyHandle columnFamilyHandle = rocksDBExtension.createNewColumnFamily("test");
+        RocksDB rocksDB = rocksDBExtension.getRocksDB();
         byte[] key = "checkpoint".getBytes();
         byte[] val = "incrementalTest".getBytes();
         rocksDB.put(columnFamilyHandle, key, val);
@@ -146,7 +148,7 @@ public class RocksIncrementalSnapshotStrategyTest {
                 keyGroupPrefixBytes,
                 TestLocalRecoveryConfig.disabled(),
                 closeableRegistry,
-                tmp.newFolder(),
+                TempDirUtils.newFolder(tmp),
                 UUID.randomUUID(),
                 materializedSstFiles,
                 rocksDBStateUploader,
@@ -155,16 +157,14 @@ public class RocksIncrementalSnapshotStrategyTest {
 
     public FsCheckpointStreamFactory createFsCheckpointStreamFactory() throws IOException {
         int threshold = 100;
-        File checkpointsDir = tmp.newFolder("checkpointsDir");
-        File sharedStateDir = tmp.newFolder("sharedStateDir");
-        FsCheckpointStreamFactory checkpointStreamFactory =
-                new FsCheckpointStreamFactory(
-                        getSharedInstance(),
-                        fromLocalFile(checkpointsDir),
-                        fromLocalFile(sharedStateDir),
-                        threshold,
-                        threshold);
-        return checkpointStreamFactory;
+        File checkpointsDir = TempDirUtils.newFolder(tmp, "checkpointsDir");
+        File sharedStateDir = TempDirUtils.newFolder(tmp, "sharedStateDir");
+        return new FsCheckpointStreamFactory(
+                getSharedInstance(),
+                fromLocalFile(checkpointsDir),
+                fromLocalFile(sharedStateDir),
+                threshold,
+                threshold);
     }
 
     public IncrementalRemoteKeyedStateHandle snapshot(
