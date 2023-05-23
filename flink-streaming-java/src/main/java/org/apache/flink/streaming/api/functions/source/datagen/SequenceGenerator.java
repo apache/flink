@@ -80,10 +80,10 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
         if (context.isRestored()) {
             checkpointedState.get().forEach(state -> internalStates.add(state));
         } else {
-            // the first time the job is executed
+            // The first time the job is executed.
             final int taskIdx = runtimeContext.getIndexOfThisSubtask();
             final long stepSize = runtimeContext.getNumberOfParallelSubtasks();
-            InternalState state = new InternalState(taskIdx, stepSize);
+            InternalState state = new InternalState(taskIdx, stepSize, start + taskIdx);
             internalStates.add(state);
         }
     }
@@ -92,14 +92,20 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
         Iterator<InternalState> iterator = internalStates.iterator();
         if (iterator.hasNext()) {
             InternalState state = iterator.next();
-            long nextSequence =
-                    state.currentValue == 0 ? this.start + state.taskId : state.currentValue;
-            state.currentValue = nextSequence + state.stepSize;
-            // All sequence values are cleared from the stateList after they have been sent
-            if (state.currentValue > this.end) {
+            long currentValue = state.nextValue;
+            try {
+                state.nextValue = Math.addExact(currentValue, state.stepSize);
+                // All sequence values are cleared from the stateList after they have been sent.
+                if (state.nextValue > this.end) {
+                    iterator.remove();
+                }
+            } catch (ArithmeticException e) {
+                // When the limit is exceeded, it means that the data has been sent and needs to
+                // be cleared from the state.
                 iterator.remove();
             }
-            return nextSequence;
+
+            return currentValue;
         }
 
         // Before calling nextValue method, you should call hasNext to check.
@@ -200,11 +206,12 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
     private static class InternalState {
         int taskId;
         long stepSize;
-        long currentValue;
+        long nextValue;
 
-        public InternalState(int taskId, long stepSize) {
+        public InternalState(int taskId, long stepSize, long nextValue) {
             this.taskId = taskId;
             this.stepSize = stepSize;
+            this.nextValue = nextValue;
         }
     }
 }
