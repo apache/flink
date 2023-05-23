@@ -81,10 +81,10 @@ public class StreamExecSortLimit extends StreamExecRank {
                 new ConstantRankRange(limitStart + 1, limitEnd),
                 rankStrategy,
                 generateUpdateBefore,
+                StateMetadata.getOneInputOperatorDefaultMeta(tableConfig, STATE_NAME),
                 Collections.singletonList(inputProperty),
                 outputType,
-                description,
-                StateMetadata.getOneInputOperatorDefaultMeta(tableConfig, STATE_NAME));
+                description);
     }
 
     @JsonCreator
@@ -96,10 +96,10 @@ public class StreamExecSortLimit extends StreamExecRank {
             @JsonProperty(FIELD_NAME_RANK_RANG) ConstantRankRange rankRange,
             @JsonProperty(FIELD_NAME_RANK_STRATEGY) RankProcessStrategy rankStrategy,
             @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE) boolean generateUpdateBefore,
+            @Nullable @JsonProperty(FIELD_NAME_STATE) List<StateMetadata> stateMetadataList,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
-            @JsonProperty(FIELD_NAME_DESCRIPTION) String description,
-            @Nullable @JsonProperty(FIELD_NAME_STATE) List<StateMetadata> stateMetadataList) {
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
 
         super(
                 id,
@@ -112,10 +112,10 @@ public class StreamExecSortLimit extends StreamExecRank {
                 rankStrategy,
                 false, // outputRankNumber
                 generateUpdateBefore,
+                stateMetadataList,
                 inputProperties,
                 outputType,
-                description,
-                stateMetadataList);
+                description);
         this.limitEnd = rankRange.getRankEnd();
     }
 

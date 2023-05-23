@@ -143,15 +143,16 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
                 ExecNodeContext.newPersistedConfig(StreamExecSink.class, tableConfig),
                 tableSinkSpec,
                 inputChangelogMode,
-                Collections.singletonList(inputProperty),
-                outputType,
                 upsertMaterialize,
-                inputUpsertKey,
-                description,
-                // do not serialize state metadata if upsertMaterialize is not required
                 upsertMaterialize
                         ? StateMetadata.getOneInputOperatorDefaultMeta(tableConfig, STATE_NAME)
-                        : null);
+                        : null,
+                inputUpsertKey,
+                Collections.singletonList(inputProperty),
+                outputType,
+                description
+                // do not serialize state metadata if upsertMaterialize is not required
+                );
     }
 
     @JsonCreator
@@ -161,12 +162,12 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
             @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
             @JsonProperty(FIELD_NAME_DYNAMIC_TABLE_SINK) DynamicTableSinkSpec tableSinkSpec,
             @JsonProperty(FIELD_NAME_INPUT_CHANGELOG_MODE) ChangelogMode inputChangelogMode,
+            @JsonProperty(FIELD_NAME_REQUIRE_UPSERT_MATERIALIZE) boolean upsertMaterialize,
+            @Nullable @JsonProperty(FIELD_NAME_STATE) List<StateMetadata> stateMetadataList,
+            @JsonProperty(FIELD_NAME_INPUT_UPSERT_KEY) int[] inputUpsertKey,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) LogicalType outputType,
-            @JsonProperty(FIELD_NAME_REQUIRE_UPSERT_MATERIALIZE) boolean upsertMaterialize,
-            @JsonProperty(FIELD_NAME_INPUT_UPSERT_KEY) int[] inputUpsertKey,
-            @JsonProperty(FIELD_NAME_DESCRIPTION) String description,
-            @Nullable @JsonProperty(FIELD_NAME_STATE) List<StateMetadata> stateMetadataList) {
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
         super(
                 id,
                 context,

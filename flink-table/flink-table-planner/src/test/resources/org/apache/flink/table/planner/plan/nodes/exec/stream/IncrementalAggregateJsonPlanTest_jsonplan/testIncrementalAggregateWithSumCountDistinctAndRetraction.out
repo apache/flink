@@ -143,6 +143,11 @@
     "localAggInputRowType" : "ROW<`a` BIGINT, `b` INT NOT NULL>",
     "generateUpdateBefore" : true,
     "needRetraction" : false,
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "globalGroupAggregateState"
+    } ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -151,12 +156,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`a` BIGINT, `b` BIGINT NOT NULL, `b1` INT NOT NULL>",
-    "description" : "GlobalGroupAggregate(groupBy=[a], select=[a, COUNT(count1$0) AS b, MAX(max$1) AS b1])",
-    "state" : [ {
-      "index" : 0,
-      "ttl" : "0 ms",
-      "name" : "globalGroupAggregateState"
-    } ]
+    "description" : "GlobalGroupAggregate(groupBy=[a], select=[a, COUNT(count1$0) AS b, MAX(max$1) AS b1])"
   }, {
     "id" : 6,
     "type" : "stream-exec-calc_1",
@@ -371,6 +371,11 @@
     "partialAggCallNeedRetractions" : [ true, true, true ],
     "partialLocalAggInputRowType" : "ROW<`b` BIGINT NOT NULL, `b1` INT NOT NULL, `$f2` INT NOT NULL>",
     "partialAggNeedRetraction" : true,
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "incrementalGroupAggregateState"
+    } ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -379,12 +384,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`b` BIGINT NOT NULL, `sum$0` INT, `count$1` BIGINT, `count$2` BIGINT, `count1$3` BIGINT>",
-    "description" : "IncrementalGroupAggregate(partialAggGrouping=[b, $f2], finalAggGrouping=[b], select=[b, SUM_RETRACT((sum$0, count$1)) AS (sum$0, count$1), COUNT_RETRACT(distinct$0 count$2) AS count$2, COUNT_RETRACT(count1$3) AS count1$3])",
-    "state" : [ {
-      "index" : 0,
-      "ttl" : "0 ms",
-      "name" : "incrementalGroupAggregateState"
-    } ]
+    "description" : "IncrementalGroupAggregate(partialAggGrouping=[b, $f2], finalAggGrouping=[b], select=[b, SUM_RETRACT((sum$0, count$1)) AS (sum$0, count$1), COUNT_RETRACT(distinct$0 count$2) AS count$2, COUNT_RETRACT(count1$3) AS count1$3])"
   }, {
     "id" : 10,
     "type" : "stream-exec-exchange_1",
@@ -439,6 +439,11 @@
     "generateUpdateBefore" : true,
     "needRetraction" : true,
     "indexOfCountStar" : 2,
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "globalGroupAggregateState"
+    } ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -447,12 +452,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`b` BIGINT NOT NULL, `$f1` INT NOT NULL, `$f2` BIGINT NOT NULL, `$f3` BIGINT NOT NULL>",
-    "description" : "GlobalGroupAggregate(groupBy=[b], partialFinalType=[FINAL], select=[b, SUM_RETRACT((sum$0, count$1)) AS $f1, $SUM0_RETRACT(count$2) AS $f2, $SUM0_RETRACT(count1$3) AS $f3], indexOfCountStar=[2])",
-    "state" : [ {
-      "index" : 0,
-      "ttl" : "0 ms",
-      "name" : "globalGroupAggregateState"
-    } ]
+    "description" : "GlobalGroupAggregate(groupBy=[b], partialFinalType=[FINAL], select=[b, SUM_RETRACT((sum$0, count$1)) AS $f1, $SUM0_RETRACT(count$2) AS $f2, $SUM0_RETRACT(count1$3) AS $f3], indexOfCountStar=[2])"
   }, {
     "id" : 12,
     "type" : "stream-exec-sink_2",
@@ -492,6 +492,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT", "UPDATE_BEFORE", "UPDATE_AFTER", "DELETE" ],
+    "inputUpsertKey" : [ 0 ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -500,7 +501,6 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`b` BIGINT NOT NULL, `$f1` INT NOT NULL, `$f2` BIGINT NOT NULL, `$f3` BIGINT NOT NULL>",
-    "inputUpsertKey" : [ 0 ],
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[b, $f1, $f2, $f3])"
   } ],
   "edges" : [ {

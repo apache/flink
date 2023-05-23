@@ -73,6 +73,11 @@
       "type" : "AppendFast"
     },
     "generateUpdateBefore" : false,
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "rankState"
+    } ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -82,11 +87,6 @@
     } ],
     "outputType" : "ROW<`a` BIGINT>",
     "description" : "Limit(offset=[0], fetch=[10])",
-    "state" : [ {
-      "index" : 0,
-      "ttl" : "0 ms",
-      "name" : "rankState"
-    } ],
     "rankType" : "ROW_NUMBER",
     "partition" : {
       "fields" : [ ]

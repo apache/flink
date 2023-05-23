@@ -117,6 +117,13 @@
       }
     },
     "inputChangelogMode" : [ "INSERT", "UPDATE_BEFORE", "UPDATE_AFTER", "DELETE" ],
+    "requireUpsertMaterialize" : true,
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "sinkMaterializeState"
+    } ],
+    "inputUpsertKey" : [ 0 ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -125,14 +132,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`user_id` VARCHAR(2147483647) NOT NULL, `EXPR$1` VARCHAR(2147483647), `email` VARCHAR(2147483647), `balance` DECIMAL(18, 2)>",
-    "requireUpsertMaterialize" : true,
-    "inputUpsertKey" : [ 0 ],
-    "description" : "Sink(table=[default_catalog.default_database.sink], fields=[user_id, EXPR$1, email, balance], upsertMaterialize=[true])",
-    "state" : [ {
-      "index" : 0,
-      "ttl" : "0 ms",
-      "name" : "sinkMaterializeState"
-    } ]
+    "description" : "Sink(table=[default_catalog.default_database.sink], fields=[user_id, EXPR$1, email, balance], upsertMaterialize=[true])"
   } ],
   "edges" : [ {
     "source" : 1,

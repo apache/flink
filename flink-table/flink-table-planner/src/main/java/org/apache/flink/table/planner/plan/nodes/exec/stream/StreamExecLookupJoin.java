@@ -134,13 +134,14 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin
                 asyncLookupOptions,
                 retryOptions,
                 inputChangelogMode,
-                Collections.singletonList(inputProperty),
-                outputType,
-                description,
-                // serialize state meta only when upsert materialize is enabled
                 upsertMaterialize
                         ? StateMetadata.getOneInputOperatorDefaultMeta(tableConfig, STATE_NAME)
-                        : null);
+                        : null,
+                Collections.singletonList(inputProperty),
+                outputType,
+                description
+                // serialize state meta only when upsert materialize is enabled
+                );
     }
 
     @JsonCreator
@@ -166,10 +167,10 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin
                     LookupJoinUtil.RetryLookupOptions retryOptions,
             @JsonProperty(FIELD_NAME_INPUT_CHANGELOG_MODE) @Nullable
                     ChangelogMode inputChangelogMode,
+            @JsonProperty(FIELD_NAME_STATE) @Nullable List<StateMetadata> stateMetadataList,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
-            @JsonProperty(FIELD_NAME_DESCRIPTION) String description,
-            @JsonProperty(FIELD_NAME_STATE) @Nullable List<StateMetadata> stateMetadataList) {
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
         super(
                 id,
                 context,

@@ -95,6 +95,11 @@
     },
     "outputRowNumber" : true,
     "generateUpdateBefore" : true,
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "rankState"
+    } ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -103,12 +108,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`a` BIGINT, `b` INT NOT NULL, `w0$o0` BIGINT NOT NULL>",
-    "description" : "Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankEnd=a], partitionBy=[b], orderBy=[a ASC], select=[a, b, w0$o0])",
-    "state" : [ {
-      "index" : 0,
-      "ttl" : "0 ms",
-      "name" : "rankState"
-    } ]
+    "description" : "Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankEnd=a], partitionBy=[b], orderBy=[a ASC], select=[a, b, w0$o0])"
   }, {
     "id" : 5,
     "type" : "stream-exec-calc_1",

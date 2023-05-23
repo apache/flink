@@ -122,11 +122,11 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
                 joinSpec,
                 leftUpsertKeys,
                 rightUpsertKeys,
+                StateMetadata.getMultiInputOperatorDefaultMeta(
+                        tableConfig, LEFT_STATE_NAME, RIGHT_STATE_NAME),
                 Lists.newArrayList(leftInputProperty, rightInputProperty),
                 outputType,
-                description,
-                StateMetadata.getMultiInputOperatorDefaultMeta(
-                        tableConfig, LEFT_STATE_NAME, RIGHT_STATE_NAME));
+                description);
     }
 
     @JsonCreator
@@ -137,10 +137,10 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
             @JsonProperty(FIELD_NAME_JOIN_SPEC) JoinSpec joinSpec,
             @JsonProperty(FIELD_NAME_LEFT_UPSERT_KEYS) List<int[]> leftUpsertKeys,
             @JsonProperty(FIELD_NAME_RIGHT_UPSERT_KEYS) List<int[]> rightUpsertKeys,
+            @Nullable @JsonProperty(FIELD_NAME_STATE) List<StateMetadata> stateMetadataList,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
-            @JsonProperty(FIELD_NAME_DESCRIPTION) String description,
-            @Nullable @JsonProperty(FIELD_NAME_STATE) List<StateMetadata> stateMetadataList) {
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
         super(id, context, persistedConfig, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 2);
         this.joinSpec = checkNotNull(joinSpec);

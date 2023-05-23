@@ -164,6 +164,11 @@
     "isRowtime" : false,
     "keepLastRow" : false,
     "generateUpdateBefore" : false,
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "deduplicateState"
+    } ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -195,12 +200,7 @@
         }
       } ]
     },
-    "description" : "Deduplicate(keep=[FirstRow], key=[product], order=[PROCTIME])",
-    "state" : [ {
-      "index" : 0,
-      "ttl" : "0 ms",
-      "name" : "deduplicateState"
-    } ]
+    "description" : "Deduplicate(keep=[FirstRow], key=[product], order=[PROCTIME])"
   }, {
     "id" : 5,
     "type" : "stream-exec-calc_1",
@@ -269,6 +269,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
+    "inputUpsertKey" : [ 2 ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -277,7 +278,6 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`order_id` BIGINT, `user` VARCHAR(2147483647), `product` VARCHAR(2147483647), `order_time` TIMESTAMP(3)>",
-    "inputUpsertKey" : [ 2 ],
     "description" : "Sink(table=[default_catalog.default_database.sink], fields=[order_id, user, product, order_time])"
   } ],
   "edges" : [ {

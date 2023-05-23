@@ -233,6 +233,11 @@
     "partialAggCallNeedRetractions" : [ false ],
     "partialLocalAggInputRowType" : "ROW<`a` BIGINT, `c` VARCHAR(2147483647), `$f2` INT>",
     "partialAggNeedRetraction" : false,
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "incrementalGroupAggregateState"
+    } ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -241,12 +246,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`a` BIGINT, `count$0` BIGINT>",
-    "description" : "IncrementalGroupAggregate(partialAggGrouping=[a, $f2], finalAggGrouping=[a], select=[a, COUNT(distinct$0 count$0) AS count$0])",
-    "state" : [ {
-      "index" : 0,
-      "ttl" : "0 ms",
-      "name" : "incrementalGroupAggregateState"
-    } ]
+    "description" : "IncrementalGroupAggregate(partialAggGrouping=[a, $f2], finalAggGrouping=[a], select=[a, COUNT(distinct$0 count$0) AS count$0])"
   }, {
     "id" : 7,
     "type" : "stream-exec-exchange_1",
@@ -282,6 +282,11 @@
     "localAggInputRowType" : "ROW<`a` BIGINT, `$f2` INT, `$f2_0` BIGINT NOT NULL>",
     "generateUpdateBefore" : true,
     "needRetraction" : false,
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "globalGroupAggregateState"
+    } ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -290,12 +295,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`a` BIGINT, `$f1` BIGINT NOT NULL>",
-    "description" : "GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0(count$0) AS $f1])",
-    "state" : [ {
-      "index" : 0,
-      "ttl" : "0 ms",
-      "name" : "globalGroupAggregateState"
-    } ]
+    "description" : "GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0(count$0) AS $f1])"
   }, {
     "id" : 9,
     "type" : "stream-exec-sink_2",
@@ -329,6 +329,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT", "UPDATE_BEFORE", "UPDATE_AFTER", "DELETE" ],
+    "inputUpsertKey" : [ 0 ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -337,7 +338,6 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`a` BIGINT, `$f1` BIGINT NOT NULL>",
-    "inputUpsertKey" : [ 0 ],
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a, $f1])"
   } ],
   "edges" : [ {

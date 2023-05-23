@@ -260,6 +260,11 @@
     "aggCallNeedRetractions" : [ false, false ],
     "generateUpdateBefore" : true,
     "needRetraction" : false,
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "groupAggregateState"
+    } ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -268,12 +273,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`a` BIGINT, `$f3` INT, `$f4` INT, `$f3_0` BIGINT NOT NULL, `$f4_0` VARCHAR(2147483647)>",
-    "description" : "GroupAggregate(groupBy=[a, $f3, $f4], partialFinalType=[PARTIAL], select=[a, $f3, $f4, COUNT(DISTINCT b) FILTER $g_1 AS $f3_0, FIRST_VALUE(c) FILTER $g_2 AS $f4_0])",
-    "state" : [ {
-      "index" : 0,
-      "ttl" : "0 ms",
-      "name" : "groupAggregateState"
-    } ]
+    "description" : "GroupAggregate(groupBy=[a, $f3, $f4], partialFinalType=[PARTIAL], select=[a, $f3, $f4, COUNT(DISTINCT b) FILTER $g_1 AS $f3_0, FIRST_VALUE(c) FILTER $g_2 AS $f4_0])"
   }, {
     "id" : 7,
     "type" : "stream-exec-exchange_1",
@@ -317,6 +317,11 @@
     "aggCallNeedRetractions" : [ true, true ],
     "generateUpdateBefore" : true,
     "needRetraction" : true,
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "groupAggregateState"
+    } ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -325,12 +330,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`a` BIGINT, `$f1` BIGINT NOT NULL, `$f2` VARCHAR(2147483647)>",
-    "description" : "GroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0_RETRACT($f3_0) AS $f1, FIRST_VALUE_RETRACT($f4_0) AS $f2])",
-    "state" : [ {
-      "index" : 0,
-      "ttl" : "0 ms",
-      "name" : "groupAggregateState"
-    } ]
+    "description" : "GroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0_RETRACT($f3_0) AS $f1, FIRST_VALUE_RETRACT($f4_0) AS $f2])"
   }, {
     "id" : 9,
     "type" : "stream-exec-sink_2",
@@ -367,6 +367,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT", "UPDATE_BEFORE", "UPDATE_AFTER", "DELETE" ],
+    "inputUpsertKey" : [ 0 ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -375,7 +376,6 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`a` BIGINT, `$f1` BIGINT NOT NULL, `$f2` VARCHAR(2147483647)>",
-    "inputUpsertKey" : [ 0 ],
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a, $f1, $f2])"
   } ],
   "edges" : [ {

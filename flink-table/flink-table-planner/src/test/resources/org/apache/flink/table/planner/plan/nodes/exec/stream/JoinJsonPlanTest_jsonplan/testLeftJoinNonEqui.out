@@ -130,6 +130,15 @@
         "type" : "BOOLEAN"
       }
     },
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "leftState"
+    }, {
+      "index" : 1,
+      "ttl" : "0 ms",
+      "name" : "rightState"
+    } ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -144,16 +153,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`a1` INT, `a2` BIGINT, `b1` INT, `b2` BIGINT>",
-    "description" : "Join(joinType=[LeftOuterJoin], where=[((a1 = b1) AND (a2 > b2))], select=[a1, a2, b1, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])",
-    "state" : [ {
-      "index" : 0,
-      "ttl" : "0 ms",
-      "name" : "leftState"
-    }, {
-      "index" : 1,
-      "ttl" : "0 ms",
-      "name" : "rightState"
-    } ]
+    "description" : "Join(joinType=[LeftOuterJoin], where=[((a1 = b1) AND (a2 > b2))], select=[a1, a2, b1, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])"
   }, {
     "id" : 6,
     "type" : "stream-exec-calc_1",

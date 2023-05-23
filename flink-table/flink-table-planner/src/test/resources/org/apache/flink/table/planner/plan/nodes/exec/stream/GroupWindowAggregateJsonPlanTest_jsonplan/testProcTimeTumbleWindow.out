@@ -443,6 +443,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
+    "inputUpsertKey" : [ 0, 1 ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -451,7 +452,6 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`b` BIGINT, `window_end` TIMESTAMP(3) NOT NULL, `EXPR$2` BIGINT NOT NULL>",
-    "inputUpsertKey" : [ 0, 1 ],
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[b, window_end, EXPR$2])"
   } ],
   "edges" : [ {

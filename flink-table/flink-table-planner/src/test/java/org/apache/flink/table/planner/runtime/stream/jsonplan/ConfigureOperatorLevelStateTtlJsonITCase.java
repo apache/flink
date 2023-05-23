@@ -42,7 +42,7 @@ import java.util.Map;
 public class ConfigureOperatorLevelStateTtlJsonITCase extends JsonPlanTestBase {
 
     @Test
-    public void testDeduplicateAndGroupAggregateWithDifferentStateTtl() throws Exception {
+    public void testDifferentStateTtlForDifferentOneInputOperator() throws Exception {
         String dataId =
                 TestValuesTableFactory.registerRowData(
                         Arrays.asList(
@@ -116,7 +116,7 @@ public class ConfigureOperatorLevelStateTtlJsonITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testInnerJoinWithDifferentStateTtl() throws Exception {
+    public void testDifferentStateTtlForSameTwoInputStreamOperator() throws Exception {
         String leftTableDataId =
                 TestValuesTableFactory.registerRowData(
                         Arrays.asList(

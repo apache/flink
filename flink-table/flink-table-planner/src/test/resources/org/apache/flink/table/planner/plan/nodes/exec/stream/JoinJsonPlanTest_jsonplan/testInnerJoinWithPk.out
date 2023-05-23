@@ -74,6 +74,11 @@
     "aggCallNeedRetractions" : [ false ],
     "generateUpdateBefore" : true,
     "needRetraction" : false,
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "groupAggregateState"
+    } ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -82,12 +87,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`a1` INT, `a2` BIGINT>",
-    "description" : "GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2])",
-    "state" : [ {
-      "index" : 0,
-      "ttl" : "0 ms",
-      "name" : "groupAggregateState"
-    } ]
+    "description" : "GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2])"
   }, {
     "id" : 4,
     "type" : "stream-exec-calc_1",
@@ -197,6 +197,11 @@
     "aggCallNeedRetractions" : [ false ],
     "generateUpdateBefore" : true,
     "needRetraction" : false,
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "groupAggregateState"
+    } ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -205,12 +210,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`b1` INT, `b2` BIGINT>",
-    "description" : "GroupAggregate(groupBy=[b1], select=[b1, SUM(b2) AS b2])",
-    "state" : [ {
-      "index" : 0,
-      "ttl" : "0 ms",
-      "name" : "groupAggregateState"
-    } ]
+    "description" : "GroupAggregate(groupBy=[b1], select=[b1, SUM(b2) AS b2])"
   }, {
     "id" : 9,
     "type" : "stream-exec-calc_1",
@@ -258,6 +258,15 @@
     },
     "leftUpsertKeys" : [ [ 1 ] ],
     "rightUpsertKeys" : [ [ 1 ] ],
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "leftState"
+    }, {
+      "index" : 1,
+      "ttl" : "0 ms",
+      "name" : "rightState"
+    } ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -272,16 +281,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`a2` BIGINT, `a1` INT, `b2` BIGINT, `b1` INT>",
-    "description" : "Join(joinType=[InnerJoin], where=[(a2 = b2)], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])",
-    "state" : [ {
-      "index" : 0,
-      "ttl" : "0 ms",
-      "name" : "leftState"
-    }, {
-      "index" : 1,
-      "ttl" : "0 ms",
-      "name" : "rightState"
-    } ]
+    "description" : "Join(joinType=[InnerJoin], where=[(a2 = b2)], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])"
   }, {
     "id" : 12,
     "type" : "stream-exec-calc_1",

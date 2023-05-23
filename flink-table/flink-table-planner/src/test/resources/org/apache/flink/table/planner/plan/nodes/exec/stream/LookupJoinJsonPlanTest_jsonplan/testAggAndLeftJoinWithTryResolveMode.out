@@ -236,6 +236,11 @@
     "aggCallNeedRetractions" : [ false ],
     "generateUpdateBefore" : true,
     "needRetraction" : false,
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "groupAggregateState"
+    } ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -244,12 +249,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`b` VARCHAR(2147483647), `a` INT>",
-    "description" : "GroupAggregate(groupBy=[b], select=[b, MAX(a) AS a])",
-    "state" : [ {
-      "index" : 0,
-      "ttl" : "0 ms",
-      "name" : "groupAggregateState"
-    } ]
+    "description" : "GroupAggregate(groupBy=[b], select=[b, MAX(a) AS a])"
   }, {
     "id" : 7,
     "type" : "stream-exec-calc_1",
@@ -312,6 +312,11 @@
     "lookupKeyContainsPrimaryKey" : false,
     "requireUpsertMaterialize" : true,
     "inputChangelogMode" : [ "INSERT", "UPDATE_BEFORE", "UPDATE_AFTER" ],
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "lookupJoinState"
+    } ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -320,12 +325,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`a` INT, `id` INT, `name` VARCHAR(2147483647), `age` INT>",
-    "description" : "LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[LeftOuterJoin], lookup=[id=a], select=[a, id, name, age], upsertMaterialize=[true])",
-    "state" : [ {
-      "index" : 0,
-      "ttl" : "0 ms",
-      "name" : "lookupJoinState"
-    } ]
+    "description" : "LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[LeftOuterJoin], lookup=[id=a], select=[a, id, name, age], upsertMaterialize=[true])"
   }, {
     "id" : 9,
     "type" : "stream-exec-calc_1",

@@ -116,6 +116,15 @@
       "filterNulls" : [ true ],
       "nonEquiCondition" : null
     },
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "leftState"
+    }, {
+      "index" : 1,
+      "ttl" : "0 ms",
+      "name" : "rightState"
+    } ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -130,16 +139,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`a1` INT, `b1` INT>",
-    "description" : "Join(joinType=[InnerJoin], where=[(a1 = b1)], select=[a1, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])",
-    "state" : [ {
-      "index" : 0,
-      "ttl" : "0 ms",
-      "name" : "leftState"
-    }, {
-      "index" : 1,
-      "ttl" : "0 ms",
-      "name" : "rightState"
-    } ]
+    "description" : "Join(joinType=[InnerJoin], where=[(a1 = b1)], select=[a1, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])"
   }, {
     "id" : 6,
     "type" : "stream-exec-sink_2",

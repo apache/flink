@@ -147,10 +147,10 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
                 partialAggCallNeedRetractions,
                 partialLocalAggInputType,
                 partialAggNeedRetraction,
+                StateMetadata.getOneInputOperatorDefaultMeta(tableConfig, STATE_NAME),
                 Collections.singletonList(inputProperty),
                 outputType,
-                description,
-                StateMetadata.getOneInputOperatorDefaultMeta(tableConfig, STATE_NAME));
+                description);
     }
 
     @JsonCreator
@@ -166,10 +166,10 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
                     boolean[] partialAggCallNeedRetractions,
             @JsonProperty(FIELD_NAME_PARTIAL_LOCAL_AGG_INPUT_TYPE) RowType partialLocalAggInputType,
             @JsonProperty(FIELD_NAME_PARTIAL_AGG_NEED_RETRACTION) boolean partialAggNeedRetraction,
+            @Nullable @JsonProperty(FIELD_NAME_STATE) List<StateMetadata> stateMetadataList,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
-            @JsonProperty(FIELD_NAME_DESCRIPTION) String description,
-            @Nullable @JsonProperty(FIELD_NAME_STATE) List<StateMetadata> stateMetadataList) {
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
         super(id, context, persistedConfig, inputProperties, outputType, description);
         this.partialAggGrouping = checkNotNull(partialAggGrouping);
         this.finalAggGrouping = checkNotNull(finalAggGrouping);
