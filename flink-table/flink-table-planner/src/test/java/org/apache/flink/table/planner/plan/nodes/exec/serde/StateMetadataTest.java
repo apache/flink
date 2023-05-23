@@ -139,7 +139,9 @@ public class StateMetadataTest {
             @Nullable List<StateMetadata> stateMetadataList,
             long expectedStateTtl) {
         ExecNodeConfig nodeConfig = configModifier.apply(tableConfig);
-        assertThat(StateMetadata.getStateTtlForInputOperator(nodeConfig, 1, stateMetadataList))
+        assertThat(
+                        StateMetadata.getStateTtlForInputOperator(nodeConfig, 1, stateMetadataList)
+                                .get(0))
                 .isEqualTo(expectedStateTtl);
     }
 
