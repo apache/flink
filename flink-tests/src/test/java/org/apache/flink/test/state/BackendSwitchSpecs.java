@@ -30,7 +30,6 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.query.KvStateRegistry;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -44,7 +43,6 @@ import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import org.junit.rules.TemporaryFolder;
-import org.mockito.Mockito;
 
 import java.util.Collection;
 
@@ -139,7 +137,8 @@ public final class BackendSwitchSpecs {
                 throws Exception {
             ExecutionConfig executionConfig = new ExecutionConfig();
             return new HeapKeyedStateBackendBuilder<>(
-                            Mockito.mock(TaskKvStateRegistry.class),
+                            new KvStateRegistry()
+                                    .createTaskRegistry(new JobID(), new JobVertexID()),
                             StringSerializer.INSTANCE,
                             this.getClass().getClassLoader(),
                             numKeyGroups,

@@ -28,12 +28,12 @@ import org.apache.flink.connector.file.table.stream.compact.CompactMessages;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.mockito.Mockito;
 
 import java.io.File;
 import java.io.IOException;
@@ -46,7 +46,6 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.doReturn;
 
 /** Test for {@link BatchPartitionCommitterSink}. */
 public class BatchPartitionCommitterSinkTest {
@@ -128,10 +127,11 @@ public class BatchPartitionCommitterSinkTest {
             };
 
     private static RuntimeContext getMockRuntimeContext() {
-        RuntimeContext context = Mockito.mock(RuntimeContext.class);
-        doReturn(Thread.currentThread().getContextClassLoader())
-                .when(context)
-                .getUserCodeClassLoader();
-        return context;
+        return new MockStreamingRuntimeContext(false, 0, 0) {
+            @Override
+            public ClassLoader getUserCodeClassLoader() {
+                return Thread.currentThread().getContextClassLoader();
+            }
+        };
     }
 }

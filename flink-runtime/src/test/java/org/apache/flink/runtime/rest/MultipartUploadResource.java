@@ -33,6 +33,7 @@ import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
 import org.apache.flink.runtime.rest.util.TestRestServerEndpoint;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
+import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.BiConsumerWithException;
@@ -67,7 +68,6 @@ import java.util.stream.Stream;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.mock;
 
 /** Test base for verifying support of multipart uploads via REST. */
 public class MultipartUploadResource extends ExternalResource {
@@ -103,7 +103,7 @@ public class MultipartUploadResource extends ExternalResource {
         configuredUploadDir = temporaryFolder.newFolder().toPath();
         config.setString(WebOptions.UPLOAD_DIR, configuredUploadDir.toString());
 
-        RestfulGateway mockRestfulGateway = mock(RestfulGateway.class);
+        RestfulGateway mockRestfulGateway = new TestingRestfulGateway();
 
         final GatewayRetriever<RestfulGateway> mockGatewayRetriever =
                 () -> CompletableFuture.completedFuture(mockRestfulGateway);
