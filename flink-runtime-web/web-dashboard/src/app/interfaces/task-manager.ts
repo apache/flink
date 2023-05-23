@@ -33,6 +33,12 @@ export interface TaskManagerDetail {
   blocked?: boolean;
   freeResource: Resources;
   totalResource: Resources;
+  allocatedSlots: AllocatedSlot[];
+}
+
+export interface AllocatedSlot {
+  jobId: string;
+  resource: Resources;
 }
 
 export interface Resources {
