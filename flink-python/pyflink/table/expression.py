@@ -1487,6 +1487,13 @@ class Expression(Generic[T]):
         """
         return _binary_op("arrayDistinct")(self)
 
+    def array_intersect(self, array) -> 'Expression':
+        """
+        Returns an array of the elements in the intersection of array1 and array2, without
+        duplicates. If any of the array is null, the function will return null.
+        """
+        return _binary_op("arrayIntersect")(self, array)
+
     def array_position(self, needle) -> 'Expression':
         """
         Returns the position of the first occurrence of element in the given array as int.

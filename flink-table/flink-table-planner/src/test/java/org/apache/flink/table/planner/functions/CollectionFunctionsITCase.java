@@ -43,6 +43,7 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
         return Stream.of(
                         arrayContainsTestCases(),
                         arrayDistinctTestCases(),
+                        arrayIntersectTestCases(),
                         arrayPositionTestCases(),
                         arrayRemoveTestCases(),
                         arrayReverseTestCases(),
@@ -204,6 +205,56 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 },
                                 DataTypes.ARRAY(
                                         DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE()))));
+    }
+
+    private Stream<TestSetSpec> arrayIntersectTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.ARRAY_INTERSECT)
+                        .onFieldsWithData(
+                                new Integer[] {1, 2, null},
+                                null,
+                                new Row[] {
+                                    Row.of(true, LocalDate.of(2022, 4, 20)),
+                                    Row.of(true, LocalDate.of(1990, 10, 14)),
+                                    null
+                                },
+                                1)
+                        .andDataTypes(
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(
+                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE())),
+                                DataTypes.INT())
+                        // ARRAY<INT>
+                        .testResult(
+                                $("f0").arrayIntersect(new Integer[] {1, null, 4}),
+                                "ARRAY_INTERSECT(f0, ARRAY[1, NULL, 4])",
+                                new Integer[] {1, null},
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                $("f1").arrayIntersect(new Integer[] {1, null, 4}),
+                                "ARRAY_INTERSECT(f1, ARRAY[1, NULL, 4])",
+                                null,
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        // ARRAY<ROW<BOOLEAN, DATE>>
+                        .testResult(
+                                $("f2").arrayIntersect(
+                                                new Row[] {
+                                                    null, Row.of(true, LocalDate.of(1990, 10, 14)),
+                                                }),
+                                "ARRAY_INTERSECT(f2, ARRAY[NULL, (TRUE, DATE '1990-10-14')])",
+                                new Row[] {Row.of(true, LocalDate.of(1990, 10, 14)), null},
+                                DataTypes.ARRAY(
+                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE())))
+                        // invalid signatures
+                        .testSqlValidationError(
+                                "ARRAY_INTERSECT(f3, TRUE)",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ARRAY_INTERSECT(<COMMON>, <COMMON>)")
+                        .testTableApiValidationError(
+                                $("f3").arrayIntersect(true),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ARRAY_INTERSECT(<COMMON>, <COMMON>)"));
     }
 
     private Stream<TestSetSpec> arrayPositionTestCases() {
