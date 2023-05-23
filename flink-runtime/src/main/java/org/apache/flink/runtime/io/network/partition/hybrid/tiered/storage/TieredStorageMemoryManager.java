@@ -65,7 +65,13 @@ public interface TieredStorageMemoryManager {
     void listenBufferReclaimRequest(Runnable onBufferReclaimRequest);
 
     /**
-     * Request a {@link BufferBuilder} instance from {@link LocalBufferPool} for a specific owner.
+     * Request a {@link BufferBuilder} instance from {@link BufferPool} for a specific owner. The
+     * {@link TieredStorageMemoryManagerImpl} will not check whether a buffer can be requested and
+     * only record the total number of requested buffers. If the buffers in the {@link BufferPool}
+     * is not enough, this will request each tiered storage to reclaim the buffers as much as
+     * possible.
+     *
+     * <p>This is not thread safe and is expected to be called only from the task thread.
      *
      * @param owner the owner to request buffer
      * @return the requested buffer

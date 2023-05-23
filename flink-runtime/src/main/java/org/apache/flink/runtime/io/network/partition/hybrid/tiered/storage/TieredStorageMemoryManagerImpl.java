@@ -27,6 +27,8 @@ import org.apache.flink.util.FatalExitExceptionHandler;
 
 import org.apache.flink.shaded.guava30.com.google.common.util.concurrent.ThreadFactoryBuilder;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -52,8 +54,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManager {
 
-    /** The period of checking buffer reclaim. */
-    private static final int DEFAULT_CHECK_BUFFER_RECLAIM_PERIOD_DURATION_MS = 50;
+    /** Time to wait for requesting new buffers before triggering buffer reclaiming. */
+    private static final int INITIAL_REQUEST_BUFFER_TIMEOUT_FOR_RECLAIMING_MS = 50;
 
     /** The tiered storage memory specs of each memory user owner. */
     private final Map<Object, TieredStorageMemorySpec> tieredMemorySpecs;
@@ -65,11 +67,10 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
     private final float numTriggerReclaimBuffersRatio;
 
     /**
-     * Indicate whether it is necessary to start a periodically checking buffer reclaim thread. If
-     * the memory manager is used in downstream, the field will be false because periodical buffer
-     * reclaim checker is needed.
+     * Indicates whether reclaiming of buffers is supported. If supported, when there's a
+     * contention, we may try reclaim buffers from the memory owners.
      */
-    private final boolean needPeriodicalCheckReclaimBuffer;
+    private final boolean mayReclaimBuffer;
 
     /**
      * The number of requested buffers from {@link BufferPool}. Only this field can be touched both
@@ -80,19 +81,11 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
     private final Map<Object, AtomicInteger> numOwnerRequestedBuffers;
 
     /**
-     * A thread to check whether to reclaim buffers from each tiered storage.
+     * This is for triggering buffer reclaiming while blocked on requesting new buffers.
      *
-     * <p>Note that it is not possible to remove this, as doing so could result in the task becoming
-     * stuck in the buffer request. As the number of buffers in the buffer pool can vary at any
-     * given time, the stuck may occur if the thread is removed.
-     *
-     * <p>For instance, if the memory usage of the {@link BufferPool} has been checked and {@link
-     * TieredStorageMemoryManagerImpl} determined that buffer reclamation is unnecessary, but then
-     * the buffer pool size is suddenly reduced to a very small size, the buffer request will become
-     * stuck and the task will never be able to call for buffer reclamation if this thread is
-     * removed, then a task stuck occurs.
+     * <p>Note: This can be null iff buffer reclaiming is not supported.
      */
-    private ScheduledExecutorService executor;
+    @Nullable private ScheduledExecutorService executor;
 
     /** The buffer pool where the buffer is requested or recycled. */
     private BufferPool bufferPool;
@@ -111,13 +104,12 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
      *
      * @param numTriggerReclaimBuffersRatio the buffer pool usage ratio of requesting each tiered
      *     storage to reclaim buffers
-     * @param needPeriodicalCheckReclaimBuffer indicate whether it is necessary to start a
-     *     periodically checking buffer reclaim thread
+     * @param mayReclaimBuffer indicate whether buffer reclaiming is supported
      */
     public TieredStorageMemoryManagerImpl(
-            float numTriggerReclaimBuffersRatio, boolean needPeriodicalCheckReclaimBuffer) {
+            float numTriggerReclaimBuffersRatio, boolean mayReclaimBuffer) {
         this.numTriggerReclaimBuffersRatio = numTriggerReclaimBuffersRatio;
-        this.needPeriodicalCheckReclaimBuffer = needPeriodicalCheckReclaimBuffer;
+        this.mayReclaimBuffer = mayReclaimBuffer;
         this.tieredMemorySpecs = new HashMap<>();
         this.numRequestedBuffers = new AtomicInteger(0);
         this.numOwnerRequestedBuffers = new ConcurrentHashMap<>();
@@ -135,7 +127,7 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
             tieredMemorySpecs.put(memorySpec.getOwner(), memorySpec);
         }
 
-        if (needPeriodicalCheckReclaimBuffer) {
+        if (mayReclaimBuffer) {
             this.executor =
                     Executors.newSingleThreadScheduledExecutor(
                             new ThreadFactoryBuilder()
@@ -152,19 +144,6 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
         bufferReclaimRequestListeners.add(onBufferReclaimRequest);
     }
 
-    /**
-     * Request a {@link BufferBuilder} instance from {@link BufferPool} for a specific owner. The
-     * {@link TieredStorageMemoryManagerImpl} will not check whether a buffer can be requested and
-     * only record the total number of requested buffers. If the buffers in the {@link BufferPool}
-     * is not enough, this will request each tiered storage to reclaim the buffers as much as
-     * possible.
-     *
-     * <p>Note that synchronization is not necessary for this method, as it can only be called by
-     * the task thread.
-     *
-     * @param owner the owner to request buffer
-     * @return the requested buffer
-     */
     @Override
     public BufferBuilder requestBufferBlocking(Object owner) {
         checkIsInitialized();
@@ -172,7 +151,8 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
         reclaimBuffersIfNeeded();
 
         CompletableFuture<Void> requestBufferFuture = new CompletableFuture<>();
-        scheduleCheckRequestBufferFuture(requestBufferFuture);
+        scheduleCheckRequestBufferFuture(
+                requestBufferFuture, INITIAL_REQUEST_BUFFER_TIMEOUT_FOR_RECLAIMING_MS);
         MemorySegment memorySegment = null;
         try {
             memorySegment = bufferPool.requestMemorySegmentBlocking();
@@ -196,7 +176,7 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
     public int getMaxNonReclaimableBuffers(Object owner) {
         checkIsInitialized();
 
-        int numBuffersOfOtherOwners = 0;
+        int numBuffersUsedOrReservedForOtherOwners = 0;
         for (Map.Entry<Object, TieredStorageMemorySpec> memorySpecEntry :
                 tieredMemorySpecs.entrySet()) {
             Object userOwner = memorySpecEntry.getKey();
@@ -204,7 +184,7 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
             if (!userOwner.equals(owner)) {
                 int numGuaranteed = storageMemorySpec.getNumGuaranteedBuffers();
                 int numRequested = numOwnerRequestedBuffer(userOwner);
-                numBuffersOfOtherOwners += Math.max(numGuaranteed, numRequested);
+                numBuffersUsedOrReservedForOtherOwners += Math.max(numGuaranteed, numRequested);
             }
         }
         // Note that a sudden reduction in the size of the buffer pool may result in non-reclaimable
@@ -212,7 +192,7 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
         // is limited to the memory tier, which is only utilized when downstream registration is in
         // effect. Furthermore, the buffers within the memory tier can be recycled quickly enough,
         // thereby minimizing the impact on the guaranteed buffers of other tiers.
-        return bufferPool.getNumBuffers() - numBuffersOfOtherOwners;
+        return bufferPool.getNumBuffers() - numBuffersUsedOrReservedForOtherOwners;
     }
 
     @Override
@@ -237,22 +217,25 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
         }
     }
 
-    private void scheduleCheckRequestBufferFuture(CompletableFuture<Void> requestBufferFuture) {
-        if (!needPeriodicalCheckReclaimBuffer || requestBufferFuture.isDone()) {
+    private void scheduleCheckRequestBufferFuture(
+            CompletableFuture<Void> requestBufferFuture, long delayMs) {
+        if (!mayReclaimBuffer || requestBufferFuture.isDone()) {
             return;
         }
-        executor.schedule(
-                () -> internalCheckRequestBufferFuture(requestBufferFuture),
-                DEFAULT_CHECK_BUFFER_RECLAIM_PERIOD_DURATION_MS,
-                TimeUnit.MILLISECONDS);
+        checkNotNull(executor)
+                .schedule(
+                        () -> internalCheckRequestBufferFuture(requestBufferFuture, delayMs * 2),
+                        delayMs,
+                        TimeUnit.MILLISECONDS);
     }
 
-    private void internalCheckRequestBufferFuture(CompletableFuture<Void> requestBufferFuture) {
+    private void internalCheckRequestBufferFuture(
+            CompletableFuture<Void> requestBufferFuture, long delayForNextCheckMs) {
         if (requestBufferFuture.isDone()) {
             return;
         }
         reclaimBuffersIfNeeded();
-        scheduleCheckRequestBufferFuture(requestBufferFuture);
+        scheduleCheckRequestBufferFuture(requestBufferFuture, delayForNextCheckMs);
     }
 
     private void incNumRequestedBuffer(Object owner) {
