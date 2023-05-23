@@ -18,7 +18,7 @@
 package org.apache.flink.runtime.state.heap;
 
 /** Test for {@link HeapPriorityQueueSet}. */
-public class HeapPriorityQueueSetTest extends HeapPriorityQueueTest {
+class HeapPriorityQueueSetTest extends HeapPriorityQueueTest {
 
     @Override
     protected HeapPriorityQueueSet<TestElement> newPriorityQueue(int initialCapacity) {
