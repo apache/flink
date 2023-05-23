@@ -29,7 +29,6 @@ from pyflink.util.java_utils import load_java_class
 __all__ = [
     'PulsarSource',
     'PulsarSourceBuilder',
-    'SubscriptionType',
     'StartCursor',
     'StopCursor',
     'PulsarSink',
@@ -40,46 +39,6 @@ __all__ = [
 
 
 # ---- PulsarSource ----
-
-class SubscriptionType(Enum):
-    """
-    Types of subscription supported by Pulsar.
-
-    :data: `Exclusive`:
-
-    There can be only 1 consumer on the same topic with the same subscription name.
-
-    :data: `Shared`:
-
-    Multiple consumer will be able to use the same subscription name and the messages will be
-    dispatched according to a round-robin rotation between the connected consumers. In this mode,
-    the consumption order is not guaranteed.
-
-    :data: `Failover`:
-
-    Multiple consumer will be able to use the same subscription name but only 1 consumer will
-    receive the messages. If that consumer disconnects, one of the other connected consumers will
-    start receiving messages. In failover mode, the consumption ordering is guaranteed. In case of
-    partitioned topics, the ordering is guaranteed on a per-partition basis. The partitions
-    assignments will be split across the available consumers. On each partition, at most one
-    consumer will be active at a given point in time.
-
-    :data: `Key_Shared`:
-
-    Multiple consumer will be able to use the same subscription and all messages with the same key
-    will be dispatched to only one consumer. Use ordering_key to overwrite the message key for
-    message ordering.
-    """
-
-    Exclusive = 0,
-    Shared = 1,
-    Failover = 2,
-    Key_Shared = 3
-
-    def _to_j_subscription_type(self):
-        JSubscriptionType = get_gateway().jvm.org.apache.pulsar.client.api.SubscriptionType
-        return getattr(JSubscriptionType, self.name)
-
 
 class StartCursor(object):
     """

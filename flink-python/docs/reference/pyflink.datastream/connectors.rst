@@ -149,7 +149,6 @@ Pulsar Source
 .. autosummary::
     :toctree: api/
 
-    SubscriptionType
     StartCursor
     StopCursor
     PulsarSource

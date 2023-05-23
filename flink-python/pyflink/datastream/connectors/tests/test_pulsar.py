@@ -18,7 +18,7 @@
 from pyflink.common import WatermarkStrategy, SimpleStringSchema, Types, ConfigOptions, Duration
 from pyflink.datastream.connectors import DeliveryGuarantee
 from pyflink.datastream.connectors.pulsar import TopicRoutingMode, MessageDelayer, PulsarSink, \
-    PulsarSource, StartCursor, StopCursor, SubscriptionType
+    PulsarSource, StartCursor, StopCursor
 from pyflink.testing.test_case_utils import PyFlinkUTTestCase
 from pyflink.util.java_utils import get_field_value, is_instance_of
 
@@ -63,11 +63,6 @@ class FlinkPulsarTest(PyFlinkUTTestCase):
                 ConfigOptions.key('pulsar.consumer.subscriptionName')
                 .string_type()
                 .no_default_value()._j_config_option), 'ff')
-        self.assertEqual(
-            configuration.getString(
-                ConfigOptions.key('pulsar.consumer.subscriptionType')
-                .string_type()
-                .no_default_value()._j_config_option), SubscriptionType.Exclusive.name)
         test_option = ConfigOptions.key(TEST_OPTION_NAME).boolean_type().no_default_value()
         self.assertEqual(
             configuration.getBoolean(
