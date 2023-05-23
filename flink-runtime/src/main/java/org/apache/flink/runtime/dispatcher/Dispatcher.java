@@ -1182,7 +1182,10 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                         getMainThreadExecutor())
                 .whenComplete(
                         (ack, error) -> {
-                            log.debug("Failed to update requirements for job {}.", jobId, error);
+                            if (error != null) {
+                                log.debug(
+                                        "Failed to update requirements for job {}.", jobId, error);
+                            }
                             pendingJobResourceRequirementsUpdates.remove(jobId);
                         });
     }
