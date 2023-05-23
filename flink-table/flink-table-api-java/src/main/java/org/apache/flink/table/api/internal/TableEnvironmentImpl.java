@@ -102,6 +102,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.utils.print.PrintStyle;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.MutableURLClassLoader;
 import org.apache.flink.util.Preconditions;
@@ -731,18 +732,22 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     private CompiledPlan compilePlanAndWrite(
-            Path filePath, boolean ifNotExists, Operation operation) {
+            Path filePath, boolean ifNotExists, Operation operation) throws IOException {
         FileSystem fs;
         boolean exists;
         try {
             fs = filePath.getFileSystem();
             exists = fs.exists(filePath);
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new TableException(e.getMessage());
         }
         if (exists) {
             if (ifNotExists) {
-                return loadPlan(PlanReference.fromFile(filePath));
+                if (fs.isDistributedFS()) {
+                    URL localUrl = resourceManager.downloadResource(filePath);
+                    return loadPlan(PlanReference.fromFile(localUrl.getPath()));
+                }
+                return loadPlan(PlanReference.fromFile(filePath.getPath()));
             }
 
             if (!tableConfig.get(TableConfigOptions.PLAN_FORCE_RECOMPILE)) {
@@ -766,7 +771,14 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                             + operation.getClass()
                             + ". This is a bug, please file an issue.");
         }
-        compiledPlan.writeToFile(filePath, false);
+        if (fs.isDistributedFS()) {
+            Path localPath = resourceManager.getResourceLocalPath(filePath);
+            compiledPlan.writeToFile(localPath.getPath(), false);
+            FileUtils.copy(localPath, filePath, true);
+        } else {
+            compiledPlan.writeToFile(filePath.getPath(), false);
+        }
+
         return compiledPlan;
     }
 
@@ -941,24 +953,37 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             return executeQueryOperation((QueryOperation) operation);
         } else if (operation instanceof ExecutePlanOperation) {
             ExecutePlanOperation executePlanOperation = (ExecutePlanOperation) operation;
-            return (TableResultInternal)
-                    executePlan(PlanReference.fromFile(executePlanOperation.getFilePath()));
+            try {
+                URL localUrl = resourceManager.downloadResource(executePlanOperation.getFilePath());
+                return (TableResultInternal)
+                        executePlan(PlanReference.fromFile(localUrl.getPath()));
+            } catch (IOException e) {
+                throw new TableException(e.getMessage());
+            }
         } else if (operation instanceof CompilePlanOperation) {
             CompilePlanOperation compilePlanOperation = (CompilePlanOperation) operation;
-            compilePlanAndWrite(
-                    compilePlanOperation.getFilePath(),
-                    compilePlanOperation.isIfNotExists(),
-                    compilePlanOperation.getOperation());
-            return TableResultImpl.TABLE_RESULT_OK;
+            try {
+                compilePlanAndWrite(
+                        compilePlanOperation.getFilePath(),
+                        compilePlanOperation.isIfNotExists(),
+                        compilePlanOperation.getOperation());
+                return TableResultImpl.TABLE_RESULT_OK;
+            } catch (IOException e) {
+                throw new TableException(e.getMessage());
+            }
         } else if (operation instanceof CompileAndExecutePlanOperation) {
             CompileAndExecutePlanOperation compileAndExecutePlanOperation =
                     (CompileAndExecutePlanOperation) operation;
-            CompiledPlan compiledPlan =
-                    compilePlanAndWrite(
-                            compileAndExecutePlanOperation.getFilePath(),
-                            true,
-                            compileAndExecutePlanOperation.getOperation());
-            return (TableResultInternal) compiledPlan.execute();
+            try {
+                CompiledPlan compiledPlan =
+                        compilePlanAndWrite(
+                                compileAndExecutePlanOperation.getFilePath(),
+                                true,
+                                compileAndExecutePlanOperation.getOperation());
+                return (TableResultInternal) compiledPlan.execute();
+            } catch (IOException e) {
+                throw new TableException(e.getMessage());
+            }
         } else if (operation instanceof AnalyzeTableOperation) {
             if (isStreamingMode) {
                 throw new TableException("ANALYZE TABLE is not supported for streaming mode now");

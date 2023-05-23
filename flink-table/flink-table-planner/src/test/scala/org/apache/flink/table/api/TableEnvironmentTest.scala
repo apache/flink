@@ -55,6 +55,7 @@ import java.nio.file.Paths
 import java.util.{Collections, UUID}
 
 import scala.annotation.meta.getter
+import scala.tools.nsc.classpath.FileUtils.FileOps
 
 class TableEnvironmentTest {
 
@@ -2158,7 +2159,7 @@ class TableEnvironmentTest {
   }
 
   @Test
-  def testCompileAndExecutePlanWithFlinkFilesystem(): Unit = {
+  def testCompileAndExecutePlan(): Unit = {
     val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
     execEnv.setParallelism(1)
     val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
@@ -2173,18 +2174,25 @@ class TableEnvironmentTest {
       "CREATE TABLE MySink (\n" + "  a bigint,\n" + "  b int,\n" + "  c varchar\n" + ") with (\n" + "  'connector' = 'values',\n" + "  'table-sink-class' = 'DEFAULT')"
     tableEnv.executeSql(sinkTableDdl)
 
-    val planPath = tempFolder.getRoot.getPath
-    var path = "file://" + planPath + "/compile1.json"
+    val planfile = tempFolder.newFile("compile1.json")
+    var file = "file://" + planfile.toPath
 
-    var sql = String.format("COMPILE PLAN '%s' FOR INSERT INTO MySink SELECT * FROM MyTable", path)
+    var sql = String.format("COMPILE PLAN '%s' FOR INSERT INTO MySink SELECT * FROM MyTable", file)
+    tableEnv.executeSql(sql)
+
+    sql = String.format("EXECUTE PLAN '%s'", file)
+    tableEnv.executeSql(sql)
+
+    val planPath = tempFolder.getRoot.getPath
+    var path = "file://" + planPath + "/compile2.json"
+
+    sql = String.format("COMPILE PLAN '%s' FOR INSERT INTO MySink SELECT * FROM MyTable", path)
     tableEnv.executeSql(sql)
 
     sql = String.format("EXECUTE PLAN '%s'", path)
     tableEnv.executeSql(sql)
 
-    val planPath2 = tempFolder.getRoot.getPath
-    path = "file://" + planPath2 + "/compile2.json"
-
+    path = "file://" + planPath + "/compile3.json"
     sql = String.format(
       "COMPILE and EXECUTE plan '%s' FOR INSERT INTO MySink SELECT * FROM MyTable",
       path)

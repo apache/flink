@@ -23,7 +23,7 @@ import org.apache.flink.configuration.ExecutionOptions
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader
 import org.apache.flink.streaming.api.graph.StreamGraph
 import org.apache.flink.table.api.{ExplainDetail, ExplainFormat, PlanReference, TableConfig, TableException}
-import org.apache.flink.table.api.PlanReference.{ContentPlanReference, FilePlanReference, InputStreamPlanReference, ResourcePlanReference}
+import org.apache.flink.table.api.PlanReference.{ContentPlanReference, FilePlanReference, ResourcePlanReference}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.delegation.{Executor, InternalPlan}
 import org.apache.flink.table.module.ModuleManager
@@ -173,8 +173,6 @@ class StreamPlanner(
     val ctx = createSerdeContext
     val objectReader: ObjectReader = JsonSerdeUtil.createObjectReader(ctx)
     val execNodeGraph = planReference match {
-      case inputstreamPlanReference: InputStreamPlanReference =>
-        objectReader.readValue(inputstreamPlanReference.getInputStream, classOf[ExecNodeGraph])
       case filePlanReference: FilePlanReference =>
         objectReader.readValue(filePlanReference.getFile, classOf[ExecNodeGraph])
       case contentPlanReference: ContentPlanReference =>

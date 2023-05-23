@@ -20,10 +20,10 @@ package org.apache.flink.table.delegation;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.TableEnvironment;
 
+import java.io.File;
 import java.util.List;
 
 /**
@@ -40,9 +40,9 @@ public interface InternalPlan {
     /**
      * Note that {@code ignoreIfExists} has precedence over {@code failIfExists}.
      *
-     * @see CompiledPlan#writeToFile(Path, boolean)
+     * @see CompiledPlan#writeToFile(File, boolean)
      */
-    void writeToFile(Path path, boolean ignoreIfExists, boolean failIfExists);
+    void writeToFile(File file, boolean ignoreIfExists, boolean failIfExists);
 
     /** @see CompiledPlan#getFlinkVersion() */
     FlinkVersion getFlinkVersion();

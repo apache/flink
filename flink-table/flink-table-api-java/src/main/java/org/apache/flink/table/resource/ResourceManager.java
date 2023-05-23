@@ -246,7 +246,7 @@ public class ResourceManager implements Closeable {
     }
 
     @VisibleForTesting
-    URL downloadResource(Path remotePath) throws IOException {
+    public URL downloadResource(Path remotePath) throws IOException {
         // get local resource path
         Path localPath = getResourceLocalPath(remotePath);
         try {
@@ -279,7 +279,7 @@ public class ResourceManager implements Closeable {
         return localResourceDir;
     }
 
-    private Path getResourceLocalPath(Path remotePath) {
+    public Path getResourceLocalPath(Path remotePath) {
         String fileName = remotePath.getName();
         String fileExtension = Files.getFileExtension(fileName);
         // add UUID suffix to avoid conflicts

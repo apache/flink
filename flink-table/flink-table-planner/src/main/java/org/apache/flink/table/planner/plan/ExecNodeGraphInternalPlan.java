@@ -20,9 +20,6 @@ package org.apache.flink.table.planner.plan;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.core.fs.FSDataOutputStream;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.TableConfigOptions;
@@ -31,8 +28,11 @@ import org.apache.flink.table.delegation.InternalPlan;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -58,16 +58,8 @@ public class ExecNodeGraphInternalPlan implements InternalPlan {
     }
 
     @Override
-    public void writeToFile(Path path, boolean ignoreIfExists, boolean failIfExists) {
-        FileSystem fs;
-        boolean exists;
-        try {
-            fs = path.getFileSystem();
-            exists = fs.exists(path);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        if (exists) {
+    public void writeToFile(File file, boolean ignoreIfExists, boolean failIfExists) {
+        if (file.exists()) {
             if (ignoreIfExists) {
                 return;
             }
@@ -78,17 +70,17 @@ public class ExecNodeGraphInternalPlan implements InternalPlan {
                                         + "Either manually remove the file or, "
                                         + "if you're debugging your job, "
                                         + "set the option '%s' to true.",
-                                path, TableConfigOptions.PLAN_FORCE_RECOMPILE.key()));
+                                file, TableConfigOptions.PLAN_FORCE_RECOMPILE.key()));
             }
         }
-
         try {
-            FSDataOutputStream outputStream;
-            outputStream = fs.create(path, FileSystem.WriteMode.OVERWRITE);
-            outputStream.write(serializedPlan.getBytes(StandardCharsets.UTF_8));
-            outputStream.close();
+            Files.write(
+                    file.toPath(),
+                    serializedPlan.getBytes(StandardCharsets.UTF_8),
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.WRITE);
         } catch (IOException e) {
-            throw new TableException("Cannot write the compiled plan to file '" + path + "'.", e);
+            throw new TableException("Cannot write the compiled plan to file '" + file + "'.", e);
         }
     }
 

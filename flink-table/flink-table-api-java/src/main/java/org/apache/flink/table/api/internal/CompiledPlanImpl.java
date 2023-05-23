@@ -20,13 +20,14 @@ package org.apache.flink.table.api.internal;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.ExplainFormat;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.delegation.InternalPlan;
+
+import java.io.File;
 
 /** Implementation of {@link CompiledPlan}, wrapping {@link InternalPlan}. */
 @Internal
@@ -50,9 +51,9 @@ class CompiledPlanImpl implements CompiledPlan {
     }
 
     @Override
-    public void writeToFile(Path path, boolean ignoreIfExists) {
+    public void writeToFile(File file, boolean ignoreIfExists) {
         internalPlan.writeToFile(
-                path,
+                file,
                 ignoreIfExists,
                 !tableEnvironment.getConfig().get(TableConfigOptions.PLAN_FORCE_RECOMPILE));
     }
