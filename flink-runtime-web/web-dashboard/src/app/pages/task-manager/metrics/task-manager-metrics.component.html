@@ -164,7 +164,7 @@
     </tbody>
   </nz-table>
 </nz-card>
-<nz-card nzTitle="Advanced" nzSize="small">
+<nz-card nzTitle="Advanced" nzSize="small" class="flink-memory-model">
   <div nz-row [nzGutter]="16">
     <div nz-col [nzSpan]="12">
       <nz-table
@@ -293,4 +293,76 @@
       </nz-table>
     </div>
   </div>
+</nz-card>
+
+<ng-template #tmResourceRow let-detail="detail" let-name="name" let-property="prop">
+  <tr>
+    <td>{{ name }}</td>
+    <td>
+      <nz-progress
+        nzSize="small"
+        nzStrokeLinecap="square"
+        [nzPercent]="
+          +(
+            (detail?.freeResource[property] / detail?.totalResource[property]) * 100
+            | number: '1.0-2'
+          )
+        "
+        nzStatus="normal"
+      ></nz-progress>
+      {{ detail?.freeResource[property] | number }} / {{ detail?.totalResource[property] | number }}
+    </td>
+  </tr>
+</ng-template>
+
+<nz-card nzTitle="Resources" nzSize="small">
+  <nz-table
+    nzBordered
+    nzTitle="Unassigned resources"
+    [nzTemplateMode]="true"
+    [nzFrontPagination]="false"
+    [nzShowPagination]="false"
+    [nzSize]="'small'"
+    class="no-border"
+    [nzWidthConfig]="['200px', null]"
+  >
+    <tbody>
+      <ng-container
+        [ngTemplateOutlet]="tmResourceRow"
+        [ngTemplateOutletContext]="{ name: 'CPU', detail: taskManagerDetail, prop: 'cpuCores' }"
+      ></ng-container>
+      <ng-container
+        [ngTemplateOutlet]="tmResourceRow"
+        [ngTemplateOutletContext]="{
+          name: 'Task Heap memory',
+          detail: taskManagerDetail,
+          prop: 'taskHeapMemory'
+        }"
+      ></ng-container>
+      <ng-container
+        [ngTemplateOutlet]="tmResourceRow"
+        [ngTemplateOutletContext]="{
+          name: 'Task Off-Heap memory',
+          detail: taskManagerDetail,
+          prop: 'taskOffHeapMemory'
+        }"
+      ></ng-container>
+      <ng-container
+        [ngTemplateOutlet]="tmResourceRow"
+        [ngTemplateOutletContext]="{
+          name: 'Managed memory',
+          detail: taskManagerDetail,
+          prop: 'managedMemory'
+        }"
+      ></ng-container>
+      <ng-container
+        [ngTemplateOutlet]="tmResourceRow"
+        [ngTemplateOutletContext]="{
+          name: 'Network memory',
+          detail: taskManagerDetail,
+          prop: 'networkMemory'
+        }"
+      ></ng-container>
+    </tbody>
+  </nz-table>
 </nz-card>

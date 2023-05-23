@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { DecimalPipe, NgForOf, NgIf } from '@angular/common';
+import { DecimalPipe, NgForOf, NgIf, NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { of, Subject } from 'rxjs';
@@ -47,7 +47,8 @@ import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
     NzIconModule,
     NzGridModule,
     NgForOf,
-    NgIf
+    NgIf,
+    NgTemplateOutlet
   ],
   standalone: true
 })
