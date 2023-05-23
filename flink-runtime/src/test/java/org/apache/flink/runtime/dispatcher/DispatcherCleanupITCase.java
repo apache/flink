@@ -302,12 +302,6 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         waitForJobToFinish(leaderElectionService, dispatcherGateway, jobId);
         firstCleanupTriggered.await();
 
-        // Remove job master leadership.
-        leaderElectionService.notLeader();
-
-        // This will clear internal state of election service, so a new contender can register.
-        leaderElectionService.stop();
-
         assertThat(
                 "The cleanup should have been triggered only once.",
                 actualGlobalCleanupCallCount.get(),
