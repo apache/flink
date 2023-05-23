@@ -22,17 +22,18 @@ import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.planner.codegen.agg.batch.HashAggCodeGenerator
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
+import org.apache.flink.testutils.junit.extensions.parameterized.{Parameter, ParameterizedTestExtension, Parameters}
 
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.junit.jupiter.api.TestTemplate
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.math.BigDecimal
 
 /** AggregateITCase using HashAgg Operator. */
-@RunWith(classOf[Parameterized])
-class HashAggITCase(adaptiveLocalHashAggEnable: Boolean)
-  extends AggregateITCaseBase("HashAggregate") {
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
+class HashAggITCase extends AggregateITCaseBase("HashAggregate") {
+
+  @Parameter var adaptiveLocalHashAggEnable: Boolean = _
 
   override def prepareAggOp(): Unit = {
     tEnv.getConfig.set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg")
@@ -48,7 +49,7 @@ class HashAggITCase(adaptiveLocalHashAggEnable: Boolean)
     }
   }
 
-  @Test
+  @TestTemplate
   def testAdaptiveLocalHashAggWithHighAggregationDegree(): Unit = {
     checkQuery(
       Seq(
@@ -80,7 +81,7 @@ class HashAggITCase(adaptiveLocalHashAggEnable: Boolean)
     )
   }
 
-  @Test
+  @TestTemplate
   def testAdaptiveLocalHashAggWithLowAggregationDegree(): Unit = {
     checkQuery(
       Seq(
@@ -115,7 +116,7 @@ class HashAggITCase(adaptiveLocalHashAggEnable: Boolean)
     )
   }
 
-  @Test
+  @TestTemplate
   def testAdaptiveLocalHashAggWithRowLessThanSamplingThreshold(): Unit = {
     checkQuery(
       Seq((1, 1, 1, 1, 1L, 1.1d), (1, 1, 1, 2, 1L, 1.2d), (1, 2, 2, 3, 2L, 2.2d)),
@@ -127,7 +128,7 @@ class HashAggITCase(adaptiveLocalHashAggEnable: Boolean)
     )
   }
 
-  @Test
+  @TestTemplate
   def testAdaptiveLocalHashAggWithNullValue(): Unit = {
     val testDataWithNullValue = tEnv.fromValues(
       DataTypes.ROW(
@@ -169,7 +170,7 @@ class HashAggITCase(adaptiveLocalHashAggEnable: Boolean)
 
   }
 
-  @Test
+  @TestTemplate
   def testAdaptiveHashAggWithSumAndAvgFunctionForNumericalType(): Unit = {
     val testDataWithAllTypes = tEnv.fromValues(
       DataTypes.ROW(
@@ -333,7 +334,7 @@ class HashAggITCase(adaptiveLocalHashAggEnable: Boolean)
 }
 
 object HashAggITCase {
-  @Parameterized.Parameters(name = "adaptiveLocalHashAggEnable={0}")
+  @Parameters(name = "adaptiveLocalHashAggEnable={0}")
   def parameters(): java.util.Collection[Boolean] = {
     java.util.Arrays.asList(true, false)
   }

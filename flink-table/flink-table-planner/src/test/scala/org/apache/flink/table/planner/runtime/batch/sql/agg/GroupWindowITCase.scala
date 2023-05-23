@@ -29,13 +29,14 @@ import org.apache.flink.table.planner.utils.{CountAggFunction, IntAvgAggFunction
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.localDateTime
 import org.apache.flink.types.Row
 
-import org.junit.{Before, Test}
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 import java.time.LocalDateTime
 
 class GroupWindowITCase extends BatchTestBase {
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     // common case
@@ -743,7 +744,7 @@ class GroupWindowITCase extends BatchTestBase {
     )
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test
   def testSessionWindowWithProperties(): Unit = {
     registerCollection(
       "T",
@@ -758,8 +759,10 @@ class GroupWindowITCase extends BatchTestBase {
         "SESSION_ROWTIME(ts, INTERVAL '4' SECOND) " +
         "FROM T " +
         "GROUP BY SESSION(ts, INTERVAL '4' SECOND)"
-
-    checkResult(sqlQuery, Seq())
+    assertThatThrownBy(
+      () => {
+        checkResult(sqlQuery, Seq())
+      }).hasCauseInstanceOf(classOf[RuntimeException])
   }
 
   @Test
