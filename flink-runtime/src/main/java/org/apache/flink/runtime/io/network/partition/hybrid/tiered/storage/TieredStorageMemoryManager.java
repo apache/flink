@@ -37,7 +37,7 @@ import java.util.List;
  * for tasks such as flushing memory to disk or remote storage.
  *
  * <p>The {@link TieredStorageMemoryManager} does not provide strict memory limitations on any user
- * can request. Instead, it only simply provides memory usage hints to users. It is very
+ * can request. Instead, it only simply provides memory usage hints to memory users. It is very
  * <b>important</b> to note that <b>only</b> users with non-reclaimable should check the memory
  * hints by calling {@code getMaxNonReclaimableBuffers} before requesting buffers.
  */
@@ -58,7 +58,7 @@ public interface TieredStorageMemoryManager {
      * TieredStorageMemoryManager}.
      *
      * <p>When the left buffers in the {@link BufferPool} are not enough, {@link
-     * TieredStorageMemoryManager} will try to reclaim the buffers from the memory users.
+     * TieredStorageMemoryManager} will try to reclaim the buffers from the memory owners.
      *
      * @param onBufferReclaimRequest a {@link Runnable} to process the buffer reclaim request
      */
@@ -66,10 +66,10 @@ public interface TieredStorageMemoryManager {
 
     /**
      * Request a {@link BufferBuilder} instance from {@link BufferPool} for a specific owner. The
-     * {@link TieredStorageMemoryManagerImpl} will not check whether a buffer can be requested and
-     * only record the total number of requested buffers. If the buffers in the {@link BufferPool}
-     * is not enough, this will request each tiered storage to reclaim the buffers as much as
-     * possible.
+     * {@link TieredStorageMemoryManagerImpl} will not check whether a buffer can be requested. The
+     * manager only records the number of requested buffers. If the buffers in the {@link
+     * BufferPool} is not enough, the manager will request each tiered storage to reclaim their
+     * requested buffers as much as possible.
      *
      * <p>This is not thread safe and is expected to be called only from the task thread.
      *
@@ -84,6 +84,11 @@ public interface TieredStorageMemoryManager {
      * <p>Note that the available buffers are calculated dynamically based on some conditions, for
      * example, the state of the {@link BufferPool}, the {@link TieredStorageMemorySpec} of the
      * owner, etc. So the caller should always check before requesting non-reclaimable buffers.
+     *
+     * <p>When invoking this method, the caller should be aware that the return value may
+     * occasionally be negative. This is due to the possibility of the buffer pool size shrinking to
+     * a point where it is smaller than the buffers owned by other users. In such cases, the maximum
+     * non-reclaimable buffer value returned may be negative.
      */
     int getMaxNonReclaimableBuffers(Object owner);
 

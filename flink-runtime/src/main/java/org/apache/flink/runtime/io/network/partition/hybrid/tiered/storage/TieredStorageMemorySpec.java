@@ -19,14 +19,15 @@
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage;
 
 /**
- * The memory specs for a memory owner, including the owner itself, the number of exclusive buffers
- * of the owner, whether the owner's memory can be released when not consumed, etc.
+ * The memory specs for a memory owner, including the owner itself, the number of guaranteed buffers
+ * of the memory owner, etc.
  */
 public class TieredStorageMemorySpec {
 
     /** The memory use owner. */
     private final Object owner;
 
+    /** The number of guaranteed buffers of this memory owner. */
     private final int numGuaranteedBuffers;
 
     public TieredStorageMemorySpec(Object owner, int numGuaranteedBuffers) {

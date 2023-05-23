@@ -49,8 +49,9 @@ import static org.apache.flink.util.Preconditions.checkState;
  * from {@link LocalBufferPool} for different memory owners, for example, the tiers, the buffer
  * accumulator, etc.
  *
- * <p>Note that the memory owner should register its {@link TieredStorageMemorySpec} firstly before
- * requesting buffers.
+ * <p>Note that the {@link TieredStorageMemorySpec}s of the tiered storages should be ready when
+ * setting up the memory manager. Only after the setup process is finished, the tiered storage can
+ * request buffers from this manager.
  */
 public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManager {
 
@@ -73,11 +74,15 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
     private final boolean mayReclaimBuffer;
 
     /**
-     * The number of requested buffers from {@link BufferPool}. Only this field can be touched both
-     * by the task thread and the netty thread, so it is an atomic type.
+     * The number of requested buffers from {@link BufferPool}. This field can be touched both by
+     * the task thread and the netty thread, so it is an atomic type.
      */
     private final AtomicInteger numRequestedBuffers;
 
+    /**
+     * The number of requested buffers from {@link BufferPool} for each memory owner. This field
+     * should be thread-safe because it can be touched both by the task thread and the netty thread.
+     */
     private final Map<Object, AtomicInteger> numOwnerRequestedBuffers;
 
     /**
@@ -166,12 +171,6 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
                 checkNotNull(memorySegment), segment -> recycleBuffer(owner, segment));
     }
 
-    // The synchronization is not necessary for this method, as it can only be called by the task
-    // thread.
-    // When invoking this method, the caller should be aware that the return value may occasionally
-    // be negative. This is due to the possibility of the buffer pool size shrinking to a point
-    // where it is smaller than the buffers owned by other users. In such cases, the maximum
-    // non-reclaimable buffer value returned may be negative.
     @Override
     public int getMaxNonReclaimableBuffers(Object owner) {
         checkIsInitialized();
@@ -224,6 +223,8 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
         }
         checkNotNull(executor)
                 .schedule(
+                        // The delay time will be doubled after each check to avoid checking the
+                        // future too frequently.
                         () -> internalCheckRequestBufferFuture(requestBufferFuture, delayMs * 2),
                         delayMs,
                         TimeUnit.MILLISECONDS);
@@ -271,11 +272,11 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
 
     /** Note that this method may be called by the netty thread. */
     private void recycleBuffer(Object owner, MemorySegment buffer) {
-        decNumRequestedBuffer(owner);
         bufferPool.recycle(buffer);
+        decNumRequestedBuffer(owner);
     }
 
     private void checkIsInitialized() {
-        checkState(isInitialized, "The memory manager is not in running state.");
+        checkState(isInitialized, "The memory manager is not in the running state.");
     }
 }
