@@ -53,10 +53,14 @@ public class CachedShuffleDescriptors {
     /** Stores the mapping of resultPartitionId to index subscripts in consumed partition group. */
     private final Map<IntermediateResultPartitionID, Integer> resultPartitionIdToIndex;
 
+    /** The number of consumers for {@link ConsumedPartitionGroup}. */
+    private final int numConsumers;
+
     public CachedShuffleDescriptors(
             ConsumedPartitionGroup consumedPartitionGroup,
             ShuffleDescriptorAndIndex[] shuffleDescriptors) {
         this.resultPartitionIdToIndex = new HashMap<>();
+        this.numConsumers = consumedPartitionGroup.getNumConsumers();
         int index = 0;
         for (IntermediateResultPartitionID resultPartitionID : consumedPartitionGroup) {
             resultPartitionIdToIndex.put(resultPartitionID, index++);
@@ -80,7 +84,7 @@ public class CachedShuffleDescriptors {
         if (!toBeSerialized.isEmpty()) {
             MaybeOffloaded<ShuffleDescriptorAndIndex[]> serializedShuffleDescriptor =
                     shuffleDescriptorSerializer.serializeAndTryOffloadShuffleDescriptor(
-                            toBeSerialized.toArray(new ShuffleDescriptorAndIndex[0]));
+                            toBeSerialized.toArray(new ShuffleDescriptorAndIndex[0]), numConsumers);
             toBeSerialized.clear();
             serializedShuffleDescriptors.add(serializedShuffleDescriptor);
         }

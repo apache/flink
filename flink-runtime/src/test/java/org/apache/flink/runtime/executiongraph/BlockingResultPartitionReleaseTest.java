@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.TestingBlobWriter;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
@@ -106,7 +107,8 @@ class BlockingResultPartitionReleaseTest {
                         mainThreadExecutor,
                         ioExecutor,
                         partitionTracker,
-                        EXECUTOR_RESOURCE.getExecutor());
+                        EXECUTOR_RESOURCE.getExecutor(),
+                        new Configuration());
         ExecutionGraph executionGraph = scheduler.getExecutionGraph();
 
         assertThat(partitionTracker.releasedPartitions).isEmpty();

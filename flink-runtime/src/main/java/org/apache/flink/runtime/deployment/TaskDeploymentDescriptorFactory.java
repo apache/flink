@@ -18,8 +18,10 @@
 
 package org.apache.flink.runtime.deployment;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
@@ -58,6 +60,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -66,6 +69,21 @@ import static org.apache.flink.util.Preconditions.checkState;
  * org.apache.flink.runtime.taskmanager.Task} from {@link Execution}.
  */
 public class TaskDeploymentDescriptorFactory {
+    /**
+     * This is an expert option, that we do not want to expose in the documentation. The default
+     * value is good enough for almost all cases
+     */
+    @Experimental
+    public static final ConfigOption<Integer> OFFLOAD_SHUFFLE_DESCRIPTORS_THRESHOLD =
+            key("jobmanager.task-deployment.offload-shuffle-descriptors-to-blob-server.threshold-num")
+                    .intType()
+                    .defaultValue(2048 * 2048)
+                    .withDescription(
+                            "Threshold for offloading shuffle descriptors to blob server. Once the number of shuffle descriptors"
+                                    + " exceeds this value, we will offload the shuffle descriptors to blob server."
+                                    + " This default value means JobManager need to serialize and transport"
+                                    + " 2048 shuffle descriptors (almost 32KB) to 2048 consumers (64MB in total)");
+
     private final MaybeOffloaded<JobInformation> serializedJobInformation;
     private final JobID jobID;
     private final PartitionLocationConstraint partitionDeploymentConstraint;
@@ -77,13 +95,15 @@ public class TaskDeploymentDescriptorFactory {
             JobID jobID,
             PartitionLocationConstraint partitionDeploymentConstraint,
             BlobWriter blobWriter,
-            boolean nonFinishedHybridPartitionShouldBeUnknown) {
+            boolean nonFinishedHybridPartitionShouldBeUnknown,
+            int offloadShuffleDescriptorsThreshold) {
         this.serializedJobInformation = getSerializedJobInformation(jobInformationOrBlobKey);
         this.jobID = jobID;
         this.partitionDeploymentConstraint = partitionDeploymentConstraint;
         this.nonFinishedHybridPartitionShouldBeUnknown = nonFinishedHybridPartitionShouldBeUnknown;
         this.shuffleDescriptorSerializer =
-                new DefaultShuffleDescriptorSerializer(jobID, blobWriter);
+                new DefaultShuffleDescriptorSerializer(
+                        jobID, blobWriter, offloadShuffleDescriptorsThreshold);
     }
 
     public MaybeOffloaded<JobInformation> getSerializedJobInformation() {
@@ -428,35 +448,63 @@ public class TaskDeploymentDescriptorFactory {
 
     /** Serialize shuffle descriptors. */
     interface ShuffleDescriptorSerializer {
+        /**
+         * Serialize and try offload shuffle descriptors.
+         *
+         * @param shuffleDescriptors to serialize
+         * @param numConsumer consumers number of these shuffle descriptors, it means how many times
+         *     serialized shuffle descriptor should be sent
+         * @return offloaded or non-offloaded serialized shuffle descriptors
+         */
         MaybeOffloaded<ShuffleDescriptorAndIndex[]> serializeAndTryOffloadShuffleDescriptor(
-                ShuffleDescriptorAndIndex[] shuffleDescriptors) throws IOException;
+                ShuffleDescriptorAndIndex[] shuffleDescriptors, int numConsumer) throws IOException;
     }
 
     private static class DefaultShuffleDescriptorSerializer implements ShuffleDescriptorSerializer {
         private final JobID jobID;
         private final BlobWriter blobWriter;
+        private final int offloadShuffleDescriptorsThreshold;
 
-        public DefaultShuffleDescriptorSerializer(JobID jobID, BlobWriter blobWriter) {
+        public DefaultShuffleDescriptorSerializer(
+                JobID jobID, BlobWriter blobWriter, int offloadShuffleDescriptorsThreshold) {
             this.jobID = checkNotNull(jobID);
             this.blobWriter = checkNotNull(blobWriter);
+            this.offloadShuffleDescriptorsThreshold = offloadShuffleDescriptorsThreshold;
         }
 
         @Override
         public MaybeOffloaded<ShuffleDescriptorAndIndex[]> serializeAndTryOffloadShuffleDescriptor(
-                ShuffleDescriptorAndIndex[] shuffleDescriptors) throws IOException {
+                ShuffleDescriptorAndIndex[] shuffleDescriptors, int numConsumer)
+                throws IOException {
 
             final CompressedSerializedValue<ShuffleDescriptorAndIndex[]> compressedSerializedValue =
                     CompressedSerializedValue.fromObject(shuffleDescriptors);
 
             final Either<SerializedValue<ShuffleDescriptorAndIndex[]>, PermanentBlobKey>
                     serializedValueOrBlobKey =
-                            BlobWriter.tryOffload(compressedSerializedValue, jobID, blobWriter);
+                            shouldOffload(shuffleDescriptors, numConsumer)
+                                    ? BlobWriter.offloadWithException(
+                                            compressedSerializedValue, jobID, blobWriter)
+                                    : Either.Left(compressedSerializedValue);
 
             if (serializedValueOrBlobKey.isLeft()) {
                 return new TaskDeploymentDescriptor.NonOffloaded<>(serializedValueOrBlobKey.left());
             } else {
                 return new TaskDeploymentDescriptor.Offloaded<>(serializedValueOrBlobKey.right());
             }
+        }
+
+        /**
+         * Determine whether shuffle descriptors should be offloaded to blob server.
+         *
+         * @param shuffleDescriptorsToSerialize shuffle descriptors to serialize
+         * @param numConsumers how many consumers this serialized shuffle descriptor should be sent
+         * @return whether shuffle descriptors should be offloaded to blob server
+         */
+        private boolean shouldOffload(
+                ShuffleDescriptorAndIndex[] shuffleDescriptorsToSerialize, int numConsumers) {
+            return shuffleDescriptorsToSerialize.length * numConsumers
+                    >= offloadShuffleDescriptorsThreshold;
         }
     }
 }

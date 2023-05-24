@@ -20,6 +20,7 @@ package org.apache.flink.runtime.deployment;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.TestingBlobWriter;
@@ -74,19 +75,27 @@ class TaskDeploymentDescriptorFactoryTest {
 
     @Test
     void testCacheShuffleDescriptorAsNonOffloaded() throws Exception {
-        testCacheShuffleDescriptor(new TestingBlobWriter(Integer.MAX_VALUE));
+        final Configuration jobMasterConfig = new Configuration();
+        jobMasterConfig.set(
+                TaskDeploymentDescriptorFactory.OFFLOAD_SHUFFLE_DESCRIPTORS_THRESHOLD,
+                Integer.MAX_VALUE);
+        testCacheShuffleDescriptor(jobMasterConfig);
     }
 
     @Test
     void testCacheShuffleDescriptorAsOffloaded() throws Exception {
-        testCacheShuffleDescriptor(new TestingBlobWriter(0));
+        final Configuration jobMasterConfig = new Configuration();
+        jobMasterConfig.set(
+                TaskDeploymentDescriptorFactory.OFFLOAD_SHUFFLE_DESCRIPTORS_THRESHOLD, 0);
+        testCacheShuffleDescriptor(jobMasterConfig);
     }
 
-    private void testCacheShuffleDescriptor(TestingBlobWriter blobWriter) throws Exception {
+    private void testCacheShuffleDescriptor(Configuration jobMasterConfig) throws Exception {
         final JobID jobId = new JobID();
+        final TestingBlobWriter blobWriter = new TestingBlobWriter();
 
         final Tuple2<ExecutionJobVertex, ExecutionJobVertex> executionJobVertices =
-                setupExecutionGraphAndGetVertices(jobId, blobWriter);
+                setupExecutionGraphAndGetVertices(jobId, blobWriter, jobMasterConfig);
 
         final ExecutionVertex ev21 = executionJobVertices.f1.getTaskVertices()[0];
         createTaskDeploymentDescriptor(ev21);
@@ -153,9 +162,12 @@ class TaskDeploymentDescriptorFactoryTest {
         final TestingBlobWriter blobWriter = new TestingBlobWriter(0);
 
         final JobID jobId = new JobID();
+        final Configuration jobMasterConfig = new Configuration();
+        jobMasterConfig.set(
+                TaskDeploymentDescriptorFactory.OFFLOAD_SHUFFLE_DESCRIPTORS_THRESHOLD, 0);
 
         final Tuple2<ExecutionJobVertex, ExecutionJobVertex> executionJobVertices =
-                setupExecutionGraphAndGetVertices(jobId, blobWriter);
+                setupExecutionGraphAndGetVertices(jobId, blobWriter, jobMasterConfig);
 
         final ExecutionVertex ev21 = executionJobVertices.f1.getTaskVertices()[0];
         final TaskDeploymentDescriptor tdd = createTaskDeploymentDescriptor(ev21);
@@ -166,19 +178,21 @@ class TaskDeploymentDescriptorFactoryTest {
     }
 
     private Tuple2<ExecutionJobVertex, ExecutionJobVertex> setupExecutionGraphAndGetVertices(
-            JobID jobId, BlobWriter blobWriter) throws Exception {
+            JobID jobId, BlobWriter blobWriter, Configuration jobMasterConfig) throws Exception {
         return setupExecutionGraphAndGetVertices(
                 jobId,
                 blobWriter,
                 ResultPartitionType.BLOCKING,
-                ResultPartitionType::isBlockingOrBlockingPersistentResultPartition);
+                ResultPartitionType::isBlockingOrBlockingPersistentResultPartition,
+                jobMasterConfig);
     }
 
     private Tuple2<ExecutionJobVertex, ExecutionJobVertex> setupExecutionGraphAndGetVertices(
             JobID jobId,
             BlobWriter blobWriter,
             ResultPartitionType resultPartitionType,
-            MarkPartitionFinishedStrategy markPartitionFinishedStrategy)
+            MarkPartitionFinishedStrategy markPartitionFinishedStrategy,
+            Configuration jobMasterConfig)
             throws Exception {
         final JobVertex v1 = createJobVertex("v1", PARALLELISM);
         final JobVertex v2 = createJobVertex("v2", PARALLELISM);
@@ -188,7 +202,8 @@ class TaskDeploymentDescriptorFactoryTest {
         final List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2));
 
         final ExecutionGraph executionGraph =
-                createExecutionGraph(jobId, ordered, blobWriter, markPartitionFinishedStrategy);
+                createExecutionGraph(
+                        jobId, ordered, blobWriter, markPartitionFinishedStrategy, jobMasterConfig);
 
         return Tuple2.of(
                 executionGraph.getJobVertex(v1.getID()), executionGraph.getJobVertex(v2.getID()));
@@ -229,7 +244,8 @@ class TaskDeploymentDescriptorFactoryTest {
             final JobID jobId,
             final List<JobVertex> jobVertices,
             final BlobWriter blobWriter,
-            final MarkPartitionFinishedStrategy markPartitionFinishedStrategy)
+            final MarkPartitionFinishedStrategy markPartitionFinishedStrategy,
+            final Configuration jobMasterConfig)
             throws JobException, JobExecutionException {
 
         final JobGraph jobGraph =
@@ -239,6 +255,7 @@ class TaskDeploymentDescriptorFactoryTest {
                         .build();
 
         return TestingDefaultExecutionGraphBuilder.newBuilder()
+                .setJobMasterConfig(jobMasterConfig)
                 .setJobGraph(jobGraph)
                 .setBlobWriter(blobWriter)
                 .setMarkPartitionFinishedStrategy(markPartitionFinishedStrategy)
