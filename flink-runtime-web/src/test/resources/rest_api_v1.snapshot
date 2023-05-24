@@ -1973,6 +1973,9 @@
               },
               "taskManagerId" : {
                 "type" : "string"
+              },
+              "taskManagerAlive" : {
+                "type" : "boolean"
               }
             }
           }
@@ -2008,6 +2011,9 @@
                   "taskManagerId" : {
                     "type" : "string"
                   },
+                  "taskManagerAlive" : {
+                    "type" : "boolean"
+                  },
                   "concurrentExceptions" : {
                     "type" : "array",
                     "items" : {
@@ -2031,6 +2037,9 @@
                         },
                         "taskManagerId" : {
                           "type" : "string"
+                        },
+                        "taskManagerAlive" : {
+                          "type" : "boolean"
                         }
                       }
                     }

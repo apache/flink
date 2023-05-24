@@ -20,13 +20,17 @@ package org.apache.flink.runtime.rest.handler.job;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
+import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
+import org.apache.flink.runtime.rest.handler.resourcemanager.AbstractResourceManagerHandler;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobExceptionsInfo;
 import org.apache.flink.runtime.rest.messages.JobExceptionsInfoWithHistory;
@@ -35,6 +39,7 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.job.JobExceptionsMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.UpperLimitExceptionParameter;
+import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
@@ -47,15 +52,20 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.curator5.com.google.common.collect.Iterables;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -68,6 +78,10 @@ public class JobExceptionsHandler
 
     static final int MAX_NUMBER_EXCEPTION_TO_REPORT = 20;
 
+    private final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
+
+    private static Set<ResourceID> taskManagerInfos = new HashSet<>();
+
     public JobExceptionsHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
             Time timeout,
@@ -78,7 +92,8 @@ public class JobExceptionsHandler
                             JobExceptionsMessageParameters>
                     messageHeaders,
             ExecutionGraphCache executionGraphCache,
-            Executor executor) {
+            Executor executor,
+            GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever) {
 
         super(
                 leaderRetriever,
@@ -87,6 +102,30 @@ public class JobExceptionsHandler
                 messageHeaders,
                 executionGraphCache,
                 executor);
+        this.resourceManagerGatewayRetriever = resourceManagerGatewayRetriever;
+    }
+
+    @Override
+    protected CompletableFuture<JobExceptionsInfoWithHistory> handleRequest(
+            @Nonnull HandlerRequest<EmptyRequestBody> request, @Nonnull RestfulGateway gateway)
+            throws RestHandlerException {
+        ResourceManagerGateway resourceManagerGateway =
+                AbstractResourceManagerHandler.getResourceManagerGateway(
+                        resourceManagerGatewayRetriever);
+        return resourceManagerGateway
+                .requestTaskManagerInfo(timeout)
+                .thenCompose(
+                        taskManagers -> {
+                            taskManagerInfos =
+                                    taskManagers.stream()
+                                            .map(TaskManagerInfo::getResourceId)
+                                            .collect(Collectors.toSet());
+                            try {
+                                return super.handleRequest(request, gateway);
+                            } catch (RestHandlerException e) {
+                                throw new CompletionException(e);
+                            }
+                        });
     }
 
     @Override
@@ -145,7 +184,8 @@ public class JobExceptionsHandler
                                     task.getTaskNameWithSubtaskIndex(),
                                     locationString,
                                     timestamp == 0 ? -1 : timestamp,
-                                    toTaskManagerId(location)));
+                                    toTaskManagerId(location),
+                                    isTaskManagerAlive(location)));
                 }
             }
         }
@@ -202,6 +242,7 @@ public class JobExceptionsHandler
                 historyEntry.getFailingTaskName(),
                 toString(historyEntry.getTaskManagerLocation()),
                 toTaskManagerId(historyEntry.getTaskManagerLocation()),
+                isTaskManagerAlive(historyEntry.getTaskManagerLocation()),
                 concurrentExceptions);
     }
 
@@ -215,7 +256,8 @@ public class JobExceptionsHandler
                 exceptionHistoryEntry.getTimestamp(),
                 exceptionHistoryEntry.getFailingTaskName(),
                 toString(exceptionHistoryEntry.getTaskManagerLocation()),
-                toTaskManagerId(exceptionHistoryEntry.getTaskManagerLocation()));
+                toTaskManagerId(exceptionHistoryEntry.getTaskManagerLocation()),
+                isTaskManagerAlive(exceptionHistoryEntry.getTaskManagerLocation()));
     }
 
     private static void assertLocalExceptionInfo(ExceptionHistoryEntry exceptionHistoryEntry) {
@@ -240,6 +282,10 @@ public class JobExceptionsHandler
         return location != null ? String.format("%s", location.getResourceID()) : "(unassigned)";
     }
 
+    static boolean isTaskManagerAlive(@Nullable TaskManagerLocation location) {
+        return location != null && taskManagerInfos.contains(location.getResourceID());
+    }
+
     @VisibleForTesting
     @Nullable
     static String toString(@Nullable ExceptionHistoryEntry.ArchivedTaskManagerLocation location) {
@@ -252,6 +298,11 @@ public class JobExceptionsHandler
     static String toTaskManagerId(
             @Nullable ExceptionHistoryEntry.ArchivedTaskManagerLocation location) {
         return location != null ? String.format("%s", location.getResourceID()) : null;
+    }
+
+    static boolean isTaskManagerAlive(
+            @Nullable ExceptionHistoryEntry.ArchivedTaskManagerLocation location) {
+        return location != null && taskManagerInfos.contains(location.getResourceID());
     }
 
     private static String taskManagerLocationToString(String fqdnHostname, int port) {

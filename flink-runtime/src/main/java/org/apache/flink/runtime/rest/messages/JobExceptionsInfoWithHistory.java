@@ -177,6 +177,7 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
         public static final String FIELD_NAME_TASK_NAME = "taskName";
         public static final String FIELD_NAME_LOCATION = "location";
         public static final String FIELD_NAME_TASK_MANAGER_ID = "taskManagerId";
+        public static final String FIELD_NAME_TASK_MANAGER_ALIVE = "taskManagerAlive";
 
         @JsonProperty(FIELD_NAME_EXCEPTION_NAME)
         private final String exceptionName;
@@ -202,8 +203,11 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
         @Nullable
         private final String taskManagerId;
 
+        @JsonProperty(FIELD_NAME_TASK_MANAGER_ALIVE)
+        private final boolean taskManagerAlive;
+
         public ExceptionInfo(String exceptionName, String stacktrace, long timestamp) {
-            this(exceptionName, stacktrace, timestamp, null, null, null);
+            this(exceptionName, stacktrace, timestamp, null, null, null, false);
         }
 
         @JsonCreator
@@ -213,13 +217,15 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
                 @JsonProperty(FIELD_NAME_EXCEPTION_TIMESTAMP) long timestamp,
                 @JsonProperty(FIELD_NAME_TASK_NAME) @Nullable String taskName,
                 @JsonProperty(FIELD_NAME_LOCATION) @Nullable String location,
-                @JsonProperty(FIELD_NAME_TASK_MANAGER_ID) @Nullable String taskManagerId) {
+                @JsonProperty(FIELD_NAME_TASK_MANAGER_ID) @Nullable String taskManagerId,
+                @JsonProperty(FIELD_NAME_TASK_MANAGER_ALIVE) boolean taskManagerAlive) {
             this.exceptionName = checkNotNull(exceptionName);
             this.stacktrace = checkNotNull(stacktrace);
             this.timestamp = timestamp;
             this.taskName = taskName;
             this.location = location;
             this.taskManagerId = taskManagerId;
+            this.taskManagerAlive = taskManagerAlive;
         }
 
         @JsonIgnore
@@ -255,8 +261,14 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
             return taskManagerId;
         }
 
+        @JsonIgnore
+        public boolean isTaskManagerAlive() {
+            return taskManagerAlive;
+        }
+
         // hashCode and equals are necessary for the test classes deriving from
         // RestResponseMarshallingTestBase
+
         @Override
         public boolean equals(Object o) {
             if (this == o) {
@@ -267,15 +279,24 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
             }
             ExceptionInfo that = (ExceptionInfo) o;
             return exceptionName.equals(that.exceptionName)
+                    && taskManagerAlive == that.taskManagerAlive
                     && stacktrace.equals(that.stacktrace)
                     && Objects.equals(timestamp, that.timestamp)
                     && Objects.equals(taskName, that.taskName)
-                    && Objects.equals(location, that.location);
+                    && Objects.equals(location, that.location)
+                    && Objects.equals(taskManagerId, that.taskManagerId);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(exceptionName, stacktrace, timestamp, taskName, location);
+            return Objects.hash(
+                    exceptionName,
+                    stacktrace,
+                    timestamp,
+                    taskName,
+                    location,
+                    taskManagerId,
+                    taskManagerAlive);
         }
 
         @Override
@@ -286,6 +307,7 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
                     .add("timestamp=" + timestamp)
                     .add("taskName='" + taskName + "'")
                     .add("location='" + location + "'")
+                    .add("taskManagerAlive=" + taskManagerAlive)
                     .toString();
         }
     }
@@ -306,7 +328,15 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
                 String stacktrace,
                 long timestamp,
                 Collection<ExceptionInfo> concurrentExceptions) {
-            this(exceptionName, stacktrace, timestamp, null, null, null, concurrentExceptions);
+            this(
+                    exceptionName,
+                    stacktrace,
+                    timestamp,
+                    null,
+                    null,
+                    null,
+                    false,
+                    concurrentExceptions);
         }
 
         @JsonCreator
@@ -317,9 +347,17 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
                 @JsonProperty(FIELD_NAME_TASK_NAME) @Nullable String taskName,
                 @JsonProperty(FIELD_NAME_LOCATION) @Nullable String location,
                 @JsonProperty(FIELD_NAME_TASK_MANAGER_ID) @Nullable String taskManagerId,
+                @JsonProperty(FIELD_NAME_TASK_MANAGER_ALIVE) boolean taskManagerAlive,
                 @JsonProperty(FIELD_NAME_CONCURRENT_EXCEPTIONS)
                         Collection<ExceptionInfo> concurrentExceptions) {
-            super(exceptionName, stacktrace, timestamp, taskName, location, taskManagerId);
+            super(
+                    exceptionName,
+                    stacktrace,
+                    timestamp,
+                    taskName,
+                    location,
+                    taskManagerId,
+                    taskManagerAlive);
             this.concurrentExceptions = concurrentExceptions;
         }
 

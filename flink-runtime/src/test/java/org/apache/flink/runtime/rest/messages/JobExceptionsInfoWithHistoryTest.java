@@ -51,14 +51,16 @@ public class JobExceptionsInfoWithHistoryTest
                         "task1",
                         "location1",
                         System.currentTimeMillis(),
-                        "taskManagerId1"));
+                        "taskManagerId1",
+                        true));
         executionTaskExceptionInfoList.add(
                 new JobExceptionsInfo.ExecutionExceptionInfo(
                         "exception2",
                         "task2",
                         "location2",
                         System.currentTimeMillis(),
-                        "taskManagerId2"));
+                        "taskManagerId2",
+                        false));
         return new JobExceptionsInfoWithHistory(
                 "root exception",
                 System.currentTimeMillis(),

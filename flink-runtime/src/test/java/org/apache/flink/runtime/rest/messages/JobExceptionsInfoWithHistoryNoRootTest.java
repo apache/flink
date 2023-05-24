@@ -44,14 +44,16 @@ public class JobExceptionsInfoWithHistoryNoRootTest
                         "task1",
                         "location1",
                         System.currentTimeMillis(),
-                        "taskManagerId1"));
+                        "taskManagerId1",
+                        true));
         executionTaskExceptionInfoList.add(
                 new JobExceptionsInfo.ExecutionExceptionInfo(
                         "exception2",
                         "task2",
                         "location2",
                         System.currentTimeMillis(),
-                        "taskManagerId2"));
+                        "taskManagerId2",
+                        false));
         return new JobExceptionsInfoWithHistory(
                 null,
                 null,
@@ -70,7 +72,8 @@ public class JobExceptionsInfoWithHistoryNoRootTest
                                                         2L,
                                                         "task name #2",
                                                         "location #2",
-                                                        "taskManagerId #2"))),
+                                                        "taskManagerId #2",
+                                                        true))),
                                 new JobExceptionsInfoWithHistory.RootExceptionInfo(
                                         "local task failure #1",
                                         "stacktrace #1",
@@ -78,6 +81,7 @@ public class JobExceptionsInfoWithHistoryNoRootTest
                                         "task name",
                                         "location",
                                         "taskManagerId",
+                                        false,
                                         Collections.emptyList())),
                         false));
     }

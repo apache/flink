@@ -147,6 +147,7 @@ public class JobExceptionsInfo {
         public static final String FIELD_NAME_LOCATION = "location";
         public static final String FIELD_NAME_TIMESTAMP = "timestamp";
         public static final String FIELD_NAME_TASK_MANAGER_ID = "taskManagerId";
+        public static final String FIELD_NAME_TASK_MANAGER_ALIVE = "taskManagerAlive";
 
         @JsonProperty(FIELD_NAME_EXCEPTION)
         private final String exception;
@@ -163,18 +164,23 @@ public class JobExceptionsInfo {
         @JsonProperty(FIELD_NAME_TASK_MANAGER_ID)
         private final String taskManagerId;
 
+        @JsonProperty(FIELD_NAME_TASK_MANAGER_ALIVE)
+        private final boolean taskManagerAlive;
+
         @JsonCreator
         public ExecutionExceptionInfo(
                 @JsonProperty(FIELD_NAME_EXCEPTION) String exception,
                 @JsonProperty(FIELD_NAME_TASK) String task,
                 @JsonProperty(FIELD_NAME_LOCATION) String location,
                 @JsonProperty(FIELD_NAME_TIMESTAMP) long timestamp,
-                @JsonProperty(FIELD_NAME_TASK_MANAGER_ID) String taskManagerId) {
+                @JsonProperty(FIELD_NAME_TASK_MANAGER_ID) String taskManagerId,
+                @JsonProperty(FIELD_NAME_TASK_MANAGER_ALIVE) boolean taskManagerAlive) {
             this.exception = Preconditions.checkNotNull(exception);
             this.task = Preconditions.checkNotNull(task);
             this.location = Preconditions.checkNotNull(location);
             this.timestamp = timestamp;
             this.taskManagerId = taskManagerId;
+            this.taskManagerAlive = taskManagerAlive;
         }
 
         @Override
@@ -188,6 +194,7 @@ public class JobExceptionsInfo {
             JobExceptionsInfo.ExecutionExceptionInfo that =
                     (JobExceptionsInfo.ExecutionExceptionInfo) o;
             return timestamp == that.timestamp
+                    && taskManagerAlive == that.taskManagerAlive
                     && Objects.equals(exception, that.exception)
                     && Objects.equals(task, that.task)
                     && Objects.equals(location, that.location)
@@ -196,7 +203,8 @@ public class JobExceptionsInfo {
 
         @Override
         public int hashCode() {
-            return Objects.hash(timestamp, exception, task, location, taskManagerId);
+            return Objects.hash(
+                    timestamp, exception, task, location, taskManagerId, taskManagerAlive);
         }
 
         @Override
@@ -206,7 +214,8 @@ public class JobExceptionsInfo {
                     .add("task='" + task + "'")
                     .add("location='" + location + "'")
                     .add("timestamp=" + timestamp)
-                    .add("taskManagerId=" + taskManagerId)
+                    .add("taskManagerId='" + taskManagerId + "'")
+                    .add("taskManagerAlive=" + taskManagerAlive)
                     .toString();
         }
     }

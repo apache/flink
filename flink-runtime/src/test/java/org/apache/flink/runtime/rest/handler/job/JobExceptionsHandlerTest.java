@@ -30,6 +30,7 @@ import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.ExecutionHistory;
 import org.apache.flink.runtime.failure.FailureEnricherUtils;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
 import org.apache.flink.runtime.rest.handler.legacy.DefaultExecutionGraphCache;
@@ -75,7 +76,8 @@ class JobExceptionsHandlerTest {
                     Collections.emptyMap(),
                     JobExceptionsHeaders.getInstance(),
                     new DefaultExecutionGraphCache(TestingUtils.TIMEOUT, TestingUtils.TIMEOUT),
-                    Executors.directExecutor());
+                    Executors.directExecutor(),
+                    () -> CompletableFuture.completedFuture(new TestingResourceManagerGateway()));
 
     @Test
     void testNoExceptions() throws HandlerRequestException {
@@ -116,7 +118,13 @@ class JobExceptionsHandlerTest {
                 .anyMatch(
                         info ->
                                 matchesSafely(
-                                        info, rootCause, rootCauseTimestamp, null, null, null));
+                                        info,
+                                        rootCause,
+                                        rootCauseTimestamp,
+                                        null,
+                                        null,
+                                        null,
+                                        false));
     }
 
     @Test
@@ -138,7 +146,13 @@ class JobExceptionsHandlerTest {
                 .anyMatch(
                         info ->
                                 matchesSafely(
-                                        info, rootThrowable, rootTimestamp, null, null, null));
+                                        info,
+                                        rootThrowable,
+                                        rootTimestamp,
+                                        null,
+                                        null,
+                                        null,
+                                        false));
     }
 
     @Test
@@ -170,7 +184,8 @@ class JobExceptionsHandlerTest {
                                         rootCause.getTimestamp(),
                                         null,
                                         null,
-                                        null));
+                                        null,
+                                        false));
         assertThat(response.getExceptionHistory().getEntries())
                 .anyMatch(
                         info ->
@@ -182,7 +197,8 @@ class JobExceptionsHandlerTest {
                                         JobExceptionsHandler.toString(
                                                 otherFailure.getTaskManagerLocation()),
                                         JobExceptionsHandler.toTaskManagerId(
-                                                otherFailure.getTaskManagerLocation())));
+                                                otherFailure.getTaskManagerLocation()),
+                                        false));
         assertThat(response.getExceptionHistory().isTruncated()).isFalse();
     }
 
@@ -215,7 +231,8 @@ class JobExceptionsHandlerTest {
                                         JobExceptionsHandler.toString(
                                                 failure.getTaskManagerLocation()),
                                         JobExceptionsHandler.toTaskManagerId(
-                                                failure.getTaskManagerLocation())));
+                                                failure.getTaskManagerLocation()),
+                                        false));
     }
 
     @Test
@@ -247,7 +264,8 @@ class JobExceptionsHandlerTest {
                                         rootCause.getTimestamp(),
                                         null,
                                         null,
-                                        null));
+                                        null,
+                                        false));
         assertThat(response.getExceptionHistory().getEntries()).hasSize(1);
         assertThat(response.getExceptionHistory().isTruncated()).isTrue();
     }
@@ -444,7 +462,8 @@ class JobExceptionsHandlerTest {
             long expectedFailureTimestamp,
             String expectedTaskNameWithSubtaskId,
             String expectedTaskManagerLocation,
-            String expectedTaskManagerId) {
+            String expectedTaskManagerId,
+            boolean expectedIsTaskManagerAlive) {
         expectedFailureCause = deserializeSerializedThrowable(expectedFailureCause);
         return matches(
                         info,
@@ -457,7 +476,8 @@ class JobExceptionsHandlerTest {
                 && matches(info, ExceptionInfo::getTimestamp, expectedFailureTimestamp)
                 && matches(info, ExceptionInfo::getTaskName, expectedTaskNameWithSubtaskId)
                 && matches(info, ExceptionInfo::getLocation, expectedTaskManagerLocation)
-                && matches(info, ExceptionInfo::getTaskManagerId, expectedTaskManagerId);
+                && matches(info, ExceptionInfo::getTaskManagerId, expectedTaskManagerId)
+                && matches(info, ExceptionInfo::isTaskManagerAlive, expectedIsTaskManagerAlive);
     }
 
     private <R> boolean matches(
