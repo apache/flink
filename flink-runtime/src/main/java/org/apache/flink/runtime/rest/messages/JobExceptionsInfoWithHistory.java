@@ -30,6 +30,7 @@ import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.StringJoiner;
 
@@ -177,6 +178,7 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
         public static final String FIELD_NAME_TASK_NAME = "taskName";
         public static final String FIELD_NAME_LOCATION = "location";
         public static final String FIELD_NAME_TASK_MANAGER_ID = "taskManagerId";
+        public static final String FIELD_NAME_FAILURE_LABELS = "failureLabels";
 
         @JsonProperty(FIELD_NAME_EXCEPTION_NAME)
         private final String exceptionName;
@@ -202,8 +204,11 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
         @Nullable
         private final String taskManagerId;
 
+        @JsonProperty(FIELD_NAME_FAILURE_LABELS)
+        private final Map<String, String> failureLabels;
+
         public ExceptionInfo(String exceptionName, String stacktrace, long timestamp) {
-            this(exceptionName, stacktrace, timestamp, null, null, null);
+            this(exceptionName, stacktrace, timestamp, Collections.emptyMap(), null, null, null);
         }
 
         @JsonCreator
@@ -211,12 +216,14 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
                 @JsonProperty(FIELD_NAME_EXCEPTION_NAME) String exceptionName,
                 @JsonProperty(FIELD_NAME_EXCEPTION_STACKTRACE) String stacktrace,
                 @JsonProperty(FIELD_NAME_EXCEPTION_TIMESTAMP) long timestamp,
+                @JsonProperty(FIELD_NAME_FAILURE_LABELS) Map<String, String> failureLabels,
                 @JsonProperty(FIELD_NAME_TASK_NAME) @Nullable String taskName,
                 @JsonProperty(FIELD_NAME_LOCATION) @Nullable String location,
                 @JsonProperty(FIELD_NAME_TASK_MANAGER_ID) @Nullable String taskManagerId) {
             this.exceptionName = checkNotNull(exceptionName);
             this.stacktrace = checkNotNull(stacktrace);
             this.timestamp = timestamp;
+            this.failureLabels = checkNotNull(failureLabels);
             this.taskName = taskName;
             this.location = location;
             this.taskManagerId = taskManagerId;
@@ -255,6 +262,11 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
             return taskManagerId;
         }
 
+        @JsonIgnore
+        public Map<String, String> getFailureLabels() {
+            return failureLabels;
+        }
+
         // hashCode and equals are necessary for the test classes deriving from
         // RestResponseMarshallingTestBase
         @Override
@@ -269,13 +281,15 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
             return exceptionName.equals(that.exceptionName)
                     && stacktrace.equals(that.stacktrace)
                     && Objects.equals(timestamp, that.timestamp)
+                    && Objects.equals(failureLabels, that.failureLabels)
                     && Objects.equals(taskName, that.taskName)
                     && Objects.equals(location, that.location);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(exceptionName, stacktrace, timestamp, taskName, location);
+            return Objects.hash(
+                    exceptionName, stacktrace, timestamp, failureLabels, taskName, location);
         }
 
         @Override
@@ -284,6 +298,7 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
                     .add("exceptionName='" + exceptionName + "'")
                     .add("stacktrace='" + stacktrace + "'")
                     .add("timestamp=" + timestamp)
+                    .add("failureLabels=" + failureLabels)
                     .add("taskName='" + taskName + "'")
                     .add("location='" + location + "'")
                     .toString();
@@ -305,8 +320,17 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
                 String exceptionName,
                 String stacktrace,
                 long timestamp,
+                Map<String, String> failureLabels,
                 Collection<ExceptionInfo> concurrentExceptions) {
-            this(exceptionName, stacktrace, timestamp, null, null, null, concurrentExceptions);
+            this(
+                    exceptionName,
+                    stacktrace,
+                    timestamp,
+                    failureLabels,
+                    null,
+                    null,
+                    null,
+                    concurrentExceptions);
         }
 
         @JsonCreator
@@ -314,12 +338,20 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
                 @JsonProperty(FIELD_NAME_EXCEPTION_NAME) String exceptionName,
                 @JsonProperty(FIELD_NAME_EXCEPTION_STACKTRACE) String stacktrace,
                 @JsonProperty(FIELD_NAME_EXCEPTION_TIMESTAMP) long timestamp,
+                @JsonProperty(FIELD_NAME_FAILURE_LABELS) Map<String, String> failureLabels,
                 @JsonProperty(FIELD_NAME_TASK_NAME) @Nullable String taskName,
                 @JsonProperty(FIELD_NAME_LOCATION) @Nullable String location,
                 @JsonProperty(FIELD_NAME_TASK_MANAGER_ID) @Nullable String taskManagerId,
                 @JsonProperty(FIELD_NAME_CONCURRENT_EXCEPTIONS)
                         Collection<ExceptionInfo> concurrentExceptions) {
-            super(exceptionName, stacktrace, timestamp, taskName, location, taskManagerId);
+            super(
+                    exceptionName,
+                    stacktrace,
+                    timestamp,
+                    failureLabels,
+                    taskName,
+                    location,
+                    taskManagerId);
             this.concurrentExceptions = concurrentExceptions;
         }
 
