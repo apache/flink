@@ -118,6 +118,9 @@ public class DefaultExecutionGraphBuilder {
                 PartitionGroupReleaseStrategyFactoryLoader.loadPartitionGroupReleaseStrategyFactory(
                         jobManagerConfig);
 
+        final int offloadShuffleDescriptorsThreshold =
+                jobManagerConfig.get(JobManagerOptions.OFFLOAD_SHUFFLE_DESCRIPTORS_THRESHOLD);
+
         final TaskDeploymentDescriptorFactory taskDeploymentDescriptorFactory;
         try {
             taskDeploymentDescriptorFactory =
@@ -126,7 +129,8 @@ public class DefaultExecutionGraphBuilder {
                             jobId,
                             partitionLocationConstraint,
                             blobWriter,
-                            nonFinishedHybridPartitionShouldBeUnknown);
+                            nonFinishedHybridPartitionShouldBeUnknown,
+                            offloadShuffleDescriptorsThreshold);
         } catch (IOException e) {
             throw new JobException("Could not create the TaskDeploymentDescriptorFactory.", e);
         }

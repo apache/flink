@@ -20,6 +20,7 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
@@ -332,7 +333,8 @@ public class SchedulerTestingUtils {
             ComponentMainThreadExecutor mainThreadExecutor,
             ScheduledExecutorService ioExecutor,
             JobMasterPartitionTracker partitionTracker,
-            ScheduledExecutorService scheduledExecutor)
+            ScheduledExecutorService scheduledExecutor,
+            Configuration jobMasterConfiguration)
             throws Exception {
         final List<JobVertex> vertices = new ArrayList<>(Collections.singletonList(producer));
         IntermediateDataSetID dataSetId = new IntermediateDataSetID();
@@ -351,7 +353,8 @@ public class SchedulerTestingUtils {
                         mainThreadExecutor,
                         ioExecutor,
                         partitionTracker,
-                        scheduledExecutor);
+                        scheduledExecutor,
+                        jobMasterConfiguration);
         final ExecutionGraph executionGraph = scheduler.getExecutionGraph();
         final TestingLogicalSlotBuilder slotBuilder = new TestingLogicalSlotBuilder();
 
@@ -402,7 +405,8 @@ public class SchedulerTestingUtils {
             ComponentMainThreadExecutor mainThreadExecutor,
             ScheduledExecutorService ioExecutor,
             JobMasterPartitionTracker partitionTracker,
-            ScheduledExecutorService scheduledExecutor)
+            ScheduledExecutorService scheduledExecutor,
+            Configuration jobMasterConfiguration)
             throws Exception {
         final JobGraph jobGraph =
                 JobGraphBuilder.newBatchJobGraphBuilder()
@@ -415,7 +419,8 @@ public class SchedulerTestingUtils {
                         .setRestartBackoffTimeStrategy(new TestRestartBackoffTimeStrategy(true, 0))
                         .setBlobWriter(blobWriter)
                         .setIoExecutor(ioExecutor)
-                        .setPartitionTracker(partitionTracker);
+                        .setPartitionTracker(partitionTracker)
+                        .setJobMasterConfiguration(jobMasterConfiguration);
         return isAdaptive ? builder.buildAdaptiveBatchJobScheduler() : builder.build();
     }
 

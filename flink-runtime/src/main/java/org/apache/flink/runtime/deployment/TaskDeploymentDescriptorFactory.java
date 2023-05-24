@@ -70,18 +70,21 @@ public class TaskDeploymentDescriptorFactory {
     private final PartitionLocationConstraint partitionDeploymentConstraint;
     private final BlobWriter blobWriter;
     private final boolean nonFinishedHybridPartitionShouldBeUnknown;
+    private final int offloadShuffleDescriptorsThreshold;
 
     public TaskDeploymentDescriptorFactory(
             Either<SerializedValue<JobInformation>, PermanentBlobKey> jobInformationOrBlobKey,
             JobID jobID,
             PartitionLocationConstraint partitionDeploymentConstraint,
             BlobWriter blobWriter,
-            boolean nonFinishedHybridPartitionShouldBeUnknown) {
+            boolean nonFinishedHybridPartitionShouldBeUnknown,
+            int offloadShuffleDescriptorsThreshold) {
         this.serializedJobInformation = getSerializedJobInformation(jobInformationOrBlobKey);
         this.jobID = jobID;
         this.partitionDeploymentConstraint = partitionDeploymentConstraint;
         this.blobWriter = blobWriter;
         this.nonFinishedHybridPartitionShouldBeUnknown = nonFinishedHybridPartitionShouldBeUnknown;
+        this.offloadShuffleDescriptorsThreshold = offloadShuffleDescriptorsThreshold;
     }
 
     public MaybeOffloaded<JobInformation> getSerializedJobInformation() {
@@ -221,20 +224,29 @@ public class TaskDeploymentDescriptorFactory {
     }
 
     private MaybeOffloaded<ShuffleDescriptorAndIndex[]> serializeAndTryOffloadShuffleDescriptor(
-            ShuffleDescriptorAndIndex[] shuffleDescriptors) throws IOException {
+            ShuffleDescriptorAndIndex[] shuffleDescriptors, int numConsumer) throws IOException {
 
         final CompressedSerializedValue<ShuffleDescriptorAndIndex[]> compressedSerializedValue =
                 CompressedSerializedValue.fromObject(shuffleDescriptors);
 
         final Either<SerializedValue<ShuffleDescriptorAndIndex[]>, PermanentBlobKey>
                 serializedValueOrBlobKey =
-                        BlobWriter.tryOffload(compressedSerializedValue, jobID, blobWriter);
+                        shouldOffload(shuffleDescriptors, numConsumer)
+                                ? BlobWriter.offloadWithException(
+                                        compressedSerializedValue, jobID, blobWriter)
+                                : Either.Left(compressedSerializedValue);
 
         if (serializedValueOrBlobKey.isLeft()) {
             return new TaskDeploymentDescriptor.NonOffloaded<>(serializedValueOrBlobKey.left());
         } else {
             return new TaskDeploymentDescriptor.Offloaded<>(serializedValueOrBlobKey.right());
         }
+    }
+
+    private boolean shouldOffload(
+            ShuffleDescriptorAndIndex[] shuffleDescriptorsToSerialize, int numConsumers) {
+        return shuffleDescriptorsToSerialize.length * numConsumers
+                >= offloadShuffleDescriptorsThreshold;
     }
 
     private static Map<IntermediateDataSetID, ShuffleDescriptorAndIndex[]>

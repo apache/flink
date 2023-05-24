@@ -717,6 +717,18 @@ public class JobManagerOptions {
                                                             code(UNFINISHED_PRODUCERS.name())))
                                             .build());
 
+    @Documentation.ExcludeFromDocumentation(
+            "this is an expert option, that we do not want to expose in the documentation")
+    public static final ConfigOption<Integer> OFFLOAD_SHUFFLE_DESCRIPTORS_THRESHOLD =
+            key("jobmanager.deployment.offload-shuffle-descriptors-threshold")
+                    .intType()
+                    .defaultValue(10_000 * 10_000)
+                    .withDescription(
+                            "The threshold to force enable offload shuffle descriptors via blob server."
+                                    + " This is a fixed value since it is difficult for users to configure."
+                                    + " This default value means JobManager need to serialized and transport"
+                                    + " 10000 shuffle descriptors(almost 200KB) to 10000 consumer(2GB in total)");
+
     // ---------------------------------------------------------------------------------------------
 
     private JobManagerOptions() {

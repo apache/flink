@@ -24,7 +24,7 @@ import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
-import org.apache.flink.util.function.FunctionWithException;
+import org.apache.flink.util.function.BiFunctionWithException;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
@@ -54,10 +54,14 @@ public class CachedShuffleDescriptors {
     /** Stores the mapping of resultPartitionId to index subscripts in consumed partition group. */
     private final Map<IntermediateResultPartitionID, Integer> resultPartitionIdToIndex;
 
+    /** The number of consumers for {@link ConsumedPartitionGroup}. */
+    private final int numConsumers;
+
     public CachedShuffleDescriptors(
             ConsumedPartitionGroup consumedPartitionGroup,
             ShuffleDescriptorAndIndex[] shuffleDescriptors) {
         this.resultPartitionIdToIndex = new HashMap<>();
+        this.numConsumers = consumedPartitionGroup.getNumConsumers();
         int index = 0;
         for (IntermediateResultPartitionID resultPartitionID : consumedPartitionGroup) {
             resultPartitionIdToIndex.put(resultPartitionID, index++);
@@ -76,8 +80,9 @@ public class CachedShuffleDescriptors {
     }
 
     public void serializeShuffleDescriptors(
-            FunctionWithException<
+            BiFunctionWithException<
                             ShuffleDescriptorAndIndex[],
+                            Integer,
                             MaybeOffloaded<ShuffleDescriptorAndIndex[]>,
                             IOException>
                     shuffleDescriptorSerializer)
@@ -85,7 +90,7 @@ public class CachedShuffleDescriptors {
         if (!toBeSerialized.isEmpty()) {
             MaybeOffloaded<ShuffleDescriptorAndIndex[]> serializedShuffleDescriptor =
                     shuffleDescriptorSerializer.apply(
-                            toBeSerialized.toArray(new ShuffleDescriptorAndIndex[0]));
+                            toBeSerialized.toArray(new ShuffleDescriptorAndIndex[0]), numConsumers);
             toBeSerialized.clear();
             serializedShuffleDescriptors.add(serializedShuffleDescriptor);
         }

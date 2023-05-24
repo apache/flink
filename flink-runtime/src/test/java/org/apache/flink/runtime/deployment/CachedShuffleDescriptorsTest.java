@@ -150,7 +150,7 @@ class CachedShuffleDescriptorsTest {
     }
 
     private static MaybeOffloaded<ShuffleDescriptorAndIndex[]> nonOffloadedShuffleDescriptor(
-            ShuffleDescriptorAndIndex[] toBeSerialized) throws IOException {
+            ShuffleDescriptorAndIndex[] toBeSerialized, int numConsumer) throws IOException {
         return new NonOffloaded<>(CompressedSerializedValue.fromObject(toBeSerialized));
     }
 
