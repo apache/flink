@@ -17,6 +17,7 @@
 
 package org.apache.flink.test.util;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.test.parameters.ParameterProperty;
 
 import org.slf4j.Logger;
@@ -36,6 +37,7 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 /** Collection of file-related utilities. */
 public class FileUtils {
@@ -111,7 +113,8 @@ public class FileUtils {
         return distributionDirectory.get();
     }
 
-    private static Optional<Path> findProjectRootDirectory(Path currentDirectory) {
+    @VisibleForTesting
+    static Optional<Path> findProjectRootDirectory(Path currentDirectory) {
         // move up the module structure until we find flink-dist; relies on all modules being
         // prefixed with 'flink'
         do {
@@ -119,8 +122,21 @@ public class FileUtils {
                 return Optional.of(currentDirectory);
             }
             currentDirectory = currentDirectory.getParent();
-        } while (currentDirectory.getFileName().toString().startsWith("flink"));
+        } while (isFlinkModule(currentDirectory) || containsFlinkModule(currentDirectory));
         return Optional.empty();
+    }
+
+    private static boolean isFlinkModule(Path currentDirectory) {
+        return currentDirectory.getFileName().toString().startsWith("flink-");
+    }
+
+    private static boolean containsFlinkModule(Path currentDirectory) {
+        try (Stream<Path> list = Files.list(currentDirectory)) {
+            return list.anyMatch(FileUtils::isFlinkModule);
+        } catch (IOException e) {
+            // assume we went up too far and started accessing unrelated files
+            return false;
+        }
     }
 
     private static Optional<Path> findDistribution(Path projectRootDirectory) {
