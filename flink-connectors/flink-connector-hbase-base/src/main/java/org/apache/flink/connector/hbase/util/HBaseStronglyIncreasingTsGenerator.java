@@ -18,37 +18,30 @@
 
 package org.apache.flink.connector.hbase.util;
 
-/** Generate timestamp for HBase mutation. */
-public abstract class HBaseTimestampGenerator {
+import org.apache.flink.annotation.VisibleForTesting;
+
+/** Generate strongly increasing timestamp in nanosecond for HBase mutation. */
+public class HBaseStronglyIncreasingTsGenerator {
     private static final long START_SYSTEM_TIME_NANO = System.currentTimeMillis() * 1_000_000L;
     private static final long START_JVM_TIME_NANO = System.nanoTime();
 
-    public abstract long get();
+    private long currentSystemTimeNano;
 
+    public HBaseStronglyIncreasingTsGenerator() {
+        currentSystemTimeNano = getCurrentSystemTimeNano();
+    }
+
+    public long get() {
+        long nowNano = getCurrentSystemTimeNano();
+        if (nowNano <= currentSystemTimeNano) {
+            nowNano = currentSystemTimeNano + 1;
+        }
+        currentSystemTimeNano = nowNano;
+        return nowNano;
+    }
+
+    @VisibleForTesting
     protected long getCurrentSystemTimeNano() {
         return START_SYSTEM_TIME_NANO + (System.nanoTime() - START_JVM_TIME_NANO);
-    }
-
-    public static HBaseTimestampGenerator stronglyIncreasing() {
-        return new StronglyIncreasingGenerator();
-    }
-
-    /** Generator strongly increasing timestamp in nanosecond. */
-    static class StronglyIncreasingGenerator extends HBaseTimestampGenerator {
-        private long currentSystemTimeNano;
-
-        StronglyIncreasingGenerator() {
-            currentSystemTimeNano = getCurrentSystemTimeNano();
-        }
-
-        @Override
-        public long get() {
-            long nowNano = getCurrentSystemTimeNano();
-            if (nowNano <= currentSystemTimeNano) {
-                nowNano = currentSystemTimeNano + 1;
-            }
-            currentSystemTimeNano = nowNano;
-            return nowNano;
-        }
     }
 }

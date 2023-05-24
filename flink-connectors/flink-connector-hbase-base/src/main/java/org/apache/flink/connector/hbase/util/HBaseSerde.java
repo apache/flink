@@ -75,7 +75,7 @@ public class HBaseSerde {
     private final FieldEncoder[][] qualifierEncoders;
     private final FieldDecoder[][] qualifierDecoders;
     private final GenericRowData rowWithRowKey;
-    private final HBaseTimestampGenerator timestampGenerator;
+    private final HBaseStronglyIncreasingTsGenerator timestampGenerator;
 
     public HBaseSerde(HBaseTableSchema hbaseSchema, final String nullStringLiteral) {
         this.families = hbaseSchema.getFamilyKeys();
@@ -119,7 +119,7 @@ public class HBaseSerde {
             this.reusedFamilyRows[f] = new GenericRowData(dataTypes.length);
         }
         this.rowWithRowKey = new GenericRowData(1);
-        this.timestampGenerator = HBaseTimestampGenerator.stronglyIncreasing();
+        this.timestampGenerator = new HBaseStronglyIncreasingTsGenerator();
     }
 
     /**

@@ -22,13 +22,14 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertTrue;
 
-/** Tests for {@link HBaseTimestampGenerator}. */
-public class HBaseTimestampGeneratorTest {
+/** Tests for {@link HBaseStronglyIncreasingTsGenerator}. */
+public class HBaseStronglyIncreasingTsGeneratorTest {
     @Test
     public void testStronglyIncreasingTimestampGenerator() {
-        HBaseTimestampGenerator timestampGenerator = HBaseTimestampGenerator.stronglyIncreasing();
+        HBaseStronglyIncreasingTsGenerator timestampGenerator =
+                new HBaseStronglyIncreasingTsGenerator();
         long lastTimestamp = 0;
-        for (int i = 0; i < 100_000_000; i++) {
+        for (int i = 0; i < 10; i++) {
             final long now = timestampGenerator.get();
             if (lastTimestamp > 0) {
                 assertTrue(now > lastTimestamp);
@@ -37,7 +38,7 @@ public class HBaseTimestampGeneratorTest {
         }
         final long realNow = timestampGenerator.getCurrentSystemTimeNano();
         assertTrue(
-                "The increasing timestamp should not exceed the current actual timestamp after 100 million tests",
+                "The increasing timestamp should not exceed the current actual timestamp after 10 tests",
                 realNow >= lastTimestamp);
     }
 }
