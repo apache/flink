@@ -245,7 +245,6 @@ public class ResourceManager implements Closeable {
         }
     }
 
-    @VisibleForTesting
     public URL downloadResource(Path remotePath) throws IOException {
         // get local resource path
         Path localPath = getResourceLocalPath(remotePath);
