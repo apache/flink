@@ -22,24 +22,17 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# DataGen Connector
+# DataGen 连接器
 
-The DataGen connector provides a `Source` implementation that allows for generating input data for
-Flink pipelines.
-It is useful when developing locally or demoing without access to external systems such as Kafka.
-The DataGen connector is built-in, no additional dependencies are required.
+DataGen 连接器提供的 `Source` 方法可以为 Flink 管道生成输入数据，这在本地开发或演示过程中无法访问外部系统（如 Kafka）时非常有用。DataGen 连接器是内置的，无需额外依赖。
 
-Usage
+用法
 -----
 
-The `DataGeneratorSource` produces N data points in parallel. The source splits the sequence
-into as many parallel sub-sequences as there are parallel source subtasks. It drives the data
-generation process by supplying "index" values of type `Long` to the user-provided
-{{< javadoc name="GeneratorFunction" file="org/apache/flink/connector/datagen/source/GeneratorFunction.html" >}}.
+`DataGeneratorSource` 可以并行地生成 N 个数据点。 该数据源将序列分为与并行源子任务数量相同的并行子序列，并通过用户提供的 {{< javadoc name="GeneratorFunction" file="org/apache/flink/connector/datagen/source/GeneratorFunction.html" >}} 发送 `Long`类型的 “index” 值来驱动数据生成过程。
 
-The `GeneratorFunction` is then used for mapping the (sub-)sequences of `Long` values
-into the generated events of an arbitrary data type. For instance, the following code will produce the sequence of
-`["Number: 0", "Number: 2", ... , "Number: 999"]` records.
+然后通过 `GeneratorFunction` 将 `Long` 类型的（子）序列数据映射为任意数据类型的生成事件。例如，以下代码可生成
+`["Number: 0", "Number: 2", ... , "Number: 999"]` 数据序列。
 
 ```java
 GeneratorFunction<Long, String> generatorFunction = index -> "Number: " + index;
@@ -54,15 +47,12 @@ DataStreamSource<String> stream =
         "Generator Source");
 ```
 
-The order of elements depends on the parallelism. Each sub-sequence will be produced in order.
-Consequently, if the parallelism is limited to one, this will produce one sequence in order from
-`"Number: 0"` to `"Number: 999"`.
+生成的元素顺序取决于并行度，每个子序列内部的元素是有序的。因此，如果并行度设置为1，生成的元素会依次从 `"Number: 0"` 到 `"Number: 999"`。
 
-Rate Limiting
+速度限制
 -----
 
-`DataGeneratorSource` has built-in support for rate limiting. The following code will produce a stream of
-`Long` values at the overall source rate (across all source subtasks) not exceeding 100 events per second.
+`DataGeneratorSource` 内置了速度限制的功能。以下代码会以不超过每秒100个事件的总速率（含所有源子任务）生成 `Long` 类型的数据流。
 
 ```java
 GeneratorFunction<Long, Long> generatorFunction = index -> index;
@@ -76,29 +66,20 @@ DataGeneratorSource<String> source =
              Types.STRING);
 ```
 
-Additional rate limiting strategies, such as limiting the number of records emitted per checkpoint, can
-be found in {{< javadoc name="RateLimiterStrategy" file="org/apache/flink/api/connector/source/util/ratelimit/RateLimiterStrategy.html">}}.
+可以在 {{< javadoc name="RateLimiterStrategy" file="org/apache/flink/api/connector/source/util/ratelimit/RateLimiterStrategy.html">}} 找到其他速度限制策略，例如限制每个checkpoint发出的记录数量。
 
-Boundedness
+有界性
 -----
-This source is always bounded. From a practical perspective, however, setting the number of records
-to `Long.MAX_VALUE` turns it into an effectively unbounded source (the end will never be reached). For finite sequences users may want to consider running the application in [`BATCH` execution mode]({{< ref "docs/dev/datastream/execution_mode" >}}#when-canshould-i-use-batch-execution-mode)
+`DataGeneratorSource` 始终是有界的。然而，从实际来看，将记录数设置为 `Long.MAX_VALUE` 会将其转化为无界数据源（永远不会达到该长度）。对于有界序列，用户可能希望在 [`BATCH` 运行模式]({{< ref "docs/dev/datastream/execution_mode" >}}#when-canshould-i-use-batch-execution-mode) 运行程序。
 .
 
-Notes
+注意事项
 -----
 
 {{< hint info >}}
-**Note:**  `DataGeneratorSource` can be used to implement Flink jobs with at-least-once and
-end-to-end exactly-once processing guarantees under the condition that the output of the `GeneratorFunction`
-is deterministic with respect to its input, in other words supplying the same `Long` number always
-leads to generating the same output.
+**注意：**  `DataGeneratorSource` 可以实现具有 `at-least-once` 和端到端`exactly-once` 处理保证的Flink作业，前提是 `GeneratorFunction` 的输出相对于其输入是确定的。也就是说，输入相同的 `Long` 数值始终会生成相同的输出。
 {{< /hint >}}
 
 {{< hint info >}}
-**Note:**  it is possible to also produce deterministic watermarks right at the
-source based on the generated events and a custom {{< javadoc name="WatermarkStrategy" file="org/apache/flink/api/common/eventtime/WatermarkStrategy.html">}}.  
+**注意：**  可以基于生成的事件和自定义的 {{< javadoc name="WatermarkStrategy" file="org/apache/flink/api/common/eventtime/WatermarkStrategy.html">}} 在数据源生成确定性 watermark。
 {{< /hint >}}
-
-
-
