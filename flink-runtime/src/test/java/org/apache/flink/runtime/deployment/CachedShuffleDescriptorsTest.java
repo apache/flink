@@ -215,7 +215,8 @@ class CachedShuffleDescriptorsTest {
 
         @Override
         public MaybeOffloaded<ShuffleDescriptorAndIndex[]> serializeAndTryOffloadShuffleDescriptor(
-                ShuffleDescriptorAndIndex[] shuffleDescriptors) throws IOException {
+                ShuffleDescriptorAndIndex[] shuffleDescriptors, int numConsumer)
+                throws IOException {
             return new NonOffloaded<>(CompressedSerializedValue.fromObject(shuffleDescriptors));
         }
     }
