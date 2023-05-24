@@ -226,12 +226,10 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
 
             leaderElectionService.notifyAllKnownLeaderInformation(
                     knownLeaderInformation.stream()
-                            .map(
-                                    component ->
-                                            LeaderInformationWithComponentId.create(
-                                                    component.getComponentId(),
-                                                    component.getLeaderInformation()))
-                            .collect(Collectors.toList()));
+                            .collect(
+                                    Collectors.toMap(
+                                            Component::getComponentId,
+                                            Component::getLeaderInformation)));
 
             for (Component component : knownLeaderInformation) {
                 assertThat(component.getLeaderElectionEventListener().getLeaderInformation())
@@ -273,10 +271,9 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
 
             // make sure that this call succeeds w/o blocking
             leaderElectionService.notifyAllKnownLeaderInformation(
-                    Collections.singleton(
-                            LeaderInformationWithComponentId.create(
-                                    knownLeaderInformationComponent,
-                                    LeaderInformation.known(UUID.randomUUID(), "localhost"))));
+                    Collections.singletonMap(
+                            knownLeaderInformationComponent,
+                            LeaderInformation.known(UUID.randomUUID(), "localhost")));
 
             knownLeaderElectionEventHandler.unblock();
             unknownLeaderElectionEventHandler.unblock();

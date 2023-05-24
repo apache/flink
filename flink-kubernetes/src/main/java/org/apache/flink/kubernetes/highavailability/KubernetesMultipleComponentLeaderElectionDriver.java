@@ -28,7 +28,6 @@ import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.leaderelection.LeaderElectionException;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
-import org.apache.flink.runtime.leaderelection.LeaderInformationWithComponentId;
 import org.apache.flink.runtime.leaderelection.MultipleComponentLeaderElectionDriver;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.util.Preconditions;
@@ -36,8 +35,7 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -185,12 +183,11 @@ public class KubernetesMultipleComponentLeaderElectionDriver
         };
     }
 
-    private static Collection<LeaderInformationWithComponentId> extractLeaderInformation(
+    private static Map<String, LeaderInformation> extractLeaderInformation(
             KubernetesConfigMap configMap) {
         final Map<String, String> data = configMap.getData();
 
-        final Collection<LeaderInformationWithComponentId> leaderInformationWithLeaderNames =
-                new ArrayList<>();
+        final Map<String, LeaderInformation> extractedLeaderInformation = new HashMap<>();
 
         for (Map.Entry<String, String> keyValuePair : data.entrySet()) {
             final String key = keyValuePair.getKey();
@@ -199,12 +196,11 @@ public class KubernetesMultipleComponentLeaderElectionDriver
                 final LeaderInformation leaderInformation =
                         KubernetesUtils.parseLeaderInformationSafely(keyValuePair.getValue())
                                 .orElse(LeaderInformation.empty());
-                leaderInformationWithLeaderNames.add(
-                        LeaderInformationWithComponentId.create(leaderName, leaderInformation));
+                extractedLeaderInformation.put(leaderName, leaderInformation);
             }
         }
 
-        return leaderInformationWithLeaderNames;
+        return extractedLeaderInformation;
     }
 
     private class LeaderCallbackHandlerImpl extends KubernetesLeaderElector.LeaderCallbackHandler {
@@ -232,11 +228,8 @@ public class KubernetesMultipleComponentLeaderElectionDriver
             final KubernetesConfigMap configMap = getOnlyConfigMap(configMaps, configMapName);
 
             if (KubernetesLeaderElector.hasLeadership(configMap, lockIdentity)) {
-                Collection<LeaderInformationWithComponentId> leaderInformationWithLeaderNames =
-                        extractLeaderInformation(configMap);
-
                 leaderElectionListener.notifyAllKnownLeaderInformation(
-                        leaderInformationWithLeaderNames);
+                        extractLeaderInformation(configMap));
             }
         }
 

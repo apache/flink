@@ -31,7 +31,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -39,7 +38,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 /**
  * Default implementation of a {@link MultipleComponentLeaderElectionService} that allows to
@@ -253,28 +251,20 @@ public class DefaultMultipleComponentLeaderElectionService
 
     @Override
     public void notifyAllKnownLeaderInformation(
-            Collection<LeaderInformationWithComponentId> leaderInformationWithComponentIds) {
+            Map<String, LeaderInformation> leaderInformationWithComponentIds) {
         synchronized (lock) {
             if (!running) {
                 return;
             }
 
-            final Map<String, LeaderInformation> leaderInformationByName =
-                    leaderInformationWithComponentIds.stream()
-                            .collect(
-                                    Collectors.toMap(
-                                            LeaderInformationWithComponentId::getComponentId,
-                                            LeaderInformationWithComponentId
-                                                    ::getLeaderInformation));
-
             for (Map.Entry<String, LeaderElectionEventHandler>
                     leaderNameLeaderElectionEventHandlerPair :
                             leaderElectionEventHandlers.entrySet()) {
                 final String leaderName = leaderNameLeaderElectionEventHandlerPair.getKey();
-                if (leaderInformationByName.containsKey(leaderName)) {
+                if (leaderInformationWithComponentIds.containsKey(leaderName)) {
                     sendLeaderInformationChange(
                             leaderNameLeaderElectionEventHandlerPair.getValue(),
-                            leaderInformationByName.get(leaderName));
+                            leaderInformationWithComponentIds.get(leaderName));
                 } else {
                     sendLeaderInformationChange(
                             leaderNameLeaderElectionEventHandlerPair.getValue(),

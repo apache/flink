@@ -25,7 +25,6 @@ import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
 import org.apache.flink.runtime.leaderelection.LeaderElectionEvent;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
-import org.apache.flink.runtime.leaderelection.LeaderInformationWithComponentId;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionListener;
 import org.apache.flink.runtime.leaderelection.TestingListener;
 import org.apache.flink.runtime.leaderretrieval.DefaultLeaderRetrievalService;
@@ -38,6 +37,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -149,14 +150,14 @@ class KubernetesMultipleComponentLeaderElectionDriverTest {
                                                     LeaderElectionEvent
                                                             .AllKnownLeaderInformationEvent.class);
 
+                            final Map<String, LeaderInformation> expectedLeaderInformation =
+                                    new HashMap<>();
+                            expectedLeaderInformation.put(componentA, leaderInformationA);
+                            expectedLeaderInformation.put(componentB, leaderInformationB);
                             assertThat(
                                             allKnownLeaderInformationEvent
                                                     .getLeaderInformationWithComponentIds())
-                                    .containsExactlyInAnyOrder(
-                                            LeaderInformationWithComponentId.create(
-                                                    componentA, leaderInformationA),
-                                            LeaderInformationWithComponentId.create(
-                                                    componentB, leaderInformationB));
+                                    .containsAllEntriesOf(expectedLeaderInformation);
                         });
             }
         };

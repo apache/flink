@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.leaderelection;
 
-import java.util.Collection;
+import java.util.Map;
 
 /** Leader election event. */
 public abstract class LeaderElectionEvent {
@@ -88,11 +88,10 @@ public abstract class LeaderElectionEvent {
     }
 
     public static class AllKnownLeaderInformationEvent extends LeaderElectionEvent {
-        private final Collection<LeaderInformationWithComponentId>
-                leaderInformationWithComponentIds;
+        private final Map<String, LeaderInformation> leaderInformationWithComponentIds;
 
         AllKnownLeaderInformationEvent(
-                Collection<LeaderInformationWithComponentId> leaderInformationWithComponentIds) {
+                Map<String, LeaderInformation> leaderInformationWithComponentIds) {
             this.leaderInformationWithComponentIds = leaderInformationWithComponentIds;
         }
 
@@ -101,7 +100,7 @@ public abstract class LeaderElectionEvent {
             return true;
         }
 
-        public Collection<LeaderInformationWithComponentId> getLeaderInformationWithComponentIds() {
+        public Map<String, LeaderInformation> getLeaderInformationWithComponentIds() {
             return leaderInformationWithComponentIds;
         }
     }
