@@ -317,6 +317,8 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
                     budgetManager.getTotalBudget());
             return false;
         }
+        LOG.info(
+                "Allocated slot for {} with resources {}.", allocationId, effectiveResourceProfile);
 
         taskSlot =
                 new TaskSlot<>(
