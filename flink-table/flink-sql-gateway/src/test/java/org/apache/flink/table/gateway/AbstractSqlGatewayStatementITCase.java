@@ -65,6 +65,7 @@ import java.util.jar.JarFile;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.configuration.RestOptions.PORT;
 import static org.apache.flink.table.gateway.utils.SqlScriptReader.HINT_START_OF_OUTPUT;
 import static org.apache.flink.table.planner.utils.TableTestUtil.replaceNodeIdInOperator;
 import static org.apache.flink.table.planner.utils.TableTestUtil.replaceStreamNodeId;
@@ -121,6 +122,8 @@ public abstract class AbstractSqlGatewayStatementITCase extends AbstractTestBase
         replaceVars.put(
                 "$VAR_BATCH_CTAS_PATH",
                 Files.createDirectory(temporaryFolder.resolve("batch_ctas")).toFile().getPath());
+        replaceVars.put(
+                "$VAR_REST_PORT", MINI_CLUSTER.getClientConfiguration().get(PORT).toString());
     }
 
     @TestTemplate
