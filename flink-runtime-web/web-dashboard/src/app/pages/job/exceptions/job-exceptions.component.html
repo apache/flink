@@ -52,6 +52,12 @@
               <td>{{ item.selected.timestamp | date: 'yyyy-MM-dd HH:mm:ss' }}</td>
               <td>
                 <div class="name">{{ item.selected.exceptionName }}</div>
+                <nz-tag
+                  *ngFor="let label of item.selected.failureLabels | keyvalue"
+                  [nzColor]="'#ff0000'"
+                >
+                  {{ label.key }}:{{ label.value }}
+                </nz-tag>
               </td>
               <td class="select-td">
                 <nz-select
