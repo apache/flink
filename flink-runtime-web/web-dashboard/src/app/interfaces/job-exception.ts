@@ -43,6 +43,7 @@ export interface ExceptionInfo {
   exceptionName: string;
   stacktrace: string;
   timestamp: number;
+  failureLabels: Map<string, string>;
   taskName: string;
   endpoint: string;
   taskManagerId: string;
