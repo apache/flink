@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.leaderelection;
 
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerExtension;
 import org.apache.flink.util.ExceptionUtils;
@@ -114,6 +115,32 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
             }
         } finally {
             leaderElectionService.close();
+        }
+    }
+
+    @Test
+    void handleFatalError() throws Exception {
+        final TestingMultipleComponentLeaderElectionDriver leaderElectionDriver =
+                TestingMultipleComponentLeaderElectionDriver.newBuilder().build();
+
+        final DefaultMultipleComponentLeaderElectionService leaderElectionService =
+                createDefaultMultiplexingLeaderElectionService(leaderElectionDriver);
+
+        try {
+            final Throwable expectedFatalError =
+                    new Exception("Expected exception simulating a fatal error.");
+
+            leaderElectionDriver.triggerErrorHandling(expectedFatalError);
+
+            FlinkAssertions.assertThatFuture(
+                            fatalErrorHandlerExtension
+                                    .getTestingFatalErrorHandler()
+                                    .getErrorFuture())
+                    .eventuallySucceeds()
+                    .isEqualTo(expectedFatalError);
+        } finally {
+            leaderElectionService.close();
+            fatalErrorHandlerExtension.getTestingFatalErrorHandler().clearError();
         }
     }
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.leaderelection;
 
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
@@ -35,9 +36,10 @@ public class ZooKeeperMultipleComponentLeaderElectionDriverFactory
 
     @Override
     public ZooKeeperMultipleComponentLeaderElectionDriver create(
-            MultipleComponentLeaderElectionDriver.Listener leaderElectionListener)
+            MultipleComponentLeaderElectionDriver.Listener leaderElectionListener,
+            FatalErrorHandler fatalErrorHandler)
             throws Exception {
         return new ZooKeeperMultipleComponentLeaderElectionDriver(
-                curatorFramework, leaderElectionListener);
+                curatorFramework, leaderElectionListener, fatalErrorHandler);
     }
 }
