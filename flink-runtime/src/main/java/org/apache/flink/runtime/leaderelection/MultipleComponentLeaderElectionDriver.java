@@ -21,14 +21,7 @@ package org.apache.flink.runtime.leaderelection;
 /**
  * A leader election driver that allows to write {@link LeaderInformation} for multiple components.
  */
-public interface MultipleComponentLeaderElectionDriver {
-
-    /**
-     * Closes the driver.
-     *
-     * @throws Exception if closing this driver fails
-     */
-    void close() throws Exception;
+public interface MultipleComponentLeaderElectionDriver extends AutoCloseable {
 
     /**
      * Returns whether the driver has currently leadership.
