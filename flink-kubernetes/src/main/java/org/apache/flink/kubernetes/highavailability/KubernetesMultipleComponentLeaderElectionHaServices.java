@@ -143,7 +143,6 @@ public class KubernetesMultipleComponentLeaderElectionHaServices extends Abstrac
     protected LeaderRetrievalService createLeaderRetrievalService(String componentId) {
         return new DefaultLeaderRetrievalService(
                 new KubernetesMultipleComponentLeaderRetrievalDriverFactory(
-                        kubeClient,
                         configMapSharedWatcher,
                         watchExecutorService,
                         getClusterConfigMap(),

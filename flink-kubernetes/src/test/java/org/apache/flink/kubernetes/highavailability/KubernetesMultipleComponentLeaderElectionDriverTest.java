@@ -101,7 +101,6 @@ class KubernetesMultipleComponentLeaderElectionDriverTest {
                             final DefaultLeaderRetrievalService leaderRetrievalService =
                                     new DefaultLeaderRetrievalService(
                                             new KubernetesMultipleComponentLeaderRetrievalDriverFactory(
-                                                    getFlinkKubeClient(),
                                                     getConfigMapSharedWatcher(),
                                                     testExecutorExtension.getExecutor(),
                                                     LEADER_CONFIGMAP_NAME,
