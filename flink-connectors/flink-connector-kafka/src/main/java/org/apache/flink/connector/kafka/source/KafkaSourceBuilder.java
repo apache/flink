@@ -451,14 +451,21 @@ public class KafkaSourceBuilder<OUT> {
                 "-1",
                 boundedness == Boundedness.BOUNDED);
 
-        // If the client id prefix is not set, reuse the consumer group id as the client id prefix,
+        // If the client id prefix is not set and client id is not set
+        // reuse the consumer group id as the client id prefix,
         // or generate a random string if consumer group id is not specified.
-        maybeOverride(
-                KafkaSourceOptions.CLIENT_ID_PREFIX.key(),
-                props.containsKey(ConsumerConfig.GROUP_ID_CONFIG)
-                        ? props.getProperty(ConsumerConfig.GROUP_ID_CONFIG)
-                        : "KafkaSource-" + new Random().nextLong(),
-                false);
+        if (!props.containsKey(ConsumerConfig.CLIENT_ID_CONFIG)) {
+            maybeOverride(
+                    KafkaSourceOptions.CLIENT_ID_PREFIX.key(),
+                    props.containsKey(ConsumerConfig.GROUP_ID_CONFIG)
+                            ? props.getProperty(ConsumerConfig.GROUP_ID_CONFIG)
+                            : "KafkaSource-" + new Random().nextLong(),
+                    false);
+        } else {
+            LOG.warn(
+                    "{} is set, {} will not be set which will affect kafka consumer metrics reporting",
+                    ConsumerConfig.CLIENT_ID_CONFIG, KafkaSourceOptions.CLIENT_ID_PREFIX);
+        }
     }
 
     private boolean maybeOverride(String key, String value, boolean override) {

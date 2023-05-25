@@ -402,9 +402,19 @@ public class KafkaSourceEnumerator
     private AdminClient getKafkaAdminClient() {
         Properties adminClientProps = new Properties();
         deepCopyProperties(properties, adminClientProps);
+
         // set client id prefix
-        String clientIdPrefix =
-                adminClientProps.getProperty(KafkaSourceOptions.CLIENT_ID_PREFIX.key());
+        String clientIdPrefix;
+        if (adminClientProps.containsKey(KafkaSourceOptions.CLIENT_ID_PREFIX.key())) {
+            clientIdPrefix = adminClientProps.getProperty(KafkaSourceOptions.CLIENT_ID_PREFIX.key());
+        } else if (adminClientProps.containsKey(ConsumerConfig.CLIENT_ID_CONFIG)) {
+            clientIdPrefix = adminClientProps.getProperty(ConsumerConfig.CLIENT_ID_CONFIG);
+        } else if (adminClientProps.containsKey(ConsumerConfig.GROUP_ID_CONFIG)) {
+            clientIdPrefix = adminClientProps.getProperty(ConsumerConfig.GROUP_ID_CONFIG);
+        } else {
+            clientIdPrefix = "KafkaSource";
+        }
+
         adminClientProps.setProperty(
                 ConsumerConfig.CLIENT_ID_CONFIG, clientIdPrefix + "-enumerator-admin-client");
         return AdminClient.create(adminClientProps);
