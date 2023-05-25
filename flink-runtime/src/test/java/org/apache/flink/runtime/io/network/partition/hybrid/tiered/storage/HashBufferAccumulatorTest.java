@@ -35,6 +35,7 @@ import java.util.Collections;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.TieredStorageTestUtils.generateRandomData;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -160,11 +161,5 @@ class HashBufferAccumulatorTest {
         storageMemoryManager.setup(
                 bufferPool, Collections.singletonList(new TieredStorageMemorySpec(this, 1)));
         return storageMemoryManager;
-    }
-
-    private static ByteBuffer generateRandomData(int dataSize, Random random) {
-        byte[] dataWritten = new byte[dataSize];
-        random.nextBytes(dataWritten);
-        return ByteBuffer.wrap(dataWritten);
     }
 }

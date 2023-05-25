@@ -36,6 +36,7 @@ import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageIdMappingUtils;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageProducerClient;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageProducerMetricUpdate;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageResourceRegistry;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -102,6 +103,8 @@ public class TieredResultPartition extends ResultPartition {
     @Override
     public void setMetricGroup(TaskIOMetricGroup metrics) {
         super.setMetricGroup(metrics);
+        tieredStorageProducerClient.setMetricStatisticsUpdater(
+                this::updateProducerMetricStatistics);
     }
 
     @Override
@@ -137,6 +140,12 @@ public class TieredResultPartition extends ResultPartition {
             throws IOException {
         tieredStorageProducerClient.write(
                 record, TieredStorageIdMappingUtils.convertId(consumerId), dataType, isBroadcast);
+    }
+
+    private void updateProducerMetricStatistics(
+            TieredStorageProducerMetricUpdate metricStatistics) {
+        numBuffersOut.inc(metricStatistics.numWriteBuffersDelta());
+        numBytesOut.inc(metricStatistics.numWriteBytesDelta());
     }
 
     @Override

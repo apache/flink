@@ -31,6 +31,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.TestingBufferAccumulator;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.TestingTierProducerAgent;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageProducerClient;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageResourceRegistry;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
@@ -45,7 +46,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -189,6 +190,7 @@ class TieredResultPartitionTest {
     private TieredResultPartition createTieredStoreResultPartition(
             int numSubpartitions, BufferPool bufferPool, boolean isBroadcastOnly)
             throws IOException {
+        TestingTierProducerAgent tierProducerAgent = new TestingTierProducerAgent.Builder().build();
         TieredResultPartition tieredResultPartition =
                 new TieredResultPartition(
                         "TieredStoreResultPartitionTest",
@@ -205,7 +207,7 @@ class TieredResultPartitionTest {
                                 isBroadcastOnly,
                                 new TestingBufferAccumulator(),
                                 null,
-                                new ArrayList<>()),
+                                Collections.singletonList(tierProducerAgent)),
                         new TieredStorageResourceRegistry());
         taskIOMetricGroup =
                 UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup();
