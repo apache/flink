@@ -366,7 +366,19 @@ public class ZooKeeperUtils {
      */
     public static ZooKeeperLeaderRetrievalDriverFactory createLeaderRetrievalDriverFactory(
             final CuratorFramework client) {
-        return createLeaderRetrievalDriverFactory(client, "", new Configuration());
+        return createLeaderRetrievalDriverFactory(client, "");
+    }
+
+    /**
+     * Creates a {@link LeaderRetrievalDriverFactory} implemented by ZooKeeper.
+     *
+     * @param client The {@link CuratorFramework} ZooKeeper client to use
+     * @param path The parent path that shall be used by the client.
+     * @return {@link LeaderRetrievalDriverFactory} instance.
+     */
+    public static ZooKeeperLeaderRetrievalDriverFactory createLeaderRetrievalDriverFactory(
+            final CuratorFramework client, String path) {
+        return createLeaderRetrievalDriverFactory(client, path, new Configuration());
     }
 
     /**
