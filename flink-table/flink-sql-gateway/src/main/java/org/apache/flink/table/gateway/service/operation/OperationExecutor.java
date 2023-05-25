@@ -301,7 +301,6 @@ public class OperationExecutor {
 
     // --------------------------------------------------------------------------------------------
 
-    @VisibleForTesting
     public TableEnvironmentInternal getTableEnvironment() {
         // checks the value of RUNTIME_MODE
         Configuration operationConfig = sessionContext.getSessionConf().clone();

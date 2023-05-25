@@ -64,15 +64,12 @@ class SessionContextTest {
 
     @Test
     public void testSetAndResetOption() {
-        // table config option
-        sessionContext.set(TABLE_SQL_DIALECT.key(), "hive");
         // runtime config option
         sessionContext.set(MAX_PARALLELISM.key(), "128");
         // runtime config option and doesn't have default value
         sessionContext.set(NAME.key(), "test");
         // runtime config from flink-conf
         sessionContext.set(OBJECT_REUSE.key(), "false");
-        assertThat(sessionContext.getSessionConf().get(TABLE_SQL_DIALECT)).isEqualTo("hive");
         assertThat(sessionContext.getSessionConf().get(MAX_PARALLELISM)).isEqualTo(128);
         assertThat(sessionContext.getSessionConf().get(NAME)).isEqualTo("test");
         assertThat(sessionContext.getSessionConf().get(OBJECT_REUSE)).isFalse();
@@ -89,8 +86,6 @@ class SessionContextTest {
 
     @Test
     public void testSetAndResetKeyInConfigOptions() {
-        // table config option
-        sessionContext.set(TABLE_SQL_DIALECT.key(), "hive");
         // runtime config option
         sessionContext.set(MAX_PARALLELISM.key(), "128");
         // runtime config option and doesn't have default value
@@ -98,7 +93,6 @@ class SessionContextTest {
         // runtime config from flink-conf
         sessionContext.set(OBJECT_REUSE.key(), "false");
 
-        assertThat(sessionContext.getSessionConf().get(TABLE_SQL_DIALECT)).isEqualTo("hive");
         assertThat(sessionContext.getSessionConf().get(MAX_PARALLELISM)).isEqualTo(128);
         assertThat(sessionContext.getSessionConf().get(NAME)).isEqualTo("test");
         assertThat(sessionContext.getSessionConf().get(OBJECT_REUSE)).isFalse();
