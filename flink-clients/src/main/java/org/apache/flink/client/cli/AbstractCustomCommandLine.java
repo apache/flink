@@ -45,6 +45,7 @@ public abstract class AbstractCustomCommandLine implements CustomCommandLine {
 
     @Override
     public void addRunOptions(Options baseOptions) {
+        System.out.println(1);
         // nothing to add here
     }
 
