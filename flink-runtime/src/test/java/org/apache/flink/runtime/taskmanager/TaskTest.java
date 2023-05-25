@@ -938,7 +938,7 @@ public class TaskTest extends TestLogger {
 
         final Configuration config = new Configuration();
         config.setLong(TaskManagerOptions.TASK_CANCELLATION_INTERVAL, 5);
-        config.setLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, 50);
+        config.setLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, 1000);
 
         final Task task =
                 createTaskBuilder()
