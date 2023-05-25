@@ -83,8 +83,8 @@ tableEnv.executeSql(
         " `id` BIGINT NOT NULl," +
         " `product` VARCHAR(32)," +
         " `amount` INT," +
-        " `sold_year` BIGINT", +
-        " `sold_month` BIGINT", +
+        " `sold_year` BIGINT," +
+        " `sold_month` BIGINT," +
         " `sold_day` BIGINT" +
         ") PARTITIONED BY (`sold_year`, `sold_month`, `sold_day`) "
         ") with (...)");
@@ -152,8 +152,8 @@ tableEnv.executeSql(
           " `id` BIGINT NOT NULl," +
           " `product` VARCHAR(32)," +
           " `amount` INT," +
-          " `sold_year` BIGINT", +
-          " `sold_month` BIGINT", +
+          " `sold_year` BIGINT," +
+          " `sold_month` BIGINT," +
           " `sold_day` BIGINT" +
           ") PARTITIONED BY (`sold_year`, `sold_month`, `sold_day`) "
 ") with (...)");
@@ -221,8 +221,8 @@ table_env.execute_sql(
           " `id` BIGINT NOT NULl," +
           " `product` VARCHAR(32)," +
           " `amount` INT," +
-          " `sold_year` BIGINT", +
-          " `sold_month` BIGINT", +
+          " `sold_year` BIGINT," +
+          " `sold_month` BIGINT," +
           " `sold_day` BIGINT" +
           ") PARTITIONED BY (`sold_year`, `sold_month`, `sold_day`) "
 ") with (...)");
