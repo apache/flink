@@ -84,7 +84,9 @@ public class KafkaPartitionSplitReader
         this.kafkaSourceReaderMetrics = kafkaSourceReaderMetrics;
         Properties consumerProps = new Properties();
         consumerProps.putAll(props);
-        consumerProps.setProperty(ConsumerConfig.CLIENT_ID_CONFIG, createConsumerClientId(props));
+        if (props.containsKey(KafkaSourceOptions.CLIENT_ID_PREFIX.key())) {
+            consumerProps.setProperty(ConsumerConfig.CLIENT_ID_CONFIG, createConsumerClientId(props));
+        }
         this.consumer = new KafkaConsumer<>(consumerProps);
         this.stoppingOffsets = new HashMap<>();
         this.groupId = consumerProps.getProperty(ConsumerConfig.GROUP_ID_CONFIG);
