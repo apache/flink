@@ -95,6 +95,10 @@
                 mapOfSubtask.get(subtask['subtask'])['taskmanager-id'],
                 'thread-dump'
               ]"
+              [queryParams]="{
+                vertexName: selectedVertex.detail.name + ' (' + (subtask['subtask'] + 1) + '/'
+              }"
+              target="_blank"
             >
               Dump
             </a>
