@@ -101,6 +101,11 @@ public class ZooKeeperLeaderRetrievalDriver implements LeaderRetrievalDriver {
 
         client.getConnectionStateListenable().addListener(connectionStateListener);
 
+        LOG.debug(
+                "Monitoring data change in {}",
+                ZooKeeperUtils.generateZookeeperPath(
+                        client.getNamespace(), connectionInformationPath));
+
         running = true;
     }
 

@@ -138,16 +138,19 @@ public class ZooKeeperMultipleComponentLeaderElectionDriver
     public void publishLeaderInformation(String componentId, LeaderInformation leaderInformation) {
         Preconditions.checkState(running.get());
 
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Write leader information {} for {}.", leaderInformation, componentId);
-        }
-
         if (!leaderLatch.hasLeadership()) {
             return;
         }
 
         final String connectionInformationPath =
                 ZooKeeperUtils.generateConnectionInformationPath(componentId);
+
+        LOG.debug(
+                "Write leader information {} for {} to {}.",
+                leaderInformation,
+                componentId,
+                ZooKeeperUtils.generateZookeeperPath(
+                        curatorFramework.getNamespace(), connectionInformationPath));
 
         try {
             ZooKeeperUtils.writeLeaderInformationToZooKeeper(
