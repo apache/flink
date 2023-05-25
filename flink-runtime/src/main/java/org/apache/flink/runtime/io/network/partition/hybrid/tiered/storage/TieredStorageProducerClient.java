@@ -28,10 +28,17 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
+import java.util.function.Consumer;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /** Client of the Tiered Storage used by the producer. */
 public class TieredStorageProducerClient {
+
     private final boolean isBroadcastOnly;
 
     private final int numSubpartitions;
@@ -40,7 +47,23 @@ public class TieredStorageProducerClient {
 
     private final BufferCompressor bufferCompressor;
 
+    /**
+     * Note that the {@link TierProducerAgent}s are sorted by priority, with a lower index
+     * indicating a higher priority.
+     */
     private final List<TierProducerAgent> tierProducerAgents;
+
+    /** The current writing segment index for each subpartition. */
+    private final int[] currentSubpartitionSegmentId;
+
+    /** The current writing storage tier for each subpartition. */
+    private final TierProducerAgent[] currentSubpartitionTierAgent;
+
+    /**
+     * The metric statistics for producer client. Note that it is necessary to check whether the
+     * value is null before used.
+     */
+    @Nullable private Consumer<TieredStorageProducerMetricUpdate> metricStatisticsUpdater;
 
     public TieredStorageProducerClient(
             int numSubpartitions,
@@ -53,6 +76,10 @@ public class TieredStorageProducerClient {
         this.bufferAccumulator = bufferAccumulator;
         this.bufferCompressor = bufferCompressor;
         this.tierProducerAgents = tierProducerAgents;
+        this.currentSubpartitionSegmentId = new int[numSubpartitions];
+        this.currentSubpartitionTierAgent = new TierProducerAgent[numSubpartitions];
+
+        Arrays.fill(currentSubpartitionSegmentId, -1);
 
         bufferAccumulator.setup(this::writeAccumulatedBuffers);
     }
@@ -92,6 +119,11 @@ public class TieredStorageProducerClient {
         }
     }
 
+    public void setMetricStatisticsUpdater(
+            Consumer<TieredStorageProducerMetricUpdate> metricStatisticsUpdater) {
+        this.metricStatisticsUpdater = checkNotNull(metricStatisticsUpdater);
+    }
+
     public void close() {
         bufferAccumulator.close();
         tierProducerAgents.forEach(TierProducerAgent::close);
@@ -105,18 +137,33 @@ public class TieredStorageProducerClient {
      */
     private void writeAccumulatedBuffers(
             TieredStorageSubpartitionId subpartitionId, List<Buffer> accumulatedBuffers) {
-        try {
-            for (Buffer finishedBuffer : accumulatedBuffers) {
-                writeAccumulatedBuffer(subpartitionId, finishedBuffer);
+        Iterator<Buffer> bufferIterator = accumulatedBuffers.iterator();
+
+        int numWriteBytes = 0;
+        int numWriteBuffers = 0;
+        while (bufferIterator.hasNext()) {
+            Buffer buffer = bufferIterator.next();
+            numWriteBuffers++;
+            numWriteBytes += buffer.readableBytes();
+            try {
+                writeAccumulatedBuffer(subpartitionId, buffer);
+            } catch (IOException ioe) {
+                buffer.recycleBuffer();
+                while (bufferIterator.hasNext()) {
+                    bufferIterator.next().recycleBuffer();
+                }
+                ExceptionUtils.rethrow(ioe);
             }
-        } catch (IOException e) {
-            ExceptionUtils.rethrow(e);
         }
+        updateMetricStatistics(numWriteBuffers, numWriteBytes);
     }
 
     /**
      * Write the accumulated buffer of this subpartitionId to an appropriate tier. After the tier is
      * decided, the buffer will be written to the selected tier.
+     *
+     * <p>Note that the method only throws an exception when choosing a storage tier, so the caller
+     * should ensure that the buffer is recycled when throwing an exception.
      *
      * @param subpartitionId the subpartition identifier
      * @param accumulatedBuffer one accumulated buffer of this subpartition
@@ -124,7 +171,59 @@ public class TieredStorageProducerClient {
     private void writeAccumulatedBuffer(
             TieredStorageSubpartitionId subpartitionId, Buffer accumulatedBuffer)
             throws IOException {
-        // TODO, Try to write the accumulated buffer to the appropriate tier. After the tier is
-        // decided, then write the accumulated buffer to the tier.
+        Buffer compressedBuffer = compressBufferIfPossible(accumulatedBuffer);
+
+        if (currentSubpartitionTierAgent[subpartitionId.getSubpartitionId()] == null) {
+            chooseStorageTierToStartSegment(subpartitionId);
+        }
+
+        if (!currentSubpartitionTierAgent[subpartitionId.getSubpartitionId()].tryWrite(
+                subpartitionId, compressedBuffer)) {
+            chooseStorageTierToStartSegment(subpartitionId);
+            checkState(
+                    currentSubpartitionTierAgent[subpartitionId.getSubpartitionId()].tryWrite(
+                            subpartitionId, compressedBuffer),
+                    "Failed to write the first buffer to the new segment");
+        }
+    }
+
+    private void chooseStorageTierToStartSegment(TieredStorageSubpartitionId subpartitionId)
+            throws IOException {
+        int subpartitionIndex = subpartitionId.getSubpartitionId();
+        int segmentIndex = currentSubpartitionSegmentId[subpartitionIndex];
+        int nextSegmentIndex = segmentIndex + 1;
+
+        for (TierProducerAgent tierProducerAgent : tierProducerAgents) {
+            if (tierProducerAgent.tryStartNewSegment(subpartitionId, nextSegmentIndex)) {
+                // Update the segment index and the chosen storage tier for the subpartition.
+                currentSubpartitionSegmentId[subpartitionIndex] = nextSegmentIndex;
+                currentSubpartitionTierAgent[subpartitionIndex] = tierProducerAgent;
+                return;
+            }
+        }
+        throw new IOException("Failed to choose a storage tier to start a new segment.");
+    }
+
+    private Buffer compressBufferIfPossible(Buffer buffer) {
+        if (!canBeCompressed(buffer)) {
+            return buffer;
+        }
+
+        return checkNotNull(bufferCompressor).compressToOriginalBuffer(buffer);
+    }
+
+    /**
+     * Whether the buffer can be compressed or not. Note that event is not compressed because it is
+     * usually small and the size can become even larger after compression.
+     */
+    private boolean canBeCompressed(Buffer buffer) {
+        return bufferCompressor != null && buffer.isBuffer() && buffer.readableBytes() > 0;
+    }
+
+    private void updateMetricStatistics(int numWriteBuffersDelta, int numWriteBytesDelta) {
+        checkNotNull(metricStatisticsUpdater)
+                .accept(
+                        new TieredStorageProducerMetricUpdate(
+                                numWriteBuffersDelta, numWriteBytesDelta));
     }
 }
