@@ -175,7 +175,7 @@ under the License.
 			For Hadoop 2.7, the minor Hadoop version supported for flink-shaded-hadoop-2-uber is 2.7.5
 		-->
 		<hivemetastore.hadoop.version>2.7.5</hivemetastore.hadoop.version>
-		<japicmp.referenceVersion>1.16.0</japicmp.referenceVersion>
+		<japicmp.referenceVersion>1.16.2</japicmp.referenceVersion>
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
 		<spotless.version>2.13.0</spotless.version>
 		<spotless.scalafmt.version>3.4.3</spotless.scalafmt.version>
