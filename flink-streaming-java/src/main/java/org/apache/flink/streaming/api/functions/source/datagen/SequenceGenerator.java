@@ -25,19 +25,30 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
-import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Queues;
+
+import org.apache.flink.util.Preconditions;
 
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
 import java.util.ArrayList;
-import java.util.Iterator;
+import java.util.NoSuchElementException;
+import java.util.PriorityQueue;
+import java.util.Queue;
 
 /**
  * A stateful, re-scalable {@link DataGenerator} that emits each number from a given interval
  * exactly once, possibly in parallel.
+ *
+ * <p>It maintains a state internally to record the position of the current subtask sending
+ * sequence. When the task resumes, it will continue to send the sequence value according to the
+ * position sent by the state, until all the sequences have been sent.
+ *
+ * <p><b>IMPORTANT NOTE: </b> When the degree of parallelism increases, there may be cases where
+ * subtasks are running empty. When the degree of parallelism decreases, there may be cases where
+ * one subtask handles multiple states.
  */
 @Experimental
 public abstract class SequenceGenerator<T> implements DataGenerator<T> {
@@ -48,7 +59,7 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
      * Save the intermediate state of the data to be sent by the current subtask,when the state
      * restore, the sequence values continue to be sent based on the intermediate state.
      */
-    private transient ArrayList<InternalState> internalStates;
+    private transient Queue<InternalState> internalStates;
 
     private transient ListState<InternalState> checkpointedState;
 
@@ -75,42 +86,41 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
                 new ListStateDescriptor<>(
                         name + "-sequence-state", TypeInformation.of(InternalState.class));
         this.checkpointedState = context.getOperatorStateStore().getListState(stateDescriptor);
-        this.internalStates = Lists.newArrayList();
+        this.internalStates = Queues.newPriorityQueue();
 
         if (context.isRestored()) {
-            checkpointedState.get().forEach(state -> internalStates.add(state));
+            checkpointedState.get().forEach(state -> internalStates.offer(state));
         } else {
             // The first time the job is executed.
-            final int taskIdx = runtimeContext.getIndexOfThisSubtask();
+            final int startOffset = runtimeContext.getIndexOfThisSubtask();
             final long stepSize = runtimeContext.getNumberOfParallelSubtasks();
-            InternalState state = new InternalState(taskIdx, stepSize, start + taskIdx);
-            internalStates.add(state);
+            InternalState state = new InternalState(stepSize, start + startOffset);
+            internalStates.offer(state);
         }
     }
 
     public Long nextValue() {
-        Iterator<InternalState> iterator = internalStates.iterator();
-        if (iterator.hasNext()) {
-            InternalState state = iterator.next();
-            long currentValue = state.nextValue;
-            try {
-                state.nextValue = Math.addExact(currentValue, state.stepSize);
-                // All sequence values are cleared from the stateList after they have been sent.
-                if (state.nextValue > this.end) {
-                    iterator.remove();
-                }
-            } catch (ArithmeticException e) {
-                // When the limit is exceeded, it means that the data has been sent and needs to
-                // be cleared from the state.
-                iterator.remove();
-            }
-
-            return currentValue;
+        if (internalStates.isEmpty()) {
+            // Before calling nextValue method, you should call hasNext to check.
+            throw new NoSuchElementException(
+                    "SequenceGenerator.nextValue() was called with no remaining values.");
         }
 
-        // Before calling nextValue method, you should call hasNext to check.
-        throw new IllegalStateException(
-                "SequenceGenerator.nextValue() was called with no remaining values.");
+        InternalState state = internalStates.poll();
+        long currentValue = state.nextValue;
+
+        try {
+            state.nextValue = Math.addExact(currentValue, state.stepSize);
+            // All sequence values are cleared from the state after they are sent.
+            if (state.nextValue <= this.end) {
+                internalStates.offer(state);
+            }
+        } catch (ArithmeticException e) {
+            // When it overflows, it means that all the data has been sent and needs to be
+            // cleared from the state.
+        }
+
+        return currentValue;
     }
 
     @Override
@@ -120,7 +130,7 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
                 "The " + getClass().getSimpleName() + " state has not been properly initialized.");
 
         this.checkpointedState.clear();
-        this.checkpointedState.addAll(internalStates);
+        this.checkpointedState.addAll(new ArrayList<>(internalStates));
     }
 
     @Override
@@ -203,15 +213,23 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
         };
     }
 
-    private static class InternalState {
-        int taskId;
+    /**
+     * The internal state of the sequence generator, which is used to record the latest state of the
+     * sequence value sent by the current sequence generator. When recovering from the state, it is
+     * guaranteed to continue sending the sequence value from the latest state.
+     */
+    private static class InternalState implements Comparable<InternalState> {
         long stepSize;
         long nextValue;
 
-        public InternalState(int taskId, long stepSize, long nextValue) {
-            this.taskId = taskId;
+        public InternalState(long stepSize, long nextValue) {
             this.stepSize = stepSize;
             this.nextValue = nextValue;
+        }
+
+        @Override
+        public int compareTo(InternalState internalState) {
+            return Long.compare(nextValue, internalState.nextValue);
         }
     }
 }
