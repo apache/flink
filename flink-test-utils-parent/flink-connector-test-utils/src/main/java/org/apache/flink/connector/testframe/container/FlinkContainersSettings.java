@@ -420,7 +420,6 @@ public class FlinkContainersSettings {
                     "logger.netty.name", "org.jboss.netty.channel.DefaultChannelPipeline");
             logProperties.setProperty("appender.rolling.strategy.type", "DefaultRolloverStrategy");
             logProperties.setProperty("appender.rolling.policies.type", "Policies");
-            logProperties.setProperty("monitorInterval", "30");
             logProperties.setProperty("logger.kafka.level", "INFO");
             return logProperties;
         }
