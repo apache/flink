@@ -18,8 +18,12 @@
 
 package org.apache.flink.runtime.rest.messages.job;
 
+import org.apache.flink.runtime.rest.messages.ConversionException;
 import org.apache.flink.runtime.rest.messages.MessageParameter;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
+
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Specifies the upper limit of exceptions to return for JobExceptionsHandler.
@@ -35,6 +39,18 @@ public class UpperLimitExceptionParameter extends MessageQueryParameter<Integer>
     }
 
     @Override
+    public List<Integer> convertFromString(String values) throws ConversionException {
+        String[] splitValues = values.split(",");
+        if (splitValues.length != 1) {
+            throw new ConversionException(
+                    String.format(
+                            "%s may be a single integer value that specifies the upper limit of exceptions to return (%s)",
+                            KEY, values));
+        }
+        return Collections.singletonList(convertStringToValue(splitValues[0]));
+    }
+
+    @Override
     public Integer convertStringToValue(String value) {
         return Integer.valueOf(value);
     }
@@ -46,6 +62,6 @@ public class UpperLimitExceptionParameter extends MessageQueryParameter<Integer>
 
     @Override
     public String getDescription() {
-        return "Comma-separated list of integer values that specifies the upper limit of exceptions to return.";
+        return "An integer value that specifies the upper limit of exceptions to return.";
     }
 }
