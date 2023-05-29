@@ -191,7 +191,7 @@ While we encourage the use of incremental checkpoints for large state, you need 
   - Setting a default in your `flink-conf.yaml`: `state.backend.incremental: true` will enable incremental checkpoints, unless the application overrides this setting in the code.
   - You can alternatively configure this directly in the code (overrides the config default): `EmbeddedRocksDBStateBackend backend = new EmbeddedRocksDBStateBackend(true);`
 
-Notice that once incremental checkpoont is enabled, the `Checkpointed Data Size` showed in web UI only represents the 
+Notice that once incremental checkpoint is enabled, the `Checkpointed Data Size` shown in web UI only represents the 
 delta checkpointed data size of that checkpoint instead of full state size.
 
 ### Memory Management
