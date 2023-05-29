@@ -278,7 +278,7 @@ task with the number of new subtasks equal to the number of running tasks.
 ### Waiting for the final checkpoint before task exit
 
 To ensure all the records could be committed for operators using the two-phase commit, 
-the tasks would wait for the final checkpoint completed successfully after all the operators finished. 
+the tasks would wait for the final checkpoint to be completed successfully after all the operators finished. 
 It needs to be noted that this behavior would prolong the execution time of tasks. 
 If the checkpoint interval is long, the execution time would also be prolonged largely. 
 For the worst case, if the checkpoint interval is set to `Long.MAX_VALUE`, 
