@@ -148,7 +148,7 @@ The following time functions are influenced by the configured time zone:
 
 ```sql
 Flink SQL> SET 'sql-client.execution.result-mode' = 'tableau';
-Flink SQL> CREATE VIEW MyView1 AS SELECT LOCALTIME, LOCALTIMESTAMP, CURRENT_DATE, CURRENT_TIME, CURRENT_TIMESTAMP, CURRENT_ROW_TIMESTAMP(), NOW(), PROCTIME();
+Flink SQL> CREATE VIEW MyView1 AS SELECT LOCALTIME, LOCALTIMESTAMP, CURRENT_DATE, CURRENT_TIME, CURRENT_TIMESTAMP, CURRENT_ROW_TIMESTAMP() AS `CURRENT_ROW_TIMESTAMP()`, NOW() AS `NOW()`, PROCTIME() AS `PROCTIME()`;
 Flink SQL> DESC MyView1;
 ```
 
@@ -281,7 +281,7 @@ The PROCTIME() always represents your local timestamp value, using TIMESTAMP_LTZ
 
 ```sql
 Flink SQL> SET 'table.local-time-zone' = 'UTC';
-Flink SQL> SELECT PROCTIME();
+Flink SQL> SELECT PROCTIME() AS `PROCTIME()`;
 ```
 ```
 +-------------------------+
@@ -293,7 +293,7 @@ Flink SQL> SELECT PROCTIME();
 
 ```sql
 Flink SQL> SET 'table.local-time-zone' = 'Asia/Shanghai';
-Flink SQL> SELECT PROCTIME();
+Flink SQL> SELECT PROCTIME() AS `PROCTIME()`;
 ```
 ```
 +-------------------------+
