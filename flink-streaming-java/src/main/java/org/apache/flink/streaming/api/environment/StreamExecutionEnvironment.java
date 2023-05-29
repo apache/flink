@@ -909,10 +909,10 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     // --------------------------------------------------------------------------------------------
 
     /**
-     * Sets the time characteristic for all streams create from this environment, e.g., processing
+     * Sets the time characteristic for all streams created from this environment, e.g., processing
      * time, event time, or ingestion time.
      *
-     * <p>If you set the characteristic to IngestionTime of EventTime this will set a default
+     * <p>If you set the characteristic to IngestionTime or EventTime this will set a default
      * watermark update interval of 200 ms. If this is not applicable for your application you
      * should change it using {@link ExecutionConfig#setAutoWatermarkInterval(long)}.
      *
