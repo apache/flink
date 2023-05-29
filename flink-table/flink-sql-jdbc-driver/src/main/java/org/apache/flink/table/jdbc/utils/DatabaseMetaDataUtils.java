@@ -66,8 +66,7 @@ public class DatabaseMetaDataUtils {
         return new FlinkResultSet(
                 statement,
                 new CollectionResultIterator(catalogs.iterator()),
-                ResolvedSchema.of(TABLE_CAT_COLUMN),
-                StringDataConverter.CONVERTER);
+                ResolvedSchema.of(TABLE_CAT_COLUMN));
     }
 
     /**
@@ -104,7 +103,6 @@ public class DatabaseMetaDataUtils {
         return new FlinkResultSet(
                 statement,
                 new CollectionResultIterator(schemaWithCatalogList.iterator()),
-                ResolvedSchema.of(TABLE_SCHEM_COLUMN, TABLE_CATALOG_COLUMN),
-                StringDataConverter.CONVERTER);
+                ResolvedSchema.of(TABLE_SCHEM_COLUMN, TABLE_CATALOG_COLUMN));
     }
 }

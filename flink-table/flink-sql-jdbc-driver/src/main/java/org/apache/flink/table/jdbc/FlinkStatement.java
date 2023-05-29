@@ -21,7 +21,6 @@ package org.apache.flink.table.jdbc;
 import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.StatementResult;
-import org.apache.flink.table.jdbc.utils.StringDataConverter;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
@@ -58,7 +57,7 @@ public class FlinkStatement extends BaseStatement {
         if (!result.isQueryResult()) {
             throw new SQLException(String.format("Statement[%s] is not a query.", sql));
         }
-        currentResults = new FlinkResultSet(this, result, StringDataConverter.CONVERTER);
+        currentResults = new FlinkResultSet(this, result);
 
         return currentResults;
     }
@@ -106,7 +105,7 @@ public class FlinkStatement extends BaseStatement {
     public boolean execute(String sql) throws SQLException {
         StatementResult result = executeInternal(sql);
         if (result.isQueryResult() || result.getResultKind() == ResultKind.SUCCESS_WITH_CONTENT) {
-            currentResults = new FlinkResultSet(this, result, StringDataConverter.CONVERTER);
+            currentResults = new FlinkResultSet(this, result);
             return true;
         }
 
