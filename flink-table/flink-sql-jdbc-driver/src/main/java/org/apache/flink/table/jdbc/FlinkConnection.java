@@ -21,6 +21,7 @@ package org.apache.flink.table.jdbc;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.StatementResult;
+import org.apache.flink.table.gateway.rest.util.RowFormat;
 import org.apache.flink.table.gateway.service.context.DefaultContext;
 import org.apache.flink.table.jdbc.utils.DriverUtils;
 
@@ -59,7 +60,8 @@ public class FlinkConnection extends BaseConnection {
                                 DriverUtils.fromProperties(driverUri.getProperties()),
                                 Collections.emptyList()),
                         driverUri.getAddress(),
-                        UUID.randomUUID().toString());
+                        UUID.randomUUID().toString(),
+                        RowFormat.JSON);
         driverUri.getCatalog().ifPresent(this::setSessionCatalog);
         driverUri.getDatabase().ifPresent(this::setSessionSchema);
     }

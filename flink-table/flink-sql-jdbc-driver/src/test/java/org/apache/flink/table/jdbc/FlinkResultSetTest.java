@@ -28,8 +28,6 @@ import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
-import org.apache.flink.table.jdbc.utils.DefaultDataConverter;
-import org.apache.flink.table.jdbc.utils.StringDataConverter;
 import org.apache.flink.util.CloseableIterator;
 
 import org.junit.jupiter.api.Test;
@@ -93,8 +91,7 @@ public class FlinkResultSetTest {
                 new FlinkResultSet(
                         new TestingStatement(),
                         new StatementResult(
-                                SCHEMA, data, true, ResultKind.SUCCESS, JobID.generate()),
-                        DefaultDataConverter.CONVERTER)) {
+                                SCHEMA, data, true, ResultKind.SUCCESS, JobID.generate()))) {
             validateResultData(resultSet);
         }
     }
@@ -126,8 +123,7 @@ public class FlinkResultSetTest {
                 new FlinkResultSet(
                         new TestingStatement(),
                         new StatementResult(
-                                SCHEMA, data, true, ResultKind.SUCCESS, JobID.generate()),
-                        StringDataConverter.CONVERTER)) {
+                                SCHEMA, data, true, ResultKind.SUCCESS, JobID.generate()))) {
             validateResultData(resultSet);
         }
     }
@@ -146,8 +142,7 @@ public class FlinkResultSetTest {
                 new FlinkResultSet(
                         new TestingStatement(),
                         new StatementResult(
-                                SCHEMA, data, true, ResultKind.SUCCESS, JobID.generate()),
-                        StringDataConverter.CONVERTER)) {
+                                SCHEMA, data, true, ResultKind.SUCCESS, JobID.generate()))) {
             assertTrue(resultSet.next());
             assertFalse(resultSet.getBoolean(1));
             assertEquals((byte) 0, resultSet.getByte(2));

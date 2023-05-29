@@ -112,6 +112,7 @@ public class ExecutorImpl implements Executor {
 
     private final SqlGatewayRestAPIVersion connectionVersion;
     private final SessionHandle sessionHandle;
+    private final RowFormat rowFormat;
 
     public ExecutorImpl(
             DefaultContext defaultContext, InetSocketAddress gatewayAddress, String sessionId) {
@@ -119,11 +120,30 @@ public class ExecutorImpl implements Executor {
                 defaultContext,
                 NetUtils.socketToUrl(gatewayAddress),
                 sessionId,
-                HEARTBEAT_INTERVAL_MILLISECONDS);
+                HEARTBEAT_INTERVAL_MILLISECONDS,
+                RowFormat.PLAIN_TEXT);
+    }
+
+    public ExecutorImpl(
+            DefaultContext defaultContext,
+            InetSocketAddress gatewayAddress,
+            String sessionId,
+            RowFormat rowFormat) {
+        this(
+                defaultContext,
+                NetUtils.socketToUrl(gatewayAddress),
+                sessionId,
+                HEARTBEAT_INTERVAL_MILLISECONDS,
+                rowFormat);
     }
 
     public ExecutorImpl(DefaultContext defaultContext, URL gatewayUrl, String sessionId) {
-        this(defaultContext, gatewayUrl, sessionId, HEARTBEAT_INTERVAL_MILLISECONDS);
+        this(
+                defaultContext,
+                gatewayUrl,
+                sessionId,
+                HEARTBEAT_INTERVAL_MILLISECONDS,
+                RowFormat.PLAIN_TEXT);
     }
 
     @VisibleForTesting
@@ -132,7 +152,12 @@ public class ExecutorImpl implements Executor {
             InetSocketAddress gatewayAddress,
             String sessionId,
             long heartbeatInterval) {
-        this(defaultContext, NetUtils.socketToUrl(gatewayAddress), sessionId, heartbeatInterval);
+        this(
+                defaultContext,
+                NetUtils.socketToUrl(gatewayAddress),
+                sessionId,
+                heartbeatInterval,
+                RowFormat.PLAIN_TEXT);
     }
 
     @VisibleForTesting
@@ -140,9 +165,11 @@ public class ExecutorImpl implements Executor {
             DefaultContext defaultContext,
             URL gatewayUrl,
             String sessionId,
-            long heartbeatInterval) {
+            long heartbeatInterval,
+            RowFormat rowFormat) {
         this.registry = new AutoCloseableRegistry();
         this.gatewayUrl = gatewayUrl;
+        this.rowFormat = rowFormat;
         try {
             // register required resource
             this.executorService = Executors.newCachedThreadPool();
@@ -433,7 +460,7 @@ public class ExecutorImpl implements Executor {
             return sendRequest(
                             FetchResultsHeaders.getDefaultInstance(),
                             new FetchResultsMessageParameters(
-                                    sessionHandle, operationHandle, token, RowFormat.PLAIN_TEXT),
+                                    sessionHandle, operationHandle, token, rowFormat),
                             EmptyRequestBody.getInstance())
                     .get();
         } catch (InterruptedException e) {

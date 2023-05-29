@@ -19,6 +19,7 @@
 package org.apache.flink.table.client.gateway;
 
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.gateway.rest.util.RowFormat;
 import org.apache.flink.table.gateway.service.context.DefaultContext;
 
 import java.io.Closeable;
@@ -34,6 +35,14 @@ public interface Executor extends Closeable {
     static Executor create(
             DefaultContext defaultContext, InetSocketAddress address, String sessionId) {
         return new ExecutorImpl(defaultContext, address, sessionId);
+    }
+
+    static Executor create(
+            DefaultContext defaultContext,
+            InetSocketAddress address,
+            String sessionId,
+            RowFormat rowFormat) {
+        return new ExecutorImpl(defaultContext, address, sessionId, rowFormat);
     }
 
     static Executor create(DefaultContext defaultContext, URL address, String sessionId) {
