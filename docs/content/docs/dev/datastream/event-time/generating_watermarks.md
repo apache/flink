@@ -130,7 +130,7 @@ The first option is preferable, because it allows sources to exploit knowledge
 about shards/partitions/splits in the watermarking logic. Sources can usually
 then track watermarks at a finer level and the overall watermark produced by a
 source will be more accurate. Specifying a `WatermarkStrategy` directly on the
-source usually means you have to use a source specific interface/ Refer to
+source usually means you have to use a source specific interface. Refer to
 [Watermark Strategies and the Kafka
 Connector](#watermark-strategies-and-the-kafka-connector) for how this works on
 a Kafka Connector and for more details about how per-partition watermarking
