@@ -55,7 +55,7 @@ There is no need for a watermark strategy as records do not contain event timest
 {{< tab "Java" >}}
 ```java
 final FileSource<String> source =
-  FileSource.forRecordStreamFormat(new TextLineInputFormat(), /* Flink Path */)
+  FileSource.forRecordStreamFormat(new TextLineInputFormat(), /* File Paths */)
   .build();
 final DataStream<String> stream =
   env.fromSource(source, WatermarkStrategy.noWatermarks(), "file-source");
@@ -78,7 +78,7 @@ There is no need for a watermark strategy as records do not contain event timest
 {{< tab "Java" >}}
 ```java
 final FileSource<String> source =
-    FileSource.forRecordStreamFormat(new TextLineInputFormat(), /* Flink Path */)
+    FileSource.forRecordStreamFormat(new TextLineInputFormat(), /* File Paths */)
   .monitorContinuously(Duration.ofSeconds(1L))
   .build();
 final DataStream<String> stream =
