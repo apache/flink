@@ -31,7 +31,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<kubernetes.client.version>6.5.1</kubernetes.client.version>
+		<kubernetes.client.version>6.6.2</kubernetes.client.version>
 	</properties>
 
 	<dependencies>
