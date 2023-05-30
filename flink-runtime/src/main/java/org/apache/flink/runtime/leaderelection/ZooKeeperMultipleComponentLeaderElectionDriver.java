@@ -21,7 +21,6 @@ package org.apache.flink.runtime.leaderelection;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.concurrent.Executors;
 
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cache.ChildData;
@@ -67,14 +66,12 @@ public class ZooKeeperMultipleComponentLeaderElectionDriver
 
         this.leaderLatch = new LeaderLatch(curatorFramework, ZooKeeperUtils.getLeaderLatchPath());
         this.treeCache =
-                TreeCache.newBuilder(curatorFramework, "/")
-                        .setCacheData(true)
-                        .setCreateParentNodes(false)
-                        .setSelector(
-                                new ZooKeeperMultipleComponentLeaderElectionDriver
-                                        .ConnectionInfoNodeSelector())
-                        .setExecutor(Executors.newDirectExecutorService())
-                        .build();
+                ZooKeeperUtils.createTreeCache(
+                        curatorFramework,
+                        "/",
+                        new ZooKeeperMultipleComponentLeaderElectionDriver
+                                .ConnectionInfoNodeSelector());
+
         treeCache
                 .getListenable()
                 .addListener(

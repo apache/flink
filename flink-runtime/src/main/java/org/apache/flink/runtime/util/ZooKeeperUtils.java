@@ -757,16 +757,24 @@ public class ZooKeeperUtils {
             final String pathToNode,
             final RunnableWithException nodeChangeCallback) {
         final TreeCache cache =
-                TreeCache.newBuilder(client, pathToNode)
-                        .setCacheData(true)
-                        .setCreateParentNodes(false)
-                        .setSelector(ZooKeeperUtils.treeCacheSelectorForPath(pathToNode))
-                        .setExecutor(Executors.newDirectExecutorService())
-                        .build();
+                createTreeCache(
+                        client, pathToNode, ZooKeeperUtils.treeCacheSelectorForPath(pathToNode));
 
         cache.getListenable().addListener(createTreeCacheListener(nodeChangeCallback));
 
         return cache;
+    }
+
+    public static TreeCache createTreeCache(
+            final CuratorFramework client,
+            final String pathToNode,
+            final TreeCacheSelector selector) {
+        return TreeCache.newBuilder(client, pathToNode)
+                .setCacheData(true)
+                .setCreateParentNodes(false)
+                .setSelector(selector)
+                .setExecutor(Executors.newDirectExecutorService())
+                .build();
     }
 
     @VisibleForTesting
