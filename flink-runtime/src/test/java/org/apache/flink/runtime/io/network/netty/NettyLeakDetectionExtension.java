@@ -21,26 +21,28 @@ package org.apache.flink.runtime.io.network.netty;
 import org.apache.flink.shaded.netty4.io.netty.util.ResourceLeakDetector;
 import org.apache.flink.shaded.netty4.io.netty.util.ResourceLeakDetectorFactory;
 
-import org.junit.Assert;
-import org.junit.rules.ExternalResource;
+import org.junit.jupiter.api.extension.AfterAllCallback;
+import org.junit.jupiter.api.extension.BeforeAllCallback;
+import org.junit.jupiter.api.extension.ExtensionContext;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.concurrent.GuardedBy;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
- * JUnit resource to fail with an assertion when Netty detects a resource leak (only with
+ * JUnit5 extension to fail with an assertion when Netty detects a resource leak (only with
  * <tt>ERROR</tt> logging enabled for
  * <tt>org.apache.flink.shaded.netty4.io.netty.util.ResourceLeakDetector</tt>).
  *
- * <p>This should be used in a class rule:
+ * <p>This should be registered as a junit5 extension:
  * <pre>{@code
- * @literal @ClassRule
- *  public static final NettyLeakDetectionResource LEAK_DETECTION = new NettyLeakDetectionResource();
+ * @literal @RegisterExtension
+ *  public static final NettyLeakDetectionExtension LEAK_DETECTION = new NettyLeakDetectionExtension();
  * }</pre>
  */
-public class NettyLeakDetectionResource extends ExternalResource {
+public class NettyLeakDetectionExtension implements BeforeAllCallback, AfterAllCallback {
     @GuardedBy("refCountLock")
     private static ResourceLeakDetectorFactory previousLeakDetector;
 
@@ -50,14 +52,14 @@ public class NettyLeakDetectionResource extends ExternalResource {
     private static final Object refCountLock = new Object();
     private static int refCount = 0;
 
-    public NettyLeakDetectionResource() {
-        Assert.assertTrue(
-                "Error logging must be enabled for the ResourceLeakDetector.",
-                LoggerFactory.getLogger(ResourceLeakDetector.class).isErrorEnabled());
+    public NettyLeakDetectionExtension() {
+        assertThat(LoggerFactory.getLogger(ResourceLeakDetector.class).isErrorEnabled())
+                .withFailMessage("Error logging must be enabled for the ResourceLeakDetector.")
+                .isTrue();
     }
 
     @Override
-    protected void before() {
+    public void beforeAll(ExtensionContext context) throws Exception {
         synchronized (refCountLock) {
             if (refCount == 0) {
                 previousLeakDetector = ResourceLeakDetectorFactory.instance();
@@ -72,7 +74,7 @@ public class NettyLeakDetectionResource extends ExternalResource {
     }
 
     @Override
-    protected synchronized void after() {
+    public void afterAll(ExtensionContext context) throws Exception {
         synchronized (refCountLock) {
             --refCount;
             if (refCount == 0) {
@@ -85,13 +87,13 @@ public class NettyLeakDetectionResource extends ExternalResource {
     private static class FailingResourceLeakDetectorFactory extends ResourceLeakDetectorFactory {
         public <T> ResourceLeakDetector<T> newResourceLeakDetector(
                 Class<T> resource, int samplingInterval, long maxActive) {
-            return new FailingResourceLeakDetector<T>(resource, samplingInterval, maxActive);
+            return new FailingResourceLeakDetector<>(resource, samplingInterval);
         }
     }
 
     private static class FailingResourceLeakDetector<T> extends ResourceLeakDetector<T> {
-        FailingResourceLeakDetector(Class<?> resourceType, int samplingInterval, long maxActive) {
-            super(resourceType, samplingInterval, maxActive);
+        FailingResourceLeakDetector(Class<?> resourceType, int samplingInterval) {
+            super(resourceType, samplingInterval);
         }
 
         @Override

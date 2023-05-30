@@ -43,7 +43,7 @@ class StandaloneLeaderElectionTest {
         TestingListener testingListener = new TestingListener();
 
         try {
-            leaderElectionService.start(contender);
+            contender.startLeaderElection();
             leaderRetrievalService.start(testingListener);
 
             contender.waitForLeader();

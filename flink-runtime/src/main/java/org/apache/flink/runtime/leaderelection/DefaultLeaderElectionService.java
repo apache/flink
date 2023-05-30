@@ -27,7 +27,6 @@ import org.apache.flink.util.concurrent.FutureUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
@@ -46,8 +45,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>{@code DefaultLeaderElectionService} handles a single {@link LeaderContender}.
  */
-public class DefaultLeaderElectionService
-        implements LeaderElectionService, LeaderElectionEventHandler, AutoCloseable {
+public class DefaultLeaderElectionService extends AbstractLeaderElectionService
+        implements LeaderElectionEventHandler, AutoCloseable {
 
     private static final Logger LOG = LoggerFactory.getLogger(DefaultLeaderElectionService.class);
 
@@ -57,8 +56,8 @@ public class DefaultLeaderElectionService
 
     /**
      * {@code leaderContender} being {@code null} indicates that no {@link LeaderContender} is
-     * registered that participates in the leader election, yet. See {@link #start(LeaderContender)}
-     * and {@link #stop()} for lifecycle management.
+     * registered that participates in the leader election, yet. See {@link
+     * #register(LeaderContender)} and {@link #stop()} for lifecycle management.
      *
      * <p>{@code @Nullable} isn't used here to avoid having multiple warnings spread over this class
      * in a supporting IDE.
@@ -145,7 +144,7 @@ public class DefaultLeaderElectionService
     }
 
     @Override
-    public final void start(LeaderContender contender) throws Exception {
+    protected void register(LeaderContender contender) throws Exception {
         checkNotNull(contender, "Contender must not be null.");
 
         synchronized (lock) {
@@ -237,7 +236,7 @@ public class DefaultLeaderElectionService
     }
 
     @Override
-    public void confirmLeadership(UUID leaderSessionID, String leaderAddress) {
+    protected void confirmLeadership(UUID leaderSessionID, String leaderAddress) {
         LOG.debug("Confirm leader session ID {} for leader {}.", leaderSessionID, leaderAddress);
 
         checkNotNull(leaderSessionID);
@@ -268,7 +267,7 @@ public class DefaultLeaderElectionService
     }
 
     @Override
-    public boolean hasLeadership(@Nonnull UUID leaderSessionId) {
+    protected boolean hasLeadership(UUID leaderSessionId) {
         synchronized (lock) {
             if (leaderElectionDriver != null) {
                 if (leaderContender != null) {

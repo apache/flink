@@ -182,6 +182,11 @@ This file is based on the checkstyle file of Apache Beam.
 
 		<module name="IllegalImport">
 			<property name="illegalPkgs"
+					  value="org.mockito, org.powermock"/>
+			<message key="import.illegal" value="{0}; Mocking is discouraged. Please refer to the coding guidelines: https://flink.apache.org/how-to-contribute/code-style-and-quality-common/#avoid-mockito---use-reusable-test-implementations."/>
+		</module>
+		<module name="IllegalImport">
+			<property name="illegalPkgs"
 					  value="autovalue.shaded, avro.shaded, com.google.api.client.repackaged, com.google.appengine.repackaged"/>
 		</module>
 		<module name="IllegalImport">

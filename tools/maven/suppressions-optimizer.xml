@@ -23,6 +23,10 @@ under the License.
 	"http://www.puppycrawl.com/dtds/suppressions_1_1.dtd">
 
 <suppressions>
+	<!-- Legacy mockito usages -->
+	<suppress files="CoGroupNodeTest.java|GroupReduceNodeTest.java|GroupCombineNodeTest.java|MapPartitionNodeTest.java"
+			  checks="IllegalImport"/>
+
 	<suppress
 		files="(.*)optimizer[/\\]costs[/\\](.*)"
 		checks="JavadocMethod|JavadocParagraph|JavadocType|JavadocStyle|StaticVariableNameCheck|MemberNameCheck|LocalFinalVariableName|EmptyLineSeparator"/>

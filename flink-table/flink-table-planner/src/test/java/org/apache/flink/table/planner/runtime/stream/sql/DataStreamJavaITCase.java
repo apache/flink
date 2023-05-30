@@ -378,6 +378,19 @@ public class DataStreamJavaITCase extends AbstractTestBase {
     }
 
     @Test
+    public void testFromAndToDataStreamBypassConversion() throws Exception {
+        final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
+
+        DataStream<Row> dataStream = env.fromElements(Row.of(1L, "a"));
+        Table table = tableEnv.fromDataStream(dataStream);
+        DataStream<Row> convertedDataStream = tableEnv.toDataStream(table);
+
+        assertThat(dataStream).isEqualTo(convertedDataStream);
+
+        testResult(convertedDataStream, Row.of(1L, "a"));
+    }
+
+    @Test
     public void testFromAndToChangelogStreamEventTime() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 

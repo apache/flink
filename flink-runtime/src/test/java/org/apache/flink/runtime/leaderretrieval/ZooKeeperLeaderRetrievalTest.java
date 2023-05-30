@@ -191,7 +191,9 @@ class ZooKeeperLeaderRetrievalTest {
                 externalProcessDriver.notLeader();
                 externalProcessDriver.close();
 
-                leaderElectionService.start(correctLeaderAddressContender);
+                // leaderElection is unused right now because it doesn't need to be closed, yet.
+                // The close call will be introduced with FLINK-31785
+                correctLeaderAddressContender.startLeaderElection();
 
                 thread.join();
 

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.dispatcher.runner;
 
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
+import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.util.FlinkException;
@@ -43,6 +44,7 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
     private final Object lock = new Object();
 
     private final LeaderElectionService leaderElectionService;
+    private LeaderElection leaderElection;
 
     private final FatalErrorHandler fatalErrorHandler;
 
@@ -75,7 +77,8 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
     }
 
     void start() throws Exception {
-        leaderElectionService.start(this);
+        leaderElection = leaderElectionService.createLeaderElection();
+        leaderElection.startLeaderElection(this);
     }
 
     @Override
@@ -178,8 +181,8 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
                         .getLeaderAddressFuture()
                         .thenAccept(
                                 leaderAddress -> {
-                                    if (leaderElectionService.hasLeadership(leaderSessionID)) {
-                                        leaderElectionService.confirmLeadership(
+                                    if (leaderElection.hasLeadership(leaderSessionID)) {
+                                        leaderElection.confirmLeadership(
                                                 leaderSessionID, leaderAddress);
                                     }
                                 }));

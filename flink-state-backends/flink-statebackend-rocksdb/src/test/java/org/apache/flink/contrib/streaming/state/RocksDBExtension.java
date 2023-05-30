@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,7 +21,9 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
 
-import org.junit.rules.ExternalResource;
+import org.junit.jupiter.api.extension.AfterEachCallback;
+import org.junit.jupiter.api.extension.BeforeEachCallback;
+import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.rules.TemporaryFolder;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
@@ -43,10 +45,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-/** External resource for tests that require an instance of RocksDB. */
-public class RocksDBResource extends ExternalResource {
-
-    private static final Logger LOG = LoggerFactory.getLogger(RocksDBResource.class);
+/** External extension for tests that require an instance of RocksDB. */
+public class RocksDBExtension implements BeforeEachCallback, AfterEachCallback {
+    private static final Logger LOG = LoggerFactory.getLogger(RocksDBExtension.class);
 
     /** Factory for {@link DBOptions} and {@link ColumnFamilyOptions}. */
     private final RocksDBOptionsFactory optionsFactory;
@@ -78,13 +79,13 @@ public class RocksDBResource extends ExternalResource {
     private RocksDBWriteBatchWrapper batchWrapper;
 
     /** Resources to close. */
-    private ArrayList<AutoCloseable> handlesToClose = new ArrayList<>();
+    private final ArrayList<AutoCloseable> handlesToClose = new ArrayList<>();
 
-    public RocksDBResource() {
+    public RocksDBExtension() {
         this(false);
     }
 
-    public RocksDBResource(boolean enableStatistics) {
+    public RocksDBExtension(boolean enableStatistics) {
         this(
                 new RocksDBOptionsFactory() {
                     private static final long serialVersionUID = 1L;
@@ -124,7 +125,7 @@ public class RocksDBResource extends ExternalResource {
                 enableStatistics);
     }
 
-    public RocksDBResource(
+    public RocksDBExtension(
             @Nonnull RocksDBOptionsFactory optionsFactory, boolean enableStatistics) {
         this.optionsFactory = optionsFactory;
         this.enableStatistics = enableStatistics;
@@ -167,8 +168,7 @@ public class RocksDBResource extends ExternalResource {
         }
     }
 
-    @Override
-    protected void before() throws Throwable {
+    public void before() throws Exception {
         this.temporaryFolder = new TemporaryFolder();
         this.temporaryFolder.create();
         final File rocksFolder = temporaryFolder.newFolder();
@@ -203,8 +203,7 @@ public class RocksDBResource extends ExternalResource {
         this.batchWrapper = new RocksDBWriteBatchWrapper(rocksDB, writeOptions);
     }
 
-    @Override
-    protected void after() {
+    public void after() throws Exception {
         // destruct in reversed order of creation.
         IOUtils.closeQuietly(this.batchWrapper);
         for (ColumnFamilyHandle columnFamilyHandle : columnFamilyHandles) {
@@ -217,5 +216,15 @@ public class RocksDBResource extends ExternalResource {
         IOUtils.closeQuietly(this.dbOptions);
         handlesToClose.forEach(IOUtils::closeQuietly);
         temporaryFolder.delete();
+    }
+
+    @Override
+    public void beforeEach(ExtensionContext context) throws Exception {
+        before();
+    }
+
+    @Override
+    public void afterEach(ExtensionContext context) throws Exception {
+        after();
     }
 }
