@@ -1,0 +1,104 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<configuration>
+	<!--
+	   Licensed to the Apache Software Foundation (ASF) under one or more
+	   contributor license agreements.  See the NOTICE file distributed with
+	   this work for additional information regarding copyright ownership.
+	   The ASF licenses this file to You under the Apache License, Version 2.0
+	   (the "License"); you may not use this file except in compliance with
+	   the License.  You may obtain a copy of the License at
+
+		   http://www.apache.org/licenses/LICENSE-2.0
+
+	   Unless required by applicable law or agreed to in writing, software
+	   distributed under the License is distributed on an "AS IS" BASIS,
+	   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	   See the License for the specific language governing permissions and
+	   limitations under the License.
+	-->
+	<property>
+		<name>hive.metastore.uris</name>
+		<value>thrift://localhost:9083</value>
+	</property>
+
+	<property>
+		<name>javax.jdo.option.ConnectionURL</name>
+		<value>jdbc:mysql://localhost:3306/metastore?useSSL=false</value>
+	</property>
+
+	<property>
+		<name>javax.jdo.option.ConnectionDriverName</name>
+		<value>com.mysql.cj.jdbc.Driver</value>
+	</property>
+
+	<property>
+		<name>javax.jdo.option.ConnectionUserName</name>
+		<value>root</value>
+	</property>
+
+	<property>
+		<name>javax.jdo.option.ConnectionPassword</name>
+		<value>root</value>
+	</property>
+
+	<property>
+		<name>hive.metastore.connect.retries</name>
+		<value>15</value>
+	</property>
+
+	<property>
+		<name>hive.metastore.disallow.incompatible.col.type.changes</name>
+		<value>false</value>
+	</property>
+
+	<property>
+		<!-- https://community.hortonworks.com/content/supportkb/247055/errorjavalangunsupportedoperationexception-storage.html -->
+		<name>metastore.storage.schema.reader.impl</name>
+		<value>org.apache.hadoop.hive.metastore.SerDeStorageSchemaReader</value>
+	</property>
+
+	<property>
+		<name>hive.support.concurrency</name>
+		<value>true</value>
+	</property>
+
+	<property>
+		<name>hive.txn.manager</name>
+		<value>org.apache.hadoop.hive.ql.lockmgr.DbTxnManager</value>
+	</property>
+
+	<property>
+		<name>hive.compactor.initiator.on</name>
+		<value>true</value>
+	</property>
+
+	<property>
+		<name>hive.compactor.worker.threads</name>
+		<value>1</value>
+	</property>
+
+	<property>
+		<name>hive.users.in.admin.role</name>
+		<value>hdfs,hive</value>
+	</property>
+
+</configuration>
