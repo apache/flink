@@ -328,6 +328,12 @@
     class="no-border"
     [nzWidthConfig]="['200px', null]"
   >
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Count</th>
+      </tr>
+    </thead>
     <tbody>
       <ng-container
         [ngTemplateOutlet]="tmResourceRow"
