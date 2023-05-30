@@ -295,7 +295,7 @@
   </div>
 </nz-card>
 
-<ng-template #tmResourceRow let-detail="detail" let-name="name" let-property="prop">
+<ng-template #tmResourceRow let-detail="detail" let-name="name" let-property="prop" let-unit="unit">
   <tr>
     <td>
       <strong>{{ name }}</strong>
@@ -312,7 +312,8 @@
         "
         nzStatus="normal"
       ></nz-progress>
-      {{ detail?.freeResource[property] | number }} / {{ detail?.totalResource[property] | number }}
+      {{ detail?.freeResource[property] | number }} /
+      {{ detail?.totalResource[property] | number }} {{ unit }}
     </td>
   </tr>
 </ng-template>
@@ -337,14 +338,20 @@
     <tbody>
       <ng-container
         [ngTemplateOutlet]="tmResourceRow"
-        [ngTemplateOutletContext]="{ name: 'CPU', detail: taskManagerDetail, prop: 'cpuCores' }"
+        [ngTemplateOutletContext]="{
+          name: 'CPU',
+          detail: taskManagerDetail,
+          prop: 'cpuCores',
+          unit: 'cores'
+        }"
       ></ng-container>
       <ng-container
         [ngTemplateOutlet]="tmResourceRow"
         [ngTemplateOutletContext]="{
           name: 'Task Heap memory',
           detail: taskManagerDetail,
-          prop: 'taskHeapMemory'
+          prop: 'taskHeapMemory',
+          unit: 'MB'
         }"
       ></ng-container>
       <ng-container
@@ -352,7 +359,8 @@
         [ngTemplateOutletContext]="{
           name: 'Task Off-Heap memory',
           detail: taskManagerDetail,
-          prop: 'taskOffHeapMemory'
+          prop: 'taskOffHeapMemory',
+          unit: 'MB'
         }"
       ></ng-container>
       <ng-container
@@ -360,7 +368,8 @@
         [ngTemplateOutletContext]="{
           name: 'Managed memory',
           detail: taskManagerDetail,
-          prop: 'managedMemory'
+          prop: 'managedMemory',
+          unit: 'MB'
         }"
       ></ng-container>
       <ng-container
@@ -368,7 +377,8 @@
         [ngTemplateOutletContext]="{
           name: 'Network memory',
           detail: taskManagerDetail,
-          prop: 'networkMemory'
+          prop: 'networkMemory',
+          unit: 'MB'
         }"
       ></ng-container>
     </tbody>
