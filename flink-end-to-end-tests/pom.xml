@@ -76,6 +76,7 @@ under the License.
 		<module>flink-end-to-end-tests-hbase</module>
 		<module>flink-end-to-end-tests-scala</module>
 		<module>flink-end-to-end-tests-sql</module>
+		<module>flink-end-to-end-tests-hive</module>
     </modules>
 
 	<dependencies>
