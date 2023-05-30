@@ -22,6 +22,8 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+<a name="datagen-connector"></a>
+
 # DataGen 连接器
 
 DataGen 连接器提供的 `Source` 方法可以为 Flink 管道生成输入数据，这在本地开发或演示过程中无法访问外部系统（如 Kafka）时非常有用。DataGen 连接器是内置的，无需额外依赖。
@@ -71,7 +73,6 @@ DataGeneratorSource<String> source =
 有界性
 -----
 `DataGeneratorSource` 始终是有界的。然而，从实际来看，将记录数设置为 `Long.MAX_VALUE` 会将其转化为无界数据源（永远不会达到该长度）。对于有界序列，用户可能希望在 [`BATCH` 运行模式]({{< ref "docs/dev/datastream/execution_mode" >}}#when-canshould-i-use-batch-execution-mode) 运行程序。
-.
 
 注意事项
 -----
