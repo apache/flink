@@ -56,9 +56,7 @@ public class KubernetesClusterClientFactory
             final String clusterId = generateClusterId();
             configuration.setString(KubernetesConfigOptions.CLUSTER_ID, clusterId);
         }
-        return new KubernetesClusterDescriptor(
-                configuration,
-                FlinkKubeClientFactory.getInstance().fromConfiguration(configuration, "client"));
+        return new KubernetesClusterDescriptor(configuration, FlinkKubeClientFactory.getInstance());
     }
 
     @Nullable

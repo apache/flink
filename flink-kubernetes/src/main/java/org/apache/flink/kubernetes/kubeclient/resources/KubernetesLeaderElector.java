@@ -56,10 +56,10 @@ public class KubernetesLeaderElector {
     private final Object lock = new Object();
 
     private final ExecutorService executorService =
-            Executors.newSingleThreadExecutor(
-                    new ExecutorThreadFactory("KubernetesLeaderElector-ExecutorService"));
+            Executors.newFixedThreadPool(
+                    3, new ExecutorThreadFactory("KubernetesLeaderElector-ExecutorService"));
 
-    private final LeaderElector<NamespacedKubernetesClient> internalLeaderElector;
+    private final LeaderElector internalLeaderElector;
 
     public KubernetesLeaderElector(
             NamespacedKubernetesClient kubernetesClient,
@@ -86,7 +86,8 @@ public class KubernetesLeaderElector {
                                                         newLeader,
                                                         leaderConfig.getConfigMapName())))
                         .build();
-        internalLeaderElector = new LeaderElector<>(kubernetesClient, leaderElectionConfig);
+        internalLeaderElector =
+                new LeaderElector(kubernetesClient, leaderElectionConfig, executorService);
         LOG.info(
                 "Create KubernetesLeaderElector {} with lock identity {}.",
                 leaderConfig.getConfigMapName(),
