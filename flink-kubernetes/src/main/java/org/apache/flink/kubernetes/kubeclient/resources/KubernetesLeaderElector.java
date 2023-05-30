@@ -56,8 +56,8 @@ public class KubernetesLeaderElector {
     private final Object lock = new Object();
 
     private final ExecutorService executorService =
-            Executors.newSingleThreadExecutor(
-                    new ExecutorThreadFactory("KubernetesLeaderElector-ExecutorService"));
+            Executors.newFixedThreadPool(
+                    3, new ExecutorThreadFactory("KubernetesLeaderElector-ExecutorService"));
 
     private final LeaderElector internalLeaderElector;
 
@@ -100,7 +100,7 @@ public class KubernetesLeaderElector {
                 LOG.debug(
                         "Ignoring KubernetesLeaderElector.run call because the leader elector has already been shut down.");
             } else {
-                internalLeaderElector.run();
+                executorService.execute(internalLeaderElector::run);
             }
         }
     }
