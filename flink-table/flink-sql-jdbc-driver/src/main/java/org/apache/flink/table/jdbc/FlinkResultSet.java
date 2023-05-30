@@ -159,8 +159,7 @@ public class FlinkResultSet extends BaseResultSet {
         checkValidRow();
         checkValidColumn(columnIndex);
         try {
-            return currentRow.getBoolean(columnIndex - 1);
-
+            return !currentRow.isNullAt(columnIndex - 1) && currentRow.getBoolean(columnIndex - 1);
         } catch (Exception e) {
             throw new SQLDataException(e);
         }
@@ -172,7 +171,7 @@ public class FlinkResultSet extends BaseResultSet {
         checkValidRow();
         checkValidColumn(columnIndex);
         try {
-            return currentRow.getByte(columnIndex - 1);
+            return currentRow.isNullAt(columnIndex - 1) ? 0 : currentRow.getByte(columnIndex - 1);
         } catch (Exception e) {
             throw new SQLDataException(e);
         }
@@ -184,7 +183,7 @@ public class FlinkResultSet extends BaseResultSet {
         checkValidRow();
         checkValidColumn(columnIndex);
         try {
-            return currentRow.getShort(columnIndex - 1);
+            return currentRow.isNullAt(columnIndex - 1) ? 0 : currentRow.getShort(columnIndex - 1);
         } catch (Exception e) {
             throw new SQLDataException(e);
         }
@@ -196,7 +195,7 @@ public class FlinkResultSet extends BaseResultSet {
         checkValidRow();
         checkValidColumn(columnIndex);
         try {
-            return currentRow.getInt(columnIndex - 1);
+            return currentRow.isNullAt(columnIndex - 1) ? 0 : currentRow.getInt(columnIndex - 1);
         } catch (Exception e) {
             throw new SQLDataException(e);
         }
@@ -209,7 +208,7 @@ public class FlinkResultSet extends BaseResultSet {
         checkValidColumn(columnIndex);
 
         try {
-            return currentRow.getLong(columnIndex - 1);
+            return currentRow.isNullAt(columnIndex - 1) ? 0L : currentRow.getLong(columnIndex - 1);
         } catch (Exception e) {
             throw new SQLDataException(e);
         }
@@ -221,7 +220,7 @@ public class FlinkResultSet extends BaseResultSet {
         checkValidRow();
         checkValidColumn(columnIndex);
         try {
-            return currentRow.getFloat(columnIndex - 1);
+            return currentRow.isNullAt(columnIndex - 1) ? 0 : currentRow.getFloat(columnIndex - 1);
         } catch (Exception e) {
             throw new SQLDataException(e);
         }
@@ -233,7 +232,7 @@ public class FlinkResultSet extends BaseResultSet {
         checkValidRow();
         checkValidColumn(columnIndex);
         try {
-            return currentRow.getDouble(columnIndex - 1);
+            return currentRow.isNullAt(columnIndex - 1) ? 0 : currentRow.getDouble(columnIndex - 1);
         } catch (Exception e) {
             throw new SQLDataException(e);
         }
@@ -384,9 +383,14 @@ public class FlinkResultSet extends BaseResultSet {
         }
         DecimalType decimalType = (DecimalType) dataType.getLogicalType();
         try {
-            return currentRow
-                    .getDecimal(columnIndex - 1, decimalType.getPrecision(), decimalType.getScale())
-                    .toBigDecimal();
+            return currentRow.isNullAt(columnIndex - 1)
+                    ? null
+                    : currentRow
+                            .getDecimal(
+                                    columnIndex - 1,
+                                    decimalType.getPrecision(),
+                                    decimalType.getScale())
+                            .toBigDecimal();
         } catch (Exception e) {
             throw new SQLDataException(e);
         }
