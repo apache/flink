@@ -24,6 +24,8 @@ import java.util.concurrent.ExecutorService;
 /** Collection of {@link Executor} and {@link ExecutorService} implementations. */
 public class Executors {
 
+    private Executors() {}
+
     /**
      * Return a direct executor. The direct executor directly executes the runnable in the calling
      * thread.
