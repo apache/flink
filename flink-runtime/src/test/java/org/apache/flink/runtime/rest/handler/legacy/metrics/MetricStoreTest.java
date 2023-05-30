@@ -27,13 +27,16 @@ import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
+import javax.annotation.Nonnull;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -43,7 +46,7 @@ class MetricStoreTest {
     private static final JobID JOB_ID = new JobID();
 
     @Test
-    void testAdd() throws IOException {
+    void testAdd() {
         MetricStore store = setupStore(new MetricStore());
 
         assertThat(store.getJobManagerMetricStore().getMetric("abc.metric1", "-1")).isEqualTo("0");
@@ -124,10 +127,11 @@ class MetricStoreTest {
     @Test
     void testTaskMetricStoreCleanup() {
         MetricStore store = setupStore(new MetricStore());
-        assertThat(
-                        store.getTaskMetricStore(JOB_ID.toString(), "taskid")
-                                .getAllSubtaskMetricStores()
-                                .keySet())
+        MetricStore.TaskMetricStore taskMetricStore =
+                store.getTaskMetricStore(JOB_ID.toString(), "taskid");
+        assertThat(taskMetricStore.getAllSubtaskMetricStores().keySet())
+                .containsExactlyInAnyOrderElementsOf(Arrays.asList(1, 8));
+        assertThat(getTaskMetricStoreIndexes(taskMetricStore))
                 .containsExactlyInAnyOrderElementsOf(Arrays.asList(1, 8));
 
         Map<String, Map<Integer, CurrentAttempts>> currentExecutionAttempts =
@@ -148,11 +152,24 @@ class MetricStoreTest {
                         currentExecutionAttempts);
         store.updateCurrentExecutionAttempts(Collections.singleton(jobDetail));
 
-        assertThat(
-                        store.getTaskMetricStore(JOB_ID.toString(), "taskid")
-                                .getAllSubtaskMetricStores()
-                                .keySet())
+        assertThat(taskMetricStore.getAllSubtaskMetricStores().keySet())
                 .containsExactlyInAnyOrderElementsOf(Collections.singletonList(1));
+
+        assertThat(getTaskMetricStoreIndexes(taskMetricStore))
+                .containsExactlyInAnyOrderElementsOf(Collections.singletonList(1));
+    }
+
+    @Nonnull
+    private static Set<Integer> getTaskMetricStoreIndexes(
+            MetricStore.TaskMetricStore taskMetricStore) {
+        return taskMetricStore.metrics.keySet().stream()
+                .map(
+                        key -> {
+                            String index = key.substring(0, Math.max(key.indexOf('.'), 0));
+                            return index.matches("\\d+") ? Integer.parseInt(index) : null;
+                        })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
     }
 
     @Test
