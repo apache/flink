@@ -612,6 +612,10 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     private CompletableFuture<Acknowledge> internalSubmitJob(JobGraph jobGraph) {
         applyParallelismOverrides(jobGraph);
         log.info("Submitting job '{}' ({}).", jobGraph.getName(), jobGraph.getJobID());
+
+        // track as an outstanding job
+        submittedAndWaitingTerminationJobIDs.add(jobGraph.getJobID());
+
         return waitForTerminatingJob(jobGraph.getJobID(), jobGraph, this::persistAndRunJob)
                 .handle((ignored, throwable) -> handleTermination(jobGraph.getJobID(), throwable))
                 .thenCompose(Function.identity());
@@ -619,6 +623,10 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     private CompletableFuture<Acknowledge> handleTermination(
             JobID jobId, @Nullable Throwable terminationThrowable) {
+
+        // job is done processing, whether failed or finished
+        submittedAndWaitingTerminationJobIDs.remove(jobId);
+
         if (terminationThrowable != null) {
             return globalResourceCleaner
                     .cleanupAsync(jobId)
@@ -1524,17 +1532,11 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                                                     throwable));
                                 });
 
-        // keep track of the job as outstanding, if not done
-        if (!jobManagerTerminationFuture.isDone()) {
-            submittedAndWaitingTerminationJobIDs.add(jobId);
-        }
-
         return FutureUtils.thenAcceptAsyncIfNotDone(
                 jobManagerTerminationFuture,
                 getMainThreadExecutor(),
                 FunctionUtils.uncheckedConsumer(
                         (ignored) -> {
-                            submittedAndWaitingTerminationJobIDs.remove(jobId);
                             jobManagerRunnerTerminationFutures.remove(jobId);
                             action.accept(jobGraph);
                         }));
