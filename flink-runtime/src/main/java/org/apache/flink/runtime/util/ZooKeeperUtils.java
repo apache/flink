@@ -773,7 +773,9 @@ public class ZooKeeperUtils {
                 .setCacheData(true)
                 .setCreateParentNodes(false)
                 .setSelector(selector)
-                .setExecutor(Executors.newDirectExecutorService())
+                // see FLINK-32204 for further details on why the task rejection shouldn't
+                // be enforced here
+                .setExecutor(Executors.newDirectExecutorServiceWithNoOpShutdown())
                 .build();
     }
 
