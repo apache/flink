@@ -503,6 +503,19 @@ public class MetricStore {
         }
 
         void retainSubtasks(Set<Integer> activeSubtasks) {
+            // Retain metrics of pattern subtaskIndex.metricName which are directly stored in
+            // TaskMetricStore
+            metrics.keySet()
+                    .removeIf(
+                            key -> {
+                                // To prevent errors in metric parsing, here we only
+                                // clean up metrics with a pattern of
+                                // "subtaskIndex.metricName"
+                                String index = key.substring(0, Math.max(key.indexOf('.'), 0));
+                                return index.matches("\\d+")
+                                        && !activeSubtasks.contains(Integer.parseInt(index));
+                            });
+
             subtasks.keySet().retainAll(activeSubtasks);
         }
 
