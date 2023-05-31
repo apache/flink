@@ -24,7 +24,6 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ResultKind;
-import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -76,9 +75,9 @@ class CliClientTest {
             "INSERT INTO MyTable SELECT * FROM MyOtherTable";
     private static final String INSERT_OVERWRITE_STATEMENT =
             "INSERT OVERWRITE MyTable SELECT * FROM MyOtherTable";
-    private static final String ORIGIN_HIVE_SQL = "SELECT pos\t FROM source_table;\n";
-    private static final String HIVE_SQL_WITHOUT_COMPLETER = "SELECT pos FROM source_table;";
-    private static final String HIVE_SQL_WITH_COMPLETER = "SELECT POSITION  FROM source_table;";
+    private static final String ORIGIN_SQL = "SELECT pos\t FROM source_table;\n";
+    private static final String SQL_WITHOUT_COMPLETER = "SELECT pos FROM source_table;";
+    private static final String SQL_WITH_COMPLETER = "SELECT POSITION  FROM source_table;";
 
     @Test
     void testUpdateSubmission() throws Exception {
@@ -107,23 +106,22 @@ class CliClientTest {
 
     @Test
     void testExecuteSqlFileWithoutSqlCompleter() throws Exception {
-        MockExecutor executor = new MockExecutor(new SqlParserHelper(SqlDialect.HIVE), false);
-        executeSqlFromContent(executor, ORIGIN_HIVE_SQL);
-        assertThat(executor.receivedStatement).contains(HIVE_SQL_WITHOUT_COMPLETER);
+        MockExecutor executor = new MockExecutor(new SqlParserHelper(), false);
+        executeSqlFromContent(executor, ORIGIN_SQL);
+        assertThat(executor.receivedStatement).contains(SQL_WITHOUT_COMPLETER);
     }
 
     @Test
     void testExecuteSqlInteractiveWithSqlCompleter() throws Exception {
-        final MockExecutor mockExecutor =
-                new MockExecutor(new SqlParserHelper(SqlDialect.HIVE), false);
+        final MockExecutor mockExecutor = new MockExecutor(new SqlParserHelper(), false);
 
-        InputStream inputStream = new ByteArrayInputStream(ORIGIN_HIVE_SQL.getBytes());
+        InputStream inputStream = new ByteArrayInputStream(ORIGIN_SQL.getBytes());
         OutputStream outputStream = new ByteArrayOutputStream(256);
         try (Terminal terminal = new DumbTerminal(inputStream, outputStream);
                 CliClient client =
                         new CliClient(() -> terminal, mockExecutor, historyTempFile(), null)) {
             client.executeInInteractiveMode();
-            assertThat(mockExecutor.receivedStatement).contains(HIVE_SQL_WITH_COMPLETER);
+            assertThat(mockExecutor.receivedStatement).contains(SQL_WITH_COMPLETER);
         }
     }
 
