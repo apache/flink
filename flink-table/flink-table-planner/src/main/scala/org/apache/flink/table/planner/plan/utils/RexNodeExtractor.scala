@@ -512,6 +512,8 @@ class RexNodeToExpressionConverter(
       None
     } else {
       rexCall.getOperator match {
+        case SqlStdOperatorTable.ARRAY_VALUE_CONSTRUCTOR =>
+          Some(new CallExpression(BuiltInFunctionDefinitions.ARRAY, operands, outputType))
         case SqlStdOperatorTable.OR =>
           Option(operands.reduceLeft((l, r) => CallExpression.permanent(OR, Seq(l, r), outputType)))
         case SqlStdOperatorTable.AND =>
