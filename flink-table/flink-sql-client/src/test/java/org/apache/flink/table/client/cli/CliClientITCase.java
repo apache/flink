@@ -89,16 +89,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Test that runs every {@code xx.q} file in "resources/sql/" path as a test. */
 class CliClientITCase {
 
-    private static final String HIVE_ADD_ONE_UDF_CLASS = "HiveAddOneFunc";
-    private static final String HIVE_ADD_ONE_UDF_CODE =
-            "public class "
-                    + HIVE_ADD_ONE_UDF_CLASS
-                    + " extends org.apache.hadoop.hive.ql.exec.UDF {\n"
-                    + " public int evaluate(int content) {\n"
-                    + "    return content + 1;\n"
-                    + " }"
-                    + "}\n";
-
     private static Path historyPath;
     private static Map<String, String> replaceVars;
 
@@ -148,7 +138,6 @@ class CliClientITCase {
         classNameCodes.put(
                 GENERATED_UPPER_UDF_CLASS,
                 String.format(GENERATED_UPPER_UDF_CODE, GENERATED_UPPER_UDF_CLASS));
-        classNameCodes.put(HIVE_ADD_ONE_UDF_CLASS, HIVE_ADD_ONE_UDF_CODE);
 
         File udfJar =
                 UserClassLoaderJarTestUtils.createJarFile(
