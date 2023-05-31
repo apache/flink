@@ -280,6 +280,21 @@ public final class MemorySegment {
     }
 
     /**
+     * Returns the off heap buffer for the segment. It may be used by sink to create writer buffer
+     * for data lake such as iceberg and paimon.
+     *
+     * @return underlying byte buffer
+     * @throws IllegalStateException if the memory segment does not represent off-heap buffer
+     */
+    public ByteBuffer getOffHeapBuffer() {
+        if (offHeapBuffer != null) {
+            return offHeapBuffer;
+        } else {
+            throw new IllegalStateException("Memory segment does not represent off heap buffer");
+        }
+    }
+
+    /**
      * Returns the memory address of off-heap memory segments.
      *
      * @return absolute memory address outside the heap
