@@ -53,6 +53,8 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 
+import io.fabric8.kubernetes.client.KubernetesClientException;
+
 import javax.annotation.Nullable;
 
 import java.io.File;
@@ -64,6 +66,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 /** Implementation of {@link ResourceManagerDriver} for Kubernetes deployment. */
 public class KubernetesResourceManagerDriver
@@ -219,6 +222,10 @@ public class KubernetesResourceManagerDriver
                             if (t == null) {
                                 return null;
                             }
+                            // Unwrap CompletionException cause if any
+                            if (t instanceof CompletionException && t.getCause() != null) {
+                                t = t.getCause();
+                            }
                             if (t instanceof CancellationException) {
 
                                 requestResourceFutures.remove(taskManagerPod.getName());
@@ -228,8 +235,9 @@ public class KubernetesResourceManagerDriver
                                             podName);
                                     stopPod(taskManagerPod.getName());
                                 }
-                            } else if (t instanceof RetryableException) {
-                                // ignore
+                            } else if (t instanceof RetryableException
+                                    || t instanceof KubernetesClientException) {
+                                // ignore transient / retriable errors
                             } else {
                                 log.error("Error completing resource request.", t);
                                 ExceptionUtils.rethrow(t);
