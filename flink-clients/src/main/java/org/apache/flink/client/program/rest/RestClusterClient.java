@@ -158,6 +158,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
     private static final Logger LOG = LoggerFactory.getLogger(RestClusterClient.class);
 
     private final RestClusterClientConfiguration restClusterClientConfiguration;
+    private final java.nio.file.Path tempDir;
 
     private final Configuration configuration;
 
@@ -194,7 +195,13 @@ public class RestClusterClient<T> implements ClusterClient<T> {
     public RestClusterClient(
             Configuration config, T clusterId, ClientHighAvailabilityServicesFactory factory)
             throws Exception {
-        this(config, null, clusterId, new ExponentialWaitStrategy(10L, 2000L), factory);
+        this(
+                config,
+                null,
+                clusterId,
+                new ExponentialWaitStrategy(10L, 2000L),
+                factory,
+                Files.createTempDirectory("flink-rest-client-jobgraphs"));
     }
 
     @VisibleForTesting
@@ -209,7 +216,24 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                 restClient,
                 clusterId,
                 waitStrategy,
-                DefaultClientHighAvailabilityServicesFactory.INSTANCE);
+                Files.createTempDirectory("flink-rest-client-jobgraphs"));
+    }
+
+    @VisibleForTesting
+    RestClusterClient(
+            Configuration configuration,
+            @Nullable RestClient restClient,
+            T clusterId,
+            WaitStrategy waitStrategy,
+            java.nio.file.Path tmpDir)
+            throws Exception {
+        this(
+                configuration,
+                restClient,
+                clusterId,
+                waitStrategy,
+                DefaultClientHighAvailabilityServicesFactory.INSTANCE,
+                tmpDir);
     }
 
     private RestClusterClient(
@@ -217,12 +241,14 @@ public class RestClusterClient<T> implements ClusterClient<T> {
             @Nullable RestClient restClient,
             T clusterId,
             WaitStrategy waitStrategy,
-            ClientHighAvailabilityServicesFactory clientHAServicesFactory)
+            ClientHighAvailabilityServicesFactory clientHAServicesFactory,
+            java.nio.file.Path tempDir)
             throws Exception {
         this.configuration = checkNotNull(configuration);
 
         this.restClusterClientConfiguration =
                 RestClusterClientConfiguration.fromConfiguration(configuration);
+        this.tempDir = tempDir;
 
         if (restClient != null) {
             this.restClient = restClient;
@@ -328,7 +354,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                         () -> {
                             try {
                                 final java.nio.file.Path jobGraphFile =
-                                        Files.createTempFile("flink-jobgraph", ".bin");
+                                        Files.createTempFile(tempDir, "flink-jobgraph", ".bin");
                                 try (ObjectOutputStream objectOut =
                                         new ObjectOutputStream(
                                                 Files.newOutputStream(jobGraphFile))) {
@@ -430,6 +456,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                         });
 
         submissionFuture
+                .exceptionally(ignored -> null) // ignore errors
                 .thenCompose(ignored -> jobGraphFileFuture)
                 .thenAccept(
                         jobGraphFile -> {
