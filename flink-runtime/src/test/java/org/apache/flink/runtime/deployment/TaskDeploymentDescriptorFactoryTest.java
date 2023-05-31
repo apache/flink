@@ -27,8 +27,6 @@ import org.apache.flink.runtime.blob.TestingBlobWriter;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.MaybeOffloaded;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorAndIndex;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
@@ -102,13 +100,13 @@ class TaskDeploymentDescriptorFactoryTest {
 
         // The ShuffleDescriptors should be cached
         final IntermediateResult consumedResult = executionJobVertices.f1.getInputs().get(0);
-        final List<MaybeOffloaded<ShuffleDescriptorAndIndex[]>> maybeOffloaded =
+        final List<SerializedShuffleDescriptorAndIndices> serializedShuffleDescriptors =
                 consumedResult
                         .getCachedShuffleDescriptors(ev21.getConsumedPartitionGroup(0))
                         .getAllSerializedShuffleDescriptors();
 
         final ShuffleDescriptor[] cachedShuffleDescriptors =
-                deserializeShuffleDescriptors(maybeOffloaded, jobId, blobWriter);
+                deserializeShuffleDescriptors(serializedShuffleDescriptors, jobId, blobWriter);
 
         // Check if the ShuffleDescriptors are cached correctly
         assertThat(ev21.getConsumedPartitionGroup(0)).hasSize(cachedShuffleDescriptors.length);
@@ -139,22 +137,22 @@ class TaskDeploymentDescriptorFactoryTest {
         final ExecutionVertex ev22 = ejv2.getTaskVertices()[1];
         createTaskDeploymentDescriptor(ev22);
         IntermediateResult consumedResult = ejv2.getInputs().get(0);
-        List<MaybeOffloaded<ShuffleDescriptorAndIndex[]>> maybeOffloaded =
+        List<SerializedShuffleDescriptorAndIndices> serializedShuffleDescriptors =
                 consumedResult
                         .getCachedShuffleDescriptors(ev22.getConsumedPartitionGroup(0))
                         .getAllSerializedShuffleDescriptors();
-        assertThat(maybeOffloaded).hasSize(2);
+        assertThat(serializedShuffleDescriptors).hasSize(2);
 
         final ExecutionVertex ev13 = ejv1.getTaskVertices()[2];
         ev13.finishPartitionsIfNeeded();
         final ExecutionVertex ev23 = ejv2.getTaskVertices()[2];
         createTaskDeploymentDescriptor(ev23);
         consumedResult = ejv2.getInputs().get(0);
-        maybeOffloaded =
+        serializedShuffleDescriptors =
                 consumedResult
                         .getCachedShuffleDescriptors(ev23.getConsumedPartitionGroup(0))
                         .getAllSerializedShuffleDescriptors();
-        assertThat(maybeOffloaded).hasSize(3);
+        assertThat(serializedShuffleDescriptors).hasSize(3);
     }
 
     @Test

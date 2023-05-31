@@ -198,12 +198,11 @@ public class TaskDeploymentDescriptorFactory {
         return inputGates;
     }
 
-    private List<MaybeOffloaded<ShuffleDescriptorAndIndex[]>>
-            getConsumedPartitionShuffleDescriptors(
-                    IntermediateResult intermediateResult,
-                    ConsumedPartitionGroup consumedPartitionGroup,
-                    InternalExecutionGraphAccessor internalExecutionGraphAccessor)
-                    throws IOException {
+    private List<SerializedShuffleDescriptorAndIndices> getConsumedPartitionShuffleDescriptors(
+            IntermediateResult intermediateResult,
+            ConsumedPartitionGroup consumedPartitionGroup,
+            InternalExecutionGraphAccessor internalExecutionGraphAccessor)
+            throws IOException {
         CachedShuffleDescriptors cachedShuffleDescriptors =
                 intermediateResult.getCachedShuffleDescriptors(consumedPartitionGroup);
         if (cachedShuffleDescriptors == null) {

@@ -88,7 +88,10 @@ class CachedShuffleDescriptorsTest {
                 new TestingShuffleDescriptorSerializer());
         assertThat(cachedShuffleDescriptors.getAllSerializedShuffleDescriptors()).hasSize(1);
         MaybeOffloaded<ShuffleDescriptorAndIndex[]> maybeOffloadedShuffleDescriptor =
-                cachedShuffleDescriptors.getAllSerializedShuffleDescriptors().get(0);
+                cachedShuffleDescriptors
+                        .getAllSerializedShuffleDescriptors()
+                        .get(0)
+                        .getSerializedShuffleDescriptors();
         assertNonOffloadedShuffleDescriptorAndIndexEquals(
                 maybeOffloadedShuffleDescriptor,
                 Collections.singletonList(shuffleDescriptor),
@@ -132,7 +135,10 @@ class CachedShuffleDescriptorsTest {
         assertThat(cachedShuffleDescriptors.getAllSerializedShuffleDescriptors()).hasSize(2);
 
         MaybeOffloaded<ShuffleDescriptorAndIndex[]> maybeOffloaded =
-                cachedShuffleDescriptors.getAllSerializedShuffleDescriptors().get(1);
+                cachedShuffleDescriptors
+                        .getAllSerializedShuffleDescriptors()
+                        .get(1)
+                        .getSerializedShuffleDescriptors();
         ShuffleDescriptor expectedShuffleDescriptor1 =
                 TaskDeploymentDescriptorFactory.getConsumedPartitionShuffleDescriptor(
                         intermediateResultPartition1,
