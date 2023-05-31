@@ -28,7 +28,6 @@ import org.apache.flink.table.planner.functions.aggfunctions._
 import org.apache.flink.table.planner.plan.utils.AggregateInfo
 import org.apache.flink.table.runtime.generated.{GeneratedProjection, Projection}
 import org.apache.flink.table.types.logical.{BigIntType, LogicalType, RowType}
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldTypes
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -161,7 +160,7 @@ object ProjectionCodeGenerator {
               sumAggFunction.getResultType.getLogicalType,
               aggInfo.agg.getArgList.get(0))
           case _: MaxAggFunction | _: MinAggFunction =>
-            fieldExprs += GenerateUtils.generateFieldAccess(
+            fieldExprs += getReuseFieldExprForAggFunc(
               ctx,
               inputType,
               inputTerm,
@@ -231,25 +230,23 @@ object ProjectionCodeGenerator {
       inputTerm: String,
       targetType: LogicalType,
       index: Int): GeneratedExpression = {
-    val fieldType = getFieldTypes(inputType).get(index)
-    val resultTypeTerm = primitiveTypeTermForType(fieldType)
-    val defaultValue = primitiveDefaultValue(fieldType)
-    val readCode = rowFieldReadAccess(index.toString, inputTerm, fieldType)
-    val Seq(fieldTerm, nullTerm) =
-      ctx.addReusableLocalVariables((resultTypeTerm, "field"), ("boolean", "isNull"))
-
-    val inputCode =
-      s"""
-         |$nullTerm = $inputTerm.isNullAt($index);
-         |$fieldTerm = $defaultValue;
-         |if (!$nullTerm) {
-         |  $fieldTerm = $readCode;
-         |}
-           """.stripMargin.trim
-
-    val expression = GeneratedExpression(fieldTerm, nullTerm, inputCode, fieldType)
+    val fieldExpr = getReuseFieldExprForAggFunc(ctx, inputType, inputTerm, index)
     // Convert the projected value type to sum agg func target type.
-    ScalarOperatorGens.generateCast(ctx, expression, targetType, true)
+    ScalarOperatorGens.generateCast(ctx, fieldExpr, targetType, true)
+  }
+
+  /** Get reuse field expr if it has been evaluated before for adaptive local hash aggregation. */
+  def getReuseFieldExprForAggFunc(
+      ctx: CodeGeneratorContext,
+      inputType: LogicalType,
+      inputTerm: String,
+      index: Int) = {
+    // reuse the field access code if it has been evaluated before
+    ctx.getReusableInputUnboxingExprs(inputTerm, index) match {
+      case None => GenerateUtils.generateFieldAccess(ctx, inputType, inputTerm, index)
+      case Some(expr) =>
+        GeneratedExpression(expr.resultTerm, expr.nullTerm, NO_CODE, expr.resultType)
+    }
   }
 
   /**
@@ -260,13 +257,17 @@ object ProjectionCodeGenerator {
       ctx: CodeGeneratorContext,
       inputTerm: String,
       index: Int): GeneratedExpression = {
+    val fieldNullCode = ctx.getReusableInputUnboxingExprs(inputTerm, index) match {
+      case None => s"$inputTerm.isNullAt($index)"
+      case Some(expr) => expr.nullTerm
+    }
+
     val Seq(fieldTerm, nullTerm) =
       ctx.addReusableLocalVariables(("long", "field"), ("boolean", "isNull"))
-
     val inputCode =
       s"""
          |$fieldTerm = 0L;
-         |if (!$inputTerm.isNullAt($index)) {
+         |if (!$fieldNullCode) {
          |  $fieldTerm = 1L;
          |}
            """.stripMargin.trim
