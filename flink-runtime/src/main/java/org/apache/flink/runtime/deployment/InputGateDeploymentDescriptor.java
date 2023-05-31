@@ -79,7 +79,7 @@ public class InputGateDeploymentDescriptor implements Serializable {
     private transient ShuffleDescriptor[] inputChannels;
 
     /** Serialized value of shuffle descriptors. */
-    private final List<MaybeOffloaded<ShuffleDescriptorAndIndex[]>> serializedInputChannels;
+    private final List<SerializedShuffleDescriptorAndIndices> serializedInputChannels;
 
     /** Number of input channels. */
     private final int numberOfInputChannels;
@@ -97,7 +97,9 @@ public class InputGateDeploymentDescriptor implements Serializable {
                 new IndexRange(consumedSubpartitionIndex, consumedSubpartitionIndex),
                 inputChannels.length,
                 Collections.singletonList(
-                        new NonOffloaded<>(CompressedSerializedValue.fromObject(inputChannels))));
+                        new SerializedShuffleDescriptorAndIndices(
+                                new NonOffloaded<>(
+                                        CompressedSerializedValue.fromObject(inputChannels)))));
     }
 
     public InputGateDeploymentDescriptor(
@@ -105,7 +107,7 @@ public class InputGateDeploymentDescriptor implements Serializable {
             ResultPartitionType consumedPartitionType,
             IndexRange consumedSubpartitionIndexRange,
             int numberOfInputChannels,
-            List<MaybeOffloaded<ShuffleDescriptorAndIndex[]>> serializedInputChannels) {
+            List<SerializedShuffleDescriptorAndIndices> serializedInputChannels) {
         this.consumedResultId = checkNotNull(consumedResultId);
         this.consumedPartitionType = checkNotNull(consumedPartitionType);
         this.consumedSubpartitionIndexRange = checkNotNull(consumedSubpartitionIndexRange);
@@ -143,7 +145,7 @@ public class InputGateDeploymentDescriptor implements Serializable {
             throws IOException {
         for (int i = 0; i < serializedInputChannels.size(); i++) {
             MaybeOffloaded<ShuffleDescriptorAndIndex[]> shuffleDescriptors =
-                    serializedInputChannels.get(i);
+                    serializedInputChannels.get(i).getSerializedShuffleDescriptors();
             if (shuffleDescriptors instanceof Offloaded) {
                 PermanentBlobKey blobKey =
                         ((Offloaded<ShuffleDescriptorAndIndex[]>) shuffleDescriptors)
@@ -157,7 +159,10 @@ public class InputGateDeploymentDescriptor implements Serializable {
                 // partition is no longer available or the job enters a terminal state)
                 CompressedSerializedValue<ShuffleDescriptorAndIndex[]> serializedValue =
                         CompressedSerializedValue.fromBytes(blobService.readFile(jobId, blobKey));
-                serializedInputChannels.set(i, new NonOffloaded<>(serializedValue));
+                serializedInputChannels.set(
+                        i,
+                        new SerializedShuffleDescriptorAndIndices(
+                                new NonOffloaded<>(serializedValue)));
             }
         }
     }
@@ -166,8 +171,12 @@ public class InputGateDeploymentDescriptor implements Serializable {
         try {
             if (inputChannels == null) {
                 inputChannels = new ShuffleDescriptor[numberOfInputChannels];
-                for (MaybeOffloaded<ShuffleDescriptorAndIndex[]> serializedShuffleDescriptors :
-                        serializedInputChannels) {
+                for (SerializedShuffleDescriptorAndIndices
+                        serializedShuffleDescriptorAndIndices : serializedInputChannels) {
+                    MaybeOffloaded<ShuffleDescriptorAndIndex[]> serializedShuffleDescriptors =
+                            serializedShuffleDescriptorAndIndices
+                                    .getSerializedShuffleDescriptors();
+
                     if (serializedShuffleDescriptors instanceof NonOffloaded) {
                         NonOffloaded<ShuffleDescriptorAndIndex[]> nonOffloadedSerializedValue =
                                 (NonOffloaded<ShuffleDescriptorAndIndex[]>)

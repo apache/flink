@@ -38,13 +38,16 @@ import java.util.Map;
 public class TaskDeploymentDescriptorTestUtils {
 
     public static ShuffleDescriptor[] deserializeShuffleDescriptors(
-            List<MaybeOffloaded<ShuffleDescriptorAndIndex[]>> maybeOffloaded,
+            List<SerializedShuffleDescriptorAndIndices> allSerializedShuffleDescriptors,
             JobID jobId,
             TestingBlobWriter blobWriter)
             throws IOException, ClassNotFoundException {
         Map<Integer, ShuffleDescriptor> shuffleDescriptorsMap = new HashMap<>();
         int maxIndex = 0;
-        for (MaybeOffloaded<ShuffleDescriptorAndIndex[]> sd : maybeOffloaded) {
+        for (SerializedShuffleDescriptorAndIndices serializedShuffleDescriptors :
+                allSerializedShuffleDescriptors) {
+            MaybeOffloaded<ShuffleDescriptorAndIndex[]> sd =
+                    serializedShuffleDescriptors.getSerializedShuffleDescriptors();
             ShuffleDescriptorAndIndex[] shuffleDescriptorAndIndices;
             if (sd instanceof NonOffloaded) {
                 shuffleDescriptorAndIndices =

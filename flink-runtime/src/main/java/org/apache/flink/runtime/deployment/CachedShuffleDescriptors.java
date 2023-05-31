@@ -43,7 +43,7 @@ public class CachedShuffleDescriptors {
      * serialized unknown shuffle descriptor to this list first, and then added the real descriptor
      * later.
      */
-    private final List<MaybeOffloaded<ShuffleDescriptorAndIndex[]>> serializedShuffleDescriptors;
+    private final List<SerializedShuffleDescriptorAndIndices> serializedShuffleDescriptors;
 
     /**
      * Stores all to be serialized shuffle descriptors, They will be serialized and added to
@@ -73,7 +73,7 @@ public class CachedShuffleDescriptors {
         }
     }
 
-    public List<MaybeOffloaded<ShuffleDescriptorAndIndex[]>> getAllSerializedShuffleDescriptors() {
+    public List<SerializedShuffleDescriptorAndIndices> getAllSerializedShuffleDescriptors() {
         // the deployment of task is not executed in jobMaster's main thread, copy this list to
         // avoid new element added to the serializedShuffleDescriptors before TDD is not serialized.
         return new ArrayList<>(serializedShuffleDescriptors);
@@ -92,7 +92,8 @@ public class CachedShuffleDescriptors {
                     shuffleDescriptorSerializer.apply(
                             toBeSerialized.toArray(new ShuffleDescriptorAndIndex[0]), numConsumers);
             toBeSerialized.clear();
-            serializedShuffleDescriptors.add(serializedShuffleDescriptor);
+            serializedShuffleDescriptors.add(
+                    new SerializedShuffleDescriptorAndIndices(serializedShuffleDescriptor));
         }
     }
 

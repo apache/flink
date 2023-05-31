@@ -290,10 +290,12 @@ public class IntermediateResult {
             cache.getAllSerializedShuffleDescriptors()
                     .forEach(
                             shuffleDescriptors -> {
-                                if (shuffleDescriptors instanceof Offloaded) {
+                                if (shuffleDescriptors.getSerializedShuffleDescriptors()
+                                        instanceof Offloaded) {
                                     PermanentBlobKey blobKey =
                                             ((Offloaded<ShuffleDescriptorAndIndex[]>)
-                                                            shuffleDescriptors)
+                                                            shuffleDescriptors
+                                                                    .getSerializedShuffleDescriptors())
                                                     .serializedValueKey;
                                     this.producer
                                             .getGraph()

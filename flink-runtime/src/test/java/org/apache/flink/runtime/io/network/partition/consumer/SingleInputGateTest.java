@@ -26,6 +26,7 @@ import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.SerializedShuffleDescriptorAndIndices;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorAndIndex;
 import org.apache.flink.runtime.event.TaskEvent;
@@ -1322,8 +1323,10 @@ public class SingleInputGateTest extends InputGateTestBase {
                         subpartitionIndexRange,
                         channelDescs.length,
                         Collections.singletonList(
-                                new TaskDeploymentDescriptor.NonOffloaded<>(
-                                        CompressedSerializedValue.fromObject(channelDescs))));
+                                new SerializedShuffleDescriptorAndIndices(
+                                        new TaskDeploymentDescriptor.NonOffloaded<>(
+                                                CompressedSerializedValue.fromObject(
+                                                        channelDescs)))));
 
         final TaskMetricGroup taskMetricGroup =
                 UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();

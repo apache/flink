@@ -179,7 +179,7 @@ public class TaskDeploymentDescriptorFactory {
         return inputGates;
     }
 
-    private List<MaybeOffloaded<ShuffleDescriptorAndIndex[]>>
+    private List<SerializedShuffleDescriptorAndIndices>
             getConsumedPartitionShuffleDescriptors(
                     IntermediateResult intermediateResult,
                     ConsumedPartitionGroup consumedPartitionGroup,
