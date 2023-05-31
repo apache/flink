@@ -23,6 +23,7 @@ import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.deployment.CachedShuffleDescriptors;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.Offloaded;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorAndIndex;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorGroup;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
@@ -287,13 +288,12 @@ public class IntermediateResult {
         final CachedShuffleDescriptors cache =
                 this.shuffleDescriptorCache.remove(consumedPartitionGroup);
         if (cache != null) {
-            cache.getAllSerializedShuffleDescriptors()
+            cache.getAllSerializedShuffleDescriptorGroups()
                     .forEach(
                             shuffleDescriptors -> {
                                 if (shuffleDescriptors instanceof Offloaded) {
                                     PermanentBlobKey blobKey =
-                                            ((Offloaded<ShuffleDescriptorAndIndex[]>)
-                                                            shuffleDescriptors)
+                                            ((Offloaded<ShuffleDescriptorGroup>) shuffleDescriptors)
                                                     .serializedValueKey;
                                     this.producer
                                             .getGraph()

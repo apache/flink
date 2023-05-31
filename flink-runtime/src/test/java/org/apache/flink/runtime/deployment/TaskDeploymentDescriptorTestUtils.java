@@ -24,6 +24,7 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.MaybeOffload
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.NonOffloaded;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.Offloaded;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorAndIndex;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorGroup;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.util.CompressedSerializedValue;
 
@@ -38,34 +39,33 @@ import java.util.Map;
 public class TaskDeploymentDescriptorTestUtils {
 
     public static ShuffleDescriptor[] deserializeShuffleDescriptors(
-            List<MaybeOffloaded<ShuffleDescriptorAndIndex[]>> maybeOffloaded,
+            List<MaybeOffloaded<ShuffleDescriptorGroup>> maybeOffloaded,
             JobID jobId,
             TestingBlobWriter blobWriter)
             throws IOException, ClassNotFoundException {
         Map<Integer, ShuffleDescriptor> shuffleDescriptorsMap = new HashMap<>();
         int maxIndex = 0;
-        for (MaybeOffloaded<ShuffleDescriptorAndIndex[]> sd : maybeOffloaded) {
-            ShuffleDescriptorAndIndex[] shuffleDescriptorAndIndices;
+        for (MaybeOffloaded<ShuffleDescriptorGroup> sd : maybeOffloaded) {
+            ShuffleDescriptorGroup shuffleDescriptorGroup;
             if (sd instanceof NonOffloaded) {
-                shuffleDescriptorAndIndices =
-                        ((NonOffloaded<ShuffleDescriptorAndIndex[]>) sd)
+                shuffleDescriptorGroup =
+                        ((NonOffloaded<ShuffleDescriptorGroup>) sd)
                                 .serializedValue.deserializeValue(
                                         ClassLoader.getSystemClassLoader());
 
             } else {
-                final CompressedSerializedValue<ShuffleDescriptorAndIndex[]>
-                        compressedSerializedValue =
-                                CompressedSerializedValue.fromBytes(
-                                        blobWriter.getBlob(
-                                                jobId,
-                                                ((Offloaded<ShuffleDescriptorAndIndex[]>) sd)
-                                                        .serializedValueKey));
-                shuffleDescriptorAndIndices =
+                final CompressedSerializedValue<ShuffleDescriptorGroup> compressedSerializedValue =
+                        CompressedSerializedValue.fromBytes(
+                                blobWriter.getBlob(
+                                        jobId,
+                                        ((Offloaded<ShuffleDescriptorGroup>) sd)
+                                                .serializedValueKey));
+                shuffleDescriptorGroup =
                         compressedSerializedValue.deserializeValue(
                                 ClassLoader.getSystemClassLoader());
             }
             for (ShuffleDescriptorAndIndex shuffleDescriptorAndIndex :
-                    shuffleDescriptorAndIndices) {
+                    shuffleDescriptorGroup.getShuffleDescriptors()) {
                 int index = shuffleDescriptorAndIndex.getIndex();
                 maxIndex = Math.max(maxIndex, shuffleDescriptorAndIndex.getIndex());
                 shuffleDescriptorsMap.put(index, shuffleDescriptorAndIndex.getShuffleDescriptor());
