@@ -81,6 +81,7 @@
     "org.apache.flink.sql.parser.dml.RichSqlInsert"
     "org.apache.flink.sql.parser.dml.RichSqlInsertKeyword"
     "org.apache.flink.sql.parser.dml.SqlBeginStatementSet"
+    "org.apache.flink.sql.parser.dml.SqlTruncateTable"
     "org.apache.flink.sql.parser.dml.SqlCompileAndExecutePlan"
     "org.apache.flink.sql.parser.dml.SqlEndStatementSet"
     "org.apache.flink.sql.parser.dml.SqlExecute"
@@ -575,6 +576,7 @@
     "SqlAnalyzeTable()"
     "SqlStopJob()"
     "SqlShowJobs()"
+    "SqlTruncateTable()"
   ]
 
   # List of methods for parsing custom literals.
