@@ -39,6 +39,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 /** Tests for the MetricStore. */
 class MetricStoreTest {
@@ -122,6 +123,33 @@ class MetricStoreTest {
         assertThat(store.getJobManager().metrics).isEmpty();
         assertThat(store.getTaskManagers()).isEmpty();
         assertThat(store.getJobs()).isEmpty();
+    }
+
+    @Test
+    void testUpdateCurrentExecutionAttemptsWithNonExistentComponentMetricStore() {
+        MetricStore metricStore = new MetricStore();
+        assertThat(metricStore.getJobs()).isEmpty();
+
+        JobDetails jobDetail =
+                new JobDetails(
+                        JOB_ID,
+                        "jobname",
+                        0,
+                        0,
+                        0,
+                        JobStatus.RUNNING,
+                        0,
+                        new int[10],
+                        1,
+                        Collections.singletonMap(
+                                "taskid",
+                                Collections.singletonMap(
+                                        1, new CurrentAttempts(1, new HashSet<>()))));
+        assertThatCode(
+                        () ->
+                                metricStore.updateCurrentExecutionAttempts(
+                                        Collections.singletonList(jobDetail)))
+                .doesNotThrowAnyException();
     }
 
     @Test

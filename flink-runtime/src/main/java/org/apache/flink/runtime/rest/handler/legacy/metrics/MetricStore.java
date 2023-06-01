@@ -100,20 +100,30 @@ public class MetricStore {
                         Map<Integer, Integer> vertexAttempts =
                                 jobRepresentativeAttempts.compute(
                                         vertexId, (k, overwritten) -> new HashMap<>());
-                        JobMetricStore jobMetricStore = this.jobs.get(jobId);
-                        TaskMetricStore taskMetricStore =
-                                jobMetricStore.getTaskMetricStore(vertexId);
+                        Optional<TaskMetricStore> taskMetricStoreOptional =
+                                Optional.ofNullable(this.jobs.get(jobId))
+                                        .map(map -> map.getTaskMetricStore(vertexId));
+
                         // Retains current active subtasks to accommodate dynamic scaling
-                        taskMetricStore.retainSubtasks(subtaskAttempts.keySet());
+                        taskMetricStoreOptional.ifPresent(
+                                taskMetricStore ->
+                                        taskMetricStore.retainSubtasks(subtaskAttempts.keySet()));
+
                         subtaskAttempts.forEach(
                                 (subtaskIndex, attempts) -> {
                                     // Updates representative attempts
                                     vertexAttempts.put(
                                             subtaskIndex, attempts.getRepresentativeAttempt());
                                     // Retains current attempt metrics to avoid memory leak
-                                    taskMetricStore
-                                            .getSubtaskMetricStore(subtaskIndex)
-                                            .retainAttempts(attempts.getCurrentAttempts());
+                                    taskMetricStoreOptional
+                                            .map(
+                                                    taskMetricStore ->
+                                                            taskMetricStore.getSubtaskMetricStore(
+                                                                    subtaskIndex))
+                                            .ifPresent(
+                                                    subtaskMetricStore ->
+                                                            subtaskMetricStore.retainAttempts(
+                                                                    attempts.getCurrentAttempts()));
                                 });
                     });
         }
