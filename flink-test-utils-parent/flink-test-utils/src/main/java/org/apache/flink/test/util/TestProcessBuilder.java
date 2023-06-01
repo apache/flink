@@ -61,6 +61,7 @@ public class TestProcessBuilder {
         jvmArgs.add("-Dlog4j.configurationFile=file:" + tempLogFile.getAbsolutePath());
         jvmArgs.add("-classpath");
         jvmArgs.add(getCurrentClasspath());
+        jvmArgs.add("-XX:+IgnoreUnrecognizedVMOptions");
 
         this.mainClass = mainClass;
     }

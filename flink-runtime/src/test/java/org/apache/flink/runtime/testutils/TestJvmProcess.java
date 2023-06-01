@@ -140,6 +140,7 @@ public abstract class TestJvmProcess {
                     "-Xmx" + jvmMemoryInMb + "m",
                     "-classpath",
                     getCurrentClasspath(),
+                    "-XX:+IgnoreUnrecognizedVMOptions",
                     getEntryPointClassName()
                 };
 
