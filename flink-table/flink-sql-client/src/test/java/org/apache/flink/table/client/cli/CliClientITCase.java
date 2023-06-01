@@ -158,7 +158,8 @@ class CliClientITCase {
         replaceVars.put("$VAR_PIPELINE_JARS_URL", udfDependency.toString());
         replaceVars.put("$VAR_REST_PORT", configuration.get(PORT).toString());
         replaceVars.put("$VAR_JOBMANAGER_RPC_ADDRESS", configuration.get(ADDRESS));
-        replaceVars.put("$VAR_DELETE_TABLE_DATA_ID", prepareDataForDeleteStatement());
+        replaceVars.put("$VAR_DELETE_TABLE_DATA_ID", prepareData());
+        replaceVars.put("$VAR_TRUNCATE_TABLE_DATA_ID", prepareData());
     }
 
     @BeforeEach
@@ -284,7 +285,7 @@ class CliClientITCase {
         }
     }
 
-    private static String prepareDataForDeleteStatement() {
+    private static String prepareData() {
         List<RowData> values = new ArrayList<>();
         for (int i = 0; i < 5; i++) {
             values.add(GenericRowData.of(i, StringData.fromString("b_" + i), i * 2.0));
