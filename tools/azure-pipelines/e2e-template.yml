@@ -109,11 +109,8 @@ jobs:
         sudo sed -i "s~${default_ubuntu_mirror_url}~mirror+file:${mirror_file_path}~" /etc/apt/sources.list
         sudo apt-get update
 
-        echo "Installing required software"
-        sudo apt-get install -y bc libapr1
-        # install libssl1.0.0 for netty tcnative
-        wget http://security.ubuntu.com/ubuntu/pool/main/o/openssl1.0/libssl1.0.0_1.0.2n-1ubuntu5.13_amd64.deb
-        sudo apt install ./libssl1.0.0_1.0.2n-1ubuntu5.13_amd64.deb
+        echo "Installing required software for netty-tcnative"
+        sudo apt-get install -y bc libapr1 libssl-dev
       displayName: Prepare E2E run
       condition: not(eq(variables['SKIP'], '1'))
     - script: ${{parameters.environment}} PROFILE="$PROFILE -Dfast -Pskip-webui-build" ./tools/ci/compile.sh
