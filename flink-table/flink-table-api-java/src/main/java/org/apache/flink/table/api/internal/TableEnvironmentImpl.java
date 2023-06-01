@@ -208,7 +208,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                         functionCatalog,
                         moduleManager,
                         resourceManager,
-                        tableConfig);
+                        tableConfig,
+                        isStreamingMode);
     }
 
     public static TableEnvironmentImpl create(Configuration configuration) {

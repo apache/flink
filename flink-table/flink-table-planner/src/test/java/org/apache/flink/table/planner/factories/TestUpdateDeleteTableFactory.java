@@ -42,6 +42,7 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.abilities.SupportsDeletePushDown;
 import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelDelete;
 import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelUpdate;
+import org.apache.flink.table.connector.sink.abilities.SupportsTruncate;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
@@ -666,7 +667,7 @@ public class TestUpdateDeleteTableFactory
 
     /** A sink that supports delete push down and row-level update. */
     public static class SupportsDeletePushDownSink extends SupportsRowLevelUpdateSink
-            implements SupportsDeletePushDown {
+            implements SupportsDeletePushDown, SupportsTruncate {
 
         private final String dataId;
         private final boolean onlyAcceptEqualPredicate;
@@ -741,6 +742,11 @@ public class TestUpdateDeleteTableFactory
                 return Optional.of(rowsBefore - existingRows.size());
             }
             return Optional.empty();
+        }
+
+        @Override
+        public void executeTruncation() {
+            registeredRowData.put(dataId, Collections.emptyList());
         }
     }
 

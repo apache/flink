@@ -30,10 +30,9 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.resolver.ExpressionResolver;
-import org.apache.flink.table.factories.DynamicTableSinkFactory;
-import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.table.module.Module;
+import org.apache.flink.table.operations.utils.ExecutableOperationUtils;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.plan.rules.logical.SimplifyFilterConditionRule;
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
@@ -94,26 +93,13 @@ public class DeletePushDownUtils {
                             objectIdentifier,
                             resolvedTable,
                             isTemporary)) {
-                DynamicTableSinkFactory dynamicTableSinkFactory = null;
-                if (optionalCatalog.isPresent()
-                        && optionalCatalog.get().getFactory().isPresent()
-                        && optionalCatalog.get().getFactory().get()
-                                instanceof DynamicTableSinkFactory) {
-                    // try get from catalog
-                    dynamicTableSinkFactory =
-                            (DynamicTableSinkFactory) optionalCatalog.get().getFactory().get();
-                }
-
-                if (dynamicTableSinkFactory == null) {
-                    Optional<DynamicTableSinkFactory> factoryFromModule =
-                            context.getModuleManager().getFactory((Module::getTableSinkFactory));
-                    // then try get from module
-                    dynamicTableSinkFactory = factoryFromModule.orElse(null);
-                }
                 // create table dynamic table sink
                 DynamicTableSink tableSink =
-                        FactoryUtil.createDynamicTableSink(
-                                dynamicTableSinkFactory,
+                        ExecutableOperationUtils.createDynamicTableSink(
+                                optionalCatalog.orElse(null),
+                                () ->
+                                        context.getModuleManager()
+                                                .getFactory((Module::getTableSinkFactory)),
                                 objectIdentifier,
                                 resolvedTable,
                                 Collections.emptyMap(),
