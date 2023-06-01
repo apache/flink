@@ -319,7 +319,7 @@ if [ -z "${FLINK_ENV_JAVA_OPTS}" ]; then
     fi
 
     # Remove leading and ending double quotes (if present) of value
-    FLINK_ENV_JAVA_OPTS="$( echo "${FLINK_ENV_JAVA_OPTS}" | sed -e 's/^"//'  -e 's/"$//' )"
+    FLINK_ENV_JAVA_OPTS="-XX:+IgnoreUnrecognizedVMOptions $( echo "${FLINK_ENV_JAVA_OPTS}" | sed -e 's/^"//'  -e 's/"$//' )"
 fi
 
 if [ -z "${FLINK_ENV_JAVA_OPTS_JM}" ]; then
