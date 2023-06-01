@@ -115,11 +115,12 @@ public class FlinkReturnTypes {
     public static final SqlReturnTypeInference ROUND_FUNCTION_NULLABLE =
             ReturnTypes.cascade(ROUND_FUNCTION, SqlTypeTransforms.TO_NULLABLE);
 
-    public static final SqlReturnTypeInference NUMERIC_FROM_ARG1_DEFAULT1 =
-            new NumericOrDefaultReturnTypeInference(1, 1);
+    public static final SqlReturnTypeInference LEAST_RESTRICTIVE_FROM_ARG1_DEFAULT1 =
+            new LeastRestrictiveOrDefaultReturnTypeInference(1, 1);
 
-    public static final SqlReturnTypeInference NUMERIC_FROM_ARG1_DEFAULT1_NULLABLE =
-            ReturnTypes.cascade(NUMERIC_FROM_ARG1_DEFAULT1, SqlTypeTransforms.TO_NULLABLE);
+    public static final SqlReturnTypeInference LEAST_RESTRICTIVE_FROM_ARG1_DEFAULT1_NULLABLE =
+            ReturnTypes.cascade(
+                    LEAST_RESTRICTIVE_FROM_ARG1_DEFAULT1, SqlTypeTransforms.TO_NULLABLE);
 
     public static final SqlReturnTypeInference STR_MAP_NULLABLE =
             ReturnTypes.explicit(

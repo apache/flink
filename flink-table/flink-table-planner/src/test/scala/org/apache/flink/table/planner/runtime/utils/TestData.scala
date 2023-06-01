@@ -335,6 +335,16 @@ object TestData {
 
   lazy val mapRows = map(("Monday", 1), ("Tuesday", 2), ("Wednesday", 3))
 
+  lazy val nullableNestedRow: Seq[Row] = {
+    Seq(
+      row(row("Hello", "Worlds"), Int.box(1)),
+      row(row("Hello", "Hidden"), Int.box(5)),
+      row(row("Hello again", null), Int.box(2)),
+      row(row(null, "World"), Int.box(0)),
+      row(row("Hello again", "Hide"), Int.box(6))
+    )
+  }
+
   lazy val deepNestedRow: Seq[Row] = {
     Seq(
       Row.of(

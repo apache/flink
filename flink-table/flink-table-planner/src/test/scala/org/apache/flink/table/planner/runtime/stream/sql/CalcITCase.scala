@@ -368,26 +368,17 @@ class CalcITCase extends StreamingTestBase {
 
   @Test
   def testIfFunctionWithNestedInput(): Unit = {
-    val data = List(
-      Row.of(Row.of("Hello", "Worlds"), Int.box(1)),
-      Row.of(Row.of("Hello", "Hidden"), Int.box(5)),
-      Row.of(Row.of("Hello again", null), Int.box(2)),
-      Row.of(Row.of(null, "World"), Int.box(0)),
-      Row.of(Row.of("Hello again", "Hide"), Int.box(6))
-    )
-    val dataId = TestValuesTableFactory.registerData(data)
-    val ddl =
-      s"""
-         |CREATE TABLE t (
-         |words ROW<a VARCHAR(32), b VARCHAR(32)>,
-         |c int
-         |) with (
-         |'connector' = 'values',
-         |'data-id'='$dataId',
-         |'bounded' = 'true'
-         |)
-         |""".stripMargin
-    tEnv.executeSql(ddl)
+    implicit val typeInfo: TypeInformation[Row] =
+      Types.ROW(
+        Array("words", "c"),
+        Array(
+          Types.ROW(
+            Array("a", "b"),
+            Array(Types.STRING, Types.STRING).asInstanceOf[Array[TypeInformation[_]]]),
+          Types.INT).asInstanceOf[Array[TypeInformation[_]]]
+      )
+    val t = env.fromCollection(TestData.nullableNestedRow).toTable(tEnv)
+    tEnv.createTemporaryView("t", t)
     val cmp = (l: Row, r: Row) => l.getField(1).asInstanceOf[Int] > r.getField(1).asInstanceOf[Int]
     var result = tEnv
       .executeSql("SELECT IF(c > 3, words.a, words.b), c, words.a, words.b from t")

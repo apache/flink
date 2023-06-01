@@ -27,25 +27,26 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Determine the return type of functions with numeric arguments. The return type is the type of the
- * argument with the largest range. We start to consider the arguments from the `startTypeIdx`-th
- * one. If one of the arguments is not of numeric type, we return the type of the
+ * Determine the return type of functions with arguments that has the least restrictive (eg:
+ * numeric, character). The return type is the type of the argument with the largest range. We start
+ * to consider the arguments from the `startTypeIdx`-th one. If one of the arguments is not of the
+ * type that has the least restrictive (eg: numeric, character), we return the type of the
  * `defaultTypeIdx`-th argument instead.
  */
-public class NumericOrDefaultReturnTypeInference implements SqlReturnTypeInference {
+public class LeastRestrictiveOrDefaultReturnTypeInference implements SqlReturnTypeInference {
     // Default argument whose type is returned
-    // when one of the arguments from the `startTypeIdx`-th isn't of numeric type.
+    // when one of the arguments from the `startTypeIdx`-th isn't of type with least restrictive.
     private int defaultTypeIdx;
     // We check from the `startTypeIdx`-th argument that
-    // if all the following arguments are of numeric type.
+    // if all the following arguments are of type with least restrictive.
     // Previous arguments are ignored.
     private int startTypeIdx;
 
-    public NumericOrDefaultReturnTypeInference(int defaultTypeIdx) {
+    public LeastRestrictiveOrDefaultReturnTypeInference(int defaultTypeIdx) {
         this(defaultTypeIdx, 0);
     }
 
-    public NumericOrDefaultReturnTypeInference(int defaultTypeIdx, int startTypeIdx) {
+    public LeastRestrictiveOrDefaultReturnTypeInference(int defaultTypeIdx, int startTypeIdx) {
         this.defaultTypeIdx = defaultTypeIdx;
         this.startTypeIdx = startTypeIdx;
     }

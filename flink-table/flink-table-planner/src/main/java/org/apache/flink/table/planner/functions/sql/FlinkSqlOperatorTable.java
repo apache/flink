@@ -661,7 +661,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
             new SqlFunction(
                     "IF",
                     SqlKind.OTHER_FUNCTION,
-                    FlinkReturnTypes.NUMERIC_FROM_ARG1_DEFAULT1_NULLABLE,
+                    FlinkReturnTypes.LEAST_RESTRICTIVE_FROM_ARG1_DEFAULT1_NULLABLE,
                     null,
                     OperandTypes.or(
                             OperandTypes.and(
