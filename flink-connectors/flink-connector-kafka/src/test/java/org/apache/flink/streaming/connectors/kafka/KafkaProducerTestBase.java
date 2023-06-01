@@ -215,7 +215,7 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
     }
 
     /**
-     * This test sets KafkaProducer so that it will automatically flush the data and and fails the
+     * This test sets KafkaProducer so that it will automatically flush the data and fails the
      * broker to check whether flushed records since last checkpoint were not duplicated.
      */
     protected void testExactlyOnce(boolean regularSink, int sinksCount) throws Exception {
