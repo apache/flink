@@ -19,35 +19,9 @@
 
 <configuration>
 
-	<!-- allow integral partition filter pushdown to avoid unstable test -->
 	<property>
-		<name>hive.metastore.integral.jdo.pushdown</name>
-		<value>true</value>
-	</property>
-
-	<property>
-		<name>hive.metastore.schema.verification</name>
-		<value>false</value>
-	</property>
-
-	<property>
-		<name>hive.metastore.client.capability.check</name>
-		<value>false</value>
-	</property>
-
-	<property>
-		<name>datanucleus.schema.autoCreateTables</name>
-		<value>true</value>
-	</property>
-
-	<property>
-		<name>datanucleus.schema.autoCreateAll</name>
-		<value>true</value>
-	</property>
-
-	<property>
-		<name>common-key</name>
-		<value>common-val</value>
+		<name>hive.metastore.uris</name>
+		<value>thrift://localhost:9083</value>
 	</property>
 
 </configuration>
