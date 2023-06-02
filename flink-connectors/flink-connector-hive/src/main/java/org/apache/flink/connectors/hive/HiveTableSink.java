@@ -787,8 +787,11 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
         stagingParentDir += ".staging_" + System.currentTimeMillis();
         Path path = new Path(stagingParentDir);
         FileSystem fs = path.getFileSystem(conf);
-        Preconditions.checkState(
-                fs.exists(path) || fs.mkdirs(path), "Failed to create staging dir " + path);
+        if (!fs.exists(path)) {
+            fs.mkdirs(path);
+        }
+        // Preconditions.checkState(
+        //         fs.exists(path) || fs.mkdirs(path), "Failed to create staging dir " + path);
         fs.deleteOnExit(path);
         return stagingParentDir;
     }
