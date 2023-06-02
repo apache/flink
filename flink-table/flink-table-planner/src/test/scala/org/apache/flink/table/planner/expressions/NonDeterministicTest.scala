@@ -141,18 +141,20 @@ class NonDeterministicTest(isStreaming: Boolean) extends ExpressionTestBase(isSt
     testTemporalTimestamp(ZoneId.of("Asia/Shanghai"))
   }
 
-  private def testTemporalTimestamp(zoneId: ZoneId): Unit = {
+  private def setEpochAndLocalTime(zoneId: ZoneId): Unit = {
     tableConfig.setLocalTimeZone(zoneId)
-    if (!isStreaming) {
-      // manually set __table.query-start.epoch-time__ and __table.query-start.local-time__
-      // because they are mandatory for batch codegen, see PlannerBase#beforeTranslation for more details
-      val epochTime: JLong = System.currentTimeMillis()
-      tableConfig.set(InternalConfigOptions.TABLE_QUERY_START_EPOCH_TIME, epochTime)
-      val localTime: JLong = epochTime + TimeZone
-        .getTimeZone(TableConfigUtils.getLocalTimeZone(tableConfig))
-        .getOffset(epochTime)
-      tableConfig.set(InternalConfigOptions.TABLE_QUERY_START_LOCAL_TIME, localTime)
-    }
+    // manually set __table.query-start.epoch-time__ and __table.query-start.local-time__
+    // because they are mandatory for batch codegen, see PlannerBase#beforeTranslation for more details
+    val epochTime: JLong = System.currentTimeMillis()
+    tableConfig.set(InternalConfigOptions.TABLE_QUERY_START_EPOCH_TIME, epochTime)
+    val localTime: JLong = epochTime + TimeZone
+      .getTimeZone(TableConfigUtils.getLocalTimeZone(tableConfig))
+      .getOffset(epochTime)
+    tableConfig.set(InternalConfigOptions.TABLE_QUERY_START_LOCAL_TIME, localTime)
+  }
+
+  private def testTemporalTimestamp(zoneId: ZoneId): Unit = {
+    setEpochAndLocalTime(zoneId)
     val localDateTime = LocalDateTime.now(zoneId)
 
     val formattedLocalTime = localDateTime.toLocalTime
