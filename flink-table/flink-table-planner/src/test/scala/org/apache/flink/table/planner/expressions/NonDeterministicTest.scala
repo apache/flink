@@ -23,24 +23,31 @@ import org.apache.flink.configuration.ExecutionOptions
 import org.apache.flink.table.api._
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
-import org.apache.flink.table.planner.utils.InternalConfigOptions
+import org.apache.flink.table.planner.utils.{InternalConfigOptions, TableConfigUtils}
 import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
+import org.junit.Assume.assumeTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 
+import java.lang.{Long => JLong}
 import java.sql.Time
 import java.time.{LocalDate, LocalDateTime, ZoneId}
 import java.time.format.DateTimeFormatter
+import java.util
 import java.util.TimeZone
 
 import scala.collection.mutable
 
 /** Tests that check all non-deterministic functions can be executed. */
-class NonDeterministicTests extends ExpressionTestBase {
+@RunWith(classOf[Parameterized])
+class NonDeterministicTest(isStreaming: Boolean) extends ExpressionTestBase(isStreaming) {
 
   @Test
   def testTemporalFunctionsInStreamMode(): Unit = {
+    assumeTrue(isStreaming)
     val temporalFunctions = getCodeGenFunctions(
       List(
         "CURRENT_DATE",
@@ -76,6 +83,7 @@ class NonDeterministicTests extends ExpressionTestBase {
 
   @Test
   def testTemporalFunctionsInBatchMode(): Unit = {
+    assumeTrue(!isStreaming)
     val zoneId = ZoneId.of("Asia/Shanghai")
     tableConfig.setLocalTimeZone(zoneId)
     tableConfig.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
@@ -109,7 +117,7 @@ class NonDeterministicTests extends ExpressionTestBase {
 
   @Test
   def testCurrentRowTimestampFunctionsInBatchMode(): Unit = {
-    tableConfig.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
+    assumeTrue(!isStreaming)
     val temporalFunctions = getCodeGenFunctions(List("CURRENT_ROW_TIMESTAMP()"))
 
     val round1 = evaluateFunctionResult(temporalFunctions)
@@ -135,6 +143,16 @@ class NonDeterministicTests extends ExpressionTestBase {
 
   private def testTemporalTimestamp(zoneId: ZoneId): Unit = {
     tableConfig.setLocalTimeZone(zoneId)
+    if (!isStreaming) {
+      // manually set __table.query-start.epoch-time__ and __table.query-start.local-time__
+      // because they are mandatory for batch codegen, see PlannerBase#beforeTranslation for more details
+      val epochTime: JLong = System.currentTimeMillis()
+      tableConfig.set(InternalConfigOptions.TABLE_QUERY_START_EPOCH_TIME, epochTime)
+      val localTime: JLong = epochTime + TimeZone
+        .getTimeZone(TableConfigUtils.getLocalTimeZone(tableConfig))
+        .getOffset(epochTime)
+      tableConfig.set(InternalConfigOptions.TABLE_QUERY_START_LOCAL_TIME, localTime)
+    }
     val localDateTime = LocalDateTime.now(zoneId)
 
     val formattedLocalTime = localDateTime.toLocalTime
@@ -219,5 +237,12 @@ object DateDiffFun extends ScalarFunction {
 
   def eval(d1: LocalDate, d2: LocalDate): Long = {
     d1.toEpochDay - d2.toEpochDay
+  }
+}
+
+object NonDeterministicTest {
+  @Parameterized.Parameters(name = "isStream={0}")
+  def parameters(): util.Collection[Boolean] = {
+    util.Arrays.asList(true, false)
   }
 }
