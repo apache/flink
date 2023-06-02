@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-SET 'execution.runtime-mode' = 'batch';
 SET 'table.dml-sync' = 'true';
 SET 'sql-client.verbose' = 'true';
 
