@@ -144,15 +144,14 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
                 tableSinkSpec,
                 inputChangelogMode,
                 upsertMaterialize,
+                // do not serialize state metadata if upsertMaterialize is not required
                 upsertMaterialize
                         ? StateMetadata.getOneInputOperatorDefaultMeta(tableConfig, STATE_NAME)
                         : null,
                 inputUpsertKey,
                 Collections.singletonList(inputProperty),
                 outputType,
-                description
-                // do not serialize state metadata if upsertMaterialize is not required
-                );
+                description);
     }
 
     @JsonCreator

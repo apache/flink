@@ -81,7 +81,7 @@ public class ConfigureOperatorLevelStateTtlJsonITCase extends JsonPlanTestBase {
                                 JsonTestUtils.setExecNodeStateMetadata(
                                         target, "stream-exec-deduplicate", 0, 6000L);
                                 JsonTestUtils.setExecNodeStateMetadata(
-                                        target, "stream-exec-group-aggregate", 0, 12000L);
+                                        target, "stream-exec-group-aggregate", 0, 9000L);
                                 return JsonTestUtils.writeToString(target);
                             } catch (IOException e) {
                                 throw new TableException("Cannot modify compiled json plan.", e);
@@ -105,11 +105,12 @@ public class ConfigureOperatorLevelStateTtlJsonITCase extends JsonPlanTestBase {
         // | 6,Olivia,3,1000   |                 0s                  |         Y         |
         // +-------------------+-------------------------------------+-------------------+
 
-        // with group-aggregate state's TTL as 12s
+        // with group-aggregate state's TTL as 9s, record (+I,2,Jerry,2,99.9) will be counted twice
         List<String> expected =
                 Arrays.asList(
                         "+I[Tom, 2, 2, 229.8]",
-                        "+I[Jerry, 2, 4, 199.8]",
+                        "+I[Jerry, 1, 2, 99.9]",
+                        "+I[Jerry, 1, 2, 99.9]",
                         "+I[Olivia, 2, 4, 1100.0]",
                         "+I[Michael, 1, 3, 599.9]");
         assertResult(expected, TestValuesTableFactory.getResults("OrdersStats"));

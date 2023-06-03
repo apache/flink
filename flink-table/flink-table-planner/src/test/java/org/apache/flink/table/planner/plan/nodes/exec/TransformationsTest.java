@@ -205,7 +205,7 @@ class TransformationsTest {
         checkUidModification(
                 config -> {},
                 json -> {},
-                env -> planFromFlink1_18(env).asJsonString(),
+                env -> planFromCurrentFlinkVersion(env).asJsonString(),
                 "\\d+_sink",
                 "\\d+_constraint-validator",
                 "\\d+_values");
@@ -229,7 +229,7 @@ class TransformationsTest {
                 config ->
                         config.set(TABLE_EXEC_UID_FORMAT, "<id>_<type>_<version>_<transformation>"),
                 json -> {},
-                env -> planFromFlink1_18(env).asJsonString(),
+                env -> planFromCurrentFlinkVersion(env).asJsonString(),
                 "\\d+_stream-exec-sink_2_sink",
                 "\\d+_stream-exec-sink_2_constraint-validator",
                 "\\d+_stream-exec-values_1_values");
@@ -245,7 +245,7 @@ class TransformationsTest {
                                 "stream-exec-sink_2",
                                 TABLE_EXEC_UID_FORMAT.key(),
                                 "my_custom_<transformation>_<id>"),
-                env -> planFromFlink1_18(env).asJsonString(),
+                env -> planFromCurrentFlinkVersion(env).asJsonString(),
                 "my_custom_sink_\\d+",
                 "my_custom_constraint-validator_\\d+",
                 "\\d+_values");
@@ -276,7 +276,7 @@ class TransformationsTest {
     // Helper methods
     // --------------------------------------------------------------------------------------------
 
-    private static CompiledPlan planFromFlink1_18(TableEnvironment env) {
+    private static CompiledPlan planFromCurrentFlinkVersion(TableEnvironment env) {
         return env.fromValues(1, 2, 3)
                 .insertInto(TableDescriptor.forConnector("blackhole").build())
                 .compilePlan();

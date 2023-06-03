@@ -319,7 +319,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
         }
     }
 
-    protected Transformation<RowData> createSyncLookupJoinWithState(
+    protected abstract Transformation<RowData> createSyncLookupJoinWithState(
             Transformation<RowData> inputTransformation,
             RelOptTable temporalTable,
             ExecNodeConfig config,
@@ -332,9 +332,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
             RowType resultRowType,
             boolean isLeftOuterJoin,
             boolean isObjectReuseEnabled,
-            boolean lookupKeyContainsPrimaryKey) {
-        return inputTransformation;
-    }
+            boolean lookupKeyContainsPrimaryKey);
 
     protected void validateLookupKeyType(
             final Map<Integer, LookupJoinUtil.LookupKey> lookupKeys,

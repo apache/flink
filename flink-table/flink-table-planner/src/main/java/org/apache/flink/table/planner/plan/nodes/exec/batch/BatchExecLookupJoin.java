@@ -22,6 +22,7 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
@@ -33,7 +34,9 @@ import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.tools.RelBuilder;
 
 import javax.annotation.Nullable;
 
@@ -82,5 +85,23 @@ public class BatchExecLookupJoin extends CommonExecLookupJoin
         // There's no optimization when lookupKeyContainsPrimaryKey is true for batch, so set it to
         // false for now. We can add it to CommonExecLookupJoin when needed.
         return createJoinTransformation(planner, config, false, false);
+    }
+
+    @Override
+    protected Transformation<RowData> createSyncLookupJoinWithState(
+            Transformation<RowData> inputTransformation,
+            RelOptTable temporalTable,
+            ExecNodeConfig config,
+            ClassLoader classLoader,
+            Map<Integer, LookupJoinUtil.LookupKey> allLookupKeys,
+            TableFunction<?> syncLookupFunction,
+            RelBuilder relBuilder,
+            RowType inputRowType,
+            RowType tableSourceRowType,
+            RowType resultRowType,
+            boolean isLeftOuterJoin,
+            boolean isObjectReuseEnabled,
+            boolean lookupKeyContainsPrimaryKey) {
+        return inputTransformation;
     }
 }

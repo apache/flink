@@ -98,13 +98,9 @@ public class StateMetadata {
         return stateIndex;
     }
 
-    @JsonGetter(value = "ttl")
+    @JsonGetter(value = FIELD_NAME_STATE_TTL)
     public String getStateTtl() {
         return TimeUtils.formatWithHighestUnit(stateTtl);
-    }
-
-    public String getStateName() {
-        return stateName;
     }
 
     public static List<StateMetadata> getOneInputOperatorDefaultMeta(

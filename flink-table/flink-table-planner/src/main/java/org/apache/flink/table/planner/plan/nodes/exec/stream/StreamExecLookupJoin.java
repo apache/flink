@@ -134,14 +134,13 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin
                 asyncLookupOptions,
                 retryOptions,
                 inputChangelogMode,
+                // serialize state meta only when upsert materialize is enabled
                 upsertMaterialize
                         ? StateMetadata.getOneInputOperatorDefaultMeta(tableConfig, STATE_NAME)
                         : null,
                 Collections.singletonList(inputProperty),
                 outputType,
-                description
-                // serialize state meta only when upsert materialize is enabled
-                );
+                description);
     }
 
     @JsonCreator
