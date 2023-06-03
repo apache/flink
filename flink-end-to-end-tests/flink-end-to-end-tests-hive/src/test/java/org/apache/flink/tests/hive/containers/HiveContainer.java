@@ -75,17 +75,33 @@ public class HiveContainer extends GenericContainer<HiveContainer> {
             File file = warehousePath.toFile();
             hiveWarehouseDir = file.getAbsolutePath();
             LOG.info("mountHiveWarehouseDirToContainer: " + hiveWarehouseDir);
-            file.getParentFile().setWritable(true, false);
-            file.getParentFile().setReadable(true, false);
-            file.getParentFile().setExecutable(true, false);
-            file.setReadable(true, false);
-            file.setWritable(true, false);
-            file.setExecutable(true, false);
+
+            // parent files
+            setFilePermission(file.getParentFile());
+            setFilePermission(file);
+
+            setFilePermission(
+                    Files.createDirectories(warehousePath.resolve("h_table_sink1")).toFile());
+            setFilePermission(
+                    Files.createDirectories(warehousePath.resolve("h_table_sink2")).toFile());
+
+            setFilePermission(
+                    Files.createDirectories(warehousePath.resolve("hive_sink1")).toFile());
+            setFilePermission(
+                    Files.createDirectories(warehousePath.resolve("hive_sink2")).toFile());
+
+            // children files
             withFileSystemBind(
                     warehousePath.toAbsolutePath().toString(),
                     warehousePath.toAbsolutePath().toString());
         } catch (IOException e) {
             throw new IllegalStateException("Failed to create warehouse directory", e);
         }
+    }
+
+    private void setFilePermission(File file) {
+        file.setReadable(true, false);
+        file.setWritable(true, false);
+        file.setExecutable(true, false);
     }
 }
