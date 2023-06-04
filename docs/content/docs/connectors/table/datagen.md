@@ -297,5 +297,12 @@ Connector Options
       <td>(Type of field)</td>
       <td>End value of sequence generator.</td>
     </tr>
+    <tr>
+      <td><h5>fields.#.null-rate</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>(Type of field)</td>
+      <td>The proportion of null values.</td>
+    </tr>
     </tbody>
 </table>
