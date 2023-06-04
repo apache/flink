@@ -160,7 +160,7 @@ object ProjectionCodeGenerator {
               sumAggFunction.getResultType.getLogicalType,
               aggInfo.agg.getArgList.get(0))
           case _: MaxAggFunction | _: MinAggFunction =>
-            fieldExprs += getReuseFieldExprForAggFunc(
+            fieldExprs += reuseFieldExprForAggFunc(
               ctx,
               inputType,
               inputTerm,
@@ -230,18 +230,18 @@ object ProjectionCodeGenerator {
       inputTerm: String,
       targetType: LogicalType,
       index: Int): GeneratedExpression = {
-    val fieldExpr = getReuseFieldExprForAggFunc(ctx, inputType, inputTerm, index)
+    val fieldExpr = reuseFieldExprForAggFunc(ctx, inputType, inputTerm, index)
     // Convert the projected value type to sum agg func target type.
-    ScalarOperatorGens.generateCast(ctx, fieldExpr, targetType, true)
+    ScalarOperatorGens.generateCast(ctx, fieldExpr, targetType, nullOnFailure = true)
   }
 
   /** Get reuse field expr if it has been evaluated before for adaptive local hash aggregation. */
-  def getReuseFieldExprForAggFunc(
+  def reuseFieldExprForAggFunc(
       ctx: CodeGeneratorContext,
       inputType: LogicalType,
       inputTerm: String,
-      index: Int) = {
-    // reuse the field access code if it has been evaluated before
+      index: Int): GeneratedExpression = {
+    // Reuse the field access code if it has been evaluated before
     ctx.getReusableInputUnboxingExprs(inputTerm, index) match {
       case None => GenerateUtils.generateFieldAccess(ctx, inputType, inputTerm, index)
       case Some(expr) =>
