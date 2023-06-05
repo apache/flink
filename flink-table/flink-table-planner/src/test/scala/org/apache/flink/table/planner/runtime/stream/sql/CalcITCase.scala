@@ -367,6 +367,31 @@ class CalcITCase extends StreamingTestBase {
   }
 
   @Test
+  def testIfFunction(): Unit = {
+    val testDataId = TestValuesTableFactory.registerData(TestData.data1)
+    val ddl =
+      s"""
+         |CREATE TABLE t (
+         |  a int,
+         |  b varchar,
+         |  c int
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$testDataId',
+         |  'bounded' = 'true'
+         |)
+         |""".stripMargin
+    tEnv.executeSql(ddl)
+    val expected = List("false,1", "false,2", "false,3", "true,4", "true,5", "true,6")
+    val actual = tEnv
+      .executeSql("SELECT IF(a > 3, 'true', 'false'), a from t")
+      .collect()
+      .map(r => r.toString)
+      .toList
+    assertEquals(expected.sorted, actual.sorted)
+  }
+
+  @Test
   def testSourceWithCustomInternalData(): Unit = {
 
     def createMapData(k: Long, v: Long): MapData = {
