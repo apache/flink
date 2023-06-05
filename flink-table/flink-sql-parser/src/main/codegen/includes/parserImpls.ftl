@@ -591,6 +591,7 @@ SqlAlterTable SqlAlterTable() :
     SqlIdentifier tableIdentifier;
     SqlIdentifier newTableIdentifier = null;
     boolean ifExists = false;
+    boolean ifNotExists = false;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
     SqlNodeList propertyKeyList = SqlNodeList.EMPTY;
     SqlNodeList partitionSpec = null;
@@ -651,6 +652,9 @@ SqlAlterTable SqlAlterTable() :
     |
         <ADD>
         (
+            [ <IF> <NOT> <EXISTS> { ifNotExists = true; } ]
+            { return SqlAddPartitions(startPos, tableIdentifier, ifNotExists);}
+        |
             AlterTableAddOrModify(ctx)
         |
             <LPAREN>
@@ -659,7 +663,6 @@ SqlAlterTable SqlAlterTable() :
                 <COMMA> AlterTableAddOrModify(ctx)
             )*
             <RPAREN>
-        )
         {
             return new SqlAlterTableAdd(
                         startPos.plus(getPos()),
@@ -669,6 +672,7 @@ SqlAlterTable SqlAlterTable() :
                         ctx.watermark,
                         ifExists);
         }
+        )
     |
         <MODIFY>
         (
@@ -736,28 +740,6 @@ SqlAlterTable SqlAlterTable() :
                             ifExists);
             }
         )
-        <ADD>
-        (
-            constraint = TableConstraint() {
-                return new SqlAlterTableAddConstraint(
-                            tableIdentifier,
-                            constraint,
-                            startPos.plus(getPos()));
-            }
-        |
-            [ <IF> <NOT> <EXISTS> { ifNotExists = true; } ]
-            {
-                return SqlAddPartitions(startPos, tableIdentifier, ifNotExists);
-            }
-        )
-    |
-        <DROP> <CONSTRAINT>
-        constraintName = SimpleIdentifier() {
-            return new SqlAlterTableDropConstraint(
-                tableIdentifier,
-                constraintName,
-                startPos.plus(getPos()));
-        }
     |
         [
             <PARTITION>

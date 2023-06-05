@@ -2705,7 +2705,6 @@ class TableEnvironmentTest {
 
   @Test
   def testAddPartitions(): Unit = {
-    tableEnv.useCatalog("part_test_cat")
     val createTableStmt =
       """
         |CREATE TABLE tbl (
@@ -2728,7 +2727,9 @@ class TableEnvironmentTest {
     val spec1 = new CatalogPartitionSpec(Map("b" -> "1000", "c" -> "2020-05-01").asJava)
     val spec2 = new CatalogPartitionSpec(Map("b" -> "2000", "c" -> "2020-01-01").asJava)
 
-    val tablePath = new ObjectPath("default", "tbl")
+    val catalog = tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
+
+    val tablePath = new ObjectPath("default_database", "tbl")
     val actual = catalog.listPartitions(tablePath)
     // assert partition spec
     assertEquals(List(spec1, spec2).asJava, actual)
@@ -2748,8 +2749,8 @@ class TableEnvironmentTest {
     assertThatThrownBy(
       () => tableEnv.executeSql("alter table tbl add partition (b=1000,c='2020-05-01')"))
       .isInstanceOf(classOf[TableException])
-      .hasMessageContaining(
-        "Could not execute ALTER TABLE part_test_cat.default.tbl ADD PARTITION (b=1000, c=2020-05-01)")
+      .hasMessageContaining("Could not execute ALTER TABLE default_catalog.default_database.tbl" +
+        " ADD PARTITION (b=1000, c=2020-05-01)")
 
   }
 

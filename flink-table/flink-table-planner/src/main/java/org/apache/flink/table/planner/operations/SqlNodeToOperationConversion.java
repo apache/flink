@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.operations;
 
 import org.apache.flink.sql.parser.ddl.SqlAddJar;
-import org.apache.flink.sql.parser.ddl.SqlAddPartitions;
 import org.apache.flink.sql.parser.ddl.SqlAlterDatabase;
 import org.apache.flink.sql.parser.ddl.SqlAlterFunction;
 import org.apache.flink.sql.parser.ddl.SqlAlterTable;
@@ -157,7 +156,6 @@ import org.apache.flink.table.operations.command.SetOperation;
 import org.apache.flink.table.operations.command.ShowJarsOperation;
 import org.apache.flink.table.operations.command.ShowJobsOperation;
 import org.apache.flink.table.operations.command.StopJobOperation;
-import org.apache.flink.table.operations.ddl.AddPartitionsOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterPartitionPropertiesOperation;
@@ -476,19 +474,6 @@ public class SqlNodeToOperationConversion {
         } else if (sqlAlterTable instanceof SqlAlterTableRenameColumn) {
             return alterSchemaConverter.convertAlterSchema(
                     (SqlAlterTableRenameColumn) sqlAlterTable, resolvedCatalogTable);
-        } else if (sqlAlterTable instanceof SqlAddPartitions) {
-            List<CatalogPartitionSpec> specs = new ArrayList<>();
-            List<CatalogPartition> partitions = new ArrayList<>();
-            SqlAddPartitions addPartitions = (SqlAddPartitions) sqlAlterTable;
-            for (int i = 0; i < addPartitions.getPartSpecs().size(); i++) {
-                specs.add(new CatalogPartitionSpec(addPartitions.getPartitionKVs(i)));
-                Map<String, String> props =
-                        OperationConverterUtils.extractProperties(
-                                addPartitions.getPartProps().get(i));
-                partitions.add(new CatalogPartitionImpl(props, null));
-            }
-            return new AddPartitionsOperation(
-                    tableIdentifier, addPartitions.ifPartitionNotExists(), specs, partitions);
         } else if (sqlAlterTable instanceof SqlDropPartitions) {
             SqlDropPartitions dropPartitions = (SqlDropPartitions) sqlAlterTable;
             List<CatalogPartitionSpec> specs = new ArrayList<>();
