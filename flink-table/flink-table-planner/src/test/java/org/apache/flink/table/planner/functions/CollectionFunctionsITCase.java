@@ -43,7 +43,8 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                         arrayPositionTestCases(),
                         arrayRemoveTestCases(),
                         arrayReverseTestCases(),
-                        arrayUnionTestCases())
+                        arrayUnionTestCases(),
+                        arrayConcatTestCases())
                 .flatMap(s -> s);
     }
 
@@ -485,5 +486,96 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f4").arrayUnion(true),
                                 "Invalid input arguments. Expected signatures are:\n"
                                         + "ARRAY_UNION(<COMMON>, <COMMON>)"));
+    }
+
+    private Stream<TestSetSpec> arrayConcatTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.ARRAY_CONCAT)
+                        .onFieldsWithData(
+                                new Integer[] {1, 2, null},
+                                null,
+                                new Row[] {
+                                    Row.of(true, LocalDate.of(2022, 4, 20)),
+                                    Row.of(true, LocalDate.of(1990, 10, 14)),
+                                    null
+                                },
+                                new Integer[] {1},
+                                1,
+                                new Integer[][] {{1}},
+                                new String[] {"123"})
+                        .andDataTypes(
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(
+                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE())),
+                                DataTypes.ARRAY(DataTypes.INT().notNull()),
+                                DataTypes.INT().notNull(),
+                                DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())).notNull(),
+                                DataTypes.ARRAY(DataTypes.STRING()).notNull())
+                        .testResult(
+                                $("f0").arrayConcat(new Integer[] {1, null, 4}),
+                                "ARRAY_CONCAT(f0, ARRAY[1, NULL, 4])",
+                                new Integer[] {1, 2, null, 1, null, 4},
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                $("f0").arrayConcat(),
+                                "ARRAY_CONCAT(f0)",
+                                new Integer[] {1, 2, null},
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testTableApiValidationError(
+                                $("f0").arrayConcat(
+                                                new Integer[] {null, null, null},
+                                                new Integer[] {1, 2, 3},
+                                                new Integer[] {3, 4, 5}),
+                                "Invalid function call:\n" + "array(NULL, NULL, NULL)")
+                        .testResult(
+                                $("f1").arrayConcat(
+                                                new Integer[] {1, null, 4},
+                                                new Integer[] {2, 3, 4},
+                                                new Integer[] {2, 3, 4}),
+                                "ARRAY_CONCAT(f1, ARRAY[1, NULL, 4], ARRAY[2, 3, 4], ARRAY[2, 3, 4])",
+                                null,
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                $("f2").arrayConcat(
+                                                new Row[] {
+                                                    Row.of(true, LocalDate.of(1990, 10, 14)),
+                                                },
+                                                new Row[] {
+                                                    Row.of(true, LocalDate.of(1990, 10, 14)),
+                                                }),
+                                "ARRAY_CONCAT(f2, ARRAY[(TRUE, DATE '1990-10-14')], ARRAY[(TRUE, DATE '1990-10-14')])",
+                                new Row[] {
+                                    Row.of(true, LocalDate.of(2022, 4, 20)),
+                                    Row.of(true, LocalDate.of(1990, 10, 14)),
+                                    null,
+                                    Row.of(true, LocalDate.of(1990, 10, 14)),
+                                    Row.of(true, LocalDate.of(1990, 10, 14))
+                                },
+                                DataTypes.ARRAY(
+                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE())))
+                        .testResult(
+                                $("f3").arrayConcat(new Integer[] {2, null}),
+                                "ARRAY_CONCAT(f3, ARRAY[2, NULL])",
+                                new Integer[] {1, 2, null},
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testTableApiValidationError(
+                                $("f0").arrayConcat(
+                                                new Integer[] {null, null, null},
+                                                new Integer[] {1, 2, 3},
+                                                new Integer[] {3, 4, 5}),
+                                "Invalid function call:\n" + "array(NULL, NULL, NULL)")
+                        .testTableApiValidationError(
+                                $("f4").arrayConcat(true),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ARRAY_CONCAT(<COMMON>, <COMMON>...)")
+                        .testTableApiValidationError(
+                                $("f5").arrayConcat(new Integer[] {1}),
+                                "Invalid function call:\n"
+                                        + "ARRAY_CONCAT(ARRAY<ARRAY<INT>> NOT NULL, ARRAY<INT NOT NULL> NOT NULL)")
+                        .testTableApiValidationError(
+                                $("f6").arrayConcat(new Integer[] {123}),
+                                "Invalid function call:\n"
+                                        + "ARRAY_CONCAT(ARRAY<STRING> NOT NULL, ARRAY<INT NOT NULL> NOT NULL)"));
     }
 }

@@ -646,6 +646,9 @@ collection:
   - sql: ARRAY_UNION(array1, array2)
     table: haystack.arrayUnion(array)
     description: Returns an array of the elements in the union of array1 and array2, without duplicates. If any of the array is null, the function will return null.
+  - sql: ARRAY_CONCAT(array1, ...)
+    table: array1.arrayConcat(...)
+    description: Returns an array that is the result of concatenating at least one array. This array contains all the elements in the first array, followed by all the elements in the second array, and so forth, up to the Nth array. If any input array is NULL, the function returns NULL.
   - sql: MAP_KEYS(map)
     table: MAP.mapKeys()
     description: Returns the keys of the map as array. No order guaranteed.
