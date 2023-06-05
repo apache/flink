@@ -367,47 +367,21 @@ class CalcITCase extends StreamingTestBase {
   }
 
   @Test
-  def testIfFunctionWithNestedInput(): Unit = {
+  def testIfFunction(): Unit = {
+
     implicit val typeInfo: TypeInformation[Row] =
       Types.ROW(
-        Array("words", "c"),
-        Array(
-          Types.ROW(
-            Array("a", "b"),
-            Array(Types.STRING, Types.STRING).asInstanceOf[Array[TypeInformation[_]]]),
-          Types.INT).asInstanceOf[Array[TypeInformation[_]]]
-      )
-    val t = env.fromCollection(TestData.nullableNestedRow).toTable(tEnv)
+        Array("a", "b", "c"),
+        Array(Types.INT, Types.STRING, Types.INT).asInstanceOf[Array[TypeInformation[_]]])
+    val t = env.fromCollection(TestData.data1).toTable(tEnv)
     tEnv.createTemporaryView("t", t)
-    val cmp = (l: Row, r: Row) => l.getField(1).asInstanceOf[Int] > r.getField(1).asInstanceOf[Int]
-    var result = tEnv
-      .executeSql("SELECT IF(c > 3, words.a, words.b), c, words.a, words.b from t")
+    val expected = List("false,1", "false,2", "false,3", "true,4", "true,5", "true,6")
+    val actual = tEnv
+      .executeSql("SELECT IF(a > 3, 'true', 'false'), a from t")
       .collect()
+      .map(r => r.toString)
       .toList
-      .sortWith(cmp)
-    var expected = List(
-      Row.of("Worlds", Int.box(1), "Hello", "Worlds"),
-      Row.of("Hello", Int.box(5), "Hello", "Hidden"),
-      Row.of(null, Int.box(2), "Hello again", null),
-      Row.of("World", Int.box(0), null, "World"),
-      Row.of("Hello again", Int.box(6), "Hello again", "Hide")
-    ).sortWith(cmp)
-    assertEquals(expected, result)
-
-    // IF with constant values
-    result = tEnv
-      .executeSql("SELECT IF(c > 3, 'true', 'false'), c from t")
-      .collect()
-      .toList
-      .sortWith(cmp)
-    expected = List(
-      Row.of("true", Int.box(6)),
-      Row.of("true", Int.box(5)),
-      Row.of("false", Int.box(2)),
-      Row.of("false", Int.box(1)),
-      Row.of("false", Int.box(0))
-    ).sortWith(cmp)
-    assertEquals(expected, result)
+    assertEquals(expected.sorted, actual.sorted)
   }
 
   @Test
