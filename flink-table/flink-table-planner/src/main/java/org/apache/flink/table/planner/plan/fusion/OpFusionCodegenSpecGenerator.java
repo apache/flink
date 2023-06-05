@@ -56,6 +56,10 @@ public abstract class OpFusionCodegenSpecGenerator {
         this.opFusionCodegenSpec.setup(opFusionContext);
     }
 
+    public RowType getOutputType() {
+        return outputType;
+    }
+
     public OpFusionCodegenSpec getOpFusionCodegenSpec() {
         return opFusionCodegenSpec;
     }

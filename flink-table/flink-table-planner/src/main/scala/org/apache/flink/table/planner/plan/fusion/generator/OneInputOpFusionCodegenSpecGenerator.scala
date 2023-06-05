@@ -15,23 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.planner.plan.fusion.impl
+package org.apache.flink.table.planner.plan.fusion.generator
 
 import org.apache.flink.table.planner.plan.fusion.{OpFusionCodegenSpec, OpFusionCodegenSpecGenerator, OpFusionCodegenSpecGeneratorBase}
 import org.apache.flink.table.types.logical.RowType
 
 import java.util
+import java.util.Collections
 
-/** The subclass {@link OpFusionCodegenSpecGenerator} of which has two input. */
-class TwoInputOpFusionCodegenSpecGenerator(
-    input1: OpFusionCodegenSpecGenerator,
-    input2: OpFusionCodegenSpecGenerator,
+/** The subclass of {@link OpFusionCodegenSpecGenerator} which has one input. */
+class OneInputOpFusionCodegenSpecGenerator(
+    input: OpFusionCodegenSpecGenerator,
     managedMemory: Long,
     outputType: RowType,
     fusionCodegenSpec: OpFusionCodegenSpec)
   extends OpFusionCodegenSpecGeneratorBase(managedMemory, outputType, fusionCodegenSpec) {
 
-  override def getInputs: util.List[OpFusionCodegenSpecGenerator] = {
-    util.Arrays.asList(input1, input2)
-  }
+  override def getInputs: util.List[OpFusionCodegenSpecGenerator] = Collections.singletonList(input)
 }

@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.planner.plan.fusion.impl
+package org.apache.flink.table.planner.plan.fusion.generator
 
 import org.apache.flink.table.planner.plan.fusion.{OpFusionCodegenSpec, OpFusionCodegenSpecGenerator, OpFusionCodegenSpecGeneratorBase}
 import org.apache.flink.table.types.logical.RowType
@@ -23,13 +23,11 @@ import org.apache.flink.table.types.logical.RowType
 import java.util
 import java.util.Collections
 
-/** The subclass of {@link OpFusionCodegenSpecGenerator} which has one input. */
-class OneInputOpFusionCodegenSpecGenerator(
-    input: OpFusionCodegenSpecGenerator,
-    managedMemory: Long,
+/** The subclass of {@link OpFusionCodegenSpecGenerator} which has no input. */
+class SourceOpFusionCodegenSpecGenerator(
     outputType: RowType,
     fusionCodegenSpec: OpFusionCodegenSpec)
-  extends OpFusionCodegenSpecGeneratorBase(managedMemory, outputType, fusionCodegenSpec) {
+  extends OpFusionCodegenSpecGeneratorBase(0L, outputType, fusionCodegenSpec) {
 
-  override def getInputs: util.List[OpFusionCodegenSpecGenerator] = Collections.singletonList(input)
+  override def getInputs: util.List[OpFusionCodegenSpecGenerator] = Collections.emptyList()
 }

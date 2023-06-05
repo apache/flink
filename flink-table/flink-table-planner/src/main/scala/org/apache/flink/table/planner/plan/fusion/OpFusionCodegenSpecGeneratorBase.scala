@@ -91,7 +91,7 @@ abstract class OpFusionCodegenSpecGeneratorBase(
 
           // evaluate the expr code which will be used more than once in advance to avoid evaluated more time
           val evaluatedReqVars =
-            evaluateRequiredVariables(inputVars, outputSpec.usedInputs(inputIdOfOutput))
+            evaluateRequiredVariables(inputVars, outputSpec.usedInputVars(inputIdOfOutput))
           val inputRowDataClass = outputSpec.getInputRowDataClass(inputIdOfOutput)
           val rowVar = prepareRowVar(row, inputVars, inputRowDataClass)
 
