@@ -411,16 +411,14 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         return partitionedTransform;
     }
 
-    protected Transformation<RowData> applyUpsertMaterialize(
+    protected abstract Transformation<RowData> applyUpsertMaterialize(
             Transformation<RowData> inputTransform,
             int[] primaryKeys,
             int sinkParallelism,
             ExecNodeConfig config,
             ClassLoader classLoader,
             RowType physicalRowType,
-            int[] inputUpsertKey) {
-        return inputTransform;
-    }
+            int[] inputUpsertKey);
 
     private Transformation<RowData> applyRowKindSetter(
             Transformation<RowData> inputTransform, RowKind rowKind, ExecNodeConfig config) {

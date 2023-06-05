@@ -106,6 +106,18 @@ public class BatchExecSink extends CommonExecSink implements BatchExecNode<Objec
     }
 
     @Override
+    protected Transformation<RowData> applyUpsertMaterialize(
+            Transformation<RowData> inputTransform,
+            int[] primaryKeys,
+            int sinkParallelism,
+            ExecNodeConfig config,
+            ClassLoader classLoader,
+            RowType physicalRowType,
+            int[] inputUpsertKey) {
+        return inputTransform;
+    }
+
+    @Override
     protected int[] getPrimaryKeyIndices(RowType sinkRowType, ResolvedSchema schema) {
         if (schema.getPrimaryKey().isPresent()) {
             UniqueConstraint uniqueConstraint = schema.getPrimaryKey().get();
