@@ -107,8 +107,7 @@ public class HiveITCase extends TestLogger {
                         TMP_FOLDER.newFolder("test-jar"),
                         "test-classloader-udf.jar",
                         classNameCodes);
-        URL udfDependency = udfJar.toURI().toURL();
-        udfDependsPath = udfDependency.getPath();
+        udfDependsPath = udfJar.toURI().getPath();
     }
 
     private static void initHiveConfFile() {
