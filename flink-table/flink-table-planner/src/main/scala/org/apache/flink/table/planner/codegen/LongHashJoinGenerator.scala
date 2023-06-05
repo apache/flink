@@ -59,7 +59,7 @@ object LongHashJoinGenerator {
     }
   }
 
-  private def genGetLongKey(keyType: RowType, keyMapping: Array[Int], rowTerm: String): String = {
+  def genGetLongKey(keyType: RowType, keyMapping: Array[Int], rowTerm: String): String = {
     val singleType = keyType.getTypeAt(0)
     val getCode = rowFieldReadAccess(keyMapping(0), rowTerm, singleType)
     val term = singleType.getTypeRoot match {

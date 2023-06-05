@@ -90,6 +90,14 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig, val classLoader: Cla
   private val reusablePerRecordStatements: mutable.LinkedHashSet[String] =
     mutable.LinkedHashSet[String]()
 
+  // set of statements that will be added only for operator fusion codegen process method
+  private val reusableFusionCodegenProcessStatements: mutable.TreeMap[Int, String] =
+    mutable.TreeMap[Int, String]()
+
+  // set of statements that will be added only for operator fusion codegen endInput method
+  private val reusableFusionCodegenEndInputStatements: mutable.TreeMap[Int, String] =
+    mutable.TreeMap[Int, String]()
+
   // map of initial input unboxing expressions that will be added only once
   // (inputTerm, index) -> expr
   val reusableInputUnboxingExprs: mutable.Map[(String, Int), GeneratedExpression] =
@@ -307,6 +315,38 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig, val classLoader: Cla
 
   /**
    * @return
+   *   code block of statements that need to be placed in the getInputs() method of
+   *   [FusionStreamOperator]
+   */
+  def reuseFusionProcessCode(): String = {
+    reusableFusionCodegenProcessStatements.values.mkString(",\n")
+  }
+
+  /**
+   * @return
+   *   code block of statements that need to be placed in the endInput() method of
+   *   [BoundedMultiInput]
+   */
+  def reuseFusionEndInputCode(inputId: String): String = {
+    val endInputCode = reusableFusionCodegenEndInputStatements
+      .map {
+        case (id, code) => s"""
+                              |case $id:
+                              |  $code
+                              |  break;
+                              |""".stripMargin
+      }
+      .mkString("\n")
+
+    s"""
+       |switch($inputId) {
+       |  $endInputCode
+       |}
+       |""".stripMargin
+  }
+
+  /**
+   * @return
    *   code block of statements that unbox input variables to a primitive variable and a
    *   corresponding null flag variable
    */
@@ -382,6 +422,14 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig, val classLoader: Cla
 
   /** Adds a reusable cleanup statement */
   def addReusableCleanupStatement(s: String): Unit = reusableCleanupStatements.add(s)
+
+  /** Adds a reusable fusion codegen process statement */
+  def addReusableFusionCodegenProcessStatement(inputId: Int, s: String): Unit =
+    reusableFusionCodegenProcessStatements.put(inputId, s)
+
+  /** Adds a reusable fusion codegen endInput statement */
+  def addReusableFusionCodegenEndInputStatement(inputId: Int, s: String): Unit =
+    reusableFusionCodegenEndInputStatements.put(inputId, s)
 
   /** Adds a reusable input unboxing expression */
   def addReusableInputUnboxingExprs(
