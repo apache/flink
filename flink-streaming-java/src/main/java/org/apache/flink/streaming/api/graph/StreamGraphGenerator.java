@@ -177,8 +177,7 @@ public class StreamGraphGenerator {
 
     private SavepointRestoreSettings savepointRestoreSettings;
 
-    private long defaultBufferTimeout =
-            ExecutionOptions.BUFFER_TIMEOUT_INTERVAL.defaultValue().toMillis();
+    private long defaultBufferTimeout = ExecutionOptions.BUFFER_TIMEOUT.defaultValue().toMillis();
 
     private boolean shouldExecuteInBatchMode;
 

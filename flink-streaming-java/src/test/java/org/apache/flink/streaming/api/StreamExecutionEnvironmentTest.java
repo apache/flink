@@ -403,13 +403,13 @@ class StreamExecutionEnvironmentTest {
                 .isEqualTo(ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT);
 
         // Setting execution.buffer-timeout's to 0ms will not take effect.
-        config.setString(ExecutionOptions.BUFFER_TIMEOUT_INTERVAL.key(), "0ms");
+        config.setString(ExecutionOptions.BUFFER_TIMEOUT.key(), "0ms");
         env.configure(config, this.getClass().getClassLoader());
         assertThat(env.getBufferTimeout())
                 .isEqualTo(ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT);
 
         // Setting execution.buffer-timeout's to -1ms will not take effect.
-        config.setString(ExecutionOptions.BUFFER_TIMEOUT_INTERVAL.key(), "-1ms");
+        config.setString(ExecutionOptions.BUFFER_TIMEOUT.key(), "-1ms");
         env.configure(config, this.getClass().getClassLoader());
         assertThat(env.getBufferTimeout())
                 .isEqualTo(ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT);
@@ -418,16 +418,15 @@ class StreamExecutionEnvironmentTest {
     private void testBufferTimeout(Configuration config, StreamExecutionEnvironment env) {
         env.configure(config, this.getClass().getClassLoader());
         assertThat(env.getBufferTimeout())
-                .isEqualTo(ExecutionOptions.BUFFER_TIMEOUT_INTERVAL.defaultValue().toMillis());
+                .isEqualTo(ExecutionOptions.BUFFER_TIMEOUT.defaultValue().toMillis());
 
-        config.setString(ExecutionOptions.BUFFER_TIMEOUT_INTERVAL.key(), "0ms");
+        config.setString(ExecutionOptions.BUFFER_TIMEOUT.key(), "0ms");
         env.configure(config, this.getClass().getClassLoader());
         assertThat(env.getBufferTimeout()).isZero();
 
         assertThatThrownBy(
                         () -> {
-                            config.setString(
-                                    ExecutionOptions.BUFFER_TIMEOUT_INTERVAL.key(), "-1ms");
+                            config.setString(ExecutionOptions.BUFFER_TIMEOUT.key(), "-1ms");
                             env.configure(config, this.getClass().getClassLoader());
                         })
                 .isInstanceOf(IllegalArgumentException.class);

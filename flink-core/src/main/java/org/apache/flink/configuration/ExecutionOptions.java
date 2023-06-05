@@ -103,7 +103,7 @@ public class ExecutionOptions {
                                                     + "buffer is full thus maximizing throughput")
                                     .build());
 
-    public static final ConfigOption<Duration> BUFFER_TIMEOUT_INTERVAL =
+    public static final ConfigOption<Duration> BUFFER_TIMEOUT =
             ConfigOptions.key("execution.buffer-timeout.interval")
                     .durationType()
                     .defaultValue(Duration.ofMillis(100))
