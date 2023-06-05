@@ -24,9 +24,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.plan.fusion.OpFusionCodegenSpecGenerator;
 import org.apache.flink.table.planner.plan.nodes.exec.serde.ConfigurationJsonSerializerFilter;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.TransformationMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitor;
@@ -38,6 +40,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgn
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -71,6 +75,8 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
     private List<ExecEdge> inputEdges;
 
     private transient Transformation<T> transformation;
+
+    private @Nullable transient OpFusionCodegenSpecGenerator fusionCodegenSpecGenerator;
 
     /** Holds the context information (id, name, version) as deserialized from a JSON plan. */
     @JsonProperty(value = FIELD_NAME_TYPE, access = JsonProperty.Access.WRITE_ONLY)
@@ -282,5 +288,39 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
     @JsonIgnore
     public Transformation<T> getTransformation() {
         return this.transformation;
+    }
+
+    @Override
+    public boolean supportFusionCodegen() {
+        return false;
+    }
+
+    @Override
+    public OpFusionCodegenSpecGenerator translateToFusionCodegenSpec(Planner planner) {
+        if (fusionCodegenSpecGenerator == null) {
+            fusionCodegenSpecGenerator =
+                    translateToFusionCodegenSpecInternal(
+                            (PlannerBase) planner,
+                            ExecNodeConfig.of(
+                                    ((PlannerBase) planner).getTableConfig(),
+                                    persistedConfig,
+                                    isCompiled));
+        }
+
+        return fusionCodegenSpecGenerator;
+    }
+
+    /**
+     * Internal method, translates this node into a operator codegen spec generator.
+     *
+     * @param planner The planner.
+     * @param config per-{@link ExecNode} configuration that contains the merged configuration from
+     *     various layers which all the nodes implementing this method should use, instead of
+     *     retrieving configuration from the {@code planner}. For more details check {@link
+     *     ExecNodeConfig}.
+     */
+    protected OpFusionCodegenSpecGenerator translateToFusionCodegenSpecInternal(
+            PlannerBase planner, ExecNodeConfig config) {
+        throw new TableException("This ExecNode doesn't support operator fusion codegen now.");
     }
 }
