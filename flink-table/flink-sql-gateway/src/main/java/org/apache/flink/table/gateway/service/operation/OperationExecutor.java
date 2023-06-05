@@ -67,6 +67,7 @@ import org.apache.flink.table.gateway.service.result.ResultFetcher;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.BeginStatementSetOperation;
+import org.apache.flink.table.operations.CompileAndExecutePlanOperation;
 import org.apache.flink.table.operations.DeleteFromFilterOperation;
 import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
@@ -77,6 +78,7 @@ import org.apache.flink.table.operations.StatementSetOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseOperation;
 import org.apache.flink.table.operations.command.AddJarOperation;
+import org.apache.flink.table.operations.command.ExecutePlanOperation;
 import org.apache.flink.table.operations.command.RemoveJarOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
@@ -107,6 +109,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.internal.TableResultInternal.TABLE_RESULT_OK;
@@ -423,6 +426,9 @@ public class OperationExecutor {
         } else if (op instanceof ModifyOperation) {
             return callModifyOperations(
                     tableEnv, handle, Collections.singletonList((ModifyOperation) op));
+        } else if (op instanceof CompileAndExecutePlanOperation
+                || op instanceof ExecutePlanOperation) {
+            return callExecutionOperation(tableEnv, handle, () -> op);
         } else if (op instanceof StatementSetOperation) {
             return callModifyOperations(
                     tableEnv, handle, ((StatementSetOperation) op).getOperations());
@@ -512,6 +518,17 @@ public class OperationExecutor {
             return ResultFetcher.fromTableResult(handle, result, false);
         }
 
+        return fetchJobId(result, handle);
+    }
+
+    private ResultFetcher callExecutionOperation(
+            TableEnvironmentInternal tableEnv,
+            OperationHandle handle,
+            Supplier<Operation> operationSupplier) {
+        return fetchJobId(tableEnv.executeInternal(operationSupplier.get()), handle);
+    }
+
+    private ResultFetcher fetchJobId(TableResultInternal result, OperationHandle handle) {
         JobID jobID =
                 result.getJobClient()
                         .orElseThrow(

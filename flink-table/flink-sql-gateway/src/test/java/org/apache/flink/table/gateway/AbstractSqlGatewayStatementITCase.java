@@ -117,6 +117,9 @@ public abstract class AbstractSqlGatewayStatementITCase extends AbstractTestBase
                 "$VAR_STREAMING_PATH2",
                 Files.createDirectory(temporaryFolder.resolve("streaming2")).toFile().getPath());
         replaceVars.put(
+                "$VAR_STREAMING_PATH3",
+                Files.createDirectory(temporaryFolder.resolve("streaming3")).toFile().getPath());
+        replaceVars.put(
                 "$VAR_BATCH_PATH",
                 Files.createDirectory(temporaryFolder.resolve("batch")).toFile().getPath());
         replaceVars.put(
@@ -124,6 +127,11 @@ public abstract class AbstractSqlGatewayStatementITCase extends AbstractTestBase
                 Files.createDirectory(temporaryFolder.resolve("batch_ctas")).toFile().getPath());
         replaceVars.put(
                 "$VAR_REST_PORT", MINI_CLUSTER.getClientConfiguration().get(PORT).toString());
+        replaceVars.put(
+                "$VAR_STREAMING_PLAN_PATH",
+                Files.createDirectory(temporaryFolder.resolve("streaming_compiled_plan"))
+                        .toFile()
+                        .getPath());
     }
 
     @TestTemplate
