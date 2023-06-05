@@ -192,7 +192,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
 
     private final Map<AbstractID, CacheTransformation<?>> cachedTransformations = new HashMap<>();
 
-    private long bufferTimeout = ExecutionOptions.BUFFER_TIMEOUT_INTERVAL.defaultValue().toMillis();
+    private long bufferTimeout = ExecutionOptions.BUFFER_TIMEOUT.defaultValue().toMillis();
 
     protected boolean isChainingEnabled = true;
 
@@ -1079,7 +1079,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     private void configBufferTimeout(ReadableConfig configuration) {
         if (configuration.get(ExecutionOptions.BUFFER_TIMEOUT_ENABLED)) {
             configuration
-                    .getOptional(ExecutionOptions.BUFFER_TIMEOUT_INTERVAL)
+                    .getOptional(ExecutionOptions.BUFFER_TIMEOUT)
                     .ifPresent(t -> this.setBufferTimeout(t.toMillis()));
         } else {
             this.setBufferTimeout(ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT);
