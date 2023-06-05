@@ -741,6 +741,9 @@ collection:
   - sql: CARDINALITY(map)
     table: MAP.cardinality()
     description: 返回 map 中的 entries 数量。
+  - sql: ARRAY_CONCAT(array1, ...)
+    table: array1.arrayConcat(...)
+    description: 返回一个数组，该数组是连接至少一个数组的结果。该数组包含第一个数组中的所有元素，然后是第二个数组中的所有元素，依此类推，直到第 N 个数组。如果任何输入数组为 NULL，则函数返回 NULL。
   - sql: map ‘[’ value ‘]’
     table: MAP.at(ANY)
     description: 返回 map 中指定 key 对应的值。
