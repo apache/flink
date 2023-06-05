@@ -39,6 +39,7 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.planner.calcite.FlinkCalciteSqlValidator;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
+import org.apache.flink.table.planner.utils.OperationConverterUtils;
 
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
@@ -165,7 +166,8 @@ class SqlCreateTableConverter {
                                         col -> col.getName().getSimple(),
                                         col ->
                                                 StringUtils.strip(
-                                                        col.getComment().get().toString(), "'")));
+                                                        OperationConverterUtils.getComment(col),
+                                                        "'")));
 
         TableSchema mergedSchema =
                 mergeTableLikeUtil.mergeTables(

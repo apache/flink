@@ -32,11 +32,13 @@ import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
@@ -218,12 +220,12 @@ public class SqlDdlToOperationConverterTest extends SqlToOperationConverterTestB
     public void testCreateTableWithPrimaryKey() {
         final String sql =
                 "CREATE TABLE tbl1 (\n"
-                        + "  a bigint,\n"
+                        + "  a bigint comment '测试utf8中文',\n"
                         + "  b varchar, \n"
                         + "  c int, \n"
-                        + "  d varchar, \n"
+                        + "  d varchar comment _utf8'测试_utf8中文', \n"
                         + "  constraint ct1 primary key(a, b) not enforced\n"
-                        + ") with (\n"
+                        + ") comment '测试中文 table comment' with (\n"
                         + "  'connector' = 'kafka', \n"
                         + "  'kafka.topic' = 'log.test'\n"
                         + ")\n";
@@ -249,6 +251,12 @@ public class SqlDdlToOperationConverterTest extends SqlToOperationConverterTestB
                             DataTypes.INT(),
                             DataTypes.STRING()
                         });
+        // verify chinese characters both in table comment and column comments
+        assertThat(catalogTable.getComment()).isEqualTo("测试中文 table comment");
+        assertThat(catalogTable).isInstanceOf(ResolvedCatalogTable.class);
+        List<Column> cols = ((ResolvedCatalogTable) catalogTable).getResolvedSchema().getColumns();
+        assertThat(cols.get(0).getComment().get()).isEqualTo("测试utf8中文");
+        assertThat(cols.get(3).getComment().get()).isEqualTo("测试_utf8中文");
     }
 
     @Test
@@ -1326,19 +1334,18 @@ public class SqlDdlToOperationConverterTest extends SqlToOperationConverterTestB
 
         // add a single column
         Operation operation =
-                parse(
-                        "alter table if exists tb1 add h double not null comment 'h is double not null'");
+                parse("alter table if exists tb1 add h double not null comment 'utf 测试中文'");
         assertThat(operation.asSummaryString())
                 .isEqualTo(
                         "ALTER TABLE IF EXISTS cat1.db1.tb1\n"
-                                + "  ADD `h` DOUBLE NOT NULL COMMENT 'h is double not null' ");
+                                + "  ADD `h` DOUBLE NOT NULL COMMENT 'utf 测试中文' ");
         assertAlterTableSchema(
                 operation,
                 tableIdentifier,
                 Schema.newBuilder()
                         .fromSchema(originalSchema)
                         .column("h", DataTypes.DOUBLE().notNull())
-                        .withComment("h is double not null")
+                        .withComment("utf 测试中文")
                         .build());
 
         // add multiple columns with pk, computed/metadata column
