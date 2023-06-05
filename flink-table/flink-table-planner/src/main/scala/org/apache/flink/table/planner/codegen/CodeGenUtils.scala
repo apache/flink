@@ -38,7 +38,7 @@ import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, getPrecision, getScale}
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, getPrecision, getScale, isCompositeType}
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalConversionClass
 import org.apache.flink.table.types.utils.DataTypeUtils.isInternal
 import org.apache.flink.table.utils.EncodingUtils
@@ -1047,6 +1047,14 @@ object CodeGenUtils {
     } else {
       // Cast of null is required because of janino issue https://github.com/janino-compiler/janino/issues/188
       s"${internalExpr.nullTerm} ? ($externalResultTypeTerm) null : ($externalResultTerm)"
+    }
+  }
+
+  def fieldIndices(t: LogicalType): Array[Int] = {
+    if (isCompositeType(t)) {
+      (0 until getFieldCount(t)).toArray
+    } else {
+      Array(0)
     }
   }
 }

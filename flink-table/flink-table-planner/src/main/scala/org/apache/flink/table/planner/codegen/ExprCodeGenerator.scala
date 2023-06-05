@@ -41,7 +41,6 @@ import org.apache.flink.table.runtime.types.PlannerTypeUtils.isInteroperable
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isNumeric, isTemporal, isTimeInterval}
 import org.apache.flink.table.types.logical._
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, isCompositeType}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
 import org.apache.calcite.rex._
@@ -120,14 +119,6 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
         case Some(input) => fieldIndices(input)
         case _ => Array[Int]()
       }
-  }
-
-  private def fieldIndices(t: LogicalType): Array[Int] = {
-    if (isCompositeType(t)) {
-      (0 until getFieldCount(t)).toArray
-    } else {
-      Array(0)
-    }
   }
 
   /**
