@@ -142,21 +142,6 @@ object HashAggCodeGenerator {
         outRecordWriterTerm = currentKeyWriterTerm)
       .code
 
-    val valueProjectionCode =
-      if (!isFinal && supportAdaptiveLocalHashAgg) {
-        ProjectionCodeGenerator.genAdaptiveLocalHashAggValueProjectionCode(
-          ctx,
-          inputType,
-          classOf[BinaryRowData],
-          inputTerm = inputTerm,
-          aggInfos,
-          outRecordTerm = currentValueTerm,
-          outRecordWriterTerm = currentValueWriterTerm
-        )
-      } else {
-        ""
-      }
-
     // gen code to create groupKey, aggBuffer Type array
     // it will be used in BytesHashMap and BufferedKVExternalSorter if enable fallback
     val groupKeyTypesTerm = CodeGenUtils.newName("groupKeyTypes")
@@ -264,6 +249,21 @@ object HashAggCodeGenerator {
     }
     val localAggSuppressedTerm = CodeGenUtils.newName("localAggSuppressed")
     ctx.addReusableMember(s"private transient boolean $localAggSuppressedTerm = false;")
+    val valueProjectionCode =
+      if (!isFinal && supportAdaptiveLocalHashAgg) {
+        ProjectionCodeGenerator.genAdaptiveLocalHashAggValueProjectionCode(
+          ctx,
+          inputType,
+          classOf[BinaryRowData],
+          inputTerm = inputTerm,
+          aggInfos,
+          outRecordTerm = currentValueTerm,
+          outRecordWriterTerm = currentValueWriterTerm
+        )
+      } else {
+        ""
+      }
+
     val (
       distinctCountIncCode,
       totalCountIncCode,
