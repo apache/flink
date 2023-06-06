@@ -20,16 +20,15 @@ package org.apache.flink.runtime.execution.librarycache;
 
 import org.apache.flink.api.common.JobID;
 
-import java.util.function.Function;
+import java.util.function.BiFunction;
 
 /** Testing {@link LibraryCacheManager} implementation. */
 public class TestingLibraryCacheManager implements LibraryCacheManager {
-    private final Function<JobID, LibraryCacheManager.ClassLoaderLease>
-            registerOrRetainClassLoaderFunction;
+    private final BiFunction<JobID, Boolean, ClassLoaderLease> registerOrRetainClassLoaderFunction;
     private final Runnable shutdownRunnable;
 
     private TestingLibraryCacheManager(
-            Function<JobID, LibraryCacheManager.ClassLoaderLease>
+            BiFunction<JobID, Boolean, LibraryCacheManager.ClassLoaderLease>
                     registerOrRetainClassLoaderFunction,
             Runnable shutdownRunnable) {
         this.registerOrRetainClassLoaderFunction = registerOrRetainClassLoaderFunction;
@@ -37,8 +36,9 @@ public class TestingLibraryCacheManager implements LibraryCacheManager {
     }
 
     @Override
-    public LibraryCacheManager.ClassLoaderLease registerClassLoaderLease(JobID jobId) {
-        return registerOrRetainClassLoaderFunction.apply(jobId);
+    public LibraryCacheManager.ClassLoaderLease registerClassLoaderLease(
+            JobID jobId, boolean useSystemClassLoader) {
+        return registerOrRetainClassLoaderFunction.apply(jobId, useSystemClassLoader);
     }
 
     @Override
@@ -53,9 +53,9 @@ public class TestingLibraryCacheManager implements LibraryCacheManager {
     public static final class Builder {
 
         private Runnable shutdownRunnable = () -> {};
-        private Function<JobID, LibraryCacheManager.ClassLoaderLease>
+        private BiFunction<JobID, Boolean, LibraryCacheManager.ClassLoaderLease>
                 registerOrRetainClassLoaderFunction =
-                        ignored -> TestingClassLoaderLease.newBuilder().build();
+                        (ignored1, ignore2) -> TestingClassLoaderLease.newBuilder().build();
 
         private Builder() {}
 
@@ -65,7 +65,7 @@ public class TestingLibraryCacheManager implements LibraryCacheManager {
         }
 
         public Builder setRegisterOrRetainClassLoaderFunction(
-                Function<JobID, ClassLoaderLease> registerOrRetainClassLoaderFunction) {
+                BiFunction<JobID, Boolean, ClassLoaderLease> registerOrRetainClassLoaderFunction) {
             this.registerOrRetainClassLoaderFunction = registerOrRetainClassLoaderFunction;
             return this;
         }

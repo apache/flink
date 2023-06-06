@@ -1505,7 +1505,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                     highAvailabilityServices.getJobResultStore(),
                     jobManagerServices
                             .getLibraryCacheManager()
-                            .registerClassLoaderLease(jobGraph.getJobID()),
+                            .registerClassLoaderLease(jobGraph.getJobID(), true),
                     fatalErrorHandler);
         }
 
@@ -1579,7 +1579,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                     highAvailabilityServices.getJobResultStore(),
                     jobManagerServices
                             .getLibraryCacheManager()
-                            .registerClassLoaderLease(jobGraph.getJobID()),
+                            .registerClassLoaderLease(jobGraph.getJobID(), true),
                     fatalErrorHandler);
         }
 
@@ -1632,7 +1632,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                     highAvailabilityServices.getJobResultStore(),
                     jobManagerServices
                             .getLibraryCacheManager()
-                            .registerClassLoaderLease(jobGraph.getJobID()),
+                            .registerClassLoaderLease(jobGraph.getJobID(), true),
                     fatalErrorHandler);
         }
 

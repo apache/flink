@@ -116,7 +116,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 
             // Register uploaded libraries
             final LibraryCacheManager.ClassLoaderLease classLoaderLease =
-                    libServer[0].registerClassLoaderLease(jobId);
+                    libServer[0].registerClassLoaderLease(jobId, true);
             classLoaderLease.getOrResolveClassLoader(keys, Collections.emptyList());
 
             // Verify key 1

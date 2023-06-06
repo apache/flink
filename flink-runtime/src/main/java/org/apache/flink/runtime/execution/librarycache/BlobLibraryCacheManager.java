@@ -26,6 +26,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkUserCodeClassLoader;
 import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.SimpleUserCodeClassLoader;
 import org.apache.flink.util.UserCodeClassLoader;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.type.TypeFactory;
@@ -84,11 +85,11 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
     }
 
     @Override
-    public ClassLoaderLease registerClassLoaderLease(JobID jobId) {
+    public ClassLoaderLease registerClassLoaderLease(JobID jobId, boolean useSystemClassloader) {
         synchronized (lockObject) {
             return cacheEntries
                     .computeIfAbsent(jobId, jobID -> new LibraryCacheEntry(jobId))
-                    .obtainLease();
+                    .obtainLease(useSystemClassloader);
         }
     }
 
@@ -276,10 +277,10 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
         }
 
         @GuardedBy("lockObject")
-        private DefaultClassLoaderLease obtainLease() {
+        private DefaultClassLoaderLease obtainLease(boolean useSystemClassloader) {
             verifyIsNotReleased();
             referenceCount += 1;
-            return DefaultClassLoaderLease.create(this);
+            return DefaultClassLoaderLease.create(this, useSystemClassloader);
         }
 
         private void release() {
@@ -320,11 +321,14 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
             implements LibraryCacheManager.ClassLoaderLease {
 
         private final LibraryCacheEntry libraryCacheEntry;
+        private final boolean useSystemClassLoader;
 
         private boolean isClosed;
 
-        private DefaultClassLoaderLease(LibraryCacheEntry libraryCacheEntry) {
+        private DefaultClassLoaderLease(
+                LibraryCacheEntry libraryCacheEntry, boolean useSystemClassLoader) {
             this.libraryCacheEntry = libraryCacheEntry;
+            this.useSystemClassLoader = useSystemClassLoader;
             this.isClosed = false;
         }
 
@@ -333,6 +337,11 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
                 Collection<PermanentBlobKey> requiredJarFiles, Collection<URL> requiredClasspaths)
                 throws IOException {
             verifyIsNotClosed();
+            if (useSystemClassLoader
+                    && requiredJarFiles.isEmpty()
+                    && requiredClasspaths.isEmpty()) {
+                return SimpleUserCodeClassLoader.create(ClassLoader.getSystemClassLoader());
+            }
             return libraryCacheEntry.getOrResolveClassLoader(requiredJarFiles, requiredClasspaths);
         }
 
@@ -351,8 +360,9 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
             libraryCacheEntry.release();
         }
 
-        private static DefaultClassLoaderLease create(LibraryCacheEntry libraryCacheEntry) {
-            return new DefaultClassLoaderLease(libraryCacheEntry);
+        private static DefaultClassLoaderLease create(
+                LibraryCacheEntry libraryCacheEntry, boolean useSystemClassLoader) {
+            return new DefaultClassLoaderLease(libraryCacheEntry, useSystemClassLoader);
         }
     }
 

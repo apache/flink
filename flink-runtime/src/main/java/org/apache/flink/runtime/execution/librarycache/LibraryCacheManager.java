@@ -43,9 +43,11 @@ public interface LibraryCacheManager {
      * job will be valid as long as there exists a valid lease for this job.
      *
      * @param jobId jobId for which to register a new class loader lease
+     * @param useSystemClassLoader use system class loader if the jars or classpaths of job are
+     *     empty
      * @return a new class loader lease for the given job
      */
-    ClassLoaderLease registerClassLoaderLease(JobID jobId);
+    ClassLoaderLease registerClassLoaderLease(JobID jobId, boolean useSystemClassLoader);
 
     /**
      * Shuts the library cache manager down. Thereby it will close all open {@link ClassLoaderLease}
