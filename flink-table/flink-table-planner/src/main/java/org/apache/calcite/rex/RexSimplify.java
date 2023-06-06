@@ -49,6 +49,7 @@ import org.apache.calcite.util.Util;
 import javax.annotation.Nonnull;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
@@ -91,6 +92,8 @@ public class RexSimplify {
     private final RexExecutor executor;
     private final Strong strong;
 
+    private Object[] recordedArray;
+    
     /**
      * Creates a RexSimplify.
      *
@@ -555,9 +558,28 @@ public class RexSimplify {
         RexSimplify simplify = this;
         for (int i = 0; i < terms.size(); i++) {
             RexNode t = terms.get(i);
-            if (Predicate.of(t) == null) {
+            Predicate predicate = Predicate.of(t);
+            if (predicate == null) {
                 continue;
             }
+            
+            //add for array-type
+            if (predicate instanceof Comparison) {
+                Comparison cmp = (Comparison) predicate;
+                if (cmp.rexCall != null && cmp.rexCall.getKind().equals(SqlKind.ARRAY_VALUE_CONSTRUCTOR)) {
+                    RexCall arrayCall = cmp.rexCall;
+                    if (i == 0) {
+                        recordedArray = arrayCall.operands.toArray();
+                        continue;
+                    } else {
+                        if (!Arrays.equals(arrayCall.operands.toArray(), recordedArray)) {
+                            terms.set(i, rexBuilder.makeLiteral(false));
+                            break;
+                        }
+                    }
+                }
+            }
+            
             terms.set(i, simplify.simplify(t, unknownAs));
             RelOptPredicateList newPredicates =
                     simplify.predicates.union(
@@ -2475,22 +2497,35 @@ public class RexSimplify {
     /**
      * Represents a simple Comparison.
      *
-     * <p>Left hand side is a {@link RexNode}, right hand side is a literal.
+     * <p>Left hand side is a {@link RexNode}, right hand side is a literal/call.
      */
     private static class Comparison implements Predicate {
         final RexNode ref;
         final SqlKind kind;
+        //RexCall or RexLiteral
         final RexLiteral literal;
+        final RexCall rexCall;
 
         private Comparison(RexNode ref, SqlKind kind, RexLiteral literal) {
             this.ref = Objects.requireNonNull(ref);
             this.kind = Objects.requireNonNull(kind);
             this.literal = Objects.requireNonNull(literal);
+            this.rexCall = null;
+        }
+
+        /**
+         * Add for RexCall, such as ARRAY[...,...].
+         */
+        private Comparison(RexNode ref, SqlKind kind, RexCall arrayCall) {
+            this.ref = Objects.requireNonNull(ref);
+            this.kind = Objects.requireNonNull(kind);
+            this.rexCall = Objects.requireNonNull(arrayCall);
+            this.literal = null;
         }
 
         /**
          * Creates a comparison, between a {@link RexInputRef} or {@link RexFieldAccess} or
-         * deterministic {@link RexCall} and a literal.
+         * deterministic {@link RexCall} and a literal/call.
          */
         static Comparison of(RexNode e) {
             return of(
@@ -2517,6 +2552,22 @@ public class RexSimplify {
                             if (nodePredicate.test(left)) {
                                 return new Comparison(left, e.getKind(), (RexLiteral) right);
                             }
+                        //add for RexCall like "CAST(ARRAY(..., ...))..."
+                        case CAST:
+                            final RexCall castCall = (RexCall) right;
+                            final RexNode castLeft = castCall.getOperands().get(0);
+                            switch (castLeft.getKind()) {
+                                case ARRAY_VALUE_CONSTRUCTOR:
+                                    //array-type RexCall --> create a comparison of RexCall
+                                    if (nodePredicate.test(left)) {
+                                        return new Comparison(left, e.getKind(), (RexCall) castLeft);
+                                    }
+                            }
+                        case ARRAY_VALUE_CONSTRUCTOR:
+                            //array-type RexCall --> create a comparison of RexCall
+                            if (nodePredicate.test(left)) {
+                                return new Comparison(left, e.getKind(), (RexCall) right);
+                            }    
                     }
                     switch (left.getKind()) {
                         case LITERAL:
@@ -2524,6 +2575,22 @@ public class RexSimplify {
                                 return new Comparison(
                                         right, e.getKind().reverse(), (RexLiteral) left);
                             }
+                        //add for RexCall like "CAST(ARRAY(..., ...))..."
+                        case CAST:
+                            final RexCall castCall = (RexCall) left;
+                            final RexNode castLeft = castCall.getOperands().get(0);
+                            switch (castLeft.getKind()) {
+                                case ARRAY_VALUE_CONSTRUCTOR:
+                                    //array-type RexCall --> create a comparison of RexCall
+                                    if (nodePredicate.test(right)) {
+                                        return new Comparison(right, e.getKind().reverse(), (RexCall) castLeft);
+                                    }
+                            }
+                        case ARRAY_VALUE_CONSTRUCTOR:
+                            //array-type RexCall --> create a comparison of RexCall
+                            if (nodePredicate.test(right)) {
+                                return new Comparison(right, e.getKind().reverse(), (RexCall) left);
+                            } 
                     }
             }
             return null;
