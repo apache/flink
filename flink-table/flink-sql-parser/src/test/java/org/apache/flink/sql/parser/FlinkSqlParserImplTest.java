@@ -1858,6 +1858,12 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         sql("show views").ok("SHOW VIEWS");
     }
 
+    @Test
+    void testShowPartitions() {
+        sql("show partitions c1.d1.tbl").ok("SHOW PARTITIONS `C1`.`D1`.`TBL`");
+        sql("show partitions tbl partition (p=1)").ok("SHOW PARTITIONS `TBL` PARTITION (`P` = 1)");
+    }
+
     // Override the test because our ROW field type default is nullable,
     // which is different with Calcite.
     @Test
