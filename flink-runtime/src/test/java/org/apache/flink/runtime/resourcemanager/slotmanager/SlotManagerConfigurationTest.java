@@ -69,6 +69,24 @@ class SlotManagerConfigurationTest {
     }
 
     @Test
+    void testComputeMaxTotalCpu() throws Exception {
+        final Configuration configuration = new Configuration();
+        final int maxSlotNum = 9;
+        final int numSlots = 3;
+        final double cpuCores = 10;
+        configuration.set(ResourceManagerOptions.MAX_SLOT_NUM, maxSlotNum);
+        final SlotManagerConfiguration slotManagerConfiguration =
+                SlotManagerConfiguration.fromConfiguration(
+                        configuration,
+                        new WorkerResourceSpec.Builder()
+                                .setNumSlots(numSlots)
+                                .setCpuCores(cpuCores)
+                                .build());
+        assertThat(slotManagerConfiguration.getMaxTotalCpu().getValue().doubleValue())
+                .isEqualTo(cpuCores * maxSlotNum / 3);
+    }
+
+    @Test
     void testComputeMaxTotalMemory() throws Exception {
         final Configuration configuration = new Configuration();
         final int maxSlotNum = 1_000_000;

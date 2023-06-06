@@ -228,8 +228,8 @@ public class SlotManagerConfiguration {
                                         ? new CPUResource(Double.MAX_VALUE)
                                         : defaultWorkerResourceSpec
                                                 .getCpuCores()
-                                                .divide(defaultWorkerResourceSpec.getNumSlots())
-                                                .multiply(maxSlotNum));
+                                                .multiply(maxSlotNum)
+                                                .divide(defaultWorkerResourceSpec.getNumSlots()));
     }
 
     private static MemorySize getMaxTotalMem(
