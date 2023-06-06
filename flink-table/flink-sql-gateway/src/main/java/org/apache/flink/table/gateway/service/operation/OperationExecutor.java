@@ -109,7 +109,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.internal.TableResultInternal.TABLE_RESULT_OK;
@@ -428,7 +427,7 @@ public class OperationExecutor {
                     tableEnv, handle, Collections.singletonList((ModifyOperation) op));
         } else if (op instanceof CompileAndExecutePlanOperation
                 || op instanceof ExecutePlanOperation) {
-            return callExecutionOperation(tableEnv, handle, () -> op);
+            return callExecuteOperation(tableEnv, handle, op);
         } else if (op instanceof StatementSetOperation) {
             return callModifyOperations(
                     tableEnv, handle, ((StatementSetOperation) op).getOperations());
@@ -521,11 +520,11 @@ public class OperationExecutor {
         return fetchJobId(result, handle);
     }
 
-    private ResultFetcher callExecutionOperation(
+    private ResultFetcher callExecuteOperation(
             TableEnvironmentInternal tableEnv,
             OperationHandle handle,
-            Supplier<Operation> operationSupplier) {
-        return fetchJobId(tableEnv.executeInternal(operationSupplier.get()), handle);
+            Operation executePlanOperation) {
+        return fetchJobId(tableEnv.executeInternal(executePlanOperation), handle);
     }
 
     private ResultFetcher fetchJobId(TableResultInternal result, OperationHandle handle) {
