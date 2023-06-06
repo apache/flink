@@ -984,9 +984,7 @@ public class NFA<T> {
 
         private static final int VERSION = 2;
 
-        public MigratedNFASerializerSnapshot() {
-            super(NFASerializer.class);
-        }
+        public MigratedNFASerializerSnapshot() {}
 
         MigratedNFASerializerSnapshot(NFASerializer<T> legacyNfaSerializer) {
             super(legacyNfaSerializer);

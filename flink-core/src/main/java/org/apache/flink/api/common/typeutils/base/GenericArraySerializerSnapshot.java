@@ -43,9 +43,7 @@ public final class GenericArraySerializerSnapshot<C>
     private Class<C> componentClass;
 
     /** Constructor to be used for read instantiation. */
-    public GenericArraySerializerSnapshot() {
-        super(GenericArraySerializer.class);
-    }
+    public GenericArraySerializerSnapshot() {}
 
     /** Constructor to be used for writing the snapshot. */
     public GenericArraySerializerSnapshot(GenericArraySerializer<C> genericArraySerializer) {
@@ -59,7 +57,6 @@ public final class GenericArraySerializerSnapshot<C>
      */
     @SuppressWarnings("deprecation")
     GenericArraySerializerSnapshot(Class<C> componentClass) {
-        super(GenericArraySerializer.class);
         this.componentClass = componentClass;
     }
 

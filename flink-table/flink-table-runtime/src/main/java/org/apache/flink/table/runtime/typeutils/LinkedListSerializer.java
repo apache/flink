@@ -223,9 +223,7 @@ public final class LinkedListSerializer<T> extends TypeSerializer<LinkedList<T>>
         private boolean hasNullMask = true;
 
         /** Constructor for read instantiation. */
-        public LinkedListSerializerSnapshot() {
-            super(LinkedListSerializer.class);
-        }
+        public LinkedListSerializerSnapshot() {}
 
         /** Constructor to create the snapshot for writing. */
         public LinkedListSerializerSnapshot(LinkedListSerializer<T> listSerializer) {

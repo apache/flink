@@ -278,9 +278,7 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
         private static final int VERSION = 2;
 
         @SuppressWarnings("WeakerAccess")
-        public StreamElementSerializerSnapshot() {
-            super(StreamElementSerializer.class);
-        }
+        public StreamElementSerializerSnapshot() {}
 
         StreamElementSerializerSnapshot(StreamElementSerializer<T> serializerInstance) {
             super(serializerInstance);

@@ -34,10 +34,7 @@ public class JavaEitherSerializerSnapshot<L, R>
     private static final int CURRENT_VERSION = 1;
 
     /** Constructor for read instantiation. */
-    @SuppressWarnings("unused")
-    public JavaEitherSerializerSnapshot() {
-        super(EitherSerializer.class);
-    }
+    public JavaEitherSerializerSnapshot() {}
 
     /** Constructor to create the snapshot for writing. */
     public JavaEitherSerializerSnapshot(EitherSerializer<L, R> eitherSerializer) {

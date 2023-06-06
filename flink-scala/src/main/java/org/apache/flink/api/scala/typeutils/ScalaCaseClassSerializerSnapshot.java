@@ -43,9 +43,7 @@ public final class ScalaCaseClassSerializerSnapshot<T extends scala.Product>
 
     /** Used via reflection. */
     @SuppressWarnings("unused")
-    public ScalaCaseClassSerializerSnapshot() {
-        super(ScalaCaseClassSerializer.class);
-    }
+    public ScalaCaseClassSerializerSnapshot() {}
 
     /** Used for the snapshot path. */
     public ScalaCaseClassSerializerSnapshot(ScalaCaseClassSerializer<T> serializerInstance) {

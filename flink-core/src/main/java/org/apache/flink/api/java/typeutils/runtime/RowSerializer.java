@@ -485,9 +485,7 @@ public final class RowSerializer extends TypeSerializer<Row> {
 
         private boolean supportsRowKind = true;
 
-        public RowSerializerSnapshot() {
-            super(RowSerializer.class);
-        }
+        public RowSerializerSnapshot() {}
 
         RowSerializerSnapshot(RowSerializer serializerInstance) {
             super(serializerInstance);
