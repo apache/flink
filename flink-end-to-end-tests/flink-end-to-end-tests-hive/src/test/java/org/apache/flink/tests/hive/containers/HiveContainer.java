@@ -99,5 +99,6 @@ public class HiveContainer extends GenericContainer<HiveContainer> {
     private void setFilePermission(File file) {
         file.setReadable(true, false);
         file.setWritable(true, false);
+        file.setExecutable(true, false);
     }
 }
