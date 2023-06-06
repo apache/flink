@@ -65,6 +65,7 @@
     "org.apache.flink.sql.parser.ddl.SqlDropDatabase"
     "org.apache.flink.sql.parser.ddl.SqlDropFunction"
     "org.apache.flink.sql.parser.ddl.SqlDropPartitions"
+    "org.apache.flink.sql.parser.ddl.SqlDropPartitions.DropPartitionsContext"
     "org.apache.flink.sql.parser.ddl.SqlDropTable"
     "org.apache.flink.sql.parser.ddl.SqlDropView"
     "org.apache.flink.sql.parser.ddl.SqlRemoveJar"

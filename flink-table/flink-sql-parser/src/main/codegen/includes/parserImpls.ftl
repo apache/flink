@@ -601,6 +601,7 @@ SqlAlterTable SqlAlterTable() :
     SqlIdentifier newColumnIdentifier;
     AlterTableContext ctx = new AlterTableContext();
     AlterTableAddPartitionContext addPartitionCtx = new AlterTableAddPartitionContext();
+    DropPartitionsContext dropPartitionsCtx = new DropPartitionsContext();
 }
 {
     <ALTER> <TABLE> { startPos = getPos(); }
@@ -707,6 +708,15 @@ SqlAlterTable SqlAlterTable() :
     |
      <DROP>
         (
+       AlterTableDropPartitions(dropPartitionsCtx) {
+       return new SqlDropPartitions(
+       startPos.plus(getPos()),
+       tableIdentifier,
+       dropPartitionsCtx.ifExists,
+       dropPartitionsCtx.partSpecs);
+       }
+       |
+       (
             { SqlIdentifier columnName = null; }
             columnName = CompoundIdentifier() {
                 return new SqlAlterTableDropColumn(
@@ -748,6 +758,7 @@ SqlAlterTable SqlAlterTable() :
                             tableIdentifier,
                             ifExists);
             }
+         )
         )
     |
         [
@@ -1027,6 +1038,34 @@ void AddOrModifyColumn(AlterTableContext context) :
                 referencedColumn);
         }
         context.columnPositions.add(columnPos);
+    }
+}
+
+/** Parses {@code ALTER TABLE table_name DROP [IF EXISTS] PARTITION partition_spec[, PARTITION partition_spec, ...]}. */
+void  AlterTableDropPartitions(DropPartitionsContext context) :
+{
+    List<SqlNodeList> partSpecs = new ArrayList();
+    SqlNodeList partSpec;
+}
+{
+    context.ifExists = IfExistsOpt()
+    <PARTITION>
+    {
+        partSpec = new SqlNodeList(getPos());
+        PartitionSpecCommaList(partSpec);
+        partSpecs.add(partSpec);
+    }
+    (
+        <COMMA>
+        <PARTITION>
+        {
+            partSpec = new SqlNodeList(getPos());
+            PartitionSpecCommaList(partSpec);
+            partSpecs.add(partSpec);
+        }
+    )*
+    {
+        context.partSpecs = partSpecs;
     }
 }
 
