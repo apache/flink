@@ -58,6 +58,7 @@ import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateViewOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
+import org.apache.flink.table.operations.ddl.DropPartitionsOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.expressions.utils.Func0$;
 import org.apache.flink.table.planner.expressions.utils.Func1$;
@@ -2191,6 +2192,25 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         assertThat(operation.asSummaryString())
                 .isEqualTo(
                         "ALTER TABLE cat1.db1.tb1 ADD IF NOT EXISTS PARTITION (b=1, c=2) WITH (k: [v]) PARTITION (b=2)");
+    }
+
+    @Test
+    public void testAlterTableDropPartition() throws Exception {
+        prepareTable("tb1", false, true, true, 0);
+        // test drop single partition
+        Operation operation = parse("alter table tb1 drop partition (b = '1', c = '2')");
+        assertThat(operation).isInstanceOf(DropPartitionsOperation.class);
+        assertThat(operation.asSummaryString())
+                .isEqualTo("ALTER TABLE cat1.db1.tb1 DROP PARTITION (b=1, c=2)");
+
+        // test drop multiple partition simultaneously
+        operation =
+                parse(
+                        "alter table tb1 drop if exists partition (b = '1', c = '2'), partition (b = '2')");
+        assertThat(operation).isInstanceOf(DropPartitionsOperation.class);
+        assertThat(operation.asSummaryString())
+                .isEqualTo(
+                        "ALTER TABLE cat1.db1.tb1 DROP IF EXISTS PARTITION (b=1, c=2) PARTITION (b=2)");
     }
 
     // ~ Tool Methods ----------------------------------------------------------

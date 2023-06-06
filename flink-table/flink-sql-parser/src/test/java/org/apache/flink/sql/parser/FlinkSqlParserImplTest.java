@@ -721,8 +721,8 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     public void testDropPartition() {
-        sql("alter table tbl drop if exists partition (p=1)")
-                .ok("ALTER TABLE `TBL`\n" + "DROP IF EXISTS\n" + "PARTITION (`P` = 1)");
+        sql("alter table c1.d1.tbl drop if exists partition (p=1)")
+                .ok("ALTER TABLE `C1`.`D1`.`TBL`\n" + "DROP IF EXISTS\n" + "PARTITION (`P` = 1)");
         sql("alter table tbl drop partition (p1='a',p2=1), partition(p1='b',p2=2)")
                 .ok(
                         "ALTER TABLE `TBL`\n"
