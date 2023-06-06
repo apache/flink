@@ -447,3 +447,9 @@ environment.from_source(
 使用 *SplitReader API* 实现源连接器时，将自动进行处理。所有基于 SplitReader API 的实现都具有开箱即用（out-of-the-box）的分片水印。
 
 为了保证更底层的 `SourceReader` API 可以使用每个分片的水印生成，必须将不同分片的事件输送到不同的输出（outputs）中：*局部分片（Split-local） SourceOutputs*。通过 `createOutputForSplit(splitId)` 和 `releaseOutputForSplit(splitId)` 方法，可以在总 {{< gh_link file="flink-core/src/main/java/org/apache/flink/api/connector/source/ReaderOutput.java" name="ReaderOutput" >}} 上创建并发布局部分片输出。有关详细信息，请参阅该类和方法的 Java 文档。
+
+#### Split Level Watermark Alignment
+
+Although source operator watermark alignment is handled by Flink runtime, the source needs to additionally implement `SourceReader#pauseOrResumeSplits` and `SplitReader#pauseOrResumeSplits` to achieve split level watermark alignment. Split level watermark alignment is useful for when
+there are multiple splits assigned to a source reader. By default, these implementations will throw an `UnsupportedOperationException`, `pipeline.watermark-alignment.allow-unaligned-source-splits` is set to false, when there is more than one split assigned, and the split exceeds the watermark alignment threshold configured by the `WatermarkStrategy`. `SourceReaderBase`
+contains an implementation for `SourceReader#pauseOrResumeSplits` so that inheriting sources only need to implement `SplitReader#pauseOrResumeSplits`. See the javadocs for more implementation hints.
