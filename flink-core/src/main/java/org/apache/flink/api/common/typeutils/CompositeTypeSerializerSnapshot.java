@@ -28,7 +28,6 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
-import java.util.Arrays;
 
 import static org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil.IntermediateCompatibilityResult;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -123,30 +122,29 @@ public abstract class CompositeTypeSerializerSnapshot<T, S extends TypeSerialize
 
     private NestedSerializersSnapshotDelegate nestedSerializersSnapshotDelegate;
 
-    private final Class<S> correspondingSerializerClass;
-
     /**
      * Constructor to be used for read instantiation.
      *
+     * @deprecated correspondingSerializerClass is not used to resolve and cast after FLIP-263,
+     *     please use {@link CompositeTypeSerializerSnapshot()} instead.
      * @param correspondingSerializerClass the expected class of the new serializer.
      */
-    @SuppressWarnings("unchecked")
+    @Deprecated
     public CompositeTypeSerializerSnapshot(
-            Class<? extends TypeSerializer> correspondingSerializerClass) {
-        this.correspondingSerializerClass = (Class<S>) checkNotNull(correspondingSerializerClass);
-    }
+            Class<? extends TypeSerializer> correspondingSerializerClass) {}
+
+    /** Constructor to be used for read instantiation. */
+    public CompositeTypeSerializerSnapshot() {}
 
     /**
      * Constructor to be used for writing the snapshot.
      *
      * @param serializerInstance an instance of the originating serializer of this snapshot.
      */
-    @SuppressWarnings("unchecked")
     public CompositeTypeSerializerSnapshot(S serializerInstance) {
         checkNotNull(serializerInstance);
         this.nestedSerializersSnapshotDelegate =
                 new NestedSerializersSnapshotDelegate(getNestedSerializers(serializerInstance));
-        this.correspondingSerializerClass = (Class<S>) serializerInstance.getClass();
     }
 
     @Override

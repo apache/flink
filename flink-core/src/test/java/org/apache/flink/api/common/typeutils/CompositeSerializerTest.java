@@ -214,7 +214,6 @@ class CompositeSerializerTest {
 
         /** Constructor for read instantiation. */
         public TestListCompositeSerializerSnapshot() {
-            super(TestListCompositeSerializer.class);
             this.isImmutableTargetType = false;
         }
 

@@ -513,9 +513,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
         private static final int VERSION = 2;
 
         @SuppressWarnings({"unused", "WeakerAccess"})
-        public BufferEntrySerializerSnapshot() {
-            super(BufferEntrySerializer.class);
-        }
+        public BufferEntrySerializerSnapshot() {}
 
         BufferEntrySerializerSnapshot(BufferEntrySerializer<T> serializerInstance) {
             super(serializerInstance);

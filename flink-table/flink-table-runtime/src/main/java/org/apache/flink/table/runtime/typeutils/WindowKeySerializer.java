@@ -177,9 +177,7 @@ public class WindowKeySerializer extends PagedTypeSerializer<WindowKey> {
         private static final int CURRENT_VERSION = 1;
 
         /** This empty nullary constructor is required for deserializing the configuration. */
-        public WindowKeySerializerSnapshot() {
-            super(WindowKeySerializer.class);
-        }
+        public WindowKeySerializerSnapshot() {}
 
         public WindowKeySerializerSnapshot(WindowKeySerializer serializerInstance) {
             super(serializerInstance);

@@ -39,9 +39,7 @@ public class NFAStateSerializerSnapshot
     private boolean supportsPreviousTimestamp = true;
 
     /** Constructor for read instantiation. */
-    public NFAStateSerializerSnapshot() {
-        super(NFAStateSerializer.class);
-    }
+    public NFAStateSerializerSnapshot() {}
 
     /** Constructor to create the snapshot for writing. */
     public NFAStateSerializerSnapshot(NFAStateSerializer serializerInstance) {

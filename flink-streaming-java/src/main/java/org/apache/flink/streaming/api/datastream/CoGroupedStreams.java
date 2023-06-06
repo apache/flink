@@ -752,9 +752,7 @@ public class CoGroupedStreams<T1, T2> {
         private static final int VERSION = 2;
 
         @SuppressWarnings("WeakerAccess")
-        public UnionSerializerSnapshot() {
-            super(UnionSerializer.class);
-        }
+        public UnionSerializerSnapshot() {}
 
         UnionSerializerSnapshot(UnionSerializer<T1, T2> serializerInstance) {
             super(serializerInstance);

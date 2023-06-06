@@ -47,9 +47,7 @@ public class TraversableSerializerSnapshot<T extends TraversableOnce<E>, E>
     private String cbfCode;
 
     @SuppressWarnings("unused")
-    public TraversableSerializerSnapshot() {
-        super(TraversableSerializer.class);
-    }
+    public TraversableSerializerSnapshot() {}
 
     public TraversableSerializerSnapshot(TraversableSerializer<T, E> serializerInstance) {
         super(serializerInstance);
@@ -57,7 +55,6 @@ public class TraversableSerializerSnapshot<T extends TraversableOnce<E>, E>
     }
 
     TraversableSerializerSnapshot(String cbfCode) {
-        super(TraversableSerializer.class);
         checkArgument(cbfCode != null, "cbfCode cannot be null");
 
         this.cbfCode = cbfCode;

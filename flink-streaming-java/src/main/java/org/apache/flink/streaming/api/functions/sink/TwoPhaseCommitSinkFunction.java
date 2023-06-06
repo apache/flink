@@ -890,9 +890,7 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT> extends RichS
         private boolean supportsNullTransaction = true;
 
         @SuppressWarnings("WeakerAccess")
-        public StateSerializerSnapshot() {
-            super(StateSerializer.class);
-        }
+        public StateSerializerSnapshot() {}
 
         StateSerializerSnapshot(StateSerializer<TXN, CONTEXT> serializerInstance) {
             super(serializerInstance);

@@ -367,9 +367,7 @@ public class CompositeTypeSerializerSnapshotTest {
 
         private OuterSchemaCompatibility mockOuterSchemaCompatibility;
 
-        public TestCompositeTypeSerializerSnapshot() {
-            super(TestCompositeTypeSerializer.class);
-        }
+        public TestCompositeTypeSerializerSnapshot() {}
 
         TestCompositeTypeSerializerSnapshot(TestCompositeTypeSerializer serializer) {
             super(serializer);
