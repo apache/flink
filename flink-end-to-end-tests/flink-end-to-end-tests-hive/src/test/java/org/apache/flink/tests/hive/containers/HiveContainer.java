@@ -74,6 +74,7 @@ public class HiveContainer extends GenericContainer<HiveContainer> {
         try {
             Path warehousePath = Files.createTempDirectory("hive_warehouse");
             File file = warehousePath.toFile();
+            setFilePermission(file);
             hiveWarehouseDir = file.getAbsolutePath();
             LOG.info("mountHiveWarehouseDirToContainer: " + hiveWarehouseDir);
 
