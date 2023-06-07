@@ -89,6 +89,7 @@ public class ResourceManager implements Closeable {
         exist = fs.exists(filePath);
         return exist;
     }
+
     /**
      * register the filePath of flink filesystem. If it is remote filesystem and the file exists
      * then download the file at local. register the filePath map to localURL.
