@@ -23,6 +23,7 @@ import org.apache.flink.table.expressions.TableSymbol;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.strategies.AndArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.AnyArgumentTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.ArrayComparableElementTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.CommonArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.CommonArrayInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.CommonInputTypeStrategy;
@@ -362,6 +363,10 @@ public final class InputTypeStrategies {
      */
     public static InputTypeStrategy commonMultipleArrayType(int minCount) {
         return new CommonArrayInputTypeStrategy(ConstantArgumentCount.from(minCount));
+    }
+
+    public static InputTypeStrategy arrayFullyComparableElementType() {
+        return new ArrayComparableElementTypeStrategy(StructuredComparison.FULL);
     }
 
     // --------------------------------------------------------------------------------------------
