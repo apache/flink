@@ -18,8 +18,8 @@
 
 package org.apache.flink.kubernetes.kubeclient.resources;
 
-import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
+import org.apache.flink.kubernetes.kubeclient.TestingWatchCallbackHandler;
 
 import io.fabric8.kubernetes.api.model.StatusBuilder;
 import io.fabric8.kubernetes.client.KubernetesClientException;
@@ -30,7 +30,6 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
 
 import static java.net.HttpURLConnection.HTTP_GONE;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -48,7 +47,9 @@ class KubernetesPodsWatcherTest {
     void testClosingWithNullException() {
         final KubernetesPodsWatcher podsWatcher =
                 new KubernetesPodsWatcher(
-                        new TestingCallbackHandler(e -> fail("Should not reach here.")));
+                        TestingWatchCallbackHandler.<KubernetesPod>builder()
+                                .setHandleErrorConsumer(e -> fail("Should not reach here."))
+                                .build());
         podsWatcher.onClose(null);
     }
 
@@ -56,7 +57,10 @@ class KubernetesPodsWatcherTest {
     void testClosingWithException() {
         final AtomicBoolean called = new AtomicBoolean(false);
         final KubernetesPodsWatcher podsWatcher =
-                new KubernetesPodsWatcher(new TestingCallbackHandler(e -> called.set(true)));
+                new KubernetesPodsWatcher(
+                        TestingWatchCallbackHandler.<KubernetesPod>builder()
+                                .setHandleErrorConsumer(e -> called.set(true))
+                                .build());
         podsWatcher.onClose(new WatcherException("exception"));
         assertThat(called.get()).isTrue();
     }
@@ -65,7 +69,13 @@ class KubernetesPodsWatcherTest {
     void testCallbackHandler() {
         FlinkPod pod = new FlinkPod.Builder().build();
         final KubernetesPodsWatcher podsWatcher =
-                new KubernetesPodsWatcher(new TestingCallbackHandler(e -> {}));
+                new KubernetesPodsWatcher(
+                        TestingWatchCallbackHandler.<KubernetesPod>builder()
+                                .setOnAddedConsumer(pods -> podAddedList.addAll(pods))
+                                .setOnModifiedConsumer(pods -> podModifiedList.addAll(pods))
+                                .setOnDeletedConsumer(pods -> podDeletedList.addAll(pods))
+                                .setOnErrorConsumer(pods -> podErrorList.addAll(pods))
+                                .build());
         podsWatcher.eventReceived(Watcher.Action.ADDED, pod.getPodWithoutMainContainer());
         podsWatcher.eventReceived(Watcher.Action.MODIFIED, pod.getPodWithoutMainContainer());
         podsWatcher.eventReceived(Watcher.Action.DELETED, pod.getPodWithoutMainContainer());
@@ -82,52 +92,20 @@ class KubernetesPodsWatcherTest {
         final String errMsg = "too old resource version";
         final KubernetesPodsWatcher podsWatcher =
                 new KubernetesPodsWatcher(
-                        new TestingCallbackHandler(
-                                e -> {
-                                    assertThat(e)
-                                            .isInstanceOf(
-                                                    KubernetesTooOldResourceVersionException.class)
-                                            .hasMessageContaining(errMsg);
-                                }));
+                        TestingWatchCallbackHandler.<KubernetesPod>builder()
+                                .setHandleErrorConsumer(
+                                        e -> {
+                                            assertThat(e)
+                                                    .isInstanceOf(
+                                                            KubernetesTooOldResourceVersionException
+                                                                    .class)
+                                                    .hasMessageContaining(errMsg);
+                                        })
+                                .build());
         podsWatcher.onClose(
                 new WatcherException(
                         errMsg,
                         new KubernetesClientException(
                                 errMsg, HTTP_GONE, new StatusBuilder().build())));
-    }
-
-    private class TestingCallbackHandler
-            implements FlinkKubeClient.WatchCallbackHandler<KubernetesPod> {
-
-        final Consumer<Throwable> consumer;
-
-        TestingCallbackHandler(Consumer<Throwable> consumer) {
-            this.consumer = consumer;
-        }
-
-        @Override
-        public void onAdded(List<KubernetesPod> pods) {
-            podAddedList.addAll(pods);
-        }
-
-        @Override
-        public void onModified(List<KubernetesPod> pods) {
-            podModifiedList.addAll(pods);
-        }
-
-        @Override
-        public void onDeleted(List<KubernetesPod> pods) {
-            podDeletedList.addAll(pods);
-        }
-
-        @Override
-        public void onError(List<KubernetesPod> pods) {
-            podErrorList.addAll(pods);
-        }
-
-        @Override
-        public void handleError(Throwable throwable) {
-            consumer.accept(throwable);
-        }
     }
 }
