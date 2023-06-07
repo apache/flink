@@ -41,6 +41,7 @@ import org.apache.flink.util.concurrent.FutureUtils;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.IntOrString;
+import io.fabric8.kubernetes.api.model.ListOptionsBuilder;
 import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -66,6 +67,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.kubernetes.utils.Constants.KUBERNETES_ZERO_RESOURCE_VERSION;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** The implementation of {@link FlinkKubeClient}. */
@@ -190,7 +192,15 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 
     @Override
     public List<KubernetesPod> getPodsWithLabels(Map<String, String> labels) {
-        final List<Pod> podList = this.internalClient.pods().withLabels(labels).list().getItems();
+        final List<Pod> podList =
+                this.internalClient
+                        .pods()
+                        .withLabels(labels)
+                        .list(
+                                new ListOptionsBuilder()
+                                        .withResourceVersion(KUBERNETES_ZERO_RESOURCE_VERSION)
+                                        .build())
+                        .getItems();
 
         if (podList == null || podList.isEmpty()) {
             return new ArrayList<>();
@@ -231,6 +241,8 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
                                                         this.internalClient
                                                                 .pods()
                                                                 .withLabels(labels)
+                                                                .withResourceVersion(
+                                                                        KUBERNETES_ZERO_RESOURCE_VERSION)
                                                                 .watch(
                                                                         new KubernetesPodsWatcher(
                                                                                 podCallbackHandler))),

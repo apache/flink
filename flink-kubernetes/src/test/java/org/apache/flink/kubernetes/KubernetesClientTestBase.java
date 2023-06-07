@@ -33,12 +33,15 @@ import io.fabric8.kubernetes.api.model.NodeBuilder;
 import io.fabric8.kubernetes.api.model.NodeListBuilder;
 import io.fabric8.kubernetes.api.model.NodeSpecBuilder;
 import io.fabric8.kubernetes.api.model.NodeStatusBuilder;
+import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.kubernetes.api.model.ServicePortBuilder;
 import io.fabric8.kubernetes.api.model.ServiceStatus;
 import io.fabric8.kubernetes.api.model.ServiceStatusBuilder;
+import io.fabric8.kubernetes.api.model.WatchEvent;
 import io.fabric8.mockwebserver.dsl.DelayPathable;
 import io.fabric8.mockwebserver.dsl.HttpMethodable;
 import io.fabric8.mockwebserver.dsl.MockServerExpectation;
@@ -51,7 +54,9 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Base class for {@link KubernetesClusterDescriptorTest} and {@link
@@ -61,6 +66,7 @@ public class KubernetesClientTestBase extends KubernetesTestBase {
 
     protected static final int REST_PORT = 9021;
     protected static final int NODE_PORT = 31234;
+    protected static final Long EVENT_WAIT_PERIOD_MS = 10L;
 
     protected void mockExpectedNodesFromServerSide(List<String> addresses) {
         final List<Node> nodes = new ArrayList<>();
@@ -141,6 +147,40 @@ public class KubernetesClientTestBase extends KubernetesTestBase {
                         "/apis/apps/v1/namespaces/%s/deployments/%s",
                         NAMESPACE, KubernetesTestBase.CLUSTER_ID);
         server.expect().get().withPath(path).andReturn(500, "Expected error").always();
+    }
+
+    protected void mockPodEventWithLabels(
+            String namespace, String podName, String resourceVersion, Map<String, String> labels) {
+        final Pod pod =
+                new PodBuilder()
+                        .withNewMetadata()
+                        .withNamespace(namespace)
+                        .withName(podName)
+                        .withLabels(labels)
+                        .withResourceVersion("5668")
+                        .endMetadata()
+                        .build();
+        // mock four kinds of events.
+        String mockPath =
+                String.format(
+                        "/api/v1/namespaces/%s/pods?labelSelector=%s&resourceVersion=%s&allowWatchBookmarks=true&watch=true",
+                        namespace,
+                        labels.entrySet().stream()
+                                .map(entry -> entry.getKey() + "%3D" + entry.getValue())
+                                .collect(Collectors.joining("%2C")),
+                        resourceVersion);
+        server.expect()
+                .withPath(mockPath)
+                .andUpgradeToWebSocket()
+                .open()
+                .waitFor(EVENT_WAIT_PERIOD_MS)
+                .andEmit(new WatchEvent(pod, "ADDED"))
+                .waitFor(EVENT_WAIT_PERIOD_MS)
+                .andEmit(new WatchEvent(pod, "MODIFIED"))
+                .waitFor(EVENT_WAIT_PERIOD_MS)
+                .andEmit(new WatchEvent(pod, "DELETED"))
+                .done()
+                .once();
     }
 
     protected Service buildExternalServiceWithLoadBalancer(
