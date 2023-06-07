@@ -649,6 +649,9 @@ collection:
   - sql: ARRAY_CONCAT(array1, ...)
     table: array1.arrayConcat(...)
     description: Returns an array that is the result of concatenating at least one array. This array contains all the elements in the first array, followed by all the elements in the second array, and so forth, up to the Nth array. If any input array is NULL, the function returns NULL.
+  - sql: ARRAY_MAX(array)
+    table: array.arrayMax()
+    description: Returns the maximum value from the array, if array itself is null, the function returns null.
   - sql: MAP_KEYS(map)
     table: MAP.mapKeys()
     description: Returns the keys of the map as array. No order guaranteed.

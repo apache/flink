@@ -231,6 +231,7 @@ advanced type helper functions
     Expression.array_position
     Expression.array_remove
     Expression.array_reverse
+    Expression.array_max
     Expression.array_union
     Expression.map_entries
     Expression.map_keys
