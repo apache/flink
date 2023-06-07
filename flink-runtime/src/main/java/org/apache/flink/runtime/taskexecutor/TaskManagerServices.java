@@ -56,6 +56,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -67,6 +68,9 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
  */
 public class TaskManagerServices {
     private static final Logger LOG = LoggerFactory.getLogger(TaskManagerServices.class);
+
+    private static final Duration SHUFFLE_DESCRIPTORS_CACHE_TIMEOUT = Duration.ofSeconds(300);
+    private static final int SHUFFLE_DESCRIPTORS_CACHE_SIZE_LIMIT = 100;
 
     /** TaskManager services. */
     private final UnresolvedTaskManagerLocation unresolvedTaskManagerLocation;
@@ -87,6 +91,7 @@ public class TaskManagerServices {
     private final LibraryCacheManager libraryCacheManager;
     private final SlotAllocationSnapshotPersistenceService slotAllocationSnapshotPersistenceService;
     private final SharedResources sharedResources;
+    private final ShuffleDescriptorsCache shuffleDescriptorsCache;
 
     TaskManagerServices(
             UnresolvedTaskManagerLocation unresolvedTaskManagerLocation,
@@ -105,7 +110,8 @@ public class TaskManagerServices {
             ExecutorService ioExecutor,
             LibraryCacheManager libraryCacheManager,
             SlotAllocationSnapshotPersistenceService slotAllocationSnapshotPersistenceService,
-            SharedResources sharedResources) {
+            SharedResources sharedResources,
+            ShuffleDescriptorsCache shuffleDescriptorsCache) {
 
         this.unresolvedTaskManagerLocation =
                 Preconditions.checkNotNull(unresolvedTaskManagerLocation);
@@ -125,6 +131,7 @@ public class TaskManagerServices {
         this.libraryCacheManager = Preconditions.checkNotNull(libraryCacheManager);
         this.slotAllocationSnapshotPersistenceService = slotAllocationSnapshotPersistenceService;
         this.sharedResources = Preconditions.checkNotNull(sharedResources);
+        this.shuffleDescriptorsCache = Preconditions.checkNotNull(shuffleDescriptorsCache);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -193,6 +200,10 @@ public class TaskManagerServices {
 
     public SharedResources getSharedResources() {
         return sharedResources;
+    }
+
+    public ShuffleDescriptorsCache getShuffleDescriptorCache() {
+        return shuffleDescriptorsCache;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -381,6 +392,10 @@ public class TaskManagerServices {
                     NoOpSlotAllocationSnapshotPersistenceService.INSTANCE;
         }
 
+        final ShuffleDescriptorsCache shuffleDescriptorsCache =
+                new DefaultShuffleDescriptorsCache(
+                        SHUFFLE_DESCRIPTORS_CACHE_TIMEOUT, SHUFFLE_DESCRIPTORS_CACHE_SIZE_LIMIT);
+
         return new TaskManagerServices(
                 unresolvedTaskManagerLocation,
                 taskManagerServicesConfiguration.getManagedMemorySize().getBytes(),
@@ -398,7 +413,8 @@ public class TaskManagerServices {
                 ioExecutor,
                 libraryCacheManager,
                 slotAllocationSnapshotPersistenceService,
-                new SharedResources());
+                new SharedResources(),
+                shuffleDescriptorsCache);
     }
 
     private static TaskSlotTable<Task> createTaskSlotTable(
