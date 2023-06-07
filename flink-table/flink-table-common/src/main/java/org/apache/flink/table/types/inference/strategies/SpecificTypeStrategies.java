@@ -117,16 +117,20 @@ public final class SpecificTypeStrategies {
                     Optional.of(
                             DataTypes.ARRAY(
                                     DataTypes.ROW(
-                                            ((KeyValueDataType)
-                                                            callContext
-                                                                    .getArgumentDataTypes()
-                                                                    .get(0))
-                                                    .getKeyDataType(),
-                                            ((KeyValueDataType)
-                                                            callContext
-                                                                    .getArgumentDataTypes()
-                                                                    .get(0))
-                                                    .getValueDataType())));
+                                            DataTypes.FIELD(
+                                                    "key",
+                                                    ((KeyValueDataType)
+                                                                    callContext
+                                                                            .getArgumentDataTypes()
+                                                                            .get(0))
+                                                            .getKeyDataType()),
+                                            DataTypes.FIELD(
+                                                    "value",
+                                                    ((KeyValueDataType)
+                                                                    callContext
+                                                                            .getArgumentDataTypes()
+                                                                            .get(0))
+                                                            .getValueDataType()))));
 
     /** Type strategy specific for {@link BuiltInFunctionDefinitions#MAP_FROM_ARRAYS}. */
     public static final TypeStrategy MAP_FROM_ARRAYS =
