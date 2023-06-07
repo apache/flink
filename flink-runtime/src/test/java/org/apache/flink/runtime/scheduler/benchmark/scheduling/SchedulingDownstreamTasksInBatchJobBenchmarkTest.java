@@ -20,18 +20,17 @@ package org.apache.flink.runtime.scheduler.benchmark.scheduling;
 
 import org.apache.flink.runtime.scheduler.benchmark.JobConfiguration;
 import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStrategy;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * The benchmark of scheduling downstream task in a BATCH job. The related method is {@link
  * PipelinedRegionSchedulingStrategy#onExecutionStateChange}.
  */
-public class SchedulingDownstreamTasksInBatchJobBenchmarkTest extends TestLogger {
+class SchedulingDownstreamTasksInBatchJobBenchmarkTest {
 
     @Test
-    public void schedulingDownstreamTasksInBatchJobBenchmark() throws Exception {
+    void schedulingDownstreamTasksInBatchJobBenchmark() throws Exception {
         SchedulingDownstreamTasksInBatchJobBenchmark benchmark =
                 new SchedulingDownstreamTasksInBatchJobBenchmark();
         benchmark.setup(JobConfiguration.BATCH_TEST);
