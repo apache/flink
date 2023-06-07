@@ -189,6 +189,7 @@ public class TaskManagerServicesBuilder {
                 Executors.newSingleThreadScheduledExecutor(),
                 libraryCacheManager,
                 slotAllocationSnapshotPersistenceService,
-                sharedResources);
+                sharedResources,
+                NoOpShuffleDescriptorsCache.INSTANCE);
     }
 }

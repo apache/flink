@@ -289,6 +289,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     private final ThreadInfoSampleService threadInfoSampleService;
 
+    private final ShuffleDescriptorsCache shuffleDescriptorsCache;
+
     public TaskExecutor(
             RpcService rpcService,
             TaskManagerConfiguration taskManagerConfiguration,
@@ -363,6 +365,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 taskExecutorServices.getSlotAllocationSnapshotPersistenceService();
 
         this.sharedResources = taskExecutorServices.getSharedResources();
+        this.shuffleDescriptorsCache = taskExecutorServices.getShuffleDescriptorCache();
     }
 
     private HeartbeatManager<Void, TaskExecutorHeartbeatPayload>
@@ -491,6 +494,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
         changelogStoragesManager.shutdown();
         channelStateExecutorFactoryManager.shutdown();
+
+        shuffleDescriptorsCache.clear();
 
         Preconditions.checkState(jobTable.isEmpty());
 
@@ -1886,6 +1891,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         changelogStoragesManager.releaseResourcesForJob(jobId);
         currentSlotOfferPerJob.remove(jobId);
         channelStateExecutorFactoryManager.releaseResourcesForJob(jobId);
+        shuffleDescriptorsCache.clearCacheForJob(jobId);
     }
 
     private void scheduleResultPartitionCleanup(JobID jobId) {
