@@ -58,6 +58,9 @@ public final class SpecificTypeStrategies {
     /** See {@link ArrayTypeStrategy}. */
     public static final TypeStrategy ARRAY = new ArrayTypeStrategy();
 
+    /** See {@link ArrayElementOutputTypeStrategy}. */
+    public static final TypeStrategy ARRAY_ELEMENT = new ArrayElementOutputTypeStrategy();
+
     /** See {@link GetTypeStrategy}. */
     public static final TypeStrategy GET = new GetTypeStrategy();
 
