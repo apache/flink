@@ -83,36 +83,35 @@ public class ResourceManager implements Closeable {
         this.userClassLoader = userClassLoader;
     }
 
+    public boolean exists(Path filePath) throws IOException {
+        boolean exist;
+        FileSystem fs = FileSystem.getUnguardedFileSystem(filePath.toUri());
+        exist = fs.exists(filePath);
+        return exist;
+    }
     /**
      * register the filePath of flink filesystem. If it is remote filesystem and the file exists
      * then download the file at local. register the filePath map to localURL.
      */
-    public boolean registerFsResources(Path filePath) throws IOException {
+    public void registerFsResources(Path filePath) throws IOException {
         ResourceUri resourceUri = new ResourceUri(ResourceType.FILE, filePath.toUri().toString());
-
-        checkFsResources(filePath);
-
-        boolean exists;
-        FileSystem fs = FileSystem.getUnguardedFileSystem(filePath.toUri());
-        exists = fs.exists(filePath);
-        URL localUrl;
-
-        // check resource scheme
-        String scheme = StringUtils.lowerCase(filePath.toUri().getScheme());
-        // download resource to local path firstly if in remote
-        if (scheme != null && !FILE_SCHEME.equals(scheme)) {
-            if (exists) {
-                localUrl = downloadResource(filePath);
+        if (!resourceInfos.containsKey(resourceUri)) {
+            checkFsResources(filePath);
+            URL localUrl;
+            // check resource scheme
+            String scheme = StringUtils.lowerCase(filePath.toUri().getScheme());
+            // download resource to local path firstly if in remote
+            if (scheme != null && !FILE_SCHEME.equals(scheme)) {
+                if (exists(filePath)) {
+                    localUrl = downloadResource(filePath);
+                } else {
+                    localUrl = getURLFromPath(getResourceLocalPath(filePath));
+                }
             } else {
-                localUrl = getURLFromPath(getResourceLocalPath(filePath));
+                localUrl = getURLFromPath(filePath);
             }
-        } else {
-            localUrl = getURLFromPath(filePath);
+            resourceInfos.put(resourceUri, localUrl);
         }
-
-        resourceInfos.put(resourceUri, localUrl);
-
-        return exists;
     }
 
     /**
@@ -122,14 +121,10 @@ public class ResourceManager implements Closeable {
      */
     public URL getLocalUrl(Path filePath) throws IOException {
         ResourceUri resourceUri = new ResourceUri(ResourceType.FILE, filePath.toUri().toString());
-        if (resourceInfos.containsKey(resourceUri)) {
-            return resourceInfos.get(resourceUri);
+        if (!resourceInfos.containsKey(resourceUri)) {
+            registerFsResources(filePath);
         }
-        String scheme = StringUtils.lowerCase(filePath.toUri().getScheme());
-        if (scheme != null && !FILE_SCHEME.equals(scheme)) {
-            return downloadResource(filePath);
-        }
-        return getURLFromPath(filePath);
+        return resourceInfos.get(resourceUri);
     }
 
     /** upload the file to remote. */

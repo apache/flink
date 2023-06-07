@@ -731,10 +731,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     private CompiledPlan compilePlanAndWrite(
             Path filePath, boolean ifNotExists, Operation operation) throws IOException {
-        boolean exists;
-        exists = resourceManager.registerFsResources(filePath);
         String localPath = resourceManager.getLocalUrl(filePath).getPath();
-        if (exists) {
+        if (resourceManager.exists(filePath)) {
             if (ifNotExists) {
                 return loadPlan(PlanReference.fromFile(localPath));
             }
