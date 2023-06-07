@@ -24,7 +24,6 @@ import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.DataTypes;
@@ -102,7 +101,6 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.utils.print.PrintStyle;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.MutableURLClassLoader;
 import org.apache.flink.util.Preconditions;
@@ -733,21 +731,12 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     private CompiledPlan compilePlanAndWrite(
             Path filePath, boolean ifNotExists, Operation operation) throws IOException {
-        FileSystem fs;
         boolean exists;
-        try {
-            fs = filePath.getFileSystem();
-            exists = fs.exists(filePath);
-        } catch (IOException e) {
-            throw new TableException(e.getMessage());
-        }
+        exists = resourceManager.registerFsResources(filePath);
+        String localPath = resourceManager.getLocalUrl(filePath).getPath();
         if (exists) {
             if (ifNotExists) {
-                if (fs.isDistributedFS()) {
-                    URL localUrl = resourceManager.downloadResource(filePath);
-                    return loadPlan(PlanReference.fromFile(localUrl.getPath()));
-                }
-                return loadPlan(PlanReference.fromFile(filePath.getPath()));
+                return loadPlan(PlanReference.fromFile(localPath));
             }
 
             if (!tableConfig.get(TableConfigOptions.PLAN_FORCE_RECOMPILE)) {
@@ -760,6 +749,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                 filePath, TableConfigOptions.PLAN_FORCE_RECOMPILE.key()));
             }
         }
+
         CompiledPlan compiledPlan;
         if (operation instanceof StatementSetOperation) {
             compiledPlan = compilePlan(((StatementSetOperation) operation).getOperations());
@@ -771,13 +761,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                             + operation.getClass()
                             + ". This is a bug, please file an issue.");
         }
-        if (fs.isDistributedFS()) {
-            Path localPath = resourceManager.getResourceLocalPath(filePath);
-            compiledPlan.writeToFile(localPath.getPath(), false);
-            FileUtils.copy(localPath, filePath, true);
-        } else {
-            compiledPlan.writeToFile(filePath.getPath(), false);
-        }
+
+        compiledPlan.writeToFile(localPath, false);
+        resourceManager.updateFilePath(filePath);
 
         return compiledPlan;
     }
@@ -956,7 +942,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         } else if (operation instanceof ExecutePlanOperation) {
             ExecutePlanOperation executePlanOperation = (ExecutePlanOperation) operation;
             try {
-                URL localUrl = resourceManager.downloadResource(executePlanOperation.getFilePath());
+                URL localUrl = resourceManager.getLocalUrl(executePlanOperation.getFilePath());
                 return (TableResultInternal)
                         executePlan(PlanReference.fromFile(localUrl.getPath()));
             } catch (IOException e) {

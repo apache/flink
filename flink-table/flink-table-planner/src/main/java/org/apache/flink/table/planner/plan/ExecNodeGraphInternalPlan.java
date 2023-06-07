@@ -63,6 +63,7 @@ public class ExecNodeGraphInternalPlan implements InternalPlan {
             if (ignoreIfExists) {
                 return;
             }
+
             if (failIfExists) {
                 throw new TableException(
                         String.format(
@@ -74,6 +75,9 @@ public class ExecNodeGraphInternalPlan implements InternalPlan {
             }
         }
         try {
+            if (!file.getParentFile().exists()) {
+                file.getParentFile().mkdirs();
+            }
             Files.write(
                     file.toPath(),
                     serializedPlan.getBytes(StandardCharsets.UTF_8),

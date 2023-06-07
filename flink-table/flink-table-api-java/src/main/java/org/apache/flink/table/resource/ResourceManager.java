@@ -84,6 +84,64 @@ public class ResourceManager implements Closeable {
     }
 
     /**
+     * register the filePath of flink filesystem. If it is remote filesystem and the file exists
+     * then download the file at local. register the filePath map to localURL.
+     */
+    public boolean registerFsResources(Path filePath) throws IOException {
+        ResourceUri resourceUri = new ResourceUri(ResourceType.FILE, filePath.toUri().toString());
+
+        checkFsResources(filePath);
+
+        boolean exists;
+        FileSystem fs = FileSystem.getUnguardedFileSystem(filePath.toUri());
+        exists = fs.exists(filePath);
+        URL localUrl;
+
+        // check resource scheme
+        String scheme = StringUtils.lowerCase(filePath.toUri().getScheme());
+        // download resource to local path firstly if in remote
+        if (scheme != null && !FILE_SCHEME.equals(scheme)) {
+            if (exists) {
+                localUrl = downloadResource(filePath);
+            } else {
+                localUrl = getURLFromPath(getResourceLocalPath(filePath));
+            }
+        } else {
+            localUrl = getURLFromPath(filePath);
+        }
+
+        resourceInfos.put(resourceUri, localUrl);
+
+        return exists;
+    }
+
+    /**
+     * get the local URL of given Path
+     *
+     * <p>if no corresponding value in resourceInfos means the path hasn't registered before.
+     */
+    public URL getLocalUrl(Path filePath) throws IOException {
+        ResourceUri resourceUri = new ResourceUri(ResourceType.FILE, filePath.toUri().toString());
+        if (resourceInfos.containsKey(resourceUri)) {
+            return resourceInfos.get(resourceUri);
+        }
+        String scheme = StringUtils.lowerCase(filePath.toUri().getScheme());
+        if (scheme != null && !FILE_SCHEME.equals(scheme)) {
+            return downloadResource(filePath);
+        }
+        return getURLFromPath(filePath);
+    }
+
+    /** upload the file to remote. */
+    public void updateFilePath(Path remote) throws IOException {
+        String scheme = StringUtils.lowerCase(remote.toUri().getScheme());
+        if (scheme != null && !FILE_SCHEME.equals(scheme)) {
+            Path localPath = new Path(getLocalUrl(remote).getPath());
+            FileUtils.copy(localPath, remote, true);
+        }
+    }
+
+    /**
      * Due to anyone of the resource in list maybe fail during register, so we should stage it
      * before actual register to guarantee transaction process. If all the resources are available,
      * register them into the {@link ResourceManager}.
@@ -203,6 +261,18 @@ public class ResourceManager implements Closeable {
         }
     }
 
+    private void checkFsResources(Path filepath) throws IOException {
+        FileSystem fs = FileSystem.getUnguardedFileSystem(filepath.toUri());
+
+        // register directory is not allowed for resource
+        if (fs.exists(filepath) && fs.getFileStatus(filepath).isDir()) {
+            throw new ValidationException(
+                    String.format(
+                            "The registering or unregistering FileSystem resource [%s] is a directory that is not allowed.",
+                            filepath));
+        }
+    }
+
     private void checkJarResources(List<ResourceUri> resourceUris) throws IOException {
         // only support register jar resource
         if (resourceUris.stream()
@@ -245,7 +315,8 @@ public class ResourceManager implements Closeable {
         }
     }
 
-    public URL downloadResource(Path remotePath) throws IOException {
+    @VisibleForTesting
+    URL downloadResource(Path remotePath) throws IOException {
         // get local resource path
         Path localPath = getResourceLocalPath(remotePath);
         try {
@@ -278,7 +349,7 @@ public class ResourceManager implements Closeable {
         return localResourceDir;
     }
 
-    public Path getResourceLocalPath(Path remotePath) {
+    private Path getResourceLocalPath(Path remotePath) {
         String fileName = remotePath.getName();
         String fileExtension = Files.getFileExtension(fileName);
         // add UUID suffix to avoid conflicts
