@@ -33,6 +33,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.client.JobStatusMessage;
+import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.io.network.partition.DataSetMetaInfo;
@@ -127,6 +128,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -148,6 +150,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -214,12 +217,18 @@ class RestClusterClientTest {
 
     private RestClusterClient<StandaloneClusterId> createRestClusterClient(
             int port, Configuration clientConfig) throws Exception {
+        return createRestClusterClient(port, clientConfig, Files.createTempDirectory("flink"));
+    }
+
+    private RestClusterClient<StandaloneClusterId> createRestClusterClient(
+            int port, Configuration clientConfig, Path tmpDir) throws Exception {
         clientConfig.setInteger(RestOptions.PORT, port);
         return new RestClusterClient<>(
                 clientConfig,
                 createRestClient(),
                 StandaloneClusterId.getInstance(),
-                (attempt) -> 0);
+                (attempt) -> 0,
+                tmpDir);
     }
 
     @Nonnull
@@ -971,6 +980,24 @@ class RestClusterClientTest {
                 return;
             }
             fail("Should failed with exception");
+        }
+    }
+
+    @Test
+    void testJobGraphFileCleanedUpOnJobSubmissionFailure(@TempDir Path tmp) throws Exception {
+        try (final TestRestServerEndpoint restServerEndpoint =
+                createRestServerEndpoint(new SubmissionFailingHandler())) {
+            try (RestClusterClient<?> restClusterClient =
+                    createRestClusterClient(
+                            restServerEndpoint.getServerAddress().getPort(),
+                            new Configuration(restConfig),
+                            tmp)) {
+                assertThatThrownBy(() -> restClusterClient.submitJob(jobGraph).join())
+                        .hasCauseInstanceOf(JobSubmissionException.class);
+                try (Stream<Path> files = Files.list(tmp)) {
+                    assertThat(files).isEmpty();
+                }
+            }
         }
     }
 

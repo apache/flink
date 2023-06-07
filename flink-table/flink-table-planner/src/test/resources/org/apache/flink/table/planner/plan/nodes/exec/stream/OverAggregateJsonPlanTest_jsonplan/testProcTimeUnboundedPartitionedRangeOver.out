@@ -392,7 +392,7 @@
     "description" : "Calc(select=[c AS a, CAST(w0$o0 AS BIGINT) AS b, CAST(CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS BIGINT) AS c])"
   }, {
     "id" : 8,
-    "type" : "stream-exec-sink_1",
+    "type" : "stream-exec-sink_2",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",

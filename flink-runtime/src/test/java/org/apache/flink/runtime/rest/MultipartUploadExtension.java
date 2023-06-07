@@ -22,6 +22,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.WebOptions;
+import org.apache.flink.core.testutils.CustomExtension;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -33,7 +34,9 @@ import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
 import org.apache.flink.runtime.rest.util.TestRestServerEndpoint;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
+import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.BiConsumerWithException;
 
@@ -41,8 +44,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCre
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-import org.junit.rules.ExternalResource;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.extension.ExtensionContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,19 +64,17 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.mock;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test base for verifying support of multipart uploads via REST. */
-public class MultipartUploadResource extends ExternalResource {
+public class MultipartUploadExtension implements CustomExtension {
+    private static final Logger LOG = LoggerFactory.getLogger(MultipartUploadExtension.class);
 
-    private static final Logger LOG = LoggerFactory.getLogger(MultipartUploadResource.class);
-
-    private final TemporaryFolder temporaryFolder = new TemporaryFolder();
+    private final Supplier<Path> tmpDirectorySupplier;
 
     private RestServerEndpoint serverEndpoint;
     protected String serverAddress;
@@ -91,29 +91,33 @@ public class MultipartUploadResource extends ExternalResource {
     private BiConsumerWithException<HandlerRequest<?>, RestfulGateway, RestHandlerException>
             fileUploadVerifier;
 
+    public MultipartUploadExtension(Supplier<Path> tmpDirectorySupplier) {
+        this.tmpDirectorySupplier = tmpDirectorySupplier;
+    }
+
     @Override
-    public void before() throws Exception {
-        temporaryFolder.create();
+    public void before(ExtensionContext context) throws Exception {
+        Path tmpDirectory = tmpDirectorySupplier.get();
         Configuration config = new Configuration();
         config.setString(RestOptions.BIND_PORT, "0");
         config.setString(RestOptions.ADDRESS, "localhost");
         // set this to a lower value on purpose to test that files larger than the content limit are
         // still accepted
         config.setInteger(RestOptions.SERVER_MAX_CONTENT_LENGTH, 1024 * 1024);
-        configuredUploadDir = temporaryFolder.newFolder().toPath();
+        configuredUploadDir = TempDirUtils.newFolder(tmpDirectory).toPath();
         config.setString(WebOptions.UPLOAD_DIR, configuredUploadDir.toString());
 
-        RestfulGateway mockRestfulGateway = mock(RestfulGateway.class);
+        RestfulGateway mockRestfulGateway = new TestingRestfulGateway();
 
         final GatewayRetriever<RestfulGateway> mockGatewayRetriever =
                 () -> CompletableFuture.completedFuture(mockRestfulGateway);
 
-        file1 = temporaryFolder.newFile();
+        file1 = TempDirUtils.newFile(tmpDirectory);
         try (RandomAccessFile rw = new RandomAccessFile(file1, "rw")) {
             // magic value that reliably reproduced https://github.com/netty/netty/issues/11668
             rw.setLength(5043444);
         }
-        file2 = temporaryFolder.newFile();
+        file2 = TempDirUtils.newFile(tmpDirectory);
         Files.write(file2.toPath(), "world".getBytes(ConfigConstants.DEFAULT_CHARSET));
 
         mixedHandler = new MultipartMixedHandler(mockGatewayRetriever);
@@ -143,7 +147,7 @@ public class MultipartUploadResource extends ExternalResource {
                                     .map(File::toPath)
                                     .collect(Collectors.toList());
 
-                    assertEquals(expectedFiles.size(), uploadedFiles.size());
+                    assertThat(uploadedFiles).hasSameSizeAs(expectedFiles);
 
                     List<Path> expectedList = new ArrayList<>(expectedFiles);
                     List<Path> actualList = new ArrayList<>(uploadedFiles);
@@ -154,12 +158,12 @@ public class MultipartUploadResource extends ExternalResource {
                         Path expected = expectedList.get(x);
                         Path actual = actualList.get(x);
 
-                        assertEquals(
-                                expected.getFileName().toString(), actual.getFileName().toString());
+                        assertThat(actual.getFileName())
+                                .hasToString(expected.getFileName().toString());
 
                         byte[] originalContent = Files.readAllBytes(expected);
                         byte[] receivedContent = Files.readAllBytes(actual);
-                        assertArrayEquals(originalContent, receivedContent);
+                        assertThat(receivedContent).isEqualTo(originalContent);
                     }
                 });
     }
@@ -217,8 +221,7 @@ public class MultipartUploadResource extends ExternalResource {
     }
 
     @Override
-    public void after() {
-        temporaryFolder.delete();
+    public void after(ExtensionContext context) throws Exception {
         if (serverEndpoint != null) {
             try {
                 serverEndpoint.close();
@@ -239,7 +242,7 @@ public class MultipartUploadResource extends ExternalResource {
             actualUploadDir = files.get(0);
         }
         try (Stream<Path> containedFiles = Files.list(actualUploadDir)) {
-            assertEquals("Not all files were cleaned up.", 0, containedFiles.count());
+            assertThat(containedFiles).withFailMessage("Not all files were cleaned up.").isEmpty();
         }
     }
 
@@ -265,7 +268,7 @@ public class MultipartUploadResource extends ExternalResource {
         protected CompletableFuture<EmptyResponseBody> handleRequest(
                 @Nonnull HandlerRequest<TestRequestBody> request, @Nonnull RestfulGateway gateway)
                 throws RestHandlerException {
-            MultipartUploadResource.this.fileUploadVerifier.accept(request, gateway);
+            MultipartUploadExtension.this.fileUploadVerifier.accept(request, gateway);
             this.lastReceivedRequest = request.getRequestBody();
             return CompletableFuture.completedFuture(EmptyResponseBody.getInstance());
         }
@@ -351,7 +354,8 @@ public class MultipartUploadResource extends ExternalResource {
         }
 
         private static final class MultipartJsonHeaders extends TestHeadersBase<TestRequestBody> {
-            private static final MultipartJsonHeaders INSTANCE = new MultipartJsonHeaders();
+            private static final MultipartJsonHandler.MultipartJsonHeaders INSTANCE =
+                    new MultipartJsonHandler.MultipartJsonHeaders();
 
             private MultipartJsonHeaders() {}
 
@@ -374,7 +378,7 @@ public class MultipartUploadResource extends ExternalResource {
 
     /**
      * Handler that accepts a file request and calls {@link
-     * MultipartUploadResource#fileUploadVerifier} to verify it.
+     * MultipartUploadExtension#fileUploadVerifier} to verify it.
      */
     public class MultipartFileHandler
             extends AbstractRestHandler<
@@ -392,7 +396,7 @@ public class MultipartUploadResource extends ExternalResource {
         protected CompletableFuture<EmptyResponseBody> handleRequest(
                 @Nonnull HandlerRequest<EmptyRequestBody> request, @Nonnull RestfulGateway gateway)
                 throws RestHandlerException {
-            MultipartUploadResource.this.fileUploadVerifier.accept(request, gateway);
+            MultipartUploadExtension.this.fileUploadVerifier.accept(request, gateway);
             return CompletableFuture.completedFuture(EmptyResponseBody.getInstance());
         }
     }

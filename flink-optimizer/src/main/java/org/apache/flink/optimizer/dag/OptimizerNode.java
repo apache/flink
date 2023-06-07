@@ -878,7 +878,7 @@ public abstract class OptimizerNode
         // add the cheapest plan
         if (cheapest != null) {
             plans.add(cheapest);
-            cheapest.setPruningMarker(); // remember that that plan is in the set
+            cheapest.setPruningMarker(); // remember that the plan is in the set
         }
 
         // add all others, which are optimal for some interesting properties

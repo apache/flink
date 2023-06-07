@@ -61,7 +61,9 @@ class DataGenTableSourceFactoryTest {
                     Column.physical("f2", DataTypes.BIGINT()),
                     Column.physical("f3", DataTypes.TIMESTAMP()),
                     Column.physical("f4", DataTypes.BINARY(2)),
-                    Column.physical("f5", DataTypes.VARBINARY(4)));
+                    Column.physical("f5", DataTypes.VARBINARY(4)),
+                    Column.physical("f6", DataTypes.MAP(DataTypes.INT(), DataTypes.STRING())),
+                    Column.physical("f7", DataTypes.STRING()));
 
     @Test
     void testDataTypeCoverage() throws Exception {
@@ -183,6 +185,15 @@ class DataGenTableSourceFactoryTest {
                 DataGenConnectorOptionsUtil.FIELDS + ".f5." + DataGenConnectorOptionsUtil.START, 1);
         descriptor.putLong(
                 DataGenConnectorOptionsUtil.FIELDS + ".f5." + DataGenConnectorOptionsUtil.END, 11);
+        descriptor.putString(
+                DataGenConnectorOptionsUtil.FIELDS
+                        + ".f6.key."
+                        + DataGenConnectorOptionsUtil.NULL_RATE,
+                "1");
+
+        descriptor.putString(
+                DataGenConnectorOptionsUtil.FIELDS + ".f7." + DataGenConnectorOptionsUtil.NULL_RATE,
+                "1");
 
         final long begin = System.currentTimeMillis();
         List<RowData> results = runGenerator(SCHEMA, descriptor);
@@ -191,14 +202,16 @@ class DataGenTableSourceFactoryTest {
         assertThat(results).hasSize(11);
         for (int i = 0; i < results.size(); i++) {
             RowData row = results.get(i);
-            assertThat(row.getString(0).toString().length()).isEqualTo(20);
+            assertThat(row.getString(0).toString()).hasSize(20);
             assertThat(row.getLong(1)).isBetween(10L, 100L);
             assertThat(row.getLong(2)).isEqualTo(i + 50);
             assertThat(row.getTimestamp(3, 3).getMillisecond()).isBetween(begin - 5000, end);
-            assertThat(row.getBinary(4).length).isEqualTo(2);
+            assertThat(row.getBinary(4)).hasSize(2);
             // f5 is sequence bytes produced in sequence long [1, 11]
-            assertThat(row.getBinary(5).length).isEqualTo(8);
+            assertThat(row.getBinary(5)).hasSize(8);
             assertThat(row.getBinary(5)[row.getBinary(5).length - 1]).isEqualTo((byte) (i + 1));
+            assertThat(row.getMap(6).keyArray().isNullAt(0)).isTrue();
+            assertThat(row.getString(7)).isNull();
         }
     }
 

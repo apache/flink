@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.leaderelection;
 
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import javax.annotation.Nullable;
 
@@ -38,14 +39,18 @@ public class TestingLeaderElectionDriver implements LeaderElectionDriver {
     private final LeaderElectionEventHandler leaderElectionEventHandler;
     private final FatalErrorHandler fatalErrorHandler;
 
+    private final ThrowingConsumer<LeaderElectionEventHandler, Exception> closeRunnable;
+
     // Leader information on external storage
     private LeaderInformation leaderInformation = LeaderInformation.empty();
 
     private TestingLeaderElectionDriver(
             LeaderElectionEventHandler leaderElectionEventHandler,
-            FatalErrorHandler fatalErrorHandler) {
+            FatalErrorHandler fatalErrorHandler,
+            ThrowingConsumer<LeaderElectionEventHandler, Exception> closeRunnable) {
         this.leaderElectionEventHandler = leaderElectionEventHandler;
         this.fatalErrorHandler = fatalErrorHandler;
+        this.closeRunnable = closeRunnable;
     }
 
     @Override
@@ -61,7 +66,7 @@ public class TestingLeaderElectionDriver implements LeaderElectionDriver {
     @Override
     public void close() throws Exception {
         synchronized (lock) {
-            // noop
+            closeRunnable.accept(leaderElectionEventHandler);
         }
     }
 
@@ -101,12 +106,24 @@ public class TestingLeaderElectionDriver implements LeaderElectionDriver {
 
         private TestingLeaderElectionDriver currentLeaderDriver;
 
+        private final ThrowingConsumer<LeaderElectionEventHandler, Exception> closeRunnable;
+
+        public TestingLeaderElectionDriverFactory() {
+            this(ignoredLeaderElectionEventHandler -> {});
+        }
+
+        public TestingLeaderElectionDriverFactory(
+                ThrowingConsumer<LeaderElectionEventHandler, Exception> closeRunnable) {
+            this.closeRunnable = closeRunnable;
+        }
+
         @Override
         public LeaderElectionDriver createLeaderElectionDriver(
                 LeaderElectionEventHandler leaderEventHandler,
                 FatalErrorHandler fatalErrorHandler) {
             currentLeaderDriver =
-                    new TestingLeaderElectionDriver(leaderEventHandler, fatalErrorHandler);
+                    new TestingLeaderElectionDriver(
+                            leaderEventHandler, fatalErrorHandler, closeRunnable);
             return currentLeaderDriver;
         }
 

@@ -18,27 +18,44 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered;
 
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.BufferAccumulator;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.BiConsumer;
 
 /** Test implementation for {@link BufferAccumulator}. */
 public class TestingBufferAccumulator implements BufferAccumulator {
 
+    private BiConsumer<TieredStorageSubpartitionId, List<Buffer>> bufferFlusher;
+
     @Override
-    public void setup(
-            int numSubpartitions,
-            BiConsumer<TieredStorageSubpartitionId, List<Buffer>> bufferFlusher) {}
+    public void setup(BiConsumer<TieredStorageSubpartitionId, List<Buffer>> bufferFlusher) {
+        this.bufferFlusher = bufferFlusher;
+    }
 
     @Override
     public void receive(
             ByteBuffer record, TieredStorageSubpartitionId subpartitionId, Buffer.DataType dataType)
-            throws IOException {}
+            throws IOException {
+        MemorySegment recordData = MemorySegmentFactory.wrap(record.array());
+        bufferFlusher.accept(
+                subpartitionId,
+                Collections.singletonList(
+                        new NetworkBuffer(
+                                recordData,
+                                FreeingBufferRecycler.INSTANCE,
+                                dataType,
+                                recordData.size())));
+    }
 
     @Override
     public void close() {}

@@ -17,9 +17,8 @@
 ################################################################################
 from pyflink.common import WatermarkStrategy, SimpleStringSchema, Types, ConfigOptions, Duration
 from pyflink.datastream.connectors import DeliveryGuarantee
-from pyflink.datastream.connectors.pulsar import PulsarSerializationSchema, TopicRoutingMode, \
-    MessageDelayer, PulsarSink, PulsarSource, StartCursor, PulsarDeserializationSchema, \
-    StopCursor, SubscriptionType
+from pyflink.datastream.connectors.pulsar import TopicRoutingMode, MessageDelayer, PulsarSink, \
+    PulsarSource, StartCursor, StopCursor, RangeGenerator
 from pyflink.testing.test_case_utils import PyFlinkUTTestCase
 from pyflink.util.java_utils import get_field_value, is_instance_of
 
@@ -36,11 +35,8 @@ class FlinkPulsarTest(PyFlinkUTTestCase):
             .set_unbounded_stop_cursor(StopCursor.never()) \
             .set_bounded_stop_cursor(StopCursor.at_publish_time(22)) \
             .set_subscription_name('ff') \
-            .set_subscription_type(SubscriptionType.Exclusive) \
-            .set_deserialization_schema(
-                PulsarDeserializationSchema.flink_type_info(Types.STRING())) \
-            .set_deserialization_schema(
-                PulsarDeserializationSchema.flink_schema(SimpleStringSchema())) \
+            .set_consumer_name('test_consumer') \
+            .set_deserialization_schema(SimpleStringSchema()) \
             .set_config(TEST_OPTION_NAME, True) \
             .set_properties({'pulsar.source.autoCommitCursorInterval': '1000'}) \
             .build()
@@ -68,11 +64,6 @@ class FlinkPulsarTest(PyFlinkUTTestCase):
                 ConfigOptions.key('pulsar.consumer.subscriptionName')
                 .string_type()
                 .no_default_value()._j_config_option), 'ff')
-        self.assertEqual(
-            configuration.getString(
-                ConfigOptions.key('pulsar.consumer.subscriptionType')
-                .string_type()
-                .no_default_value()._j_config_option), SubscriptionType.Exclusive.name)
         test_option = ConfigOptions.key(TEST_OPTION_NAME).boolean_type().no_default_value()
         self.assertEqual(
             configuration.getBoolean(
@@ -89,8 +80,7 @@ class FlinkPulsarTest(PyFlinkUTTestCase):
             .set_admin_url('http://localhost:8080') \
             .set_topics(['ada', 'beta']) \
             .set_subscription_name('ff') \
-            .set_deserialization_schema(
-                PulsarDeserializationSchema.flink_schema(SimpleStringSchema())) \
+            .set_deserialization_schema(SimpleStringSchema()) \
             .build()
 
     def test_source_set_topics_pattern(self):
@@ -99,8 +89,7 @@ class FlinkPulsarTest(PyFlinkUTTestCase):
             .set_admin_url('http://localhost:8080') \
             .set_topic_pattern('ada.*') \
             .set_subscription_name('ff') \
-            .set_deserialization_schema(
-                PulsarDeserializationSchema.flink_schema(SimpleStringSchema())) \
+            .set_deserialization_schema(SimpleStringSchema()) \
             .build()
 
     def test_source_deprecated_method(self):
@@ -110,8 +99,7 @@ class FlinkPulsarTest(PyFlinkUTTestCase):
             .set_service_url('pulsar://localhost:6650') \
             .set_admin_url('http://localhost:8080') \
             .set_topic_pattern('ada.*') \
-            .set_deserialization_schema(
-                PulsarDeserializationSchema.flink_type_info(Types.STRING())) \
+            .set_deserialization_schema(SimpleStringSchema()) \
             .set_unbounded_stop_cursor(StopCursor.at_publish_time(4444)) \
             .set_subscription_name('ff') \
             .set_config(test_option, True) \
@@ -133,8 +121,7 @@ class FlinkPulsarTest(PyFlinkUTTestCase):
             .set_admin_url('http://localhost:8080') \
             .set_topics('ada') \
             .set_subscription_name('ff') \
-            .set_deserialization_schema(
-                PulsarDeserializationSchema.flink_schema(SimpleStringSchema())) \
+            .set_deserialization_schema(SimpleStringSchema()) \
             .set_start_cursor(StartCursor.from_publish_time(2)) \
             .set_bounded_stop_cursor(StopCursor.at_publish_time(14)) \
             .set_bounded_stop_cursor(StopCursor.after_publish_time(24)) \
@@ -146,10 +133,47 @@ class FlinkPulsarTest(PyFlinkUTTestCase):
             .set_admin_url('http://localhost:8080') \
             .set_topics('ada') \
             .set_subscription_name('ff') \
-            .set_deserialization_schema(
-                PulsarDeserializationSchema.flink_schema(SimpleStringSchema())) \
+            .set_deserialization_schema(SimpleStringSchema()) \
             .set_bounded_stop_cursor(StopCursor.after_event_time(14)) \
             .set_bounded_stop_cursor(StopCursor.at_event_time(24)) \
+            .build()
+
+    def test_set_range_generator(self):
+        PulsarSource.builder() \
+            .set_service_url('pulsar://localhost:6650') \
+            .set_admin_url('http://localhost:8080') \
+            .set_topics(['ada', 'beta']) \
+            .set_subscription_name('ff') \
+            .set_deserialization_schema(SimpleStringSchema()) \
+            .set_range_generator(RangeGenerator.full()) \
+            .build()
+
+        PulsarSource.builder() \
+            .set_service_url('pulsar://localhost:6650') \
+            .set_admin_url('http://localhost:8080') \
+            .set_topics(['ada', 'beta']) \
+            .set_subscription_name('ff') \
+            .set_deserialization_schema(SimpleStringSchema()) \
+            .set_range_generator(RangeGenerator.fixed_key(keys='k', key_bytes=bytearray(b'abc'))) \
+            .build()
+
+    def test_set_authentication(self):
+        PulsarSource.builder() \
+            .set_service_url('pulsar://localhost:6650') \
+            .set_admin_url('http://localhost:8080') \
+            .set_topics(['ada', 'beta']) \
+            .set_subscription_name('ff') \
+            .set_deserialization_schema(SimpleStringSchema()) \
+            .set_authentication('test.class', 'key1:val1,key2:val2') \
+            .build()
+
+        PulsarSource.builder() \
+            .set_service_url('pulsar://localhost:6650') \
+            .set_admin_url('http://localhost:8080') \
+            .set_topics(['ada', 'beta']) \
+            .set_subscription_name('ff') \
+            .set_deserialization_schema(SimpleStringSchema()) \
+            .set_authentication('test.class', {'k1': 'v1', 'k2': 'v2'}) \
             .build()
 
     def test_pulsar_sink(self):
@@ -162,8 +186,7 @@ class FlinkPulsarTest(PyFlinkUTTestCase):
             .set_admin_url('http://localhost:8080') \
             .set_producer_name('fo') \
             .set_topics('ada') \
-            .set_serialization_schema(
-                PulsarSerializationSchema.flink_schema(SimpleStringSchema())) \
+            .set_serialization_schema(SimpleStringSchema()) \
             .set_delivery_guarantee(DeliveryGuarantee.AT_LEAST_ONCE) \
             .set_topic_routing_mode(TopicRoutingMode.ROUND_ROBIN) \
             .delay_sending_message(MessageDelayer.fixed(Duration.of_seconds(12))) \
@@ -232,6 +255,5 @@ class FlinkPulsarTest(PyFlinkUTTestCase):
             .set_service_url('pulsar://localhost:6650') \
             .set_admin_url('http://localhost:8080') \
             .set_topics(['ada', 'beta']) \
-            .set_serialization_schema(
-                PulsarSerializationSchema.flink_schema(SimpleStringSchema())) \
+            .set_serialization_schema(SimpleStringSchema()) \
             .build()

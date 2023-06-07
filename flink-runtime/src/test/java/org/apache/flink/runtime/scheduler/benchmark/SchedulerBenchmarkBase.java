@@ -28,9 +28,12 @@ public class SchedulerBenchmarkBase {
     public ScheduledExecutorService scheduledExecutorService;
 
     public void setup() {
-        scheduledExecutorService =
-                Executors.newSingleThreadScheduledExecutor(
-                        new ExecutorThreadFactory("flink-benchmarks"));
+        // This may have been set in subclass for special purposes.
+        if (scheduledExecutorService == null) {
+            scheduledExecutorService =
+                    Executors.newSingleThreadScheduledExecutor(
+                            new ExecutorThreadFactory("flink-benchmarks"));
+        }
     }
 
     public void teardown() {

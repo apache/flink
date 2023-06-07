@@ -24,13 +24,11 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase._
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
 import org.apache.flink.table.planner.runtime.utils.TestData._
 
-import org.junit.{Before, Test}
-
-import scala.collection.Seq
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 class CorrelateITCase2 extends BatchTestBase {
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     registerCollection("inputT", TableFunctionITCase.testData, type3, "a, b, c")

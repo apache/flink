@@ -38,6 +38,7 @@ import org.apache.flink.runtime.jobmaster.factories.TestingJobMasterServiceProce
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.leaderelection.DefaultLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionDriver;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -168,7 +169,7 @@ class JobMasterServiceLeadershipRunnerTest {
 
         leaderElectionService.notLeader();
 
-        final CompletableFuture<UUID> leaderFuture =
+        final CompletableFuture<LeaderInformation> leaderFuture =
                 leaderElectionService.isLeader(UUID.randomUUID());
 
         // the new leadership should wait first for the suspension to happen
@@ -537,7 +538,7 @@ class JobMasterServiceLeadershipRunnerTest {
 
         jobManagerRunner.start();
 
-        final CompletableFuture<UUID> leaderFuture =
+        final CompletableFuture<LeaderInformation> leaderFuture =
                 leaderElectionService.isLeader(UUID.randomUUID());
 
         leaderElectionService.notLeader();
@@ -680,8 +681,9 @@ class JobMasterServiceLeadershipRunnerTest {
 
         // we need to use DefaultLeaderElectionService here because JobMasterServiceLeadershipRunner
         // in connection with the DefaultLeaderElectionService generates the nested locking
-        final LeaderElectionService defaultLeaderElectionService =
+        final DefaultLeaderElectionService defaultLeaderElectionService =
                 new DefaultLeaderElectionService(testingLeaderElectionDriverFactory);
+        defaultLeaderElectionService.startLeaderElectionBackend();
 
         // latch to detect when we reached the first synchronized section having a lock on the
         // JobMasterServiceProcess#stop side
@@ -760,8 +762,12 @@ class JobMasterServiceLeadershipRunnerTest {
             currentLeaderDriver.isLeader();
 
             while (currentLeaderDriver.getLeaderInformation().getLeaderSessionID() == null
-                    || !defaultLeaderElectionService.hasLeadership(
-                            currentLeaderDriver.getLeaderInformation().getLeaderSessionID())) {
+                    || !jobManagerRunner
+                            .getLeaderElection()
+                            .hasLeadership(
+                                    currentLeaderDriver
+                                            .getLeaderInformation()
+                                            .getLeaderSessionID())) {
                 Thread.sleep(100);
             }
 
@@ -772,7 +778,15 @@ class JobMasterServiceLeadershipRunnerTest {
             closeAsyncCalledTrigger.await();
 
             final CheckedThread grantLeadershipThread =
-                    createCheckedThread(currentLeaderDriver::isLeader);
+                    createCheckedThread(
+                            () -> {
+                                // DefaultLeaderElectionService enforces a proper event handling
+                                // order (i.e. no two grant or revoke events should appear after
+                                // each other). This requires the leadership to be revoked before
+                                // regaining leadership in this test.
+                                currentLeaderDriver.notLeader();
+                                currentLeaderDriver.isLeader();
+                            });
             grantLeadershipThread.start();
 
             // finalize ClassloaderLease release to trigger DefaultLeaderElectionService#stop

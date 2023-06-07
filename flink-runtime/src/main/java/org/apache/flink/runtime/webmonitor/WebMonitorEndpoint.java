@@ -26,6 +26,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.blob.TransientBlobService;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
+import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.RestServerEndpoint;
@@ -205,6 +206,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
     private final MetricFetcher metricFetcher;
 
     private final LeaderElectionService leaderElectionService;
+    private LeaderElection leaderElection;
 
     private final FatalErrorHandler fatalErrorHandler;
 
@@ -1044,7 +1046,9 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 
     @Override
     public void startInternal() throws Exception {
-        leaderElectionService.start(this);
+        leaderElection = leaderElectionService.createLeaderElection();
+        leaderElection.startLeaderElection(this);
+
         startExecutionGraphCacheCleanupTask();
 
         if (hasWebUI) {
@@ -1089,7 +1093,9 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                     }
 
                     try {
-                        leaderElectionService.stop();
+                        if (leaderElection != null) {
+                            leaderElection.close();
+                        }
                     } catch (Exception e) {
                         exception = ExceptionUtils.firstOrSuppressed(e, exception);
                     }
@@ -1110,7 +1116,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                 "{} was granted leadership with leaderSessionID={}",
                 getRestBaseUrl(),
                 leaderSessionID);
-        leaderElectionService.confirmLeadership(leaderSessionID, getRestBaseUrl());
+        leaderElection.confirmLeadership(leaderSessionID, getRestBaseUrl());
     }
 
     @Override

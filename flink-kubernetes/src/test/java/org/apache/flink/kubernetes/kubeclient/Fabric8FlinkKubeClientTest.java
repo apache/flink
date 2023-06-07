@@ -548,6 +548,7 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
                         KubernetesConfigOptions.KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES);
         final KubernetesConfigMap configMap = buildTestingConfigMap();
         this.flinkKubeClient.createConfigMap(configMap).get();
+        kubeClient.getConfiguration().setRequestRetryBackoffLimit(0);
 
         mockGetConfigMapFailed(configMap.getInternalResource());
 

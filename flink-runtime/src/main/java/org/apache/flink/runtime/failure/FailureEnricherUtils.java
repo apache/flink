@@ -32,7 +32,6 @@ import org.apache.flink.util.concurrent.FutureUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -42,6 +41,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -49,6 +49,10 @@ import java.util.stream.Collectors;
 public class FailureEnricherUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(FailureEnricherUtils.class);
+
+    public static final CompletableFuture<Map<String, String>> EMPTY_FAILURE_LABELS =
+            CompletableFuture.completedFuture(Collections.emptyMap());
+
     // regex pattern to split the defined failure enrichers
     private static final Pattern enricherListPattern = Pattern.compile("\\s*,\\s*");
     static final String MERGE_EXCEPTION_MSG =
@@ -80,31 +84,25 @@ public class FailureEnricherUtils {
                 pluginManager.load(FailureEnricherFactory.class);
         final Set<FailureEnricher> failureEnrichers = new HashSet<>();
         while (factoryIterator.hasNext()) {
-            try {
-                final FailureEnricherFactory failureEnricherFactory = factoryIterator.next();
-                final FailureEnricher failureEnricher =
-                        failureEnricherFactory.createFailureEnricher(configuration);
-                if (includedEnrichers.contains(failureEnricher.getClass().getName())) {
-                    failureEnrichers.add(failureEnricher);
-                    LOG.info(
-                            "Found failure enricher {} at {}.",
-                            failureEnricherFactory.getClass().getName(),
-                            new File(
-                                            failureEnricher
-                                                    .getClass()
-                                                    .getProtectionDomain()
-                                                    .getCodeSource()
-                                                    .getLocation()
-                                                    .toURI())
-                                    .getCanonicalPath());
-                } else {
-                    LOG.debug(
-                            "Excluding failure enricher {}, not configured in enricher list ({}).",
-                            failureEnricherFactory.getClass().getName(),
-                            includedEnrichers);
-                }
-            } catch (Exception e) {
-                LOG.warn("Error while loading failure enricher factory.", e);
+            final FailureEnricherFactory failureEnricherFactory = factoryIterator.next();
+            final FailureEnricher failureEnricher =
+                    failureEnricherFactory.createFailureEnricher(configuration);
+            if (includedEnrichers.contains(failureEnricher.getClass().getName())) {
+                failureEnrichers.add(failureEnricher);
+                LOG.info(
+                        "Found failure enricher {} at {}.",
+                        failureEnricherFactory.getClass().getName(),
+                        failureEnricher
+                                .getClass()
+                                .getProtectionDomain()
+                                .getCodeSource()
+                                .getLocation()
+                                .getPath());
+            } else {
+                LOG.debug(
+                        "Excluding failure enricher {}, not configured in enricher list ({}).",
+                        failureEnricherFactory.getClass().getName(),
+                        includedEnrichers);
             }
         }
 
@@ -170,12 +168,14 @@ public class FailureEnricherUtils {
      *
      * @param cause the Throwable to label
      * @param context the context of the Throwable
+     * @param mainThreadExecutor the executor to complete the enricher labeling on
      * @param failureEnrichers a collection of FailureEnrichers to enrich the context with
      * @return a CompletableFuture that will complete with a map of labels
      */
     public static CompletableFuture<Map<String, String>> labelFailure(
             final Throwable cause,
             final Context context,
+            final Executor mainThreadExecutor,
             final Collection<FailureEnricher> failureEnrichers) {
         // list of CompletableFutures to enrich failure with labels from each enricher
         final Collection<CompletableFuture<Map<String, String>>> enrichFutures = new ArrayList<>();
@@ -204,7 +204,7 @@ public class FailureEnricherUtils {
         }
         // combine all CompletableFutures into a single CompletableFuture containing a Map of labels
         return FutureUtils.combineAll(enrichFutures)
-                .thenApply(
+                .thenApplyAsync(
                         labelsToMerge -> {
                             final Map<String, String> mergedLabels = new HashMap<>();
                             for (Map<String, String> labels : labelsToMerge) {
@@ -223,6 +223,7 @@ public class FailureEnricherUtils {
                                                         }));
                             }
                             return mergedLabels;
-                        });
+                        },
+                        mainThreadExecutor);
     }
 }

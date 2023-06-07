@@ -31,18 +31,18 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.JavaTableFunc0
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.{MyPojo, MyPojoFunc}
-import org.apache.flink.table.planner.utils.{HierarchyTableFunction, PojoTableFunc, RichTableFunc1, RichTableFuncWithFinish, TableFunc0, TableFunc1, TableFunc2, TableFunc3, VarArgsFunc0}
+import org.apache.flink.table.planner.utils._
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.runtime.typeutils.StringDataTypeInfo
 import org.apache.flink.types.Row
 
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 import scala.collection.JavaConversions._
 
 class CorrelateITCase extends BatchTestBase {
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     registerCollection("inputT", TableFunctionITCase.testData, type3, "a, b, c")

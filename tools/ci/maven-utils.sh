@@ -33,7 +33,7 @@ export -f run_mvn
 function setup_maven {
 	set -e # fail if there was an error setting up maven
 	if [ ! -d "${MAVEN_VERSIONED_DIR}" ]; then
-	  wget https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.zip
+	  wget https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/${MAVEN_VERSION}/apache-maven-${MAVEN_VERSION}-bin.zip
 	  unzip -d "${MAVEN_CACHE_DIR}" -qq "apache-maven-${MAVEN_VERSION}-bin.zip"
 	  rm "apache-maven-${MAVEN_VERSION}-bin.zip"
 	fi

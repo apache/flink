@@ -138,21 +138,15 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
                         .build();
 
         rmService.start();
-        rmService.isLeader(UUID.randomUUID());
+        rmService.isLeader(UUID.randomUUID()).join();
 
-        leaderElectionService
-                .getConfirmationFuture()
-                .thenRun(
-                        () -> {
-                            rmGateway =
-                                    rmService
-                                            .getResourceManagerGateway()
-                                            .orElseThrow(
-                                                    () ->
-                                                            new AssertionError(
-                                                                    "RM not available after confirming leadership."));
-                        })
-                .get(TIMEOUT.getSize(), TIMEOUT.getUnit());
+        rmGateway =
+                rmService
+                        .getResourceManagerGateway()
+                        .orElseThrow(
+                                () ->
+                                        new AssertionError(
+                                                "RM not available after confirming leadership."));
     }
 
     @After

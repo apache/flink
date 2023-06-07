@@ -25,6 +25,7 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.failure.FailureEnricherUtils;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
@@ -112,7 +113,9 @@ public class CreatingExecutionGraphTest extends TestLogger {
                             assertThat(archivedExecutionGraph.getState())
                                     .isEqualTo(JobStatus.FAILED));
 
-            creatingExecutionGraph.handleGlobalFailure(new FlinkException("Test exception"));
+            creatingExecutionGraph.handleGlobalFailure(
+                    new FlinkException("Test exception"),
+                    FailureEnricherUtils.EMPTY_FAILURE_LABELS);
         }
     }
 

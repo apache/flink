@@ -18,16 +18,14 @@
 
 package org.apache.flink.python.metric.process;
 
-import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.metrics.Meter;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MeterView;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.metrics.SimpleCounter;
-import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.GenericMetricGroup;
 import org.apache.flink.runtime.metrics.groups.MetricGroupTest;
+import org.apache.flink.runtime.metrics.util.InterceptingOperatorMetricGroup;
 
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.DistributionData;
@@ -40,25 +38,16 @@ import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentMatcher;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 
 import java.util.Arrays;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 /** Tests for {@link FlinkMetricContainer}. */
 class FlinkMetricContainerTest {
 
-    @Mock private RuntimeContext runtimeContext;
-    @Mock private OperatorMetricGroup metricGroup;
+    private InterceptingOperatorMetricGroup metricGroup = new InterceptingOperatorMetricGroup();
 
     private FlinkMetricContainer container;
 
@@ -70,11 +59,24 @@ class FlinkMetricContainerTest {
 
     @BeforeEach
     void beforeTest() {
-        MockitoAnnotations.initMocks(this);
-        when(runtimeContext.getMetricGroup()).thenReturn(metricGroup);
-        when(metricGroup.addGroup(any(), any())).thenReturn(metricGroup);
-        when(metricGroup.addGroup(any())).thenReturn(metricGroup);
-        container = new FlinkMetricContainer(runtimeContext.getMetricGroup());
+        metricGroup =
+                new InterceptingOperatorMetricGroup() {
+                    @Override
+                    public MetricGroup addGroup(int name) {
+                        return this;
+                    }
+
+                    @Override
+                    public MetricGroup addGroup(String name) {
+                        return this;
+                    }
+
+                    @Override
+                    public MetricGroup addGroup(String key, String value) {
+                        return this;
+                    }
+                };
+        container = new FlinkMetricContainer(metricGroup);
     }
 
     @Test
@@ -107,9 +109,6 @@ class FlinkMetricContainerTest {
 
     @Test
     void testCounterMonitoringInfoUpdate() {
-        SimpleCounter userCounter = new SimpleCounter();
-        when(metricGroup.counter("myCounter")).thenReturn(userCounter);
-
         MonitoringInfo userMonitoringInfo =
                 new SimpleMonitoringInfoBuilder()
                         .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
@@ -119,15 +118,14 @@ class FlinkMetricContainerTest {
                         .setInt64SumValue(111)
                         .build();
 
-        assertThat(userCounter.getCount()).isEqualTo(0L);
+        assertThat(metricGroup.get("myCounter")).isNull();
         container.updateMetrics("step", ImmutableList.of(userMonitoringInfo));
+        Counter userCounter = (Counter) metricGroup.get("myCounter");
         assertThat(userCounter.getCount()).isEqualTo(111L);
     }
 
     @Test
     void testMeterMonitoringInfoUpdate() {
-        MeterView userMeter = new MeterView(new SimpleCounter());
-        when(metricGroup.meter(eq("myMeter"), any(Meter.class))).thenReturn(userMeter);
         String namespace =
                 "[\"key\", \"value\", \"MetricGroupType.key\", \"MetricGroupType.value\", \"60\"]";
 
@@ -139,9 +137,10 @@ class FlinkMetricContainerTest {
                         .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "anyPTransform")
                         .setInt64SumValue(111)
                         .build();
-        assertThat(userMeter.getCount()).isEqualTo(0L);
-        assertThat(userMeter.getRate()).isEqualTo(0.0);
+
+        assertThat(metricGroup.get("myMeter")).isNull();
         container.updateMetrics("step", ImmutableList.of(userMonitoringInfo));
+        MeterView userMeter = (MeterView) metricGroup.get("myMeter");
         userMeter.update();
         assertThat(userMeter.getCount()).isEqualTo(111L);
         assertThat(userMeter.getRate()).isEqualTo(1.85); // 111 div 60 = 1.85
@@ -159,15 +158,10 @@ class FlinkMetricContainerTest {
                         .build();
 
         container.updateMetrics("step", ImmutableList.of(userMonitoringInfo));
-        verify(metricGroup)
-                .gauge(
-                        eq("myGauge"),
-                        argThat(
-                                (ArgumentMatcher<FlinkMetricContainer.FlinkGauge>)
-                                        argument -> {
-                                            Long actual = argument.getValue();
-                                            return actual.equals(111L);
-                                        }));
+        FlinkMetricContainer.FlinkGauge myGauge =
+                (FlinkMetricContainer.FlinkGauge) metricGroup.get("myGauge");
+
+        assertThat(myGauge.getValue()).isEqualTo(111L);
     }
 
     @Test
@@ -184,16 +178,9 @@ class FlinkMetricContainerTest {
         container.updateMetrics("step", ImmutableList.of(userMonitoringInfo));
         // The one Flink distribution that gets created is a FlinkDistributionGauge; here we verify
         // its initial (and in this test, final) value
-        verify(metricGroup)
-                .gauge(
-                        eq("myDistribution"),
-                        argThat(
-                                (ArgumentMatcher<FlinkMetricContainer.FlinkDistributionGauge>)
-                                        argument -> {
-                                            DistributionResult actual = argument.getValue();
-                                            DistributionResult expected =
-                                                    DistributionResult.create(30, 10, 1, 5);
-                                            return actual.equals(expected);
-                                        }));
+        FlinkMetricContainer.FlinkDistributionGauge myGauge =
+                (FlinkMetricContainer.FlinkDistributionGauge) metricGroup.get("myDistribution");
+
+        assertThat(myGauge.getValue()).isEqualTo(DistributionResult.create(30, 10, 1, 5));
     }
 }

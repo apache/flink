@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobServer;
@@ -1447,6 +1448,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 JobManagerSharedServices jobManagerServices,
                 JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
                 FatalErrorHandler fatalErrorHandler,
+                Collection<FailureEnricher> failureEnricher,
                 long initializationTimestamp)
                 throws Exception {
             assertEquals(expectedJobId, jobGraph.getJobID());
@@ -1553,6 +1555,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 JobManagerSharedServices jobManagerServices,
                 JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
                 FatalErrorHandler fatalErrorHandler,
+                Collection<FailureEnricher> failureEnrichers,
                 long initializationTimestamp)
                 throws Exception {
 
@@ -1612,6 +1615,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 JobManagerSharedServices jobManagerServices,
                 JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
                 FatalErrorHandler fatalErrorHandler,
+                Collection<FailureEnricher> failureEnrichers,
                 long initializationTimestamp)
                 throws Exception {
             return new BlockingTerminationJobManagerService(
@@ -1689,6 +1693,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 JobManagerSharedServices jobManagerServices,
                 JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
                 FatalErrorHandler fatalErrorHandler,
+                Collection<FailureEnricher> failureEnrichers,
                 long initializationTimestamp) {
             initializationTimestampQueue.offer(initializationTimestamp);
             return TestingJobManagerRunner.newBuilder().setJobId(jobGraph.getJobID()).build();
@@ -1714,6 +1719,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 JobManagerSharedServices jobManagerSharedServices,
                 JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
                 FatalErrorHandler fatalErrorHandler,
+                Collection<FailureEnricher> failureEnrichers,
                 long initializationTimestamp)
                 throws Exception {
             assertEquals(expectedJobId, jobGraph.getJobID());
@@ -1727,6 +1733,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                     jobManagerSharedServices,
                     jobManagerJobMetricGroupFactory,
                     fatalErrorHandler,
+                    Collections.emptySet(),
                     initializationTimestamp);
         }
     }
@@ -1749,6 +1756,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 JobManagerSharedServices jobManagerServices,
                 JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
                 FatalErrorHandler fatalErrorHandler,
+                Collection<FailureEnricher> failureEnrichers,
                 long initializationTimestamp)
                 throws Exception {
             return resultFutureQueue.remove();
@@ -1776,6 +1784,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 JobManagerSharedServices jobManagerServices,
                 JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
                 FatalErrorHandler fatalErrorHandler,
+                Collection<FailureEnricher> failureEnrichers,
                 long initializationTimestamp)
                 throws Exception {
             final TestingJobManagerRunner runner =

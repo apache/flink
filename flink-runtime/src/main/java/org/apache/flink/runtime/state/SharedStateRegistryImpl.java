@@ -114,8 +114,7 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
                         registrationKey,
                         newHandle);
             } else if (Objects.equals(entry.stateHandle, newHandle)) {
-                // might be a bug but state backend is not required to use a place-holder
-                LOG.info(
+                LOG.trace(
                         "Duplicated registration under key {} with the new object: {}.",
                         registrationKey,
                         newHandle);

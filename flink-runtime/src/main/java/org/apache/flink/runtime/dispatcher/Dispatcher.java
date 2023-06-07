@@ -35,6 +35,7 @@ import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
@@ -156,6 +157,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     private final BlobServer blobServer;
 
     private final FatalErrorHandler fatalErrorHandler;
+    private final Collection<FailureEnricher> failureEnrichers;
 
     private final OnMainThreadJobManagerRunnerRegistry jobManagerRunnerRegistry;
 
@@ -267,6 +269,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         this.heartbeatServices = dispatcherServices.getHeartbeatServices();
         this.blobServer = dispatcherServices.getBlobServer();
         this.fatalErrorHandler = dispatcherServices.getFatalErrorHandler();
+        this.failureEnrichers = dispatcherServices.getFailureEnrichers();
         this.jobGraphWriter = dispatcherServices.getJobGraphWriter();
         this.jobResultStore = dispatcherServices.getJobResultStore();
         this.jobManagerMetricGroup = dispatcherServices.getJobManagerMetricGroup();
@@ -656,6 +659,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                 jobManagerSharedServices,
                 new DefaultJobManagerJobMetricGroupFactory(jobManagerMetricGroup),
                 fatalErrorHandler,
+                failureEnrichers,
                 System.currentTimeMillis());
     }
 
@@ -1182,7 +1186,10 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                         getMainThreadExecutor())
                 .whenComplete(
                         (ack, error) -> {
-                            log.debug("Failed to update requirements for job {}.", jobId, error);
+                            if (error != null) {
+                                log.debug(
+                                        "Failed to update requirements for job {}.", jobId, error);
+                            }
                             pendingJobResourceRequirementsUpdates.remove(jobId);
                         });
     }

@@ -24,6 +24,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint;
+import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
@@ -120,6 +121,7 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
             long initializationTimestamp,
             final ComponentMainThreadExecutor mainThreadExecutor,
             final JobStatusListener jobStatusListener,
+            final Collection<FailureEnricher> failureEnrichers,
             final ExecutionGraphFactory executionGraphFactory,
             final ShuffleMaster<?> shuffleMaster,
             final Time rpcTimeout,
@@ -150,6 +152,7 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
                 initializationTimestamp,
                 mainThreadExecutor,
                 jobStatusListener,
+                failureEnrichers,
                 executionGraphFactory,
                 shuffleMaster,
                 rpcTimeout,
@@ -285,7 +288,10 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
             archiveFromFailureHandlingResult(
                     createFailureHandlingResultSnapshot(failureHandlingResult));
         } else {
-            failJob(error, failureHandlingResult.getTimestamp());
+            failJob(
+                    error,
+                    failureHandlingResult.getTimestamp(),
+                    failureHandlingResult.getFailureLabels());
         }
     }
 

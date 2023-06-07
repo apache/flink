@@ -158,7 +158,7 @@ public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitIn
                                 checkpoint,
                                 getRuntimeContext().getIndexOfThisSubtask(),
                                 getRuntimeContext().getNumberOfParallelSubtasks(),
-                                new ArrayList<>(this.partitions))));
+                                this.partitions.toArray(new String[0]))));
         this.partitions.clear();
     }
 

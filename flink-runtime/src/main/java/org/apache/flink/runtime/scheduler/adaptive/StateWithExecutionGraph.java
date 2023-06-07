@@ -65,6 +65,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -332,8 +333,9 @@ abstract class StateWithExecutionGraph implements State {
     abstract void onGloballyTerminalState(JobStatus globallyTerminalState);
 
     @Override
-    public void handleGlobalFailure(Throwable cause) {
-        failureCollection.add(ExceptionHistoryEntry.createGlobal(cause));
+    public void handleGlobalFailure(
+            Throwable cause, CompletableFuture<Map<String, String>> failureLabels) {
+        failureCollection.add(ExceptionHistoryEntry.createGlobal(cause, failureLabels));
         onFailure(cause);
     }
 
@@ -342,9 +344,12 @@ abstract class StateWithExecutionGraph implements State {
      *
      * @param taskExecutionStateTransition taskExecutionStateTransition to update the ExecutionGraph
      *     with
+     * @param failureLabels the failure labels to attach to the task failure cause
      * @return {@code true} if the update was successful; otherwise {@code false}
      */
-    boolean updateTaskExecutionState(TaskExecutionStateTransition taskExecutionStateTransition) {
+    boolean updateTaskExecutionState(
+            TaskExecutionStateTransition taskExecutionStateTransition,
+            CompletableFuture<Map<String, String>> failureLabels) {
         // collect before updateState, as updateState may deregister the execution
         final Optional<AccessExecution> maybeExecution =
                 executionGraph.findExecution(taskExecutionStateTransition.getID());
@@ -359,7 +364,8 @@ abstract class StateWithExecutionGraph implements State {
             final String taskName = maybeTaskName.orElseThrow(NoSuchElementException::new);
             final ExecutionState currentState = execution.getState();
             if (currentState == desiredState) {
-                failureCollection.add(ExceptionHistoryEntry.create(execution, taskName));
+                failureCollection.add(
+                        ExceptionHistoryEntry.create(execution, taskName, failureLabels));
                 onFailure(
                         ErrorInfo.handleMissingThrowable(
                                 taskExecutionStateTransition.getError(userCodeClassLoader)));

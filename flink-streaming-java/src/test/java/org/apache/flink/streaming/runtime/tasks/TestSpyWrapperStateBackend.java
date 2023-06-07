@@ -42,7 +42,7 @@ import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.Collection;
 
-import static org.powermock.api.mockito.PowerMockito.spy;
+import static org.mockito.Mockito.spy;
 
 /**
  * This class wraps an {@link AbstractStateBackend} and enriches all the created objects as spies.

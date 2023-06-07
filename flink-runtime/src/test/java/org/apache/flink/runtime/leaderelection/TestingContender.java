@@ -32,6 +32,7 @@ public class TestingContender extends TestingLeaderBase implements LeaderContend
 
     private final String address;
     private final LeaderElectionService leaderElectionService;
+    private LeaderElection leaderElection;
 
     private UUID leaderSessionID = null;
 
@@ -41,13 +42,20 @@ public class TestingContender extends TestingLeaderBase implements LeaderContend
         this.leaderElectionService = leaderElectionService;
     }
 
+    public LeaderElection startLeaderElection() throws Exception {
+        leaderElection = leaderElectionService.createLeaderElection();
+        leaderElection.startLeaderElection(this);
+
+        return leaderElection;
+    }
+
     @Override
     public void grantLeadership(UUID leaderSessionID) {
         LOG.debug("Was granted leadership with session ID {}.", leaderSessionID);
 
         this.leaderSessionID = leaderSessionID;
 
-        leaderElectionService.confirmLeadership(leaderSessionID, address);
+        leaderElection.confirmLeadership(leaderSessionID, address);
 
         leaderEventQueue.offer(LeaderInformation.known(leaderSessionID, address));
     }

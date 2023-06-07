@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.operators.hash;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -870,7 +871,8 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
      * @return true on success
      * @throws IOException
      */
-    private boolean resizeHashTable() throws IOException {
+    @VisibleForTesting
+    boolean resizeHashTable() throws IOException {
         final int newNumBuckets = 2 * this.numBuckets;
         final int bucketsPerSegment = this.bucketsPerSegmentMask + 1;
         final int newNumSegments = (newNumBuckets + (bucketsPerSegment - 1)) / bucketsPerSegment;
@@ -1103,6 +1105,13 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
             }
             this.isResizing = false;
             return true;
+        }
+    }
+
+    @VisibleForTesting
+    void compactPartitions() throws IOException {
+        for (int x = 0; x < partitions.size(); x++) {
+            compactPartition(x);
         }
     }
 

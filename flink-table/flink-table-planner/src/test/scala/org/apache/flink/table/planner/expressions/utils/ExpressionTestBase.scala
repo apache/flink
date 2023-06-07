@@ -25,7 +25,7 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.testutils.FlinkAssertions
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api
-import org.apache.flink.table.api.{EnvironmentSettings, TableException, ValidationException}
+import org.apache.flink.table.api.{EnvironmentSettings, TableConfig, TableException, ValidationException}
 import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.RowData
@@ -35,11 +35,13 @@ import org.apache.flink.table.data.util.DataFormatConverters
 import org.apache.flink.table.data.util.DataFormatConverters.DataFormatConverter
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.ScalarFunction
+import org.apache.flink.table.planner.calcite.{FlinkPlannerImpl, FlinkRelBuilder}
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
 import org.apache.flink.table.planner.delegation.PlannerBase
+import org.apache.flink.table.planner.parse.CalciteParser
 import org.apache.flink.table.runtime.generated.GeneratedFunction
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
-import org.apache.flink.table.types.AbstractDataType
+import org.apache.flink.table.types.{AbstractDataType, DataType}
 import org.apache.flink.table.types.logical.{RowType, VarCharType}
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.types.Row
@@ -60,7 +62,7 @@ import java.util.Collections
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-abstract class ExpressionTestBase {
+abstract class ExpressionTestBase(isStreaming: Boolean = true) {
 
   // (originalExpr, optimizedExpr, expectedResult)
   private val validExprs = mutable.ArrayBuffer[(String, RexNode, String)]()
@@ -71,24 +73,18 @@ abstract class ExpressionTestBase {
     .ArrayBuffer[(Expression, String, Class[_ <: Throwable])]()
 
   private val env = StreamExecutionEnvironment.createLocalEnvironment(4)
-  private val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
+  private var settings: EnvironmentSettings = _
   // use impl class instead of interface class to avoid
   // "Static methods in interface require -target:jvm-1.8"
-  private val tEnv = StreamTableEnvironmentImpl
-    .create(env, settings)
-    .asInstanceOf[StreamTableEnvironmentImpl]
+  private var tEnv: StreamTableEnvironmentImpl = _
 
-  val tableConfig = tEnv.getConfig
+  var tableConfig: TableConfig = _
 
-  private val resolvedDataType = if (containsLegacyTypes) {
-    TypeConversions.fromLegacyInfoToDataType(typeInfo)
-  } else {
-    tEnv.getCatalogManager.getDataTypeFactory.createDataType(testDataType)
-  }
-  private val planner = tEnv.getPlanner.asInstanceOf[PlannerBase]
-  private val relBuilder = planner.createRelBuilder
-  private val calcitePlanner = planner.createFlinkPlanner
-  private val parser = planner.plannerContext.createCalciteParser()
+  private var resolvedDataType: DataType = _
+  private var planner: PlannerBase = _
+  private var relBuilder: FlinkRelBuilder = _
+  private var calcitePlanner: FlinkPlannerImpl = _
+  private var parser: CalciteParser = _
 
   // setup test utils
   private val tableName = "testTable"
@@ -102,10 +98,28 @@ abstract class ExpressionTestBase {
 
   @Before
   def prepare(): Unit = {
+    settings = if (isStreaming) {
+      EnvironmentSettings.newInstance().inStreamingMode().build()
+    } else {
+      EnvironmentSettings.newInstance().inBatchMode().build()
+    }
+    tEnv = StreamTableEnvironmentImpl
+      .create(env, settings)
+      .asInstanceOf[StreamTableEnvironmentImpl]
+    planner = tEnv.getPlanner.asInstanceOf[PlannerBase]
+    relBuilder = planner.createRelBuilder
+    calcitePlanner = planner.createFlinkPlanner
+    parser = planner.plannerContext.createCalciteParser()
+    tableConfig = tEnv.getConfig
     tableConfig.set(
       ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR,
       ExecutionConfigOptions.LegacyCastBehaviour.DISABLED
     )
+    resolvedDataType = if (containsLegacyTypes) {
+      TypeConversions.fromLegacyInfoToDataType(typeInfo)
+    } else {
+      tEnv.getCatalogManager.getDataTypeFactory.createDataType(testDataType)
+    }
     if (containsLegacyTypes) {
       val ds = env.fromCollection(Collections.emptyList[Row](), typeInfo)
       tEnv.createTemporaryView(tableName, ds, typeInfo.getFieldNames.map(api.$): _*)

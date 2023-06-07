@@ -377,9 +377,15 @@ class TaskExecutorManager implements AutoCloseable {
 
             int slotsDiff = redundantTaskManagerNum * numSlotsPerWorker - getNumberFreeSlots();
             if (slotsDiff > 0) {
-                // Keep enough redundant taskManagers from time to time.
-                int requiredTaskManagers = MathUtils.divideRoundUp(slotsDiff, numSlotsPerWorker);
-                allocateRedundantTaskManagers(requiredTaskManagers);
+                if (pendingSlots.isEmpty()) {
+                    // Keep enough redundant taskManagers from time to time.
+                    int requiredTaskManagers =
+                            MathUtils.divideRoundUp(slotsDiff, numSlotsPerWorker);
+                    allocateRedundantTaskManagers(requiredTaskManagers);
+                } else {
+                    LOG.debug(
+                            "There are some pending slots, skip allocate redundant task manager and wait them fulfilled.");
+                }
             } else {
                 // second we trigger the release resource callback which can decide upon the
                 // resource release

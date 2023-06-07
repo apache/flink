@@ -31,7 +31,6 @@ import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
-import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.table.api.TableException;
@@ -50,7 +49,6 @@ import org.apache.flink.table.connector.sink.SinkV2Provider;
 import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelDelete;
 import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelUpdate;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator;
 import org.apache.flink.table.planner.connectors.TransformationSinkProvider;
 import org.apache.flink.table.planner.plan.abilities.sink.RowLevelDeleteSpec;
 import org.apache.flink.table.planner.plan.abilities.sink.RowLevelUpdateSpec;
@@ -66,18 +64,13 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.TransformationMetadata;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
-import org.apache.flink.table.planner.typeutils.RowTypeUtils;
 import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
-import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.sink.ConstraintEnforcer;
 import org.apache.flink.table.runtime.operators.sink.RowKindSetter;
 import org.apache.flink.table.runtime.operators.sink.SinkOperator;
-import org.apache.flink.table.runtime.operators.sink.SinkUpsertMaterializer;
 import org.apache.flink.table.runtime.operators.sink.StreamRecordTimestampInserter;
-import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.runtime.util.StateConfigUtil;
 import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -116,7 +109,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
 
     private final ChangelogMode inputChangelogMode;
     private final boolean isBounded;
-    private boolean sinkParallelismConfigured;
+    protected boolean sinkParallelismConfigured;
 
     protected CommonExecSink(
             int id,
@@ -418,61 +411,14 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         return partitionedTransform;
     }
 
-    private Transformation<RowData> applyUpsertMaterialize(
+    protected abstract Transformation<RowData> applyUpsertMaterialize(
             Transformation<RowData> inputTransform,
             int[] primaryKeys,
             int sinkParallelism,
             ExecNodeConfig config,
             ClassLoader classLoader,
             RowType physicalRowType,
-            int[] inputUpsertKey) {
-        final GeneratedRecordEqualiser rowEqualiser =
-                new EqualiserCodeGenerator(physicalRowType, classLoader)
-                        .generateRecordEqualiser("SinkMaterializeEqualiser");
-        final GeneratedRecordEqualiser upsertKeyEqualiser =
-                inputUpsertKey == null
-                        ? null
-                        : new EqualiserCodeGenerator(
-                                        RowTypeUtils.projectRowType(
-                                                physicalRowType, inputUpsertKey),
-                                        classLoader)
-                                .generateRecordEqualiser("SinkMaterializeUpsertKeyEqualiser");
-
-        SinkUpsertMaterializer operator =
-                new SinkUpsertMaterializer(
-                        StateConfigUtil.createTtlConfig(
-                                config.get(ExecutionConfigOptions.IDLE_STATE_RETENTION).toMillis()),
-                        InternalSerializers.create(physicalRowType),
-                        rowEqualiser,
-                        upsertKeyEqualiser,
-                        inputUpsertKey);
-        final String[] fieldNames = physicalRowType.getFieldNames().toArray(new String[0]);
-        final List<String> pkFieldNames =
-                Arrays.stream(primaryKeys)
-                        .mapToObj(idx -> fieldNames[idx])
-                        .collect(Collectors.toList());
-
-        OneInputTransformation<RowData, RowData> materializeTransform =
-                ExecNodeUtil.createOneInputTransformation(
-                        inputTransform,
-                        createTransformationMeta(
-                                UPSERT_MATERIALIZE_TRANSFORMATION,
-                                String.format(
-                                        "SinkMaterializer(pk=[%s])",
-                                        String.join(", ", pkFieldNames)),
-                                "SinkMaterializer",
-                                config),
-                        operator,
-                        inputTransform.getOutputType(),
-                        sinkParallelism,
-                        sinkParallelismConfigured);
-        RowDataKeySelector keySelector =
-                KeySelectorUtil.getRowDataSelector(
-                        classLoader, primaryKeys, InternalTypeInfo.of(physicalRowType));
-        materializeTransform.setStateKeySelector(keySelector);
-        materializeTransform.setStateKeyType(keySelector.getProducedType());
-        return materializeTransform;
-    }
+            int[] inputUpsertKey);
 
     private Transformation<RowData> applyRowKindSetter(
             Transformation<RowData> inputTransform, RowKind rowKind, ExecNodeConfig config) {
@@ -646,13 +592,13 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         return InternalTypeInfo.of(getInputEdges().get(0).getOutputType());
     }
 
-    private int[] getPrimaryKeyIndices(RowType sinkRowType, ResolvedSchema schema) {
+    protected int[] getPrimaryKeyIndices(RowType sinkRowType, ResolvedSchema schema) {
         return schema.getPrimaryKey()
                 .map(k -> k.getColumns().stream().mapToInt(sinkRowType::getFieldIndex).toArray())
                 .orElse(new int[0]);
     }
 
-    private RowType getPhysicalRowType(ResolvedSchema schema) {
+    protected RowType getPhysicalRowType(ResolvedSchema schema) {
         return (RowType) schema.toPhysicalRowDataType().getLogicalType();
     }
 

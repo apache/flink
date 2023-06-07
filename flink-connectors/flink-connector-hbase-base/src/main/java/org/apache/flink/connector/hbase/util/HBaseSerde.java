@@ -75,6 +75,7 @@ public class HBaseSerde {
     private final FieldEncoder[][] qualifierEncoders;
     private final FieldDecoder[][] qualifierDecoders;
     private final GenericRowData rowWithRowKey;
+    private final HBaseStronglyIncreasingTsGenerator timestampGenerator;
 
     public HBaseSerde(HBaseTableSchema hbaseSchema, final String nullStringLiteral) {
         this.families = hbaseSchema.getFamilyKeys();
@@ -118,6 +119,7 @@ public class HBaseSerde {
             this.reusedFamilyRows[f] = new GenericRowData(dataTypes.length);
         }
         this.rowWithRowKey = new GenericRowData(1);
+        this.timestampGenerator = new HBaseStronglyIncreasingTsGenerator();
     }
 
     /**
@@ -133,7 +135,7 @@ public class HBaseSerde {
             return null;
         }
         // upsert
-        Put put = new Put(rowkey);
+        Put put = new Put(rowkey, timestampGenerator.get());
         for (int i = 0; i < fieldLength; i++) {
             if (i != rowkeyIndex) {
                 int f = i > rowkeyIndex ? i - 1 : i;
@@ -165,7 +167,7 @@ public class HBaseSerde {
             return null;
         }
         // delete
-        Delete delete = new Delete(rowkey);
+        Delete delete = new Delete(rowkey, timestampGenerator.get());
         for (int i = 0; i < fieldLength; i++) {
             if (i != rowkeyIndex) {
                 int f = i > rowkeyIndex ? i - 1 : i;
@@ -174,7 +176,7 @@ public class HBaseSerde {
                 for (int q = 0; q < this.qualifiers[f].length; q++) {
                     // get quantifier key
                     byte[] qualifier = qualifiers[f][q];
-                    delete.addColumn(familyKey, qualifier);
+                    delete.addColumns(familyKey, qualifier);
                 }
             }
         }

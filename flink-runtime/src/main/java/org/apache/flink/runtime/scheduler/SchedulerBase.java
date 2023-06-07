@@ -527,11 +527,12 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         return mainThreadExecutor;
     }
 
-    protected void failJob(Throwable cause, long timestamp) {
+    protected void failJob(
+            Throwable cause, long timestamp, CompletableFuture<Map<String, String>> failureLabels) {
         incrementVersionsOfAllVertices();
         cancelAllPendingSlotRequestsInternal();
         executionGraph.failJob(cause, timestamp);
-        getJobTerminationFuture().thenRun(() -> archiveGlobalFailure(cause));
+        getJobTerminationFuture().thenRun(() -> archiveGlobalFailure(cause, failureLabels));
     }
 
     protected final SchedulingTopology getSchedulingTopology() {
@@ -677,19 +678,25 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         return executionGraph.getTerminationFuture();
     }
 
-    protected final void archiveGlobalFailure(Throwable failure) {
+    protected final void archiveGlobalFailure(
+            Throwable failure, CompletableFuture<Map<String, String>> failureLabels) {
         archiveGlobalFailure(
                 failure,
                 executionGraph.getStatusTimestamp(JobStatus.FAILED),
+                failureLabels,
                 StreamSupport.stream(executionGraph.getAllExecutionVertices().spliterator(), false)
                         .map(ExecutionVertex::getCurrentExecutionAttempt)
                         .collect(Collectors.toSet()));
     }
 
     private void archiveGlobalFailure(
-            Throwable failure, long timestamp, Iterable<Execution> executions) {
+            Throwable failure,
+            long timestamp,
+            CompletableFuture<Map<String, String>> failureLabels,
+            Iterable<Execution> executions) {
         exceptionHistory.add(
-                RootExceptionHistoryEntry.fromGlobalFailure(failure, timestamp, executions));
+                RootExceptionHistoryEntry.fromGlobalFailure(
+                        failure, timestamp, failureLabels, executions));
         log.debug("Archive global failure.", failure);
     }
 
@@ -712,6 +719,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
             archiveGlobalFailure(
                     failureHandlingResult.getRootCause(),
                     failureHandlingResult.getTimestamp(),
+                    failureHandlingResult.getFailureLabels(),
                     failureHandlingResult.getConcurrentlyFailedExecution());
         }
     }

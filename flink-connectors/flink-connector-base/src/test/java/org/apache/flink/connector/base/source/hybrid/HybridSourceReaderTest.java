@@ -314,7 +314,7 @@ public class HybridSourceReaderTest {
 
     private static SourceReader<Integer, MockSourceSplit> currentReader(
             HybridSourceReader<?> reader) {
-        return (SourceReader) Whitebox.getInternalState(reader, "currentReader");
+        return Whitebox.getInternalState(reader, "currentReader");
     }
 
     private static void assertAndClearSourceReaderFinishedEvent(

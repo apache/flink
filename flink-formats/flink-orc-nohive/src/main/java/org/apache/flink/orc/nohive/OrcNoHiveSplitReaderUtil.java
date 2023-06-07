@@ -45,7 +45,7 @@ import static org.apache.flink.orc.nohive.vector.AbstractOrcNoHiveVector.createF
 public class OrcNoHiveSplitReaderUtil {
 
     /** Util for generating partitioned {@link OrcColumnarRowSplitReader}. */
-    public static OrcColumnarRowSplitReader<VectorizedRowBatch> genPartColumnarRowReader(
+    public static OrcColumnarRowSplitReader<?> genPartColumnarRowReader(
             Configuration conf,
             String[] fullFieldNames,
             DataType[] fullFieldTypes,

@@ -29,7 +29,7 @@ SET 'table.dml-sync' = 'true';
 !info
 
 # create a table first
-CREATE TABLE t (a int, b string, c double)
+CREATE TABLE t (a int PRIMARY KEY NOT ENFORCED, b string, c double)
 WITH (
   'connector' = 'test-update-delete',
   'data-id' = '$VAR_DELETE_TABLE_DATA_ID',

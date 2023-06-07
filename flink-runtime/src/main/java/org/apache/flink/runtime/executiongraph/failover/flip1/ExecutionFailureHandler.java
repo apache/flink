@@ -17,8 +17,12 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
+import org.apache.flink.core.failure.FailureEnricher;
+import org.apache.flink.core.failure.FailureEnricher.Context;
 import org.apache.flink.runtime.JobException;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.Execution;
+import org.apache.flink.runtime.failure.FailureEnricherUtils;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
@@ -28,8 +32,11 @@ import org.apache.flink.util.IterableUtils;
 
 import javax.annotation.Nullable;
 
+import java.util.Collection;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -51,6 +58,11 @@ public class ExecutionFailureHandler {
     /** Number of all restarts happened since this job is submitted. */
     private long numberOfRestarts;
 
+    private final Context taskFailureCtx;
+    private final Context globalFailureCtx;
+    private final Collection<FailureEnricher> failureEnrichers;
+    private final ComponentMainThreadExecutor mainThreadExecutor;
+
     /**
      * Creates the handler to deal with task failures.
      *
@@ -58,15 +70,27 @@ public class ExecutionFailureHandler {
      * @param failoverStrategy helps to decide tasks to restart on task failures
      * @param restartBackoffTimeStrategy helps to decide whether to restart failed tasks and the
      *     restarting delay
+     * @param mainThreadExecutor the main thread executor of the job master
+     * @param failureEnrichers a collection of {@link FailureEnricher} that enrich failures
+     * @param taskFailureCtx Task failure Context used by FailureEnrichers
+     * @param globalFailureCtx Global failure Context used by FailureEnrichers
      */
     public ExecutionFailureHandler(
             final SchedulingTopology schedulingTopology,
             final FailoverStrategy failoverStrategy,
-            final RestartBackoffTimeStrategy restartBackoffTimeStrategy) {
+            final RestartBackoffTimeStrategy restartBackoffTimeStrategy,
+            final ComponentMainThreadExecutor mainThreadExecutor,
+            final Collection<FailureEnricher> failureEnrichers,
+            final Context taskFailureCtx,
+            final Context globalFailureCtx) {
 
         this.schedulingTopology = checkNotNull(schedulingTopology);
         this.failoverStrategy = checkNotNull(failoverStrategy);
         this.restartBackoffTimeStrategy = checkNotNull(restartBackoffTimeStrategy);
+        this.mainThreadExecutor = checkNotNull(mainThreadExecutor);
+        this.failureEnrichers = checkNotNull(failureEnrichers);
+        this.taskFailureCtx = taskFailureCtx;
+        this.globalFailureCtx = globalFailureCtx;
     }
 
     /**
@@ -109,6 +133,14 @@ public class ExecutionFailureHandler {
                 true);
     }
 
+    private CompletableFuture<Map<String, String>> labelFailure(Throwable cause, boolean isGlobal) {
+        if (failureEnrichers.isEmpty()) {
+            return FailureEnricherUtils.EMPTY_FAILURE_LABELS;
+        }
+        final Context ctx = isGlobal ? globalFailureCtx : taskFailureCtx;
+        return FailureEnricherUtils.labelFailure(cause, ctx, mainThreadExecutor, failureEnrichers);
+    }
+
     private FailureHandlingResult handleFailure(
             @Nullable final Execution failedExecution,
             final Throwable cause,
@@ -116,11 +148,15 @@ public class ExecutionFailureHandler {
             final Set<ExecutionVertexID> verticesToRestart,
             final boolean globalFailure) {
 
+        final CompletableFuture<Map<String, String>> failureLabels =
+                labelFailure(cause, globalFailure);
+
         if (isUnrecoverableError(cause)) {
             return FailureHandlingResult.unrecoverable(
                     failedExecution,
                     new JobException("The failure is not recoverable", cause),
                     timestamp,
+                    failureLabels,
                     globalFailure);
         }
 
@@ -132,6 +168,7 @@ public class ExecutionFailureHandler {
                     failedExecution,
                     cause,
                     timestamp,
+                    failureLabels,
                     verticesToRestart,
                     restartBackoffTimeStrategy.getBackoffTime(),
                     globalFailure);
@@ -141,6 +178,7 @@ public class ExecutionFailureHandler {
                     new JobException(
                             "Recovery is suppressed by " + restartBackoffTimeStrategy, cause),
                     timestamp,
+                    failureLabels,
                     globalFailure);
         }
     }

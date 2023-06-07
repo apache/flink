@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
+import org.apache.flink.core.failure.TestingFailureEnricher;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -35,6 +37,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.Collections;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 
@@ -59,6 +62,8 @@ class ExecutionFailureHandlerTest {
 
     private ExecutionFailureHandler executionFailureHandler;
 
+    private TestingFailureEnricher testingFailureEnricher;
+
     @BeforeEach
     void setUp() {
         TestingSchedulingTopology topology = new TestingSchedulingTopology();
@@ -66,10 +71,17 @@ class ExecutionFailureHandlerTest {
         schedulingTopology = topology;
 
         failoverStrategy = new TestFailoverStrategy();
+        testingFailureEnricher = new TestingFailureEnricher();
         backoffTimeStrategy = new TestRestartBackoffTimeStrategy(true, RESTART_DELAY_MS);
         executionFailureHandler =
                 new ExecutionFailureHandler(
-                        schedulingTopology, failoverStrategy, backoffTimeStrategy);
+                        schedulingTopology,
+                        failoverStrategy,
+                        backoffTimeStrategy,
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                        Collections.singleton(testingFailureEnricher),
+                        null,
+                        null);
     }
 
     /** Tests the case that task restarting is accepted. */
@@ -94,6 +106,9 @@ class ExecutionFailureHandlerTest {
         assertThat(result.getVerticesToRestart()).isEqualTo(tasksToRestart);
         assertThat(result.getError()).isSameAs(cause);
         assertThat(result.getTimestamp()).isEqualTo(timestamp);
+        assertThat(testingFailureEnricher.getSeenThrowables()).containsExactly(cause);
+        assertThat(result.getFailureLabels().get())
+                .isEqualTo(testingFailureEnricher.getFailureLabels());
         assertThat(executionFailureHandler.getNumberOfRestarts()).isEqualTo(1);
     }
 
@@ -116,6 +131,9 @@ class ExecutionFailureHandlerTest {
         assertThat(result.getFailedExecution().get()).isSameAs(execution);
         assertThat(result.getError()).hasCause(error);
         assertThat(result.getTimestamp()).isEqualTo(timestamp);
+        assertThat(testingFailureEnricher.getSeenThrowables()).containsExactly(error);
+        assertThat(result.getFailureLabels().get())
+                .isEqualTo(testingFailureEnricher.getFailureLabels());
         assertThat(ExecutionFailureHandler.isUnrecoverableError(result.getError())).isFalse();
 
         assertThatThrownBy(result::getVerticesToRestart)
@@ -147,6 +165,9 @@ class ExecutionFailureHandlerTest {
         assertThat(result.getFailedExecution().get()).isSameAs(execution);
         assertThat(result.getError()).isNotNull();
         assertThat(ExecutionFailureHandler.isUnrecoverableError(result.getError())).isTrue();
+        assertThat(testingFailureEnricher.getSeenThrowables()).containsExactly(error);
+        assertThat(result.getFailureLabels().get())
+                .isEqualTo(testingFailureEnricher.getFailureLabels());
         assertThat(result.getTimestamp()).isEqualTo(timestamp);
 
         assertThatThrownBy(result::getVerticesToRestart)
@@ -180,7 +201,7 @@ class ExecutionFailureHandlerTest {
     }
 
     @Test
-    void testGlobalFailureHandling() {
+    void testGlobalFailureHandling() throws ExecutionException, InterruptedException {
         final Throwable error = new Exception("Expected test failure");
         final long timestamp = System.currentTimeMillis();
         final FailureHandlingResult result =
@@ -193,6 +214,9 @@ class ExecutionFailureHandlerTest {
                                 .collect(Collectors.toSet()));
         assertThat(result.getError()).isSameAs(error);
         assertThat(result.getTimestamp()).isEqualTo(timestamp);
+        assertThat(testingFailureEnricher.getSeenThrowables()).containsExactly(error);
+        assertThat(result.getFailureLabels().get())
+                .isEqualTo(testingFailureEnricher.getFailureLabels());
     }
 
     // ------------------------------------------------------------------------

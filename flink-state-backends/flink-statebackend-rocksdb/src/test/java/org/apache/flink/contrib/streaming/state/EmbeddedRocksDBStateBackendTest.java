@@ -92,9 +92,9 @@ import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.internal.verification.VerificationModeFactory.times;
-import static org.powermock.api.mockito.PowerMockito.spy;
 
 /** Tests for the partitioned state part of {@link EmbeddedRocksDBStateBackend}. */
 @RunWith(Parameterized.class)

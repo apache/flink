@@ -22,7 +22,7 @@ import org.apache.flink.runtime.state.InternalPriorityQueue;
 import org.apache.flink.runtime.state.InternalPriorityQueueTestBase;
 
 /** Tests for {@link BatchExecutionInternalPriorityQueueSet}. */
-public class BatchExecutionInternalPriorityQueueSetTest extends InternalPriorityQueueTestBase {
+class BatchExecutionInternalPriorityQueueSetTest extends InternalPriorityQueueTestBase {
     @Override
     protected InternalPriorityQueue<TestElement> newPriorityQueue(int initialCapacity) {
         return new BatchExecutionInternalPriorityQueueSet<>(

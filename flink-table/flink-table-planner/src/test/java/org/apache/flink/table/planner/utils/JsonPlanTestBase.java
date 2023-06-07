@@ -45,6 +45,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -67,11 +68,18 @@ public abstract class JsonPlanTestBase extends AbstractTestBase {
     }
 
     protected TableResult compileSqlAndExecutePlan(String sql) {
+        return compileSqlAndExecutePlan(sql, json -> json);
+    }
+
+    protected TableResult compileSqlAndExecutePlan(
+            String sql, Function<String, String> jsonPlanTransformer) {
         CompiledPlan compiledPlan = tableEnv.compilePlanSql(sql);
         checkTransformationUids(compiledPlan);
         // try to execute the string json plan to validate to ser/de result
-        String jsonPlan = compiledPlan.asJsonString();
-        CompiledPlan newCompiledPlan = tableEnv.loadPlan(PlanReference.fromJsonString(jsonPlan));
+        CompiledPlan newCompiledPlan =
+                tableEnv.loadPlan(
+                        PlanReference.fromJsonString(
+                                jsonPlanTransformer.apply(compiledPlan.asJsonString())));
         return newCompiledPlan.execute();
     }
 

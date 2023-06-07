@@ -86,6 +86,46 @@ public class UpdateTableITCase extends BatchTestBase {
     }
 
     @Test
+    public void testPartialUpdate() throws Exception {
+        String dataId = registerData();
+        tEnv().executeSql(
+                        String.format(
+                                "CREATE TABLE t ("
+                                        + " a int PRIMARY KEY NOT ENFORCED,"
+                                        + " b string not null,"
+                                        + " c double not null) WITH"
+                                        + " ('connector' = 'test-update-delete', "
+                                        + "'data-id' = '%s',"
+                                        + " 'required-columns-for-update' = 'a;b', "
+                                        + " 'update-mode' = '%s')",
+                                dataId, updateMode));
+        tEnv().executeSql("UPDATE t SET b = 'uaa' WHERE a >= 1").await();
+        List<String> rows = toSortedResults(tEnv().executeSql("SELECT * FROM t"));
+        assertThat(rows.toString())
+                .isEqualTo("[+I[0, b_0, 0.0], +I[1, uaa, 2.0], +I[2, uaa, 4.0]]");
+
+        // test partial update with requiring partial primary keys
+        dataId = registerData();
+        tEnv().executeSql(
+                        String.format(
+                                "CREATE TABLE t1 ("
+                                        + " a int,"
+                                        + " b string not null,"
+                                        + " c double not null,"
+                                        + " PRIMARY KEY (a, c) NOT ENFORCED"
+                                        + ") WITH"
+                                        + " ('connector' = 'test-update-delete', "
+                                        + "'data-id' = '%s',"
+                                        + " 'required-columns-for-update' = 'a;b', "
+                                        + " 'update-mode' = '%s')",
+                                dataId, updateMode));
+        tEnv().executeSql("UPDATE t1 SET b = 'uaa' WHERE a >= 1").await();
+        rows = toSortedResults(tEnv().executeSql("SELECT * FROM t1"));
+        assertThat(rows.toString())
+                .isEqualTo("[+I[0, b_0, 0.0], +I[1, uaa, 2.0], +I[2, uaa, 4.0]]");
+    }
+
+    @Test
     public void testStatementSetContainUpdateAndInsert() throws Exception {
         tEnv().executeSql(
                         "CREATE TABLE t (a int, b string, c double) WITH"

@@ -26,6 +26,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.blob.BlobWriter;
@@ -206,6 +207,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
     private final ExecutionDeploymentTracker executionDeploymentTracker;
     private final ExecutionDeploymentReconciler executionDeploymentReconciler;
+    private final Collection<FailureEnricher> failureEnrichers;
 
     // -------- Mutable fields ---------
 
@@ -243,6 +245,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
             ExecutionDeploymentTracker executionDeploymentTracker,
             ExecutionDeploymentReconciler.Factory executionDeploymentReconcilerFactory,
             BlocklistHandler.Factory blocklistHandlerFactory,
+            Collection<FailureEnricher> failureEnrichers,
             long initializationTimestamp)
             throws Exception {
 
@@ -345,6 +348,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
         this.jobManagerJobMetricGroup = jobMetricGroupFactory.create(jobGraph);
         this.jobStatusListener = new JobManagerJobStatusListener();
+
+        this.failureEnrichers = checkNotNull(failureEnrichers);
+
         this.schedulerNG =
                 createScheduler(
                         slotPoolServiceSchedulerFactory,
@@ -389,6 +395,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                         getMainThreadExecutor(),
                         fatalErrorHandler,
                         jobStatusListener,
+                        failureEnrichers,
                         blocklistHandler::addNewBlockedNodes);
 
         return scheduler;
