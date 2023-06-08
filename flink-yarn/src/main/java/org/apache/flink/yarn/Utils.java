@@ -646,12 +646,18 @@ public final class Utils {
         String modifyAcls = flinkConfig.getString(YarnConfigOptions.APPLICATION_MODIFY_ACLS, null);
         if (viewAcls != null) {
             if (viewAcls.contains(WILDCARD_ACL)) {
+                if (!isValidWildcardAcl(viewAcls)) {
+                    throw new IllegalArgumentException("Invalid wildcard ACL: " + viewAcls);
+                }
                 viewAcls = WILDCARD_ACL;
             }
             acls.put(ApplicationAccessType.VIEW_APP, viewAcls);
         }
         if (modifyAcls != null) {
             if (modifyAcls.contains(WILDCARD_ACL)) {
+                if (!isValidWildcardAcl(modifyAcls)) {
+                    throw new IllegalArgumentException("Invalid wildcard ACL: " + modifyAcls);
+                }
                 modifyAcls = WILDCARD_ACL;
             }
             acls.put(ApplicationAccessType.MODIFY_APP, modifyAcls);
@@ -660,4 +666,15 @@ public final class Utils {
             amContainer.setApplicationACLs(acls);
         }
     }
+
+    private static boolean isValidWildcardAcl(String acl) {
+        String[] acls = acl.split(",");
+        for (String singleAcl : acls) {
+            if (singleAcl.contains("*")) {
+                return false;
+            }
+        }
+        return true;
+    }
+
 }
