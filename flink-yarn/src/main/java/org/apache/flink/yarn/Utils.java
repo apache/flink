@@ -635,8 +635,8 @@ public final class Utils {
      * will replace the entire string with the WILDCARD_ACL. The resulting map is then set as the
      * application acls for the given container launch context.
      *
-     * @param amContainer the ContainerLaunchContext to set the ACLs for
-     * @param flinkConfig the Flink configuration to read the ACL values from
+     * @param amContainer the ContainerLaunchContext to set the ACLs for.
+     * @param flinkConfig the Flink configuration to read the ACL values from.
      */
     public static void setAclsFor(
             ContainerLaunchContext amContainer,
@@ -676,5 +676,4 @@ public final class Utils {
         }
         return true;
     }
-
 }
