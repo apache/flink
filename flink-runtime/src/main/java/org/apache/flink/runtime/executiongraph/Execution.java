@@ -568,8 +568,10 @@ public class Execution
                     slot.getAllocationId());
 
             final TaskDeploymentDescriptor deployment =
-                    TaskDeploymentDescriptorFactory.fromExecution(this)
+                    vertex.getExecutionGraphAccessor()
+                            .getTaskDeploymentDescriptorFactory()
                             .createDeploymentDescriptor(
+                                    this,
                                     slot.getAllocationId(),
                                     taskRestore,
                                     producedPartitions.values());

@@ -252,8 +252,13 @@ public class TaskDeploymentDescriptorFactoryTest extends TestLogger {
     private static TaskDeploymentDescriptor createTaskDeploymentDescriptor(ExecutionVertex ev)
             throws IOException, ClusterDatasetCorruptedException {
 
-        return TaskDeploymentDescriptorFactory.fromExecution(ev.getCurrentExecutionAttempt())
-                .createDeploymentDescriptor(new AllocationID(), null, Collections.emptyList());
+        return ev.getExecutionGraphAccessor()
+                .getTaskDeploymentDescriptorFactory()
+                .createDeploymentDescriptor(
+                        ev.getCurrentExecutionAttempt(),
+                        new AllocationID(),
+                        null,
+                        Collections.emptyList());
     }
 
     public static ShuffleDescriptor[] deserializeShuffleDescriptors(

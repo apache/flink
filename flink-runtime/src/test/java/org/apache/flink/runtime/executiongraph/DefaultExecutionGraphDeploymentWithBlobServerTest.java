@@ -25,6 +25,7 @@ import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.blob.VoidBlobStore;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.types.Either;
@@ -42,6 +43,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 
 /**
  * Tests {@link ExecutionGraph} deployment when offloading job and task information into the BLOB
@@ -81,13 +83,14 @@ class DefaultExecutionGraphDeploymentWithBlobServerTest
 
     @Override
     protected void checkJobOffloaded(DefaultExecutionGraph eg) throws Exception {
-        Either<SerializedValue<JobInformation>, PermanentBlobKey> jobInformationOrBlobKey =
-                eg.getJobInformationOrBlobKey();
+        TaskDeploymentDescriptor.MaybeOffloaded<JobInformation> serializedJobInformation =
+                eg.getTaskDeploymentDescriptorFactory().getSerializedJobInformation();
 
-        assertThat(jobInformationOrBlobKey.isRight()).isTrue();
-
-        // must not throw:
-        blobServer.getFile(eg.getJobID(), jobInformationOrBlobKey.right());
+        assertThat(serializedJobInformation).isInstanceOf(TaskDeploymentDescriptor.Offloaded.class);
+        PermanentBlobKey blobKey =
+                ((TaskDeploymentDescriptor.Offloaded<JobInformation>) serializedJobInformation)
+                        .serializedValueKey;
+        assertThatNoException().isThrownBy(() -> blobServer.getFile(eg.getJobID(), blobKey));
     }
 
     @Override

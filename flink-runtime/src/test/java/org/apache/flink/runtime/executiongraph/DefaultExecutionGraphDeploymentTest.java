@@ -109,7 +109,8 @@ class DefaultExecutionGraphDeploymentTest {
      * @param eg the execution graph that was created
      */
     protected void checkJobOffloaded(DefaultExecutionGraph eg) throws Exception {
-        assertThat(eg.getJobInformationOrBlobKey().isLeft()).isTrue();
+        assertThat(eg.getTaskDeploymentDescriptorFactory().getSerializedJobInformation())
+                .isInstanceOf(TaskDeploymentDescriptor.NonOffloaded.class);
     }
 
     /**
