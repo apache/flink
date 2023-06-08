@@ -86,22 +86,25 @@ public class LeaderElectionTest {
         final ManualLeaderContender manualLeaderContender = new ManualLeaderContender();
 
         try {
-            assertThat(leaderElectionService.hasLeadership(UUID.randomUUID())).isFalse();
-
-            leaderElectionService.start(manualLeaderContender);
+            final LeaderElection leaderElection = leaderElectionService.createLeaderElection();
+            leaderElection.startLeaderElection(manualLeaderContender);
 
             final UUID leaderSessionId = manualLeaderContender.waitForLeaderSessionId();
 
-            assertThat(leaderElectionService.hasLeadership(leaderSessionId)).isTrue();
-            assertThat(leaderElectionService.hasLeadership(UUID.randomUUID())).isFalse();
+            assertThat(leaderElection.hasLeadership(leaderSessionId)).isTrue();
+            assertThat(leaderElection.hasLeadership(UUID.randomUUID())).isFalse();
 
-            leaderElectionService.confirmLeadership(leaderSessionId, "foobar");
+            leaderElection.confirmLeadership(leaderSessionId, "foobar");
 
-            assertThat(leaderElectionService.hasLeadership(leaderSessionId)).isTrue();
+            assertThat(leaderElection.hasLeadership(leaderSessionId)).isTrue();
 
-            leaderElectionService.stop();
+            leaderElection.close();
 
-            assertThat(leaderElectionService.hasLeadership(leaderSessionId)).isFalse();
+            assertThat(leaderElection.hasLeadership(leaderSessionId)).isFalse();
+
+            assertThat(manualLeaderContender.waitForLeaderSessionId())
+                    .as("The leadership has been revoked from the contender.")
+                    .isEqualTo(ManualLeaderContender.NULL_LEADER_SESSION_ID);
         } finally {
             manualLeaderContender.rethrowError();
         }
@@ -192,7 +195,7 @@ public class LeaderElectionTest {
         }
 
         @Override
-        public LeaderElectionService createLeaderElectionService() {
+        public LeaderElectionService createLeaderElectionService() throws Exception {
             return ZooKeeperUtils.createLeaderElectionService(
                     curatorFrameworkWrapper.asCuratorFramework());
         }

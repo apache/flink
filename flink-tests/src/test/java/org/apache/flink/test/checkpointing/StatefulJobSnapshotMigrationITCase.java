@@ -43,14 +43,18 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.test.checkpointing.utils.MigrationTestUtils;
 import org.apache.flink.test.checkpointing.utils.SnapshotMigrationTestBase;
+import org.apache.flink.test.util.MigrationTest;
 import org.apache.flink.util.Collector;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import javax.annotation.Nullable;
+
 import java.util.Collection;
 import java.util.LinkedList;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
@@ -60,62 +64,82 @@ import static org.junit.Assert.assertEquals;
  * previous Flink versions, as well as for different state backends.
  */
 @RunWith(Parameterized.class)
-public class StatefulJobSnapshotMigrationITCase extends SnapshotMigrationTestBase {
+public class StatefulJobSnapshotMigrationITCase extends SnapshotMigrationTestBase
+        implements MigrationTest {
 
     private static final int NUM_SOURCE_ELEMENTS = 4;
 
-    // TODO increase this to newer version to create and test snapshot migration for newer versions
-    private static final FlinkVersion currentVersion = FlinkVersion.v1_17;
-
-    // TODO change this to CREATE_SNAPSHOT to (re)create binary snapshots
-    // TODO Note: You should generate the snapshot based on the release branch instead of the
-    // master.
-    private static final ExecutionMode executionMode = ExecutionMode.VERIFY_SNAPSHOT;
-
     @Parameterized.Parameters(name = "Test snapshot: {0}")
-    public static Collection<SnapshotSpec> parameters() {
+    public static Collection<SnapshotSpec> createSpecsForTestRuns() {
+        return internalParameters(null);
+    }
+
+    public static Collection<SnapshotSpec> createSpecsForTestDataGeneration(
+            FlinkVersion targetVersion) {
+        return internalParameters(targetVersion);
+    }
+
+    private static Collection<SnapshotSpec> internalParameters(
+            @Nullable FlinkVersion targetGeneratingVersion) {
+        BiFunction<FlinkVersion, FlinkVersion, Collection<FlinkVersion>> getFlinkVersions =
+                (minInclVersion, maxInclVersion) -> {
+                    if (targetGeneratingVersion != null) {
+                        return FlinkVersion.rangeOf(minInclVersion, maxInclVersion).stream()
+                                .filter(v -> v.equals(targetGeneratingVersion))
+                                .collect(Collectors.toList());
+                    } else {
+                        return FlinkVersion.rangeOf(minInclVersion, maxInclVersion);
+                    }
+                };
+
         Collection<SnapshotSpec> parameters = new LinkedList<>();
         parameters.addAll(
                 SnapshotSpec.withVersions(
                         StateBackendLoader.MEMORY_STATE_BACKEND_NAME,
                         SnapshotType.SAVEPOINT_CANONICAL,
-                        FlinkVersion.rangeOf(FlinkVersion.v1_8, FlinkVersion.v1_14)));
+                        getFlinkVersions.apply(FlinkVersion.v1_8, FlinkVersion.v1_14)));
         parameters.addAll(
                 SnapshotSpec.withVersions(
                         StateBackendLoader.HASHMAP_STATE_BACKEND_NAME,
                         SnapshotType.SAVEPOINT_CANONICAL,
-                        FlinkVersion.rangeOf(FlinkVersion.v1_15, currentVersion)));
+                        getFlinkVersions.apply(
+                                FlinkVersion.v1_15,
+                                MigrationTest.getMostRecentlyPublishedVersion())));
         parameters.addAll(
                 SnapshotSpec.withVersions(
                         StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME,
                         SnapshotType.SAVEPOINT_CANONICAL,
-                        FlinkVersion.rangeOf(FlinkVersion.v1_8, currentVersion)));
+                        getFlinkVersions.apply(
+                                FlinkVersion.v1_8,
+                                MigrationTest.getMostRecentlyPublishedVersion())));
         parameters.addAll(
                 SnapshotSpec.withVersions(
                         StateBackendLoader.HASHMAP_STATE_BACKEND_NAME,
                         SnapshotType.SAVEPOINT_NATIVE,
-                        FlinkVersion.rangeOf(FlinkVersion.v1_15, currentVersion)));
+                        getFlinkVersions.apply(
+                                FlinkVersion.v1_15,
+                                MigrationTest.getMostRecentlyPublishedVersion())));
         parameters.addAll(
                 SnapshotSpec.withVersions(
                         StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME,
                         SnapshotType.SAVEPOINT_NATIVE,
-                        FlinkVersion.rangeOf(FlinkVersion.v1_15, currentVersion)));
+                        getFlinkVersions.apply(
+                                FlinkVersion.v1_15,
+                                MigrationTest.getMostRecentlyPublishedVersion())));
         parameters.addAll(
                 SnapshotSpec.withVersions(
                         StateBackendLoader.HASHMAP_STATE_BACKEND_NAME,
                         SnapshotType.CHECKPOINT,
-                        FlinkVersion.rangeOf(FlinkVersion.v1_15, currentVersion)));
+                        getFlinkVersions.apply(
+                                FlinkVersion.v1_15,
+                                MigrationTest.getMostRecentlyPublishedVersion())));
         parameters.addAll(
                 SnapshotSpec.withVersions(
                         StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME,
                         SnapshotType.CHECKPOINT,
-                        FlinkVersion.rangeOf(FlinkVersion.v1_15, currentVersion)));
-        if (executionMode == ExecutionMode.CREATE_SNAPSHOT) {
-            parameters =
-                    parameters.stream()
-                            .filter(x -> x.getFlinkVersion().equals(currentVersion))
-                            .collect(Collectors.toList());
-        }
+                        getFlinkVersions.apply(
+                                FlinkVersion.v1_15,
+                                MigrationTest.getMostRecentlyPublishedVersion())));
         return parameters;
     }
 
@@ -125,8 +149,18 @@ public class StatefulJobSnapshotMigrationITCase extends SnapshotMigrationTestBas
         this.snapshotSpec = snapshotSpec;
     }
 
+    @ParameterizedSnapshotsGenerator("createSpecsForTestDataGeneration")
+    public void generateSnapshots(SnapshotSpec snapshotSpec) throws Exception {
+        testOrCreateSavepoint(ExecutionMode.CREATE_SNAPSHOT, snapshotSpec);
+    }
+
     @Test
     public void testSavepoint() throws Exception {
+        testOrCreateSavepoint(ExecutionMode.VERIFY_SNAPSHOT, snapshotSpec);
+    }
+
+    private void testOrCreateSavepoint(ExecutionMode executionMode, SnapshotSpec snapshotSpec)
+            throws Exception {
 
         final int parallelism = 4;
 

@@ -46,7 +46,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 
 import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
-import static org.apache.flink.kubernetes.utils.KubernetesUtils.checkConfigMaps;
+import static org.apache.flink.kubernetes.utils.KubernetesUtils.getOnlyConfigMap;
 
 /** {@link MultipleComponentLeaderElectionDriver} for Kubernetes. */
 public class KubernetesMultipleComponentLeaderElectionDriver
@@ -229,7 +229,7 @@ public class KubernetesMultipleComponentLeaderElectionDriver
 
         @Override
         public void onModified(List<KubernetesConfigMap> configMaps) {
-            final KubernetesConfigMap configMap = checkConfigMaps(configMaps, configMapName);
+            final KubernetesConfigMap configMap = getOnlyConfigMap(configMaps, configMapName);
 
             if (KubernetesLeaderElector.hasLeadership(configMap, lockIdentity)) {
                 Collection<LeaderInformationWithComponentId> leaderInformationWithLeaderNames =
@@ -242,7 +242,7 @@ public class KubernetesMultipleComponentLeaderElectionDriver
 
         @Override
         public void onDeleted(List<KubernetesConfigMap> configMaps) {
-            final KubernetesConfigMap configMap = checkConfigMaps(configMaps, configMapName);
+            final KubernetesConfigMap configMap = getOnlyConfigMap(configMaps, configMapName);
             if (KubernetesLeaderElector.hasLeadership(configMap, lockIdentity)) {
                 fatalErrorHandler.onFatalError(
                         new LeaderElectionException(
@@ -254,7 +254,7 @@ public class KubernetesMultipleComponentLeaderElectionDriver
 
         @Override
         public void onError(List<KubernetesConfigMap> configMaps) {
-            final KubernetesConfigMap configMap = checkConfigMaps(configMaps, configMapName);
+            final KubernetesConfigMap configMap = getOnlyConfigMap(configMaps, configMapName);
             if (KubernetesLeaderElector.hasLeadership(configMap, lockIdentity)) {
                 fatalErrorHandler.onFatalError(
                         new LeaderElectionException(

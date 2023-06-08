@@ -69,6 +69,7 @@ import static org.apache.flink.table.types.inference.InputTypeStrategies.NO_ARGS
 import static org.apache.flink.table.types.inference.InputTypeStrategies.OUTPUT_IF_NULL;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.TYPE_LITERAL;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.and;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.commonArrayType;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.commonType;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.comparable;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.compositeSequence;
@@ -138,7 +139,7 @@ public final class BuiltInFunctionDefinitions {
                             sequence(
                                     new String[] {"input"},
                                     new ArgumentTypeStrategy[] {logical(LogicalTypeRoot.MAP)}))
-                    .outputTypeStrategy(nullableIfArgs(SpecificInputTypeStrategies.MAP_KEYS))
+                    .outputTypeStrategy(nullableIfArgs(SpecificTypeStrategies.MAP_KEYS))
                     .runtimeClass("org.apache.flink.table.runtime.functions.scalar.MapKeysFunction")
                     .build();
 
@@ -150,9 +151,22 @@ public final class BuiltInFunctionDefinitions {
                             sequence(
                                     new String[] {"input"},
                                     new ArgumentTypeStrategy[] {logical(LogicalTypeRoot.MAP)}))
-                    .outputTypeStrategy(nullableIfArgs(SpecificInputTypeStrategies.MAP_VALUES))
+                    .outputTypeStrategy(nullableIfArgs(SpecificTypeStrategies.MAP_VALUES))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.MapValuesFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition MAP_ENTRIES =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("MAP_ENTRIES")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    new String[] {"input"},
+                                    new ArgumentTypeStrategy[] {logical(LogicalTypeRoot.MAP)}))
+                    .outputTypeStrategy(nullableIfArgs(SpecificTypeStrategies.MAP_ENTRIES))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.MapEntriesFunction")
                     .build();
 
     public static final BuiltInFunctionDefinition MAP_FROM_ARRAYS =
@@ -166,7 +180,7 @@ public final class BuiltInFunctionDefinitions {
                                         logical(LogicalTypeRoot.ARRAY),
                                         logical(LogicalTypeRoot.ARRAY)
                                     }))
-                    .outputTypeStrategy(nullableIfArgs(SpecificInputTypeStrategies.ARRAYS_FOR_MAP))
+                    .outputTypeStrategy(nullableIfArgs(SpecificTypeStrategies.MAP_FROM_ARRAYS))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.MapFromArraysFunction")
                     .build();
@@ -259,6 +273,16 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(nullableIfArgs(argument(0)))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.ArrayReverseFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition ARRAY_UNION =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ARRAY_UNION")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(commonArrayType(2))
+                    .outputTypeStrategy(nullableIfArgs(COMMON))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.ArrayUnionFunction")
                     .build();
 
     public static final BuiltInFunctionDefinition INTERNAL_REPLICATE_ROWS =

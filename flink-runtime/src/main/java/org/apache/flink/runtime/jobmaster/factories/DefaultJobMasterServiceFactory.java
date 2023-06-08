@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster.factories;
 
+import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.runtime.blocklist.BlocklistUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -38,6 +39,7 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.util.function.FunctionUtils;
 
+import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -56,6 +58,7 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
     private final FatalErrorHandler fatalErrorHandler;
     private final ClassLoader userCodeClassloader;
     private final ShuffleMaster<?> shuffleMaster;
+    private final Collection<FailureEnricher> failureEnrichers;
     private final long initializationTimestamp;
 
     public DefaultJobMasterServiceFactory(
@@ -70,6 +73,7 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
             JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
             FatalErrorHandler fatalErrorHandler,
             ClassLoader userCodeClassloader,
+            Collection<FailureEnricher> failureEnrichers,
             long initializationTimestamp) {
         this.executor = executor;
         this.rpcService = rpcService;
@@ -83,6 +87,7 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
         this.fatalErrorHandler = fatalErrorHandler;
         this.userCodeClassloader = userCodeClassloader;
         this.shuffleMaster = jobManagerSharedServices.getShuffleMaster();
+        this.failureEnrichers = failureEnrichers;
         this.initializationTimestamp = initializationTimestamp;
     }
 
@@ -122,6 +127,7 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
                         DefaultExecutionDeploymentReconciler::new,
                         BlocklistUtils.loadBlocklistHandlerFactory(
                                 jobMasterConfiguration.getConfiguration()),
+                        failureEnrichers,
                         initializationTimestamp);
 
         jobMaster.start();

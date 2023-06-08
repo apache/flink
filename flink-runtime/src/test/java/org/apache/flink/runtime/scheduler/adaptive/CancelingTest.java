@@ -23,6 +23,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
+import org.apache.flink.runtime.failure.FailureEnricherUtils;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.exceptionhistory.TestingAccessExecution;
@@ -88,7 +89,8 @@ public class CancelingTest extends TestLogger {
     public void testGlobalFailuresAreIgnored() throws Exception {
         try (MockStateWithExecutionGraphContext ctx = new MockStateWithExecutionGraphContext()) {
             Canceling canceling = createCancelingState(ctx, new StateTrackingMockExecutionGraph());
-            canceling.handleGlobalFailure(new RuntimeException("test"));
+            canceling.handleGlobalFailure(
+                    new RuntimeException("test"), FailureEnricherUtils.EMPTY_FAILURE_LABELS);
             ctx.assertNoStateTransition();
         }
     }
@@ -109,7 +111,7 @@ public class CancelingTest extends TestLogger {
             meg.registerExecution(execution);
             TaskExecutionStateTransition update =
                     ExecutingTest.createFailingStateTransition(execution.getAttemptId(), exception);
-            canceling.updateTaskExecutionState(update);
+            canceling.updateTaskExecutionState(update, FailureEnricherUtils.EMPTY_FAILURE_LABELS);
             ctx.assertNoStateTransition();
         }
     }

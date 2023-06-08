@@ -414,7 +414,7 @@
     "description" : "Calc(select=[b, w$start AS window_start, w$end AS window_end, EXPR$3, EXPR$4, EXPR$5, EXPR$6])"
   }, {
     "id" : 7,
-    "type" : "stream-exec-sink_1",
+    "type" : "stream-exec-sink_2",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",
@@ -458,6 +458,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
+    "inputUpsertKey" : [ 0, 1 ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -466,7 +467,6 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`b` BIGINT, `window_start` TIMESTAMP(3) NOT NULL, `window_end` TIMESTAMP(3) NOT NULL, `EXPR$3` BIGINT NOT NULL, `EXPR$4` INT, `EXPR$5` BIGINT NOT NULL, `EXPR$6` VARCHAR(2147483647)>",
-    "inputUpsertKey" : [ 0, 1 ],
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[b, window_start, window_end, EXPR$3, EXPR$4, EXPR$5, EXPR$6])"
   } ],
   "edges" : [ {

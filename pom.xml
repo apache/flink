@@ -124,6 +124,7 @@ under the License.
 		<flink.surefire.baseArgLine>-XX:+UseG1GC -Xms256m</flink.surefire.baseArgLine>
 		<flink.shaded.version>16.1</flink.shaded.version>
 		<flink.shaded.jackson.version>2.13.4</flink.shaded.jackson.version>
+		<flink.markBundledAsOptional>true</flink.markBundledAsOptional>
 		<target.java.version>1.8</target.java.version>
 		<slf4j.version>1.7.36</slf4j.version>
 		<log4j.version>2.17.1</log4j.version>
@@ -143,7 +144,7 @@ under the License.
 		<curator.version>5.2.0</curator.version>
 		<avro.version>1.11.1</avro.version>
 		<!-- Version for transitive Jackson dependencies that are not used within Flink itself.-->
-		<jackson-bom.version>2.13.4.20221013</jackson-bom.version>
+		<jackson-bom.version>2.14.3</jackson-bom.version>
 		<javax.activation.api.version>1.2.0</javax.activation.api.version>
 		<jaxb.api.version>2.3.1</jaxb.api.version>
 		<junit4.version>4.13.2</junit4.version>
@@ -157,8 +158,7 @@ under the License.
 		<beam.version>2.43.0</beam.version>
 		<protoc.version>3.21.7</protoc.version>
 		<okhttp.version>3.14.9</okhttp.version>
-		<!-- keep net.java.dev.jna:jna version in sync -->
-		<testcontainers.version>1.17.6</testcontainers.version>
+		<testcontainers.version>1.18.3</testcontainers.version>
 		<lz4.version>1.8.0</lz4.version>
 		<japicmp.skip>false</japicmp.skip>
 		<flink.convergence.phase>validate</flink.convergence.phase>
@@ -206,6 +206,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-force-shading</artifactId>
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
 		<!-- Root dependencies for all projects -->
@@ -243,14 +244,6 @@ under the License.
 
 		<dependency>
 			<groupId>org.mockito</groupId>
-			<artifactId>mockito-inline</artifactId>
-			<version>${mockito.version}</version>
-			<type>jar</type>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.mockito</groupId>
 			<artifactId>mockito-core</artifactId>
 			<version>${mockito.version}</version>
 			<type>jar</type>
@@ -263,28 +256,6 @@ under the License.
 			<version>${mockito.version}</version>
 			<type>jar</type>
 			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.powermock</groupId>
-			<artifactId>powermock-module-junit4</artifactId>
-			<version>${powermock.version}</version>
-			<type>jar</type>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.powermock</groupId>
-			<artifactId>powermock-api-mockito2</artifactId>
-			<version>${powermock.version}</version>
-			<type>jar</type>
-			<scope>test</scope>
-			<exclusions>
-				<exclusion>
-					<groupId>org.mockito</groupId>
-					<artifactId>mockito-core</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -934,10 +905,51 @@ under the License.
 				<scope>test</scope>
 			</dependency>
 
+			<dependency>
+				<groupId>org.mockito</groupId>
+				<artifactId>mockito-inline</artifactId>
+				<version>${mockito.version}</version>
+				<scope>test</scope>
+			</dependency>
+
+			<dependency>
+				<groupId>org.powermock</groupId>
+				<artifactId>powermock-module-junit4</artifactId>
+				<version>${powermock.version}</version>
+				<scope>test</scope>
+			</dependency>
+
+			<dependency>
+				<groupId>org.powermock</groupId>
+				<artifactId>powermock-api-mockito2</artifactId>
+				<version>${powermock.version}</version>
+				<scope>test</scope>
+				<exclusions>
+					<exclusion>
+						<groupId>org.mockito</groupId>
+						<artifactId>mockito-core</artifactId>
+					</exclusion>
+				</exclusions>
+			</dependency>
+
 		</dependencies>
 	</dependencyManagement>
 
 	<profiles>
+		<profile>
+			<id>intellij</id>
+			<activation>
+				<property>
+					<name>idea.version</name>
+				</property>
+			</activation>
+			<properties>
+				<!-- Set to false so that all required dependencies are put on the classpath,
+				     since IntelliJ does not work against jars produced by the shade plugin
+				     (which may bundled said classes). -->
+				<flink.markBundledAsOptional>false</flink.markBundledAsOptional>
+			</properties>
+		</profile>
 		<profile>
 			<id>scala-2.12</id>
 			<properties>
@@ -1320,8 +1332,7 @@ under the License.
 								<configuration>
 									<rules>
 										<requireMavenVersion>
-											<!-- maven version must be lower than 3.3. See FLINK-3158 -->
-											<version>(,3.3)</version>
+											<version>3.8.6</version>
 										</requireMavenVersion>
 										<requireJavaVersion>
 											<version>1.8.0</version>
@@ -1577,8 +1588,6 @@ under the License.
 						<exclude>tools/japicmp-output/**</exclude>
 						<!-- artifacts created during release process -->
 						<exclude>tools/releasing/release/**</exclude>
-						<!-- manually installed version on travis -->
-						<exclude>apache-maven-3.2.5/**</exclude>
 						<!-- PyCharm -->
 						<exclude>**/.idea/**</exclude>
 						<!-- Generated code via Avro -->
@@ -1593,6 +1602,9 @@ under the License.
 
 						<!-- AWS SDK config that does not support license headers -->
 						<exclude>**/awssdk/global/handlers/execution.interceptors</exclude>
+
+						<!-- The most recently published version configuration file -->
+						<exclude>flink-test-utils-parent/flink-migration-test-utils/src/main/resources/most_recently_published_version</exclude>
 					</excludes>
 				</configuration>
 			</plugin>

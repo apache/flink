@@ -46,8 +46,8 @@ cd tmp
 integrate_connector_docs elasticsearch v3.0
 integrate_connector_docs aws v4.1
 integrate_connector_docs cassandra v3.0
-integrate_connector_docs pulsar v3.0
-integrate_connector_docs jdbc v3.0
+integrate_connector_docs pulsar v4.0
+integrate_connector_docs jdbc v3.1
 integrate_connector_docs rabbitmq v3.0
 integrate_connector_docs gcp-pubsub v3.0
 integrate_connector_docs mongodb v1.0

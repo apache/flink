@@ -23,6 +23,7 @@ import org.apache.flink.core.testutils.ScheduledTask;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.failure.FailureEnricherUtils;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.clock.Clock;
@@ -253,7 +254,9 @@ public class WaitingForResourcesTest extends TestLogger {
                                         .contains(testExceptionString));
                     });
 
-            wfr.handleGlobalFailure(new RuntimeException(testExceptionString));
+            wfr.handleGlobalFailure(
+                    new RuntimeException(testExceptionString),
+                    FailureEnricherUtils.EMPTY_FAILURE_LABELS);
         }
     }
 

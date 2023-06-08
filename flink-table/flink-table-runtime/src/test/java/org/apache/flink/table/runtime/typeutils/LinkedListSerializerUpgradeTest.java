@@ -25,13 +25,13 @@ import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
-import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.test.util.MigrationTest;
 
 import org.hamcrest.Matcher;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedList;
-import java.util.stream.Collectors;
 
 import static org.hamcrest.Matchers.is;
 
@@ -40,21 +40,20 @@ import static org.hamcrest.Matchers.is;
 public class LinkedListSerializerUpgradeTest
         extends TypeSerializerUpgradeTestBase<LinkedList<Long>, LinkedList<Long>> {
 
-    public Collection<TestSpecification<?, ?>> createTestSpecifications() {
-        return FlinkVersion.rangeOf(FlinkVersion.v1_13, CURRENT_VERSION).stream()
-                .map(
-                        version -> {
-                            try {
-                                return new TestSpecification<>(
-                                        "linked-list-serializer",
-                                        version,
-                                        LinkedListSerializerSetup.class,
-                                        LinkedListSerializerVerifier.class);
-                            } catch (Exception e) {
-                                throw new FlinkRuntimeException(e);
-                            }
-                        })
-                .collect(Collectors.toList());
+    @Override
+    public Collection<FlinkVersion> getMigrationVersions() {
+        return FlinkVersion.rangeOf(
+                FlinkVersion.v1_13, MigrationTest.getMostRecentlyPublishedVersion());
+    }
+
+    public Collection<TestSpecification<?, ?>> createTestSpecifications(FlinkVersion flinkVersion)
+            throws Exception {
+        return Collections.singletonList(
+                new TestSpecification<>(
+                        "linked-list-serializer",
+                        flinkVersion,
+                        LinkedListSerializerSetup.class,
+                        LinkedListSerializerVerifier.class));
     }
 
     public static TypeSerializer<LinkedList<Long>> createLinkedListSerializer() {

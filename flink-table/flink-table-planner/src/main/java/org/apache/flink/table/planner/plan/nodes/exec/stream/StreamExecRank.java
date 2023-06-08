@@ -37,6 +37,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
+import org.apache.flink.table.planner.plan.nodes.exec.StateMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.PartitionSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
@@ -62,7 +63,10 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
+import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
@@ -80,6 +84,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
         producedTransformations = StreamExecRank.RANK_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
+@ExecNodeMetadata(
+        name = "stream-exec-rank",
+        version = 2,
+        consumedOptions = {"table.exec.rank.topn-cache-size"},
+        producedTransformations = StreamExecRank.RANK_TRANSFORMATION,
+        minPlanVersion = FlinkVersion.v1_18,
+        minStateVersion = FlinkVersion.v1_15)
 public class StreamExecRank extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
@@ -92,6 +103,8 @@ public class StreamExecRank extends ExecNodeBase<RowData>
     public static final String FIELD_NAME_RANK_STRATEGY = "rankStrategy";
     public static final String FIELD_NAME_GENERATE_UPDATE_BEFORE = "generateUpdateBefore";
     public static final String FIELD_NAME_OUTPUT_RANK_NUMBER = "outputRowNumber";
+
+    public static final String STATE_NAME = "rankState";
 
     @JsonProperty(FIELD_NAME_RANK_TYPE)
     private final RankType rankType;
@@ -113,6 +126,11 @@ public class StreamExecRank extends ExecNodeBase<RowData>
 
     @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE)
     private final boolean generateUpdateBefore;
+
+    @Nullable
+    @JsonProperty(FIELD_NAME_STATE)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final List<StateMetadata> stateMetadataList;
 
     public StreamExecRank(
             ReadableConfig tableConfig,
@@ -137,6 +155,7 @@ public class StreamExecRank extends ExecNodeBase<RowData>
                 rankStrategy,
                 outputRankNumber,
                 generateUpdateBefore,
+                StateMetadata.getOneInputOperatorDefaultMeta(tableConfig, STATE_NAME),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -154,6 +173,7 @@ public class StreamExecRank extends ExecNodeBase<RowData>
             @JsonProperty(FIELD_NAME_RANK_STRATEGY) RankProcessStrategy rankStrategy,
             @JsonProperty(FIELD_NAME_OUTPUT_RANK_NUMBER) boolean outputRankNumber,
             @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE) boolean generateUpdateBefore,
+            @Nullable @JsonProperty(FIELD_NAME_STATE) List<StateMetadata> stateMetadataList,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
@@ -166,6 +186,7 @@ public class StreamExecRank extends ExecNodeBase<RowData>
         this.partitionSpec = checkNotNull(partitionSpec);
         this.outputRankNumber = outputRankNumber;
         this.generateUpdateBefore = generateUpdateBefore;
+        this.stateMetadataList = stateMetadataList;
     }
 
     @SuppressWarnings("unchecked")
@@ -215,7 +236,10 @@ public class StreamExecRank extends ExecNodeBase<RowData>
                         RowType.of(sortSpec.getFieldTypes(inputType)),
                         sortSpecInSortKey);
         long cacheSize = config.get(TABLE_EXEC_RANK_TOPN_CACHE_SIZE);
-        StateTtlConfig ttlConfig = StateConfigUtil.createTtlConfig(config.getStateRetentionTime());
+
+        long stateRetentionTime =
+                StateMetadata.getStateTtlForOneInputOperator(config, stateMetadataList);
+        StateTtlConfig ttlConfig = StateConfigUtil.createTtlConfig(stateRetentionTime);
 
         AbstractTopNFunction processFunction;
         if (rankStrategy instanceof RankProcessStrategy.AppendFastStrategy) {

@@ -18,12 +18,13 @@
 
 package org.apache.flink.formats.avro.registry.confluent;
 
+import org.apache.flink.mock.Whitebox;
+
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.rest.RestService;
 import io.confluent.kafka.schemaregistry.client.security.basicauth.BasicAuthCredentialProvider;
 import io.confluent.kafka.schemaregistry.client.security.bearerauth.BearerAuthCredentialProvider;
 import org.junit.jupiter.api.Test;
-import org.powermock.reflect.Whitebox;
 
 import javax.net.ssl.SSLSocketFactory;
 

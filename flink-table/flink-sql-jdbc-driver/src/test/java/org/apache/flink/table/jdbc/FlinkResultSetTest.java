@@ -28,8 +28,6 @@ import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
-import org.apache.flink.table.jdbc.utils.DefaultDataConverter;
-import org.apache.flink.table.jdbc.utils.StringDataConverter;
 import org.apache.flink.util.CloseableIterator;
 
 import org.junit.jupiter.api.Test;
@@ -38,7 +36,6 @@ import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLDataException;
 import java.sql.SQLException;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.stream.IntStream;
 
@@ -93,8 +90,7 @@ public class FlinkResultSetTest {
                 new FlinkResultSet(
                         new TestingStatement(),
                         new StatementResult(
-                                SCHEMA, data, true, ResultKind.SUCCESS, JobID.generate()),
-                        DefaultDataConverter.CONVERTER)) {
+                                SCHEMA, data, true, ResultKind.SUCCESS, JobID.generate()))) {
             validateResultData(resultSet);
         }
     }
@@ -107,27 +103,28 @@ public class FlinkResultSetTest {
                                 .boxed()
                                 .map(
                                         v ->
-                                                stringRowData(
-                                                        v % 2 == 0,
-                                                        v.byteValue(),
-                                                        v.shortValue(),
-                                                        v,
-                                                        v.longValue(),
-                                                        (float) (v + 0.1),
-                                                        v + 0.22,
-                                                        DecimalData.fromBigDecimal(
-                                                                new BigDecimal(v + ".55555"),
-                                                                10,
-                                                                5),
-                                                        StringData.fromString(v.toString()),
-                                                        v.toString()))
+                                                (RowData)
+                                                        GenericRowData.of(
+                                                                v % 2 == 0,
+                                                                v.byteValue(),
+                                                                v.shortValue(),
+                                                                v,
+                                                                v.longValue(),
+                                                                (float) (v + 0.1),
+                                                                v + 0.22,
+                                                                DecimalData.fromBigDecimal(
+                                                                        new BigDecimal(
+                                                                                v + ".55555"),
+                                                                        10,
+                                                                        5),
+                                                                StringData.fromString(v.toString()),
+                                                                v.toString().getBytes()))
                                 .iterator());
         try (ResultSet resultSet =
                 new FlinkResultSet(
                         new TestingStatement(),
                         new StatementResult(
-                                SCHEMA, data, true, ResultKind.SUCCESS, JobID.generate()),
-                        StringDataConverter.CONVERTER)) {
+                                SCHEMA, data, true, ResultKind.SUCCESS, JobID.generate()))) {
             validateResultData(resultSet);
         }
     }
@@ -146,8 +143,7 @@ public class FlinkResultSetTest {
                 new FlinkResultSet(
                         new TestingStatement(),
                         new StatementResult(
-                                SCHEMA, data, true, ResultKind.SUCCESS, JobID.generate()),
-                        StringDataConverter.CONVERTER)) {
+                                SCHEMA, data, true, ResultKind.SUCCESS, JobID.generate()))) {
             assertTrue(resultSet.next());
             assertFalse(resultSet.getBoolean(1));
             assertEquals((byte) 0, resultSet.getByte(2));
@@ -161,11 +157,6 @@ public class FlinkResultSetTest {
             assertNull(resultSet.getBytes(10));
             assertFalse(resultSet.next());
         }
-    }
-
-    private RowData stringRowData(Object... values) {
-        return GenericRowData.of(
-                Arrays.stream(values).map(v -> StringData.fromString(v.toString())).toArray());
     }
 
     private static void validateResultData(ResultSet resultSet) throws SQLException {

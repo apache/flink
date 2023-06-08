@@ -24,7 +24,7 @@ import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import io.fabric8.kubernetes.client.Config;
-import io.fabric8.kubernetes.client.DefaultKubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
 import org.slf4j.Logger;
@@ -95,7 +95,11 @@ public class FlinkKubeClientFactory {
         config.setUserAgent(userAgent);
         LOG.debug("Setting Kubernetes client namespace: {}, userAgent: {}", namespace, userAgent);
 
-        final NamespacedKubernetesClient client = new DefaultKubernetesClient(config);
+        final NamespacedKubernetesClient client =
+                new KubernetesClientBuilder()
+                        .withConfig(config)
+                        .build()
+                        .adapt(NamespacedKubernetesClient.class);
         final int poolSize =
                 flinkConfig.get(KubernetesConfigOptions.KUBERNETES_CLIENT_IO_EXECUTOR_POOL_SIZE);
         return new Fabric8FlinkKubeClient(

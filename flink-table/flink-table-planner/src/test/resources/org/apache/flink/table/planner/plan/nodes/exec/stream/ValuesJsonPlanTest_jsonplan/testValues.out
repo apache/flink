@@ -5,11 +5,11 @@
     "type" : "stream-exec-values_1",
     "tuples" : [ [ {
       "kind" : "LITERAL",
-      "value" : "1",
+      "value" : 1,
       "type" : "INT NOT NULL"
     }, {
       "kind" : "LITERAL",
-      "value" : "2",
+      "value" : 2,
       "type" : "INT NOT NULL"
     }, {
       "kind" : "LITERAL",
@@ -17,11 +17,11 @@
       "type" : "CHAR(2) NOT NULL"
     } ], [ {
       "kind" : "LITERAL",
-      "value" : "3",
+      "value" : 3,
       "type" : "INT NOT NULL"
     }, {
       "kind" : "LITERAL",
-      "value" : "4",
+      "value" : 4,
       "type" : "INT NOT NULL"
     }, {
       "kind" : "LITERAL",
@@ -77,7 +77,7 @@
     "description" : "Calc(select=[CAST(EXPR$0 AS BIGINT) AS a, CAST(EXPR$1 AS BIGINT) AS b, CAST(EXPR$2 AS VARCHAR(2147483647)) AS c])"
   }, {
     "id" : 3,
-    "type" : "stream-exec-sink_1",
+    "type" : "stream-exec-sink_2",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",

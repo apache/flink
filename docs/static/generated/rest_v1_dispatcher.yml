@@ -675,6 +675,15 @@ paths:
         schema:
           type: integer
           format: int32
+      - name: failureLabelFilter
+        in: query
+        description: Collection of string values working as a filter in the form of
+          `key:value` pairs allowing only exceptions with ALL of the specified failure
+          labels to be returned.
+        required: false
+        style: form
+        schema:
+          $ref: '#/components/schemas/FailureLabel'
       responses:
         "200":
           description: The request was successful.
@@ -2011,6 +2020,10 @@ components:
       properties:
         exceptionName:
           type: string
+        failureLabels:
+          type: object
+          additionalProperties:
+            type: string
         location:
           type: string
         stacktrace:
@@ -2083,6 +2096,13 @@ components:
             format: int64
           failure_message:
             type: string
+    FailureLabel:
+      type: object
+      properties:
+        key:
+          type: string
+        value:
+          type: string
     Features:
       type: object
       properties:
@@ -2729,6 +2749,7 @@ components:
       type: string
       enum:
       - CHECKPOINT
+      - UNALIGNED_CHECKPOINT
       - SAVEPOINT
       - SYNC_SAVEPOINT
     RestoreMode:
@@ -2759,6 +2780,10 @@ components:
             $ref: '#/components/schemas/ExceptionInfo'
         exceptionName:
           type: string
+        failureLabels:
+          type: object
+          additionalProperties:
+            type: string
         location:
           type: string
         stacktrace:

@@ -39,17 +39,16 @@ class TupleSerializerUpgradeTest
         extends TypeSerializerUpgradeTestBase<
                 Tuple3<String, String, Integer>, Tuple3<String, String, Integer>> {
 
-    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications(FlinkVersion flinkVersion)
+            throws Exception {
 
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "tuple-serializer",
-                            flinkVersion,
-                            TupleSerializerSetup.class,
-                            TupleSerializerVerifier.class));
-        }
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "tuple-serializer",
+                        flinkVersion,
+                        TupleSerializerSetup.class,
+                        TupleSerializerVerifier.class));
 
         return testSpecifications;
     }

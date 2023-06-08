@@ -98,6 +98,7 @@ class JsonSerdeTestUtil {
         T actual = toObject(serdeContext, actualJson, clazz);
 
         assertThat(actual).isEqualTo(spec);
+        assertThat(actualJson).isEqualTo(toJson(serdeContext, actual));
         return actual;
     }
 

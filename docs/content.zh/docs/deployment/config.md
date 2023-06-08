@@ -61,7 +61,7 @@ The default memory sizes support simple streaming/batch applications, but are to
 
 The total sizes include everything. Flink will subtract some memory for the JVM's own memory requirements (metaspace and others), and divide and configure the rest automatically between its components (JVM Heap, Off-Heap, for Task Managers also network, managed memory etc.).
 
-These value are configured as memory sizes, for example *1536m* or *2g*.
+These values are configured as memory sizes, for example *1536m* or *2g*.
 
 **Parallelism**
 

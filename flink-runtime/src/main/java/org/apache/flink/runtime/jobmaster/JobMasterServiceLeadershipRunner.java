@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
@@ -26,6 +27,7 @@ import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobmaster.factories.JobMasterServiceProcessFactory;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
+import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
@@ -81,6 +83,7 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
     private final JobMasterServiceProcessFactory jobMasterServiceProcessFactory;
 
     private final LeaderElectionService leaderElectionService;
+    private LeaderElection leaderElection;
 
     private final JobResultStore jobResultStore;
 
@@ -150,7 +153,7 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
                         processTerminationFuture,
                         () -> {
                             classLoaderLease.release();
-                            leaderElectionService.stop();
+                            leaderElection.close();
                         });
 
         FutureUtils.forward(serviceTerminationFuture, terminationFuture);
@@ -164,7 +167,15 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
     @Override
     public void start() throws Exception {
         LOG.debug("Start leadership runner for job {}.", getJobID());
-        leaderElectionService.start(this);
+        leaderElection = leaderElectionService.createLeaderElection();
+        leaderElection.startLeaderElection(this);
+    }
+
+    // TODO: This method can be removed with the migration of the LeaderElection instantiation into
+    // the HighAvailabilityServices in FLINK-31797
+    @VisibleForTesting
+    public LeaderElection getLeaderElection() {
+        return leaderElection;
     }
 
     @Override
@@ -333,8 +344,7 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
                             synchronized (lock) {
                                 if (isValidLeader(leaderSessionId)) {
                                     LOG.debug("Confirm leadership {}.", leaderSessionId);
-                                    leaderElectionService.confirmLeadership(
-                                            leaderSessionId, address);
+                                    leaderElection.confirmLeadership(leaderSessionId, address);
                                 } else {
                                     LOG.trace(
                                             "Ignore confirming leadership because the leader {} is no longer valid.",
@@ -497,7 +507,9 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
 
     @GuardedBy("lock")
     private boolean isValidLeader(UUID expectedLeaderId) {
-        return isRunning() && leaderElectionService.hasLeadership(expectedLeaderId);
+        return isRunning()
+                && leaderElection != null
+                && leaderElection.hasLeadership(expectedLeaderId);
     }
 
     private <T> void forwardIfValidLeader(

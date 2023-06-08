@@ -261,7 +261,7 @@ public class AsyncSnapshotCallableTest {
         }
     }
 
-    /** Mix of a {@link Closeable} and and some {@link OneShotLatch} functionality for testing. */
+    /** Mix of a {@link Closeable} and some {@link OneShotLatch} functionality for testing. */
     private static class TestBlockingCloseable implements Closeable {
 
         private final OneShotLatch blockerLatch = new OneShotLatch();

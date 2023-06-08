@@ -26,30 +26,34 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.testutils.EachCallbackWrapper;
 import org.apache.flink.runtime.entrypoint.StandaloneSessionClusterEntrypoint;
-import org.apache.flink.runtime.util.BlobServerResource;
-import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
+import org.apache.flink.runtime.util.BlobServerExtension;
+import org.apache.flink.runtime.zookeeper.ZooKeeperExtension;
 import org.apache.flink.test.recovery.utils.TaskExecutorProcessEntryPoint;
 import org.apache.flink.test.util.TestProcessBuilder;
 import org.apache.flink.test.util.TestProcessBuilder.TestProcess;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getJavaCommandPath;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Abstract base for tests verifying the behavior of the recovery in the case when a TaskManager
@@ -62,27 +66,32 @@ import static org.junit.Assert.fail;
  * TaskManager, which is guaranteed to remain empty (all tasks are already deployed) and kills one
  * of the original task managers. The recovery should restart the tasks on the new TaskManager.
  */
-public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends TestLogger {
-
+abstract class AbstractTaskManagerProcessFailureRecoveryTest {
+    private static final Logger LOG =
+            LoggerFactory.getLogger(AbstractTaskManagerProcessFailureRecoveryTest.class);
     protected static final String READY_MARKER_FILE_PREFIX = "ready_";
     protected static final String PROCEED_MARKER_FILE = "proceed";
 
     protected static final int PARALLELISM = 4;
 
-    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir public Path temporaryFolder;
 
-    @Rule public final BlobServerResource blobServerResource = new BlobServerResource();
+    @RegisterExtension
+    public final EachCallbackWrapper<BlobServerExtension> blobServerExtensionWrapper =
+            new EachCallbackWrapper<>(new BlobServerExtension());
 
-    @Rule public final ZooKeeperResource zooKeeperResource = new ZooKeeperResource();
+    @RegisterExtension
+    public final EachCallbackWrapper<ZooKeeperExtension> zooKeeperExtensionWrapper =
+            new EachCallbackWrapper<>(new ZooKeeperExtension());
 
-    @Test
-    public void testTaskManagerProcessFailure() throws Exception {
+    @TestTemplate
+    void testTaskManagerProcessFailure() throws Exception {
 
         TestProcess taskManagerProcess1 = null;
         TestProcess taskManagerProcess2 = null;
         TestProcess taskManagerProcess3 = null;
 
-        File coordinateTempDir = null;
+        File coordinateTempDir;
 
         Configuration config = new Configuration();
         config.setString(JobManagerOptions.ADDRESS, "localhost");
@@ -92,10 +101,11 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
         config.set(HeartbeatManagerOptions.HEARTBEAT_RPC_FAILURE_THRESHOLD, 1);
         config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
         config.setString(
-                HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
+                HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM,
+                zooKeeperExtensionWrapper.getCustomExtension().getConnectString());
         config.setString(
                 HighAvailabilityOptions.HA_STORAGE_PATH,
-                temporaryFolder.newFolder().getAbsolutePath());
+                TempDirUtils.newFolder(temporaryFolder).getAbsolutePath());
         config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
         config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("4m"));
         config.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("3200k"));
@@ -121,7 +131,7 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
             clusterEntrypoint.startCluster();
 
             // coordination between the processes goes through a directory
-            coordinateTempDir = temporaryFolder.newFolder();
+            coordinateTempDir = TempDirUtils.newFolder(temporaryFolder);
 
             TestProcessBuilder taskManagerProcessBuilder =
                     new TestProcessBuilder(TaskExecutorProcessEntryPoint.class.getName());
@@ -173,7 +183,7 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
                                     + error.getMessage());
                 } else {
                     // no error occurred, simply a timeout
-                    fail("The tasks were not started within time (" + 120000 + "msecs)");
+                    fail("The tasks were not started within time (" + 120000 + "ms)");
                 }
             }
 
@@ -192,7 +202,9 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
             programTrigger.join(300000);
 
             // check that the program really finished
-            assertFalse("The program did not finish in time", programTrigger.isAlive());
+            assertThat(programTrigger.isAlive())
+                    .withFailMessage("The program did not finish in time")
+                    .isFalse();
 
             // check whether the program encountered an error
             if (errorRef.get() != null) {
@@ -242,7 +254,7 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
         }
 
         if (!process.getProcess().waitFor(30, TimeUnit.SECONDS)) {
-            log.error("{} did not shutdown in time.", processName);
+            LOG.error("{} did not shutdown in time.", processName);
             printProcessLog(processName, process);
             process.getProcess().destroyForcibly();
         }

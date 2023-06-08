@@ -79,7 +79,7 @@ public class CompactManagedTableITCase extends BatchTestBase {
         try {
             rootPath =
                     new Path(
-                            new Path(TEMPORARY_FOLDER.newFolder().getPath()),
+                            new Path(createTempFolder().getPath()),
                             tableIdentifier.asSummaryString());
             rootPath.getFileSystem().mkdirs(rootPath);
         } catch (IOException e) {

@@ -25,6 +25,7 @@ import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.partition.BoundedBlockingSubpartitionType;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageConfiguration;
 import org.apache.flink.runtime.throughput.BufferDebloatConfiguration;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.util.Preconditions;
@@ -108,6 +109,8 @@ public class NettyShuffleEnvironmentConfiguration {
 
     private final long hybridShuffleNumRetainedInMemoryRegionsMax;
 
+    private final TieredStorageConfiguration tieredStorageConfiguration;
+
     public NettyShuffleEnvironmentConfiguration(
             int numNetworkBuffers,
             int networkBufferSize,
@@ -132,7 +135,8 @@ public class NettyShuffleEnvironmentConfiguration {
             boolean connectionReuseEnabled,
             int maxOverdraftBuffersPerGate,
             int hybridShuffleSpilledIndexSegmentSize,
-            long hybridShuffleNumRetainedInMemoryRegionsMax) {
+            long hybridShuffleNumRetainedInMemoryRegionsMax,
+            @Nullable TieredStorageConfiguration tieredStorageConfiguration) {
 
         this.numNetworkBuffers = numNetworkBuffers;
         this.networkBufferSize = networkBufferSize;
@@ -159,6 +163,7 @@ public class NettyShuffleEnvironmentConfiguration {
         this.hybridShuffleSpilledIndexSegmentSize = hybridShuffleSpilledIndexSegmentSize;
         this.hybridShuffleNumRetainedInMemoryRegionsMax =
                 hybridShuffleNumRetainedInMemoryRegionsMax;
+        this.tieredStorageConfiguration = tieredStorageConfiguration;
     }
 
     // ------------------------------------------------------------------------
@@ -261,6 +266,10 @@ public class NettyShuffleEnvironmentConfiguration {
 
     public int getHybridShuffleSpilledIndexSegmentSize() {
         return hybridShuffleSpilledIndexSegmentSize;
+    }
+
+    public TieredStorageConfiguration getTieredStorageConfiguration() {
+        return tieredStorageConfiguration;
     }
 
     // ------------------------------------------------------------------------
@@ -387,6 +396,9 @@ public class NettyShuffleEnvironmentConfiguration {
                         "The configured floating buffer should be at least 1, please increase the value of %s.",
                         NettyShuffleEnvironmentOptions.NETWORK_EXTRA_BUFFERS_PER_GATE.key()));
 
+        // TODO: use TieredStorageConfiguration.fromConfiguration() when enabling the feature
+        TieredStorageConfiguration tieredStorageConfiguration = null;
+
         return new NettyShuffleEnvironmentConfiguration(
                 numberOfNetworkBuffers,
                 pageSize,
@@ -411,7 +423,8 @@ public class NettyShuffleEnvironmentConfiguration {
                 connectionReuseEnabled,
                 maxOverdraftBuffersPerGate,
                 hybridShuffleSpilledIndexSegmentSize,
-                hybridShuffleNumRetainedInMemoryRegionsMax);
+                hybridShuffleNumRetainedInMemoryRegionsMax,
+                tieredStorageConfiguration);
     }
 
     /**

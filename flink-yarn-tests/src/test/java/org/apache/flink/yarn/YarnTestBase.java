@@ -171,6 +171,8 @@ public abstract class YarnTestBase {
         // this can happen during cluster shutdown, if AMRMClient happens to be heartbeating
         Pattern.compile("Exception on heartbeat"),
         Pattern.compile("java\\.io\\.InterruptedIOException: Call interrupted"),
+        Pattern.compile(
+                "java\\.io\\.InterruptedIOException: Interrupted waiting to send RPC request to server"),
         Pattern.compile("java\\.lang\\.InterruptedException"),
 
         // this can happen if the hbase delegation token provider is not available

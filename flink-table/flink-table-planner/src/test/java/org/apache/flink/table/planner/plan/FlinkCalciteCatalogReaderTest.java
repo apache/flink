@@ -48,7 +48,7 @@ import java.util.Properties;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
-import static org.powermock.api.mockito.PowerMockito.when;
+import static org.mockito.Mockito.when;
 
 /** Test for FlinkCalciteCatalogReader. */
 public class FlinkCalciteCatalogReaderTest {

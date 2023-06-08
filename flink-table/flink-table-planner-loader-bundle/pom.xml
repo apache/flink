@@ -44,6 +44,7 @@
 			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>runtime</scope>
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 	</dependencies>
 

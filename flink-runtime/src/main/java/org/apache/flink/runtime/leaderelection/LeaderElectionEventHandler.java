@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.leaderelection;
 
+import javax.annotation.concurrent.NotThreadSafe;
+
 import java.util.UUID;
 
 /**
@@ -29,7 +31,11 @@ import java.util.UUID;
  * LeaderElectionDriver#close()}. This means that the implementor of {@link
  * LeaderElectionEventHandler} is responsible for filtering out spurious callbacks(e.g. after close
  * has been called on {@link LeaderElectionDriver}).
+ *
+ * <p>The order of events matters. Therefore, calling event processing functions of this interface
+ * should happen in a single-thread environment.
  */
+@NotThreadSafe
 public interface LeaderElectionEventHandler {
 
     /**

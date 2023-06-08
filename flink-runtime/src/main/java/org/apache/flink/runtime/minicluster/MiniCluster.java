@@ -561,6 +561,7 @@ public class MiniCluster implements AutoCloseableAsync {
                         metricRegistry,
                         new MemoryExecutionGraphInfoStore(),
                         metricQueryServiceRetriever,
+                        Collections.emptySet(),
                         fatalErrorHandler);
         FutureUtils.assertNoException(
                 dispatcherResourceManagerComponent

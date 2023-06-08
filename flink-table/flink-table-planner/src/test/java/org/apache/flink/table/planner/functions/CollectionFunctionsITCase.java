@@ -42,7 +42,8 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                         arrayDistinctTestCases(),
                         arrayPositionTestCases(),
                         arrayRemoveTestCases(),
-                        arrayReverseTestCases())
+                        arrayReverseTestCases(),
+                        arrayUnionTestCases())
                 .flatMap(s -> s);
     }
 
@@ -414,5 +415,68 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 },
                                 DataTypes.ARRAY(
                                         DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE()))));
+    }
+
+    private Stream<TestSetSpec> arrayUnionTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.ARRAY_UNION)
+                        .onFieldsWithData(
+                                new Integer[] {1, 2, null},
+                                null,
+                                new Row[] {
+                                    Row.of(true, LocalDate.of(2022, 4, 20)),
+                                    Row.of(true, LocalDate.of(1990, 10, 14)),
+                                    null
+                                },
+                                1)
+                        .andDataTypes(
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(
+                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE())),
+                                DataTypes.INT())
+                        // ARRAY<INT>
+                        .testResult(
+                                $("f0").arrayUnion(new Integer[] {1, null, 4}),
+                                "ARRAY_UNION(f0, ARRAY[1, NULL, 4])",
+                                new Integer[] {1, 2, null, 4},
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        // insert cast bug https://issues.apache.org/jira/browse/CALCITE-5674.
+                        //                        .testResult(
+                        //                                $("f0").arrayUnion(array(1.0d, null,
+                        // 4.0d)),
+                        //                                "ARRAY_UNION(f0, ARRAY[1.0E0, NULL,
+                        // 4.0E0])",
+                        //                                new Double[] {1.0d, 2.0d, null, 4.0d},
+                        //                                DataTypes.ARRAY(DataTypes.DOUBLE()))
+                        // ARRAY<INT> of null value
+                        .testResult(
+                                $("f1").arrayUnion(new Integer[] {1, null, 4}),
+                                "ARRAY_UNION(f1, ARRAY[1, NULL, 4])",
+                                null,
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        // ARRAY<ROW<BOOLEAN, DATE>>
+                        .testResult(
+                                $("f2").arrayUnion(
+                                                new Row[] {
+                                                    null, Row.of(true, LocalDate.of(1990, 10, 14)),
+                                                }),
+                                "ARRAY_UNION(f2, ARRAY[NULL, (TRUE, DATE '1990-10-14')])",
+                                new Row[] {
+                                    Row.of(true, LocalDate.of(2022, 4, 20)),
+                                    Row.of(true, LocalDate.of(1990, 10, 14)),
+                                    null
+                                },
+                                DataTypes.ARRAY(
+                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE())))
+                        // invalid signatures
+                        .testSqlValidationError(
+                                "ARRAY_UNION(f3, TRUE)",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ARRAY_UNION(<COMMON>, <COMMON>)")
+                        .testTableApiValidationError(
+                                $("f3").arrayUnion(true),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ARRAY_UNION(<COMMON>, <COMMON>)"));
     }
 }

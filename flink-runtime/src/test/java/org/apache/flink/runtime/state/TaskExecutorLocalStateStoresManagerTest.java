@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.testutils.AllCallbackWrapper;
 import org.apache.flink.runtime.blob.VoidPermanentBlobService;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -30,18 +31,17 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServicesConfiguration;
-import org.apache.flink.runtime.testutils.WorkingDirectoryResource;
+import org.apache.flink.runtime.testutils.WorkingDirectoryExtension;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Reference;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
 
-import org.junit.Assert;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
@@ -53,13 +53,14 @@ import java.util.Collection;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link TaskExecutorLocalStateStoresManager}. */
-public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
+class TaskExecutorLocalStateStoresManagerTest {
 
-    @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir public static File temporaryFolder;
 
-    @ClassRule
-    public static final WorkingDirectoryResource WORKING_DIRECTORY_RESOURCE =
-            new WorkingDirectoryResource();
+    @RegisterExtension
+    public static final AllCallbackWrapper<WorkingDirectoryExtension>
+            WORKING_DIRECTORY_EXTENSION_WRAPPER =
+                    new AllCallbackWrapper<>(new WorkingDirectoryExtension(() -> temporaryFolder));
 
     /**
      * This tests that the creation of {@link TaskManagerServices} correctly creates the local state
@@ -67,11 +68,11 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
      * directory.
      */
     @Test
-    public void testCreationFromConfig() throws Exception {
+    void testCreationFromConfig() throws Exception {
 
         final Configuration config = new Configuration();
 
-        File newFolder = temporaryFolder.newFolder();
+        File newFolder = TempDirUtils.newFolder(temporaryFolder.toPath());
         String tmpDir = newFolder.getAbsolutePath() + File.separator;
         final String rootDirString =
                 "__localStateRoot1,__localStateRoot2,__localStateRoot3".replaceAll("__", tmpDir);
@@ -84,7 +85,9 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
         config.setBoolean(CheckpointingOptions.LOCAL_RECOVERY, true);
 
         final WorkingDirectory workingDirectory =
-                WORKING_DIRECTORY_RESOURCE.createNewWorkingDirectory();
+                WORKING_DIRECTORY_EXTENSION_WRAPPER
+                        .getCustomExtension()
+                        .createNewWorkingDirectory();
         TaskManagerServices taskManagerServices =
                 createTaskManagerServices(
                         createTaskManagerServiceConfiguration(config, workingDirectory),
@@ -102,7 +105,7 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
             }
 
             // verify local recovery mode
-            Assert.assertTrue(taskStateManager.isLocalRecoveryEnabled());
+            assertThat(taskStateManager.isLocalRecoveryEnabled()).isTrue();
 
             for (File rootDirectory : rootDirectories) {
                 FileUtils.deleteFileOrDirectory(rootDirectory);
@@ -117,12 +120,14 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
      * tmp directory of the IOManager as default for the local state root directory.
      */
     @Test
-    public void testCreationFromConfigDefault() throws Exception {
+    void testCreationFromConfigDefault() throws Exception {
 
         final Configuration config = new Configuration();
 
         final WorkingDirectory workingDirectory =
-                WORKING_DIRECTORY_RESOURCE.createNewWorkingDirectory();
+                WORKING_DIRECTORY_EXTENSION_WRAPPER
+                        .getCustomExtension()
+                        .createNewWorkingDirectory();
         TaskManagerServicesConfiguration taskManagerServicesConfiguration =
                 createTaskManagerServiceConfiguration(config, workingDirectory);
 
@@ -136,25 +141,27 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
             File[] localStateRootDirectories = taskStateManager.getLocalStateRootDirectories();
 
             for (int i = 0; i < localStateRootDirectories.length; ++i) {
-                Assert.assertEquals(
-                        workingDirectory.getLocalStateDirectory(), localStateRootDirectories[i]);
+                assertThat(localStateRootDirectories[i])
+                        .isEqualTo(workingDirectory.getLocalStateDirectory());
             }
 
-            Assert.assertFalse(taskStateManager.isLocalRecoveryEnabled());
+            assertThat(taskStateManager.isLocalRecoveryEnabled()).isFalse();
         } finally {
             taskManagerServices.shutDown();
         }
     }
 
     @Test
-    public void testLocalStateNoCreateDirWhenDisabledLocalRecovery() throws Exception {
+    void testLocalStateNoCreateDirWhenDisabledLocalRecovery() throws Exception {
         JobID jobID = new JobID();
         JobVertexID jobVertexID = new JobVertexID();
         AllocationID allocationID = new AllocationID();
         int subtaskIdx = 23;
 
         File[] rootDirs = {
-            temporaryFolder.newFolder(), temporaryFolder.newFolder(), temporaryFolder.newFolder()
+            TempDirUtils.newFolder(temporaryFolder.toPath()),
+            TempDirUtils.newFolder(temporaryFolder.toPath()),
+            TempDirUtils.newFolder(temporaryFolder.toPath())
         };
 
         boolean localRecoveryEnabled = false;
@@ -173,15 +180,12 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
                         new Configuration(),
                         new Configuration());
 
-        Assert.assertFalse(taskLocalStateStore.getLocalRecoveryConfig().isLocalRecoveryEnabled());
-        Assert.assertNull(
-                taskLocalStateStore
-                        .getLocalRecoveryConfig()
-                        .getLocalStateDirectoryProvider()
-                        .orElse(null));
+        assertThat(taskLocalStateStore.getLocalRecoveryConfig().isLocalRecoveryEnabled()).isFalse();
+        assertThat(taskLocalStateStore.getLocalRecoveryConfig().getLocalStateDirectoryProvider())
+                .isNotPresent();
 
         for (File recoveryDir : rootDirs) {
-            Assert.assertEquals(0, recoveryDir.listFiles().length);
+            assertThat(recoveryDir).isEmptyDirectory();
         }
     }
 
@@ -191,7 +195,7 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
      * checks that subdirectories are correctly deleted on shutdown.
      */
     @Test
-    public void testSubtaskStateStoreDirectoryCreateAndDelete() throws Exception {
+    void testSubtaskStateStoreDirectoryCreateAndDelete() throws Exception {
 
         JobID jobID = new JobID();
         JobVertexID jobVertexID = new JobVertexID();
@@ -199,7 +203,9 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
         int subtaskIdx = 23;
 
         File[] rootDirs = {
-            temporaryFolder.newFolder(), temporaryFolder.newFolder(), temporaryFolder.newFolder()
+            TempDirUtils.newFolder(temporaryFolder.toPath()),
+            TempDirUtils.newFolder(temporaryFolder.toPath()),
+            TempDirUtils.newFolder(temporaryFolder.toPath())
         };
         TaskExecutorLocalStateStoresManager storesManager =
                 new TaskExecutorLocalStateStoresManager(
@@ -221,44 +227,43 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
                         .orElseThrow(LocalRecoveryConfig.localRecoveryNotEnabled());
 
         for (int i = 0; i < 10; ++i) {
-            Assert.assertEquals(
-                    new File(
-                            rootDirs[(i & Integer.MAX_VALUE) % rootDirs.length],
-                            storesManager.allocationSubDirString(allocationID)),
-                    directoryProvider.allocationBaseDirectory(i));
+            assertThat(
+                            new File(
+                                    rootDirs[(i & Integer.MAX_VALUE) % rootDirs.length],
+                                    storesManager.allocationSubDirString(allocationID)))
+                    .isEqualTo(directoryProvider.allocationBaseDirectory(i));
         }
 
         long chkId = 42L;
         File allocBaseDirChk42 = directoryProvider.allocationBaseDirectory(chkId);
         File subtaskSpecificCheckpointDirectory =
                 directoryProvider.subtaskSpecificCheckpointDirectory(chkId);
-        Assert.assertEquals(
-                new File(
-                        allocBaseDirChk42,
-                        "jid_"
-                                + jobID
-                                + File.separator
-                                + "vtx_"
-                                + jobVertexID
-                                + "_"
-                                + "sti_"
-                                + subtaskIdx
-                                + File.separator
-                                + "chk_"
-                                + chkId),
-                subtaskSpecificCheckpointDirectory);
+        assertThat(
+                        new File(
+                                allocBaseDirChk42,
+                                "jid_"
+                                        + jobID
+                                        + File.separator
+                                        + "vtx_"
+                                        + jobVertexID
+                                        + "_"
+                                        + "sti_"
+                                        + subtaskIdx
+                                        + File.separator
+                                        + "chk_"
+                                        + chkId))
+                .isEqualTo(subtaskSpecificCheckpointDirectory);
 
-        Assert.assertTrue(subtaskSpecificCheckpointDirectory.mkdirs());
+        assertThat(subtaskSpecificCheckpointDirectory.mkdirs()).isTrue();
 
         File testFile = new File(subtaskSpecificCheckpointDirectory, "test");
-        Assert.assertTrue(testFile.createNewFile());
+        assertThat(testFile.createNewFile()).isTrue();
 
         // test that local recovery mode is forwarded to the created store
-        Assert.assertEquals(
-                storesManager.isLocalRecoveryEnabled(),
-                taskLocalStateStore.getLocalRecoveryConfig().isLocalRecoveryEnabled());
+        assertThat(taskLocalStateStore.getLocalRecoveryConfig().isLocalRecoveryEnabled())
+                .isEqualTo(storesManager.isLocalRecoveryEnabled());
 
-        Assert.assertTrue(testFile.exists());
+        assertThat(testFile).exists();
 
         // check cleanup after releasing allocation id
         storesManager.releaseLocalStateForAllocationId(allocationID);
@@ -282,9 +287,9 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
                         .orElseThrow(LocalRecoveryConfig.localRecoveryNotEnabled());
 
         File chkDir = directoryProvider.subtaskSpecificCheckpointDirectory(23L);
-        Assert.assertTrue(chkDir.mkdirs());
+        assertThat(chkDir.mkdirs()).isTrue();
         testFile = new File(chkDir, "test");
-        Assert.assertTrue(testFile.createNewFile());
+        assertThat(testFile.createNewFile()).isTrue();
 
         // check cleanup after shutdown
         storesManager.shutdown();
@@ -292,9 +297,9 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
     }
 
     @Test
-    public void testOwnedLocalStateDirectoriesAreDeletedOnShutdown() throws IOException {
-        final File localStateStoreA = temporaryFolder.newFolder();
-        final File localStateStoreB = temporaryFolder.newFolder();
+    void testOwnedLocalStateDirectoriesAreDeletedOnShutdown() throws IOException {
+        final File localStateStoreA = TempDirUtils.newFolder(temporaryFolder.toPath());
+        final File localStateStoreB = TempDirUtils.newFolder(temporaryFolder.toPath());
 
         final File[] localStateDirectories = {localStateStoreA, localStateStoreB};
 
@@ -314,9 +319,9 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
     }
 
     @Test
-    public void testBorrowedLocalStateDirectoriesAreNotDeletedOnShutdown() throws IOException {
-        final File localStateStoreA = temporaryFolder.newFolder();
-        final File localStateStoreB = temporaryFolder.newFolder();
+    void testBorrowedLocalStateDirectoriesAreNotDeletedOnShutdown() throws IOException {
+        final File localStateStoreA = TempDirUtils.newFolder(temporaryFolder.toPath());
+        final File localStateStoreB = TempDirUtils.newFolder(temporaryFolder.toPath());
 
         final File[] localStateDirectories = {localStateStoreA, localStateStoreB};
 
@@ -338,9 +343,9 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
     }
 
     @Test
-    public void testRetainLocalStateForAllocationsDeletesUnretainedAllocationDirectories()
+    void testRetainLocalStateForAllocationsDeletesUnretainedAllocationDirectories()
             throws IOException {
-        final File localStateStore = temporaryFolder.newFolder();
+        final File localStateStore = TempDirUtils.newFolder(temporaryFolder.toPath());
         final TaskExecutorLocalStateStoresManager taskExecutorLocalStateStoresManager =
                 new TaskExecutorLocalStateStoresManager(
                         true,
@@ -386,7 +391,7 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
         for (File rootDir : rootDirs) {
             File[] files = rootDir.listFiles();
             if (files != null) {
-                Assert.assertArrayEquals(new File[0], files);
+                assertThat(files).isEmpty();
             }
         }
     }

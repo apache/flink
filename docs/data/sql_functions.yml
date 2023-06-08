@@ -16,64 +16,64 @@
 # under the License
 
 comparison:
-    - sql: value1 = value2
-      table: value1 === value2
-      description: Returns TRUE if value1 is equal to value2; returns UNKNOWN if value1 or value2 is NULL.
-    - sql: value1 <> value2
-      table: value1 !== value2
-      description: Returns TRUE if value1 is not equal to value2; returns UNKNOWN if value1 or value2 is NULL.
-    - sql: value1 > value2
-      table: value1 > value2
-      description: Returns TRUE if value1 is greater than value2; returns UNKNOWN if value1 or value2 is NULL.
-    - sql: value1 >= value2
-      table: value1 >= value2
-      description: Returns TRUE if value1 is greater than or equal to value2; returns UNKNOWN if value1 or value2 is NULL.
-    - sql: value1 < value2
-      table: value1 < value2
-      description: Returns TRUE if value1 is less than value2; returns UNKNOWN if value1 or value2 is NULL.
-    - sql: value1 <= value2
-      table: value1 <= value2
-      description: Returns TRUE if value1 is less than or equal to value2; returns UNKNOWN if value1 or value2 is NULL.
-    - sql: value IS NULL
-      table: value.isNull
-      description: Returns TRUE if value is NULL.
-    - sql: value IS NOT NULL
-      table: value.isNotNull
-      description: Returns TRUE if value is not NULL.
-    - sql: value1 IS DISTINCT FROM value2
-      description: Returns TRUE if two values are different. NULL values are treated as identical here. E.g., 1 IS DISTINCT FROM NULL returns TRUE; NULL IS DISTINCT FROM NULL returns FALSE.
-    - sql: value1 IS NOT DISTINCT FROM value2
-      description: Returns TRUE if two values are equal. NULL values are treated as identical here. E.g., 1 IS NOT DISTINCT FROM NULL returns FALSE; NULL IS NOT DISTINCT FROM NULL returns TRUE.
-    - sql: value1 BETWEEN [ ASYMMETRIC | SYMMETRIC ] value2 AND value3
-      description: By default (or with the ASYMMETRIC keyword), returns TRUE if value1 is greater than or equal to value2 and less than or equal to value3. With the SYMMETRIC keyword, returns TRUE if value1 is inclusively between value2 and value3. When either value2 or value3 is NULL, returns FALSE or UNKNOWN. E.g., 12 BETWEEN 15 AND 12 returns FALSE; 12 BETWEEN SYMMETRIC 15 AND 12 returns TRUE; 12 BETWEEN 10 AND NULL returns UNKNOWN; 12 BETWEEN NULL AND 10 returns FALSE; 12 BETWEEN SYMMETRIC NULL AND 12 returns UNKNOWN.
-    - sql: value1 NOT BETWEEN [ ASYMMETRIC | SYMMETRIC ] value2 AND value3
-      description: By default (or with the ASYMMETRIC keyword), returns TRUE if value1 is less than value2 or greater than value3. With the SYMMETRIC keyword, returns TRUE if value1 is not inclusively between value2 and value3. When either value2 or value3 is NULL, returns TRUE or UNKNOWN. E.g., 12 NOT BETWEEN 15 AND 12 returns TRUE; 12 NOT BETWEEN SYMMETRIC 15 AND 12 returns FALSE; 12 NOT BETWEEN NULL AND 15 returns UNKNOWN; 12 NOT BETWEEN 15 AND NULL returns TRUE; 12 NOT BETWEEN SYMMETRIC 12 AND NULL returns UNKNOWN.
-    - sql: string1 LIKE string2 [ ESCAPE char ]
-      table: string1.like(string2)
-      description: Returns TRUE if string1 matches pattern string2; returns UNKNOWN if string1 or string2 is NULL. An escape character can be defined if necessary. The escape character has not been supported yet.
-    - sql: string1 NOT LIKE string2 [ ESCAPE char ]
-      description: Returns TRUE if string1 does not match pattern string2; returns UNKNOWN if string1 or string2 is NULL. An escape character can be defined if necessary. The escape character has not been supported yet.
-    - sql: string1 SIMILAR TO string2 [ ESCAPE char ]
-      table: string1.similar(string2)
-      description: Returns TRUE if string1 matches SQL regular expression string2; returns UNKNOWN if string1 or string2 is NULL. An escape character can be defined if necessary. The escape character has not been supported yet.
-    - sql: string1 NOT SIMILAR TO string2 [ ESCAPE char ]
-      description: Returns TRUE if string1 does not match SQL regular expression string2; returns UNKNOWN if string1 or string2 is NULL. An escape character can be defined if necessary. The escape character has not been supported yet.
-    - sql: value1 IN (value2 [, value3]* )
-      table: value1.in(valu2) 
-      description: Returns TRUE if value1 exists in the given list (value2, value3, ...). When (value2, value3, ...). contains NULL, returns TRUE if the element can be found and UNKNOWN otherwise. Always returns UNKNOWN if value1 is NULL. E.g., 4 IN (1, 2, 3) returns FALSE; 1 IN (1, 2, NULL) returns TRUE; 4 IN (1, 2, NULL) returns UNKNOWN.
-    - sql: value1 NOT IN (value2 [, value3]* )
-      description: Returns TRUE if value1 does not exist in the given list (value2, value3, ...). When (value2, value3, ...). contains NULL, returns FALSE if value1 can be found and UNKNOWN otherwise. Always returns UNKNOWN if value1 is NULL. E.g., 4 NOT IN (1, 2, 3) returns TRUE; 1 NOT IN (1, 2, NULL) returns FALSE; 4 NOT IN (1, 2, NULL) returns UNKNOWN.
-    - sql: EXISTS (sub-query)
-      description: Returns TRUE if sub-query returns at least one row. Only supported if the operation can be rewritten in a join and group operation. For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size.
-    - sql: value IN (sub-query)
-      table: value1.in(TABLE)
-      description: Returns TRUE if value is equal to a row returned by sub-query.
-    - sql: value NOT IN (sub-query)
-      description: Returns TRUE if value is not equal to a row returned by sub-query.
-    - table: value1.between(value2, value3)
-      description: Returns TRUE if value is greater than or equal to value2 and less than or equal to value3. When either value2 or value3 is NULL, returns FALSE or UNKNOWN.
-    - table: value1.notBetween(value2, value3)
-      description: Returns FALSE if value is greater than or equal to value2 and less than or equal to value3. When either value2 or value3 is NULL, returns TRUE or UNKNOWN.
+  - sql: value1 = value2
+    table: value1 === value2
+    description: Returns TRUE if value1 is equal to value2; returns UNKNOWN if value1 or value2 is NULL.
+  - sql: value1 <> value2
+    table: value1 !== value2
+    description: Returns TRUE if value1 is not equal to value2; returns UNKNOWN if value1 or value2 is NULL.
+  - sql: value1 > value2
+    table: value1 > value2
+    description: Returns TRUE if value1 is greater than value2; returns UNKNOWN if value1 or value2 is NULL.
+  - sql: value1 >= value2
+    table: value1 >= value2
+    description: Returns TRUE if value1 is greater than or equal to value2; returns UNKNOWN if value1 or value2 is NULL.
+  - sql: value1 < value2
+    table: value1 < value2
+    description: Returns TRUE if value1 is less than value2; returns UNKNOWN if value1 or value2 is NULL.
+  - sql: value1 <= value2
+    table: value1 <= value2
+    description: Returns TRUE if value1 is less than or equal to value2; returns UNKNOWN if value1 or value2 is NULL.
+  - sql: value IS NULL
+    table: value.isNull
+    description: Returns TRUE if value is NULL.
+  - sql: value IS NOT NULL
+    table: value.isNotNull
+    description: Returns TRUE if value is not NULL.
+  - sql: value1 IS DISTINCT FROM value2
+    description: Returns TRUE if two values are different. NULL values are treated as identical here. E.g., 1 IS DISTINCT FROM NULL returns TRUE; NULL IS DISTINCT FROM NULL returns FALSE.
+  - sql: value1 IS NOT DISTINCT FROM value2
+    description: Returns TRUE if two values are equal. NULL values are treated as identical here. E.g., 1 IS NOT DISTINCT FROM NULL returns FALSE; NULL IS NOT DISTINCT FROM NULL returns TRUE.
+  - sql: value1 BETWEEN [ ASYMMETRIC | SYMMETRIC ] value2 AND value3
+    description: By default (or with the ASYMMETRIC keyword), returns TRUE if value1 is greater than or equal to value2 and less than or equal to value3. With the SYMMETRIC keyword, returns TRUE if value1 is inclusively between value2 and value3. When either value2 or value3 is NULL, returns FALSE or UNKNOWN. E.g., 12 BETWEEN 15 AND 12 returns FALSE; 12 BETWEEN SYMMETRIC 15 AND 12 returns TRUE; 12 BETWEEN 10 AND NULL returns UNKNOWN; 12 BETWEEN NULL AND 10 returns FALSE; 12 BETWEEN SYMMETRIC NULL AND 12 returns UNKNOWN.
+  - sql: value1 NOT BETWEEN [ ASYMMETRIC | SYMMETRIC ] value2 AND value3
+    description: By default (or with the ASYMMETRIC keyword), returns TRUE if value1 is less than value2 or greater than value3. With the SYMMETRIC keyword, returns TRUE if value1 is not inclusively between value2 and value3. When either value2 or value3 is NULL, returns TRUE or UNKNOWN. E.g., 12 NOT BETWEEN 15 AND 12 returns TRUE; 12 NOT BETWEEN SYMMETRIC 15 AND 12 returns FALSE; 12 NOT BETWEEN NULL AND 15 returns UNKNOWN; 12 NOT BETWEEN 15 AND NULL returns TRUE; 12 NOT BETWEEN SYMMETRIC 12 AND NULL returns UNKNOWN.
+  - sql: string1 LIKE string2 [ ESCAPE char ]
+    table: string1.like(string2)
+    description: Returns TRUE if string1 matches pattern string2; returns UNKNOWN if string1 or string2 is NULL. An escape character can be defined if necessary. The escape character has not been supported yet.
+  - sql: string1 NOT LIKE string2 [ ESCAPE char ]
+    description: Returns TRUE if string1 does not match pattern string2; returns UNKNOWN if string1 or string2 is NULL. An escape character can be defined if necessary. The escape character has not been supported yet.
+  - sql: string1 SIMILAR TO string2 [ ESCAPE char ]
+    table: string1.similar(string2)
+    description: Returns TRUE if string1 matches SQL regular expression string2; returns UNKNOWN if string1 or string2 is NULL. An escape character can be defined if necessary. The escape character has not been supported yet.
+  - sql: string1 NOT SIMILAR TO string2 [ ESCAPE char ]
+    description: Returns TRUE if string1 does not match SQL regular expression string2; returns UNKNOWN if string1 or string2 is NULL. An escape character can be defined if necessary. The escape character has not been supported yet.
+  - sql: value1 IN (value2 [, value3]* )
+    table: value1.in(valu2)
+    description: Returns TRUE if value1 exists in the given list (value2, value3, ...). When (value2, value3, ...). contains NULL, returns TRUE if the element can be found and UNKNOWN otherwise. Always returns UNKNOWN if value1 is NULL. E.g., 4 IN (1, 2, 3) returns FALSE; 1 IN (1, 2, NULL) returns TRUE; 4 IN (1, 2, NULL) returns UNKNOWN.
+  - sql: value1 NOT IN (value2 [, value3]* )
+    description: Returns TRUE if value1 does not exist in the given list (value2, value3, ...). When (value2, value3, ...). contains NULL, returns FALSE if value1 can be found and UNKNOWN otherwise. Always returns UNKNOWN if value1 is NULL. E.g., 4 NOT IN (1, 2, 3) returns TRUE; 1 NOT IN (1, 2, NULL) returns FALSE; 4 NOT IN (1, 2, NULL) returns UNKNOWN.
+  - sql: EXISTS (sub-query)
+    description: Returns TRUE if sub-query returns at least one row. Only supported if the operation can be rewritten in a join and group operation. For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size.
+  - sql: value IN (sub-query)
+    table: value1.in(TABLE)
+    description: Returns TRUE if value is equal to a row returned by sub-query.
+  - sql: value NOT IN (sub-query)
+    description: Returns TRUE if value is not equal to a row returned by sub-query.
+  - table: value1.between(value2, value3)
+    description: Returns TRUE if value is greater than or equal to value2 and less than or equal to value3. When either value2 or value3 is NULL, returns FALSE or UNKNOWN.
+  - table: value1.notBetween(value2, value3)
+    description: Returns FALSE if value is greater than or equal to value2 and less than or equal to value3. When either value2 or value3 is NULL, returns TRUE or UNKNOWN.
 
 logical:
   - sql: boolean1 OR boolean2
@@ -97,9 +97,9 @@ logical:
   - sql: boolean IS NOT TRUE
     table: BOOLEAN.isNotTrue
     description: Returns TRUE if boolean is FALSE or UNKNOWN; returns FALSE if boolean is TRUE.
-  - sql: boolean IS UNKNOWN 
+  - sql: boolean IS UNKNOWN
     description: Returns TRUE if boolean is UNKNOWN; returns FALSE if boolean is TRUE or FALSE.
-  - sql: boolean IS NOT UNKNOWN 
+  - sql: boolean IS NOT UNKNOWN
     description: Returns TRUE if boolean is TRUE or FALSE; returns FALSE if boolean is UNKNOWN.
 
 arithmetic:
@@ -142,13 +142,13 @@ arithmetic:
   - sql: LOG2(numeric)
     table: numeric.log2()
     description: Returns the base 2 logarithm of numeric.
-  - sql: | 
-        LOG(numeric2)
-        LOG(numeric1, numeric2)
+  - sql: |
+      LOG(numeric2)
+      LOG(numeric1, numeric2)
     table: |
-        NUMERIC1.log()
-        NUMERIC1.log(NUMERIC2)
-    description: When called with one argument, returns the natural logarithm of numeric2. When called with two arguments, this function returns the logarithm of numeric2 to the base numeric1. Currently, numeric2 must be greater than 0 and numeric1 must be greater than 1. 
+      NUMERIC1.log()
+      NUMERIC1.log(NUMERIC2)
+    description: When called with one argument, returns the natural logarithm of numeric2. When called with two arguments, this function returns the logarithm of numeric2 to the base numeric1. Currently, numeric2 must be greater than 0 and numeric1 must be greater than 1.
   - sql: EXP(numeric)
     table: NUMERIC.exp()
     description: Returns e raised to the power of numeric.
@@ -234,7 +234,7 @@ arithmetic:
   - sql: |
       HEX(numeric)
       HEX(string)
-    table: | 
+    table: |
       NUMERIC.hex()
       STRING.hex()
     description: Returns a string representation of an integer NUMERIC value or a STRING in hex format. Returns NULL if the argument is NULL. E.g. a numeric 20 leads to "14", a numeric 100 leads to "64", a string "hello,world" leads to "68656C6C6F2C776F726C64".
@@ -340,7 +340,7 @@ string:
     description: Encodes the string1 into a BINARY using the provided string2 character set (one of 'US-ASCII', 'ISO-8859-1', 'UTF-8', 'UTF-16BE', 'UTF-16LE', 'UTF-16'). If either argument is null, the result will also be null.
   - sql: INSTR(string1, string2)
     table: STRING1.instr(STRING2)
-    description:  Returns the position of the first occurrence of string2 in string1. Returns NULL if any of arguments is NULL.
+    description: Returns the position of the first occurrence of string2 in string1. Returns NULL if any of arguments is NULL.
   - sql: LEFT(string, integer)
     table: STRING.LEFT(INT)
     description: Returns the leftmost integer characters from the string. Returns EMPTY String if integer is negative. Returns NULL if any argument is NULL.
@@ -414,7 +414,7 @@ temporal:
       NUMERIC.day
       NUMERIC.days
     description: Creates an interval of milliseconds for NUMERIC days.
-  - table: | 
+  - table: |
       NUMERIC.hour
       NUMERIC.hours
     description: Creates an interval of milliseconds for NUMERIC hours.
@@ -422,11 +422,11 @@ temporal:
       NUMERIC.minute
       NUMERIC.minutes
     description: Creates an interval of milliseconds for NUMERIC minutes.
-  - table: | 
+  - table: |
       NUMERIC.second
       NUMERIC.seconds
     description: Creates an interval of milliseconds for NUMERIC seconds.
-  - table: | 
+  - table: |
       NUMERIC.milli
       NUMERIC.millis
     description: Creates an interval of NUMERIC milliseconds.
@@ -472,7 +472,7 @@ temporal:
     description: Returns the minute of an hour (an integer between 0 and 59) from SQL timestamp timestamp. Equivalent to EXTRACT(MINUTE FROM timestamp). E.g., MINUTE(TIMESTAMP '1994-09-27 13:14:15') returns 14.
   - sql: SECOND(timestamp)
     description: Returns the second of a minute (an integer between 0 and 59) from SQL timestamp. Equivalent to EXTRACT(SECOND FROM timestamp). E.g., SECOND(TIMESTAMP '1994-09-27 13:14:15') returns 15.
-  - sql: FLOOR(timepoint TO timeintervalunit) 
+  - sql: FLOOR(timepoint TO timeintervalunit)
     table: TIMEPOINT.floor(TIMEINTERVALUNIT)
     description: Returns a value that rounds timepoint down to the time unit timeintervalunit. E.g., FLOOR(TIME '12:44:31' TO MINUTE) returns 12:44:00.
   - sql: CEIL(timepoint TO timeintervaluntit)
@@ -605,8 +605,8 @@ conversion:
     table: ANY.tryCast(TYPE)
     description: Like CAST, but in case of error, returns NULL rather than failing the job. E.g., TRY_CAST('42' AS INT) returns 42; TRY_CAST(NULL AS STRING) returns NULL of type STRING; TRY_CAST('non-number' AS INT) returns NULL of type INT; COALESCE(TRY_CAST('non-number' AS INT), 0) returns 0 of type INT.
   - sql: |
-     TYPEOF(input)
-     TYPEOF(input, force_serializable)
+      TYPEOF(input)
+      TYPEOF(input, force_serializable)
     table: |
       call("TYPEOF", input)
       call("TYPEOF", input, force_serializable)
@@ -643,12 +643,18 @@ collection:
   - sql: ARRAY_REVERSE(haystack)
     table: haystack.arrayReverse()
     description: Returns an array in reverse order. If the array itself is null, the function will return null.
+  - sql: ARRAY_UNION(array1, array2)
+    table: haystack.arrayUnion(array)
+    description: Returns an array of the elements in the union of array1 and array2, without duplicates. If any of the array is null, the function will return null.
   - sql: MAP_KEYS(map)
     table: MAP.mapKeys()
     description: Returns the keys of the map as array. No order guaranteed.
   - sql: MAP_VALUES(map)
     table: MAP.mapValues()
     description: Returns the values of the map as array. No order guaranteed.
+  - sql: MAP_ENTRIES(map)
+    table: MAP.mapEntries()
+    description: Returns an array of all entries in the given map. No order guaranteed.
   - sql: MAP_FROM_ARRAYS(array_of_keys, array_of_values)
     table: mapFromArrays(array_of_keys, array_of_values)
     description: Returns a map created from an arrays of keys and values. Note that the lengths of two arrays should be the same.
@@ -991,7 +997,7 @@ hashfunctions:
     description: Returns the SHA-512 hash of string as a string of 128 hexadecimal digits; returns NULL if string is NULL.
   - sql: SHA2(string, hashLength)
     table: STRING.sha2(INT)
-    description: Returns the hash using the SHA-2 family of hash functions (SHA-224, SHA-256, SHA-384, or SHA-512). The first argument string is the string to be hashed and the second argument hashLength is the bit length of the result (224, 256, 384, or 512). Returns NULL if string or hashLength is NULL. 
+    description: Returns the hash using the SHA-2 family of hash functions (SHA-224, SHA-256, SHA-384, or SHA-512). The first argument string is the string to be hashed and the second argument hashLength is the bit length of the result (224, 256, 384, or 512). Returns NULL if string or hashLength is NULL.
 
 auxilary:
   - table: callSql(STRING)
@@ -1007,7 +1013,7 @@ auxilary:
   - table: ANY.as(NAME1, NAME2, ...)
     description: Specifies a name for ANY (a field). Additional names can be specified if the expression expands to multiple fields.
 
-aggregate: 
+aggregate:
   - sql: COUNT([ ALL ] expression | DISTINCT expression1 [, expression2]*)
     description: By default or with ALL, returns the number of input rows for which expression is not NULL. Use DISTINCT for one unique instance of each value.
   - sql: |

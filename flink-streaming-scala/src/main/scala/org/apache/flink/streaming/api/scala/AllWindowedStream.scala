@@ -550,26 +550,24 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
   // ------------------------------------------------------------------------
 
   /**
-   * Applies an aggregation that that gives the maximum of the elements in the window at the given
+   * Applies an aggregation that gives the maximum of the elements in the window at the given
    * position.
    */
   def max(position: Int): DataStream[T] = aggregate(AggregationType.MAX, position)
 
   /**
-   * Applies an aggregation that that gives the maximum of the elements in the window at the given
-   * field.
+   * Applies an aggregation that gives the maximum of the elements in the window at the given field.
    */
   def max(field: String): DataStream[T] = aggregate(AggregationType.MAX, field)
 
   /**
-   * Applies an aggregation that that gives the minimum of the elements in the window at the given
+   * Applies an aggregation that gives the minimum of the elements in the window at the given
    * position.
    */
   def min(position: Int): DataStream[T] = aggregate(AggregationType.MIN, position)
 
   /**
-   * Applies an aggregation that that gives the minimum of the elements in the window at the given
-   * field.
+   * Applies an aggregation that gives the minimum of the elements in the window at the given field.
    */
   def min(field: String): DataStream[T] = aggregate(AggregationType.MIN, field)
 
@@ -580,26 +578,26 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
   def sum(field: String): DataStream[T] = aggregate(AggregationType.SUM, field)
 
   /**
-   * Applies an aggregation that that gives the maximum element of the window by the given position.
-   * When equality, returns the first.
+   * Applies an aggregation that gives the maximum element of the window by the given position. When
+   * equality, returns the first.
    */
   def maxBy(position: Int): DataStream[T] = aggregate(AggregationType.MAXBY, position)
 
   /**
-   * Applies an aggregation that that gives the maximum element of the window by the given field.
-   * When equality, returns the first.
+   * Applies an aggregation that gives the maximum element of the window by the given field. When
+   * equality, returns the first.
    */
   def maxBy(field: String): DataStream[T] = aggregate(AggregationType.MAXBY, field)
 
   /**
-   * Applies an aggregation that that gives the minimum element of the window by the given position.
-   * When equality, returns the first.
+   * Applies an aggregation that gives the minimum element of the window by the given position. When
+   * equality, returns the first.
    */
   def minBy(position: Int): DataStream[T] = aggregate(AggregationType.MINBY, position)
 
   /**
-   * Applies an aggregation that that gives the minimum element of the window by the given field.
-   * When equality, returns the first.
+   * Applies an aggregation that gives the minimum element of the window by the given field. When
+   * equality, returns the first.
    */
   def minBy(field: String): DataStream[T] = aggregate(AggregationType.MINBY, field)
 

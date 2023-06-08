@@ -49,8 +49,6 @@ def _install():
     from pyflink.datastream.connectors import pulsar
     setattr(connectors, 'PulsarSource', pulsar.PulsarSource)
     setattr(connectors, 'PulsarSourceBuilder', pulsar.PulsarSourceBuilder)
-    setattr(connectors, 'PulsarDeserializationSchema', pulsar.PulsarDeserializationSchema)
-    setattr(connectors, 'SubscriptionType', pulsar.SubscriptionType)
     setattr(connectors, 'StartCursor', pulsar.StartCursor)
     setattr(connectors, 'StopCursor', pulsar.StopCursor)
 

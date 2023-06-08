@@ -39,12 +39,12 @@ import java.util.Map;
 public class FlinkResultSetMetaData implements ResultSetMetaData {
     private final List<ColumnInfo> columnList;
 
-    public FlinkResultSetMetaData(List<String> columnNameList, List<DataType> columnTypeList) {
-        this.columnList = new ArrayList<>(columnNameList.size());
-        for (int i = 0; i < columnNameList.size(); i++) {
-            this.columnList.add(
+    public FlinkResultSetMetaData(List<String> columnNames, List<DataType> columnTypes) {
+        this.columnList = new ArrayList<>(columnNames.size());
+        for (int i = 0; i < columnNames.size(); i++) {
+            columnList.add(
                     ColumnInfo.fromLogicalType(
-                            columnNameList.get(i), columnTypeList.get(i).getLogicalType()));
+                            columnNames.get(i), columnTypes.get(i).getLogicalType()));
         }
     }
 

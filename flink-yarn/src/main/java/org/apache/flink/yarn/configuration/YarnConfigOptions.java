@@ -97,7 +97,7 @@ public class YarnConfigOptions {
                                             "Number of ApplicationMaster restarts. By default, the value will be set to 1. "
                                                     + "If high availability is enabled, then the default value will be 2. "
                                                     + "The restart number is also limited by YARN (configured via %s). "
-                                                    + "Note that that the entire Flink cluster will restart and the YARN Client will lose the connection.",
+                                                    + "Note that the entire Flink cluster will restart and the YARN Client will lose the connection.",
                                             link(
                                                     "https://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-common/yarn-default.xml",
                                                     "yarn.resourcemanager.am.max-attempts"))

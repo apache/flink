@@ -209,11 +209,15 @@ public class KubernetesUtils {
      * @param expectedConfigMapName expected ConfigMap Name
      * @return Return the expected ConfigMap
      */
-    public static KubernetesConfigMap checkConfigMaps(
+    public static KubernetesConfigMap getOnlyConfigMap(
             List<KubernetesConfigMap> configMaps, String expectedConfigMapName) {
-        assert (configMaps.size() == 1);
-        assert (configMaps.get(0).getName().equals(expectedConfigMapName));
-        return configMaps.get(0);
+        if (configMaps.size() == 1 && expectedConfigMapName.equals(configMaps.get(0).getName())) {
+            return configMaps.get(0);
+        }
+        throw new IllegalStateException(
+                String.format(
+                        "ConfigMap list should only contain a single ConfigMap [%s].",
+                        expectedConfigMapName));
     }
 
     /**

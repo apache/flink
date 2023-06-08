@@ -29,7 +29,11 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Optional;
 import java.util.StringJoiner;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * {@code ExceptionHistoryEntry} collects information about a single failure that triggered the
@@ -41,18 +45,25 @@ public class ExceptionHistoryEntry extends ErrorInfo {
 
     @Nullable private final String failingTaskName;
     @Nullable private final ArchivedTaskManagerLocation taskManagerLocation;
+    private final transient CompletableFuture<Map<String, String>> failureLabelsFuture;
+    /** Labels associated with the failure, set as soon as failureLabelsFuture is completed. */
+    private Map<String, String> failureLabels;
 
     /**
      * Creates an {@code ExceptionHistoryEntry} based on the provided {@code Execution}.
      *
      * @param failedExecution the failed {@code Execution}.
      * @param taskName the name of the task.
+     * @param failureLabels the labels associated with the failure.
      * @return The {@code ExceptionHistoryEntry}.
      * @throws NullPointerException if {@code null} is passed as one of the parameters.
      * @throws IllegalArgumentException if the passed {@code Execution} does not provide a {@link
      *     Execution#getFailureInfo() failureInfo}.
      */
-    public static ExceptionHistoryEntry create(AccessExecution failedExecution, String taskName) {
+    public static ExceptionHistoryEntry create(
+            AccessExecution failedExecution,
+            String taskName,
+            CompletableFuture<Map<String, String>> failureLabels) {
         Preconditions.checkNotNull(failedExecution, "No Execution is specified.");
         Preconditions.checkNotNull(taskName, "No task name is specified.");
         Preconditions.checkArgument(
@@ -63,14 +74,20 @@ public class ExceptionHistoryEntry extends ErrorInfo {
         return new ExceptionHistoryEntry(
                 failure.getException(),
                 failure.getTimestamp(),
+                failureLabels,
                 taskName,
                 failedExecution.getAssignedResourceLocation());
     }
 
     /** Creates an {@code ExceptionHistoryEntry} that is not based on an {@code Execution}. */
-    public static ExceptionHistoryEntry createGlobal(Throwable cause) {
+    public static ExceptionHistoryEntry createGlobal(
+            Throwable cause, CompletableFuture<Map<String, String>> failureLabels) {
         return new ExceptionHistoryEntry(
-                cause, System.currentTimeMillis(), null, (ArchivedTaskManagerLocation) null);
+                cause,
+                System.currentTimeMillis(),
+                failureLabels,
+                null,
+                (ArchivedTaskManagerLocation) null);
     }
 
     /**
@@ -78,6 +95,7 @@ public class ExceptionHistoryEntry extends ErrorInfo {
      *
      * @param cause The reason for the failure.
      * @param timestamp The time the failure was caught.
+     * @param failureLabels The labels associated with the failure.
      * @param failingTaskName The name of the task that failed.
      * @param taskManagerLocation The host the task was running on.
      * @throws NullPointerException if {@code cause} is {@code null}.
@@ -87,11 +105,13 @@ public class ExceptionHistoryEntry extends ErrorInfo {
     protected ExceptionHistoryEntry(
             Throwable cause,
             long timestamp,
+            CompletableFuture<Map<String, String>> failureLabels,
             @Nullable String failingTaskName,
             @Nullable TaskManagerLocation taskManagerLocation) {
         this(
                 cause,
                 timestamp,
+                failureLabels,
                 failingTaskName,
                 ArchivedTaskManagerLocation.fromTaskManagerLocation(taskManagerLocation));
     }
@@ -99,11 +119,17 @@ public class ExceptionHistoryEntry extends ErrorInfo {
     private ExceptionHistoryEntry(
             Throwable cause,
             long timestamp,
+            CompletableFuture<Map<String, String>> failureLabels,
             @Nullable String failingTaskName,
             @Nullable ArchivedTaskManagerLocation taskManagerLocation) {
         super(cause, timestamp);
         this.failingTaskName = failingTaskName;
         this.taskManagerLocation = taskManagerLocation;
+        this.failureLabelsFuture =
+                Preconditions.checkNotNull(failureLabels)
+                        .thenApply(
+                                labelMap ->
+                                        this.failureLabels = Collections.unmodifiableMap(labelMap));
     }
 
     public boolean isGlobal() {
@@ -118,6 +144,25 @@ public class ExceptionHistoryEntry extends ErrorInfo {
     @Nullable
     public ArchivedTaskManagerLocation getTaskManagerLocation() {
         return taskManagerLocation;
+    }
+
+    /**
+     * Returns the labels associated with the failure that is set as soon as failureLabelsFuture is
+     * completed. When failureLabelsFuture is not completed, it returns an empty map.
+     *
+     * @return Map of failure labels
+     */
+    public Map<String, String> getFailureLabels() {
+        return Optional.ofNullable(failureLabels).orElse(Collections.emptyMap());
+    }
+
+    /**
+     * Returns the labels future associated with the failure.
+     *
+     * @return CompletableFuture of Map failure labels
+     */
+    public CompletableFuture<Map<String, String>> getFailureLabelsFuture() {
+        return failureLabelsFuture;
     }
 
     /**

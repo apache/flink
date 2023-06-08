@@ -121,6 +121,18 @@ public class NetUtils {
     }
 
     /**
+     * Converts an InetSocketAddress to a URL. This method assigns the "http://" schema to the URL
+     * by default.
+     *
+     * @param socketAddress the InetSocketAddress to be converted
+     * @return a URL object representing the provided socket address with "http://" schema
+     */
+    public static URL socketToUrl(InetSocketAddress socketAddress) {
+        String hostPort = socketAddress.getHostString() + ":" + socketAddress.getPort();
+        return validateHostPortString(hostPort);
+    }
+
+    /**
      * Calls {@link ServerSocket#accept()} on the provided server socket, suppressing any thrown
      * {@link SocketTimeoutException}s. This is a workaround for the underlying JDK-8237858 bug in
      * JDK 11 that can cause errant SocketTimeoutExceptions to be thrown at unexpected times.

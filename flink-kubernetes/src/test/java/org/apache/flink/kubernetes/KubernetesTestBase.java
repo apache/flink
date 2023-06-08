@@ -91,7 +91,7 @@ public class KubernetesTestBase {
         setupFlinkConfig();
         writeFlinkConfiguration();
 
-        kubeClient = server.getClient().inNamespace(NAMESPACE);
+        kubeClient = server.createClient().inNamespace(NAMESPACE);
         flinkKubeClient =
                 new Fabric8FlinkKubeClient(
                         flinkConfig, kubeClient, Executors.newDirectExecutorService());

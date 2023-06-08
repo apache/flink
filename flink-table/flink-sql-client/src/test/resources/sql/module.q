@@ -55,10 +55,10 @@ SELECT SUBSTRING_INDEX('www.apache.org', '.', 2) FROM (VALUES (1, 'Hello World')
 org.apache.calcite.sql.validate.SqlValidatorException: No match found for function signature SUBSTRING_INDEX(<CHARACTER>, <CHARACTER>, <NUMERIC>)
 !error
 
-# load hive module with module name as string literal
-LOAD MODULE 'hive';
+# load dummy module with module name as string literal
+LOAD MODULE 'dummy';
 [ERROR] Could not execute SQL statement. Reason:
-org.apache.flink.sql.parser.impl.ParseException: Encountered "\'hive\'" at line 1, column 13.
+org.apache.flink.sql.parser.impl.ParseException: Encountered "\'dummy\'" at line 1, column 13.
 Was expecting one of:
     <BRACKET_QUOTED_IDENTIFIER> ...
     <QUOTED_IDENTIFIER> ...
@@ -69,24 +69,24 @@ Was expecting one of:
     <UNICODE_QUOTED_IDENTIFIER> ...
 !error
 
-# load hive module with module name capitalized
-LOAD MODULE Hive;
+# load dummy module with module name capitalized
+LOAD MODULE Dummy;
 [ERROR] Could not execute SQL statement. Reason:
-org.apache.flink.table.api.ValidationException: Could not find any factory for identifier 'Hive' that implements 'org.apache.flink.table.factories.ModuleFactory' in the classpath.
+org.apache.flink.table.api.ValidationException: Could not find any factory for identifier 'Dummy' that implements 'org.apache.flink.table.factories.ModuleFactory' in the classpath.
 
 Available factory identifiers are:
 
 core
-hive
+dummy
 !error
 
-# load hive module with specifying type
-LOAD MODULE myhive WITH ('type' = 'hive');
+# load dummy module with specifying type
+LOAD MODULE mydummy WITH ('type' = 'dummy');
 [ERROR] Could not execute SQL statement. Reason:
-org.apache.flink.table.api.ValidationException: Option 'type' = 'hive' is not supported since module name is used to find module
+org.apache.flink.table.api.ValidationException: Option 'type' = 'dummy' is not supported since module name is used to find module
 !error
 
-LOAD MODULE hive;
+LOAD MODULE dummy;
 [INFO] Execute statement succeed.
 !info
 
@@ -96,7 +96,7 @@ SHOW MODULES;
 | module name |
 +-------------+
 |        core |
-|        hive |
+|       dummy |
 +-------------+
 2 rows in set
 !ok
@@ -107,19 +107,9 @@ SHOW FULL MODULES;
 | module name | used |
 +-------------+------+
 |        core | TRUE |
-|        hive | TRUE |
+|       dummy | TRUE |
 +-------------+------+
 2 rows in set
-!ok
-
-# use hive built-in function after loading hive module
-SELECT SUBSTRING_INDEX('www.apache.org', '.', 2) FROM (VALUES (1, 'Hello World')) AS T(id, str);
-+----+--------------------------------+
-| op |                         EXPR$0 |
-+----+--------------------------------+
-| +I |                     www.apache |
-+----+--------------------------------+
-Received a total of 1 row
 !ok
 
 # ==========================================================================
@@ -127,13 +117,13 @@ Received a total of 1 row
 # ==========================================================================
 
 # use duplicate modules
-USE MODULES hive, core, hive;
+USE MODULES dummy, core, dummy;
 [ERROR] Could not execute SQL statement. Reason:
-org.apache.flink.table.api.ValidationException: Module 'hive' appears more than once
+org.apache.flink.table.api.ValidationException: Module 'dummy' appears more than once
 !error
 
 # change module resolution order
-USE MODULES hive, core;
+USE MODULES dummy, core;
 [INFO] Execute statement succeed.
 !info
 
@@ -141,7 +131,7 @@ SHOW MODULES;
 +-------------+
 | module name |
 +-------------+
-|        hive |
+|       dummy |
 |        core |
 +-------------+
 2 rows in set
@@ -151,13 +141,13 @@ SHOW FULL MODULES;
 +-------------+------+
 | module name | used |
 +-------------+------+
-|        hive | TRUE |
+|       dummy | TRUE |
 |        core | TRUE |
 +-------------+------+
 2 rows in set
 !ok
 
-# disable hive module
+# disable dummy module
 USE MODULES core;
 [INFO] Execute statement succeed.
 !info
@@ -176,16 +166,10 @@ SHOW FULL MODULES;
 | module name |  used |
 +-------------+-------+
 |        core |  TRUE |
-|        hive | FALSE |
+|       dummy | FALSE |
 +-------------+-------+
 2 rows in set
 !ok
-
-# use hive built-in function without using hive module
-SELECT SUBSTRING_INDEX('www.apache.org', '.', 2) FROM (VALUES (1, 'Hello World')) AS T(id, str);
-[ERROR] Could not execute SQL statement. Reason:
-org.apache.calcite.sql.validate.SqlValidatorException: No match found for function signature SUBSTRING_INDEX(<CHARACTER>, <CHARACTER>, <NUMERIC>)
-!error
 
 # ==========================================================================
 # test unload module
@@ -203,7 +187,7 @@ SHOW FULL MODULES;
 +-------------+-------+
 | module name |  used |
 +-------------+-------+
-|        hive | FALSE |
+|       dummy | FALSE |
 +-------------+-------+
 1 row in set
 !ok

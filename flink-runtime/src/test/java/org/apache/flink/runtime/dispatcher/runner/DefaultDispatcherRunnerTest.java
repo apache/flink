@@ -20,8 +20,9 @@ package org.apache.flink.runtime.dispatcher.runner;
 
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.leaderelection.LeaderElection;
+import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
-import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -44,13 +45,15 @@ import static org.junit.Assert.fail;
 /** Tests for the {@link DefaultDispatcherRunner}. */
 public class DefaultDispatcherRunnerTest extends TestLogger {
 
-    private TestingLeaderElectionService testingLeaderElectionService;
+    private final TestingLeaderElectionService testingLeaderElectionService =
+            new TestingLeaderElectionService();
+    private LeaderElection leaderElection;
     private TestingFatalErrorHandler testingFatalErrorHandler;
     private TestingDispatcherLeaderProcessFactory testingDispatcherLeaderProcessFactory;
 
     @Before
     public void setup() {
-        testingLeaderElectionService = new TestingLeaderElectionService();
+        leaderElection = testingLeaderElectionService.createLeaderElection();
         testingFatalErrorHandler = new TestingFatalErrorHandler();
         testingDispatcherLeaderProcessFactory =
                 TestingDispatcherLeaderProcessFactory.defaultValue();
@@ -58,9 +61,9 @@ public class DefaultDispatcherRunnerTest extends TestLogger {
 
     @After
     public void teardown() throws Exception {
-        if (testingLeaderElectionService != null) {
-            testingLeaderElectionService.stop();
-            testingLeaderElectionService = null;
+        if (leaderElection != null) {
+            leaderElection.close();
+            leaderElection = null;
         }
 
         if (testingFatalErrorHandler != null) {
@@ -249,13 +252,10 @@ public class DefaultDispatcherRunnerTest extends TestLogger {
         final UUID leaderSessionId = UUID.randomUUID();
 
         try (final DispatcherRunner dispatcherRunner = createDispatcherRunner()) {
-            testingLeaderElectionService.isLeader(leaderSessionId);
+            CompletableFuture<LeaderInformation> confirmedLeaderInformation =
+                    testingLeaderElectionService.isLeader(leaderSessionId);
 
-            final CompletableFuture<LeaderConnectionInfo> confirmationFuture =
-                    testingLeaderElectionService.getConfirmationFuture();
-
-            final LeaderConnectionInfo leaderConnectionInfo = confirmationFuture.get();
-            assertThat(leaderConnectionInfo.getLeaderSessionId(), is(leaderSessionId));
+            assertThat(confirmedLeaderInformation.get().getLeaderSessionID(), is(leaderSessionId));
         }
     }
 
@@ -272,18 +272,16 @@ public class DefaultDispatcherRunnerTest extends TestLogger {
                 TestingDispatcherLeaderProcessFactory.from(testingDispatcherLeaderProcess);
 
         try (final DispatcherRunner dispatcherRunner = createDispatcherRunner()) {
-            testingLeaderElectionService.isLeader(leaderSessionId);
+            final CompletableFuture<LeaderInformation> confirmedLeaderInformation =
+                    testingLeaderElectionService.isLeader(leaderSessionId);
 
             testingLeaderElectionService.notLeader();
 
             // complete the confirmation future after losing the leadership
             contenderConfirmationFuture.complete("leader address");
 
-            final CompletableFuture<LeaderConnectionInfo> leaderElectionConfirmationFuture =
-                    testingLeaderElectionService.getConfirmationFuture();
-
             try {
-                leaderElectionConfirmationFuture.get(5L, TimeUnit.MILLISECONDS);
+                confirmedLeaderInformation.get(5L, TimeUnit.MILLISECONDS);
                 fail("No valid leader should exist.");
             } catch (TimeoutException expected) {
             }

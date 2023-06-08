@@ -68,7 +68,6 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -151,7 +150,6 @@ class YARNHighAvailabilityITCase extends YarnTestBase {
      * Tests that Yarn will restart a killed {@link YarnSessionClusterEntrypoint} which will then
      * resume a persisted {@link JobGraph}.
      */
-    @Timeout(value = 30, unit = TimeUnit.MINUTES)
     @Test
     void testKillYarnSessionClusterEntrypoint() throws Exception {
         runTest(
@@ -189,7 +187,6 @@ class YARNHighAvailabilityITCase extends YarnTestBase {
                 });
     }
 
-    @Timeout(value = 30, unit = TimeUnit.MINUTES)
     @Test
     void testJobRecoversAfterKillingTaskManager() throws Exception {
         runTest(
@@ -215,7 +212,6 @@ class YARNHighAvailabilityITCase extends YarnTestBase {
      * Tests that we can retrieve an HA enabled cluster by only specifying the application id if no
      * other high-availability.cluster-id has been configured. See FLINK-20866.
      */
-    @Timeout(value = 30, unit = TimeUnit.MINUTES)
     @Test
     void testClusterClientRetrieval() throws Exception {
         runTest(

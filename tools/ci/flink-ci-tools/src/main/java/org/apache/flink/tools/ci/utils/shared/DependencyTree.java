@@ -28,6 +28,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -41,25 +42,30 @@ public class DependencyTree {
     private final Map<String, Node> lookup = new LinkedHashMap<>();
     private final List<Node> directDependencies = new ArrayList<>();
 
-    public void addDirectDependency(Dependency dependency) {
+    public DependencyTree addDirectDependency(Dependency dependency) {
         final String key = getKey(dependency);
         if (lookup.containsKey(key)) {
-            return;
+            return this;
         }
         final Node node = new Node(dependency, null);
 
         lookup.put(key, node);
         directDependencies.add(node);
+
+        return this;
     }
 
-    public void addTransitiveDependencyTo(Dependency transitiveDependency, Dependency parent) {
+    public DependencyTree addTransitiveDependencyTo(
+            Dependency transitiveDependency, Dependency parent) {
         final String key = getKey(transitiveDependency);
         if (lookup.containsKey(key)) {
-            return;
+            return this;
         }
         final Node node = lookup.get(getKey(parent)).addTransitiveDependency(transitiveDependency);
 
         lookup.put(key, node);
+
+        return this;
     }
 
     private static final class Node {
@@ -81,6 +87,12 @@ public class DependencyTree {
         private boolean isRoot() {
             return parent == null;
         }
+    }
+
+    public List<Dependency> getDirectDependencies() {
+        return directDependencies.stream()
+                .map(node -> node.dependency)
+                .collect(Collectors.toList());
     }
 
     public List<Dependency> getPathTo(Dependency dependency) {

@@ -172,6 +172,7 @@ class ZooKeeperLeaderElectionTest {
 
         DefaultLeaderElectionService[] leaderElectionService =
                 new DefaultLeaderElectionService[num];
+        LeaderElection[] leaderElections = new LeaderElection[num];
         TestingContender[] contenders = new TestingContender[num];
         DefaultLeaderRetrievalService leaderRetrievalService = null;
 
@@ -192,7 +193,7 @@ class ZooKeeperLeaderElectionTest {
 
                 LOG.debug("Start leader election service for contender #{}.", i);
 
-                leaderElectionService[i].start(contenders[i]);
+                leaderElections[i] = contenders[i].startLeaderElection();
             }
 
             String pattern = LEADER_ADDRESS + "_" + "(\\d+)";
@@ -219,7 +220,9 @@ class ZooKeeperLeaderElectionTest {
                         LOG.debug(
                                 "Stop leader election service of contender #{}.",
                                 numberSeenLeaders);
-                        leaderElectionService[index].stop();
+                        leaderElections[index].close();
+                        leaderElections[index] = null;
+                        leaderElectionService[index].close();
                         leaderElectionService[index] = null;
 
                         numberSeenLeaders++;
@@ -238,9 +241,15 @@ class ZooKeeperLeaderElectionTest {
                 leaderRetrievalService.stop();
             }
 
+            for (LeaderElection leaderElection : leaderElections) {
+                if (leaderElection != null) {
+                    leaderElection.close();
+                }
+            }
+
             for (DefaultLeaderElectionService electionService : leaderElectionService) {
                 if (electionService != null) {
-                    electionService.stop();
+                    electionService.close();
                 }
             }
         }
@@ -262,6 +271,7 @@ class ZooKeeperLeaderElectionTest {
 
         DefaultLeaderElectionService[] leaderElectionService =
                 new DefaultLeaderElectionService[num];
+        LeaderElection[] leaderElections = new LeaderElection[num];
         TestingContender[] contenders = new TestingContender[num];
         DefaultLeaderRetrievalService leaderRetrievalService = null;
 
@@ -280,7 +290,7 @@ class ZooKeeperLeaderElectionTest {
                         new TestingContender(
                                 LEADER_ADDRESS + "_" + i + "_0", leaderElectionService[i]);
 
-                leaderElectionService[i].start(contenders[i]);
+                leaderElections[i] = contenders[i].startLeaderElection();
             }
 
             String pattern = LEADER_ADDRESS + "_" + "(\\d+)" + "_" + "(\\d+)";
@@ -301,7 +311,11 @@ class ZooKeeperLeaderElectionTest {
                             .isEqualTo(contenders[index].getLeaderSessionID());
 
                     // stop leader election service = revoke leadership
-                    leaderElectionService[index].stop();
+                    leaderElections[index].close();
+                    leaderElections[index] = null;
+                    leaderElectionService[index].close();
+                    leaderElections[index] = null;
+
                     // create new leader election service which takes part in the leader election
                     leaderElectionService[index] =
                             ZooKeeperUtils.createLeaderElectionService(createZooKeeperClient());
@@ -310,7 +324,7 @@ class ZooKeeperLeaderElectionTest {
                                     LEADER_ADDRESS + "_" + index + "_" + (lastTry + 1),
                                     leaderElectionService[index]);
 
-                    leaderElectionService[index].start(contenders[index]);
+                    leaderElections[index] = contenders[index].startLeaderElection();
                 } else {
                     throw new Exception("Did not find the leader's index.");
                 }
@@ -321,9 +335,15 @@ class ZooKeeperLeaderElectionTest {
                 leaderRetrievalService.stop();
             }
 
+            for (LeaderElection leaderElection : leaderElections) {
+                if (leaderElection != null) {
+                    leaderElection.close();
+                }
+            }
+
             for (DefaultLeaderElectionService electionService : leaderElectionService) {
                 if (electionService != null) {
-                    electionService.stop();
+                    electionService.close();
                 }
             }
         }

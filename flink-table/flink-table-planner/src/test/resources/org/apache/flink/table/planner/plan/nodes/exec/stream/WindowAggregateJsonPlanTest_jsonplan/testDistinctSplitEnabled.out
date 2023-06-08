@@ -194,7 +194,7 @@
         "type" : "INT"
       }, {
         "kind" : "LITERAL",
-        "value" : "1024",
+        "value" : 1024,
         "type" : "INT NOT NULL"
       } ],
       "type" : "INT"
@@ -783,7 +783,7 @@
     "description" : "Calc(select=[CAST(a AS BIGINT) AS a, CAST(window_start AS TIMESTAMP(3)) AS window_start, CAST(window_end AS TIMESTAMP(3)) AS window_end, CAST($f1 AS BIGINT) AS cnt_star, $f2 AS sum_b, CAST($f3 AS BIGINT) AS cnt_distinct_c])"
   }, {
     "id" : 13,
-    "type" : "stream-exec-sink_1",
+    "type" : "stream-exec-sink_2",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",

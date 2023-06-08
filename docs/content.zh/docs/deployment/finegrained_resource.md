@@ -69,20 +69,7 @@ Flink之前的资源申请只包含必须指定的 slots,但没有精细化的�
 
 ## 用法
 
-为了可以使用细粒度的资源管理,需要做以下步骤:
-
-- 配置细粒度的资源管理
-
-- 指定资源请求
-
-### 启用细粒度资源管理
-
-为了启用细粒度的资源管理配置,需要将 [cluster.fine-grained-resource-management.enabled]({{< ref "docs/deployment/config" >}}#cluster-fine-grained-resource-management-enabled) 的值设置为 true。
-{{< hint danger >}}
-没有该配置,Flink 运行 job 时并不能按照你指定的资源需求分配 slots,并且 job 会失败抛出异常。
-{{< /hint >}}
-
-### 为 Slot 共享组指定资源请求
+使用细粒度的资源管理，需要指定资源请求。
 
 细粒度资源请求是基于 slot 共享组定义的。一个 slot 共享组是一个切入点，这意味着在 TaskManager 中的算子和 tasks 可以被置于相同的 slot。
 
@@ -240,8 +227,6 @@ env.register_slot_sharing_group(ssg_with_resource)
 
 因为细粒度资源管理是新的实验性特性,并不是所有的特性都被默认的调度器所支持.Flink 社区正努力解决并突破这些限制。
 - **不支持[弹性伸缩]({{< ref "docs/deployment/elastic_scaling" >}})**. 弹性伸缩目前只支持不指定资源的slot请求。
-- **不支持TaskManager的冗余** TaskManager冗余 [slotmanager.redundant-taskmanager-num]({{< ref "docs/deployment/config" >}}#slotmanager-redundant-taskmanager-num) 用于启动冗余的 TaskManager 以加速 job 恢复。当前该配置在细粒度资源管理中不生效。
-- **不支持均匀分布的插槽策略** 此策略试图在所有可用的TaskManager中均匀分配插槽 [cluster.evenly-spread-out-slots]({{< ref "docs/deployment/config" >}}#cluster-evenly-spread-out-slots)。该策略在细粒度资源管理的第一个版本中不受支持，目前不会生效。
 - **与Flink Web UI有限的集成** 在细粒度的资源管理中,Slots会有不同的资源规格.目前Web UI页面只显示 slot 数量而不显示具体详情。
 - **与批作业有限的集成** 目前，细粒度资源管理需要在所有边缘都被阻塞的情况下执行批处理工作负载。为了达到该实现，需要将配置 [fine-grained.shuffle-mode.all-blocking]({{< ref "docs/deployment/config" >}}#fine-grained-shuffle-mode-all-blocking)设置为 true。注意这样可能会影响性能。详情请见[FLINK-20865](https://issues.apache.org/jira/browse/FLINK-20865)。
 - **不建议使用混合资源需求** 不建议仅为工作的某些部分指定资源需求，而未指定其余部分的需求。目前，任何资源的插槽都可以满足未指定的要求。它获取的实际资源可能在不同的作业执行或故障切换中不一致。

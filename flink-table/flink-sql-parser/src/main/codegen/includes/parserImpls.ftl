@@ -2437,3 +2437,18 @@ SqlStopJob SqlStopJob() :
         return new SqlStopJob(getPos(), jobId, isWithSavepoint, isWithDrain);
     }
 }
+
+/**
+ * Parses a TRUNCATE TABLE statement.
+ */
+SqlTruncateTable SqlTruncateTable() :
+{
+    SqlIdentifier sqlIdentifier;
+}
+{
+    <TRUNCATE> <TABLE>
+    sqlIdentifier = CompoundIdentifier()
+    {
+        return new SqlTruncateTable(getPos(), sqlIdentifier);
+    }
+}
