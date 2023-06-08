@@ -880,16 +880,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
         List<Transformation<?>> transformations = translate(mapOperations);
         List<String> sinkIdentifierNames = extractSinkIdentifierNames(mapOperations);
-        TableResultInternal result = executeInternal(transformations, sinkIdentifierNames);
-        if (tableConfig.get(TABLE_DML_SYNC)) {
-            try {
-                result.await();
-            } catch (InterruptedException | ExecutionException e) {
-                result.getJobClient().ifPresent(JobClient::cancel);
-                throw new TableException("Fail to wait execution finish.", e);
-            }
-        }
-        return result;
+        return executeInternal(transformations, sinkIdentifierNames);
     }
 
     private TableResultInternal executeInternal(
@@ -927,13 +918,24 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 affectedRowCounts[i] = -1L;
             }
 
-            return TableResultImpl.builder()
-                    .jobClient(jobClient)
-                    .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-                    .schema(ResolvedSchema.of(columns))
-                    .resultProvider(
-                            new InsertResultProvider(affectedRowCounts).setJobClient(jobClient))
-                    .build();
+            TableResultInternal result =
+                    TableResultImpl.builder()
+                            .jobClient(jobClient)
+                            .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
+                            .schema(ResolvedSchema.of(columns))
+                            .resultProvider(
+                                    new InsertResultProvider(affectedRowCounts)
+                                            .setJobClient(jobClient))
+                            .build();
+            if (tableConfig.get(TABLE_DML_SYNC)) {
+                try {
+                    result.await();
+                } catch (InterruptedException | ExecutionException e) {
+                    result.getJobClient().ifPresent(JobClient::cancel);
+                    throw new TableException("Fail to wait execution finish.", e);
+                }
+            }
+            return result;
         } catch (Exception e) {
             throw new TableException("Failed to execute sql", e);
         }
