@@ -77,14 +77,12 @@ public class HiveContainer extends GenericContainer<HiveContainer> {
             hiveWarehouseDir = file.getAbsolutePath();
             LOG.info("mountHiveWarehouseDirToContainer: " + hiveWarehouseDir);
 
-            if (HIVE_310_OR_LATER) {
-                // if it's hive 3.1+, we should first create the dir for the table,
-                // and set it readable & writable by all, otherwise, it'll throw
-                // permission denied exception when try to write the tables
-                for (String tableName : initTableNames) {
-                    file = Files.createDirectory(warehousePath.resolve(tableName)).toFile();
-                    setFilePermission(file);
-                }
+            // we should first create the dir for the table,
+            // and set it readable & writable by all, otherwise, it'll throw
+            // permission denied exception when try to create/write the tables
+            for (String tableName : initTableNames) {
+                file = Files.createDirectory(warehousePath.resolve(tableName)).toFile();
+                setFilePermission(file);
             }
 
             withFileSystemBind(
