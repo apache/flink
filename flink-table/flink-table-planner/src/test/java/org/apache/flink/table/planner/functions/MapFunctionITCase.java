@@ -326,23 +326,30 @@ public class MapFunctionITCase extends BuiltInFunctionTestBase {
                                 new Row[] {Row.of(null, "item")},
                                 DataTypes.ARRAY(
                                                 DataTypes.ROW(
-                                                        DataTypes.BOOLEAN(), DataTypes.STRING()))
+                                                        DataTypes.FIELD("key", DataTypes.BOOLEAN()),
+                                                        DataTypes.FIELD(
+                                                                "value", DataTypes.STRING())))
                                         .notNull())
                         .testResult(
                                 $("f2").mapEntries(),
                                 "MAP_ENTRIES(f2)",
                                 new Row[] {Row.of(1, "value1")},
-                                DataTypes.ARRAY(DataTypes.ROW(DataTypes.INT(), DataTypes.STRING())))
+                                DataTypes.ARRAY(
+                                        DataTypes.ROW(
+                                                DataTypes.FIELD("key", DataTypes.INT()),
+                                                DataTypes.FIELD("value", DataTypes.STRING()))))
                         .testResult(
                                 $("f3").mapEntries(),
                                 "MAP_ENTRIES(f3)",
                                 new Row[] {Row.of(3, Collections.singletonMap(true, "value2"))},
                                 DataTypes.ARRAY(
                                         DataTypes.ROW(
-                                                DataTypes.INT(),
-                                                DataTypes.MAP(
-                                                        DataTypes.BOOLEAN(),
-                                                        DataTypes.STRING())))));
+                                                DataTypes.FIELD("key", DataTypes.INT()),
+                                                DataTypes.FIELD(
+                                                        "value",
+                                                        DataTypes.MAP(
+                                                                DataTypes.BOOLEAN(),
+                                                                DataTypes.STRING()))))));
     }
 
     private Stream<TestSetSpec> mapFromArraysTestCases() {
