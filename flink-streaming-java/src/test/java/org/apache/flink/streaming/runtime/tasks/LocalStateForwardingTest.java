@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.checkpoint.AsyncCheckpointMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
@@ -124,6 +125,7 @@ public class LocalStateForwardingTest extends TestLogger {
                         snapshots,
                         checkpointMetaData,
                         checkpointMetrics,
+                        new AsyncCheckpointMetricsGroup(streamMockEnvironment.getMetricGroup()),
                         0L,
                         testStreamTask.getName(),
                         asyncCheckpointRunnable -> {},

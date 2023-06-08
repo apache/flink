@@ -19,6 +19,7 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
+import org.apache.flink.runtime.checkpoint.AsyncCheckpointMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
@@ -75,6 +76,7 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
     private final Map<OperatorID, OperatorSnapshotFutures> operatorSnapshotsInProgress;
     private final CheckpointMetaData checkpointMetaData;
     private final CheckpointMetricsBuilder checkpointMetrics;
+    private final AsyncCheckpointMetricsGroup asyncCheckpointMetricsGroup;
     private final long asyncConstructionNanos;
     private final AtomicReference<AsyncCheckpointState> asyncCheckpointState =
             new AtomicReference<>(AsyncCheckpointState.RUNNING);
@@ -83,6 +85,7 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
             Map<OperatorID, OperatorSnapshotFutures> operatorSnapshotsInProgress,
             CheckpointMetaData checkpointMetaData,
             CheckpointMetricsBuilder checkpointMetrics,
+            AsyncCheckpointMetricsGroup asyncCheckpointMetricsGroup,
             long asyncConstructionNanos,
             String taskName,
             Consumer<AsyncCheckpointRunnable> unregister,
@@ -95,6 +98,7 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
         this.operatorSnapshotsInProgress = checkNotNull(operatorSnapshotsInProgress);
         this.checkpointMetaData = checkNotNull(checkpointMetaData);
         this.checkpointMetrics = checkNotNull(checkpointMetrics);
+        this.asyncCheckpointMetricsGroup = asyncCheckpointMetricsGroup;
         this.asyncConstructionNanos = asyncConstructionNanos;
         this.taskName = checkNotNull(taskName);
         this.unregisterConsumer = unregister;
@@ -228,6 +232,13 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
                 "Found cached state but no corresponding primary state is reported to the job "
                         + "manager. This indicates a problem.");
 
+        CheckpointMetrics completedCheckpointMetrics =
+                checkpointMetrics
+                        .setBytesPersistedOfThisCheckpoint(
+                                acknowledgedTaskStateSnapshot.getCheckpointedSize())
+                        .setTotalBytesPersisted(acknowledgedTaskStateSnapshot.getStateSize())
+                        .build();
+
         // we signal stateless tasks by reporting null, so that there are no attempts to assign
         // empty state
         // to stateless tasks on restore. This enables simple job modifications that only concern
@@ -236,14 +247,11 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
                 .getTaskStateManager()
                 .reportTaskStateSnapshots(
                         checkpointMetaData,
-                        checkpointMetrics
-                                .setBytesPersistedOfThisCheckpoint(
-                                        acknowledgedTaskStateSnapshot.getCheckpointedSize())
-                                .setTotalBytesPersisted(
-                                        acknowledgedTaskStateSnapshot.getStateSize())
-                                .build(),
+                        completedCheckpointMetrics,
                         hasAckState ? acknowledgedTaskStateSnapshot : null,
                         hasLocalState ? localTaskStateSnapshot : null);
+
+        asyncCheckpointMetricsGroup.reportCheckpointMetrics(completedCheckpointMetrics);
 
         LOG.debug(
                 "{} - finished asynchronous part of checkpoint {}. Asynchronous duration: {} ms",
@@ -273,6 +281,8 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
         taskEnvironment
                 .getTaskStateManager()
                 .reportIncompleteTaskStateSnapshots(checkpointMetaData, metrics);
+
+        asyncCheckpointMetricsGroup.reportCheckpointMetrics(metrics);
     }
 
     private void handleExecutionException(Exception e) {

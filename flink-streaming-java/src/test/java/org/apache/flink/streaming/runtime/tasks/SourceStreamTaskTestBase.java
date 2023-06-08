@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
+import org.apache.flink.runtime.checkpoint.AsyncCheckpointMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
@@ -44,6 +45,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Common base class for testing source tasks. */
 public class SourceStreamTaskTestBase {
+
+    @SuppressWarnings("unchecked")
     public void testMetrics(
             FunctionWithException<Environment, ? extends StreamTask<Integer, ?>, Exception>
                     taskFactory,
@@ -90,6 +93,26 @@ public class SourceStreamTaskTestBase {
                             harness.getCheckpointResponder().getAcknowledgeReports());
             assertThat(acknowledgeReport.getCheckpointMetrics().getCheckpointStartDelayNanos())
                     .isGreaterThanOrEqualTo(sleepTime * 1_000_000);
+
+            Gauge<Long> checkpointAsyncDurationMillisGauge =
+                    (Gauge<Long>) metrics.get(AsyncCheckpointMetricsGroup.ASYNC_DURATION_MILLIS);
+            assertThat(checkpointAsyncDurationMillisGauge.getValue()).isGreaterThanOrEqualTo(0);
+            Gauge<Long> checkpointBytesPersistedOfThisCheckpointGauge =
+                    (Gauge<Long>)
+                            metrics.get(
+                                    AsyncCheckpointMetricsGroup.BYTES_PERSISTED_OF_THIS_CHECKPOINT);
+            assertThat(checkpointBytesPersistedOfThisCheckpointGauge.getValue()).isGreaterThan(0);
+            Gauge<Long> checkpointTotalBytesPersistedGauge =
+                    (Gauge<Long>) metrics.get(AsyncCheckpointMetricsGroup.TOTAL_BYTES_PERSISTED);
+            assertThat(checkpointTotalBytesPersistedGauge.getValue())
+                    .isGreaterThanOrEqualTo(
+                            checkpointBytesPersistedOfThisCheckpointGauge.getValue());
+            Gauge<Long> checkpointBytesPersistedDuringAlignmentGauge =
+                    (Gauge<Long>)
+                            metrics.get(
+                                    AsyncCheckpointMetricsGroup.BYTES_PERSISTED_DURING_ALIGNMENT);
+            assertThat(checkpointBytesPersistedDuringAlignmentGauge.getValue())
+                    .isGreaterThanOrEqualTo(0);
         }
     }
 }

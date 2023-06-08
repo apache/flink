@@ -893,6 +893,12 @@ public class MultipleInputStreamTaskTest {
 
             assertThat(metrics, IsMapContaining.hasKey(MetricNames.CHECKPOINT_ALIGNMENT_TIME));
             assertThat(metrics, IsMapContaining.hasKey(MetricNames.CHECKPOINT_START_DELAY_TIME));
+            assertThat(
+                    metrics,
+                    IsMapContaining.hasKey(
+                            MetricNames.CHECKPOINT_BYTES_PROCESSED_DURING_ALIGNMENT));
+            assertThat(
+                    metrics, IsMapContaining.hasKey(MetricNames.CHECKPOINT_SYNC_DURATION_MILLIS));
 
             testHarness.endInput();
             testHarness.waitForTaskCompletion();

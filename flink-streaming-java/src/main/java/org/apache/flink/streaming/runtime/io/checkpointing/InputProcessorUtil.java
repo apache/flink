@@ -177,5 +177,11 @@ public class InputProcessorUtil {
         taskIOMetricGroup.gauge(
                 MetricNames.CHECKPOINT_START_DELAY_TIME,
                 barrierHandler::getCheckpointStartDelayNanos);
+        taskIOMetricGroup.gauge(
+                MetricNames.CHECKPOINT_BYTES_PROCESSED_DURING_ALIGNMENT,
+                barrierHandler::getBytesProcessedDuringAlignment);
+        taskIOMetricGroup.gauge(
+                MetricNames.CHECKPOINT_SYNC_DURATION_MILLIS,
+                barrierHandler::getCheckpointSyncDurationMillis);
     }
 }

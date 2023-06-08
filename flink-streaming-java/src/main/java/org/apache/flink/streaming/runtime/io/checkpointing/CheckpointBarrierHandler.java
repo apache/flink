@@ -73,6 +73,13 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 
     private CompletableFuture<Long> latestBytesProcessedDuringAlignment = new CompletableFuture<>();
 
+    /**
+     * The duration of the synchronous part of the checkpoint. This includes snapshotting state of
+     * the operators and blocks all other activity on the subtask (processing records, firing
+     * timers, etc).
+     */
+    private long latestCheckpointSyncDurationMillis;
+
     private final boolean enableCheckpointAfterTasksFinished;
 
     public CheckpointBarrierHandler(
@@ -118,6 +125,18 @@ public abstract class CheckpointBarrierHandler implements Closeable {
         return latestCheckpointStartDelayNanos;
     }
 
+    public long getBytesProcessedDuringAlignment() {
+        if (isDuringAlignment()) {
+            return bytesProcessedDuringAlignment;
+        } else {
+            return FutureUtils.getOrDefault(latestBytesProcessedDuringAlignment, 0L);
+        }
+    }
+
+    public long getCheckpointSyncDurationMillis() {
+        return latestCheckpointSyncDurationMillis;
+    }
+
     public CompletableFuture<Void> getAllBarriersReceivedFuture(long checkpointId) {
         return CompletableFuture.completedFuture(null);
     }
@@ -146,6 +165,8 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 
         toNotifyOnCheckpoint.triggerCheckpointOnBarrier(
                 checkpointMetaData, checkpointBarrier.getCheckpointOptions(), checkpointMetrics);
+
+        latestCheckpointSyncDurationMillis = checkpointMetrics.getSyncDurationMillis();
     }
 
     protected void notifyAbortOnCancellationBarrier(long checkpointId) throws IOException {

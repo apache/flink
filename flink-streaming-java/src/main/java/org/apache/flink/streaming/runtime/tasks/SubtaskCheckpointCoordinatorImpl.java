@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.checkpoint.AsyncCheckpointMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
@@ -112,6 +113,8 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
     @GuardedBy("lock")
     private boolean closed;
 
+    private final AsyncCheckpointMetricsGroup asyncCheckpointMetricsGroup;
+
     private final DelayableTimer registerTimer;
 
     private final Clock clock;
@@ -187,6 +190,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
         this.abortedCheckpointIds =
                 createAbortedCheckpointSetWithLimitSize(maxRecordAbortedCheckpoints);
         this.maxRecordAbortedCheckpoints = maxRecordAbortedCheckpoints;
+        this.asyncCheckpointMetricsGroup = new AsyncCheckpointMetricsGroup(env.getMetricGroup());
         this.lastCheckpointId = -1L;
         this.closed = false;
         this.enableCheckpointAfterTasksFinished = enableCheckpointAfterTasksFinished;
@@ -666,6 +670,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                         snapshotFutures,
                         metadata,
                         metrics,
+                        asyncCheckpointMetricsGroup,
                         System.nanoTime(),
                         taskName,
                         unregisterConsumer(),

@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.checkpoint.AsyncCheckpointMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
@@ -54,6 +55,7 @@ public class AsyncCheckpointRunnableTest {
                         new HashMap<>(),
                         new CheckpointMetaData(checkpointId, 1),
                         new CheckpointMetricsBuilder(),
+                        new AsyncCheckpointMetricsGroup(env.getMetricGroup()),
                         0,
                         "Task Name",
                         r -> {},
@@ -161,6 +163,7 @@ public class AsyncCheckpointRunnableTest {
                 new CheckpointMetricsBuilder()
                         .setBytesProcessedDuringAlignment(0)
                         .setAlignmentDurationNanos(0),
+                new AsyncCheckpointMetricsGroup(environment.getMetricGroup()),
                 1L,
                 "Task Name",
                 r -> {},
