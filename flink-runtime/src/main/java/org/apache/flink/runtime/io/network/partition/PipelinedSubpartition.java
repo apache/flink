@@ -165,7 +165,7 @@ public class PipelinedSubpartition extends ResultSubpartition
                 bufferConsumer,
                 parent.getOwningTaskName(),
                 subpartitionInfo);
-        if (add(bufferConsumer, Integer.MIN_VALUE) == -1) {
+        if (add(bufferConsumer, Integer.MIN_VALUE) == ADD_BUFFER_ERROR_CODE) {
             throw new IOException("Buffer consumer couldn't be added to ResultSubpartition");
         }
     }
@@ -192,7 +192,7 @@ public class PipelinedSubpartition extends ResultSubpartition
         synchronized (buffers) {
             if (isFinished || isReleased) {
                 bufferConsumer.close();
-                return -1;
+                return ADD_BUFFER_ERROR_CODE;
             }
 
             // Add the bufferConsumer and update the stats

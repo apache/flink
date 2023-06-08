@@ -125,7 +125,7 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
     public int add(BufferConsumer bufferConsumer, int partialRecordLength) throws IOException {
         if (isFinished()) {
             bufferConsumer.close();
-            return -1;
+            return ADD_BUFFER_ERROR_CODE;
         }
 
         flushCurrentBuffer();
