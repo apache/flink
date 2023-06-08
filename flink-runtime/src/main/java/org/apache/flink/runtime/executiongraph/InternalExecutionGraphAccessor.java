@@ -32,8 +32,6 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
-import org.apache.flink.types.Either;
-import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nonnull;
 
@@ -51,10 +49,6 @@ public interface InternalExecutionGraphAccessor {
     JobID getJobID();
 
     BlobWriter getBlobWriter();
-
-    Either<SerializedValue<JobInformation>, PermanentBlobKey> getJobInformationOrBlobKey();
-
-    TaskDeploymentDescriptorFactory.PartitionLocationConstraint getPartitionLocationConstraint();
 
     /**
      * Returns the ExecutionContext associated with this ExecutionGraph.
@@ -133,5 +127,5 @@ public interface InternalExecutionGraphAccessor {
     JobVertexInputInfo getJobVertexInputInfo(
             JobVertexID jobVertexId, IntermediateDataSetID resultId);
 
-    boolean isNonFinishedHybridPartitionShouldBeUnknown();
+    TaskDeploymentDescriptorFactory getTaskDeploymentDescriptorFactory();
 }
