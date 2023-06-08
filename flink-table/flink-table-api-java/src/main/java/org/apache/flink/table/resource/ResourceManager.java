@@ -84,14 +84,11 @@ public class ResourceManager implements Closeable {
     }
 
     public boolean exists(Path filePath) throws IOException {
-        boolean exist;
-        FileSystem fs = FileSystem.getUnguardedFileSystem(filePath.toUri());
-        exist = fs.exists(filePath);
-        return exist;
+        return FileSystem.getUnguardedFileSystem(filePath.toUri()).exists(filePath);
     }
 
     /**
-     * register the filePath of flink filesystem. If it is remote filesystem and the file exists
+     * Register the filePath of flink filesystem. If it is remote filesystem and the file exists
      * then download the file at local. register the filePath map to localURL.
      */
     public void registerFsResources(Path filePath) throws IOException {
@@ -116,9 +113,8 @@ public class ResourceManager implements Closeable {
     }
 
     /**
-     * get the local URL of given Path
-     *
-     * <p>if no corresponding value in resourceInfos means the path hasn't registered before.
+     * Get the local URL of given Path.if no corresponding value
+     * in resourceInfos means the path hasn't registered before.
      */
     public URL getLocalUrl(Path filePath) throws IOException {
         ResourceUri resourceUri = new ResourceUri(ResourceType.FILE, filePath.toUri().toString());
@@ -128,7 +124,7 @@ public class ResourceManager implements Closeable {
         return resourceInfos.get(resourceUri);
     }
 
-    /** upload the file to remote. */
+    /** Upload the file to remote. */
     public void updateFilePath(Path remote) throws IOException {
         String scheme = StringUtils.lowerCase(remote.toUri().getScheme());
         if (scheme != null && !FILE_SCHEME.equals(scheme)) {
