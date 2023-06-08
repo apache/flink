@@ -245,7 +245,10 @@ public class FlinkImageBuilder {
         new ImageFromDockerfile(FLINK_BASE_IMAGE_BUILD_NAME)
                 .withDockerfileFromBuilder(
                         builder ->
-                                builder.from("openjdk:" + getJavaVersionSuffix())
+                                builder.from(
+                                                "eclipse-temurin:"
+                                                        + getJavaVersionSuffix()
+                                                        + "-jre-jammy")
                                         .copy(flinkHome, flinkHome)
                                         .build())
                 .withFileFromPath(flinkHome, flinkDist)
