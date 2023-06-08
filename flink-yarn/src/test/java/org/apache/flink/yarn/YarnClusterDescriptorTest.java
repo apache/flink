@@ -203,19 +203,8 @@ class YarnClusterDescriptorTest {
                                     .getCommands()
                                     .get(0))
                     .isEqualTo(
-                            java
-                                    + " "
-                                    + jvmmem
-                                    + ""
-                                    + // jvmOpts
-                                    ""
-                                    + // logging
-                                    " "
-                                    + mainClass
-                                    + " "
-                                    + dynamicParameters
-                                    + " "
-                                    + redirects);
+                            String.join(
+                                    " ", java, jvmmem, mainClass, dynamicParameters, redirects));
 
             assertThat(
                             clusterDescriptor
@@ -224,20 +213,14 @@ class YarnClusterDescriptorTest {
                                     .getCommands()
                                     .get(0))
                     .isEqualTo(
-                            java
-                                    + " "
-                                    + jvmmem
-                                    + " "
-                                    + krb5
-                                    + // jvmOpts
-                                    ""
-                                    + // logging
-                                    " "
-                                    + mainClass
-                                    + " "
-                                    + dynamicParameters
-                                    + " "
-                                    + redirects);
+                            String.join(
+                                    " ",
+                                    java,
+                                    jvmmem,
+                                    krb5,
+                                    mainClass,
+                                    dynamicParameters,
+                                    redirects));
 
             // logback only, with/out krb5
             cfg.set(
@@ -250,21 +233,15 @@ class YarnClusterDescriptorTest {
                                     .getCommands()
                                     .get(0))
                     .isEqualTo(
-                            java
-                                    + " "
-                                    + jvmmem
-                                    + ""
-                                    + // jvmOpts
-                                    " "
-                                    + logfile
-                                    + " "
-                                    + logback
-                                    + " "
-                                    + mainClass
-                                    + " "
-                                    + dynamicParameters
-                                    + " "
-                                    + redirects);
+                            String.join(
+                                    " ",
+                                    java,
+                                    jvmmem,
+                                    logfile,
+                                    logback,
+                                    mainClass,
+                                    dynamicParameters,
+                                    redirects));
 
             cfg.set(
                     YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE,
@@ -276,22 +253,16 @@ class YarnClusterDescriptorTest {
                                     .getCommands()
                                     .get(0))
                     .isEqualTo(
-                            java
-                                    + " "
-                                    + jvmmem
-                                    + " "
-                                    + krb5
-                                    + // jvmOpts
-                                    " "
-                                    + logfile
-                                    + " "
-                                    + logback
-                                    + " "
-                                    + mainClass
-                                    + " "
-                                    + dynamicParameters
-                                    + " "
-                                    + redirects);
+                            String.join(
+                                    " ",
+                                    java,
+                                    jvmmem,
+                                    krb5,
+                                    logfile,
+                                    logback,
+                                    mainClass,
+                                    dynamicParameters,
+                                    redirects));
 
             // log4j, with/out krb5
             cfg.set(
@@ -304,21 +275,15 @@ class YarnClusterDescriptorTest {
                                     .getCommands()
                                     .get(0))
                     .isEqualTo(
-                            java
-                                    + " "
-                                    + jvmmem
-                                    + ""
-                                    + // jvmOpts
-                                    " "
-                                    + logfile
-                                    + " "
-                                    + log4j
-                                    + " "
-                                    + mainClass
-                                    + " "
-                                    + dynamicParameters
-                                    + " "
-                                    + redirects);
+                            String.join(
+                                    " ",
+                                    java,
+                                    jvmmem,
+                                    logfile,
+                                    log4j,
+                                    mainClass,
+                                    dynamicParameters,
+                                    redirects));
 
             cfg.set(
                     YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE,
@@ -330,22 +295,16 @@ class YarnClusterDescriptorTest {
                                     .getCommands()
                                     .get(0))
                     .isEqualTo(
-                            java
-                                    + " "
-                                    + jvmmem
-                                    + " "
-                                    + krb5
-                                    + // jvmOpts
-                                    " "
-                                    + logfile
-                                    + " "
-                                    + log4j
-                                    + " "
-                                    + mainClass
-                                    + " "
-                                    + dynamicParameters
-                                    + " "
-                                    + redirects);
+                            String.join(
+                                    " ",
+                                    java,
+                                    jvmmem,
+                                    krb5,
+                                    logfile,
+                                    log4j,
+                                    mainClass,
+                                    dynamicParameters,
+                                    redirects));
 
             // logback, with/out krb5
             cfg.set(
@@ -358,21 +317,15 @@ class YarnClusterDescriptorTest {
                                     .getCommands()
                                     .get(0))
                     .isEqualTo(
-                            java
-                                    + " "
-                                    + jvmmem
-                                    + ""
-                                    + // jvmOpts
-                                    " "
-                                    + logfile
-                                    + " "
-                                    + logback
-                                    + " "
-                                    + mainClass
-                                    + " "
-                                    + dynamicParameters
-                                    + " "
-                                    + redirects);
+                            String.join(
+                                    " ",
+                                    java,
+                                    jvmmem,
+                                    logfile,
+                                    logback,
+                                    mainClass,
+                                    dynamicParameters,
+                                    redirects));
 
             cfg.set(
                     YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE,
@@ -384,22 +337,16 @@ class YarnClusterDescriptorTest {
                                     .getCommands()
                                     .get(0))
                     .isEqualTo(
-                            java
-                                    + " "
-                                    + jvmmem
-                                    + " "
-                                    + krb5
-                                    + // jvmOpts
-                                    " "
-                                    + logfile
-                                    + " "
-                                    + logback
-                                    + " "
-                                    + mainClass
-                                    + " "
-                                    + dynamicParameters
-                                    + " "
-                                    + redirects);
+                            String.join(
+                                    " ",
+                                    java,
+                                    jvmmem,
+                                    krb5,
+                                    logfile,
+                                    logback,
+                                    mainClass,
+                                    dynamicParameters,
+                                    redirects));
 
             // logback, with/out krb5, different JVM opts
             // IMPORTANT: Be aware that we are using side effects here to modify the created
@@ -417,21 +364,16 @@ class YarnClusterDescriptorTest {
                                     .getCommands()
                                     .get(0))
                     .isEqualTo(
-                            java
-                                    + " "
-                                    + jvmmem
-                                    + " "
-                                    + jvmOpts
-                                    + " "
-                                    + logfile
-                                    + " "
-                                    + logback
-                                    + " "
-                                    + mainClass
-                                    + " "
-                                    + dynamicParameters
-                                    + " "
-                                    + redirects);
+                            String.join(
+                                    " ",
+                                    java,
+                                    jvmmem,
+                                    jvmOpts,
+                                    logfile,
+                                    logback,
+                                    mainClass,
+                                    dynamicParameters,
+                                    redirects));
 
             cfg.set(
                     YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE,
@@ -443,24 +385,17 @@ class YarnClusterDescriptorTest {
                                     .getCommands()
                                     .get(0))
                     .isEqualTo(
-                            java
-                                    + " "
-                                    + jvmmem
-                                    + " "
-                                    + jvmOpts
-                                    + " "
-                                    + krb5
-                                    + // jvmOpts
-                                    " "
-                                    + logfile
-                                    + " "
-                                    + logback
-                                    + " "
-                                    + mainClass
-                                    + " "
-                                    + dynamicParameters
-                                    + " "
-                                    + redirects);
+                            String.join(
+                                    " ",
+                                    java,
+                                    jvmmem,
+                                    jvmOpts,
+                                    krb5,
+                                    logfile,
+                                    logback,
+                                    mainClass,
+                                    dynamicParameters,
+                                    redirects));
 
             // log4j, with/out krb5, different JVM opts
             // IMPORTANT: Be aware that we are using side effects here to modify the created
@@ -476,23 +411,17 @@ class YarnClusterDescriptorTest {
                                     .getCommands()
                                     .get(0))
                     .isEqualTo(
-                            java
-                                    + " "
-                                    + jvmmem
-                                    + " "
-                                    + jvmOpts
-                                    + " "
-                                    + jmJvmOpts
-                                    + " "
-                                    + logfile
-                                    + " "
-                                    + log4j
-                                    + " "
-                                    + mainClass
-                                    + " "
-                                    + dynamicParameters
-                                    + " "
-                                    + redirects);
+                            String.join(
+                                    " ",
+                                    java,
+                                    jvmmem,
+                                    jvmOpts,
+                                    jmJvmOpts,
+                                    logfile,
+                                    log4j,
+                                    mainClass,
+                                    dynamicParameters,
+                                    redirects));
 
             cfg.set(
                     YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE,
@@ -504,26 +433,18 @@ class YarnClusterDescriptorTest {
                                     .getCommands()
                                     .get(0))
                     .isEqualTo(
-                            java
-                                    + " "
-                                    + jvmmem
-                                    + " "
-                                    + jvmOpts
-                                    + " "
-                                    + jmJvmOpts
-                                    + " "
-                                    + krb5
-                                    + // jvmOpts
-                                    " "
-                                    + logfile
-                                    + " "
-                                    + log4j
-                                    + " "
-                                    + mainClass
-                                    + " "
-                                    + dynamicParameters
-                                    + " "
-                                    + redirects);
+                            String.join(
+                                    " ",
+                                    java,
+                                    jvmmem,
+                                    jvmOpts,
+                                    jmJvmOpts,
+                                    krb5,
+                                    logfile,
+                                    log4j,
+                                    mainClass,
+                                    dynamicParameters,
+                                    redirects));
 
             // now try some configurations with different yarn.container-start-command-template
             // IMPORTANT: Be aware that we are using side effects here to modify the created
@@ -541,26 +462,24 @@ class YarnClusterDescriptorTest {
                                     .getCommands()
                                     .get(0))
                     .isEqualTo(
-                            java
-                                    + " 1 "
-                                    + jvmmem
-                                    + " 2 "
-                                    + jvmOpts
-                                    + " "
-                                    + jmJvmOpts
-                                    + " "
-                                    + krb5
-                                    + // jvmOpts
-                                    " 3 "
-                                    + logfile
-                                    + " "
-                                    + logback
-                                    + " 4 "
-                                    + mainClass
-                                    + " 5 "
-                                    + dynamicParameters
-                                    + " 6 "
-                                    + redirects);
+                            String.join(
+                                    " ",
+                                    java,
+                                    "1",
+                                    jvmmem,
+                                    "2",
+                                    jvmOpts,
+                                    jmJvmOpts,
+                                    krb5,
+                                    "3",
+                                    logfile,
+                                    logback,
+                                    "4",
+                                    mainClass,
+                                    "5",
+                                    dynamicParameters,
+                                    "6",
+                                    redirects));
 
             cfg.set(
                     YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE,
@@ -577,26 +496,18 @@ class YarnClusterDescriptorTest {
                                     .getCommands()
                                     .get(0))
                     .isEqualTo(
-                            java
-                                    + " "
-                                    + logfile
-                                    + " "
-                                    + logback
-                                    + " "
-                                    + jvmOpts
-                                    + " "
-                                    + jmJvmOpts
-                                    + " "
-                                    + krb5
-                                    + // jvmOpts
-                                    " "
-                                    + jvmmem
-                                    + " "
-                                    + mainClass
-                                    + " "
-                                    + dynamicParameters
-                                    + " "
-                                    + redirects);
+                            String.join(
+                                    " ",
+                                    java,
+                                    logfile,
+                                    logback,
+                                    jvmOpts,
+                                    jmJvmOpts,
+                                    krb5,
+                                    jvmmem,
+                                    mainClass,
+                                    dynamicParameters,
+                                    redirects));
         } finally {
             clusterDescriptor.close();
         }
