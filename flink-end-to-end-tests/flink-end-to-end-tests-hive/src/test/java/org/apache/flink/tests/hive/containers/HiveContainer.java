@@ -74,6 +74,7 @@ public class HiveContainer extends GenericContainer<HiveContainer> {
         try {
             Path warehousePath = Files.createTempDirectory("hive_warehouse");
             File file = warehousePath.toFile();
+            setFilePermission(file);
             hiveWarehouseDir = file.getAbsolutePath();
             LOG.info("mountHiveWarehouseDirToContainer: " + hiveWarehouseDir);
 
@@ -98,5 +99,6 @@ public class HiveContainer extends GenericContainer<HiveContainer> {
     private void setFilePermission(File file) {
         file.setReadable(true, false);
         file.setWritable(true, false);
+        file.setExecutable(true, false);
     }
 }
