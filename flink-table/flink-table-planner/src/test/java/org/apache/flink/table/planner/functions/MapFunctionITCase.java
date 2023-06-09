@@ -50,6 +50,7 @@ import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.table.api.Expressions.map;
 import static org.apache.flink.table.api.Expressions.mapFromArrays;
+import static org.apache.flink.table.api.Expressions.mapFromEntries;
 import static org.apache.flink.util.CollectionUtil.entry;
 
 /** Test {@link BuiltInFunctionDefinitions#MAP} and its return type. */
@@ -73,6 +74,7 @@ public class MapFunctionITCase extends BuiltInFunctionTestBase {
                         mapValuesTestCases(),
                         mapEntriesTestCases(),
                         mapFromArraysTestCases(),
+                        mapFromEntriesTestCases(),
                         mapUnionTestCases())
                 .flatMap(s -> s);
     }
@@ -365,11 +367,11 @@ public class MapFunctionITCase extends BuiltInFunctionTestBase {
                                 DataTypes.ARRAY(DataTypes.INT()))
                         .testTableApiRuntimeError(
                                 mapFromArrays($("f2"), $("f3")),
-                                "Invalid function MAP_FROM_ARRAYS call:\n"
+                                "Invalid function call:\n"
                                         + "The length of the keys array 1 is not equal to the length of the values array 2")
                         .testSqlRuntimeError(
                                 "MAP_FROM_ARRAYS(array[1, 2, 3], array[1, 2])",
-                                "Invalid function MAP_FROM_ARRAYS call:\n"
+                                "Invalid function call:\n"
                                         + "The length of the keys array 3 is not equal to the length of the values array 2")
                         .testResult(
                                 mapFromArrays($("f0"), $("f1")),
@@ -397,6 +399,108 @@ public class MapFunctionITCase extends BuiltInFunctionTestBase {
                                         entry("two", new Integer[] {3, 4})),
                                 DataTypes.MAP(
                                         DataTypes.STRING(), DataTypes.ARRAY(DataTypes.INT()))));
+    }
+
+    private Stream<TestSetSpec> mapFromEntriesTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.MAP_FROM_ENTRIES)
+                        .onFieldsWithData(
+                                new Row[] {Row.of("key1", 1), Row.of("key2", 2), Row.of("key2", 3)},
+                                new Row[] {
+                                    Row.of("key1", 1), Row.of("key2", 2), Row.of("key2", 3), null
+                                },
+                                null,
+                                new Row[] {
+                                    Row.of(Row.of(true, LocalDate.of(2022, 4, 20)), 1),
+                                    Row.of(Row.of(false, LocalDate.of(2022, 4, 20)), 2),
+                                    Row.of(Row.of(false, LocalDate.of(2022, 4, 20)), 3)
+                                },
+                                new Row[] {Row.of(null, 1)},
+                                new Row[] {Row.of("key1", 1, 2)})
+                        .andDataTypes(
+                                DataTypes.ARRAY(
+                                                DataTypes.ROW(
+                                                                DataTypes.STRING().notNull(),
+                                                                DataTypes.INT().notNull())
+                                                        .notNull())
+                                        .notNull(),
+                                DataTypes.ARRAY(
+                                                DataTypes.ROW(
+                                                        DataTypes.STRING().notNull(),
+                                                        DataTypes.INT().notNull()))
+                                        .notNull(),
+                                DataTypes.ARRAY(DataTypes.ROW(DataTypes.STRING(), DataTypes.INT())),
+                                DataTypes.ARRAY(
+                                                DataTypes.ROW(
+                                                                DataTypes.ROW(
+                                                                                DataTypes.BOOLEAN()
+                                                                                        .notNull(),
+                                                                                DataTypes.DATE()
+                                                                                        .notNull())
+                                                                        .notNull(),
+                                                                DataTypes.INT().notNull())
+                                                        .notNull())
+                                        .notNull(),
+                                DataTypes.ARRAY(
+                                                DataTypes.ROW(
+                                                                DataTypes.STRING(),
+                                                                DataTypes.INT().notNull())
+                                                        .notNull())
+                                        .notNull(),
+                                DataTypes.ARRAY(
+                                        DataTypes.ROW(
+                                                        DataTypes.STRING(),
+                                                        DataTypes.INT(),
+                                                        DataTypes.INT())
+                                                .notNull()))
+                        .testResult(
+                                mapFromEntries($("f0")),
+                                "MAP_FROM_ENTRIES(f0)",
+                                CollectionUtil.map(entry("key1", 1), entry("key2", 3)),
+                                DataTypes.MAP(
+                                                DataTypes.STRING().notNull(),
+                                                DataTypes.INT().notNull())
+                                        .notNull())
+                        .testResult(
+                                mapFromEntries($("f1")),
+                                "MAP_FROM_ENTRIES(f1)",
+                                null,
+                                DataTypes.MAP(
+                                        DataTypes.STRING().notNull(), DataTypes.INT().notNull()))
+                        .testResult(
+                                mapFromEntries($("f2")),
+                                "MAP_FROM_ENTRIES(f2)",
+                                null,
+                                DataTypes.MAP(DataTypes.STRING(), DataTypes.INT()))
+                        // complex type
+                        .testResult(
+                                mapFromEntries($("f3")),
+                                "MAP_FROM_ENTRIES(f3)",
+                                CollectionUtil.map(
+                                        entry(Row.of(true, LocalDate.of(2022, 4, 20)), 1),
+                                        entry(Row.of(false, LocalDate.of(2022, 4, 20)), 3)),
+                                DataTypes.MAP(
+                                                DataTypes.ROW(
+                                                                DataTypes.BOOLEAN().notNull(),
+                                                                DataTypes.DATE().notNull())
+                                                        .notNull(),
+                                                DataTypes.INT().notNull())
+                                        .notNull())
+                        .testResult(
+                                mapFromEntries($("f4")),
+                                "MAP_FROM_ENTRIES(f4)",
+                                CollectionUtil.map(entry(null, 1)),
+                                DataTypes.MAP(DataTypes.STRING(), DataTypes.INT().notNull())
+                                        .notNull())
+                        // invalid signatures
+                        .testSqlValidationError(
+                                "MAP_FROM_ENTRIES(f5)",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "MAP_FROM_ENTRIES(ARRAY<ROW<`f0` ANY, `f1` ANY>>)")
+                        .testTableApiValidationError(
+                                mapFromEntries($("f5")),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "MAP_FROM_ENTRIES(ARRAY<ROW<`f0` ANY, `f1` ANY>>)"));
     }
 
     private Stream<TestSetSpec> mapUnionTestCases() {

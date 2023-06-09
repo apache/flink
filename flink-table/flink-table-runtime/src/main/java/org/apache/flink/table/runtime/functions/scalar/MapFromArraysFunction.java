@@ -19,11 +19,11 @@
 package org.apache.flink.table.runtime.functions.scalar;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.data.ArrayBasedMapData;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.SpecializedFunction;
-import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nullable;
 
@@ -39,39 +39,6 @@ public class MapFromArraysFunction extends BuiltInScalarFunction {
             return null;
         }
 
-        if (keysArray.size() != valuesArray.size()) {
-            throw new FlinkRuntimeException(
-                    "Invalid function MAP_FROM_ARRAYS call:\n"
-                            + "The length of the keys array "
-                            + keysArray.size()
-                            + " is not equal to the length of the values array "
-                            + valuesArray.size());
-        }
-        return new MapDataForMapFromArrays(keysArray, valuesArray);
-    }
-
-    private static class MapDataForMapFromArrays implements MapData {
-        private final ArrayData keyArray;
-        private final ArrayData valueArray;
-
-        public MapDataForMapFromArrays(ArrayData keyArray, ArrayData valueArray) {
-            this.keyArray = keyArray;
-            this.valueArray = valueArray;
-        }
-
-        @Override
-        public int size() {
-            return keyArray.size();
-        }
-
-        @Override
-        public ArrayData keyArray() {
-            return keyArray;
-        }
-
-        @Override
-        public ArrayData valueArray() {
-            return valueArray;
-        }
+        return new ArrayBasedMapData(keysArray, valuesArray);
     }
 }

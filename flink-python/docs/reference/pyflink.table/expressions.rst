@@ -55,6 +55,7 @@ Expressions
     row
     map_
     map_from_arrays
+    map_from_entries
     row_interval
     pi
     e

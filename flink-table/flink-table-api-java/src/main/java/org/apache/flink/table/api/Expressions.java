@@ -555,6 +555,22 @@ public final class Expressions {
     }
 
     /**
+     * Creates a map from an array of entries (row with two fields).
+     *
+     * <pre>{@code
+     * table.select(
+     *     mapFromEntries(
+     *         array(row(key1, 1), row(key2, 2), row(key3, 3))
+     *     ))
+     * }</pre>
+     *
+     * <p>Note If the number of fields in a row array is not 2, an error is returned.
+     */
+    public static ApiExpression mapFromEntries(Object rows) {
+        return apiCall(BuiltInFunctionDefinitions.MAP_FROM_ENTRIES, objectToExpression(rows));
+    }
+
+    /**
      * Creates an interval of rows.
      *
      * @see Table#window(GroupWindow)
