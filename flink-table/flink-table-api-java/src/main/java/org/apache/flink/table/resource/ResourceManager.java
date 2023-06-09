@@ -113,8 +113,8 @@ public class ResourceManager implements Closeable {
     }
 
     /**
-     * Get the local URL of given Path.if no corresponding value
-     * in resourceInfos means the path hasn't registered before.
+     * Get the local URL of given Path.if no corresponding value in resourceInfos means the path
+     * hasn't registered before.
      */
     public URL getLocalUrl(Path filePath) throws IOException {
         ResourceUri resourceUri = new ResourceUri(ResourceType.FILE, filePath.toUri().toString());
