@@ -24,10 +24,12 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfileTestingUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.TestingPayload;
 import org.apache.flink.runtime.jobmaster.slotpool.DummyPayload;
+import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotRequest;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotRequestBulk;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotRequestBulkChecker;
@@ -51,6 +53,7 @@ import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
@@ -67,6 +70,9 @@ class SlotSharingExecutionSlotAllocatorTest {
     private static final ExecutionVertexID EV2 = createRandomExecutionVertexId();
     private static final ExecutionVertexID EV3 = createRandomExecutionVertexId();
     private static final ExecutionVertexID EV4 = createRandomExecutionVertexId();
+
+    public static final AllocatorSupplier ALLOCATOR_SUPPLIER =
+            SlotSharingExecutionSlotAllocator::new;
 
     @Test
     void testSlotProfileRequestAskedBulkAndGroup() {
@@ -430,11 +436,15 @@ class SlotSharingExecutionSlotAllocatorTest {
     @Test
     void testSlotRequestProfileFromExecutionSlotSharingGroup() {
         final ResourceProfile resourceProfile1 = ResourceProfile.fromResources(1, 10);
+        SlotSharingGroup ssg1 = new SlotSharingGroup();
+        ssg1.setResourceProfile(resourceProfile1);
         final ResourceProfile resourceProfile2 = ResourceProfile.fromResources(2, 20);
+        SlotSharingGroup ssg2 = new SlotSharingGroup();
+        ssg2.setResourceProfile(resourceProfile2);
         final AllocationContext context =
                 AllocationContext.newBuilder()
-                        .addGroupAndResource(resourceProfile1, EV1, EV3)
-                        .addGroupAndResource(resourceProfile2, EV2, EV4)
+                        .addGroupAndResource(ssg1, EV1, EV3)
+                        .addGroupAndResource(ssg2, EV2, EV4)
                         .build();
 
         context.allocateSlotsFor(EV1, EV2);
@@ -486,7 +496,20 @@ class SlotSharingExecutionSlotAllocatorTest {
         return requests.get(slotRequestId2).getSlotProfile().getPhysicalSlotResourceProfile();
     }
 
-    private static class AllocationContext {
+    interface AllocatorSupplier {
+        SlotSharingExecutionSlotAllocator supply(
+                PhysicalSlotProvider slotProvider,
+                boolean slotWillBeOccupiedIndefinitely,
+                SlotSharingStrategy slotSharingStrategy,
+                SharedSlotProfileRetriever.SharedSlotProfileRetrieverFactory
+                        sharedSlotProfileRetrieverFactory,
+                PhysicalSlotRequestBulkChecker bulkChecker,
+                Time allocationTimeout,
+                Function<ExecutionVertexID, ResourceProfile> resourceProfileRetriever);
+    }
+
+    /** Allocation test util class. */
+    public static class AllocationContext {
         private final TestingPhysicalSlotProvider slotProvider;
         private final TestingSlotSharingStrategy slotSharingStrategy;
         private final SlotSharingExecutionSlotAllocator allocator;
@@ -503,7 +526,7 @@ class SlotSharingExecutionSlotAllocatorTest {
             this.slotProfileRetrieverFactory = slotProfileRetrieverFactory;
         }
 
-        private SlotSharingExecutionSlotAllocator getAllocator() {
+        public SlotSharingExecutionSlotAllocator getAllocator() {
             return allocator;
         }
 
@@ -528,12 +551,13 @@ class SlotSharingExecutionSlotAllocatorTest {
             return slotProfileRetrieverFactory;
         }
 
-        private static Builder newBuilder() {
+        public static Builder newBuilder() {
             return new Builder();
         }
 
-        private static class Builder {
-            private final Map<ExecutionVertexID[], ResourceProfile> groups = new HashMap<>();
+        /** Builder util. */
+        public static class Builder {
+            private final Map<ExecutionVertexID[], SlotSharingGroup> groups = new HashMap<>();
             private boolean slotWillBeOccupiedIndefinitely = false;
             private PhysicalSlotRequestBulkChecker bulkChecker =
                     new TestingPhysicalSlotRequestBulkChecker();
@@ -541,14 +565,16 @@ class SlotSharingExecutionSlotAllocatorTest {
             private TestingPhysicalSlotProvider physicalSlotProvider =
                     TestingPhysicalSlotProvider.createWithInfiniteSlotCreation();
 
+            private AllocatorSupplier allocatorSupplier = ALLOCATOR_SUPPLIER;
+
             private Builder addGroup(ExecutionVertexID... group) {
-                groups.put(group, ResourceProfile.UNKNOWN);
+                groups.put(group, new SlotSharingGroup());
                 return this;
             }
 
-            private Builder addGroupAndResource(
-                    ResourceProfile resourceProfile, ExecutionVertexID... group) {
-                groups.put(group, resourceProfile);
+            public Builder addGroupAndResource(
+                    SlotSharingGroup slotSharingGroup, ExecutionVertexID... group) {
+                groups.put(group, slotSharingGroup);
                 return this;
             }
 
@@ -569,13 +595,18 @@ class SlotSharingExecutionSlotAllocatorTest {
                 return this;
             }
 
-            private AllocationContext build() {
+            public Builder withAllocatorSupplier(AllocatorSupplier allocatorSupplier) {
+                this.allocatorSupplier = allocatorSupplier;
+                return this;
+            }
+
+            public AllocationContext build() {
                 TestingSharedSlotProfileRetrieverFactory sharedSlotProfileRetrieverFactory =
                         new TestingSharedSlotProfileRetrieverFactory();
                 TestingSlotSharingStrategy slotSharingStrategy =
                         TestingSlotSharingStrategy.createWithGroupsAndResources(groups);
                 SlotSharingExecutionSlotAllocator allocator =
-                        new SlotSharingExecutionSlotAllocator(
+                        allocatorSupplier.supply(
                                 physicalSlotProvider,
                                 slotWillBeOccupiedIndefinitely,
                                 slotSharingStrategy,
@@ -594,10 +625,13 @@ class SlotSharingExecutionSlotAllocatorTest {
 
     private static class TestingSlotSharingStrategy implements SlotSharingStrategy {
         private final Map<ExecutionVertexID, ExecutionSlotSharingGroup> executionSlotSharingGroups;
+        private final Map<ExecutionSlotSharingGroup, SlotSharingGroup> executionSSGTologicalSSGMap;
 
         private TestingSlotSharingStrategy(
-                Map<ExecutionVertexID, ExecutionSlotSharingGroup> executionSlotSharingGroups) {
+                Map<ExecutionVertexID, ExecutionSlotSharingGroup> executionSlotSharingGroups,
+                Map<ExecutionSlotSharingGroup, SlotSharingGroup> executionSSGTologicalSSGMap) {
             this.executionSlotSharingGroups = executionSlotSharingGroups;
+            this.executionSSGTologicalSSGMap = executionSSGTologicalSSGMap;
         }
 
         @Override
@@ -611,21 +645,35 @@ class SlotSharingExecutionSlotAllocatorTest {
             return new HashSet<>(executionSlotSharingGroups.values());
         }
 
+        @Override
+        public SlotSharingGroup getSlotSharingGroup(
+                ExecutionSlotSharingGroup executionSlotSharingGroup) {
+            return this.executionSSGTologicalSSGMap.get(executionSlotSharingGroup);
+        }
+
         private static TestingSlotSharingStrategy createWithGroupsAndResources(
-                Map<ExecutionVertexID[], ResourceProfile> groupAndResources) {
+                Map<ExecutionVertexID[], SlotSharingGroup> groupAndResources) {
             Map<ExecutionVertexID, ExecutionSlotSharingGroup> executionSlotSharingGroups =
                     new HashMap<>();
-            for (Map.Entry<ExecutionVertexID[], ResourceProfile> groupAndResource :
+            Map<ExecutionSlotSharingGroup, SlotSharingGroup> executionSSGTologicalSSGMap =
+                    new HashMap<>();
+
+            for (Map.Entry<ExecutionVertexID[], SlotSharingGroup> groupAndResource :
                     groupAndResources.entrySet()) {
                 ExecutionSlotSharingGroup executionSlotSharingGroup =
                         new ExecutionSlotSharingGroup();
-                executionSlotSharingGroup.setResourceProfile(groupAndResource.getValue());
+                executionSlotSharingGroup.setResourceProfile(
+                        groupAndResource.getValue().getResourceProfile());
                 for (ExecutionVertexID executionVertexId : groupAndResource.getKey()) {
                     executionSlotSharingGroup.addVertex(executionVertexId);
                     executionSlotSharingGroups.put(executionVertexId, executionSlotSharingGroup);
                 }
+                executionSSGTologicalSSGMap.put(
+                        executionSlotSharingGroup, groupAndResource.getValue());
             }
-            return new TestingSlotSharingStrategy(executionSlotSharingGroups);
+
+            return new TestingSlotSharingStrategy(
+                    executionSlotSharingGroups, executionSSGTologicalSSGMap);
         }
     }
 

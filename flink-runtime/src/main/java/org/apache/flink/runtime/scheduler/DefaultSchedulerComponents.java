@@ -19,7 +19,9 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.api.common.TaskSchedulingStrategy;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobgraph.JobType;
@@ -99,14 +101,42 @@ public class DefaultSchedulerComponents {
         final PhysicalSlotProvider physicalSlotProvider =
                 new PhysicalSlotProviderImpl(slotSelectionStrategy, slotPool);
         final ExecutionSlotAllocatorFactory allocatorFactory =
-                new SlotSharingExecutionSlotAllocatorFactory(
-                        physicalSlotProvider,
-                        jobType == JobType.STREAMING,
+                createExecutionSlotAllocatorFactory(
+                        jobType,
+                        jobMasterConfiguration,
+                        slotRequestTimeout,
                         bulkChecker,
-                        slotRequestTimeout);
+                        physicalSlotProvider);
         return new DefaultSchedulerComponents(
                 new PipelinedRegionSchedulingStrategy.Factory(),
                 bulkChecker::start,
                 allocatorFactory);
+    }
+
+    private static ExecutionSlotAllocatorFactory createExecutionSlotAllocatorFactory(
+            JobType jobType,
+            Configuration jobMasterConfiguration,
+            Time slotRequestTimeout,
+            PhysicalSlotRequestBulkChecker bulkChecker,
+            PhysicalSlotProvider physicalSlotProvider) {
+        final TaskSchedulingStrategy taskSchedulingStrategy =
+                jobMasterConfiguration.get(ClusterOptions.TASKS_SCHEDULING_STRATEGY);
+
+        switch (taskSchedulingStrategy) {
+            case BALANCED_PREFERRED:
+                return new BalancedSlotSharingExecutionSlotAllocatorFactory(
+                        physicalSlotProvider,
+                        jobType == JobType.STREAMING,
+                        bulkChecker,
+                        slotRequestTimeout);
+
+            case LOCAL_INPUT_PREFERRED:
+            default:
+                return new SlotSharingExecutionSlotAllocatorFactory(
+                        physicalSlotProvider,
+                        jobType == JobType.STREAMING,
+                        bulkChecker,
+                        slotRequestTimeout);
+        }
     }
 }

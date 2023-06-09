@@ -67,7 +67,7 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
 
     private final boolean slotWillBeOccupiedIndefinitely;
 
-    private final SlotSharingStrategy slotSharingStrategy;
+    protected final SlotSharingStrategy slotSharingStrategy;
 
     private final Map<ExecutionSlotSharingGroup, SharedSlot> sharedSlots;
 
@@ -156,10 +156,7 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
         SharedSlotProfileRetriever sharedSlotProfileRetriever =
                 sharedSlotProfileRetrieverFactory.createFromBulk(new HashSet<>(executionVertexIds));
         Map<ExecutionSlotSharingGroup, List<ExecutionVertexID>> executionsByGroup =
-                executionVertexIds.stream()
-                        .collect(
-                                Collectors.groupingBy(
-                                        slotSharingStrategy::getExecutionSlotSharingGroup));
+                groupByExecutionSlotSharingGroup(executionVertexIds);
         Map<ExecutionSlotSharingGroup, SharedSlot> slots =
                 executionsByGroup.keySet().stream()
                         .map(group -> getOrAllocateSharedSlot(group, sharedSlotProfileRetriever))
@@ -183,6 +180,12 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
     @Override
     public void cancel(ExecutionAttemptID executionAttemptId) {
         cancelLogicalSlotRequest(executionAttemptId.getExecutionVertexId(), null);
+    }
+
+    protected Map<ExecutionSlotSharingGroup, List<ExecutionVertexID>>
+            groupByExecutionSlotSharingGroup(List<ExecutionVertexID> executionVertexIds) {
+        return executionVertexIds.stream()
+                .collect(Collectors.groupingBy(slotSharingStrategy::getExecutionSlotSharingGroup));
     }
 
     private void cancelLogicalSlotRequest(ExecutionVertexID executionVertexId, Throwable cause) {

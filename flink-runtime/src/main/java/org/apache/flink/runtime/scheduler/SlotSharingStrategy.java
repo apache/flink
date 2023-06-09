@@ -18,11 +18,19 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.scheduler.adapter.DefaultExecutionTopology;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 
+import javax.annotation.Nonnull;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Set;
 
 /** Strategy which determines {@link ExecutionSlotSharingGroup} for each execution vertex. */
@@ -32,11 +40,34 @@ interface SlotSharingStrategy {
 
     Set<ExecutionSlotSharingGroup> getExecutionSlotSharingGroups();
 
+    default SlotSharingGroup getSlotSharingGroup(
+            ExecutionSlotSharingGroup executionSlotSharingGroup) {
+        throw new UnsupportedOperationException();
+    }
+
     @FunctionalInterface
     interface Factory {
         SlotSharingStrategy create(
                 SchedulingTopology topology,
                 Set<SlotSharingGroup> logicalSlotSharingGroups,
                 Set<CoLocationGroup> coLocationGroups);
+    }
+
+    /**
+     * The vertices are topologically sorted since {@link DefaultExecutionTopology#getVertices} are
+     * topologically sorted.
+     */
+    @Nonnull
+    static LinkedHashMap<JobVertexID, List<SchedulingExecutionVertex>> getExecutionVertices(
+            SchedulingTopology topology) {
+        final LinkedHashMap<JobVertexID, List<SchedulingExecutionVertex>> vertices =
+                new LinkedHashMap<>();
+        for (SchedulingExecutionVertex executionVertex : topology.getVertices()) {
+            final List<SchedulingExecutionVertex> executionVertexGroup =
+                    vertices.computeIfAbsent(
+                            executionVertex.getId().getJobVertexId(), k -> new ArrayList<>());
+            executionVertexGroup.add(executionVertex);
+        }
+        return vertices;
     }
 }

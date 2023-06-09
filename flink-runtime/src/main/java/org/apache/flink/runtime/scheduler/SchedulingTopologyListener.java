@@ -22,6 +22,9 @@ import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 
 import java.util.List;
+import java.util.Map;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /** This listener will be notified whenever the scheduling topology is updated. */
 public interface SchedulingTopologyListener {
@@ -34,4 +37,21 @@ public interface SchedulingTopologyListener {
      */
     void notifySchedulingTopologyUpdated(
             SchedulingTopology schedulingTopology, List<ExecutionVertexID> newExecutionVertices);
+
+    static void updateExecutionSlotSharingGroupMapIfNeeded(
+            Map<ExecutionVertexID, ExecutionSlotSharingGroup> newMap,
+            Map<ExecutionVertexID, ExecutionSlotSharingGroup> executionSlotSharingGroupMap) {
+        for (ExecutionVertexID vertexId : newMap.keySet()) {
+            final ExecutionSlotSharingGroup newEssg = newMap.get(vertexId);
+            final ExecutionSlotSharingGroup oldEssg = executionSlotSharingGroupMap.get(vertexId);
+            if (oldEssg == null) {
+                executionSlotSharingGroupMap.put(vertexId, newEssg);
+            } else {
+                // ensures that existing slot sharing groups are not changed
+                checkState(
+                        oldEssg.getExecutionVertexIds().equals(newEssg.getExecutionVertexIds()),
+                        "Existing ExecutionSlotSharingGroups are changed after topology update");
+            }
+        }
+    }
 }

@@ -20,6 +20,7 @@ package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
+import org.apache.flink.api.common.TaskSchedulingStrategy;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.InlineElement;
 import org.apache.flink.configuration.description.TextElement;
@@ -206,6 +207,14 @@ public class ClusterOptions {
                                             "Working directory for Flink TaskManager processes. The working directory can be used to store information that can be used upon process recovery. If not configured, then it will default to %s.",
                                             TextElement.code(PROCESS_WORKING_DIR_BASE.key()))
                                     .build());
+
+    /** The strategy to represent the tasks scheduling mode. */
+    @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
+    public static final ConfigOption<TaskSchedulingStrategy> TASKS_SCHEDULING_STRATEGY =
+            ConfigOptions.key("cluster.tasks-scheduling.strategy")
+                    .enumType(TaskSchedulingStrategy.class)
+                    .defaultValue(TaskSchedulingStrategy.LOCAL_INPUT_PREFERRED)
+                    .withDescription("Defines which tasks-scheduling strategy should used.");
 
     public static JobManagerOptions.SchedulerType getSchedulerType(Configuration configuration) {
         if (isAdaptiveSchedulerEnabled(configuration) || isReactiveModeEnabled(configuration)) {
