@@ -59,19 +59,6 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>org.scala-lang</groupId>
-			<artifactId>scala-library</artifactId>
-			<scope>compile</scope>
-			<optional>${flink.markBundledAsOptional}</optional>
-		</dependency>
-		<dependency>
-			<groupId>org.scala-lang</groupId>
-			<artifactId>scala-compiler</artifactId>
-			<scope>compile</scope>
-			<optional>${flink.markBundledAsOptional}</optional>
-		</dependency>
-
-		<dependency>
 			<groupId>com.typesafe.akka</groupId>
 			<artifactId>akka-actor_${scala.binary.version}</artifactId>
 			<version>${akka.version}</version>
@@ -138,17 +125,7 @@ under the License.
 		<dependencies>
 			<dependency>
 				<groupId>org.scala-lang</groupId>
-				<artifactId>scala-compiler</artifactId>
-				<version>${scala.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>org.scala-lang</groupId>
 				<artifactId>scala-library</artifactId>
-				<version>${scala.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>org.scala-lang</groupId>
-				<artifactId>scala-reflect</artifactId>
 				<version>${scala.version}</version>
 			</dependency>
 			<!-- For dependency convergence in Akka 2.6.20 -->
