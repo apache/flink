@@ -142,16 +142,14 @@ public class HistoryServerOptions {
                                             "If set to `0` or less than `-1` HistoryServer will throw an %s. ",
                                             code("IllegalConfigurationException"))
                                     .build());
-
-    private HistoryServerOptions() {}
-
     public static final ConfigOption<Integer> HISTORY_SERVER_NUM_WORKERS =
             key("historyserver.num.workers")
                     .intType()
                     .defaultValue(1)
                     .withDescription(
                             Description.builder()
-                                    .text("The maximum number of worker threads to archives in parallel")
+                                    .text(
+                                            "The maximum number of worker threads to archives in parallel")
                                     .text(
                                             "If set to `0` or less than `-1` HistoryServer will throw an %s. ",
                                             code("IllegalConfigurationException"))
