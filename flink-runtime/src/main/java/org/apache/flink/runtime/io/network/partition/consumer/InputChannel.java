@@ -184,7 +184,7 @@ public abstract class InputChannel {
      * Returns the next buffer from the consumed subpartition or {@code Optional.empty()} if there
      * is no data to return.
      */
-    abstract Optional<BufferAndAvailability> getNextBuffer()
+    public abstract Optional<BufferAndAvailability> getNextBuffer()
             throws IOException, InterruptedException;
 
     /**
@@ -310,6 +310,16 @@ public abstract class InputChannel {
     public long unsynchronizedGetSizeOfQueuedBuffers() {
         return 0;
     }
+
+    /**
+     * Notify the upstream the id of required segment that should be sent to netty connection.
+     *
+     * <p>TODO, This method will be implemented by {@link LocalInputChannel} and {@link
+     * RemoteInputChannel} in the future.
+     *
+     * @param segmentId segment id indicates the id of segment.
+     */
+    public void notifyRequiredSegmentId(int segmentId) {}
 
     // ------------------------------------------------------------------------
 
