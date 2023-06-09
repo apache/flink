@@ -566,7 +566,8 @@ public class RexSimplify {
             //add for array-type
             if (predicate instanceof Comparison) {
                 Comparison cmp = (Comparison) predicate;
-                if (cmp.rexCall != null && cmp.rexCall.getKind().equals(SqlKind.ARRAY_VALUE_CONSTRUCTOR)) {
+                if (cmp.rexCall != null
+                        && cmp.rexCall.getKind().equals(SqlKind.ARRAY_VALUE_CONSTRUCTOR)) {
                     RexCall arrayCall = cmp.rexCall;
                     if (i == 0) {
                         recordedArray = arrayCall.operands.toArray();
@@ -2502,7 +2503,7 @@ public class RexSimplify {
     private static class Comparison implements Predicate {
         final RexNode ref;
         final SqlKind kind;
-        //RexCall or RexLiteral
+        // RexCall or RexLiteral
         final RexLiteral literal;
         final RexCall rexCall;
 
@@ -2513,9 +2514,7 @@ public class RexSimplify {
             this.rexCall = null;
         }
 
-        /**
-         * Add for RexCall, such as ARRAY[...,...].
-         */
+        /** Add for RexCall, such as ARRAY[...,...]. */
         private Comparison(RexNode ref, SqlKind kind, RexCall arrayCall) {
             this.ref = Objects.requireNonNull(ref);
             this.kind = Objects.requireNonNull(kind);
@@ -2552,19 +2551,20 @@ public class RexSimplify {
                             if (nodePredicate.test(left)) {
                                 return new Comparison(left, e.getKind(), (RexLiteral) right);
                             }
-                        //add for RexCall like "CAST(ARRAY(..., ...))..."
+                            // add for RexCall like "CAST(ARRAY(..., ...))..."
                         case CAST:
                             final RexCall castCall = (RexCall) right;
                             final RexNode castLeft = castCall.getOperands().get(0);
                             switch (castLeft.getKind()) {
                                 case ARRAY_VALUE_CONSTRUCTOR:
-                                    //array-type RexCall --> create a comparison of RexCall
+                                    // array-type RexCall --> create a comparison of RexCall
                                     if (nodePredicate.test(left)) {
-                                        return new Comparison(left, e.getKind(), (RexCall) castLeft);
+                                        return new Comparison(
+                                                left, e.getKind(), (RexCall) castLeft);
                                     }
                             }
                         case ARRAY_VALUE_CONSTRUCTOR:
-                            //array-type RexCall --> create a comparison of RexCall
+                            // array-type RexCall --> create a comparison of RexCall
                             if (nodePredicate.test(left)) {
                                 return new Comparison(left, e.getKind(), (RexCall) right);
                             }    
@@ -2575,19 +2575,20 @@ public class RexSimplify {
                                 return new Comparison(
                                         right, e.getKind().reverse(), (RexLiteral) left);
                             }
-                        //add for RexCall like "CAST(ARRAY(..., ...))..."
+                            // add for RexCall like "CAST(ARRAY(..., ...))..."
                         case CAST:
                             final RexCall castCall = (RexCall) left;
                             final RexNode castLeft = castCall.getOperands().get(0);
                             switch (castLeft.getKind()) {
                                 case ARRAY_VALUE_CONSTRUCTOR:
-                                    //array-type RexCall --> create a comparison of RexCall
+                                    // array-type RexCall --> create a comparison of RexCall
                                     if (nodePredicate.test(right)) {
-                                        return new Comparison(right, e.getKind().reverse(), (RexCall) castLeft);
+                                        return new Comparison(
+                                                right, e.getKind().reverse(), (RexCall) castLeft);
                                     }
                             }
                         case ARRAY_VALUE_CONSTRUCTOR:
-                            //array-type RexCall --> create a comparison of RexCall
+                            // array-type RexCall --> create a comparison of RexCall
                             if (nodePredicate.test(right)) {
                                 return new Comparison(right, e.getKind().reverse(), (RexCall) left);
                             } 
