@@ -246,7 +246,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
         finishUnicastBufferBuilders();
 
         for (ResultSubpartition subpartition : subpartitions) {
-            subpartition.finish();
+            totalWrittenBytes += subpartition.finish();
         }
 
         super.finish();
@@ -311,6 +311,13 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
                         buffer.createBufferConsumerFromBeginning(), partialRecordLength);
 
         resizeBuffer(buffer, desirableBufferSize, minDesirableBufferSize);
+    }
+
+    protected int addToSubpartition(
+            int targetSubpartition, BufferConsumer bufferConsumer, int partialRecordLength)
+            throws IOException {
+        totalWrittenBytes += bufferConsumer.getWrittenBytes();
+        return subpartitions[targetSubpartition].add(bufferConsumer, partialRecordLength);
     }
 
     private void resizeBuffer(

@@ -28,10 +28,13 @@ import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -743,12 +746,12 @@ class ResultPartitionTest {
     }
 
     @Test
-    void testSizeOfQueuedBuffers() throws IOException {
+    void testSizeOfQueuedBuffers() throws Exception {
         // given: Configured pipelined result with 2 subpartitions.
-        BufferWritingResultPartition bufferWritingResultPartition =
-                createResultPartition(ResultPartitionType.PIPELINED);
+        PipelinedResultPartition resultPartition =
+                (PipelinedResultPartition) createResultPartition(ResultPartitionType.PIPELINED);
 
-        ResultSubpartition[] subpartitions = bufferWritingResultPartition.subpartitions;
+        ResultSubpartition[] subpartitions = resultPartition.subpartitions;
         assertThat(subpartitions).hasSize(2);
 
         PipelinedSubpartition subpartition0 = (PipelinedSubpartition) subpartitions[0];
@@ -759,62 +762,102 @@ class ResultPartitionTest {
         subpartition1.bufferSize(10);
 
         // when: Emit different records into different subpartitions.
-        // Emit the record less than buffer size.
-        bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(3), 0);
-        assertThat(bufferWritingResultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(3);
+        // Emit the recovered state.
+        try (BufferBuilder bufferBuilder = getFinishedBufferBuilder(resultPartition, 6);
+                BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumerFromBeginning()) {
+            resultPartition.addRecovered(0, bufferConsumer.copy());
+            assertThat(resultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(6);
 
-        bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(3), 1);
-        assertThat(bufferWritingResultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(6);
+            resultPartition.addRecovered(1, bufferConsumer.copy());
+            assertThat(resultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(12);
+        }
+
+        // Emit the EndOfChannelStateEvent for all channel
+        resultPartition.finishReadRecoveredState(true);
+        assertThat(resultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(20);
+
+        // Emit the record less than buffer size.
+        resultPartition.emitRecord(ByteBuffer.allocate(3), 0);
+        assertThat(resultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(23);
+
+        resultPartition.emitRecord(ByteBuffer.allocate(3), 1);
+        assertThat(resultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(26);
 
         // Emit the record the equal to buffer size.
-        bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(10), 0);
-        assertThat(bufferWritingResultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(16);
+        resultPartition.emitRecord(ByteBuffer.allocate(10), 0);
+        assertThat(resultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(36);
 
-        bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(10), 1);
-        assertThat(bufferWritingResultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(26);
+        resultPartition.emitRecord(ByteBuffer.allocate(10), 1);
+        assertThat(resultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(46);
 
         // Broadcast event.
-        bufferWritingResultPartition.broadcastEvent(EndOfPartitionEvent.INSTANCE, false);
-        assertThat(bufferWritingResultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(34);
+        resultPartition.broadcastEvent(EndOfPartitionEvent.INSTANCE, false);
+        assertThat(resultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(54);
 
         // Emit one more record to the one subpartition.
-        bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(5), 0);
-        assertThat(bufferWritingResultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(39);
+        resultPartition.emitRecord(ByteBuffer.allocate(5), 0);
+        assertThat(resultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(59);
 
         // Broadcast record.
-        bufferWritingResultPartition.broadcastRecord(ByteBuffer.allocate(7));
-        assertThat(bufferWritingResultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(53);
+        resultPartition.broadcastRecord(ByteBuffer.allocate(7));
+        assertThat(resultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(73);
+
+        // Poll the recovered state.
+        assertThat(subpartition0.pollBuffer().buffer().getSize()).isEqualTo(6);
+        assertThat(resultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(67);
+
+        assertThat(subpartition1.pollBuffer().buffer().getSize()).isEqualTo(6);
+        assertThat(resultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(61);
+
+        // Poll the EndOfChannelStateEvent and resume the consumption.
+        assertThat(subpartition0.pollBuffer().buffer().getSize()).isEqualTo(4);
+        assertThat(resultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(57);
+
+        assertThat(subpartition1.pollBuffer().buffer().getSize()).isEqualTo(4);
+        assertThat(resultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(53);
+
+        subpartition0.resumeConsumption();
+        subpartition1.resumeConsumption();
 
         // when: Poll finished buffers.
         assertThat(subpartition0.pollBuffer().buffer().getSize()).isEqualTo(10);
-        assertThat(bufferWritingResultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(43);
+        assertThat(resultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(43);
 
         assertThat(subpartition1.pollBuffer().buffer().getSize()).isEqualTo(10);
-        assertThat(bufferWritingResultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(33);
+        assertThat(resultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(33);
 
         // Poll records which were unfinished because of broadcasting event.
         assertThat(subpartition0.pollBuffer().buffer().getSize()).isEqualTo(3);
-        assertThat(bufferWritingResultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(30);
+        assertThat(resultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(30);
 
         assertThat(subpartition1.pollBuffer().buffer().getSize()).isEqualTo(3);
-        assertThat(bufferWritingResultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(27);
+        assertThat(resultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(27);
 
         // Poll the event.
         assertThat(subpartition0.pollBuffer().buffer().getSize()).isEqualTo(4);
-        assertThat(bufferWritingResultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(23);
+        assertThat(resultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(23);
 
         assertThat(subpartition1.pollBuffer().buffer().getSize()).isEqualTo(4);
-        assertThat(bufferWritingResultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(19);
+        assertThat(resultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(19);
 
         // Poll the unfinished buffer.
         assertThat(subpartition0.pollBuffer().buffer().getSize()).isEqualTo(5);
-        assertThat(bufferWritingResultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(14);
+        assertThat(resultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(14);
 
         // Poll broadcasted record.
         assertThat(subpartition0.pollBuffer().buffer().getSize()).isEqualTo(7);
-        assertThat(bufferWritingResultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(7);
+        assertThat(resultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(7);
 
         assertThat(subpartition1.pollBuffer().buffer().getSize()).isEqualTo(7);
-        assertThat(bufferWritingResultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(0);
+        assertThat(resultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(0);
+    }
+
+    @NotNull
+    private BufferBuilder getFinishedBufferBuilder(
+            PipelinedResultPartition resultPartition, int bufferSize) throws Exception {
+        BufferBuilder bufferBuilder = resultPartition.requestBufferBuilderBlocking();
+        bufferBuilder.appendAndCommit(ByteBuffer.allocate(bufferSize));
+        bufferBuilder.finish();
+        return bufferBuilder;
     }
 }

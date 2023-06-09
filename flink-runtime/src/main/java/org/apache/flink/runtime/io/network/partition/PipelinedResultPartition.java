@@ -263,10 +263,9 @@ public class PipelinedResultPartition extends BufferWritingResultPartition
         }
         try (BufferConsumer eventBufferConsumer =
                 EventSerializer.toBufferConsumer(EndOfChannelStateEvent.INSTANCE, false)) {
-            for (ResultSubpartition resultSubpartition : subpartitions) {
-                PipelinedSubpartition subpartition = (PipelinedSubpartition) resultSubpartition;
-                if (subpartition.isSupportChannelStateRecover()) {
-                    subpartition.add(eventBufferConsumer.copy(), 0);
+            for (int i = 0; i < subpartitions.length; i++) {
+                if (((PipelinedSubpartition) subpartitions[i]).isSupportChannelStateRecover()) {
+                    addToSubpartition(i, eventBufferConsumer.copy(), 0);
                 }
             }
         }
@@ -287,7 +286,8 @@ public class PipelinedResultPartition extends BufferWritingResultPartition
                 bufferConsumer,
                 getOwningTaskName(),
                 subpartition.subpartitionInfo);
-        if (subpartition.add(bufferConsumer, Integer.MIN_VALUE)
+
+        if (addToSubpartition(subpartitionIndex, bufferConsumer, Integer.MIN_VALUE)
                 == ResultSubpartition.ADD_BUFFER_ERROR_CODE) {
             throw new IOException("Buffer consumer couldn't be added to ResultSubpartition");
         }
