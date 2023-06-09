@@ -18,6 +18,10 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
+
 import java.io.IOException;
 
 /**
@@ -26,8 +30,13 @@ import java.io.IOException;
  */
 public interface CheckpointedResultPartition {
 
-    /** Gets the checkpointed subpartition with the given subpartitionIndex. */
-    CheckpointedResultSubpartition getCheckpointedSubpartition(int subpartitionIndex);
+    /** Gets the checkpointed subpartition info with the given subpartitionIndex. */
+    ResultSubpartitionInfo getCheckpointedSubpartitionInfo(int subpartitionIndex);
 
     void finishReadRecoveredState(boolean notifyAndBlockOnCompletion) throws IOException;
+
+    BufferBuilder requestBufferBuilderBlocking()
+            throws IOException, RuntimeException, InterruptedException;
+
+    void addRecovered(int subpartitionIndex, BufferConsumer bufferConsumer) throws IOException;
 }

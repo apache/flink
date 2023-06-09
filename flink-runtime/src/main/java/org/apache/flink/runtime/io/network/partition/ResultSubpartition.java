@@ -97,7 +97,12 @@ public abstract class ResultSubpartition {
 
     public abstract void flush();
 
-    public abstract void finish() throws IOException;
+    /**
+     * Writing of data is finished.
+     *
+     * @return the size of data written for this subpartition inside of finish.
+     */
+    public abstract int finish() throws IOException;
 
     public abstract void release() throws IOException;
 
