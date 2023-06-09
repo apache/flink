@@ -1661,6 +1661,8 @@ under the License.
 						<!-- automatically adjust parallelism based on available cpu/processor cores-->
 						<junit.jupiter.execution.parallel.config.strategy>dynamic</junit.jupiter.execution.parallel.config.strategy>
 					</systemPropertyVariables>
+					<!-- This is picked up by IntelliJ -->
+					<argLine>${flink.surefire.baseArgLine}</argLine>
 				</configuration>
 				<executions>
 					<!--execute all the unit tests-->
