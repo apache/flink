@@ -245,13 +245,20 @@ public class HistoryServer {
                     "Cannot set %s to 0 or less than -1",
                     HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS.key());
         }
+        int numWorkers = config.getInteger(HistoryServerOptions.HISTORY_SERVER_NUM_WORKERS);
+        if (numWorkers <= 0) {
+            throw new IllegalConfigurationException(
+                    "Cannot set %s to 0 or less than -1",
+                    HistoryServerOptions.HISTORY_SERVER_NUM_WORKERS.key());
+        }
         archiveFetcher =
                 new HistoryServerArchiveFetcher(
                         refreshDirs,
                         webDir,
                         jobArchiveEventListener,
                         cleanupExpiredArchives,
-                        maxHistorySize);
+                        maxHistorySize,
+                        numWorkers);
 
         this.shutdownHook =
                 ShutdownHookUtil.addShutdownHook(
@@ -377,7 +384,6 @@ public class HistoryServer {
                             DashboardConfiguration.from(
                                     webRefreshIntervalMillis,
                                     ZonedDateTime.now(),
-                                    false,
                                     false,
                                     false,
                                     true)));

@@ -261,6 +261,24 @@ class HistoryServerTest {
     }
 
     @Test
+    void testFailIfNumberOfWorkersIsLessThanOrEqualToZero() throws Exception {
+        assertThatThrownBy(() -> startHistoryServerWithNumOfWorkers(-1))
+                .isInstanceOf(IllegalConfigurationException.class);
+        assertThatThrownBy(() -> startHistoryServerWithNumOfWorkers(0))
+                .isInstanceOf(IllegalConfigurationException.class);
+    }
+
+    private void startHistoryServerWithNumOfWorkers(int numOfWorkers)
+            throws IOException, FlinkException, InterruptedException {
+        Configuration historyServerConfig =
+                createTestConfiguration(
+                        HistoryServerOptions.HISTORY_SERVER_CLEANUP_EXPIRED_JOBS.defaultValue());
+        historyServerConfig.setInteger(
+                HistoryServerOptions.HISTORY_SERVER_NUM_WORKERS, numOfWorkers);
+        new HistoryServer(historyServerConfig).start();
+    }
+
+    @Test
     void testCleanExpiredJob() throws Exception {
         runArchiveExpirationTest(true);
     }
@@ -396,6 +414,8 @@ class HistoryServerTest {
                 HistoryServerOptions.HISTORY_SERVER_CLEANUP_EXPIRED_JOBS, cleanupExpiredJobs);
 
         historyServerConfig.setInteger(HistoryServerOptions.HISTORY_SERVER_WEB_PORT, 0);
+
+        historyServerConfig.setInteger(HistoryServerOptions.HISTORY_SERVER_NUM_WORKERS, 4);
         return historyServerConfig;
     }
 
