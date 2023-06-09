@@ -179,15 +179,17 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
     }
 
     @Override
-    public void finish() throws IOException {
+    public int finish() throws IOException {
         checkState(!isReleased, "data partition already released");
         checkState(!isFinished, "data partition already finished");
 
         isFinished = true;
         flushCurrentBuffer();
-        writeAndCloseBufferConsumer(
-                EventSerializer.toBufferConsumer(EndOfPartitionEvent.INSTANCE, false));
+        BufferConsumer eventBufferConsumer =
+                EventSerializer.toBufferConsumer(EndOfPartitionEvent.INSTANCE, false);
+        writeAndCloseBufferConsumer(eventBufferConsumer);
         data.finishWrite();
+        return eventBufferConsumer.getWrittenBytes();
     }
 
     @Override
