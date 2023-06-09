@@ -32,6 +32,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.TestingBufferAccumulator;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.TestingTierProducerAgent;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyServiceImpl;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageProducerClient;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageResourceRegistry;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
@@ -208,7 +209,8 @@ class TieredResultPartitionTest {
                                 new TestingBufferAccumulator(),
                                 null,
                                 Collections.singletonList(tierProducerAgent)),
-                        new TieredStorageResourceRegistry());
+                        new TieredStorageResourceRegistry(),
+                        new TieredStorageNettyServiceImpl());
         taskIOMetricGroup =
                 UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup();
         tieredResultPartition.setup();
