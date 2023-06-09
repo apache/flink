@@ -168,6 +168,7 @@ class HistoryServerArchiveFetcher {
             cachedArchivesPerRefreshDirectory.forEach(
                     (path, archives) -> jobsToRemove.put(path, new HashSet<>(archives)));
             Map<Path, Set<Path>> archivesBeyondSizeLimit = new HashMap<>();
+            int numOfCompletedJobs = 0;
             for (HistoryServer.RefreshLocation refreshLocation : refreshDirs) {
                 Path refreshDir = refreshLocation.getPath();
                 LOG.debug("Checking archive directory {}.", refreshDir);
@@ -212,12 +213,15 @@ class HistoryServerArchiveFetcher {
                             processArchive(jobID, jobArchivePath);
                             events.add(new ArchiveEvent(jobID, ArchiveEventType.CREATED));
                             cachedArchivesPerRefreshDirectory.get(refreshDir).add(jobID);
+                            numOfCompletedJobs++;
                             LOG.info(
-                                    "Finished processing archive {}.",
-                                    jobArchivePath);
+                                    "Finished processing archive {}, total completed {} jobs",
+                                    jobArchivePath,
+                                    numOfCompletedJobs);
                             // update the webview each time we finish processing a new job
                             // to improve user experience
                             updateJobOverview(webOverviewDir, webDir);
+
                         } catch (IOException e) {
                             LOG.error(
                                     "Failure while fetching/processing job archive for job {}.",
