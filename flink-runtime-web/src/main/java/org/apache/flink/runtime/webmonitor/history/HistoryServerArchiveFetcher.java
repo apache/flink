@@ -162,7 +162,7 @@ class HistoryServerArchiveFetcher {
 
     void fetchArchives() {
         try {
-            LOG.info("[Flink-Debug] Starting archive fetching.");
+            LOG.info("Starting archive fetching.");
             List<ArchiveEvent> events = Collections.synchronizedList(new ArrayList<>());
             Map<Path, Set<String>> jobsToRemove = new HashMap<>();
             cachedArchivesPerRefreshDirectory.forEach(
@@ -207,20 +207,20 @@ class HistoryServerArchiveFetcher {
                                 "Ignoring archive {} because it was already fetched.",
                                 jobArchivePath);
                     } else {
-                        LOG.info("[Flink-Debug] Start processing archive {}.", jobArchivePath);
+                        LOG.info("Start processing archive {}.", jobArchivePath);
                         try {
                             processArchive(jobID, jobArchivePath);
                             events.add(new ArchiveEvent(jobID, ArchiveEventType.CREATED));
                             cachedArchivesPerRefreshDirectory.get(refreshDir).add(jobID);
                             LOG.info(
-                                    "[Flink-Debug] Finished processing archive {}.",
+                                    "Finished processing archive {}.",
                                     jobArchivePath);
                             // update the webview each time we finish processing a new job
                             // to improve user experience
                             updateJobOverview(webOverviewDir, webDir);
                         } catch (IOException e) {
                             LOG.error(
-                                    "[Flink-Debug] Failure while fetching/processing job archive for job {}.",
+                                    "Failure while fetching/processing job archive for job {}.",
                                     jobID,
                                     e);
                             deleteJobFiles(jobID);
@@ -282,7 +282,7 @@ class HistoryServerArchiveFetcher {
             throws IOException, InterruptedException {
         Collection<ArchivedJson> archives = FsJobArchivist.getArchivedJsons(jobArchive);
         LOG.info(
-                "[Flink-Debug] Start processing total {} json archives for job {}",
+                "Start processing total {} json archives for job {}",
                 archives.size(),
                 jobArchive.toString());
         Map<File, String> filesToFlush = new HashMap<>(archives.size());
@@ -338,7 +338,7 @@ class HistoryServerArchiveFetcher {
         }
         latch.await();
         LOG.info(
-                "[Flink-Debug] Completed processing total {} unique targets from {} json archives,  for job {}",
+                "Completed processing total {} unique targets from {} json archives,  for job {}",
                 filesToFlush.size(),
                 archives.size(),
                 jobArchive);
@@ -500,7 +500,7 @@ class HistoryServerArchiveFetcher {
                 }
                 mapper.writeValue(gen, new MultipleJobsDetails(allJobs));
             }
-            LOG.info("[Flink-Debug] Updated job overview page");
+            LOG.info("Updated job overview page");
         } catch (IOException ioe) {
             LOG.error("Failed to update job overview.", ioe);
         }
