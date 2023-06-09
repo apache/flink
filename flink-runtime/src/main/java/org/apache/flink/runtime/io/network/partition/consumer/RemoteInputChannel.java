@@ -208,7 +208,7 @@ public class RemoteInputChannel extends InputChannel {
     }
 
     @Override
-    Optional<BufferAndAvailability> getNextBuffer() throws IOException {
+    public Optional<BufferAndAvailability> getNextBuffer() throws IOException {
         checkPartitionRequestQueueInitialized();
 
         final SequenceBuffer next;
