@@ -27,6 +27,8 @@ import akka.japi.pf.ReceiveBuilder;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -82,6 +84,32 @@ class RobustActorSystemTest {
                 testingUncaughtExceptionHandler.waitForUncaughtException();
 
         assertThat(uncaughtException).isSameAs(error);
+    }
+
+    @Test
+    void testHonorClassloadingErrorBeforeShutdown() {
+        robustActorSystem
+                .uncaughtExceptionHandler()
+                .uncaughtException(Thread.currentThread(), new NoClassDefFoundError(""));
+
+        assertThat(testingUncaughtExceptionHandler.findUncaughtExceptionNow()).isPresent();
+    }
+
+    @ParameterizedTest
+    @ValueSource(classes = {NoClassDefFoundError.class, ClassNotFoundException.class})
+    void testIgnoreClassloadingErrorAfterShutdown(Class<? extends Throwable> exceptionClass)
+            throws Exception {
+        // wait for termination
+        robustActorSystem.terminate();
+        robustActorSystem.getWhenTerminated().toCompletableFuture().join();
+
+        robustActorSystem
+                .uncaughtExceptionHandler()
+                .uncaughtException(
+                        Thread.currentThread(),
+                        exceptionClass.getDeclaredConstructor(String.class).newInstance(""));
+
+        assertThat(testingUncaughtExceptionHandler.findUncaughtExceptionNow()).isEmpty();
     }
 
     private static class UncaughtExceptionActor extends AbstractActor {
