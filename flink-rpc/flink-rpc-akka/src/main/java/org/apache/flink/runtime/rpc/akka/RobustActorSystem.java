@@ -65,13 +65,13 @@ public abstract class RobustActorSystem extends ActorSystemImpl {
                                 Optional.empty(),
                                 Optional.of(applicationConfig),
                                 Optional.empty())),
-                Option.apply(uncaughtExceptionHandler));
+                uncaughtExceptionHandler);
     }
 
     private static RobustActorSystem create(
             String name,
             ActorSystemSetup setup,
-            Option<Thread.UncaughtExceptionHandler> uncaughtExceptionHandler) {
+            Thread.UncaughtExceptionHandler uncaughtExceptionHandler) {
         final Optional<BootstrapSetup> bootstrapSettings = setup.get(BootstrapSetup.class);
         final ClassLoader classLoader = RobustActorSystem.class.getClassLoader();
         final Config appConfig =
@@ -89,7 +89,7 @@ public abstract class RobustActorSystem extends ActorSystemImpl {
                 new RobustActorSystem(name, appConfig, classLoader, defaultEC, setup) {
                     @Override
                     public Thread.UncaughtExceptionHandler uncaughtExceptionHandler() {
-                        return uncaughtExceptionHandler.getOrElse(super::uncaughtExceptionHandler);
+                        return uncaughtExceptionHandler;
                     }
                 };
         robustActorSystem.start();
