@@ -27,6 +27,7 @@ import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.Signature;
+import org.apache.flink.table.types.inference.TypeInferenceUtil;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
@@ -67,6 +68,10 @@ public final class ArrayComparableElementTypeStrategy implements InputTypeStrate
     public Optional<List<DataType>> inferInputTypes(
             CallContext callContext, boolean throwOnFailure) {
         final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
+        if (!TypeInferenceUtil.checkInputArgumentNumber(
+                argumentCount, argumentDataTypes.size(), throwOnFailure)) {
+            return callContext.fail(throwOnFailure, "the input argument number should be one");
+        }
         final DataType argumentType = argumentDataTypes.get(0);
         if (!argumentType.getLogicalType().is(LogicalTypeRoot.ARRAY)) {
             return callContext.fail(throwOnFailure, "All arguments requires to be an ARRAY type");

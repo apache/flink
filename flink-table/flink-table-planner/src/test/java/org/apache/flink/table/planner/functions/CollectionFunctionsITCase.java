@@ -50,7 +50,8 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                         arrayConcatTestCases(),
                         arrayMaxTestCases(),
                         arrayJoinTestCases(),
-                        arraySliceTestCases())
+                        arraySliceTestCases(),
+                        arrayMinTestCases())
                 .flatMap(s -> s);
     }
 
@@ -738,7 +739,169 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                         .testSqlValidationError(
                                 "ARRAY_MAX(f12)",
                                 "SQL validation failed. Invalid function call:\n"
-                                        + "ARRAY_MAX(ARRAY<ARRAY<INT>>)"));
+                                        + "ARRAY_MAX(ARRAY<ARRAY<INT>>)")
+                        .testSqlValidationError(
+                                "ARRAY_MAX()", "No match found for function signature ARRAY_MAX()")
+                        .testSqlValidationError(
+                                "ARRAY_MAX(ARRAY[1], ARRAY[2])",
+                                "No match found for function signature ARRAY_MAX(<INTEGER ARRAY>, <INTEGER ARRAY>)"));
+    }
+
+    private Stream<TestSetSpec> arrayMinTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.ARRAY_MIN)
+                        .onFieldsWithData(
+                                new Integer[] {1, 2, null},
+                                null,
+                                new Double[] {1.2, null, 3.4, 8.0},
+                                new String[] {"a", null, "bc", "d", "def"},
+                                new Row[] {
+                                    Row.of(true, LocalDate.of(2022, 4, 20)),
+                                    Row.of(true, LocalDate.of(1990, 10, 14)),
+                                    null
+                                },
+                                new Map[] {
+                                    CollectionUtil.map(entry(1, "a"), entry(2, "b")),
+                                    CollectionUtil.map(entry(3, "c"), entry(4, "d")),
+                                    null
+                                },
+                                new Integer[][] {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}, null},
+                                new Row[] {
+                                    Row.of(LocalDate.of(2022, 4, 20)),
+                                    Row.of(LocalDate.of(1990, 10, 14)),
+                                    Row.of(LocalDate.of(2022, 4, 20)),
+                                    Row.of(LocalDate.of(1990, 10, 14)),
+                                    Row.of(LocalDate.of(2022, 4, 20)),
+                                    Row.of(LocalDate.of(1990, 10, 14)),
+                                    null
+                                },
+                                new Boolean[] {true, false, true, false, true, null},
+                                new Row[] {
+                                    Row.of(true),
+                                    Row.of(false),
+                                    Row.of(true),
+                                    Row.of(false),
+                                    Row.of(true),
+                                    Row.of(false),
+                                    null
+                                },
+                                new Row[] {
+                                    Row.of(1), Row.of(2), Row.of(8), Row.of(4), Row.of(5),
+                                    Row.of(8), null
+                                },
+                                1,
+                                new Integer[][] {{1, 2}, {2, 3}, null},
+                                new LocalDate[] {
+                                    LocalDate.of(2022, 1, 2),
+                                    LocalDate.of(2023, 4, 21),
+                                    LocalDate.of(2022, 12, 24),
+                                    LocalDate.of(2026, 2, 10),
+                                    LocalDate.of(2012, 5, 16),
+                                    LocalDate.of(2092, 7, 19)
+                                },
+                                null)
+                        .andDataTypes(
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(DataTypes.DOUBLE()),
+                                DataTypes.ARRAY(DataTypes.STRING()),
+                                DataTypes.ARRAY(
+                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE())),
+                                DataTypes.ARRAY(DataTypes.MAP(DataTypes.INT(), DataTypes.STRING())),
+                                DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())),
+                                DataTypes.ARRAY(DataTypes.ROW(DataTypes.DATE())),
+                                DataTypes.ARRAY(DataTypes.BOOLEAN()),
+                                DataTypes.ARRAY(DataTypes.ROW(DataTypes.BOOLEAN())),
+                                DataTypes.ARRAY(DataTypes.ROW(DataTypes.INT())),
+                                DataTypes.INT().notNull(),
+                                DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())),
+                                DataTypes.ARRAY(DataTypes.DATE()),
+                                DataTypes.ARRAY(DataTypes.INT().notNull()))
+                        .testResult($("f0").arrayMin(), "ARRAY_MIN(f0)", 1, DataTypes.INT())
+                        .testResult($("f1").arrayMin(), "ARRAY_MIN(f1)", null, DataTypes.INT())
+                        .testResult($("f2").arrayMin(), "ARRAY_MIN(f2)", 1.2, DataTypes.DOUBLE())
+                        .testResult($("f3").arrayMin(), "ARRAY_MIN(f3)", "a", DataTypes.STRING())
+                        .testResult($("f14").arrayMin(), "ARRAY_MIN(f14)", null, DataTypes.INT())
+                        .testResult(
+                                $("f13").arrayMin(),
+                                "ARRAY_MIN(f13)",
+                                LocalDate.of(2012, 5, 16),
+                                DataTypes.DATE())
+                        .testSqlValidationError(
+                                "ARRAY_MIN(f4)",
+                                "SQL validation failed. Invalid function call:\n"
+                                        + "ARRAY_MIN(ARRAY<ROW<`f0` BOOLEAN, `f1` DATE>>")
+                        .testTableApiValidationError(
+                                $("f4").arrayMin(),
+                                "Invalid function call:\n"
+                                        + "ARRAY_MIN(ARRAY<ROW<`f0` BOOLEAN, `f1` DATE>>")
+                        .testSqlValidationError(
+                                "ARRAY_MIN(f5)",
+                                "SQL validation failed. Invalid function call:\n"
+                                        + "ARRAY_MIN(ARRAY<MAP<INT, STRING>>")
+                        .testTableApiValidationError(
+                                $("f5").arrayMin(),
+                                "Invalid function call:\n" + "ARRAY_MIN(ARRAY<MAP<INT, STRING>>)")
+                        .testSqlValidationError(
+                                "ARRAY_MIN(f6)",
+                                "SQL validation failed. Invalid function call:\n"
+                                        + "ARRAY_MIN(ARRAY<ARRAY<INT>>)")
+                        .testTableApiValidationError(
+                                $("f6").arrayMin(),
+                                "Invalid function call:\n" + "ARRAY_MIN(ARRAY<ARRAY<INT>>)")
+                        .testSqlValidationError(
+                                "ARRAY_MIN(f7)",
+                                "SQL validation failed. Invalid function call:\n"
+                                        + "ARRAY_MIN(ARRAY<ROW<`f0` DATE>>)")
+                        .testTableApiValidationError(
+                                $("f7").arrayMin(),
+                                "Invalid function call:\n" + "ARRAY_MIN(ARRAY<ROW<`f0` DATE>>)")
+                        .testSqlValidationError(
+                                "ARRAY_MIN(f8)",
+                                "SQL validation failed. Invalid function call:\n"
+                                        + "ARRAY_MIN(ARRAY<BOOLEAN>)")
+                        .testTableApiValidationError(
+                                $("f8").arrayMin(),
+                                "Invalid function call:\n" + "ARRAY_MIN(ARRAY<BOOLEAN>)")
+                        .testSqlValidationError(
+                                "ARRAY_MIN(f9)",
+                                "SQL validation failed. Invalid function call:\n"
+                                        + "ARRAY_MIN(ARRAY<ROW<`f0` BOOLEAN>>)")
+                        .testTableApiValidationError(
+                                $("f9").arrayMin(),
+                                "Invalid function call:\n" + "ARRAY_MIN(ARRAY<ROW<`f0` BOOLEAN>>)")
+                        .testSqlValidationError(
+                                "ARRAY_MIN(f10)",
+                                "SQL validation failed. Invalid function call:\n"
+                                        + "ARRAY_MIN(ARRAY<ROW<`f0` INT>>)")
+                        .testTableApiValidationError(
+                                $("f10").arrayMin(),
+                                "Invalid function call:\n" + "ARRAY_MIN(ARRAY<ROW<`f0` INT>>)")
+                        .testTableApiValidationError(
+                                $("f11").arrayMin(),
+                                "Invalid function call:\n" + "ARRAY_MIN(INT NOT NULL)")
+                        .testSqlValidationError(
+                                "ARRAY_MIN(f11)",
+                                "SQL validation failed. Invalid function call:\n"
+                                        + "ARRAY_MIN(INT NOT NULL)")
+                        .testTableApiValidationError(
+                                $("f12").arrayMin(),
+                                "Invalid function call:\n" + "ARRAY_MIN(ARRAY<ARRAY<INT>>)")
+                        .testSqlValidationError(
+                                "ARRAY_MIN(f12)",
+                                "SQL validation failed. Invalid function call:\n"
+                                        + "ARRAY_MIN(ARRAY<ARRAY<INT>>)")
+                        .testSqlValidationError(
+                                "ARRAY_MIN()", "No match found for function signature ARRAY_MIN()")
+                        .testSqlValidationError(
+                                "ARRAY_MIN(ARRAY[1], ARRAY[2])",
+                                "No match found for function signature ARRAY_MIN(<INTEGER ARRAY>, <INTEGER ARRAY>)")
+                        .withFunction(CreateEmptyArray.class)
+                        .testResult(
+                                call("CreateEmptyArray").arrayMin(),
+                                "ARRAY_MIN(CreateEmptyArray())",
+                                null,
+                                DataTypes.INT()));
     }
 
     private Stream<TestSetSpec> arrayJoinTestCases() {
