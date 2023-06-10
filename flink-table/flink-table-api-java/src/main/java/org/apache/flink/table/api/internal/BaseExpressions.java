@@ -58,6 +58,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_DISTINCT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_ELEMENT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_MAX;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_MIN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_POSITION;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_REMOVE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_REVERSE;
@@ -1475,6 +1476,15 @@ public abstract class BaseExpressions<InType, OutType> {
      */
     public OutType arrayMax() {
         return toApiSpecificExpression(unresolvedCall(ARRAY_MAX, toExpr()));
+    }
+
+    /**
+     * Returns the minimum value from the array.
+     *
+     * <p>if array itself is null, the function returns null.
+     */
+    public OutType arrayMin() {
+        return toApiSpecificExpression(unresolvedCall(ARRAY_MIN, toExpr()));
     }
 
     /** Returns the keys of the map as an array. */

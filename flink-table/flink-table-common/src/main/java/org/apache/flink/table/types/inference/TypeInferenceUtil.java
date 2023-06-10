@@ -300,6 +300,11 @@ public final class TypeInferenceUtil {
 
     // --------------------------------------------------------------------------------------------
 
+    public static boolean checkInputArgumentNumber(
+            ArgumentCount argumentCount, int actualCount, boolean throwOnFailure) {
+        return validateArgumentCount(argumentCount, actualCount, throwOnFailure);
+    }
+
     private static Result runTypeInferenceInternal(
             TypeInference typeInference,
             CallContext callContext,

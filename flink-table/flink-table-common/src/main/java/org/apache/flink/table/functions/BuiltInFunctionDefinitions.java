@@ -344,6 +344,16 @@ public final class BuiltInFunctionDefinitions {
                             "org.apache.flink.table.runtime.functions.scalar.ArrayJoinFunction")
                     .build();
 
+    public static final BuiltInFunctionDefinition ARRAY_MIN =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ARRAY_MIN")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(arrayFullyComparableElementType())
+                    .outputTypeStrategy(forceNullable(SpecificTypeStrategies.ARRAY_ELEMENT))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.ArrayMinFunction")
+                    .build();
+
     public static final BuiltInFunctionDefinition INTERNAL_REPLICATE_ROWS =
             BuiltInFunctionDefinition.newBuilder()
                     .name("$REPLICATE_ROWS$1")
