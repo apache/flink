@@ -38,12 +38,12 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
         return Stream.of(
-                        //                        arrayContainsTestCases(),
-                        //                        arrayDistinctTestCases(),
-                        //                        arrayPositionTestCases(),
-                        //                        arrayRemoveTestCases(),
-                        //                        arrayReverseTestCases(),
-                        //                        arrayUnionTestCases(),
+                        arrayContainsTestCases(),
+                        arrayDistinctTestCases(),
+                        arrayPositionTestCases(),
+                        arrayRemoveTestCases(),
+                        arrayReverseTestCases(),
+                        arrayUnionTestCases(),
                         arrayMinTestCases())
                 .flatMap(s -> s);
     }
