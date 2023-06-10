@@ -652,6 +652,9 @@ collection:
   - sql: MAP_VALUES(map)
     table: MAP.mapValues()
     description: Returns the values of the map as array. No order guaranteed.
+  - sql: ARRAY_MIN(array)
+    table: array.arrayMin()
+    description: Return an element that is the minimum element in the array, if array itself is null, the function will return null.
   - sql: MAP_FROM_ARRAYS(array_of_keys, array_of_values)
     table: mapFromArrays(array_of_keys, array_of_values)
     description: Returns a map created from an arrays of keys and values. Note that the lengths of two arrays should be the same.

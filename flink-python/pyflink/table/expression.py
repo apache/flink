@@ -1519,6 +1519,13 @@ class Expression(Generic[T]):
         """
         return _binary_op("arrayUnion")(self, array)
 
+    def array_min(self) -> 'Expression':
+        """
+        Return the element that this element is the minimum one in the array
+        If the array is null, the function will return null.
+        """
+        return _unary_op("arrayMin")(self)
+
     @property
     def map_keys(self) -> 'Expression':
         """
