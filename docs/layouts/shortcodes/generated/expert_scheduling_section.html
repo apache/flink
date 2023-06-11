@@ -15,6 +15,12 @@
             <td>Enable the slot spread out allocation strategy. This strategy tries to spread out the slots evenly across all available <code class="highlighter-rouge">TaskExecutors</code>.</td>
         </tr>
         <tr>
+            <td><h5>cluster.tasks-scheduling.strategy</h5></td>
+            <td style="word-wrap: break-word;">LOCAL_INPUT_PREFERRED</td>
+            <td><p>Enum</p></td>
+            <td>Defines the scheduler will use which tasks-scheduling strategy.<br /><br />Possible values:<ul><li>"LOCAL_INPUT_PREFERRED"</li><li>"BALANCED_PREFERRED"</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>execution.batch.adaptive.auto-parallelism.avg-data-volume-per-task</h5></td>
             <td style="word-wrap: break-word;">16 mb</td>
             <td>MemorySize</td>

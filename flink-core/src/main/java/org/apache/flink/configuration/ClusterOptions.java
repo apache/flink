@@ -214,7 +214,8 @@ public class ClusterOptions {
             ConfigOptions.key("cluster.tasks-scheduling.strategy")
                     .enumType(TaskSchedulingStrategy.class)
                     .defaultValue(TaskSchedulingStrategy.LOCAL_INPUT_PREFERRED)
-                    .withDescription("Defines which tasks-scheduling strategy should used.");
+                    .withDescription(
+                            "Defines the scheduler will use which tasks-scheduling strategy.");
 
     public static JobManagerOptions.SchedulerType getSchedulerType(Configuration configuration) {
         if (isAdaptiveSchedulerEnabled(configuration) || isReactiveModeEnabled(configuration)) {
