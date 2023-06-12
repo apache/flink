@@ -659,6 +659,7 @@ public final class Utils {
         }
     }
 
+    /* Validates the ACL string to ensure that it is either null or the wildcard ACL. */
     private static void validateAclString(String acl) {
         if (acl != null && acl.contains("*") && !acl.equals("*")) {
             throw new IllegalArgumentException(
