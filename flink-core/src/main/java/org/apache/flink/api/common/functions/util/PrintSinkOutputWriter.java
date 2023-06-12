@@ -70,7 +70,7 @@ public class PrintSinkOutputWriter<IN> implements Serializable, SinkWriter<IN> {
     }
 
     public void write(IN record) {
-        stream.println(completedPrefix + record.toString());
+        stream.println(completedPrefix + (record == null ? "null" : record.toString()));
     }
 
     @Override
