@@ -1348,14 +1348,44 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
       <td>Gauge</td>
     </tr>
     <tr>
-      <th rowspan="2"><strong>Task</strong></th>
+      <th rowspan="8"><strong>Task/Operator</strong></th>
       <td>checkpointAlignmentTime</td>
-      <td>The time in nanoseconds that the last barrier alignment took to complete, or how long the current alignment has taken so far (in nanoseconds). This is the time between receiving first and the last checkpoint barrier. You can find more information in the [Monitoring State and Checkpoints section]({{< ref "docs/ops/state/large_state_tuning" >}}#monitoring-state-and-checkpoints)</td>
+      <td>The time in nanoseconds that the last barrier alignment took to complete, or how long the current alignment has taken so far (in nanoseconds). This is the time between receiving first and the last checkpoint barrier. You can find more information in the <a href="docs/ops/state/large_state_tuning">#monitoring-state-and-checkpoints">Monitoring State and Checkpoints section</a>.</td>
       <td>Gauge</td>
     </tr>
     <tr>
       <td>checkpointStartDelayNanos</td>
       <td>The time in nanoseconds that elapsed between the creation of the last checkpoint and the time when the checkpointing process has started by this Task. This delay shows how long it takes for the first checkpoint barrier to reach the task. A high value indicates back-pressure. If only a specific task has a long start delay, the most likely reason is data skew.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>checkpointBytesProcessedDuringAlignment</td>
+      <td>The approximate number of bytes processed during the alignment (time between receiving the first and the last checkpoint barrier) over all acknowledged subtasks.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>checkpointBytesPersistedDuringAlignment</td>
+      <td>The approximate number of bytes persisted during the alignment (time between receiving the first and the last checkpoint barrier) over all acknowledged subtasks. It could be larger than zero only if the unaligned checkpoints are enabled.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>checkpointSyncDurationMillis</td>
+      <td>The duration of the synchronous part of the checkpoint. This includes snapshotting state of the operators and blocks all other activity on the subtask (processing records, firing timers, etc).</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>checkpointAsyncDurationMillis</td>
+      <td>The duration of the asynchronous part of the checkpoint. This includes time it took to write the checkpoint on to the selected filesystem. For unaligned checkpoints this also includes also the time the subtask had to wait for last of the checkpoint barriers to arrive (alignment duration) and the time it took to persist the in-flight data.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>checkpointBytesPersistedOfThisCheckpoint</td>
+      <td>The persisted data size during the sync and async phases of that checkpoint, the value could be different from totalBytesPersisted if incremental checkpoint or changelog is enabled.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>checkpointTotalBytesPersisted</td>
+      <td>The total persisted data size of that checkpoint.</td>
       <td>Gauge</td>
     </tr>
   </tbody>
