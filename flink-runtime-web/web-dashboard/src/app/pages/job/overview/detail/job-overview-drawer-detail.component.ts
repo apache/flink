@@ -34,6 +34,7 @@ import {
 import { NzDividerModule } from 'ng-zorro-antd/divider';
 import { NzGridModule } from 'ng-zorro-antd/grid';
 import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 
 import { JobLocalService } from '../../job-local.service';
 
@@ -51,7 +52,8 @@ import { JobLocalService } from '../../job-local.service';
     HumanizeDurationPipe,
     DecimalPipe,
     HumanizeBytesPipe,
-    NzIconModule
+    NzIconModule,
+    NzToolTipModule
   ],
   standalone: true
 })

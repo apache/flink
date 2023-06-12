@@ -220,11 +220,6 @@ public abstract class BaseStatement implements Statement {
     }
 
     @Override
-    public int getUpdateCount() throws SQLException {
-        throw new SQLFeatureNotSupportedException("FlinkStatement#getUpdateCount is not supported");
-    }
-
-    @Override
     public void closeOnCompletion() throws SQLException {
         throw new SQLFeatureNotSupportedException(
                 "FlinkStatement#closeOnCompletion is not supported");

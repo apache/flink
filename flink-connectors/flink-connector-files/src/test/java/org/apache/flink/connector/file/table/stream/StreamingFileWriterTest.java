@@ -47,6 +47,7 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -327,7 +328,7 @@ class StreamingFileWriterTest {
     private static List<String> collect(
             OneInputStreamOperatorTestHarness<RowData, PartitionCommitInfo> harness) {
         List<String> parts = new ArrayList<>();
-        harness.extractOutputValues().forEach(m -> parts.addAll(m.getPartitions()));
+        harness.extractOutputValues().forEach(m -> parts.addAll(Arrays.asList(m.getPartitions())));
         return parts;
     }
 

@@ -27,8 +27,11 @@ import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionGraph;
@@ -53,15 +56,19 @@ class FailureHandlingResultTest {
         Set<ExecutionVertexID> tasks = new HashSet<>();
         tasks.add(execution.getVertex().getID());
 
-        long delay = 1234;
-        Throwable error = new RuntimeException();
-        long timestamp = System.currentTimeMillis();
+        final long delay = 1234;
+        final Throwable error = new RuntimeException();
+        final long timestamp = System.currentTimeMillis();
+        final CompletableFuture<Map<String, String>> failureLabels =
+                CompletableFuture.completedFuture(Collections.singletonMap("key", "value"));
         FailureHandlingResult result =
-                FailureHandlingResult.restartable(execution, error, timestamp, tasks, delay, false);
+                FailureHandlingResult.restartable(
+                        execution, error, timestamp, failureLabels, tasks, delay, false);
 
         assertThat(result.canRestart()).isTrue();
         assertThat(delay).isEqualTo(result.getRestartDelayMS());
         assertThat(tasks).isEqualTo(result.getVerticesToRestart());
+        assertThat(result.getFailureLabels()).isEqualTo(failureLabels);
         assertThat(result.getError()).isSameAs(error);
         assertThat(result.getTimestamp()).isEqualTo(timestamp);
         assertThat(result.getFailedExecution()).isPresent();
@@ -72,14 +79,17 @@ class FailureHandlingResultTest {
     @Test
     void testRestartingSuppressedFailureHandlingResultWithNoCausingExecutionVertexId() {
         // create a FailureHandlingResult with error
-        Throwable error = new Exception("test error");
-        long timestamp = System.currentTimeMillis();
+        final Throwable error = new Exception("test error");
+        final long timestamp = System.currentTimeMillis();
+        final CompletableFuture<Map<String, String>> failureLabels =
+                CompletableFuture.completedFuture(Collections.singletonMap("key", "value"));
         FailureHandlingResult result =
-                FailureHandlingResult.unrecoverable(null, error, timestamp, false);
+                FailureHandlingResult.unrecoverable(null, error, timestamp, failureLabels, false);
 
         assertThat(result.canRestart()).isFalse();
         assertThat(result.getError()).isSameAs(error);
         assertThat(result.getTimestamp()).isEqualTo(timestamp);
+        assertThat(result.getFailureLabels()).isEqualTo(failureLabels);
         assertThat(result.getFailedExecution()).isNotPresent();
 
         assertThatThrownBy(result::getVerticesToRestart)

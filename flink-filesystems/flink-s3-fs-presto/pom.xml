@@ -45,6 +45,14 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
+		<!-- S3 base (bundled) -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-s3-fs-base</artifactId>
+			<version>${project.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
+		</dependency>
+
 		<!-- for the HAJobRunOnPrestoS3FileSystemITCase -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -89,18 +97,12 @@ under the License.
 			</exclusions>
 		</dependency>
 
-		<!-- S3 base (bundled) -->
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-s3-fs-base</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
 		<!-- Presto's S3 file system (bundled) -->
 		<dependency>
 			<groupId>com.facebook.presto</groupId>
 			<artifactId>presto-hive</artifactId>
 			<version>${presto.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
 			<exclusions>
 				<!-- Exclude AWS dependencies which we provide ourselves (and in more recent versions). -->
 				<exclusion>
@@ -317,6 +319,7 @@ under the License.
 			<groupId>com.facebook.presto.hadoop</groupId>
 			<artifactId>hadoop-apache2</artifactId>
 			<version>2.7.4-9</version>
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
 		<dependency>
@@ -352,6 +355,7 @@ under the License.
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-common</artifactId>
 				<version>${fs.hadoopshaded.version}</version>
+				<optional>${flink.markBundledAsOptional}</optional>
 				<exclusions>
 					<exclusion>
 						<groupId>jdk.tools</groupId>
@@ -379,6 +383,7 @@ under the License.
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-hdfs</artifactId>
 				<version>${fs.hadoopshaded.version}</version>
+				<optional>${flink.markBundledAsOptional}</optional>
 				<exclusions>
 					<exclusion>
 						<groupId>jdk.tools</groupId>
@@ -408,6 +413,7 @@ under the License.
 				<groupId>commons-beanutils</groupId>
 				<artifactId>commons-beanutils</artifactId>
 				<version>1.9.4</version>
+				<optional>${flink.markBundledAsOptional}</optional>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>

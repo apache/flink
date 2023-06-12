@@ -18,7 +18,6 @@
 
 package org.apache.flink.kubernetes.highavailability;
 
-import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.KubernetesConfigMapSharedWatcher;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalDriverFactory;
@@ -35,19 +34,15 @@ import java.util.concurrent.Executor;
 @Deprecated
 public class KubernetesLeaderRetrievalDriverFactory implements LeaderRetrievalDriverFactory {
 
-    private final FlinkKubeClient kubeClient;
-
     private final KubernetesConfigMapSharedWatcher configMapSharedWatcher;
     private final Executor watchExecutor;
 
     private final String configMapName;
 
     public KubernetesLeaderRetrievalDriverFactory(
-            FlinkKubeClient kubeClient,
             KubernetesConfigMapSharedWatcher configMapSharedWatcher,
             Executor watchExecutor,
             String configMapName) {
-        this.kubeClient = kubeClient;
         this.configMapSharedWatcher = configMapSharedWatcher;
         this.watchExecutor = watchExecutor;
         this.configMapName = configMapName;
@@ -57,7 +52,6 @@ public class KubernetesLeaderRetrievalDriverFactory implements LeaderRetrievalDr
     public KubernetesLeaderRetrievalDriver createLeaderRetrievalDriver(
             LeaderRetrievalEventHandler leaderEventHandler, FatalErrorHandler fatalErrorHandler) {
         return new KubernetesLeaderRetrievalDriver(
-                kubeClient,
                 configMapSharedWatcher,
                 watchExecutor,
                 configMapName,

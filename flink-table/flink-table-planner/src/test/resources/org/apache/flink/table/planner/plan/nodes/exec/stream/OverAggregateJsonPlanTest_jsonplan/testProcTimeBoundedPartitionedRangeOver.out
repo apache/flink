@@ -386,7 +386,7 @@
               "type" : "BIGINT NOT NULL"
             }, {
               "kind" : "LITERAL",
-              "value" : "0",
+              "value" : 0,
               "type" : "BIGINT NOT NULL"
             } ],
             "type" : "BOOLEAN NOT NULL"
@@ -421,7 +421,7 @@
     "description" : "Calc(select=[$3 AS a, CAST((CASE((w0$o0 > 0), w0$o1, null:BIGINT) / w0$o0) AS DOUBLE) AS b])"
   }, {
     "id" : 8,
-    "type" : "stream-exec-sink_1",
+    "type" : "stream-exec-sink_2",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",

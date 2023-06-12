@@ -37,17 +37,16 @@ import static org.hamcrest.Matchers.is;
 class StreamElementSerializerUpgradeTest
         extends TypeSerializerUpgradeTestBase<StreamElement, StreamElement> {
 
-    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications(FlinkVersion flinkVersion)
+            throws Exception {
 
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "stream-element-serializer",
-                            flinkVersion,
-                            StreamElementSetup.class,
-                            StreamElementVerifier.class));
-        }
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "stream-element-serializer",
+                        flinkVersion,
+                        StreamElementSetup.class,
+                        StreamElementVerifier.class));
 
         return testSpecifications;
     }

@@ -332,7 +332,23 @@ public class ValuesITCase extends StreamingTestBase {
         mapData.put(1, 1);
         mapData.put(2, 2);
 
-        Row row = Row.of(mapData, Row.of(1, 2, 3), new Integer[] {1, 2});
+        Row row = Row.of(mapData, Row.of(1, 2, 3), new int[] {1, 2});
+        Table values = tEnv().fromValues(Collections.singletonList(row));
+        tEnv().createTemporaryView("values_t", values);
+        List<Row> results =
+                CollectionUtil.iteratorToList(
+                        tEnv().executeSql("select * from values_t").collect());
+
+        assertThat(results).containsExactly(row);
+    }
+
+    @Test
+    public void testArrayWithNullablePrimitiveType() {
+        Map<Integer, Integer> mapData = new HashMap<>();
+        mapData.put(1, 1);
+        mapData.put(2, 2);
+
+        Row row = Row.of(mapData, Row.of(1, 2, 3), new Integer[] {1, 2, null});
         Table values = tEnv().fromValues(Collections.singletonList(row));
         tEnv().createTemporaryView("values_t", values);
         List<Row> results =

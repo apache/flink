@@ -25,6 +25,9 @@ import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
 
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+
 /** Initial state of the {@link AdaptiveScheduler}. */
 class Created implements State {
 
@@ -58,7 +61,8 @@ class Created implements State {
     }
 
     @Override
-    public void handleGlobalFailure(Throwable cause) {
+    public void handleGlobalFailure(
+            Throwable cause, CompletableFuture<Map<String, String>> failureLabels) {
         context.goToFinished(context.getArchivedExecutionGraph(JobStatus.FAILED, cause));
     }
 

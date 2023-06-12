@@ -42,6 +42,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -51,6 +52,10 @@ public class DefaultContext {
 
     private final Configuration flinkConfig;
     private final List<URL> dependencies;
+
+    public DefaultContext(Map<String, String> flinkConfig, List<URL> dependencies) {
+        this(Configuration.fromMap(flinkConfig), dependencies);
+    }
 
     public DefaultContext(Configuration flinkConfig, List<URL> dependencies) {
         this.flinkConfig = flinkConfig;

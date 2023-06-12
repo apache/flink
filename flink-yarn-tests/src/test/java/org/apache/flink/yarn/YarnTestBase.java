@@ -148,9 +148,9 @@ public abstract class YarnTestBase {
         // very specific on purpose; whitelist meaningless exceptions that occur during akka
         // shutdown:
         Pattern.compile(
-                "Remote connection to \\[null\\] failed with java.net.ConnectException: Connection refused"),
+                "Remote connection to \\[.*\\] failed with java.net.ConnectException: Connection refused"),
         Pattern.compile(
-                "Remote connection to \\[null\\] failed with java.nio.channels.NotYetConnectedException"),
+                "Remote connection to \\[.*\\] failed with java.nio.channels.NotYetConnectedException"),
         Pattern.compile("java\\.io\\.IOException: Connection reset by peer"),
         Pattern.compile(
                 "Association with remote system \\[akka.tcp://flink@[^]]+\\] has failed, address is now gated for \\[50\\] ms. Reason: \\[Association failed with \\[akka.tcp://flink@[^]]+\\]\\] Caused by: \\[java.net.ConnectException: Connection refused: [^]]+\\]"),
@@ -171,6 +171,8 @@ public abstract class YarnTestBase {
         // this can happen during cluster shutdown, if AMRMClient happens to be heartbeating
         Pattern.compile("Exception on heartbeat"),
         Pattern.compile("java\\.io\\.InterruptedIOException: Call interrupted"),
+        Pattern.compile(
+                "java\\.io\\.InterruptedIOException: Interrupted waiting to send RPC request to server"),
         Pattern.compile("java\\.lang\\.InterruptedException"),
 
         // this can happen if the hbase delegation token provider is not available

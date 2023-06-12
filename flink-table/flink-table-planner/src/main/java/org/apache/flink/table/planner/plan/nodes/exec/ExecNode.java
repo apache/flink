@@ -54,6 +54,7 @@ public interface ExecNode<T> extends ExecNodeTranslator<T> {
     String FIELD_NAME_DESCRIPTION = "description";
     String FIELD_NAME_INPUT_PROPERTIES = "inputProperties";
     String FIELD_NAME_OUTPUT_TYPE = "outputType";
+    String FIELD_NAME_STATE = "state";
 
     /** The unique ID of the node. */
     @JsonProperty(value = FIELD_NAME_ID, index = 0)

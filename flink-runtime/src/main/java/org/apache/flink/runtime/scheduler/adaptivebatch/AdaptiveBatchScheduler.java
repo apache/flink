@@ -24,11 +24,13 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint;
+import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
@@ -70,6 +72,7 @@ import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -121,6 +124,7 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
             long initializationTimestamp,
             final ComponentMainThreadExecutor mainThreadExecutor,
             final JobStatusListener jobStatusListener,
+            final Collection<FailureEnricher> failureEnrichers,
             final ExecutionGraphFactory executionGraphFactory,
             final ShuffleMaster<?> shuffleMaster,
             final Time rpcTimeout,
@@ -150,6 +154,7 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
                 initializationTimestamp,
                 mainThreadExecutor,
                 jobStatusListener,
+                failureEnrichers,
                 executionGraphFactory,
                 shuffleMaster,
                 rpcTimeout,
@@ -252,7 +257,8 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
                         || hybridPartitionDataConsumeConstraint.isOnlyConsumeFinishedPartition();
     }
 
-    void initializeVerticesIfPossible() {
+    @VisibleForTesting
+    public void initializeVerticesIfPossible() {
         final List<ExecutionJobVertex> newlyInitializedJobVertices = new ArrayList<>();
         try {
             final long createTimestamp = System.currentTimeMillis();
@@ -295,7 +301,7 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
             }
         } catch (JobException ex) {
             log.error("Unexpected error occurred when initializing ExecutionJobVertex", ex);
-            failJob(ex, System.currentTimeMillis());
+            this.handleGlobalFailure(new SuppressRestartsException(ex));
         }
 
         if (newlyInitializedJobVertices.size() > 0) {

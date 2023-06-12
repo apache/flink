@@ -1164,13 +1164,14 @@ class HiveCatalog(Catalog):
     A catalog implementation for Hive.
     """
 
-    def __init__(self, catalog_name: str, default_database: str = None, hive_conf_dir: str = None):
+    def __init__(self, catalog_name: str, default_database: str = None, hive_conf_dir: str = None,
+                 hadoop_conf_dir: str = None, hive_version: str = None):
         assert catalog_name is not None
 
         gateway = get_gateway()
 
         j_hive_catalog = gateway.jvm.org.apache.flink.table.catalog.hive.HiveCatalog(
-            catalog_name, default_database, hive_conf_dir)
+            catalog_name, default_database, hive_conf_dir, hadoop_conf_dir, hive_version)
         super(HiveCatalog, self).__init__(j_hive_catalog)
 
 

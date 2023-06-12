@@ -33,6 +33,7 @@ import org.apache.flink.runtime.rest.messages.JobExceptionsInfoWithHistory;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.runtime.rest.messages.job.FailureLabelFilterParameter;
 import org.apache.flink.runtime.rest.messages.job.JobExceptionsMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.UpperLimitExceptionParameter;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
@@ -67,6 +68,8 @@ public class JobExceptionsHandler
         implements JsonArchivist {
 
     static final int MAX_NUMBER_EXCEPTION_TO_REPORT = 20;
+    static final List<FailureLabelFilterParameter.FailureLabel> EMPTY_FAILURE_LABEL_FILTER =
+            Collections.emptyList();
 
     public JobExceptionsHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
@@ -92,20 +95,28 @@ public class JobExceptionsHandler
     @Override
     protected JobExceptionsInfoWithHistory handleRequest(
             HandlerRequest<EmptyRequestBody> request, ExecutionGraphInfo executionGraph) {
-        List<Integer> exceptionToReportMaxSizes =
+        final List<Integer> exceptionToReportMaxSizes =
                 request.getQueryParameter(UpperLimitExceptionParameter.class);
         final int exceptionToReportMaxSize =
                 exceptionToReportMaxSizes.size() > 0
                         ? exceptionToReportMaxSizes.get(0)
                         : MAX_NUMBER_EXCEPTION_TO_REPORT;
-        return createJobExceptionsInfo(executionGraph, exceptionToReportMaxSize);
+        List<FailureLabelFilterParameter.FailureLabel> failureLabelFilter =
+                request.getQueryParameter(FailureLabelFilterParameter.class);
+        failureLabelFilter =
+                failureLabelFilter.size() > 0 ? failureLabelFilter : EMPTY_FAILURE_LABEL_FILTER;
+        return createJobExceptionsInfo(
+                executionGraph, exceptionToReportMaxSize, failureLabelFilter);
     }
 
     @Override
     public Collection<ArchivedJson> archiveJsonWithPath(ExecutionGraphInfo executionGraphInfo)
             throws IOException {
         ResponseBody json =
-                createJobExceptionsInfo(executionGraphInfo, MAX_NUMBER_EXCEPTION_TO_REPORT);
+                createJobExceptionsInfo(
+                        executionGraphInfo,
+                        MAX_NUMBER_EXCEPTION_TO_REPORT,
+                        EMPTY_FAILURE_LABEL_FILTER);
         String path =
                 getMessageHeaders()
                         .getTargetRestEndpointURL()
@@ -116,13 +127,17 @@ public class JobExceptionsHandler
     }
 
     private static JobExceptionsInfoWithHistory createJobExceptionsInfo(
-            ExecutionGraphInfo executionGraphInfo, int exceptionToReportMaxSize) {
+            ExecutionGraphInfo executionGraphInfo,
+            int exceptionToReportMaxSize,
+            List<FailureLabelFilterParameter.FailureLabel> failureLabelFilter) {
         final ArchivedExecutionGraph executionGraph =
                 executionGraphInfo.getArchivedExecutionGraph();
         if (executionGraph.getFailureInfo() == null) {
             return new JobExceptionsInfoWithHistory(
                     createJobExceptionHistory(
-                            executionGraphInfo.getExceptionHistory(), exceptionToReportMaxSize));
+                            executionGraphInfo.getExceptionHistory(),
+                            exceptionToReportMaxSize,
+                            failureLabelFilter));
         }
 
         List<JobExceptionsInfo.ExecutionExceptionInfo> taskExceptionList = new ArrayList<>();
@@ -157,17 +172,41 @@ public class JobExceptionsHandler
                 taskExceptionList,
                 truncated,
                 createJobExceptionHistory(
-                        executionGraphInfo.getExceptionHistory(), exceptionToReportMaxSize));
+                        executionGraphInfo.getExceptionHistory(),
+                        exceptionToReportMaxSize,
+                        failureLabelFilter));
     }
 
     private static JobExceptionsInfoWithHistory.JobExceptionHistory createJobExceptionHistory(
-            Iterable<RootExceptionHistoryEntry> historyEntries, int limit) {
+            Iterable<RootExceptionHistoryEntry> historyEntries,
+            int limit,
+            List<FailureLabelFilterParameter.FailureLabel> failureLabelFilter) {
         // we need to reverse the history to have a stable result when doing paging on it
-        final List<RootExceptionHistoryEntry> reversedHistoryEntries = new ArrayList<>();
+        List<RootExceptionHistoryEntry> reversedHistoryEntries = new ArrayList<>();
         Iterables.addAll(reversedHistoryEntries, historyEntries);
         Collections.reverse(reversedHistoryEntries);
 
-        List<JobExceptionsInfoWithHistory.RootExceptionInfo> exceptionHistoryEntries =
+        if (!failureLabelFilter.isEmpty()) {
+            reversedHistoryEntries =
+                    reversedHistoryEntries.stream()
+                            .filter(
+                                    entry -> {
+                                        for (FailureLabelFilterParameter.FailureLabel label :
+                                                failureLabelFilter) {
+                                            if (!entry.getFailureLabels()
+                                                            .containsKey(label.getKey())
+                                                    || !entry.getFailureLabels()
+                                                            .get(label.getKey())
+                                                            .equals(label.getValue())) {
+                                                return false;
+                                            }
+                                        }
+                                        return true;
+                                    })
+                            .collect(Collectors.toList());
+        }
+
+        final List<JobExceptionsInfoWithHistory.RootExceptionInfo> exceptionHistoryEntries =
                 reversedHistoryEntries.stream()
                         .limit(limit)
                         .map(JobExceptionsHandler::createRootExceptionInfo)
@@ -190,6 +229,7 @@ public class JobExceptionsHandler
                     historyEntry.getException().getOriginalErrorClassName(),
                     historyEntry.getExceptionAsString(),
                     historyEntry.getTimestamp(),
+                    historyEntry.getFailureLabels(),
                     concurrentExceptions);
         }
 
@@ -199,6 +239,7 @@ public class JobExceptionsHandler
                 historyEntry.getException().getOriginalErrorClassName(),
                 historyEntry.getExceptionAsString(),
                 historyEntry.getTimestamp(),
+                historyEntry.getFailureLabels(),
                 historyEntry.getFailingTaskName(),
                 toString(historyEntry.getTaskManagerLocation()),
                 toTaskManagerId(historyEntry.getTaskManagerLocation()),
@@ -213,6 +254,7 @@ public class JobExceptionsHandler
                 exceptionHistoryEntry.getException().getOriginalErrorClassName(),
                 exceptionHistoryEntry.getExceptionAsString(),
                 exceptionHistoryEntry.getTimestamp(),
+                exceptionHistoryEntry.getFailureLabels(),
                 exceptionHistoryEntry.getFailingTaskName(),
                 toString(exceptionHistoryEntry.getTaskManagerLocation()),
                 toTaskManagerId(exceptionHistoryEntry.getTaskManagerLocation()));

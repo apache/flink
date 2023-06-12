@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.highavailability.nonha.embedded;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.leaderelection.AbstractLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
@@ -437,7 +438,7 @@ public class EmbeddedLeaderService {
     //  election and retrieval service implementations
     // ------------------------------------------------------------------------
 
-    private class EmbeddedLeaderElectionService implements LeaderElectionService {
+    private class EmbeddedLeaderElectionService extends AbstractLeaderElectionService {
 
         volatile LeaderContender contender;
 
@@ -446,25 +447,26 @@ public class EmbeddedLeaderService {
         volatile boolean running;
 
         @Override
-        public void start(LeaderContender contender) throws Exception {
+        protected void register(LeaderContender contender) throws Exception {
             checkNotNull(contender);
             addContender(this, contender);
         }
 
         @Override
-        public void stop() throws Exception {
+        public void remove(LeaderContender contender) {
+            Preconditions.checkArgument(contender == this.contender);
             removeContender(this);
         }
 
         @Override
-        public void confirmLeadership(UUID leaderSessionID, String leaderAddress) {
+        protected void confirmLeadership(UUID leaderSessionID, String leaderAddress) {
             checkNotNull(leaderSessionID);
             checkNotNull(leaderAddress);
             confirmLeader(this, leaderSessionID, leaderAddress);
         }
 
         @Override
-        public boolean hasLeadership(@Nonnull UUID leaderSessionId) {
+        protected boolean hasLeadership(UUID leaderSessionId) {
             return isLeader && leaderSessionId.equals(currentLeaderSessionId);
         }
 

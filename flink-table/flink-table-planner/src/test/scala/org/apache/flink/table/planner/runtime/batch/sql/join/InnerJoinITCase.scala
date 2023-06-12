@@ -26,19 +26,20 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo
+import org.apache.flink.testutils.junit.extensions.parameterized.{Parameter, ParameterizedTestExtension, Parameters}
 
-import org.junit.{Before, Test}
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.math.{BigDecimal => JBigDecimal}
 import java.util
 
-import scala.collection.Seq
 import scala.util.Random
 
-@RunWith(classOf[Parameterized])
-class InnerJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
+class InnerJoinITCase extends BatchTestBase {
+
+  @Parameter var expectedJoinType: JoinType = _
 
   private lazy val myUpperCaseData = Seq(
     row(1, "A"),
@@ -75,7 +76,7 @@ class InnerJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     row(3, 2)
   )
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     registerCollection("myUpperCaseData", myUpperCaseData, INT_STRING, "N, L", Array(true, true))
@@ -85,7 +86,7 @@ class InnerJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     disableOtherJoinOpForJoin(tEnv, expectedJoinType)
   }
 
-  @Test
+  @TestTemplate
   def testOneMatchPerRow(): Unit = {
     checkResult(
       "SELECT * FROM myUpperCaseData u, myLowerCaseData l WHERE u.N = l.n",
@@ -97,7 +98,7 @@ class InnerJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
       ))
   }
 
-  @Test
+  @TestTemplate
   def testMultipleMatches(): Unit = {
     expectedJoinType match {
       case NestedLoopJoin =>
@@ -115,14 +116,14 @@ class InnerJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     }
   }
 
-  @Test
+  @TestTemplate
   def testNoMatches(): Unit = {
     checkResult(
       "SELECT * FROM myTestData1 A, myTestData2 B WHERE A.a = B.a and A.a = 1 and B.a = 2",
       Seq())
   }
 
-  @Test
+  @TestTemplate
   def testDecimalAsKey(): Unit = {
     val DEC_INT = new RowTypeInfo(BigDecimalTypeInfo.of(9, 0), INT_TYPE_INFO)
     registerCollection(
@@ -150,7 +151,7 @@ class InnerJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
       ))
   }
 
-  @Test
+  @TestTemplate
   def testBigForSpill(): Unit = {
     tableConfig.set(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(1))
 
@@ -164,7 +165,7 @@ class InnerJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
       bigIntStringData.flatMap(row => Seq.fill(16)(row)))
   }
 
-  @Test
+  @TestTemplate
   def testSortMergeJoinOutputOrder(): Unit = {
     if (expectedJoinType == SortMergeJoin) {
       tableConfig.set(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(1))
@@ -184,7 +185,7 @@ class InnerJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
 }
 
 object InnerJoinITCase {
-  @Parameterized.Parameters(name = "{0}")
+  @Parameters(name = "{0}")
   def parameters(): util.Collection[Array[_]] = {
     util.Arrays.asList(
       Array(BroadcastHashJoin),

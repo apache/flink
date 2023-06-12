@@ -24,9 +24,7 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMergeAndReset
 import org.apache.flink.table.planner.utils.{CountAggFunction, IntSumAggFunction}
 
-import org.junit.Test
-
-import scala.collection.Seq
+import org.junit.jupiter.api.Test
 
 /** DistinctAggregateITCase using SortAgg Operator. */
 class SortDistinctAggregateITCase extends DistinctAggregateITCaseBase {

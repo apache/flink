@@ -101,11 +101,11 @@
           "type" : "VARCHAR(2147483647)"
         }, {
           "kind" : "LITERAL",
-          "value" : "1",
+          "value" : 1,
           "type" : "INT NOT NULL"
         }, {
           "kind" : "LITERAL",
-          "value" : "5",
+          "value" : 5,
           "type" : "INT NOT NULL"
         } ],
         "type" : "VARCHAR(2147483647)"
@@ -121,7 +121,7 @@
         "type" : "TIMESTAMP(3)"
       }, {
         "kind" : "LITERAL",
-        "value" : "1000",
+        "value" : 1000,
         "type" : "INT NOT NULL"
       } ],
       "type" : "TIMESTAMP(3)"
@@ -149,7 +149,7 @@
             "type" : "BIGINT NOT NULL"
           }, {
             "kind" : "LITERAL",
-            "value" : "0",
+            "value" : 0,
             "type" : "INT NOT NULL"
           } ],
           "type" : "BOOLEAN NOT NULL"
@@ -173,7 +173,7 @@
             "type" : "BIGINT"
           }, {
             "kind" : "LITERAL",
-            "value" : "100",
+            "value" : 100,
             "type" : "INT NOT NULL"
           } ],
           "type" : "BOOLEAN"
@@ -189,7 +189,7 @@
           "type" : "INT NOT NULL"
         }, {
           "kind" : "LITERAL",
-          "value" : "10",
+          "value" : 10,
           "type" : "INT NOT NULL"
         } ],
         "type" : "BOOLEAN NOT NULL"
@@ -207,7 +207,7 @@
     "description" : "Calc(select=[a, CAST(a AS VARCHAR(2147483647)) AS a1, b, udf2(b, b, d) AS b1, udf3(c, b) AS c1, udf4(SUBSTRING(c, 1, 5)) AS c2, udf5(d, 1000) AS d1], where=[(((udf1(a) > 0) OR ((a * b) < 100)) AND (b > 10))])"
   }, {
     "id" : 3,
-    "type" : "stream-exec-sink_1",
+    "type" : "stream-exec-sink_2",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",

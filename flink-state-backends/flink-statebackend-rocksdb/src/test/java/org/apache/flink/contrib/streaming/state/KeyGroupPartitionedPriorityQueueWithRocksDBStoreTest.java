@@ -25,16 +25,15 @@ import org.apache.flink.runtime.state.InternalPriorityQueue;
 import org.apache.flink.runtime.state.InternalPriorityQueueTestBase;
 import org.apache.flink.runtime.state.heap.KeyGroupPartitionedPriorityQueue;
 
-import org.junit.Rule;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 /**
  * Test of {@link KeyGroupPartitionedPriorityQueue} powered by a {@link
  * RocksDBCachingPriorityQueueSet}.
  */
-public class KeyGroupPartitionedPriorityQueueWithRocksDBStoreTest
-        extends InternalPriorityQueueTestBase {
+class KeyGroupPartitionedPriorityQueueWithRocksDBStoreTest extends InternalPriorityQueueTestBase {
 
-    @Rule public final RocksDBResource rocksDBResource = new RocksDBResource();
+    @RegisterExtension public final RocksDBExtension rocksDBExtension = new RocksDBExtension();
 
     @Override
     protected InternalPriorityQueue<TestElement> newPriorityQueue(int initialCapacity) {
@@ -65,13 +64,13 @@ public class KeyGroupPartitionedPriorityQueueWithRocksDBStoreTest
             return new RocksDBCachingPriorityQueueSet<>(
                     keyGroupId,
                     keyGroupPrefixBytes,
-                    rocksDBResource.getRocksDB(),
-                    rocksDBResource.getReadOptions(),
-                    rocksDBResource.getDefaultColumnFamily(),
+                    rocksDBExtension.getRocksDB(),
+                    rocksDBExtension.getReadOptions(),
+                    rocksDBExtension.getDefaultColumnFamily(),
                     TestElementSerializer.INSTANCE,
                     outputStreamWithPos,
                     inputStreamWithPos,
-                    rocksDBResource.getBatchWrapper(),
+                    rocksDBExtension.getBatchWrapper(),
                     orderedSetCache);
         };
     }

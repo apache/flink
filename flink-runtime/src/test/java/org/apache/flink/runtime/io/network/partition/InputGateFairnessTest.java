@@ -382,6 +382,7 @@ public class InputGateFairnessTest {
                     new UnpooledMemorySegmentProvider(BUFFER_SIZE),
                     BUFFER_SIZE,
                     new ThroughputCalculator(SystemClock.getInstance()),
+                    null,
                     null);
 
             channelsWithData = getInputChannelsWithData();

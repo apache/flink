@@ -21,17 +21,17 @@ import org.apache.flink.table.planner.runtime.batch.sql.join.JoinType.{Broadcast
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
+import org.apache.flink.testutils.junit.extensions.parameterized.{Parameter, ParameterizedTestExtension, Parameters}
 
-import org.junit.{Before, Test}
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.util
 
-import scala.collection.Seq
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
+class OuterJoinITCase extends BatchTestBase {
 
-@RunWith(classOf[Parameterized])
-class OuterJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
+  @Parameter var expectedJoinType: JoinType = _
 
   private lazy val leftT = Seq(
     row(1, 2.0),
@@ -57,7 +57,7 @@ class OuterJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     row(null, null)
   )
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     registerCollection("uppercasedata", upperCaseData, INT_STRING, "N, L", nullablesOfUpperCaseData)
@@ -68,7 +68,7 @@ class OuterJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     JoinITCaseHelper.disableOtherJoinOpForJoin(tEnv, expectedJoinType)
   }
 
-  @Test
+  @TestTemplate
   def testLeftOuter(): Unit = {
     checkResult(
       "SELECT * FROM leftT LEFT JOIN rightT ON a = c and b < d",
@@ -87,7 +87,7 @@ class OuterJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
   def testRightOuter(): Unit = {
     checkResult(
       "SELECT * FROM leftT RIGHT JOIN rightT ON a = c and b < d",
@@ -108,7 +108,7 @@ class OuterJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
   def testFullOuter(): Unit = {
     if (expectedJoinType != NestedLoopJoin && expectedJoinType != BroadcastHashJoin) {
       checkResult(
@@ -136,7 +136,7 @@ class OuterJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     }
   }
 
-  @Test
+  @TestTemplate
   def testLeftEmptyOuter(): Unit = {
     checkResult(
       "SELECT * FROM (SELECT * FROM leftT WHERE FALSE) " +
@@ -144,7 +144,7 @@ class OuterJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
       Seq())
   }
 
-  @Test
+  @TestTemplate
   def testRightEmptyOuter(): Unit = {
     checkResult(
       "SELECT * FROM (SELECT * FROM leftT WHERE FALSE) " +
@@ -152,7 +152,7 @@ class OuterJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
       Seq())
   }
 
-  @Test
+  @TestTemplate
   def testFullEmptyOuter(): Unit = {
     if (expectedJoinType != NestedLoopJoin && expectedJoinType != BroadcastHashJoin) {
       checkResult(
@@ -162,7 +162,7 @@ class OuterJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     }
   }
 
-  @Test
+  @TestTemplate
   def testLeftUpperAndLower(): Unit = {
     checkResult(
       "SELECT * FROM uppercasedata u LEFT JOIN lowercasedata l ON l.n = u.N",
@@ -205,7 +205,7 @@ class OuterJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
   def testLeftUpperAndLowerWithAgg(): Unit = {
     checkResult(
       """
@@ -231,7 +231,7 @@ class OuterJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
   def testRightUpperAndLower(): Unit = {
     checkResult(
       "SELECT * FROM lowercasedata l RIGHT JOIN uppercasedata u ON l.n = u.N",
@@ -272,7 +272,7 @@ class OuterJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
 
   }
 
-  @Test
+  @TestTemplate
   def testRightUpperAndLowerWithAgg(): Unit = {
     checkResult(
       """
@@ -298,7 +298,7 @@ class OuterJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
   def testFullUpperAndLower(): Unit = {
     if (expectedJoinType != NestedLoopJoin && expectedJoinType != BroadcastHashJoin) {
       val leftData = upperCaseData.filter(_.getField(0).asInstanceOf[Int] <= 4)
@@ -343,7 +343,7 @@ class OuterJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     }
   }
 
-  @Test
+  @TestTemplate
   def testFullUpperAndLowerWithAgg(): Unit = {
     if (expectedJoinType != NestedLoopJoin && expectedJoinType != BroadcastHashJoin) {
       checkResult(
@@ -398,7 +398,7 @@ class OuterJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
 }
 
 object OuterJoinITCase {
-  @Parameterized.Parameters(name = "{0}")
+  @Parameters(name = "expectedJoinType={0}")
   def parameters(): util.Collection[Array[_]] = {
     util.Arrays.asList(
       Array(BroadcastHashJoin),

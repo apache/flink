@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmanager;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.core.testutils.EachCallbackWrapper;
 import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
@@ -28,45 +29,49 @@ import org.apache.flink.runtime.persistence.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
-import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
+import org.apache.flink.runtime.zookeeper.ZooKeeperExtension;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cache.PathChildrenCache;
 
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
-import static org.hamcrest.Matchers.contains;
-import static org.junit.Assert.assertThat;
+import java.nio.file.Path;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link ZooKeeperJobGraphStoreWatcher}. */
-public class ZooKeeperJobGraphStoreWatcherTest extends TestLogger {
+class ZooKeeperJobGraphStoreWatcherTest {
 
-    @Rule public ZooKeeperResource zooKeeperResource = new ZooKeeperResource();
+    @RegisterExtension
+    public EachCallbackWrapper<ZooKeeperExtension> zooKeeperExtensionWrapper =
+            new EachCallbackWrapper<>(new ZooKeeperExtension());
 
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir public Path temporaryFolder;
 
     private Configuration configuration;
 
     private TestingJobGraphListener testingJobGraphListener;
 
-    @Before
-    public void setup() throws Exception {
+    @BeforeEach
+    void setup() throws Exception {
         configuration = new Configuration();
         configuration.set(
-                HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
+                HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM,
+                zooKeeperExtensionWrapper.getCustomExtension().getConnectString());
         configuration.set(
                 HighAvailabilityOptions.HA_STORAGE_PATH,
-                temporaryFolder.newFolder().getAbsolutePath());
+                TempDirUtils.newFolder(temporaryFolder).getAbsolutePath());
         testingJobGraphListener = new TestingJobGraphListener();
     }
 
     @Test
-    public void testJobGraphAddedAndRemovedShouldNotifyGraphStoreListener() throws Exception {
+    void testJobGraphAddedAndRemovedShouldNotifyGraphStoreListener() throws Exception {
         try (final CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper =
                 ZooKeeperUtils.startCuratorFramework(
                         configuration, NoOpFatalErrorHandler.INSTANCE)) {
@@ -84,13 +89,13 @@ public class ZooKeeperJobGraphStoreWatcherTest extends TestLogger {
             CommonTestUtils.waitUntilCondition(
                     () -> testingJobGraphListener.getAddedJobGraphs().size() > 0);
 
-            assertThat(testingJobGraphListener.getAddedJobGraphs(), contains(jobID));
+            assertThat(testingJobGraphListener.getAddedJobGraphs()).containsExactly(jobID);
 
             stateHandleStore.releaseAndTryRemove("/" + jobID);
 
             CommonTestUtils.waitUntilCondition(
                     () -> testingJobGraphListener.getRemovedJobGraphs().size() > 0);
-            assertThat(testingJobGraphListener.getRemovedJobGraphs(), contains(jobID));
+            assertThat(testingJobGraphListener.getRemovedJobGraphs()).containsExactly(jobID);
 
             jobGraphStoreWatcher.stop();
         }

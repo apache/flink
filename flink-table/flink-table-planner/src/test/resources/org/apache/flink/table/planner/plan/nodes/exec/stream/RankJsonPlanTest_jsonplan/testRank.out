@@ -71,7 +71,7 @@
     "description" : "Exchange(distribution=[hash[b]])"
   }, {
     "id" : 4,
-    "type" : "stream-exec-rank_1",
+    "type" : "stream-exec-rank_2",
     "configuration" : {
       "table.exec.rank.topn-cache-size" : "10000"
     },
@@ -95,6 +95,11 @@
     },
     "outputRowNumber" : true,
     "generateUpdateBefore" : true,
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "rankState"
+    } ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -128,7 +133,7 @@
     "description" : "Calc(select=[a, w0$o0])"
   }, {
     "id" : 6,
-    "type" : "stream-exec-sink_1",
+    "type" : "stream-exec-sink_2",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",

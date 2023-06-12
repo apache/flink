@@ -31,18 +31,17 @@ import java.util
 class EnumValueSerializerUpgradeTest
   extends TypeSerializerUpgradeTestBase[Letters.Value, Letters.Value] {
 
-  override def createTestSpecifications(): util.Collection[TestSpecification[_, _]] = {
+  override def createTestSpecifications(
+      migrationVersion: FlinkVersion): util.Collection[TestSpecification[_, _]] = {
     val testSpecifications =
       new util.ArrayList[TypeSerializerUpgradeTestBase.TestSpecification[_, _]]
 
-    TypeSerializerUpgradeTestBase.MIGRATION_VERSIONS.forEach(
-      migrationVersion =>
-        testSpecifications.add(
-          new TypeSerializerUpgradeTestBase.TestSpecification[Letters.Value, Letters.Value](
-            "scala-enum-serializer",
-            migrationVersion,
-            classOf[EnumValueSerializerSetup],
-            classOf[EnumValueSerializerVerifier])))
+    testSpecifications.add(
+      new TypeSerializerUpgradeTestBase.TestSpecification[Letters.Value, Letters.Value](
+        "scala-enum-serializer",
+        migrationVersion,
+        classOf[EnumValueSerializerSetup],
+        classOf[EnumValueSerializerVerifier]))
 
     testSpecifications
   }

@@ -26,12 +26,12 @@ import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
+import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.security.token.DelegationTokenManager;
-import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -58,6 +58,8 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
     private final ResourceManagerProcessContext rmProcessContext;
 
     private final LeaderElectionService leaderElectionService;
+    private LeaderElection leaderElection;
+
     private final FatalErrorHandler fatalErrorHandler;
     private final Executor ioExecutor;
 
@@ -82,7 +84,8 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
 
     private ResourceManagerServiceImpl(
             ResourceManagerFactory<?> resourceManagerFactory,
-            ResourceManagerProcessContext rmProcessContext) {
+            ResourceManagerProcessContext rmProcessContext)
+            throws Exception {
         this.resourceManagerFactory = checkNotNull(resourceManagerFactory);
         this.rmProcessContext = checkNotNull(rmProcessContext);
 
@@ -118,7 +121,8 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
 
         LOG.info("Starting resource manager service.");
 
-        leaderElectionService.start(this);
+        leaderElection = leaderElectionService.createLeaderElection();
+        leaderElection.startLeaderElection(this);
     }
 
     @Override
@@ -267,7 +271,7 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
                 .thenAcceptAsync(
                         (isStillLeader) -> {
                             if (isStillLeader) {
-                                leaderElectionService.confirmLeadership(
+                                leaderElection.confirmLeadership(
                                         newLeaderSessionID, newLeaderResourceManager.getAddress());
                             }
                         },
@@ -325,7 +329,9 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
 
     private void stopLeaderElectionService() {
         try {
-            leaderElectionService.stop();
+            if (leaderElection != null) {
+                leaderElection.close();
+            }
         } catch (Exception e) {
             serviceTerminationFuture.completeExceptionally(
                     new FlinkException("Cannot stop leader election service.", e));
@@ -354,7 +360,7 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
             MetricRegistry metricRegistry,
             String hostname,
             Executor ioExecutor)
-            throws ConfigurationException {
+            throws Exception {
 
         return new ResourceManagerServiceImpl(
                 resourceManagerFactory,

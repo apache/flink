@@ -1512,12 +1512,19 @@ class Expression(Generic[T]):
         """
         return _binary_op("arrayReverse")(self)
 
+    def array_union(self, array) -> 'Expression':
+        """
+        Returns an array of the elements in the union of array1 and array2, without duplicates.
+        If any of the array is null, the function will return null.
+        """
+        return _binary_op("arrayUnion")(self, array)
+
     @property
     def map_keys(self) -> 'Expression':
         """
         Returns the keys of the map as an array. No order guaranteed.
 
-        .. seealso:: :py:attr:`~Expression.map_values`
+        .. seealso:: :py:attr:`~Expression.map_keys`
         """
         return _unary_op("mapKeys")(self)
 
@@ -1526,9 +1533,18 @@ class Expression(Generic[T]):
         """
         Returns the values of the map as an array. No order guaranteed.
 
-        .. seealso:: :py:attr:`~Expression.map_keys`
+        .. seealso:: :py:attr:`~Expression.map_values`
         """
         return _unary_op("mapValues")(self)
+
+    @property
+    def map_entries(self) -> 'Expression':
+        """
+        Returns an array of all entries in the given map. No order guaranteed.
+
+        .. seealso:: :py:attr:`~Expression.map_entries`
+        """
+        return _unary_op("mapEntries")(self)
 
     # ---------------------------- time definition functions -----------------------------
 

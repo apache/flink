@@ -30,6 +30,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -72,6 +73,8 @@ class DirectExecutorService implements ExecutorService {
     @Override
     @Nonnull
     public <T> Future<T> submit(@Nonnull Callable<T> task) {
+        throwRejectedExecutionExceptionIfShutdown();
+
         try {
             T result = task.call();
 
@@ -84,6 +87,8 @@ class DirectExecutorService implements ExecutorService {
     @Override
     @Nonnull
     public <T> Future<T> submit(@Nonnull Runnable task, T result) {
+        throwRejectedExecutionExceptionIfShutdown();
+
         task.run();
 
         return new CompletedFuture<>(result, null);
@@ -92,6 +97,8 @@ class DirectExecutorService implements ExecutorService {
     @Override
     @Nonnull
     public Future<?> submit(@Nonnull Runnable task) {
+        throwRejectedExecutionExceptionIfShutdown();
+
         task.run();
         return new CompletedFuture<>(null, null);
     }
@@ -99,6 +106,8 @@ class DirectExecutorService implements ExecutorService {
     @Override
     @Nonnull
     public <T> List<Future<T>> invokeAll(@Nonnull Collection<? extends Callable<T>> tasks) {
+        throwRejectedExecutionExceptionIfShutdown();
+
         ArrayList<Future<T>> result = new ArrayList<>();
 
         for (Callable<T> task : tasks) {
@@ -117,6 +126,7 @@ class DirectExecutorService implements ExecutorService {
             @Nonnull Collection<? extends Callable<T>> tasks,
             long timeout,
             @Nonnull TimeUnit unit) {
+        throwRejectedExecutionExceptionIfShutdown();
 
         long end = System.currentTimeMillis() + unit.toMillis(timeout);
         Iterator<? extends Callable<T>> iterator = tasks.iterator();
@@ -170,6 +180,8 @@ class DirectExecutorService implements ExecutorService {
     @Nonnull
     public <T> T invokeAny(@Nonnull Collection<? extends Callable<T>> tasks)
             throws ExecutionException {
+        throwRejectedExecutionExceptionIfShutdown();
+
         Exception exception = null;
 
         for (Callable<T> task : tasks) {
@@ -188,6 +200,7 @@ class DirectExecutorService implements ExecutorService {
     public <T> T invokeAny(
             @Nonnull Collection<? extends Callable<T>> tasks, long timeout, @Nonnull TimeUnit unit)
             throws ExecutionException, TimeoutException {
+        throwRejectedExecutionExceptionIfShutdown();
 
         long end = System.currentTimeMillis() + unit.toMillis(timeout);
         Exception exception = null;
@@ -214,7 +227,16 @@ class DirectExecutorService implements ExecutorService {
 
     @Override
     public void execute(@Nonnull Runnable command) {
+        throwRejectedExecutionExceptionIfShutdown();
+
         command.run();
+    }
+
+    private void throwRejectedExecutionExceptionIfShutdown() {
+        if (isShutdown()) {
+            throw new RejectedExecutionException(
+                    "The ExecutorService is shut down already. No Callables can be executed.");
+        }
     }
 
     static class CompletedFuture<V> implements Future<V> {

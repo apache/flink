@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.failure.FailureEnricherUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -83,7 +84,8 @@ public class CreatedTest extends TestLogger {
                         assertThat(archivedExecutionGraph.getState(), is(JobStatus.FAILED));
                     });
 
-            created.handleGlobalFailure(new RuntimeException("Global"));
+            created.handleGlobalFailure(
+                    new RuntimeException("Global"), FailureEnricherUtils.EMPTY_FAILURE_LABELS);
         }
     }
 

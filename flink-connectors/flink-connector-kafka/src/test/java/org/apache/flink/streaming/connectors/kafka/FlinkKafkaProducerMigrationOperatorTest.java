@@ -20,7 +20,6 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.FlinkVersion;
 
-import org.junit.Ignore;
 import org.junit.runners.Parameterized;
 
 import java.util.Arrays;
@@ -28,7 +27,7 @@ import java.util.Collection;
 
 /**
  * Migration test from FlinkKafkaProducer011 operator. This test depends on the resource generated
- * by {@link FlinkKafkaProducer011MigrationTest#writeSnapshot()}.
+ * by removed {@code FlinkKafkaProducer011MigrationTest#writeSnapshot()}.
  *
  * <p>Warning: We need to rename the generated resource based on the file naming pattern specified
  * by the {@link #getOperatorSnapshotPath(FlinkVersion)} method then copy the resource to the path
@@ -52,9 +51,8 @@ public class FlinkKafkaProducerMigrationOperatorTest extends FlinkKafkaProducerM
                 + "-snapshot";
     }
 
-    @Ignore
     @Override
-    public void writeSnapshot() throws Exception {
-        throw new UnsupportedOperationException();
+    public void writeSnapshot(FlinkVersion targetVersion) throws Exception {
+        // There is no need to generate snapshots for these tests in newer versions.
     }
 }

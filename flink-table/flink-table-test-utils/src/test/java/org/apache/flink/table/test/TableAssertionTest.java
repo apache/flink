@@ -57,7 +57,7 @@ class TableAssertionTest {
         BinaryRowData binaryRowData =
                 new RowDataSerializer((RowType) dataType.getLogicalType())
                         .toBinaryRow(genericRowData);
-        Row row = Row.of(10, "my string", new Boolean[] {true, false});
+        Row row = Row.of(10, "my string", new boolean[] {true, false});
 
         // Test equality with RowData
         assertThat(binaryRowData)

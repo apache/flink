@@ -32,6 +32,8 @@ import org.slf4j.Logger;
 import javax.annotation.Nullable;
 
 import java.time.Duration;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 
 /**
@@ -125,7 +127,8 @@ class WaitingForResources implements State, ResourceListener {
     }
 
     @Override
-    public void handleGlobalFailure(Throwable cause) {
+    public void handleGlobalFailure(
+            Throwable cause, CompletableFuture<Map<String, String>> failureLabels) {
         context.goToFinished(context.getArchivedExecutionGraph(JobStatus.FAILED, cause));
     }
 

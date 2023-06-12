@@ -37,17 +37,16 @@ class VoidNamespaceSerializerUpgradeTest
 
     private static final String SPEC_NAME = "void-namespace-serializer";
 
-    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications(FlinkVersion flinkVersion)
+            throws Exception {
 
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            SPEC_NAME,
-                            flinkVersion,
-                            VoidNamespaceSerializerSetup.class,
-                            VoidNamespaceSerializerVerifier.class));
-        }
+        testSpecifications.add(
+                new TestSpecification<>(
+                        SPEC_NAME,
+                        flinkVersion,
+                        VoidNamespaceSerializerSetup.class,
+                        VoidNamespaceSerializerVerifier.class));
         return testSpecifications;
     }
 

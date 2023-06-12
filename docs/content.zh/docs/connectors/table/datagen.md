@@ -152,5 +152,12 @@ CREATE TABLE datagen (
       <td>(Type of field)</td>
       <td>序列生成器的结束值。</td>
     </tr>
+    <tr>
+      <td><h5>fields.#.null-rate</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>(Type of field)</td>
+      <td>The proportion of null values.</td>
+    </tr>
     </tbody>
 </table>

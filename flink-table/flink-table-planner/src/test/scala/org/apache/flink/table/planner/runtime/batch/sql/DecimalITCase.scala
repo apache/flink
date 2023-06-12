@@ -28,7 +28,8 @@ import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromLog
 import org.apache.flink.table.types.logical.{DecimalType, LogicalType}
 import org.apache.flink.types.Row
 
-import org.junit.{Assert, Test}
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
 
 import java.math.{BigDecimal => JBigDecimal}
 
@@ -66,15 +67,16 @@ class DecimalITCase extends BatchTestBase {
     val resultTable = parseQuery(queryX)
     val ts1 = expected.colTypes
     val ts2 = resultTable.getSchema.getFieldDataTypes.map(fromDataTypeToLogicalType)
-    Assert.assertEquals(ts1.length, ts2.length)
+    assertThat(ts1.length).isEqualTo(ts2.length)
 
-    Assert.assertTrue(ts1.zip(ts2).forall { case (t1, t2) => isInteroperable(t1, t2) })
+    assertThat(ts1.zip(ts2).forall { case (t1, t2) => isInteroperable(t1, t2) }).isTrue
 
     def prepareResult(isSorted: Boolean, seq: Seq[Row]) = {
       if (!isSorted) seq.map(_.toString).sortBy(s => s) else seq.map(_.toString)
     }
     val resultRows = executeQuery(resultTable)
-    Assert.assertEquals(prepareResult(isSorted, expected.rows), prepareResult(isSorted, resultRows))
+    assertThat(prepareResult(isSorted, expected.rows))
+      .isEqualTo(prepareResult(isSorted, resultRows))
   }
 
   private def checkQuery1(

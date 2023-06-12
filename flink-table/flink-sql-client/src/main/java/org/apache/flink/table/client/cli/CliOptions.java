@@ -22,7 +22,6 @@ import org.apache.flink.configuration.Configuration;
 
 import javax.annotation.Nullable;
 
-import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.List;
 import java.util.Optional;
@@ -135,7 +134,7 @@ public class CliOptions {
     /** Command option lines to configure SQL Client in the gateway mode. */
     public static class GatewayCliOptions extends CliOptions {
 
-        private final @Nullable InetSocketAddress gatewayAddress;
+        private final @Nullable URL gatewayAddress;
 
         GatewayCliOptions(
                 boolean isPrintHelp,
@@ -144,7 +143,7 @@ public class CliOptions {
                 URL sqlFile,
                 String updateStatement,
                 String historyFilePath,
-                @Nullable InetSocketAddress gatewayAddress,
+                @Nullable URL gatewayAddress,
                 Properties sessionConfig) {
             super(
                     isPrintHelp,
@@ -157,7 +156,7 @@ public class CliOptions {
             this.gatewayAddress = gatewayAddress;
         }
 
-        public Optional<InetSocketAddress> getGatewayAddress() {
+        public Optional<URL> getGatewayAddress() {
             return Optional.ofNullable(gatewayAddress);
         }
     }

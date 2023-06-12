@@ -303,10 +303,10 @@ public class PipelineOptions {
                             "If watermark alignment is used, sources with multiple splits will "
                                     + "attempt to pause/resume split readers to avoid watermark "
                                     + "drift of source splits. "
-                                    + "However, if split readers don't support pause/resume an "
+                                    + "However, if split readers don't support pause/resume, an "
                                     + "UnsupportedOperationException will be thrown when there is "
                                     + "an attempt to pause/resume. To allow use of split readers that "
-                                    + "don't support pause/resume and, hence, t allow unaligned splits "
+                                    + "don't support pause/resume and, hence, to allow unaligned splits "
                                     + "while still using watermark alignment, set this parameter to true. "
                                     + "The default value is false. Note: This parameter may be "
                                     + "removed in future releases.");

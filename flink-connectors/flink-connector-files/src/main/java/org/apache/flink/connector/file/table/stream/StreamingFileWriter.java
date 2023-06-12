@@ -26,7 +26,6 @@ import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -152,6 +151,6 @@ public class StreamingFileWriter<IN> extends AbstractStreamingWriter<IN, Partiti
                                 checkpointId,
                                 getRuntimeContext().getIndexOfThisSubtask(),
                                 getRuntimeContext().getNumberOfParallelSubtasks(),
-                                new ArrayList<>(partitions))));
+                                partitions.toArray(new String[0]))));
     }
 }

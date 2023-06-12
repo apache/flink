@@ -134,7 +134,7 @@ public class InputGateDeploymentDescriptor implements Serializable {
         return consumedSubpartitionIndexRange.getStartIndex();
     }
 
-    /** Return the index range of the the consumed subpartitions. */
+    /** Return the index range of the consumed subpartitions. */
     public IndexRange getConsumedSubpartitionIndexRange() {
         return consumedSubpartitionIndexRange;
     }

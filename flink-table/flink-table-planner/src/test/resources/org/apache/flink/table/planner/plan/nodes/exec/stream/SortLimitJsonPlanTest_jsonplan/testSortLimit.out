@@ -57,7 +57,7 @@
     "description" : "Exchange(distribution=[single])"
   }, {
     "id" : 3,
-    "type" : "stream-exec-sort-limit_1",
+    "type" : "stream-exec-sort-limit_2",
     "configuration" : {
       "table.exec.rank.topn-cache-size" : "10000"
     },
@@ -77,6 +77,11 @@
       "type" : "AppendFast"
     },
     "generateUpdateBefore" : true,
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "rankState"
+    } ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -115,7 +120,7 @@
     "description" : "Calc(select=[a, a AS a1])"
   }, {
     "id" : 5,
-    "type" : "stream-exec-sink_1",
+    "type" : "stream-exec-sink_2",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",

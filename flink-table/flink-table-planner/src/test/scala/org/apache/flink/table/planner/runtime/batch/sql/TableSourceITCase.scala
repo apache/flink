@@ -17,20 +17,20 @@
  */
 package org.apache.flink.table.planner.runtime.batch.sql
 
-import org.apache.flink.table.catalog.ObjectPath
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.optimize.RelNodeBlockPlanBuilder
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData}
-import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.TEMPORARY_FOLDER
+import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.{createTempFile, createTempFolder}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.utils._
 import org.apache.flink.util.FileUtils
 
-import org.junit.{Assert, Before, Test}
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 class TableSourceITCase extends BatchTestBase {
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     env.setParallelism(1) // set sink parallelism to 1
@@ -333,7 +333,7 @@ class TableSourceITCase extends BatchTestBase {
 
   @Test
   def testSourceProvider(): Unit = {
-    val file = TEMPORARY_FOLDER.newFile()
+    val file = createTempFile()
     file.delete()
     file.createNewFile()
     FileUtils.writeFileUtf8(file, "1\n5\n6")
@@ -356,7 +356,7 @@ class TableSourceITCase extends BatchTestBase {
 
   @Test
   def testTableHint(): Unit = {
-    val resultPath = TEMPORARY_FOLDER.newFolder().getAbsolutePath
+    val resultPath = createTempFolder().getAbsolutePath
     tEnv.executeSql(s"""
                        |CREATE TABLE MySink (
                        |  `a` INT,
@@ -380,9 +380,9 @@ class TableSourceITCase extends BatchTestBase {
                            |""".stripMargin)
     stmtSet.execute().await()
 
-    val result = TableTestUtil.readFromFile(resultPath)
-    val expected = Seq("2,2,Hello", "3,2,Hello world", "3,2,Hello world")
-    Assert.assertEquals(expected.sorted, result.sorted)
+    val result = TableTestUtil.readFromFile(resultPath).sorted
+    val expected = List("2,2,Hello", "3,2,Hello world", "3,2,Hello world").sorted
+    assertThat(result).isEqualTo(expected)
   }
 
   @Test
@@ -390,7 +390,7 @@ class TableSourceITCase extends BatchTestBase {
     tEnv.getConfig.set(
       RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED,
       Boolean.box(true))
-    val resultPath = TEMPORARY_FOLDER.newFolder().getAbsolutePath
+    val resultPath = createTempFolder().getAbsolutePath
     tEnv.executeSql(s"""
                        |CREATE TABLE MySink (
                        |  `a` INT,
@@ -425,6 +425,6 @@ class TableSourceITCase extends BatchTestBase {
       "3,2,Hello world",
       "3,2,Hello world",
       "3,2,Hello world")
-    Assert.assertEquals(expected.sorted, result.sorted)
+    assertThat(expected.sorted).isEqualTo(result.sorted)
   }
 }

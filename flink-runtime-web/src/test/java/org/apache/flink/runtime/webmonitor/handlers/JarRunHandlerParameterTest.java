@@ -202,6 +202,20 @@ class JarRunHandlerParameterTest
                 FLINK_CONFIGURATION.toMap());
     }
 
+    private JarRunRequestBody getJarRequestBodyWithSavepointPath(
+            ProgramArgsParType programArgsParType, String savepointPath) {
+        return new JarRunRequestBody(
+                ParameterProgram.class.getCanonicalName(),
+                getProgramArgsString(programArgsParType),
+                getProgramArgsList(programArgsParType),
+                PARALLELISM,
+                null,
+                ALLOW_NON_RESTORED_STATE_QUERY,
+                savepointPath,
+                RESTORE_MODE,
+                null);
+    }
+
     @Override
     JarRunRequestBody getJarRequestBodyWithJobId(JobID jobId) {
         return new JarRunRequestBody(null, null, null, null, jobId, null, null, null, null);
@@ -246,6 +260,21 @@ class JarRunHandlerParameterTest
 
                             return true;
                         });
+    }
+
+    @Test
+    void testConfigurationWithEmptySavepointPath() throws Exception {
+        final JarRunRequestBody requestBody =
+                getJarRequestBodyWithSavepointPath(ProgramArgsParType.String, "");
+        handleRequest(
+                createRequest(
+                        requestBody,
+                        getUnresolvedJarMessageParameters(),
+                        getUnresolvedJarMessageParameters(),
+                        jarWithEagerSink));
+        JobGraph jobGraph = LAST_SUBMITTED_JOB_GRAPH_REFERENCE.get();
+        assertThat(jobGraph.getSavepointRestoreSettings())
+                .isEqualTo(SavepointRestoreSettings.none());
     }
 
     @Override

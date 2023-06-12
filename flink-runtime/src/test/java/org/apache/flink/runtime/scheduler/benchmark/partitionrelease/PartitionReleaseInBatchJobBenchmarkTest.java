@@ -20,18 +20,17 @@ package org.apache.flink.runtime.scheduler.benchmark.partitionrelease;
 
 import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.RegionPartitionGroupReleaseStrategy;
 import org.apache.flink.runtime.scheduler.benchmark.JobConfiguration;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * The benchmark of releasing partitions in a BATCH job. The related method is {@link
  * RegionPartitionGroupReleaseStrategy#vertexFinished}.
  */
-public class PartitionReleaseInBatchJobBenchmarkTest extends TestLogger {
+class PartitionReleaseInBatchJobBenchmarkTest {
 
     @Test
-    public void partitionRelease() throws Exception {
+    void partitionRelease() throws Exception {
         PartitionReleaseInBatchJobBenchmark benchmark = new PartitionReleaseInBatchJobBenchmark();
         benchmark.setup(JobConfiguration.BATCH_TEST);
         benchmark.partitionRelease();

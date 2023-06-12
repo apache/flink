@@ -41,6 +41,7 @@ import org.apache.flink.util.concurrent.FutureUtils;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.IntOrString;
+import io.fabric8.kubernetes.api.model.ListOptionsBuilder;
 import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -66,6 +67,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.kubernetes.utils.Constants.KUBERNETES_ZERO_RESOURCE_VERSION;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** The implementation of {@link FlinkKubeClient}. */
@@ -118,8 +120,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
                 "Start to create deployment with spec {}{}",
                 System.lineSeparator(),
                 KubernetesUtils.tryToGetPrettyPrintYaml(deployment));
-        final Deployment createdDeployment =
-                this.internalClient.apps().deployments().create(deployment);
+        final Deployment createdDeployment = this.internalClient.resource(deployment).create();
 
         // Note that we should use the uid of the created Deployment for the OwnerReference.
         setOwnerReference(createdDeployment, accompanyingResources);
@@ -160,7 +161,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
                             KubernetesUtils.tryToGetPrettyPrintYaml(
                                     kubernetesPod.getInternalResource()));
 
-                    this.internalClient.pods().create(kubernetesPod.getInternalResource());
+                    this.internalClient.resource(kubernetesPod.getInternalResource()).create();
                 },
                 kubeClientExecutorService);
     }
@@ -191,7 +192,15 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 
     @Override
     public List<KubernetesPod> getPodsWithLabels(Map<String, String> labels) {
-        final List<Pod> podList = this.internalClient.pods().withLabels(labels).list().getItems();
+        final List<Pod> podList =
+                this.internalClient
+                        .pods()
+                        .withLabels(labels)
+                        .list(
+                                new ListOptionsBuilder()
+                                        .withResourceVersion(KUBERNETES_ZERO_RESOURCE_VERSION)
+                                        .build())
+                        .getItems();
 
         if (podList == null || podList.isEmpty()) {
             return new ArrayList<>();
@@ -212,8 +221,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 
     @Override
     public Optional<KubernetesService> getService(String serviceName) {
-        final Service service =
-                this.internalClient.services().withName(serviceName).fromServer().get();
+        final Service service = this.internalClient.services().withName(serviceName).get();
         if (service == null) {
             LOG.debug("Service {} does not exist", serviceName);
             return Optional.empty();
@@ -233,6 +241,8 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
                                                         this.internalClient
                                                                 .pods()
                                                                 .withLabels(labels)
+                                                                .withResourceVersion(
+                                                                        KUBERNETES_ZERO_RESOURCE_VERSION)
                                                                 .watch(
                                                                         new KubernetesPodsWatcher(
                                                                                 podCallbackHandler))),
@@ -259,8 +269,8 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
         return CompletableFuture.runAsync(
                         () ->
                                 this.internalClient
-                                        .configMaps()
-                                        .create(configMap.getInternalResource()),
+                                        .resource(configMap.getInternalResource())
+                                        .create(),
                         kubeClientExecutorService)
                 .exceptionally(
                         throwable -> {
@@ -310,10 +320,9 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
                     if (maybeUpdate.isPresent()) {
                         try {
                             internalClient
-                                    .configMaps()
-                                    .withName(configMapName)
-                                    .lockResourceVersion(maybeUpdate.get().getResourceVersion())
-                                    .replace(maybeUpdate.get().getInternalResource());
+                                    .resource(maybeUpdate.get().getInternalResource())
+                                    .lockResourceVersion()
+                                    .update();
                             return true;
                         } catch (Throwable throwable) {
                             LOG.debug(
@@ -368,7 +377,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
             throw new FlinkRuntimeException(
                     String.format("Pod template file %s does not exist.", file));
         }
-        return new KubernetesPod(this.internalClient.pods().load(file).get());
+        return new KubernetesPod(this.internalClient.pods().load(file).item());
     }
 
     @Override
@@ -396,10 +405,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
                                                             .endPort()
                                                             .endSpec()
                                                             .build();
-                                            this.internalClient
-                                                    .services()
-                                                    .withName(serviceName)
-                                                    .replace(updatedService);
+                                            this.internalClient.resource(updatedService).update();
                                         }),
                 kubeClientExecutorService);
     }

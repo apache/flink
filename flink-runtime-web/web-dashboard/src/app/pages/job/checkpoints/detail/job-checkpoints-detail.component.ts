@@ -115,11 +115,9 @@ export class JobCheckpointsDetailComponent implements OnInit, OnDestroy {
             this.checkPointConfig = config;
             this.checkPointDetail = detail;
             if (this.checkPointDetail.checkpoint_type === 'CHECKPOINT') {
-              if (this.checkPointConfig.unaligned_checkpoints) {
-                this.checkPointType = 'unaligned checkpoint';
-              } else {
-                this.checkPointType = 'aligned checkpoint';
-              }
+              this.checkPointType = 'aligned checkpoint';
+            } else if (this.checkPointDetail.checkpoint_type === 'UNALIGNED_CHECKPOINT') {
+              this.checkPointType = 'unaligned checkpoint';
             } else if (this.checkPointDetail.checkpoint_type === 'SYNC_SAVEPOINT') {
               this.checkPointType = 'savepoint on cancel';
             } else if (this.checkPointDetail.checkpoint_type === 'SAVEPOINT') {

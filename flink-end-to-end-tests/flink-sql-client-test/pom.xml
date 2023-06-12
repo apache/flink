@@ -91,6 +91,8 @@ under the License.
 				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
 					<execution>
+						<!-- Use a special execution id to be ignored by license/optional checks -->
+						<id>e2e-dependencies</id>
 						<phase>package</phase>
 						<goals>
 							<goal>shade</goal>

@@ -43,40 +43,39 @@ import static org.hamcrest.Matchers.is;
 /** Migration tests for NFA-related serializers. */
 class NFASerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Object> {
 
-    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications(FlinkVersion flinkVersion)
+            throws Exception {
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "event-id-serializer",
-                            flinkVersion,
-                            EventIdSerializerSetup.class,
-                            EventIdSerializerVerifier.class));
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "node-id-serializer",
-                            flinkVersion,
-                            NodeIdSerializerSetup.class,
-                            NodeIdSerializerVerifier.class));
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "dewey-number-serializer",
-                            flinkVersion,
-                            DeweyNumberSerializerSetup.class,
-                            DeweyNumberSerializerVerifier.class));
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "shared-buffer-edge-serializer",
-                            flinkVersion,
-                            SharedBufferEdgeSerializerSetup.class,
-                            SharedBufferEdgeSerializerVerifier.class));
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "nfa-state-serializer",
-                            flinkVersion,
-                            NFAStateSerializerSetup.class,
-                            NFAStateSerializerVerifier.class));
-        }
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "event-id-serializer",
+                        flinkVersion,
+                        EventIdSerializerSetup.class,
+                        EventIdSerializerVerifier.class));
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "node-id-serializer",
+                        flinkVersion,
+                        NodeIdSerializerSetup.class,
+                        NodeIdSerializerVerifier.class));
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "dewey-number-serializer",
+                        flinkVersion,
+                        DeweyNumberSerializerSetup.class,
+                        DeweyNumberSerializerVerifier.class));
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "shared-buffer-edge-serializer",
+                        flinkVersion,
+                        SharedBufferEdgeSerializerSetup.class,
+                        SharedBufferEdgeSerializerVerifier.class));
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "nfa-state-serializer",
+                        flinkVersion,
+                        NFAStateSerializerSetup.class,
+                        NFAStateSerializerVerifier.class));
 
         return testSpecifications;
     }

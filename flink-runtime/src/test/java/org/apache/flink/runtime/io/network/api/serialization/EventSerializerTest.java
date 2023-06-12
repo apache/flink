@@ -27,6 +27,7 @@ import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.api.EndOfSegmentEvent;
 import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
 import org.apache.flink.runtime.io.network.api.EventAnnouncement;
 import org.apache.flink.runtime.io.network.api.StopMode;
@@ -114,6 +115,7 @@ public class EventSerializerTest {
                                 10)),
                 44),
         new SubtaskConnectionDescriptor(23, 42),
+        EndOfSegmentEvent.INSTANCE
     };
 
     @Test

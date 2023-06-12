@@ -20,18 +20,17 @@ package org.apache.flink.runtime.scheduler.benchmark.failover;
 
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartPipelinedRegionFailoverStrategy;
 import org.apache.flink.runtime.scheduler.benchmark.JobConfiguration;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * The benchmark of calculating the regions to restart when failover occurs in a BATCH job. The
  * related method is {@link RestartPipelinedRegionFailoverStrategy#getTasksNeedingRestart}.
  */
-public class RegionToRestartInBatchJobBenchmarkTest extends TestLogger {
+class RegionToRestartInBatchJobBenchmarkTest {
 
     @Test
-    public void calculateRegionToRestart() throws Exception {
+    void calculateRegionToRestart() throws Exception {
         RegionToRestartInBatchJobBenchmark benchmark = new RegionToRestartInBatchJobBenchmark();
         benchmark.setup(JobConfiguration.BATCH_TEST);
         benchmark.calculateRegionToRestart();

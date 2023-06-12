@@ -24,6 +24,8 @@ import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.types.inference.TypeTransformations;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 
 import org.junit.jupiter.api.Test;
 
@@ -219,5 +221,17 @@ class DataTypeTest {
                         FIELD("count", INT().notNull().bridgedTo(int.class)));
         assertThat(DataType.getFields(ARRAY(INT()))).isEmpty();
         assertThat(DataType.getFields(INT())).isEmpty();
+    }
+
+    @Test
+    void testArrayConversionClass() {
+        assertThat(DataTypes.ARRAY(INT())).hasConversionClass(Integer[].class);
+        assertThat(DataTypes.ARRAY(INT().notNull())).hasConversionClass(int[].class);
+        DataType type = DataTypes.ARRAY(INT());
+        assertThat(DataTypeUtils.transform(type, TypeTransformations.toNullable()))
+                .hasConversionClass(Integer[].class);
+        type = DataTypes.ARRAY(INT()).bridgedTo(int[].class);
+        assertThat(DataTypeUtils.transform(type, TypeTransformations.toNullable()))
+                .hasConversionClass(int[].class);
     }
 }

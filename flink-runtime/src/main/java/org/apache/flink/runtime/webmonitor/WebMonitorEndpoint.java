@@ -26,6 +26,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.blob.TransientBlobService;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
+import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.RestServerEndpoint;
@@ -152,10 +153,9 @@ import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
-import org.apache.flink.runtime.webmonitor.threadinfo.JobVertexThreadInfoTracker;
-import org.apache.flink.runtime.webmonitor.threadinfo.JobVertexThreadInfoTrackerBuilder;
 import org.apache.flink.runtime.webmonitor.threadinfo.ThreadInfoRequestCoordinator;
-import org.apache.flink.runtime.webmonitor.threadinfo.VertexThreadInfoStats;
+import org.apache.flink.runtime.webmonitor.threadinfo.VertexThreadInfoTracker;
+import org.apache.flink.runtime.webmonitor.threadinfo.VertexThreadInfoTrackerBuilder;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
@@ -182,7 +182,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 
 /**
  * Rest endpoint which serves the web frontend REST calls.
@@ -205,6 +204,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
     private final MetricFetcher metricFetcher;
 
     private final LeaderElectionService leaderElectionService;
+    private LeaderElection leaderElection;
 
     private final FatalErrorHandler fatalErrorHandler;
 
@@ -245,8 +245,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
         this.fatalErrorHandler = Preconditions.checkNotNull(fatalErrorHandler);
     }
 
-    private JobVertexThreadInfoTracker<VertexThreadInfoStats> initializeThreadInfoTracker(
-            ScheduledExecutorService executor) {
+    private VertexThreadInfoTracker initializeThreadInfoTracker(ScheduledExecutorService executor) {
         final Duration akkaTimeout = clusterConfiguration.get(AkkaOptions.ASK_TIMEOUT_DURATION);
 
         final Duration flameGraphCleanUpInterval =
@@ -254,11 +253,8 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
         final ThreadInfoRequestCoordinator threadInfoRequestCoordinator =
                 new ThreadInfoRequestCoordinator(executor, akkaTimeout);
 
-        return JobVertexThreadInfoTrackerBuilder.newBuilder(
-                        resourceManagerRetriever,
-                        Function.identity(),
-                        executor,
-                        restConfiguration.getTimeout())
+        return VertexThreadInfoTrackerBuilder.newBuilder(
+                        resourceManagerRetriever, executor, restConfiguration.getTimeout())
                 .setCoordinator(threadInfoRequestCoordinator)
                 .setCleanUpInterval(flameGraphCleanUpInterval)
                 .setNumSamples(clusterConfiguration.getInteger(RestOptions.FLAMEGRAPH_NUM_SAMPLES))
@@ -1044,7 +1040,9 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 
     @Override
     public void startInternal() throws Exception {
-        leaderElectionService.start(this);
+        leaderElection = leaderElectionService.createLeaderElection();
+        leaderElection.startLeaderElection(this);
+
         startExecutionGraphCacheCleanupTask();
 
         if (hasWebUI) {
@@ -1089,7 +1087,9 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                     }
 
                     try {
-                        leaderElectionService.stop();
+                        if (leaderElection != null) {
+                            leaderElection.close();
+                        }
                     } catch (Exception e) {
                         exception = ExceptionUtils.firstOrSuppressed(e, exception);
                     }
@@ -1110,7 +1110,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                 "{} was granted leadership with leaderSessionID={}",
                 getRestBaseUrl(),
                 leaderSessionID);
-        leaderElectionService.confirmLeadership(leaderSessionID, getRestBaseUrl());
+        leaderElection.confirmLeadership(leaderSessionID, getRestBaseUrl());
     }
 
     @Override

@@ -58,8 +58,6 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import javax.annotation.Nonnull;
 
@@ -73,9 +71,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /** Simple and maybe stupid test to check the {@link ClusterClient} class. */
 class ClientTest {
@@ -282,27 +277,22 @@ class ClientTest {
         assertThatFuture(clusterClient.submitJob(jobGraph)).eventuallySucceeds().isNotNull();
     }
 
+    public static class TestEntrypoint {
+        public static void main(String[] args) {
+            ExecutionEnvironment.createLocalEnvironment();
+        }
+    }
+
     /**
      * This test verifies that the local execution environment cannot be created when the program is
      * submitted through a client.
      */
     @Test
     void tryLocalExecution() throws ProgramInvocationException {
-        PackagedProgram packagedProgramMock = mock(PackagedProgram.class);
-
-        when(packagedProgramMock.getUserCodeClassLoader())
-                .thenReturn(packagedProgramMock.getClass().getClassLoader());
-
-        doAnswer(
-                        new Answer<Void>() {
-                            @Override
-                            public Void answer(InvocationOnMock invocation) throws Throwable {
-                                ExecutionEnvironment.createLocalEnvironment();
-                                return null;
-                            }
-                        })
-                .when(packagedProgramMock)
-                .invokeInteractiveModeForExecution();
+        final PackagedProgram packagedProgramMock =
+                PackagedProgram.newBuilder()
+                        .setEntryPointClassName(TestEntrypoint.class.getName())
+                        .build();
 
         try (final ClusterClient<?> client =
                 new MiniClusterClient(
@@ -320,7 +310,8 @@ class ClientTest {
                                 fail(
                                         "Creating the local execution environment should not be possible");
                             })
-                    .isInstanceOf(InvalidProgramException.class);
+                    .isInstanceOf(ProgramInvocationException.class)
+                    .hasCauseInstanceOf(InvalidProgramException.class);
         }
     }
 

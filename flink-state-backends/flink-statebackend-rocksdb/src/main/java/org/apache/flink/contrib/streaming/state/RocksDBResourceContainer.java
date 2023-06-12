@@ -59,6 +59,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public final class RocksDBResourceContainer implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(RocksDBResourceContainer.class);
 
+    // the filename length limit is 255 on most operating systems
+    private static final int INSTANCE_PATH_LENGTH_LIMIT = 255 - "_LOG".length();
+
+    @Nullable private final File instanceRocksDBPath;
+
     /** The configurations from file. */
     private final ReadableConfig configuration;
 
@@ -82,13 +87,13 @@ public final class RocksDBResourceContainer implements AutoCloseable {
 
     @VisibleForTesting
     public RocksDBResourceContainer() {
-        this(new Configuration(), PredefinedOptions.DEFAULT, null, null, false);
+        this(new Configuration(), PredefinedOptions.DEFAULT, null, null, null, false);
     }
 
     @VisibleForTesting
     public RocksDBResourceContainer(
             PredefinedOptions predefinedOptions, @Nullable RocksDBOptionsFactory optionsFactory) {
-        this(new Configuration(), predefinedOptions, optionsFactory, null, false);
+        this(new Configuration(), predefinedOptions, optionsFactory, null, null, false);
     }
 
     @VisibleForTesting
@@ -96,7 +101,7 @@ public final class RocksDBResourceContainer implements AutoCloseable {
             PredefinedOptions predefinedOptions,
             @Nullable RocksDBOptionsFactory optionsFactory,
             @Nullable OpaqueMemoryResource<RocksDBSharedResources> sharedResources) {
-        this(new Configuration(), predefinedOptions, optionsFactory, sharedResources, false);
+        this(new Configuration(), predefinedOptions, optionsFactory, sharedResources, null, false);
     }
 
     public RocksDBResourceContainer(
@@ -104,12 +109,19 @@ public final class RocksDBResourceContainer implements AutoCloseable {
             PredefinedOptions predefinedOptions,
             @Nullable RocksDBOptionsFactory optionsFactory,
             @Nullable OpaqueMemoryResource<RocksDBSharedResources> sharedResources,
+            @Nullable File instanceBasePath,
             boolean enableStatistics) {
 
         this.configuration = configuration;
         this.predefinedOptions = checkNotNull(predefinedOptions);
         this.optionsFactory = optionsFactory;
         this.sharedResources = sharedResources;
+
+        this.instanceRocksDBPath =
+                instanceBasePath != null
+                        ? RocksDBKeyedStateBackendBuilder.getInstanceRocksDBPath(instanceBasePath)
+                        : null;
+
         this.enableStatistics = enableStatistics;
         this.handlesToClose = new ArrayList<>();
     }
@@ -314,7 +326,17 @@ public final class RocksDBResourceContainer implements AutoCloseable {
 
         String logDir = internalGetOption(RocksDBConfigurableOptions.LOG_DIR);
         if (logDir == null || logDir.isEmpty()) {
-            relocateDefaultDbLogDir(currentOptions);
+            if (instanceRocksDBPath == null
+                    || instanceRocksDBPath.getAbsolutePath().length()
+                            <= INSTANCE_PATH_LENGTH_LIMIT) {
+                relocateDefaultDbLogDir(currentOptions);
+            } else {
+                // disable log relocate when instance path length exceeds limit to prevent rocksdb
+                // log file creation failure, details in FLINK-31743
+                LOG.warn(
+                        "RocksDB instance path length exceeds limit : {}, disable log relocate.",
+                        instanceRocksDBPath);
+            }
         } else {
             currentOptions.setDbLogDir(logDir);
         }

@@ -67,6 +67,18 @@ public final class OneShotLatch {
     }
 
     /**
+     * Calls {@link #await()} and transforms any {@link InterruptedException} into a {@link
+     * RuntimeException}.
+     */
+    public void awaitQuietly() {
+        try {
+            await();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
      * Waits until {@link OneShotLatch#trigger()} is called. Once {@code #trigger()} has been called
      * this call will always return immediately.
      *
@@ -106,6 +118,18 @@ public final class OneShotLatch {
                     throw new TimeoutException();
                 }
             }
+        }
+    }
+
+    /**
+     * Calls {@link #await(long, TimeUnit)} and transforms any {@link InterruptedException} or
+     * {@link TimeoutException} into a {@link RuntimeException}.
+     */
+    public void awaitQuietly(long timeout, TimeUnit timeUnit) {
+        try {
+            await(timeout, timeUnit);
+        } catch (InterruptedException | TimeoutException e) {
+            throw new RuntimeException(e);
         }
     }
 

@@ -24,7 +24,6 @@ import org.apache.flink.configuration.ConfigOptions;
 
 import java.time.Duration;
 
-import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUtil.END;
 import static org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUtil.FIELDS;
 import static org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUtil.KIND;
@@ -32,6 +31,7 @@ import static org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUt
 import static org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUtil.MAX;
 import static org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUtil.MAX_PAST;
 import static org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUtil.MIN;
+import static org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUtil.NULL_RATE;
 import static org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUtil.ROWS_PER_SECOND_DEFAULT_VALUE;
 import static org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUtil.START;
 
@@ -40,13 +40,13 @@ import static org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUt
 public class DataGenConnectorOptions {
 
     public static final ConfigOption<Long> ROWS_PER_SECOND =
-            key("rows-per-second")
+            ConfigOptions.key("rows-per-second")
                     .longType()
                     .defaultValue(ROWS_PER_SECOND_DEFAULT_VALUE)
                     .withDescription("Rows per second to control the emit rate.");
 
     public static final ConfigOption<Long> NUMBER_OF_ROWS =
-            key("number-of-rows")
+            ConfigOptions.key("number-of-rows")
                     .longType()
                     .noDefaultValue()
                     .withDescription(
@@ -108,6 +108,13 @@ public class DataGenConnectorOptions {
                     .stringType()
                     .noDefaultValue()
                     .withDescription("End value of sequence generator.");
+
+    /** Placeholder {@link ConfigOption}. Not used for retrieving values. */
+    public static final ConfigOption<Float> FIELD_NULL_RATE =
+            ConfigOptions.key(String.format("%s.#.%s", FIELDS, NULL_RATE))
+                    .floatType()
+                    .defaultValue(0f)
+                    .withDescription("The proportion of null values.");
 
     private DataGenConnectorOptions() {}
 }

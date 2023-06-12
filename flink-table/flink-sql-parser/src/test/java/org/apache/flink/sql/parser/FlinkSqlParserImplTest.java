@@ -2415,6 +2415,11 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 .fails("WITH DRAIN could only be used after WITH SAVEPOINT.");
     }
 
+    @Test
+    void testTruncateTable() {
+        sql("truncate table t1").ok("TRUNCATE TABLE `T1`");
+    }
+
     public static BaseMatcher<SqlNode> validated(String validatedSql) {
         return new TypeSafeDiagnosingMatcher<SqlNode>() {
             @Override

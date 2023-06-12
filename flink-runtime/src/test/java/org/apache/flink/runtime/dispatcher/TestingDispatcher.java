@@ -113,7 +113,8 @@ class TestingDispatcher extends Dispatcher {
                         jobResultStore,
                         jobManagerRunnerFactory,
                         cleanupRunnerFactory,
-                        ioExecutor),
+                        ioExecutor,
+                        Collections.emptySet()),
                 jobManagerRunnerRegistry,
                 resourceCleanerFactory);
 

@@ -63,7 +63,6 @@ import org.apache.flink.runtime.taskexecutor.NoOpPartitionProducerStateChecker;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
 import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
-import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.NoOpCheckpointResponder;
 import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
 import org.apache.flink.runtime.taskmanager.NoOpTaskOperatorEventGateway;
@@ -86,7 +85,6 @@ import java.util.concurrent.Executors;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.junit.Assume.assumeFalse;
-import static org.mockito.Mockito.mock;
 
 /**
  * Test that verifies the behavior of blocking shutdown hooks and of the {@link
@@ -224,7 +222,7 @@ public class JvmExitOnFatalErrorTest extends TestLogger {
                                 changelogStorage,
                                 new TaskExecutorStateChangelogStoragesManager(),
                                 null,
-                                mock(CheckpointResponder.class));
+                                NoOpCheckpointResponder.INSTANCE);
 
                 Task task =
                         new Task(

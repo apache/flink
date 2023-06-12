@@ -23,6 +23,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
+import org.apache.flink.runtime.failure.FailureEnricherUtils;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
@@ -96,7 +97,8 @@ public class FailingTest extends TestLogger {
         try (MockFailingContext ctx = new MockFailingContext()) {
             StateTrackingMockExecutionGraph meg = new StateTrackingMockExecutionGraph();
             Failing failing = createFailingState(ctx, meg);
-            failing.handleGlobalFailure(new RuntimeException());
+            failing.handleGlobalFailure(
+                    new RuntimeException(), FailureEnricherUtils.EMPTY_FAILURE_LABELS);
             ctx.assertNoStateTransition();
         }
     }
@@ -116,7 +118,7 @@ public class FailingTest extends TestLogger {
             meg.registerExecution(execution);
             TaskExecutionStateTransition update =
                     ExecutingTest.createFailingStateTransition(execution.getAttemptId(), exception);
-            failing.updateTaskExecutionState(update);
+            failing.updateTaskExecutionState(update, FailureEnricherUtils.EMPTY_FAILURE_LABELS);
             ctx.assertNoStateTransition();
         }
     }

@@ -128,8 +128,7 @@ public class HybridSourceSplitEnumeratorTest {
         Whitebox.setInternalState(enumerator, "currentEnumerator", underlyingEnumeratorWrapper);
 
         List<MockSourceSplit> mockSourceSplits =
-                (List<MockSourceSplit>)
-                        Whitebox.getInternalState(underlyingEnumeratorWrapper.enumerator, "splits");
+                Whitebox.getInternalState(underlyingEnumeratorWrapper.enumerator, "splits");
         assertThat(mockSourceSplits).isEmpty();
 
         // simulate reader reset to before switch by adding split of previous source back
@@ -262,8 +261,7 @@ public class HybridSourceSplitEnumeratorTest {
 
         private UnderlyingEnumeratorWrapper(MockSplitEnumerator enumerator) {
             this.enumerator = enumerator;
-            this.context =
-                    (SplitEnumeratorContext) Whitebox.getInternalState(enumerator, "context");
+            this.context = Whitebox.getInternalState(enumerator, "context");
         }
 
         @Override
@@ -324,11 +322,11 @@ public class HybridSourceSplitEnumeratorTest {
     }
 
     private static int getCurrentSourceIndex(HybridSourceSplitEnumerator enumerator) {
-        return (int) Whitebox.getInternalState(enumerator, "currentSourceIndex");
+        return Whitebox.getInternalState(enumerator, "currentSourceIndex");
     }
 
     private static MockSplitEnumerator getCurrentEnumerator(
             HybridSourceSplitEnumerator enumerator) {
-        return (MockSplitEnumerator) Whitebox.getInternalState(enumerator, "currentEnumerator");
+        return Whitebox.getInternalState(enumerator, "currentEnumerator");
     }
 }

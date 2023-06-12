@@ -26,6 +26,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
+import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
@@ -108,8 +109,8 @@ public class TestingResourceManagerService implements ResourceManagerService {
         return Optional.ofNullable(rmService.getLeaderResourceManager());
     }
 
-    public void isLeader(UUID uuid) {
-        leaderElectionService.isLeader(uuid);
+    public CompletableFuture<LeaderInformation> isLeader(UUID uuid) {
+        return leaderElectionService.isLeader(uuid);
     }
 
     public void notLeader() {

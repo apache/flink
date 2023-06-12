@@ -20,26 +20,27 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.core.testutils.EachCallbackWrapper;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
 import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
-import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.runtime.zookeeper.ZooKeeperExtension;
 
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.state.ConnectionState;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
-import static org.hamcrest.number.OrderingComparison.greaterThan;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ZooKeeperCheckpointIDCounter} in a ZooKeeper ensemble. */
-public final class ZKCheckpointIDCounterMultiServersTest extends TestLogger {
+class ZKCheckpointIDCounterMultiServersTest {
 
-    @Rule public ZooKeeperResource zooKeeperResource = new ZooKeeperResource();
+    @RegisterExtension
+    private final EachCallbackWrapper<ZooKeeperExtension> zookeeperExtensionWrapper =
+            new EachCallbackWrapper<>(new ZooKeeperExtension());
 
     /**
      * Tests that {@link ZooKeeperCheckpointIDCounter} can be recovered after a connection loss
@@ -48,15 +49,16 @@ public final class ZKCheckpointIDCounterMultiServersTest extends TestLogger {
      * <p>See also FLINK-14091.
      */
     @Test
-    public void testRecoveredAfterConnectionLoss() throws Exception {
+    void testRecoveredAfterConnectionLoss() throws Exception {
 
         final Configuration configuration = new Configuration();
         configuration.setString(
-                HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
-        final CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper =
-                ZooKeeperUtils.startCuratorFramework(configuration, NoOpFatalErrorHandler.INSTANCE);
+                HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM,
+                zookeeperExtensionWrapper.getCustomExtension().getConnectString());
 
-        try {
+        try (final CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper =
+                ZooKeeperUtils.startCuratorFramework(
+                        configuration, NoOpFatalErrorHandler.INSTANCE)) {
             OneShotLatch connectionLossLatch = new OneShotLatch();
             OneShotLatch reconnectedLatch = new OneShotLatch();
 
@@ -71,14 +73,12 @@ public final class ZKCheckpointIDCounterMultiServersTest extends TestLogger {
 
             final long initialID = idCounter.getAndIncrement();
 
-            zooKeeperResource.restart();
+            zookeeperExtensionWrapper.getCustomExtension().restart();
 
             connectionLossLatch.await();
             reconnectedLatch.await();
 
-            assertThat(idCounter.getAndIncrement(), greaterThan(initialID));
-        } finally {
-            curatorFrameworkWrapper.close();
+            assertThat(idCounter.getAndIncrement()).isGreaterThan(initialID);
         }
     }
 

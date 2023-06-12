@@ -21,11 +21,10 @@ package org.apache.flink.runtime.io.disk.iomanager;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.util.TestNotificationListener;
 
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.modules.junit4.PowerMockRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,9 +44,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
 
-@RunWith(PowerMockRunner.class)
 public class AsynchronousFileIOChannelTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(AsynchronousFileIOChannelTest.class);
@@ -66,7 +63,7 @@ public class AsynchronousFileIOChannelTest {
 
         final RequestQueue<WriteRequest> requestQueue = new RequestQueue<WriteRequest>();
 
-        final RequestDoneCallback<Buffer> ioChannelCallback = mock(RequestDoneCallback.class);
+        final RequestDoneCallback<Buffer> ioChannelCallback = new NoOpCallback<>();
 
         final TestNotificationListener listener = new TestNotificationListener();
 
@@ -83,8 +80,8 @@ public class AsynchronousFileIOChannelTest {
                 final CountDownLatch sync = new CountDownLatch(3);
 
                 // The mock requests
-                final Buffer buffer = mock(Buffer.class);
-                final WriteRequest request = mock(WriteRequest.class);
+                final Buffer buffer = BufferBuilderTestUtils.buildSomeBuffer();
+                final WriteRequest request = new NoOpWriteRequest();
 
                 // Add requests task
                 Callable<Void> addRequestsTask =
@@ -199,7 +196,7 @@ public class AsynchronousFileIOChannelTest {
         final RequestQueue<WriteRequest> requestQueue = new RequestQueue<WriteRequest>();
 
         @SuppressWarnings("unchecked")
-        final RequestDoneCallback<Buffer> ioChannelCallback = mock(RequestDoneCallback.class);
+        final RequestDoneCallback<Buffer> ioChannelCallback = new NoOpCallback<>();
 
         final TestNotificationListener listener = new TestNotificationListener();
 
@@ -213,7 +210,7 @@ public class AsynchronousFileIOChannelTest {
 
                 final CountDownLatch sync = new CountDownLatch(2);
 
-                final WriteRequest request = mock(WriteRequest.class);
+                final WriteRequest request = new NoOpWriteRequest();
 
                 ioChannel.close();
 
@@ -339,7 +336,9 @@ public class AsynchronousFileIOChannelTest {
 
             BlockChannelWriterWithCallback<MemorySegment> writer =
                     new AsynchronousBlockWriterWithCallback(
-                            channelId, ioMan.getWriteRequestQueue(channelId), new NoOpCallback()) {
+                            channelId,
+                            ioMan.getWriteRequestQueue(channelId),
+                            new NoOpCallback<>()) {
 
                         private int numBlocks;
 
@@ -377,13 +376,21 @@ public class AsynchronousFileIOChannelTest {
         }
     }
 
-    private static class NoOpCallback implements RequestDoneCallback<MemorySegment> {
+    private static class NoOpCallback<T> implements RequestDoneCallback<T> {
 
         @Override
-        public void requestSuccessful(MemorySegment buffer) {}
+        public void requestSuccessful(T buffer) {}
 
         @Override
-        public void requestFailed(MemorySegment buffer, IOException e) {}
+        public void requestFailed(T buffer, IOException e) {}
+    }
+
+    private static class NoOpWriteRequest implements WriteRequest {
+        @Override
+        public void requestDone(IOException ioex) {}
+
+        @Override
+        public void write() {}
     }
 
     private static class FailingWriteRequest implements WriteRequest {

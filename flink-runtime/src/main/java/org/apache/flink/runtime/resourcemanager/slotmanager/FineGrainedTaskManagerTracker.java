@@ -54,9 +54,6 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
 
     private final Map<PendingTaskManagerId, PendingTaskManager> pendingTaskManagers;
 
-    private final Map<PendingTaskManagerId, Map<JobID, ResourceCounter>>
-            pendingSlotAllocationRecords;
-
     private ResourceProfile totalRegisteredResource = ResourceProfile.ZERO;
     private ResourceProfile totalPendingResource = ResourceProfile.ZERO;
 
@@ -72,7 +69,6 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
         taskManagerRegistrations = new HashMap<>();
         unWantedTaskManagers = new HashMap<>();
         pendingTaskManagers = new HashMap<>();
-        pendingSlotAllocationRecords = new HashMap<>();
         totalAndDefaultSlotProfilesToPendingTaskManagers = new HashMap<>();
     }
 
@@ -81,16 +77,21 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
             Map<PendingTaskManagerId, Map<JobID, ResourceCounter>> pendingSlotAllocations) {
         Preconditions.checkNotNull(pendingSlotAllocations);
         LOG.trace("Record the pending allocations {}.", pendingSlotAllocations);
-        pendingSlotAllocationRecords.clear();
-        pendingSlotAllocationRecords.putAll(pendingSlotAllocations);
-        removeUnusedPendingTaskManagers();
+        pendingTaskManagers.values().forEach(PendingTaskManager::clearAllPendingAllocations);
+        pendingSlotAllocations.forEach(
+                (pendingTaskManagerId, jobIDResourceCounterMap) ->
+                        Preconditions.checkNotNull(pendingTaskManagers.get(pendingTaskManagerId))
+                                .replaceAllPendingAllocations(jobIDResourceCounterMap));
     }
 
     @Override
     public void clearPendingAllocationsOfJob(JobID jobId) {
         LOG.info("Clear all pending allocations for job {}.", jobId);
-        pendingSlotAllocationRecords.values().forEach(allocation -> allocation.remove(jobId));
-        removeUnusedPendingTaskManagers();
+        pendingTaskManagers
+                .values()
+                .forEach(
+                        pendingTaskManager ->
+                                pendingTaskManager.clearPendingAllocationsOfJob(jobId));
     }
 
     @Override
@@ -182,8 +183,7 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
                     Preconditions.checkNotNull(pendingTMSet).remove(pendingTaskManager);
                     return pendingTMSet.isEmpty() ? null : pendingTMSet;
                 });
-        return Optional.ofNullable(pendingSlotAllocationRecords.remove(pendingTaskManagerId))
-                .orElse(Collections.emptyMap());
+        return pendingTaskManager.getPendingSlotAllocationRecords();
     }
 
     @Override
@@ -279,27 +279,9 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
         slots.put(allocationId, slot);
     }
 
-    private void removeUnusedPendingTaskManagers() {
-        Set<PendingTaskManagerId> unusedPendingTaskManager =
-                pendingTaskManagers.keySet().stream()
-                        .filter(id -> !pendingSlotAllocationRecords.containsKey(id))
-                        .collect(Collectors.toSet());
-        for (PendingTaskManagerId pendingTaskManagerId : unusedPendingTaskManager) {
-            removePendingTaskManager(pendingTaskManagerId);
-        }
-    }
-
     // ---------------------------------------------------------------------------------------------
     // Getters of internal state
     // ---------------------------------------------------------------------------------------------
-
-    @Override
-    public Map<JobID, ResourceCounter> getPendingAllocationsOfPendingTaskManager(
-            PendingTaskManagerId pendingTaskManagerId) {
-        return Collections.unmodifiableMap(
-                pendingSlotAllocationRecords.getOrDefault(
-                        pendingTaskManagerId, Collections.emptyMap()));
-    }
 
     @Override
     public Collection<? extends TaskManagerInfo> getRegisteredTaskManagers() {
@@ -404,7 +386,6 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
         totalRegisteredResource = ResourceProfile.ZERO;
         pendingTaskManagers.clear();
         totalPendingResource = ResourceProfile.ZERO;
-        pendingSlotAllocationRecords.clear();
         unWantedTaskManagers.clear();
     }
 }

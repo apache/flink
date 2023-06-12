@@ -250,31 +250,6 @@ SHOW JARS;
 1 row in set
 !ok
 
-# ==========================================================================
-# test function with hive catalog
-# ==========================================================================
-
-create catalog hivecatalog with ('type'='hive-test', 'hive-version'='2.3.4');
-[INFO] Execute statement succeed.
-!info
-
-use catalog hivecatalog;
-[INFO] Execute statement succeed.
-!info
-
-create function lowerudf AS 'LowerUDF';
-[INFO] Execute statement succeed.
-!info
-
-show user functions;
-+---------------+
-| function name |
-+---------------+
-|      lowerudf |
-+---------------+
-1 row in set
-!ok
-
 REMOVE JAR '$VAR_UDF_JAR_PATH';
 [INFO] Execute statement succeed.
 !info

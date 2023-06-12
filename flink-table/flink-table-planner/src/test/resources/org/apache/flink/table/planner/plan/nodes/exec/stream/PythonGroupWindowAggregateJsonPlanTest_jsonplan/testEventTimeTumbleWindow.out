@@ -187,7 +187,7 @@
         "type" : "INT NOT NULL"
       }, {
         "kind" : "LITERAL",
-        "value" : "1",
+        "value" : 1,
         "type" : "INT NOT NULL"
       } ],
       "type" : "INT NOT NULL"
@@ -415,7 +415,7 @@
     "description" : "Calc(select=[b, w$start AS window_start, w$end AS window_end, EXPR$3])"
   }, {
     "id" : 8,
-    "type" : "stream-exec-sink_1",
+    "type" : "stream-exec-sink_2",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",

@@ -60,7 +60,8 @@ public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperat
 
     private final boolean[] filterNullKeys;
 
-    protected final long stateRetentionTime;
+    protected final long leftStateRetentionTime;
+    protected final long rightStateRetentionTime;
 
     protected transient JoinConditionWithNullFilters joinCondition;
     protected transient TimestampedCollector<RowData> collector;
@@ -72,13 +73,15 @@ public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperat
             JoinInputSideSpec leftInputSideSpec,
             JoinInputSideSpec rightInputSideSpec,
             boolean[] filterNullKeys,
-            long stateRetentionTime) {
+            long leftStateRetentionTime,
+            long rightStateRetentionTime) {
         this.leftType = leftType;
         this.rightType = rightType;
         this.generatedJoinCondition = generatedJoinCondition;
         this.leftInputSideSpec = leftInputSideSpec;
         this.rightInputSideSpec = rightInputSideSpec;
-        this.stateRetentionTime = stateRetentionTime;
+        this.leftStateRetentionTime = leftStateRetentionTime;
+        this.rightStateRetentionTime = rightStateRetentionTime;
         this.filterNullKeys = filterNullKeys;
     }
 

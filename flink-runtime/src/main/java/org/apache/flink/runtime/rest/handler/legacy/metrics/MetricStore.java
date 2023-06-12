@@ -101,20 +101,30 @@ public class MetricStore {
                         Map<Integer, Integer> vertexAttempts =
                                 jobRepresentativeAttempts.compute(
                                         vertexId, (k, overwritten) -> new HashMap<>());
-                        JobMetricStore jobMetricStore = this.jobs.get(jobId);
-                        TaskMetricStore taskMetricStore =
-                                jobMetricStore.getTaskMetricStore(vertexId);
+                        Optional<TaskMetricStore> taskMetricStoreOptional =
+                                Optional.ofNullable(this.jobs.get(jobId))
+                                        .map(map -> map.getTaskMetricStore(vertexId));
+
                         // Retains current active subtasks to accommodate dynamic scaling
-                        taskMetricStore.retainSubtasks(subtaskAttempts.keySet());
+                        taskMetricStoreOptional.ifPresent(
+                                taskMetricStore ->
+                                        taskMetricStore.retainSubtasks(subtaskAttempts.keySet()));
+
                         subtaskAttempts.forEach(
                                 (subtaskIndex, attempts) -> {
                                     // Updates representative attempts
                                     vertexAttempts.put(
                                             subtaskIndex, attempts.getRepresentativeAttempt());
                                     // Retains current attempt metrics to avoid memory leak
-                                    taskMetricStore
-                                            .getSubtaskMetricStore(subtaskIndex)
-                                            .retainAttempts(attempts.getCurrentAttempts());
+                                    taskMetricStoreOptional
+                                            .map(
+                                                    taskMetricStore ->
+                                                            taskMetricStore.getSubtaskMetricStore(
+                                                                    subtaskIndex))
+                                            .ifPresent(
+                                                    subtaskMetricStore ->
+                                                            subtaskMetricStore.retainAttempts(
+                                                                    attempts.getCurrentAttempts()));
                                 });
                     });
         }
@@ -521,6 +531,19 @@ public class MetricStore {
         }
 
         void retainSubtasks(Set<Integer> activeSubtasks) {
+            // Retain metrics of pattern subtaskIndex.metricName which are directly stored in
+            // TaskMetricStore
+            metrics.keySet()
+                    .removeIf(
+                            key -> {
+                                // To prevent errors in metric parsing, here we only
+                                // clean up metrics with a pattern of
+                                // "subtaskIndex.metricName"
+                                String index = key.substring(0, Math.max(key.indexOf('.'), 0));
+                                return index.matches("\\d+")
+                                        && !activeSubtasks.contains(Integer.parseInt(index));
+                            });
+
             subtasks.keySet().retainAll(activeSubtasks);
         }
 

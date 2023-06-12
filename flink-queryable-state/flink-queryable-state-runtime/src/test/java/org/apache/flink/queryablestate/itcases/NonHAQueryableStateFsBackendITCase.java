@@ -18,6 +18,7 @@
 
 package org.apache.flink.queryablestate.itcases;
 
+import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
@@ -28,13 +29,15 @@ import org.apache.flink.queryablestate.client.QueryableStateClient;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.junit5.InjectClusterClient;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.nio.file.Path;
 
 /** Several integration tests for queryable state using the {@link FsStateBackend}. */
 public class NonHAQueryableStateFsBackendITCase extends AbstractQueryableStateTestBase {
@@ -48,31 +51,33 @@ public class NonHAQueryableStateFsBackendITCase extends AbstractQueryableStateTe
     private static final int QS_PROXY_PORT_RANGE_START = 9084;
     private static final int QS_SERVER_PORT_RANGE_START = 9089;
 
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir static Path tmpStateBackendDir;
 
-    @ClassRule
-    public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE =
-            new MiniClusterWithClientResource(
-                    new MiniClusterResourceConfiguration.Builder()
-                            .setConfiguration(getConfig())
-                            .setNumberTaskManagers(NUM_TMS)
-                            .setNumberSlotsPerTaskManager(NUM_SLOTS_PER_TM)
-                            .build());
+    @RegisterExtension
+    static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new MiniClusterExtension(
+                    () ->
+                            new MiniClusterResourceConfiguration.Builder()
+                                    .setConfiguration(getConfig())
+                                    .setNumberTaskManagers(NUM_TMS)
+                                    .setNumberSlotsPerTaskManager(NUM_SLOTS_PER_TM)
+                                    .build());
 
     @Override
     protected StateBackend createStateBackend() throws Exception {
-        return new FsStateBackend(temporaryFolder.newFolder().toURI().toString());
+        return new FsStateBackend(tmpStateBackendDir.toUri().toString());
     }
 
-    @BeforeClass
-    public static void setup() throws Exception {
+    @BeforeAll
+    static void setup(@InjectClusterClient RestClusterClient<?> injectedClusterClient)
+            throws Exception {
         client = new QueryableStateClient("localhost", QS_PROXY_PORT_RANGE_START);
 
-        clusterClient = MINI_CLUSTER_RESOURCE.getClusterClient();
+        clusterClient = injectedClusterClient;
     }
 
-    @AfterClass
-    public static void tearDown() {
+    @AfterAll
+    static void tearDown() {
         client.shutdownAndWait();
     }
 

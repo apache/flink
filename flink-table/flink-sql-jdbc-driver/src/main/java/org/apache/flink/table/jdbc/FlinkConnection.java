@@ -19,44 +19,59 @@
 package org.apache.flink.table.jdbc;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.StatementResult;
+import org.apache.flink.table.gateway.rest.util.RowFormat;
 import org.apache.flink.table.gateway.service.context.DefaultContext;
 import org.apache.flink.table.jdbc.utils.DriverUtils;
+
+import javax.annotation.concurrent.NotThreadSafe;
 
 import java.sql.DatabaseMetaData;
 import java.sql.SQLClientInfoException;
 import java.sql.SQLException;
-import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
 
-/** Connection to flink sql gateway for jdbc driver. */
+import static org.apache.flink.table.jdbc.utils.DriverUtils.checkArgument;
+
+/**
+ * Connection to flink sql gateway for jdbc driver. Notice that the connection is not thread safe.
+ */
+@NotThreadSafe
 public class FlinkConnection extends BaseConnection {
+    private final String url;
     private final Executor executor;
-    private volatile boolean closed = false;
+    private final List<Statement> statements;
+    private boolean closed = false;
 
     public FlinkConnection(DriverUri driverUri) {
-        // TODO Support default context from map to get gid of flink core for jdbc driver in
-        // https://issues.apache.org/jira/browse/FLINK-31687.
+        this.url = driverUri.getURL();
+        this.statements = new ArrayList<>();
         this.executor =
                 Executor.create(
                         new DefaultContext(
-                                Configuration.fromMap(
-                                        DriverUtils.fromProperties(driverUri.getProperties())),
+                                DriverUtils.fromProperties(driverUri.getProperties()),
                                 Collections.emptyList()),
                         driverUri.getAddress(),
-                        UUID.randomUUID().toString());
+                        UUID.randomUUID().toString(),
+                        RowFormat.JSON);
         driverUri.getCatalog().ifPresent(this::setSessionCatalog);
         driverUri.getDatabase().ifPresent(this::setSessionSchema);
     }
 
     @Override
     public Statement createStatement() throws SQLException {
-        return new FlinkStatement(this);
+        ensureOpen();
+        final Statement statement = new FlinkStatement(this);
+        statements.add(statement);
+        return statement;
     }
 
     @VisibleForTesting
@@ -64,11 +79,24 @@ public class FlinkConnection extends BaseConnection {
         return this.executor;
     }
 
+    private void ensureOpen() throws SQLException {
+        if (isClosed()) {
+            throw new SQLException("The current connection is closed.");
+        }
+    }
+
     @Override
     public void close() throws SQLException {
         if (closed) {
             return;
         }
+        List<Statement> remainStatements = new ArrayList<>(statements);
+        for (Statement statement : remainStatements) {
+            statement.close();
+        }
+        remainStatements.clear();
+        statements.clear();
+
         try {
             this.executor.close();
         } catch (Exception e) {
@@ -84,11 +112,13 @@ public class FlinkConnection extends BaseConnection {
 
     @Override
     public DatabaseMetaData getMetaData() throws SQLException {
-        throw new SQLFeatureNotSupportedException();
+        ensureOpen();
+        return new FlinkDatabaseMetaData(url, this, createStatement());
     }
 
     @Override
     public void setCatalog(String catalog) throws SQLException {
+        ensureOpen();
         try {
             setSessionCatalog(catalog);
         } catch (Exception e) {
@@ -102,9 +132,12 @@ public class FlinkConnection extends BaseConnection {
 
     @Override
     public String getCatalog() throws SQLException {
+        ensureOpen();
         try (StatementResult result = executor.executeStatement("SHOW CURRENT CATALOG;")) {
             if (result.hasNext()) {
-                return result.next().getString(0).toString();
+                String catalog = result.next().getString(0).toString();
+                checkArgument(!result.hasNext(), "There are more than one current catalog.");
+                return catalog;
             } else {
                 throw new SQLException("No catalog");
             }
@@ -113,6 +146,11 @@ public class FlinkConnection extends BaseConnection {
 
     @Override
     public void setClientInfo(String name, String value) throws SQLClientInfoException {
+        try {
+            ensureOpen();
+        } catch (SQLException e) {
+            throw new SQLClientInfoException("Connection is closed", new HashMap<>(), e);
+        }
         executor.configureSession(String.format("SET '%s'='%s';", name, value));
     }
 
@@ -125,24 +163,23 @@ public class FlinkConnection extends BaseConnection {
 
     @Override
     public String getClientInfo(String name) throws SQLException {
-        // TODO Executor should return Map<String, String> here to get rid of flink core for jdbc
-        // driver in https://issues.apache.org/jira/browse/FLINK-31687.
-        Configuration configuration = (Configuration) executor.getSessionConfig();
-        return configuration.toMap().get(name);
+        ensureOpen();
+        Map<String, String> configuration = executor.getSessionConfigMap();
+        return configuration.get(name);
     }
 
     @Override
     public Properties getClientInfo() throws SQLException {
+        ensureOpen();
         Properties properties = new Properties();
-        // TODO Executor should return Map<String, String> here to get rid of flink core for jdbc
-        // driver in https://issues.apache.org/jira/browse/FLINK-31687.
-        Configuration configuration = (Configuration) executor.getSessionConfig();
-        configuration.toMap().forEach(properties::setProperty);
+        Map<String, String> configuration = executor.getSessionConfigMap();
+        configuration.forEach(properties::setProperty);
         return properties;
     }
 
     @Override
     public void setSchema(String schema) throws SQLException {
+        ensureOpen();
         try {
             setSessionSchema(schema);
         } catch (Exception e) {
@@ -156,12 +193,19 @@ public class FlinkConnection extends BaseConnection {
 
     @Override
     public String getSchema() throws SQLException {
+        ensureOpen();
         try (StatementResult result = executor.executeStatement("SHOW CURRENT DATABASE;")) {
             if (result.hasNext()) {
-                return result.next().getString(0).toString();
+                String schema = result.next().getString(0).toString();
+                checkArgument(!result.hasNext(), "There are more than one current database.");
+                return schema;
             } else {
                 throw new SQLException("No database");
             }
         }
+    }
+
+    void removeStatement(FlinkStatement statement) {
+        statements.remove(statement);
     }
 }
