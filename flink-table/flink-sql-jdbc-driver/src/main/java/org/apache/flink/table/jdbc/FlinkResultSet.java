@@ -20,12 +20,18 @@ package org.apache.flink.table.jdbc;
 
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.client.gateway.StatementResult;
+import org.apache.flink.table.data.ArrayData;
+import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.jdbc.utils.ArrayFieldGetter;
 import org.apache.flink.table.jdbc.utils.CloseableResultIterator;
 import org.apache.flink.table.jdbc.utils.StatementResultIterator;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.MapType;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -38,8 +44,11 @@ import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Statement;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.table.jdbc.utils.DriverUtils.checkNotNull;
 
@@ -50,6 +59,7 @@ import static org.apache.flink.table.jdbc.utils.DriverUtils.checkNotNull;
 public class FlinkResultSet extends BaseResultSet {
     private final List<DataType> dataTypeList;
     private final List<String> columnNameList;
+    private final List<RowData.FieldGetter> fieldGetterList;
     private final Statement statement;
     private final CloseableResultIterator<RowData> iterator;
     private final FlinkResultSetMetaData resultSetMetaData;
@@ -71,7 +81,17 @@ public class FlinkResultSet extends BaseResultSet {
 
         this.dataTypeList = schema.getColumnDataTypes();
         this.columnNameList = schema.getColumnNames();
+        this.fieldGetterList = createFieldGetterList(dataTypeList);
         this.resultSetMetaData = new FlinkResultSetMetaData(columnNameList, dataTypeList);
+    }
+
+    private List<RowData.FieldGetter> createFieldGetterList(List<DataType> dataTypeList) {
+        List<RowData.FieldGetter> fieldGetterList = new ArrayList<>(dataTypeList.size());
+        for (int i = 0; i < dataTypeList.size(); i++) {
+            fieldGetterList.add(RowData.createFieldGetter(dataTypeList.get(i).getLogicalType(), i));
+        }
+
+        return fieldGetterList;
     }
 
     @Override
@@ -353,8 +373,71 @@ public class FlinkResultSet extends BaseResultSet {
 
     @Override
     public Object getObject(int columnIndex) throws SQLException {
-        // TODO support get object
-        throw new SQLFeatureNotSupportedException("FlinkResultSet#getObject is not supported");
+        checkClosed();
+        checkValidRow();
+        checkValidColumn(columnIndex);
+        try {
+            Object object = fieldGetterList.get(columnIndex - 1).getFieldOrNull(currentRow);
+            DataType dataType = dataTypeList.get(columnIndex - 1);
+            return convertToJavaObject(object, dataType.getLogicalType());
+        } catch (Exception e) {
+            throw new SQLDataException(e);
+        }
+    }
+
+    private Object convertToJavaObject(Object object, LogicalType dataType) throws SQLException {
+        if (object == null) {
+            return null;
+        }
+
+        switch (dataType.getTypeRoot()) {
+            case BOOLEAN:
+            case TINYINT:
+            case SMALLINT:
+            case INTEGER:
+            case BIGINT:
+            case FLOAT:
+            case DOUBLE:
+            case BINARY:
+            case VARBINARY:
+                {
+                    return object;
+                }
+            case VARCHAR:
+            case CHAR:
+                {
+                    return object.toString();
+                }
+            case DECIMAL:
+                {
+                    return ((DecimalData) object).toBigDecimal();
+                }
+            case MAP:
+                {
+                    LogicalType keyType = ((MapType) dataType).getKeyType();
+                    LogicalType valueType = ((MapType) dataType).getValueType();
+                    ArrayFieldGetter keyGetter = ArrayFieldGetter.createFieldGetter(keyType);
+                    ArrayFieldGetter valueGetter = ArrayFieldGetter.createFieldGetter(valueType);
+                    MapData mapData = (MapData) object;
+                    int size = mapData.size();
+                    ArrayData keyArrayData = mapData.keyArray();
+                    ArrayData valueArrayData = mapData.valueArray();
+                    Map<Object, Object> mapResult = new HashMap<>();
+                    for (int i = 0; i < size; i++) {
+                        mapResult.put(
+                                convertToJavaObject(
+                                        keyGetter.getObjectOrNull(keyArrayData, i), keyType),
+                                convertToJavaObject(
+                                        valueGetter.getObjectOrNull(valueArrayData, i), valueType));
+                    }
+                    return mapResult;
+                }
+            default:
+                {
+                    throw new SQLDataException(
+                            String.format("Not supported value type %s", dataType));
+                }
+        }
     }
 
     @Override

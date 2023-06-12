@@ -16,40 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.kubernetes.kubeclient.resources;
+package org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty;
 
-import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierConsumerAgent;
 
-import java.util.List;
+import java.util.Optional;
 
-/**
- * Empty implementation of {@link FlinkKubeClient.WatchCallbackHandler}.
- *
- * @param <T> Type of resource to be watched
- */
-public class NoOpWatchCallbackHandler<T> implements FlinkKubeClient.WatchCallbackHandler<T> {
-    @Override
-    public void onAdded(List<T> resources) {
-        // noop
-    }
-
-    @Override
-    public void onModified(List<T> resources) {
-        // noop
-    }
-
-    @Override
-    public void onDeleted(List<T> resources) {
-        // noop
-    }
-
-    @Override
-    public void onError(List<T> resources) {
-        // noop
-    }
-
-    @Override
-    public void handleError(Throwable throwable) {
-        // noop
-    }
+/** {@link NettyConnectionReader} is used by {@link TierConsumerAgent} to read buffer from netty. */
+public interface NettyConnectionReader {
+    /**
+     * Read a buffer from netty connection.
+     *
+     * @param segmentId segment id indicates the id of segment.
+     * @return {@link Optional#empty()} will be returned if there is no buffer sent from netty
+     *     connection otherwise a buffer will be returned.
+     */
+    Optional<Buffer> readBuffer(int segmentId);
 }

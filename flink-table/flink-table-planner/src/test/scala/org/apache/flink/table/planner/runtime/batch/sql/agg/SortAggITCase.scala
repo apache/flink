@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.runtime.batch.sql.agg
 
 import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, PrimitiveArrayTypeInfo, TypeInformation}
-import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo, RowTypeInfo, TupleTypeInfo, TypeExtractor}
+import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.config.ExecutionConfigOptions.{TABLE_EXEC_DISABLED_OPERATORS, TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM}
@@ -31,14 +31,13 @@ import org.apache.flink.table.planner.runtime.utils.TestData
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.{MyPojo, MyToPojoFunc}
 import org.apache.flink.table.planner.utils.{CountAccumulator, CountAggFunction, IntSumAggFunction}
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.lang
 import java.lang.{Iterable => JIterable}
 
 import scala.annotation.varargs
 import scala.collection.JavaConverters._
-import scala.collection.Seq
 
 /** AggregateITCase using SortAgg Operator. */
 class SortAggITCase extends AggregateITCaseBase("SortAggregate") {

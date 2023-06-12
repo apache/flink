@@ -29,7 +29,7 @@ import java.util.Optional;
  *
  * @param <T> Type of statistics to track
  */
-public interface JobVertexStatsTracker<T extends Statistics> {
+public interface VertexStatsTracker<T extends Statistics> {
 
     /**
      * Returns statistics for a job vertex. Automatically triggers sampling request if statistics
@@ -37,16 +37,33 @@ public interface JobVertexStatsTracker<T extends Statistics> {
      *
      * @param jobId job the vertex belongs to
      * @param vertex Vertex to get the stats for.
-     * @return Statistics for a vertex. This interface is intended to be used for polling request
-     *     and for the duration while the statistics are being gathered, the returned Optional can
-     *     be empty.
+     * @return Statistics for a job vertex. This interface is intended to be used for polling
+     *     request and for the duration while the statistics are being gathered, the returned
+     *     Optional can be empty.
      */
-    Optional<T> getVertexStats(JobID jobId, AccessExecutionJobVertex vertex);
+    Optional<T> getJobVertexStats(JobID jobId, AccessExecutionJobVertex vertex);
 
     /**
-     * Shuts the {@link JobVertexStatsTracker} down.
+     * Returns statistics for a execution vertex. Automatically triggers sampling request if
+     * statistics are not available or outdated.
      *
-     * @throws FlinkException if the {@link JobVertexStatsTracker} could not be shut down
+     * <p>Note: A single subtask may have multiple attempts, it will return the result of all
+     * attempts.
+     *
+     * @param jobId job the vertex belongs to
+     * @param vertex Vertex to get the stats for.
+     * @param subtaskIndex SubtaskIndex to get the stats for.
+     * @return Statistics for a execution vertex. This interface is intended to be used for polling
+     *     request and for the duration while the statistics are being gathered, the returned
+     *     Optional can be empty.
+     */
+    Optional<T> getExecutionVertexStats(
+            JobID jobId, AccessExecutionJobVertex vertex, int subtaskIndex);
+
+    /**
+     * Shuts the {@link VertexStatsTracker} down.
+     *
+     * @throws FlinkException if the {@link VertexStatsTracker} could not be shut down
      */
     void shutDown() throws FlinkException;
 }

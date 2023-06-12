@@ -23,6 +23,7 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FixedDelayRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolUtils;
@@ -39,6 +40,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.StreamSupport;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.completeCancellingForAllVertices;
+import static org.apache.flink.runtime.scheduler.benchmark.SchedulerBenchmarkUtils.createAdaptiveBatchScheduler;
 
 /**
  * The benchmark of handling global failure and restarting tasks in a STREAMING/BATCH job. The
@@ -81,7 +83,7 @@ public class HandleGlobalFailureAndRestartAllTasksBenchmark extends SchedulerEnd
         taskRestartExecutor.triggerScheduledTasks();
     }
 
-    private static DefaultScheduler createScheduler(
+    private DefaultScheduler createScheduler(
             JobGraph jobGraph,
             PhysicalSlotProvider physicalSlotProvider,
             ComponentMainThreadExecutor mainThreadExecutor,
@@ -89,17 +91,22 @@ public class HandleGlobalFailureAndRestartAllTasksBenchmark extends SchedulerEnd
             ScheduledExecutor taskRestartExecutor,
             RestartBackoffTimeStrategy restartBackoffTimeStrategy)
             throws Exception {
-        return new DefaultSchedulerBuilder(
-                        jobGraph,
-                        mainThreadExecutor,
-                        executorService,
-                        executorService,
-                        taskRestartExecutor)
-                .setExecutionSlotAllocatorFactory(
-                        SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
-                                physicalSlotProvider))
-                .setRestartBackoffTimeStrategy(restartBackoffTimeStrategy)
-                .build();
+        DefaultSchedulerBuilder schedulerBuilder =
+                new DefaultSchedulerBuilder(
+                                jobGraph,
+                                mainThreadExecutor,
+                                executorService,
+                                executorService,
+                                taskRestartExecutor)
+                        .setExecutionSlotAllocatorFactory(
+                                SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
+                                        physicalSlotProvider))
+                        .setRestartBackoffTimeStrategy(restartBackoffTimeStrategy);
+        if (jobGraph.getJobType() == JobType.BATCH) {
+            return createAdaptiveBatchScheduler(schedulerBuilder, jobConfiguration);
+        } else {
+            return schedulerBuilder.build();
+        }
     }
 
     private void offerSlots() {

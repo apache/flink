@@ -35,6 +35,8 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageIdMappingUtils;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyServiceImpl;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageProducerClient;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageProducerMetricUpdate;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageResourceRegistry;
@@ -63,6 +65,8 @@ public class TieredResultPartition extends ResultPartition {
 
     private final TieredStorageResourceRegistry tieredStorageResourceRegistry;
 
+    private final TieredStorageNettyServiceImpl nettyService;
+
     private boolean hasNotifiedEndOfUserRecords;
 
     public TieredResultPartition(
@@ -76,7 +80,8 @@ public class TieredResultPartition extends ResultPartition {
             @Nullable BufferCompressor bufferCompressor,
             SupplierWithException<BufferPool, IOException> bufferPoolFactory,
             TieredStorageProducerClient tieredStorageProducerClient,
-            TieredStorageResourceRegistry tieredStorageResourceRegistry) {
+            TieredStorageResourceRegistry tieredStorageResourceRegistry,
+            TieredStorageNettyServiceImpl nettyService) {
         super(
                 owningTaskName,
                 partitionIndex,
@@ -91,6 +96,7 @@ public class TieredResultPartition extends ResultPartition {
         this.partitionId = TieredStorageIdMappingUtils.convertId(partitionId);
         this.tieredStorageProducerClient = tieredStorageProducerClient;
         this.tieredStorageResourceRegistry = tieredStorageResourceRegistry;
+        this.nettyService = nettyService;
     }
 
     @Override
@@ -153,8 +159,8 @@ public class TieredResultPartition extends ResultPartition {
             int subpartitionId, BufferAvailabilityListener availabilityListener)
             throws IOException {
         checkState(!isReleased(), "ResultPartition already released.");
-        // TODO, create subpartition views
-        return null;
+        return nettyService.createResultSubpartitionView(
+                partitionId, new TieredStorageSubpartitionId(subpartitionId), availabilityListener);
     }
 
     @Override

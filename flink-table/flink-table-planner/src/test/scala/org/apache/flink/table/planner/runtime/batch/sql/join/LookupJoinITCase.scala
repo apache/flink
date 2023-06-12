@@ -26,23 +26,30 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, InMemoryLookupableTableSource}
 import org.apache.flink.table.runtime.functions.table.fullcache.inputformat.FullCacheTestInputFormat
 import org.apache.flink.table.runtime.functions.table.lookup.LookupCacheManager
+import org.apache.flink.testutils.junit.extensions.parameterized.{Parameter, ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assumptions.assumeThat
 import org.assertj.core.api.IterableAssert.assertThatIterable
-import org.junit.{After, Assume, Before, Test}
-import org.junit.Assert.assertEquals
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.junit.jupiter.api.{AfterEach, BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.lang.{Boolean => JBoolean}
 import java.util
 
 import scala.collection.JavaConversions._
 
-@RunWith(classOf[Parameterized])
-class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean, cacheType: LookupCacheType)
-  extends BatchTestBase {
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
+class LookupJoinITCase extends BatchTestBase {
+
+  @Parameter var legacyTableSource: Boolean = _
+
+  @Parameter(value = 1)
+  var isAsyncMode: Boolean = _
+
+  @Parameter(value = 2)
+  var cacheType: LookupCacheType = _
 
   val data = List(
     rowOf(1L, 12L, "Julian"),
@@ -65,7 +72,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean, cacheTy
     rowOf(33, 3L, "Fabian"),
     rowOf(44, null, "Hello world"))
 
-  @Before
+  @BeforeEach
   override def before() {
     super.before()
     if (legacyTableSource) {
@@ -85,13 +92,13 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean, cacheTy
     env.getConfig.disableObjectReuse()
   }
 
-  @After
+  @AfterEach
   override def after(): Unit = {
     if (legacyTableSource) {
-      assertEquals(0, InMemoryLookupableTableSource.RESOURCE_COUNTER.get())
+      assertThat(InMemoryLookupableTableSource.RESOURCE_COUNTER.get()).isEqualTo(0)
     } else {
-      assertEquals(0, TestValuesTableFactory.RESOURCE_COUNTER.get())
-      assertEquals(0, FullCacheTestInputFormat.OPEN_CLOSED_COUNTER.get())
+      assertThat(TestValuesTableFactory.RESOURCE_COUNTER.get()).isEqualTo(0)
+      assertThat(FullCacheTestInputFormat.OPEN_CLOSED_COUNTER.get()).isEqualTo(0)
     }
   }
 
@@ -191,7 +198,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean, cacheTy
                        |""".stripMargin)
   }
 
-  @Test
+  @TestTemplate
   def testLeftJoinTemporalTableWithLocalPredicate(): Unit = {
     val sql = s"SELECT T.id, T.len, T.content, D.name, D.age FROM T LEFT JOIN userTable " +
       "for system_time as of T.proctime AS D ON T.id = D.id " +
@@ -207,7 +214,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean, cacheTy
     checkResult(sql, expected)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTable(): Unit = {
     val sql = s"SELECT T.id, T.len, T.content, D.name FROM T JOIN userTable " +
       "for system_time as of T.proctime AS D ON T.id = D.id"
@@ -219,7 +226,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean, cacheTy
     checkResult(sql, expected)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableWithPushDown(): Unit = {
     val sql = s"SELECT T.id, T.len, T.content, D.name FROM T JOIN userTable " +
       "for system_time as of T.proctime AS D ON T.id = D.id AND D.age > 20"
@@ -229,7 +236,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean, cacheTy
     checkResult(sql, expected)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableWithNonEqualFilter(): Unit = {
     val sql = s"SELECT T.id, T.len, T.content, D.name, D.age FROM T JOIN userTable " +
       "for system_time as of T.proctime AS D ON T.id = D.id WHERE T.len <= D.age"
@@ -240,7 +247,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean, cacheTy
     checkResult(sql, expected)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableOnMultiFields(): Unit = {
     val sql = s"SELECT T.id, T.len, D.name FROM T JOIN userTable " +
       "for system_time as of T.proctime AS D ON T.id = D.id AND T.content = D.name"
@@ -249,7 +256,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean, cacheTy
     checkResult(sql, expected)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableOnMultiFieldsWithUdf(): Unit = {
     val sql = s"SELECT T.id, T.len, D.name FROM T JOIN userTable " +
       "for system_time as of T.proctime AS D ON mod(T.id, 4) = D.id AND T.content = D.name"
@@ -258,7 +265,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean, cacheTy
     checkResult(sql, expected)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableOnMultiKeyFields(): Unit = {
     val sql = s"SELECT T.id, T.len, D.name FROM T JOIN userTable " +
       "for system_time as of T.proctime AS D ON T.content = D.name AND T.id = D.id"
@@ -267,7 +274,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean, cacheTy
     checkResult(sql, expected)
   }
 
-  @Test
+  @TestTemplate
   def testLeftJoinTemporalTable(): Unit = {
     val sql = s"SELECT T.id, T.len, D.name, D.age FROM T LEFT JOIN userTable " +
       "for system_time as of T.proctime AS D ON T.id = D.id"
@@ -282,7 +289,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean, cacheTy
     checkResult(sql, expected)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableOnMultiKeyFieldsWithNullData(): Unit = {
     val sql = s"SELECT T.id, T.len, D.name FROM nullableT T JOIN userTableWithNull " +
       "for system_time as of T.proctime AS D ON T.content = D.name AND T.id = D.id"
@@ -291,7 +298,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean, cacheTy
     checkResult(sql, expected)
   }
 
-  @Test
+  @TestTemplate
   def testLeftJoinTemporalTableOnMultiKeyFieldsWithNullData(): Unit = {
     val sql = s"SELECT D.id, T.len, D.name FROM nullableT T LEFT JOIN userTableWithNull " +
       "for system_time as of T.proctime AS D ON T.content = D.name AND T.id = D.id"
@@ -303,7 +310,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean, cacheTy
     checkResult(sql, expected)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableOnNullConstantKey(): Unit = {
     val sql = s"SELECT T.id, T.len, T.content FROM T JOIN userTable " +
       "for system_time as of T.proctime AS D ON D.id = null"
@@ -311,7 +318,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean, cacheTy
     checkResult(sql, expected)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableOnMultiKeyFieldsWithNullConstantKey(): Unit = {
     val sql = s"SELECT T.id, T.len, D.name FROM T JOIN userTable " +
       "for system_time as of T.proctime AS D ON T.content = D.name AND null = D.id"
@@ -319,10 +326,10 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean, cacheTy
     checkResult(sql, expected)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableWithComputedColumn(): Unit = {
     // Computed column do not support in legacyTableSource.
-    Assume.assumeFalse(legacyTableSource)
+    assumeThat(legacyTableSource).isFalse
 
     val sql = s"SELECT T.id, T.len, T.content, D.name, D.age, D.nominal_age " +
       "FROM T JOIN userTableWithComputedColumn " +
@@ -335,10 +342,10 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean, cacheTy
     checkResult(sql, expected)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableWithComputedColumnAndPushDown(): Unit = {
     // Computed column do not support in legacyTableSource.
-    Assume.assumeFalse(legacyTableSource)
+    assumeThat(legacyTableSource).isFalse
 
     val sql = s"SELECT T.id, T.len, T.content, D.name, D.age, D.nominal_age " +
       "FROM T JOIN userTableWithComputedColumn " +
@@ -350,7 +357,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean, cacheTy
     checkResult(sql, expected)
   }
 
-  @Test
+  @TestTemplate
   def testLookupCacheSharingAcrossSubtasks(): Unit = {
     if (cacheType == LookupCacheType.NONE) {
       return
@@ -424,7 +431,7 @@ object LookupJoinITCase {
   val ASYNC_MODE: JBoolean = JBoolean.TRUE;
   val SYNC_MODE: JBoolean = JBoolean.FALSE;
 
-  @Parameterized.Parameters(name = "LegacyTableSource={0}, isAsyncMode = {1}, cacheType = {2}")
+  @Parameters(name = "LegacyTableSource={0}, isAsyncMode = {1}, cacheType = {2}")
   def parameters(): util.Collection[Array[java.lang.Object]] = {
     Seq[Array[AnyRef]](
       Array(LEGACY_TABLE_SOURCE, ASYNC_MODE, LookupCacheType.NONE),

@@ -257,7 +257,8 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
                         || hybridPartitionDataConsumeConstraint.isOnlyConsumeFinishedPartition();
     }
 
-    void initializeVerticesIfPossible() {
+    @VisibleForTesting
+    public void initializeVerticesIfPossible() {
         final List<ExecutionJobVertex> newlyInitializedJobVertices = new ArrayList<>();
         try {
             final long createTimestamp = System.currentTimeMillis();

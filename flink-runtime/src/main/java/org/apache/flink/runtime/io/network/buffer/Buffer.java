@@ -289,7 +289,10 @@ public interface Buffer {
          * Indicates that this subpartition state is fully recovered (emitted). Further data can be
          * consumed after unblocking.
          */
-        RECOVERY_COMPLETION(false, true, true, false, false);
+        RECOVERY_COMPLETION(false, true, true, false, false),
+
+        /** {@link #END_OF_SEGMENT} indicates that a segment is finished in a subpartition. */
+        END_OF_SEGMENT(false, true, false, false, false);
 
         private final boolean isBuffer;
         private final boolean isEvent;

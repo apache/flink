@@ -177,16 +177,30 @@ public class FileSystemTableSink extends AbstractFileSystemTable
             final int parallelism,
             boolean parallelismConfigured) {
         FileSystemOutputFormat.Builder<RowData> builder = new FileSystemOutputFormat.Builder<>();
-        builder.setPartitionComputer(partitionComputer());
-        builder.setDynamicGrouped(dynamicGrouping);
-        builder.setPartitionColumns(partitionKeys.toArray(new String[0]));
-        builder.setFormatFactory(createOutputFormatFactory(sinkContext));
-        builder.setMetaStoreFactory(new EmptyMetaStoreFactory(path));
-        builder.setOverwrite(overwrite);
-        builder.setStaticPartitions(staticPartitions);
-        builder.setTempPath(toStagingPath());
-        builder.setOutputFileConfig(
-                OutputFileConfig.builder().withPartPrefix("part-" + UUID.randomUUID()).build());
+        builder.setPartitionComputer(partitionComputer())
+                .setDynamicGrouped(dynamicGrouping)
+                .setPartitionColumns(partitionKeys.toArray(new String[0]))
+                .setFormatFactory(createOutputFormatFactory(sinkContext))
+                .setMetaStoreFactory(new EmptyMetaStoreFactory(path))
+                .setOverwrite(overwrite)
+                .setStaticPartitions(staticPartitions)
+                .setTempPath(toStagingPath())
+                .setOutputFileConfig(
+                        OutputFileConfig.builder()
+                                .withPartPrefix("part-" + UUID.randomUUID())
+                                .build())
+                .setPartitionCommitPolicyFactory(
+                        new PartitionCommitPolicyFactory(
+                                tableOptions.get(
+                                        FileSystemConnectorOptions
+                                                .SINK_PARTITION_COMMIT_POLICY_KIND),
+                                tableOptions.get(
+                                        FileSystemConnectorOptions
+                                                .SINK_PARTITION_COMMIT_POLICY_CLASS),
+                                tableOptions.get(
+                                        FileSystemConnectorOptions
+                                                .SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME)));
+
         DataStreamSink<RowData> sink = inputStream.writeUsingOutputFormat(builder.build());
         sink.getTransformation().setParallelism(parallelism, parallelismConfigured);
         return sink.name("Filesystem");

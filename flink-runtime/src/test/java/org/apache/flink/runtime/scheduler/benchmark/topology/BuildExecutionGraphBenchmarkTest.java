@@ -20,18 +20,17 @@ package org.apache.flink.runtime.scheduler.benchmark.topology;
 
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.scheduler.benchmark.JobConfiguration;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * The benchmark of building the topology of {@link ExecutionGraph} in a STREAMING/BATCH job. The
  * related method is {@link ExecutionGraph#attachJobGraph},
  */
-public class BuildExecutionGraphBenchmarkTest extends TestLogger {
+class BuildExecutionGraphBenchmarkTest {
 
     @Test
-    public void buildTopologyInStreamingJob() throws Exception {
+    void buildTopologyInStreamingJob() throws Exception {
         BuildExecutionGraphBenchmark benchmark = new BuildExecutionGraphBenchmark();
         benchmark.setup(JobConfiguration.STREAMING_TEST);
         benchmark.buildTopology();
@@ -39,7 +38,7 @@ public class BuildExecutionGraphBenchmarkTest extends TestLogger {
     }
 
     @Test
-    public void buildTopologyInBatchJob() throws Exception {
+    void buildTopologyInBatchJob() throws Exception {
         BuildExecutionGraphBenchmark benchmark = new BuildExecutionGraphBenchmark();
         benchmark.setup(JobConfiguration.BATCH_TEST);
         benchmark.buildTopology();
