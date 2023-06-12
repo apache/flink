@@ -24,11 +24,13 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
 import java.sql.ResultSet;
+import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -53,6 +55,7 @@ public class FlinkStatementTest extends FlinkJdbcDriverTestBase {
                                                 + "'format'='csv',\n"
                                                 + "'path'='%s')",
                                         tempDir)));
+                assertEquals(0, statement.getUpdateCount());
 
                 // INSERT TABLE returns job id
                 assertTrue(
@@ -62,6 +65,10 @@ public class FlinkStatementTest extends FlinkJdbcDriverTestBase {
                                         + "(3, 33, '333'), "
                                         + "(2, 22, '222'), "
                                         + "(4, 44, '444')"));
+                assertThatThrownBy(statement::getUpdateCount)
+                        .isInstanceOf(SQLFeatureNotSupportedException.class)
+                        .hasMessage("FlinkStatement#getUpdateCount is not supported for query");
+
                 String jobId;
                 try (ResultSet resultSet = statement.getResultSet()) {
                     assertTrue(resultSet.next());
