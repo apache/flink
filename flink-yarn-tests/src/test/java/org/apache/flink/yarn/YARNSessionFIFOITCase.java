@@ -63,8 +63,8 @@ class YARNSessionFIFOITCase extends YarnTestBase {
 
     protected static final String VIEW_ACLS = "user group";
     protected static final String MODIFY_ACLS = "admin groupAdmin";
-    protected static final String VIEW_ACLS_WITH_WILDCARD = "user,* group";
-    protected static final String MODIFY_ACLS_WITH_WILDCARD = "admin,* groupAdmin";
+    protected static final String VIEW_ACLS_WITH_WILDCARD = "*";
+    protected static final String MODIFY_ACLS_WITH_WILDCARD = "*";
     protected static final String WILDCARD = "*";
 
     @RegisterExtension

@@ -644,36 +644,27 @@ public final class Utils {
         Map<ApplicationAccessType, String> acls = new HashMap<>();
         String viewAcls = flinkConfig.getString(YarnConfigOptions.APPLICATION_VIEW_ACLS, null);
         String modifyAcls = flinkConfig.getString(YarnConfigOptions.APPLICATION_MODIFY_ACLS, null);
-        if (viewAcls != null) {
-            if (viewAcls.contains(WILDCARD_ACL)) {
-                if (!isValidWildcardAcl(viewAcls)) {
-                    throw new IllegalArgumentException("Invalid wildcard ACL: " + viewAcls);
-                }
-                viewAcls = WILDCARD_ACL;
-            }
+        validateAclString(viewAcls);
+        validateAclString(modifyAcls);
+
+        if (viewAcls != null && !viewAcls.isEmpty()) {
             acls.put(ApplicationAccessType.VIEW_APP, viewAcls);
         }
-        if (modifyAcls != null) {
-            if (modifyAcls.contains(WILDCARD_ACL)) {
-                if (!isValidWildcardAcl(modifyAcls)) {
-                    throw new IllegalArgumentException("Invalid wildcard ACL: " + modifyAcls);
-                }
-                modifyAcls = WILDCARD_ACL;
-            }
+        if (modifyAcls != null && !modifyAcls.isEmpty()) {
             acls.put(ApplicationAccessType.MODIFY_APP, modifyAcls);
         }
+
         if (!acls.isEmpty()) {
             amContainer.setApplicationACLs(acls);
         }
     }
 
-    private static boolean isValidWildcardAcl(String acl) {
-        String[] acls = acl.split(",");
-        for (String singleAcl : acls) {
-            if (singleAcl.contains("*")) {
-                return false;
-            }
+    private static void validateAclString(String acl) {
+        if (acl != null && acl.contains("*") && !acl.equals("*")) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "Invalid wildcard ACL %s. The ACL wildcard does not support regex. The only valid wildcard ACL is '*'.",
+                            acl));
         }
-        return true;
     }
 }
