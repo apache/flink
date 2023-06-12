@@ -59,7 +59,6 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Semaphore;
 import java.util.function.Consumer;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
