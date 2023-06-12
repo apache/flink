@@ -125,7 +125,7 @@ class HistoryServerArchiveFetcher {
     private final File webDir;
     private final File webJobDir;
     private final File webOverviewDir;
-    /** Number of worker threads to flush archive json data in parallel for different targets */
+    /** Number of worker threads to flush archive json data in parallel for different targets. */
     private final ExecutorService workerPool;
 
     HistoryServerArchiveFetcher(
@@ -219,7 +219,7 @@ class HistoryServerArchiveFetcher {
                                     jobArchivePath,
                                     numOfCompletedJobs);
                             // update the webview each time we finish processing a new job
-                            // to improve user experience
+                            // to improve user experience.
                             updateJobOverview(webOverviewDir, webDir);
 
                         } catch (IOException e) {
