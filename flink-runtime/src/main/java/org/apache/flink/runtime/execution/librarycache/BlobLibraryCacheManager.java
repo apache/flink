@@ -26,7 +26,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkUserCodeClassLoader;
 import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.SimpleUserCodeClassLoader;
 import org.apache.flink.util.UserCodeClassLoader;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.type.TypeFactory;
@@ -38,6 +37,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -221,17 +221,25 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
         }
 
         private UserCodeClassLoader getOrResolveClassLoader(
-                Collection<PermanentBlobKey> libraries, Collection<URL> classPaths)
+                Collection<PermanentBlobKey> libraries,
+                Collection<URL> classPaths,
+                boolean useSystemClassLoader)
                 throws IOException {
             synchronized (lockObject) {
                 verifyIsNotReleased();
 
                 if (resolvedClassLoader == null) {
+                    boolean systemClassLoader =
+                            useSystemClassLoader && libraries.isEmpty() && classPaths.isEmpty();
                     resolvedClassLoader =
                             new ResolvedClassLoader(
-                                    createUserCodeClassLoader(jobId, libraries, classPaths),
+                                    systemClassLoader
+                                            ? ClassLoader.getSystemClassLoader()
+                                            : createUserCodeClassLoader(
+                                                    jobId, libraries, classPaths),
                                     libraries,
-                                    classPaths);
+                                    classPaths,
+                                    systemClassLoader);
                 } else {
                     resolvedClassLoader.verifyClassLoader(libraries, classPaths);
                 }
@@ -337,12 +345,8 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
                 Collection<PermanentBlobKey> requiredJarFiles, Collection<URL> requiredClasspaths)
                 throws IOException {
             verifyIsNotClosed();
-            if (useSystemClassLoader
-                    && requiredJarFiles.isEmpty()
-                    && requiredClasspaths.isEmpty()) {
-                return SimpleUserCodeClassLoader.create(ClassLoader.getSystemClassLoader());
-            }
-            return libraryCacheEntry.getOrResolveClassLoader(requiredJarFiles, requiredClasspaths);
+            return libraryCacheEntry.getOrResolveClassLoader(
+                    requiredJarFiles, requiredClasspaths, useSystemClassLoader);
         }
 
         private void verifyIsNotClosed() {
@@ -367,7 +371,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
     }
 
     private static final class ResolvedClassLoader implements UserCodeClassLoader {
-        private final URLClassLoader classLoader;
+        private final ClassLoader classLoader;
 
         /**
          * Set of BLOB keys used for a previous job/task registration.
@@ -385,12 +389,15 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
          */
         private final Set<String> classPaths;
 
+        private final boolean systemClassLoader;
+
         private final Map<String, Runnable> releaseHooks;
 
         private ResolvedClassLoader(
-                URLClassLoader classLoader,
+                ClassLoader classLoader,
                 Collection<PermanentBlobKey> requiredLibraries,
-                Collection<URL> requiredClassPaths) {
+                Collection<URL> requiredClassPaths,
+                boolean systemClassLoader) {
             this.classLoader = classLoader;
 
             // NOTE: do not store the class paths, i.e. URLs, into a set for performance reasons
@@ -401,6 +408,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
                 classPaths.add(url.toString());
             }
             this.libraries = new HashSet<>(requiredLibraries);
+            this.systemClassLoader = systemClassLoader;
 
             this.releaseHooks = new HashMap<>();
         }
@@ -457,12 +465,14 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
         private void releaseClassLoader() {
             runReleaseHooks();
 
-            try {
-                classLoader.close();
-            } catch (IOException e) {
-                LOG.warn(
-                        "Failed to release user code class loader for "
-                                + Arrays.toString(libraries.toArray()));
+            if (!systemClassLoader) {
+                try {
+                    ((Closeable) classLoader).close();
+                } catch (IOException e) {
+                    LOG.warn(
+                            "Failed to release user code class loader for "
+                                    + Arrays.toString(libraries.toArray()));
+                }
             }
             // clear potential references to user-classes in the singleton cache
             TypeFactory.defaultInstance().clearCache();
