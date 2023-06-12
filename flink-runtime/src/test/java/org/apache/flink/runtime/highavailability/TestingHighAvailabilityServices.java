@@ -52,10 +52,10 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
     private volatile Function<JobID, LeaderElectionService> jobMasterLeaderElectionServiceFunction =
             ignored -> null;
 
-    private ConcurrentHashMap<JobID, LeaderRetrievalService> jobMasterLeaderRetrievers =
+    private final ConcurrentHashMap<JobID, LeaderRetrievalService> jobMasterLeaderRetrievers =
             new ConcurrentHashMap<>();
 
-    private ConcurrentHashMap<JobID, LeaderElectionService> jobManagerLeaderElectionServices =
+    private final ConcurrentHashMap<JobID, LeaderElectionService> jobManagerLeaderElectionServices =
             new ConcurrentHashMap<>();
 
     private volatile LeaderElectionService resourceManagerLeaderElectionService;
