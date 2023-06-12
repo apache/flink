@@ -57,7 +57,7 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
     /**
      * {@code leaderContender} being {@code null} indicates that no {@link LeaderContender} is
      * registered that participates in the leader election, yet. See {@link
-     * #register(LeaderContender)} and {@link #stop()} for lifecycle management.
+     * #register(LeaderContender)} and {@link #remove(LeaderContender)} for lifecycle management.
      *
      * <p>{@code @Nullable} isn't used here to avoid having multiple warnings spread over this class
      * in a supporting IDE.
