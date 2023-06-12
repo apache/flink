@@ -119,7 +119,7 @@ public class FlinkResultSetTest {
                                         (RowData)
                                                 GenericRowData.of(
                                                         null, null, null, null, null, null, null,
-                                                        null, null, null))
+                                                        null, null, null, null))
                                 .iterator());
         try (ResultSet resultSet =
                 new FlinkResultSet(
@@ -128,15 +128,26 @@ public class FlinkResultSetTest {
                                 SCHEMA, data, true, ResultKind.SUCCESS, JobID.generate()))) {
             assertTrue(resultSet.next());
             assertFalse(resultSet.getBoolean(1));
+            assertNull(resultSet.getObject(1));
             assertEquals((byte) 0, resultSet.getByte(2));
+            assertNull(resultSet.getObject(2));
             assertEquals((short) 0, resultSet.getShort(3));
+            assertNull(resultSet.getObject(3));
             assertEquals(0, resultSet.getInt(4));
+            assertNull(resultSet.getObject(4));
             assertEquals(0L, resultSet.getLong(5));
+            assertNull(resultSet.getObject(5));
             assertEquals((float) 0.0, resultSet.getFloat(6));
+            assertNull(resultSet.getObject(6));
             assertEquals(0.0, resultSet.getDouble(7));
+            assertNull(resultSet.getObject(7));
             assertNull(resultSet.getBigDecimal(8));
+            assertNull(resultSet.getObject(8));
             assertNull(resultSet.getString(9));
+            assertNull(resultSet.getObject(9));
             assertNull(resultSet.getBytes(10));
+            assertNull(resultSet.getObject(10));
+            assertNull(resultSet.getObject(11));
             assertFalse(resultSet.next());
         }
     }

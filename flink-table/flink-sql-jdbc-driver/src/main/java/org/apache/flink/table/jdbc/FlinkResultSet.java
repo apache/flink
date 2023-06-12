@@ -386,6 +386,10 @@ public class FlinkResultSet extends BaseResultSet {
     }
 
     private Object convertToJavaObject(Object object, LogicalType dataType) throws SQLException {
+        if (object == null) {
+            return null;
+        }
+
         switch (dataType.getTypeRoot()) {
             case BOOLEAN:
             case TINYINT:
