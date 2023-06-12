@@ -107,7 +107,14 @@ public class FsJobArchivist {
     public static Collection<ArchivedJson> getArchivedJsons(Path file) throws IOException {
         try (FSDataInputStream input = file.getFileSystem().open(file);
                 ByteArrayOutputStream output = new ByteArrayOutputStream()) {
-            IOUtils.copyBytes(input, output);
+            try {
+                IOUtils.copyBytes(input, output);
+            } catch (OutOfMemoryError ignored) {
+                // Do not quit for OOM error until we have a solution to handle large files
+                // Rethrow as IOException
+                throw new IOException(
+                        "Job archive (" + file.getPath() + ") exceed max file size 2GB.");
+            }
 
             try {
                 JsonNode archive = mapper.readTree(output.toByteArray());
