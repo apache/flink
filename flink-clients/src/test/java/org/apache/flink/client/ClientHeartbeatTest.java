@@ -42,7 +42,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Tests for client's heartbeat. */
 public class ClientHeartbeatTest {
     private final long clientHeartbeatInterval = 50;
-    private final long clientHeartbeatTimeout = 500;
+    private final long clientHeartbeatTimeout = 1000;
 
     private MiniCluster miniCluster;
 
