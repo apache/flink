@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.dispatcher;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
@@ -91,6 +93,7 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcServiceUtils;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -98,11 +101,6 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.FunctionUtils;
 import org.apache.flink.util.function.ThrowingConsumer;
-
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -125,7 +123,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Base class for the Dispatcher component. The Dispatcher component is responsible for receiving
@@ -618,14 +617,15 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
         return waitForTerminatingJob(jobGraph.getJobID(), jobGraph, this::persistAndRunJob)
                 .handle((ignored, throwable) -> handleTermination(jobGraph.getJobID(), throwable))
-                .thenCompose(Function.identity());
+                .thenCompose(Function.identity())
+                .whenComplete(
+                        (ignored, throwable) ->
+                                // job is done processing, whether failed or finished
+                                submittedAndWaitingTerminationJobIDs.remove(jobGraph.getJobID()));
     }
 
     private CompletableFuture<Acknowledge> handleTermination(
             JobID jobId, @Nullable Throwable terminationThrowable) {
-
-        // job is done processing, whether failed or finished
-        submittedAndWaitingTerminationJobIDs.remove(jobId);
 
         if (terminationThrowable != null) {
             return globalResourceCleaner
