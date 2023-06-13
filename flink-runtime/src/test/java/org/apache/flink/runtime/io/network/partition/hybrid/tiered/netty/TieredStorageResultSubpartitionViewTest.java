@@ -41,8 +41,8 @@ import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType.END_OF_
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Tests for {@link TieredStoreResultSubpartitionView}. */
-public class TieredStoreResultSubpartitionViewTest {
+/** Tests for {@link TieredStorageResultSubpartitionView}. */
+public class TieredStorageResultSubpartitionViewTest {
 
     private static final int TIER_NUMBER = 2;
 
@@ -52,7 +52,7 @@ public class TieredStoreResultSubpartitionViewTest {
 
     private List<CompletableFuture<NettyConnectionId>> connectionBrokenConsumers;
 
-    private TieredStoreResultSubpartitionView tieredStoreResultSubpartitionView;
+    private TieredStorageResultSubpartitionView tieredStorageResultSubpartitionView;
 
     @BeforeEach
     void before() {
@@ -60,8 +60,8 @@ public class TieredStoreResultSubpartitionViewTest {
         nettyPayloadQueues = createNettyPayloadQueues();
         connectionBrokenConsumers =
                 Arrays.asList(new CompletableFuture<>(), new CompletableFuture<>());
-        tieredStoreResultSubpartitionView =
-                new TieredStoreResultSubpartitionView(
+        tieredStorageResultSubpartitionView =
+                new TieredStorageResultSubpartitionView(
                         createBufferAvailabilityListener(availabilityListener),
                         nettyPayloadQueues,
                         createNettyConnectionIds(),
@@ -70,26 +70,26 @@ public class TieredStoreResultSubpartitionViewTest {
 
     @Test
     void testGetNextBuffer() throws IOException {
-        checkBufferAndBacklog(tieredStoreResultSubpartitionView.getNextBuffer(), 1);
-        checkBufferAndBacklog(tieredStoreResultSubpartitionView.getNextBuffer(), 0);
-        tieredStoreResultSubpartitionView.notifyRequiredSegmentId(1);
+        checkBufferAndBacklog(tieredStorageResultSubpartitionView.getNextBuffer(), 1);
+        checkBufferAndBacklog(tieredStorageResultSubpartitionView.getNextBuffer(), 0);
+        tieredStorageResultSubpartitionView.notifyRequiredSegmentId(1);
         assertThat(availabilityListener).isDone();
-        checkBufferAndBacklog(tieredStoreResultSubpartitionView.getNextBuffer(), 1);
-        checkBufferAndBacklog(tieredStoreResultSubpartitionView.getNextBuffer(), 0);
-        assertThat(tieredStoreResultSubpartitionView.getNextBuffer()).isNull();
+        checkBufferAndBacklog(tieredStorageResultSubpartitionView.getNextBuffer(), 1);
+        checkBufferAndBacklog(tieredStorageResultSubpartitionView.getNextBuffer(), 0);
+        assertThat(tieredStorageResultSubpartitionView.getNextBuffer()).isNull();
     }
 
     @Test
     void testGetNextBufferFailed() {
         Throwable expectedError = new IOException();
         nettyPayloadQueues = createNettyPayloadQueuesWithError(expectedError);
-        tieredStoreResultSubpartitionView =
-                new TieredStoreResultSubpartitionView(
+        tieredStorageResultSubpartitionView =
+                new TieredStorageResultSubpartitionView(
                         createBufferAvailabilityListener(availabilityListener),
                         nettyPayloadQueues,
                         createNettyConnectionIds(),
                         createNettyServiceProducers(connectionBrokenConsumers));
-        assertThatThrownBy(tieredStoreResultSubpartitionView::getNextBuffer)
+        assertThatThrownBy(tieredStorageResultSubpartitionView::getNextBuffer)
                 .hasCause(expectedError);
         assertThat(connectionBrokenConsumers.get(0)).isDone();
     }
@@ -97,35 +97,35 @@ public class TieredStoreResultSubpartitionViewTest {
     @Test
     void testGetAvailabilityAndBacklog() {
         ResultSubpartitionView.AvailabilityWithBacklog availabilityAndBacklog1 =
-                tieredStoreResultSubpartitionView.getAvailabilityAndBacklog(0);
+                tieredStorageResultSubpartitionView.getAvailabilityAndBacklog(0);
         assertThat(availabilityAndBacklog1.getBacklog()).isEqualTo(3);
         assertThat(availabilityAndBacklog1.isAvailable()).isEqualTo(false);
         ResultSubpartitionView.AvailabilityWithBacklog availabilityAndBacklog2 =
-                tieredStoreResultSubpartitionView.getAvailabilityAndBacklog(2);
+                tieredStorageResultSubpartitionView.getAvailabilityAndBacklog(2);
         assertThat(availabilityAndBacklog2.getBacklog()).isEqualTo(3);
         assertThat(availabilityAndBacklog2.isAvailable()).isEqualTo(true);
     }
 
     @Test
     void testNotifyRequiredSegmentId() {
-        tieredStoreResultSubpartitionView.notifyRequiredSegmentId(1);
+        tieredStorageResultSubpartitionView.notifyRequiredSegmentId(1);
         assertThat(availabilityListener).isDone();
     }
 
     @Test
     void testReleaseAllResources() throws IOException {
-        tieredStoreResultSubpartitionView.releaseAllResources();
+        tieredStorageResultSubpartitionView.releaseAllResources();
         assertThat(nettyPayloadQueues.get(0)).hasSize(0);
         assertThat(nettyPayloadQueues.get(1)).hasSize(0);
         assertThat(connectionBrokenConsumers.get(0)).isDone();
         assertThat(connectionBrokenConsumers.get(1)).isDone();
-        assertThat(tieredStoreResultSubpartitionView.isReleased()).isTrue();
+        assertThat(tieredStorageResultSubpartitionView.isReleased()).isTrue();
     }
 
     @Test
     void testGetNumberOfQueuedBuffers() {
-        assertThat(tieredStoreResultSubpartitionView.getNumberOfQueuedBuffers()).isEqualTo(3);
-        assertThat(tieredStoreResultSubpartitionView.unsynchronizedGetNumberOfQueuedBuffers())
+        assertThat(tieredStorageResultSubpartitionView.getNumberOfQueuedBuffers()).isEqualTo(3);
+        assertThat(tieredStorageResultSubpartitionView.unsynchronizedGetNumberOfQueuedBuffers())
                 .isEqualTo(3);
     }
 
