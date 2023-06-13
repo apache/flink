@@ -44,11 +44,17 @@ import java.util.Optional;
 @FlinkJsonSchema.AdditionalFields(type = JobVertexResourceRequirements.class)
 public class JobResourceRequirementsBody implements RequestBody, ResponseBody {
 
-    @JsonAnySetter
-    @JsonAnyGetter
     @JsonSerialize(keyUsing = JobVertexIDKeySerializer.class)
     @JsonDeserialize(keyUsing = JobVertexIDKeyDeserializer.class)
-    private final Map<JobVertexID, JobVertexResourceRequirements> jobVertexResourceRequirements;
+    private Map<JobVertexID, JobVertexResourceRequirements> jobVertexResourceRequirements;
+
+    public Map<JobVertexID, JobVertexResourceRequirements> getJobVertexResourceRequirements() {
+        return jobVertexResourceRequirements;
+    }
+
+    public void setJobVertexResourceRequirements(Map<JobVertexID, JobVertexResourceRequirements> jobVertexResourceRequirements) {
+        this.jobVertexResourceRequirements = jobVertexResourceRequirements;
+    }
 
     public JobResourceRequirementsBody() {
         this(null);
