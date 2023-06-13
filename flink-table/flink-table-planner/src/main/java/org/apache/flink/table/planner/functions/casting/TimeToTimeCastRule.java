@@ -18,27 +18,24 @@
 
 package org.apache.flink.table.planner.functions.casting;
 
-import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.planner.codegen.calls.BuiltInMethods;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
-import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.STRING_DATA_TO_TIME;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.staticCall;
 
 /**
- * {@link LogicalTypeFamily#CHARACTER_STRING} to {@link LogicalTypeRoot#TIME_WITHOUT_TIME_ZONE} cast
- * rule.
+ * {@link LogicalTypeRoot#TIME_WITHOUT_TIME_ZONE} to {@link LogicalTypeRoot#TIME_WITHOUT_TIME_ZONE}.
  */
-class StringToTimeCastRule extends AbstractExpressionCodeGeneratorCastRule<StringData, Integer> {
+class TimeToTimeCastRule extends AbstractExpressionCodeGeneratorCastRule<Number, Number> {
 
-    static final StringToTimeCastRule INSTANCE = new StringToTimeCastRule();
+    static final TimeToTimeCastRule INSTANCE = new TimeToTimeCastRule();
 
-    private StringToTimeCastRule() {
+    private TimeToTimeCastRule() {
         super(
                 CastRulePredicate.builder()
-                        .input(LogicalTypeFamily.CHARACTER_STRING)
+                        .input(LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE)
                         .target(LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE)
                         .build());
     }
@@ -49,14 +46,13 @@ class StringToTimeCastRule extends AbstractExpressionCodeGeneratorCastRule<Strin
             String inputTerm,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        return staticCall(
-                STRING_DATA_TO_TIME(),
-                inputTerm,
-                LogicalTypeChecks.getPrecision(targetLogicalType));
-    }
+        final int inputPrecision = LogicalTypeChecks.getPrecision(inputLogicalType);
+        int targetPrecision = LogicalTypeChecks.getPrecision(targetLogicalType);
 
-    @Override
-    public boolean canFail(LogicalType inputLogicalType, LogicalType targetLogicalType) {
-        return true;
+        if (inputPrecision <= targetPrecision) {
+            return inputTerm;
+        } else {
+            return staticCall(BuiltInMethods.TRUNCATE_SQL_TIME(), inputTerm, targetPrecision);
+        }
     }
 }

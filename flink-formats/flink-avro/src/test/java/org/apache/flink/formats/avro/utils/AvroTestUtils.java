@@ -101,7 +101,7 @@ public final class AvroTestUtils {
                         .setTypeNested(addr)
                         .setTypeBytes(ByteBuffer.allocate(10))
                         .setTypeDate(LocalDate.parse("2014-03-01"))
-                        .setTypeTimeMillis(LocalTime.parse("12:12:12"))
+                        .setTypeTimeMillis(LocalTime.parse("12:12:12.123"))
                         .setTypeTimeMicros(
                                 LocalTime.ofSecondOfDay(0).plus(123456L, ChronoUnit.MICROS))
                         .setTypeTimestampMillis(Instant.parse("2014-03-01T12:12:12.321Z"))

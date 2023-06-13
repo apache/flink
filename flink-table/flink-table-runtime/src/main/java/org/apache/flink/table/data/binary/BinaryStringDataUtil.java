@@ -594,13 +594,16 @@ public class BinaryStringDataUtil {
         return date;
     }
 
-    public static int toTime(BinaryStringData input) throws DateTimeException {
-        Integer date = DateTimeUtils.parseTime(input.toString());
-        if (date == null) {
+    public static int toTime(BinaryStringData input, int precision) throws DateTimeException {
+        Integer time = DateTimeUtils.parseTime(input.toString());
+        if (time == null) {
             throw new DateTimeException("For input string: '" + input + "'.");
         }
-
-        return date;
+        if (precision < 3) {
+            int tenToTheN = (int) Math.pow(10, 3 - precision);
+            time = (time / tenToTheN) * tenToTheN;
+        }
+        return time;
     }
 
     /** Used by {@code CAST(x as TIMESTAMP)}. */

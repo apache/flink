@@ -115,7 +115,7 @@ class AvroSplittableInputFormatTest {
         user1.setTypeNested(addr);
         user1.setTypeBytes(ByteBuffer.allocate(10));
         user1.setTypeDate(LocalDate.parse("2014-03-01"));
-        user1.setTypeTimeMillis(LocalTime.parse("12:12:12"));
+        user1.setTypeTimeMillis(LocalTime.parse("12:12:12.123"));
         user1.setTypeTimeMicros(LocalTime.ofSecondOfDay(0).plus(123456L, ChronoUnit.MICROS));
         user1.setTypeTimestampMillis(Instant.parse("2014-03-01T12:12:12.321Z"));
         user1.setTypeTimestampMicros(Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS));
@@ -153,7 +153,7 @@ class AvroSplittableInputFormatTest {
                                         .build())
                         .setTypeBytes(ByteBuffer.allocate(10))
                         .setTypeDate(LocalDate.parse("2014-03-01"))
-                        .setTypeTimeMillis(LocalTime.parse("12:12:12"))
+                        .setTypeTimeMillis(LocalTime.parse("12:12:12.123"))
                         .setTypeTimeMicros(
                                 LocalTime.ofSecondOfDay(0).plus(123456L, ChronoUnit.MICROS))
                         .setTypeTimestampMillis(Instant.parse("2014-03-01T12:12:12.321Z"))
@@ -194,7 +194,7 @@ class AvroSplittableInputFormatTest {
             user.setTypeNested(address);
             user.setTypeBytes(ByteBuffer.allocate(10));
             user.setTypeDate(LocalDate.parse("2014-03-01"));
-            user.setTypeTimeMillis(LocalTime.parse("12:12:12"));
+            user.setTypeTimeMillis(LocalTime.parse("12:12:12.123"));
             user.setTypeTimeMicros(LocalTime.ofSecondOfDay(0).plus(123456L, ChronoUnit.MICROS));
             user.setTypeTimestampMillis(Instant.parse("2014-03-01T12:12:12.321Z"));
             user.setTypeTimestampMicros(Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS));

@@ -22,6 +22,7 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.planner.codegen.calls.BuiltInMethods;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.utils.DateTimeUtils;
 
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.cast;
@@ -55,17 +56,31 @@ class TimestampToTimeCastRule
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
 
+        int inputPrecision = LogicalTypeChecks.getPrecision(inputLogicalType);
+        int targetPrecision = LogicalTypeChecks.getPrecision(targetLogicalType);
         if (inputLogicalType.is(LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE)) {
+            String input = inputTerm;
+            if (inputPrecision > targetPrecision) {
+                input =
+                        staticCall(
+                                BuiltInMethods.TRUNCATE_SQL_TIMESTAMP(),
+                                inputTerm,
+                                targetPrecision);
+            }
             return cast(
                     "int",
                     operator(
-                            methodCall(inputTerm, "getMillisecond"),
+                            methodCall(input, "getMillisecond"),
                             "%",
                             DateTimeUtils.MILLIS_PER_DAY));
         } else if (inputLogicalType.is(LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE)) {
+            String input = inputTerm;
+            if (inputPrecision > targetPrecision) {
+                input = staticCall(BuiltInMethods.TRUNCATE_SQL_TIMESTAMP(), input, targetPrecision);
+            }
             return staticCall(
                     BuiltInMethods.TIMESTAMP_WITH_LOCAL_TIME_ZONE_TO_TIME(),
-                    inputTerm,
+                    input,
                     context.getSessionTimeZoneTerm());
         } else {
             throw new IllegalArgumentException("This is a bug. Please file an issue.");

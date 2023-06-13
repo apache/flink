@@ -609,7 +609,7 @@ class TemporalTypesTest extends ExpressionTestBase {
   @Test
   def testDateAndTime(): Unit = {
     testSqlApi("DATE '2018-03-14'", "2018-03-14")
-    testSqlApi("TIME '19:01:02.123'", "19:01:02")
+    testSqlApi("TIME '19:01:02.123'", "19:01:02.123")
 
     // DATE & TIME
     testSqlApi("CAST('12:44:31' AS TIME)", "12:44:31")

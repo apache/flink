@@ -178,14 +178,22 @@ object ScalarOperatorGens {
         }
 
       case (TIME_WITHOUT_TIME_ZONE, INTERVAL_DAY_TIME) =>
-        generateOperatorIfNotNull(ctx, new TimeType(), left, right) {
+        generateOperatorIfNotNull(
+          ctx,
+          new TimeType(LogicalTypeChecks.getPrecision(left.resultType)),
+          left,
+          right) {
           (l, r) =>
             s"java.lang.Math.toIntExact((($l + ${MILLIS_PER_DAY}L) $op (" +
               s"java.lang.Math.toIntExact($r % ${MILLIS_PER_DAY}L))) % ${MILLIS_PER_DAY}L)"
         }
 
       case (TIME_WITHOUT_TIME_ZONE, INTERVAL_YEAR_MONTH) =>
-        generateOperatorIfNotNull(ctx, new TimeType(), left, right)((l, r) => s"$l")
+        generateOperatorIfNotNull(
+          ctx,
+          new TimeType(LogicalTypeChecks.getPrecision(left.resultType)),
+          left,
+          right)((l, r) => s"$l")
 
       case (TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE, INTERVAL_DAY_TIME) =>
         generateOperatorIfNotNull(ctx, left.resultType, left, right) {
@@ -582,9 +590,11 @@ object ScalarOperatorGens {
           }
       }
       // both sides are numeric
-      else if (isNumeric(left.resultType) && isNumeric(right.resultType)) {
-        (leftTerm, rightTerm) => s"$leftTerm $operator $rightTerm"
-      }
+      else if (
+        isNumeric(left.resultType) && isNumeric(right.resultType)
+        || isTime(left.resultType) &&
+        isTime(right.resultType)
+      ) { (leftTerm, rightTerm) => s"$leftTerm $operator $rightTerm" }
 
       // both sides are timestamp
       else if (isTimestamp(left.resultType) && isTimestamp(right.resultType)) {

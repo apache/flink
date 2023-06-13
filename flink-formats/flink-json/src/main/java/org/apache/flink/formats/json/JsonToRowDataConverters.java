@@ -214,7 +214,7 @@ public class JsonToRowDataConverters implements Serializable {
         LocalTime localTime = parsedTime.query(TemporalQueries.localTime());
 
         // get number of milliseconds of the day
-        return localTime.toSecondOfDay() * 1000;
+        return (int) (localTime.toNanoOfDay() / 1000_000);
     }
 
     private TimestampData convertToTimestamp(JsonNode jsonNode) {
