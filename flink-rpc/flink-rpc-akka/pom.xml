@@ -124,6 +124,7 @@ under the License.
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
+				<!-- Overwrite parent dependency management -->
 				<groupId>org.scala-lang</groupId>
 				<artifactId>scala-library</artifactId>
 				<version>${scala.version}</version>
