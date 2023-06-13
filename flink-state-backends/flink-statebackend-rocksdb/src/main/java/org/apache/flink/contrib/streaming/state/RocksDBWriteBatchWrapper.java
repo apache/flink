@@ -117,7 +117,7 @@ public class RocksDBWriteBatchWrapper implements AutoCloseable {
     public void remove(@Nonnull ColumnFamilyHandle handle, @Nonnull byte[] key)
             throws RocksDBException {
 
-        batch.remove(handle, key);
+        batch.delete(handle, key);
 
         flushIfNeeded();
     }
