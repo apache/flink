@@ -83,6 +83,9 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
     @GuardedBy("lock")
     private LeaderInformation confirmedLeaderInformation;
 
+    @GuardedBy("lock")
+    private boolean running;
+
     /**
      * {@code leaderElectionDriver} being {@code null} indicates that the connection to the
      * LeaderElection backend isn't established, yet. See {@link #startLeaderElectionBackend()} and
@@ -92,11 +95,18 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
      *
      * <p>{@code @Nullable} isn't used here to avoid having multiple warnings spread over this class
      * in a supporting IDE.
+     *
+     * <p>The driver is guarded by this instance's {@link #running} state.
      */
-    @GuardedBy("lock")
     private LeaderElectionDriver leaderElectionDriver;
 
-    @GuardedBy("lock")
+    /**
+     * This {@link ExecutorService} is used for running the leader event handling logic. Production
+     * code should rely on a single-threaded executor to ensure the sequential execution of the
+     * events.
+     *
+     * <p>The executor is guarded by this instance's {@link #running} state.
+     */
     private final ExecutorService leadershipOperationExecutor;
 
     public DefaultLeaderElectionService(LeaderElectionDriverFactory leaderElectionDriverFactory) {
@@ -122,6 +132,8 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
         this.confirmedLeaderInformation = LeaderInformation.empty();
 
         this.leadershipOperationExecutor = Preconditions.checkNotNull(leadershipOperationExecutor);
+
+        this.running = false;
     }
 
     /**
@@ -134,6 +146,11 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
             Preconditions.checkState(
                     leaderContender == null,
                     "No LeaderContender should have been registered, yet.");
+            Preconditions.checkState(
+                    leaderElectionDriver == null,
+                    "This DefaultLeaderElectionService cannot be reused. Calling startLeaderElectionBackend can only be called once to establish the connection to the HA backend.");
+
+            running = true;
 
             leaderElectionDriver =
                     leaderElectionDriverFactory.createLeaderElectionDriver(
@@ -152,7 +169,7 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
                     leaderContender == null,
                     "Only one LeaderContender is allowed to be registered to this service.");
             Preconditions.checkState(
-                    leaderElectionDriver != null,
+                    running,
                     "The DefaultLeaderElectionService should have established a connection to the backend before it's started.");
 
             leaderContender = contender;
@@ -208,29 +225,30 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
     public void close() throws Exception {
         synchronized (lock) {
             Preconditions.checkState(
+                    leaderElectionDriver != null, "The HA backend wasn't initialized.");
+
+            Preconditions.checkState(
                     leaderContender == null,
                     "The DefaultLeaderElectionService should have been stopped before closing the instance.");
 
             issuedLeaderSessionID = null;
 
-            if (leaderElectionDriver != null) {
-                leaderElectionDriver.close();
-                leaderElectionDriver = null;
-
-                // The shutdown of the thread pool needs to be done forcefully because we want its
-                // lifecycle being coupled to the driver (which require it to be shut down within
-                // the lock) to allow null checks in runInLeaderEventThread method. The outstanding
-                // event handling callbacks are going to be ignored, anyway.
-                final List<Runnable> outstandingEventHandlingCalls =
-                        Preconditions.checkNotNull(leadershipOperationExecutor).shutdownNow();
-                if (!outstandingEventHandlingCalls.isEmpty()) {
-                    LOG.debug(
-                            "The DefaultLeaderElectionService was closed with {} event(s) still not being processed. No further action necessary.",
-                            outstandingEventHandlingCalls.size());
-                }
+            if (running) {
+                running = false;
             } else {
                 LOG.debug("The HA backend connection isn't established. No actions taken.");
             }
+        }
+
+        leaderElectionDriver.close();
+
+        // interrupt any outstanding events
+        final List<Runnable> outstandingEventHandlingCalls =
+                Preconditions.checkNotNull(leadershipOperationExecutor).shutdownNow();
+        if (!outstandingEventHandlingCalls.isEmpty()) {
+            LOG.debug(
+                    "The DefaultLeaderElectionService was closed with {} event(s) still not being processed. No further action necessary.",
+                    outstandingEventHandlingCalls.size());
         }
     }
 
@@ -420,12 +438,14 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
 
     private void runInLeaderEventThread(Runnable callback) {
         synchronized (lock) {
-            if (!leadershipOperationExecutor.isShutdown()) {
+            if (running) {
                 FutureUtils.handleUncaughtException(
                         CompletableFuture.runAsync(
                                 () -> {
                                     synchronized (lock) {
-                                        callback.run();
+                                        if (running) {
+                                            callback.run();
+                                        }
                                     }
                                 },
                                 leadershipOperationExecutor),

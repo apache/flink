@@ -78,6 +78,63 @@ class DefaultLeaderElectionServiceTest {
         };
     }
 
+    @Test
+    void testCloseGrantDeadlock() throws Exception {
+        final OneShotLatch closeReachedLatch = new OneShotLatch();
+        final OneShotLatch closeContinueLatch = new OneShotLatch();
+        final OneShotLatch grantReachedLatch = new OneShotLatch();
+        final OneShotLatch grantContinueLatch = new OneShotLatch();
+
+        final TestingLeaderElectionDriver.TestingLeaderElectionDriverFactory driverFactory =
+                new TestingLeaderElectionDriver.TestingLeaderElectionDriverFactory(
+                        eventHandler -> {},
+                        eventHandler -> {
+                            closeReachedLatch.trigger();
+                            closeContinueLatch.await();
+                        },
+                        leaderElectionEventHandler -> {
+                            grantReachedLatch.trigger();
+                            grantContinueLatch.awaitQuietly();
+                        });
+
+        final ManuallyTriggeredScheduledExecutorService executorService =
+                new ManuallyTriggeredScheduledExecutorService();
+        final DefaultLeaderElectionService testInstance =
+                new DefaultLeaderElectionService(driverFactory, executorService);
+        testInstance.startLeaderElectionBackend();
+        final TestingLeaderElectionDriver driver = driverFactory.getCurrentLeaderDriver();
+        assertThat(driver).isNotNull();
+
+        final Thread closeThread =
+                new Thread(
+                        () -> {
+                            try {
+                                testInstance.close();
+                            } catch (Exception e) {
+                                throw new RuntimeException(e);
+                            }
+                        },
+                        "CloseThread");
+
+        // triggers close that acquires the DefaultLeaderElectionService lock
+        closeThread.start();
+        closeReachedLatch.await();
+
+        final Thread grantThread = new Thread(driver::isLeader, "GrantThread");
+
+        // triggers the service acquiring the leadership and, as a consequence, acquiring the
+        // driver's lock
+        grantThread.start();
+        grantReachedLatch.await();
+
+        // continue both processes which shouldn't result in a deadlock
+        grantContinueLatch.trigger();
+        closeContinueLatch.trigger();
+
+        closeThread.join();
+        grantThread.join();
+    }
+
     /**
      * With {@link MultipleComponentLeaderElectionDriverAdapter} and {@link
      * DefaultMultipleComponentLeaderElectionService} it happens that {@link
@@ -239,6 +296,9 @@ class DefaultLeaderElectionServiceTest {
                                     new TestingContender("unused-address", leaderElection)
                                             .startLeaderElection())
                     .isInstanceOf(IllegalStateException.class);
+
+            // starting the backend because the close method expects it to be initialized
+            leaderElectionService.startLeaderElectionBackend();
         }
     }
 
