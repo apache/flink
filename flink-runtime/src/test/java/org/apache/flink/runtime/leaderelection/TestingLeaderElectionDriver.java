@@ -25,6 +25,7 @@ import javax.annotation.Nullable;
 
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 /**
  * {@link LeaderElectionDriver} implementation which provides some convenience functions for testing
@@ -40,6 +41,9 @@ public class TestingLeaderElectionDriver implements LeaderElectionDriver {
     private final FatalErrorHandler fatalErrorHandler;
 
     private final ThrowingConsumer<LeaderElectionEventHandler, Exception> closeRunnable;
+    private final ThrowingConsumer<LeaderElectionEventHandler, Exception> beforeLockCloseRunnable;
+
+    private final Consumer<LeaderElectionEventHandler> beforeGrantRunnable;
 
     // Leader information on external storage
     private LeaderInformation leaderInformation = LeaderInformation.empty();
@@ -47,10 +51,14 @@ public class TestingLeaderElectionDriver implements LeaderElectionDriver {
     private TestingLeaderElectionDriver(
             LeaderElectionEventHandler leaderElectionEventHandler,
             FatalErrorHandler fatalErrorHandler,
-            ThrowingConsumer<LeaderElectionEventHandler, Exception> closeRunnable) {
+            ThrowingConsumer<LeaderElectionEventHandler, Exception> closeRunnable,
+            ThrowingConsumer<LeaderElectionEventHandler, Exception> beforeLockCloseRunnable,
+            Consumer<LeaderElectionEventHandler> beforeGrantRunnable) {
         this.leaderElectionEventHandler = leaderElectionEventHandler;
         this.fatalErrorHandler = fatalErrorHandler;
         this.closeRunnable = closeRunnable;
+        this.beforeLockCloseRunnable = beforeLockCloseRunnable;
+        this.beforeGrantRunnable = beforeGrantRunnable;
     }
 
     @Override
@@ -65,6 +73,7 @@ public class TestingLeaderElectionDriver implements LeaderElectionDriver {
 
     @Override
     public void close() throws Exception {
+        beforeLockCloseRunnable.accept(leaderElectionEventHandler);
         synchronized (lock) {
             closeRunnable.accept(leaderElectionEventHandler);
         }
@@ -77,6 +86,7 @@ public class TestingLeaderElectionDriver implements LeaderElectionDriver {
     public void isLeader(UUID newSessionID) {
         synchronized (lock) {
             isLeader.set(true);
+            beforeGrantRunnable.accept(leaderElectionEventHandler);
             leaderElectionEventHandler.onGrantLeadership(newSessionID);
         }
     }
@@ -107,6 +117,10 @@ public class TestingLeaderElectionDriver implements LeaderElectionDriver {
         private TestingLeaderElectionDriver currentLeaderDriver;
 
         private final ThrowingConsumer<LeaderElectionEventHandler, Exception> closeRunnable;
+        private final ThrowingConsumer<LeaderElectionEventHandler, Exception>
+                beforeLockCloseRunnable;
+
+        private final Consumer<LeaderElectionEventHandler> beforeGrantRunnable;
 
         public TestingLeaderElectionDriverFactory() {
             this(ignoredLeaderElectionEventHandler -> {});
@@ -114,7 +128,19 @@ public class TestingLeaderElectionDriver implements LeaderElectionDriver {
 
         public TestingLeaderElectionDriverFactory(
                 ThrowingConsumer<LeaderElectionEventHandler, Exception> closeRunnable) {
+            this(
+                    closeRunnable,
+                    ignoredLeaderElectionEventHandler -> {},
+                    ignoredLeaderElectionEventHandler -> {});
+        }
+
+        public TestingLeaderElectionDriverFactory(
+                ThrowingConsumer<LeaderElectionEventHandler, Exception> closeRunnable,
+                ThrowingConsumer<LeaderElectionEventHandler, Exception> beforeLockCloseRunnable,
+                Consumer<LeaderElectionEventHandler> beforeGrantRunnable) {
             this.closeRunnable = closeRunnable;
+            this.beforeLockCloseRunnable = beforeLockCloseRunnable;
+            this.beforeGrantRunnable = beforeGrantRunnable;
         }
 
         @Override
@@ -123,7 +149,11 @@ public class TestingLeaderElectionDriver implements LeaderElectionDriver {
                 FatalErrorHandler fatalErrorHandler) {
             currentLeaderDriver =
                     new TestingLeaderElectionDriver(
-                            leaderEventHandler, fatalErrorHandler, closeRunnable);
+                            leaderEventHandler,
+                            fatalErrorHandler,
+                            closeRunnable,
+                            beforeLockCloseRunnable,
+                            beforeGrantRunnable);
             return currentLeaderDriver;
         }
 
