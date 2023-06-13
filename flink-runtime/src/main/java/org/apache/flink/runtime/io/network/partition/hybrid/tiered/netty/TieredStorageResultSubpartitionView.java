@@ -34,10 +34,10 @@ import java.util.Queue;
 import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType.END_OF_SEGMENT;
 
 /**
- * The {@link TieredStoreResultSubpartitionView} is the implementation of {@link
+ * The {@link TieredStorageResultSubpartitionView} is the implementation of {@link
  * ResultSubpartitionView} of {@link TieredResultPartition}.
  */
-public class TieredStoreResultSubpartitionView implements ResultSubpartitionView {
+public class TieredStorageResultSubpartitionView implements ResultSubpartitionView {
 
     private final BufferAvailabilityListener availabilityListener;
 
@@ -57,7 +57,7 @@ public class TieredStoreResultSubpartitionView implements ResultSubpartitionView
 
     private int currentSequenceNumber = -1;
 
-    public TieredStoreResultSubpartitionView(
+    public TieredStorageResultSubpartitionView(
             BufferAvailabilityListener availabilityListener,
             List<Queue<NettyPayload>> nettyPayloadQueues,
             List<NettyConnectionId> nettyConnectionIds,
