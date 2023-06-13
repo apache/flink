@@ -45,6 +45,12 @@
             <td>Pattern of the log URL of TaskManager. The HistoryServer will generate actual URLs from it, with replacing the special placeholders, `&lt;jobid&gt;` and `&lt;tmid&gt;`, to the id of job and TaskManager respectively. Only http / https schemes are supported.</td>
         </tr>
         <tr>
+            <td><h5>historyserver.num.workers</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>Integer</td>
+            <td>The maximum number of worker threads to archives in parallelIf set to `0` or less than `-1` HistoryServer will throw an <code class="highlighter-rouge">IllegalConfigurationException</code>. </td>
+        </tr>
+        <tr>
             <td><h5>historyserver.web.address</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
