@@ -699,6 +699,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         }
         isRestoring = true;
         closedOperators = false;
+        getEnvironment().getMetricGroup().getIOMetricGroup().markTaskInitializationStarted();
         LOG.debug("Initializing {}.", getName());
 
         operatorChain =
