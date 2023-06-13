@@ -18,6 +18,19 @@
 
 package org.apache.flink.runtime.dispatcher;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.core.Is.is;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
+import org.apache.commons.lang3.ObjectUtils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.operators.ResourceSpec;
@@ -89,23 +102,20 @@ import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.TestingJobGraphStore;
 import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
-
-import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
-
 import org.assertj.core.api.Assertions;
+import org.assertj.core.api.ThrowableAssert;
 import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-
-import javax.annotation.Nonnull;
 
 import java.io.File;
 import java.io.IOException;
@@ -126,7 +136,7 @@ import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -134,17 +144,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
-import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import javax.annotation.Nonnull;
 
 /** Test for the {@link Dispatcher} component. */
 public class DispatcherTest extends AbstractDispatcherTest {
@@ -235,24 +235,73 @@ public class DispatcherTest extends AbstractDispatcherTest {
     }
 
     @Test
-    public void testDuplicateJobSubmissionIsDetected() throws Exception {
+    public void testDuplicateJobSubmissionIsDetectedOnSimultaneousSubmission() throws Exception {
         dispatcher =
                 createAndStartDispatcher(
                         heartbeatServices,
                         haServices,
                         new TestingJobMasterServiceLeadershipRunnerFactory());
-
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
-        final CompletableFuture<Acknowledge> firstSubmission =
-                dispatcherGateway.submitJob(jobGraph, TIMEOUT);
-        final CompletableFuture<Acknowledge> secondSubmission =
-                dispatcherGateway.submitJob(jobGraph, TIMEOUT);
+        final OneShotLatch startLatch = new OneShotLatch();
+        CountDownLatch completedSubmissionCounter = new CountDownLatch(2);
 
-        firstSubmission.join();
-        Assertions.assertThatExceptionOfType(CompletionException.class)
-                .isThrownBy(secondSubmission::join)
-                .withCauseInstanceOf(DuplicateJobSubmissionException.class);
+        // give final access to the inner threads
+        final AtomicReference<Throwable> firstCatch = new AtomicReference<>();
+        final AtomicReference<Throwable> secondCatch = new AtomicReference<>();
+
+        Thread tFirstSubmission =
+                new Thread(
+                        () -> {
+                            try {
+                                startLatch.await();
+
+                                CompletableFuture<Acknowledge> firstSubmission =
+                                        dispatcherGateway.submitJob(jobGraph, TIMEOUT);
+                                firstCatch.set(
+                                        ThrowableAssert.catchThrowable(firstSubmission::join));
+                            } catch (Exception e) {
+                                throw new RuntimeException(e);
+                            } finally {
+                                completedSubmissionCounter.countDown();
+                            }
+                        });
+        Thread tSecondSubmission =
+                new Thread(
+                        () -> {
+                            try {
+                                startLatch.await();
+
+                                CompletableFuture<Acknowledge> secondSubmission =
+                                        dispatcherGateway.submitJob(jobGraph, TIMEOUT);
+                                secondCatch.set(
+                                        ThrowableAssert.catchThrowable(secondSubmission::join));
+                            } catch (Exception e) {
+                                throw new RuntimeException(e);
+                            } finally {
+                                completedSubmissionCounter.countDown();
+                            }
+                        });
+
+        // start worker threads and trigger job submissions
+        tFirstSubmission.start();
+        tSecondSubmission.start();
+        startLatch.trigger();
+
+        // wait for the job submissions to happen
+        completedSubmissionCounter.await();
+
+        // only one throwable should've been thrown
+        Assertions.assertThat(firstCatch.get()).isNotEqualTo(secondCatch.get());
+
+        // we'd want one submission to fail with DuplicateJobSubmissionException
+        if (ObjectUtils.isNotEmpty(firstCatch.get())) {
+            Assertions.assertThat(firstCatch.get())
+                    .hasCauseInstanceOf(DuplicateJobSubmissionException.class);
+        } else { // second submission must've failed
+            Assertions.assertThat(secondCatch.get())
+                    .hasCauseInstanceOf(DuplicateJobSubmissionException.class);
+        }
     }
 
     private void assertDuplicateJobSubmission() throws Exception {
