@@ -492,7 +492,7 @@ class HistoryServerArchiveFetcher {
     private void updateJobOverview(File webOverviewDir, File webDir) {
         try (JsonGenerator gen =
                 jacksonFactory.createGenerator(
-                    HistoryServer.createOrGetFile(webDir, JobsOverviewHeaders.URL))) {
+                        HistoryServer.createOrGetFile(webDir, JobsOverviewHeaders.URL))) {
             File[] overviews = new File(webOverviewDir.getPath()).listFiles();
             if (overviews != null) {
                 Collection<JobDetails> allJobs = new ArrayList<>(overviews.length);
