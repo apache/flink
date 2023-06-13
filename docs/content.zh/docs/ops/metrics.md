@@ -1752,6 +1752,11 @@ Note that the metrics are only available via reporters.
       <td>The number of actions in the task's mailbox that are waiting to be processed.</td>
       <td>Gauge</td>
     </tr>
+   <tr>
+      <td>initializationTime</td>
+      <td>The time in milliseconds that one task spends on initialization, return 0 when the task is not in initialization/running status. Most of the initialization time is usually spent in restoring from the checkpoint.</td>
+      <td>Counter</td>
+    </tr>
     <tr>
       <td rowspan="2"><strong>Task (only if buffer debloating is enabled and in non-source tasks)</strong></td>
       <td>estimatedTimeToConsumeBuffersMs</td>
