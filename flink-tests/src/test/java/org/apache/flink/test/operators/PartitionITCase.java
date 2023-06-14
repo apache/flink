@@ -718,7 +718,7 @@ public class PartitionITCase extends MultipleProgramsTestBase {
         }
     }
 
-    private static class ComparablePojo implements Comparable<ComparablePojo> {
+    public static class ComparablePojo implements Comparable<ComparablePojo> {
         private Long first;
         private Long second;
 
@@ -774,6 +774,9 @@ public class PartitionITCase extends MultipleProgramsTestBase {
         @Override
         public void mapPartition(Iterable<T> values, Collector<Tuple2<T, T>> out) throws Exception {
             Iterator<T> itr = values.iterator();
+            if (!itr.hasNext()) {
+                return;
+            }
             T min = itr.next();
             T max = min;
             T value;
