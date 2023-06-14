@@ -27,8 +27,6 @@ import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.json.JobVertexIDKeyDeserializer;
 import org.apache.flink.runtime.rest.messages.json.JobVertexIDKeySerializer;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonAnyGetter;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonAnySetter;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -44,11 +42,13 @@ import java.util.Optional;
 @FlinkJsonSchema.AdditionalFields(type = JobVertexResourceRequirements.class)
 public class JobResourceRequirementsBody implements RequestBody, ResponseBody {
 
-    @JsonAnySetter
-    @JsonAnyGetter
     @JsonSerialize(keyUsing = JobVertexIDKeySerializer.class)
     @JsonDeserialize(keyUsing = JobVertexIDKeyDeserializer.class)
     private final Map<JobVertexID, JobVertexResourceRequirements> jobVertexResourceRequirements;
+
+    public Map<JobVertexID, JobVertexResourceRequirements> getJobVertexResourceRequirements() {
+        return jobVertexResourceRequirements;
+    }
 
     public JobResourceRequirementsBody() {
         this(null);
