@@ -55,16 +55,8 @@ public class PythonEnvironmentManagerUtils {
 
     private static final String GET_SITE_PACKAGES_PATH_SCRIPT =
             "import sys;"
-                    + "from distutils.dist import Distribution;"
-                    + "install_obj = Distribution().get_command_obj('install', create=True);"
-                    + "install_obj.prefix = sys.argv[1];"
-                    + "install_obj.finalize_options();"
-                    + "installed_dir = [install_obj.install_purelib];"
-                    + "install_obj.install_purelib != install_obj.install_platlib and "
-                    + "installed_dir.append(install_obj.install_platlib);"
-                    + "print(installed_dir[0]);"
-                    + "len(installed_dir) > 1 and "
-                    + "print(installed_dir[1])";
+                    + "import sysconfig;"
+                    + "print(sysconfig.get_path('platlib', {'base': sys.argv[1], 'platbase': sys.argv[1]}))";
 
     private static final String CHECK_PIP_VERSION_SCRIPT =
             "import sys;"
