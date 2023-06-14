@@ -16,7 +16,7 @@
  * limitations under the License
  */
 
-package org.apache.flink.contrib.streaming.state.benchmark;
+package org.apache.flink.state.benchmark;
 
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;

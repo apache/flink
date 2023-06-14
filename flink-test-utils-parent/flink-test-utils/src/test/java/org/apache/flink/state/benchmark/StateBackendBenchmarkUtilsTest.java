@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.contrib.streaming.state.benchmark;
+package org.apache.flink.state.benchmark;
 
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -37,13 +37,13 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 
-import static org.apache.flink.contrib.streaming.state.benchmark.StateBackendBenchmarkUtils.applyToAllKeys;
-import static org.apache.flink.contrib.streaming.state.benchmark.StateBackendBenchmarkUtils.cleanUp;
-import static org.apache.flink.contrib.streaming.state.benchmark.StateBackendBenchmarkUtils.compactState;
-import static org.apache.flink.contrib.streaming.state.benchmark.StateBackendBenchmarkUtils.createKeyedStateBackend;
-import static org.apache.flink.contrib.streaming.state.benchmark.StateBackendBenchmarkUtils.getListState;
-import static org.apache.flink.contrib.streaming.state.benchmark.StateBackendBenchmarkUtils.getMapState;
-import static org.apache.flink.contrib.streaming.state.benchmark.StateBackendBenchmarkUtils.getValueState;
+import static org.apache.flink.state.benchmark.StateBackendBenchmarkUtils.applyToAllKeys;
+import static org.apache.flink.state.benchmark.StateBackendBenchmarkUtils.cleanUp;
+import static org.apache.flink.state.benchmark.StateBackendBenchmarkUtils.compactState;
+import static org.apache.flink.state.benchmark.StateBackendBenchmarkUtils.createKeyedStateBackend;
+import static org.apache.flink.state.benchmark.StateBackendBenchmarkUtils.getListState;
+import static org.apache.flink.state.benchmark.StateBackendBenchmarkUtils.getMapState;
+import static org.apache.flink.state.benchmark.StateBackendBenchmarkUtils.getValueState;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.not;
 
