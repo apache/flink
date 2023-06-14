@@ -299,6 +299,20 @@ function start_cluster {
   wait_dispatcher_running
 }
 
+function wait_sql_gateway_running {
+  local query_url="${REST_PROTOCOL}://${NODENAME}:8083/info"
+  wait_rest_endpoint_up "${query_url}" "SqlGateway" "Apache Flink"
+}
+
+function start_sql_gateway() {
+  "$FLINK_DIR"/bin/sql-gateway.sh start
+  wait_sql_gateway_running
+}
+
+function stop_sql_gateway() {
+  "$FLINK_DIR"/bin/sql-gateway.sh stop
+}
+
 function start_taskmanagers {
     local tmnum=$1
     local c

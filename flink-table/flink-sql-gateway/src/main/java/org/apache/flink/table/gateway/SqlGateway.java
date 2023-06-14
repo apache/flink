@@ -168,7 +168,6 @@ public class SqlGateway {
         @Override
         public void run() {
             // Shutdown the gateway
-            System.out.println("\nShutting down the Flink SqlGateway...");
             LOG.info("Shutting down the Flink SqlGateway...");
 
             try {
@@ -179,7 +178,6 @@ public class SqlGateway {
             }
 
             LOG.info("Flink SqlGateway has been shutdown.");
-            System.out.println("Flink SqlGateway has been shutdown.");
         }
     }
 }
