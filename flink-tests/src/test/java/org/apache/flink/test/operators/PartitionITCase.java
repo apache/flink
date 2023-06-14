@@ -718,6 +718,7 @@ public class PartitionITCase extends MultipleProgramsTestBase {
         }
     }
 
+    /** A comparable POJO. */
     public static class ComparablePojo implements Comparable<ComparablePojo> {
         private Long first;
         private Long second;
