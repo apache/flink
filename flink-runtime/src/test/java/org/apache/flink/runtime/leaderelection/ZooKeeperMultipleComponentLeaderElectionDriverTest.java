@@ -393,7 +393,7 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
 
         @Override
         public void notifyAllKnownLeaderInformation(
-                Map<String, LeaderInformation> leaderInformationWithComponentIds) {}
+                LeaderInformationRegister leaderInformationRegister) {}
     }
 
     private static ZooKeeperMultipleComponentLeaderElectionDriver createLeaderElectionDriver(

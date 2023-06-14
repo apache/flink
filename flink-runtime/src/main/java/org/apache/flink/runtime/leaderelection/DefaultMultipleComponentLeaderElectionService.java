@@ -251,7 +251,7 @@ public class DefaultMultipleComponentLeaderElectionService
 
     @Override
     public void notifyAllKnownLeaderInformation(
-            Map<String, LeaderInformation> leaderInformationWithComponentIds) {
+            LeaderInformationRegister leaderInformationRegister) {
         synchronized (lock) {
             if (!running) {
                 return;
@@ -261,15 +261,12 @@ public class DefaultMultipleComponentLeaderElectionService
                     leaderNameLeaderElectionEventHandlerPair :
                             leaderElectionEventHandlers.entrySet()) {
                 final String leaderName = leaderNameLeaderElectionEventHandlerPair.getKey();
-                if (leaderInformationWithComponentIds.containsKey(leaderName)) {
-                    sendLeaderInformationChange(
-                            leaderNameLeaderElectionEventHandlerPair.getValue(),
-                            leaderInformationWithComponentIds.get(leaderName));
-                } else {
-                    sendLeaderInformationChange(
-                            leaderNameLeaderElectionEventHandlerPair.getValue(),
-                            LeaderInformation.empty());
-                }
+                final LeaderInformation leaderInformation =
+                        leaderInformationRegister
+                                .forContenderID(leaderName)
+                                .orElse(LeaderInformation.empty());
+                sendLeaderInformationChange(
+                        leaderNameLeaderElectionEventHandlerPair.getValue(), leaderInformation);
             }
         }
     }

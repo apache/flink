@@ -22,7 +22,6 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.util.ExceptionUtils;
 
 import java.time.Duration;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -55,10 +54,8 @@ public final class TestingLeaderElectionListener
 
     @Override
     public void notifyAllKnownLeaderInformation(
-            Map<String, LeaderInformation> leaderInformationWithComponentIds) {
-        put(
-                new LeaderElectionEvent.AllKnownLeaderInformationEvent(
-                        leaderInformationWithComponentIds));
+            LeaderInformationRegister leaderInformationRegister) {
+        put(new LeaderElectionEvent.AllKnownLeaderInformationEvent(leaderInformationRegister));
     }
 
     private void put(LeaderElectionEvent leaderElectionEvent) {

@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.leaderelection;
 
-import java.util.Map;
-
 /**
  * A leader election driver that allows to write {@link LeaderInformation} for multiple components.
  */
@@ -76,12 +74,7 @@ public interface MultipleComponentLeaderElectionDriver {
          */
         void notifyLeaderInformationChange(String componentId, LeaderInformation leaderInformation);
 
-        /**
-         * Notifies the listener about all currently known leader information.
-         *
-         * @param leaderInformationWithComponentIds leader information with component ids
-         */
-        void notifyAllKnownLeaderInformation(
-                Map<String, LeaderInformation> leaderInformationWithComponentIds);
+        /** Notifies the listener about all currently known leader information. */
+        void notifyAllKnownLeaderInformation(LeaderInformationRegister leaderInformationRegister);
     }
 }

@@ -28,6 +28,7 @@ import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.leaderelection.LeaderElectionException;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
+import org.apache.flink.runtime.leaderelection.LeaderInformationRegister;
 import org.apache.flink.runtime.leaderelection.MultipleComponentLeaderElectionDriver;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.util.Preconditions;
@@ -183,7 +184,7 @@ public class KubernetesMultipleComponentLeaderElectionDriver
         };
     }
 
-    private static Map<String, LeaderInformation> extractLeaderInformation(
+    private static LeaderInformationRegister extractLeaderInformation(
             KubernetesConfigMap configMap) {
         final Map<String, String> data = configMap.getData();
 
@@ -200,7 +201,7 @@ public class KubernetesMultipleComponentLeaderElectionDriver
             }
         }
 
-        return extractedLeaderInformation;
+        return new LeaderInformationRegister(extractedLeaderInformation);
     }
 
     private class LeaderCallbackHandlerImpl extends KubernetesLeaderElector.LeaderCallbackHandler {
