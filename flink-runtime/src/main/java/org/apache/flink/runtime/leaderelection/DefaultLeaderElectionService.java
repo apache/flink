@@ -499,8 +499,8 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
     }
 
     @Override
-    public void isLeader(UUID newLeaderSessionID) {
-        onGrantLeadership(newLeaderSessionID);
+    public void isLeader() {
+        onGrantLeadership(UUID.randomUUID());
     }
 
     @Override

@@ -40,7 +40,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
@@ -208,7 +207,7 @@ public class KubernetesMultipleComponentLeaderElectionDriver
     private class LeaderCallbackHandlerImpl extends KubernetesLeaderElector.LeaderCallbackHandler {
         @Override
         public void isLeader() {
-            leaderElectionListener.isLeader(UUID.randomUUID());
+            leaderElectionListener.isLeader();
         }
 
         @Override

@@ -183,7 +183,8 @@ public class DefaultMultipleComponentLeaderElectionService
     }
 
     @Override
-    public void isLeader(UUID newLeaderSessionID) {
+    public void isLeader() {
+        final UUID newLeaderSessionID = UUID.randomUUID();
         synchronized (lock) {
             if (!running) {
                 return;

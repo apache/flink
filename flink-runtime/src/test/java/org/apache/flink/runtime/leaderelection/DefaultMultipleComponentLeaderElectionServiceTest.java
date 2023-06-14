@@ -65,7 +65,7 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
                 counter++;
             }
 
-            leaderElectionDriver.grantLeadership(UUID.randomUUID());
+            leaderElectionDriver.grantLeadership();
 
             for (SimpleTestingLeaderElectionEventListener eventListener : eventListeners) {
                 assertThat(eventListener.hasLeadership()).isTrue();
@@ -106,7 +106,7 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
                 counter++;
             }
 
-            leaderElectionDriver.grantLeadership(UUID.randomUUID());
+            leaderElectionDriver.grantLeadership();
             leaderElectionDriver.revokeLeadership();
 
             for (SimpleTestingLeaderElectionEventListener eventListener : eventListeners) {
@@ -133,7 +133,7 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
                     componentId, leaderElectionEventHandler);
             leaderElectionService.unregisterLeaderElectionEventHandler(componentId);
 
-            leaderElectionDriver.grantLeadership(UUID.randomUUID());
+            leaderElectionDriver.grantLeadership();
 
             assertThat(leaderElectionEventHandler.hasLeadership()).isFalse();
         } finally {
@@ -149,7 +149,7 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
                 createDefaultMultiplexingLeaderElectionService(leaderElectionDriver);
 
         try {
-            leaderElectionDriver.grantLeadership(UUID.randomUUID());
+            leaderElectionDriver.grantLeadership();
 
             final SimpleTestingLeaderElectionEventListener leaderElectionEventHandler =
                     new SimpleTestingLeaderElectionEventListener();
@@ -185,7 +185,7 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
                     preLeadershipGrantedComponent.getComponentId(),
                     preLeadershipGrantedComponent.getLeaderElectionEventListener());
 
-            leaderElectionDriver.grantLeadership(UUID.randomUUID());
+            leaderElectionDriver.grantLeadership();
 
             leaderElectionService.registerLeaderElectionEventHandler(
                     postLeadershipGrantedComponent.getComponentId(),
@@ -215,7 +215,7 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
                 createDefaultMultiplexingLeaderElectionService(leaderElectionDriver);
 
         try {
-            leaderElectionDriver.grantLeadership(UUID.randomUUID());
+            leaderElectionDriver.grantLeadership();
 
             final Collection<Component> knownLeaderInformation = createComponents(3);
             final Collection<Component> unknownLeaderInformation = createComponents(2);
@@ -257,8 +257,7 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
                                 leaderElectionDriver),
                         java.util.concurrent.Executors.newSingleThreadScheduledExecutor());
         try {
-            final UUID leaderSessionID = UUID.randomUUID();
-            leaderElectionDriver.grantLeadership(leaderSessionID);
+            leaderElectionDriver.grantLeadership();
 
             final String knownLeaderInformationComponent = "knownLeaderInformationComponent";
             final BlockingLeaderElectionEventHandler knownLeaderElectionEventHandler =
@@ -274,7 +273,7 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
             leaderElectionService.notifyAllKnownLeaderInformation(
                     LeaderInformationRegister.of(
                             knownLeaderInformationComponent,
-                            LeaderInformation.known(leaderSessionID, "localhost")));
+                            LeaderInformation.known(UUID.randomUUID(), "localhost")));
 
             knownLeaderElectionEventHandler.unblock();
             unknownLeaderElectionEventHandler.unblock();

@@ -38,8 +38,8 @@ public final class TestingLeaderElectionListener
             new ArrayBlockingQueue<>(10);
 
     @Override
-    public void isLeader(UUID newLeaderSessionID) {
-        put(new LeaderElectionEvent.IsLeaderEvent(newLeaderSessionID));
+    public void isLeader() {
+        put(new LeaderElectionEvent.IsLeaderEvent(UUID.randomUUID()));
     }
 
     @Override

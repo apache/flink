@@ -380,8 +380,8 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
         }
 
         @Override
-        public void isLeader(UUID newLeaderSessionID) {
-            leadershipFuture.complete(newLeaderSessionID);
+        public void isLeader() {
+            leadershipFuture.complete(UUID.randomUUID());
         }
 
         @Override
