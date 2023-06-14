@@ -32,6 +32,9 @@ import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * It's a wrapper class around RocksDB's {@link WriteBatch} for writing in bulk.
  *
@@ -54,6 +57,9 @@ public class RocksDBWriteBatchWrapper implements AutoCloseable {
     private final int capacity;
 
     @Nonnegative private final long batchSize;
+
+    /** List of all objects that we need to close in close(). */
+    private final List<AutoCloseable> toClose;
 
     public RocksDBWriteBatchWrapper(@Nonnull RocksDB rocksDB, long writeBatchSize) {
         this(rocksDB, null, 500, writeBatchSize);
@@ -79,15 +85,24 @@ public class RocksDBWriteBatchWrapper implements AutoCloseable {
         Preconditions.checkArgument(batchSize >= 0, "Max batch size have to be no negative.");
 
         this.db = rocksDB;
-        this.options = options;
         this.capacity = capacity;
         this.batchSize = batchSize;
+        this.toClose = new ArrayList<>(2);
         if (this.batchSize > 0) {
             this.batch =
                     new WriteBatch(
                             (int) Math.min(this.batchSize, this.capacity * PER_RECORD_BYTES));
         } else {
             this.batch = new WriteBatch(this.capacity * PER_RECORD_BYTES);
+        }
+        this.toClose.add(this.batch);
+        if (options != null) {
+            this.options = options;
+        } else {
+            // Use default write options with disabled WAL
+            this.options = new WriteOptions().setDisableWAL(true);
+            // We own this object, so we must ensure that we close it.
+            this.toClose.add(this.options);
         }
     }
 
@@ -102,33 +117,30 @@ public class RocksDBWriteBatchWrapper implements AutoCloseable {
     public void remove(@Nonnull ColumnFamilyHandle handle, @Nonnull byte[] key)
             throws RocksDBException {
 
-        batch.remove(handle, key);
+        batch.delete(handle, key);
 
         flushIfNeeded();
     }
 
     public void flush() throws RocksDBException {
-        if (options != null) {
-            db.write(options, batch);
-        } else {
-            // use the default WriteOptions, if wasn't provided.
-            try (WriteOptions writeOptions = new WriteOptions()) {
-                db.write(writeOptions, batch);
-            }
-        }
+        db.write(options, batch);
         batch.clear();
     }
 
-    public WriteOptions getOptions() {
+    @VisibleForTesting
+    WriteOptions getOptions() {
         return options;
     }
 
     @Override
     public void close() throws RocksDBException {
-        if (batch.count() != 0) {
-            flush();
+        try {
+            if (batch.count() != 0) {
+                flush();
+            }
+        } finally {
+            IOUtils.closeAllQuietly(toClose);
         }
-        IOUtils.closeQuietly(batch);
     }
 
     private void flushIfNeeded() throws RocksDBException {
