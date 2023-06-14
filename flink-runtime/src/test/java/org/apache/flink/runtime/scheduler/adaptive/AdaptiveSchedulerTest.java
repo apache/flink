@@ -27,6 +27,7 @@ import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.core.failure.TestingFailureEnricher;
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
@@ -1102,16 +1103,166 @@ public class AdaptiveSchedulerTest {
         awaitJobReachingParallelism(taskManagerGateway, scheduler, scaledDownParallelism);
     }
 
-    private AdaptiveScheduler createSchedulerWithNoResourceWaitTimeout(
-            JobGraph jobGraph, DeclarativeSlotPool declarativeSlotPool) throws Exception {
-        final Configuration configuration = new Configuration();
-        configuration.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(1L));
+    @Test
+    void testRequirementLowerBoundIncreaseBelowCurrentParallelismDoesNotTriggerRescale()
+            throws Exception {
+        final JobGraph jobGraph = createJobGraph();
 
+        final DefaultDeclarativeSlotPool declarativeSlotPool =
+                createDeclarativeSlotPool(jobGraph.getJobID());
+
+        final AdaptiveScheduler scheduler =
+                createSchedulerWithNoResourceWaitTimeout(jobGraph, declarativeSlotPool);
+
+        final SubmissionBufferingTaskManagerGateway taskManagerGateway =
+                createSubmissionBufferingTaskManagerGateway(PARALLELISM, scheduler);
+
+        startJobWithSlotsMatchingParallelism(
+                scheduler, declarativeSlotPool, taskManagerGateway, PARALLELISM);
+        awaitJobReachingParallelism(taskManagerGateway, scheduler, PARALLELISM);
+
+        final JobResourceRequirements newJobResourceRequirements =
+                createRequirementsWithEqualLowerAndUpperParallelism(PARALLELISM);
+
+        final CompletableFuture<Void> asyncAssertion =
+                CompletableFuture.runAsync(
+                        () -> {
+                            State state = scheduler.getState();
+                            scheduler.updateJobResourceRequirements(newJobResourceRequirements);
+
+                            // scheduler shouldn't change states
+                            assertThat(scheduler.getState()).isSameAs(state);
+                            // no new tasks should have been scheduled
+                            assertThat(taskManagerGateway.submittedTasks).isEmpty();
+                        },
+                        singleThreadMainThreadExecutor);
+
+        FlinkAssertions.assertThatFuture(asyncAssertion).eventuallySucceeds();
+    }
+
+    @Test
+    void testRequirementLowerBoundIncreaseBeyondCurrentParallelismAttemptsImmediateRescale()
+            throws Exception {
+        final JobGraph jobGraph = createJobGraph();
+
+        final DefaultDeclarativeSlotPool declarativeSlotPool =
+                createDeclarativeSlotPool(jobGraph.getJobID());
+
+        final AdaptiveScheduler scheduler =
+                createSchedulerWithNoResourceWaitTimeout(jobGraph, declarativeSlotPool);
+
+        final SubmissionBufferingTaskManagerGateway taskManagerGateway =
+                createSubmissionBufferingTaskManagerGateway(PARALLELISM, scheduler);
+
+        startJobWithSlotsMatchingParallelism(
+                scheduler, declarativeSlotPool, taskManagerGateway, PARALLELISM);
+        awaitJobReachingParallelism(taskManagerGateway, scheduler, PARALLELISM);
+
+        int scaledUpParallelism = PARALLELISM * 10;
+        JobResourceRequirements newJobResourceRequirements =
+                createRequirementsWithEqualLowerAndUpperParallelism(scaledUpParallelism);
+        singleThreadMainThreadExecutor.execute(
+                () -> scheduler.updateJobResourceRequirements(newJobResourceRequirements));
+
+        // the job will fail because not enough slots are available
+        FlinkAssertions.assertThatFuture(scheduler.getJobTerminationFuture())
+                .eventuallySucceeds()
+                .isEqualTo(JobStatus.FAILED);
+    }
+
+    @Test
+    void testInitialRequirementLowerBoundBeyondAvailableSlotsCausesImmediateFailure()
+            throws Exception {
+        final JobGraph jobGraph = createJobGraph();
+
+        final DefaultDeclarativeSlotPool declarativeSlotPool =
+                createDeclarativeSlotPool(jobGraph.getJobID());
+
+        final int availableSlots = 1;
+        JobResourceRequirements initialJobResourceRequirements =
+                createRequirementsWithEqualLowerAndUpperParallelism(PARALLELISM);
+
+        final AdaptiveScheduler scheduler =
+                prepareScheduler(jobGraph, declarativeSlotPool)
+                        .setJobMasterConfiguration(getConfigurationWithNoResourceWaitTimeout())
+                        .setJobResourceRequirements(initialJobResourceRequirements)
+                        .build();
+
+        final SubmissionBufferingTaskManagerGateway taskManagerGateway =
+                createSubmissionBufferingTaskManagerGateway(PARALLELISM, scheduler);
+
+        startJobWithSlotsMatchingParallelism(
+                scheduler, declarativeSlotPool, taskManagerGateway, availableSlots);
+
+        // the job will fail because not enough slots are available
+        FlinkAssertions.assertThatFuture(scheduler.getJobTerminationFuture())
+                .eventuallySucceeds()
+                .isEqualTo(JobStatus.FAILED);
+        // no task was ever submitted because we failed immediately
+        assertThat(taskManagerGateway.submittedTasks).isEmpty();
+    }
+
+    @Test
+    void testRequirementLowerBoundDecreaseAfterResourceScarcityBelowAvailableSlots()
+            throws Exception {
+        final JobGraph jobGraph = createJobGraph();
+
+        final DefaultDeclarativeSlotPool declarativeSlotPool =
+                createDeclarativeSlotPool(jobGraph.getJobID());
+
+        final int availableSlots = 1;
+        JobResourceRequirements initialJobResourceRequirements =
+                createRequirementsWithEqualLowerAndUpperParallelism(PARALLELISM);
+
+        final AdaptiveScheduler scheduler =
+                prepareScheduler(jobGraph, declarativeSlotPool)
+                        .setJobResourceRequirements(initialJobResourceRequirements)
+                        .build();
+
+        final SubmissionBufferingTaskManagerGateway taskManagerGateway =
+                createSubmissionBufferingTaskManagerGateway(PARALLELISM, scheduler);
+
+        startJobWithSlotsMatchingParallelism(
+                scheduler, declarativeSlotPool, taskManagerGateway, availableSlots);
+
+        // at this point we'd ideally check that the job is stuck in WaitingForResources, but we
+        // can't differentiate between waiting due to the minimum requirements not being fulfilled
+        // and the resource timeout not being elapsed
+        // We just continue here, as the following tests validate that the lower bound can prevent
+        // a job from running:
+        // - #testInitialRequirementLowerBoundBeyondAvailableSlotsCausesImmediateFailure()
+        // - #testRequirementLowerBoundIncreaseBeyondCurrentParallelismAttemptsImmediateRescale()
+
+        // unlock job by decreasing the parallelism
+        JobResourceRequirements newJobResourceRequirements =
+                createRequirementsWithLowerAndUpperParallelism(availableSlots, PARALLELISM);
+        singleThreadMainThreadExecutor.execute(
+                () -> scheduler.updateJobResourceRequirements(newJobResourceRequirements));
+
+        awaitJobReachingParallelism(taskManagerGateway, scheduler, availableSlots);
+    }
+
+    private AdaptiveSchedulerBuilder prepareScheduler(
+            JobGraph jobGraph, DeclarativeSlotPool declarativeSlotPool) {
         return new AdaptiveSchedulerBuilder(
                         jobGraph, singleThreadMainThreadExecutor, EXECUTOR_RESOURCE.getExecutor())
-                .setDeclarativeSlotPool(declarativeSlotPool)
-                .setJobMasterConfiguration(configuration)
-                .build();
+                .setDeclarativeSlotPool(declarativeSlotPool);
+    }
+
+    private static Configuration getConfigurationWithNoResourceWaitTimeout() {
+        return new Configuration()
+                .set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(1L));
+    }
+
+    private AdaptiveSchedulerBuilder prepareSchedulerWithNoResourceWaitTimeout(
+            JobGraph jobGraph, DeclarativeSlotPool declarativeSlotPool) {
+        return prepareScheduler(jobGraph, declarativeSlotPool)
+                .setJobMasterConfiguration(getConfigurationWithNoResourceWaitTimeout());
+    }
+
+    private AdaptiveScheduler createSchedulerWithNoResourceWaitTimeout(
+            JobGraph jobGraph, DeclarativeSlotPool declarativeSlotPool) throws Exception {
+        return prepareSchedulerWithNoResourceWaitTimeout(jobGraph, declarativeSlotPool).build();
     }
 
     private SubmissionBufferingTaskManagerGateway createSubmissionBufferingTaskManagerGateway(
@@ -1165,11 +1316,22 @@ public class AdaptiveSchedulerTest {
     }
 
     private static JobResourceRequirements createRequirementsWithUpperParallelism(int parallelism) {
+        return createRequirementsWithLowerAndUpperParallelism(1, parallelism);
+    }
+
+    private static JobResourceRequirements createRequirementsWithEqualLowerAndUpperParallelism(
+            int parallelism) {
+        return createRequirementsWithLowerAndUpperParallelism(parallelism, parallelism);
+    }
+
+    private static JobResourceRequirements createRequirementsWithLowerAndUpperParallelism(
+            int lowerParallelism, int upperParallelism) {
         return new JobResourceRequirements(
                 Collections.singletonMap(
                         JOB_VERTEX.getID(),
                         new JobVertexResourceRequirements(
-                                new JobVertexResourceRequirements.Parallelism(1, parallelism))));
+                                new JobVertexResourceRequirements.Parallelism(
+                                        lowerParallelism, upperParallelism))));
     }
 
     // ---------------------------------------------------------------------------------------------

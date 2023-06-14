@@ -42,6 +42,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /** {@link SlotAllocator} implementation that supports slot sharing. */
@@ -78,31 +80,54 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
         return ResourceCounter.withResource(ResourceProfile.UNKNOWN, numTotalRequiredSlots);
     }
 
+    private static <T> Map<SlotSharingGroupId, T> getPerSlotSharingGroups(
+            Iterable<JobInformation.VertexInformation> vertices,
+            Function<JobInformation.VertexInformation, T> mapper,
+            BiFunction<T, T, T> reducer) {
+        final Map<SlotSharingGroupId, T> extractedPerSlotSharingGroups = new HashMap<>();
+        for (JobInformation.VertexInformation vertex : vertices) {
+            extractedPerSlotSharingGroups.compute(
+                    vertex.getSlotSharingGroup().getSlotSharingGroupId(),
+                    (slotSharingGroupId, currentData) ->
+                            currentData == null
+                                    ? mapper.apply(vertex)
+                                    : reducer.apply(currentData, mapper.apply(vertex)));
+        }
+        return extractedPerSlotSharingGroups;
+    }
+
+    private static Map<SlotSharingGroupId, Integer> getMinParallelismPerSlotSharingGroup(
+            Iterable<JobInformation.VertexInformation> vertices) {
+        return getPerSlotSharingGroups(
+                vertices, JobInformation.VertexInformation::getMinParallelism, Math::min);
+    }
+
     private static Map<SlotSharingGroupId, Integer> getMaxParallelismForSlotSharingGroups(
             Iterable<JobInformation.VertexInformation> vertices) {
-        final Map<SlotSharingGroupId, Integer> maxParallelismForSlotSharingGroups = new HashMap<>();
-        for (JobInformation.VertexInformation vertex : vertices) {
-            maxParallelismForSlotSharingGroups.compute(
-                    vertex.getSlotSharingGroup().getSlotSharingGroupId(),
-                    (slotSharingGroupId, currentMaxParallelism) ->
-                            currentMaxParallelism == null
-                                    ? vertex.getParallelism()
-                                    : Math.max(currentMaxParallelism, vertex.getParallelism()));
-        }
-        return maxParallelismForSlotSharingGroups;
+        return getPerSlotSharingGroups(
+                vertices, JobInformation.VertexInformation::getParallelism, Math::max);
     }
 
     @Override
     public Optional<VertexParallelism> determineParallelism(
             JobInformation jobInformation, Collection<? extends SlotInfo> freeSlots) {
 
-        // => less slots than slot-sharing groups
-        if (jobInformation.getSlotSharingGroups().size() > freeSlots.size()) {
+        final Map<SlotSharingGroupId, Integer> minimumRequiredSlotsPerSlotSharingGroup =
+                getMinParallelismPerSlotSharingGroup(jobInformation.getVertices());
+
+        final int minimumRequiredSlots =
+                minimumRequiredSlotsPerSlotSharingGroup.values().stream().reduce(0, Integer::sum);
+
+        if (minimumRequiredSlots > freeSlots.size()) {
             return Optional.empty();
         }
 
         final Map<SlotSharingGroupId, Integer> slotSharingGroupParallelism =
-                determineSlotsPerSharingGroup(jobInformation, freeSlots.size());
+                determineSlotsPerSharingGroup(
+                        jobInformation,
+                        freeSlots.size(),
+                        minimumRequiredSlots,
+                        minimumRequiredSlotsPerSlotSharingGroup);
 
         final Map<JobVertexID, Integer> allVertexParallelism = new HashMap<>();
 
@@ -150,21 +175,31 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
      * distributed over the remaining groups.
      */
     private static Map<SlotSharingGroupId, Integer> determineSlotsPerSharingGroup(
-            JobInformation jobInformation, int freeSlots) {
+            JobInformation jobInformation,
+            int freeSlots,
+            int minRequiredSlots,
+            Map<SlotSharingGroupId, Integer> minSlotsPerSlotSharingGroup) {
+
         int numUnassignedSlots = freeSlots;
         int numUnassignedSlotSharingGroups = jobInformation.getSlotSharingGroups().size();
+        int numMinSlotsRequiredByRemainingGroups = minRequiredSlots;
 
         final Map<SlotSharingGroupId, Integer> slotSharingGroupParallelism = new HashMap<>();
 
         for (Map.Entry<SlotSharingGroupId, Integer> slotSharingGroup :
                 sortSlotSharingGroupsByDesiredParallelism(jobInformation)) {
+            final int minParallelism = minSlotsPerSlotSharingGroup.get(slotSharingGroup.getKey());
+
             final int groupParallelism =
-                    Math.min(
-                            slotSharingGroup.getValue(),
-                            numUnassignedSlots / numUnassignedSlotSharingGroups);
+                    minParallelism
+                            + Math.min(
+                                    slotSharingGroup.getValue() - minParallelism,
+                                    (numUnassignedSlots - numMinSlotsRequiredByRemainingGroups)
+                                            / numUnassignedSlotSharingGroups);
 
             slotSharingGroupParallelism.put(slotSharingGroup.getKey(), groupParallelism);
 
+            numMinSlotsRequiredByRemainingGroups -= minParallelism;
             numUnassignedSlots -= groupParallelism;
             numUnassignedSlotSharingGroups--;
         }

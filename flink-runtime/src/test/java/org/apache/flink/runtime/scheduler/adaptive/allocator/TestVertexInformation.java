@@ -40,6 +40,11 @@ class TestVertexInformation implements JobInformation.VertexInformation {
     }
 
     @Override
+    public int getMinParallelism() {
+        return 1;
+    }
+
+    @Override
     public int getParallelism() {
         return parallelism;
     }

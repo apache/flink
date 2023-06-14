@@ -20,6 +20,7 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.JobVertexResourceRequirements;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -50,15 +51,20 @@ public class DefaultVertexParallelismStore implements MutableVertexParallelismSt
         for (final JobVertexID jobVertexId : jobResourceRequirements.getJobVertices()) {
             final VertexParallelismInformation oldVertexParallelismInfo =
                     oldVertexParallelismStore.getParallelismInfo(jobVertexId);
-            final int parallelism =
-                    jobResourceRequirements.getParallelism(jobVertexId).getUpperBound();
+            final JobVertexResourceRequirements.Parallelism parallelismSettings =
+                    jobResourceRequirements.getParallelism(jobVertexId);
+            final int minParallelism = parallelismSettings.getLowerBound();
+            final int parallelism = parallelismSettings.getUpperBound();
             newVertexParallelismStore.setParallelismInfo(
                     jobVertexId,
                     new DefaultVertexParallelismInfo(
+                            minParallelism,
                             parallelism,
                             oldVertexParallelismInfo.getMaxParallelism(),
                             RESCALE_MAX_REJECT));
-            changed |= oldVertexParallelismInfo.getParallelism() != parallelism;
+            changed |=
+                    oldVertexParallelismInfo.getMinParallelism() != minParallelism
+                            || oldVertexParallelismInfo.getParallelism() != parallelism;
         }
         return changed ? Optional.of(newVertexParallelismStore) : Optional.empty();
     }
