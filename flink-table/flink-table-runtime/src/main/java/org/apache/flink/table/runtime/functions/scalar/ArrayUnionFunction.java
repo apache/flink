@@ -49,7 +49,9 @@ public class ArrayUnionFunction extends BuiltInScalarFunction {
         super(BuiltInFunctionDefinitions.ARRAY_UNION, context);
 
         final DataType dataType =
-                ((CollectionDataType) context.getCallContext().getArgumentDataTypes().get(0))
+                // Since input arrays could be with different nullability we can not rely just on
+                // the first element.
+                ((CollectionDataType) context.getCallContext().getOutputDataType().get())
                         .getElementDataType();
         elementGetter = ArrayData.createElementGetter(dataType.getLogicalType());
         equalityEvaluator =
