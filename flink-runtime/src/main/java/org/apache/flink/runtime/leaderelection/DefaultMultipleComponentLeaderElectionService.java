@@ -184,7 +184,7 @@ public class DefaultMultipleComponentLeaderElectionService
 
     @Override
     public void isLeader() {
-        final UUID newLeaderSessionID = UUID.randomUUID();
+        final UUID newLeaderSessionId = UUID.randomUUID();
         synchronized (lock) {
             if (!running) {
                 return;
@@ -193,11 +193,11 @@ public class DefaultMultipleComponentLeaderElectionService
             Preconditions.checkState(
                     currentLeaderSessionId == null,
                     "notLeader() wasn't called by the LeaderElection backend before assigning leadership to this LeaderElectionService.");
-            currentLeaderSessionId = newLeaderSessionID;
+            currentLeaderSessionId = newLeaderSessionId;
 
             forEachLeaderElectionEventHandler(
                     leaderElectionEventHandler ->
-                            leaderElectionEventHandler.onGrantLeadership(newLeaderSessionID));
+                            leaderElectionEventHandler.onGrantLeadership(newLeaderSessionId));
         }
     }
 

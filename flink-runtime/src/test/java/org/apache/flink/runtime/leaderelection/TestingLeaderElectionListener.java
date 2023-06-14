@@ -23,7 +23,6 @@ import org.apache.flink.util.ExceptionUtils;
 
 import java.time.Duration;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -39,7 +38,7 @@ public final class TestingLeaderElectionListener
 
     @Override
     public void isLeader() {
-        put(new LeaderElectionEvent.IsLeaderEvent(UUID.randomUUID()));
+        put(new LeaderElectionEvent.IsLeaderEvent());
     }
 
     @Override
