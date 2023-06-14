@@ -31,7 +31,6 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -519,23 +518,10 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
 
     @Override
     public void notifyAllKnownLeaderInformation(
-            Map<String, LeaderInformation> leaderInformationWithComponentIds) {
-        final long matchingContenderIDEntryCount =
-                leaderInformationWithComponentIds.entrySet().stream()
-                        .filter(entry -> entry.getKey().equals(contenderID))
-                        .map(
-                                leaderInformationWithComponentId -> {
-                                    final LeaderInformation leaderInformation =
-                                            leaderInformationWithComponentId.getValue();
-                                    onLeaderInformationChange(
-                                            leaderInformationWithComponentId.getValue());
-                                    return null;
-                                })
-                        .count();
-
-        Preconditions.checkArgument(
-                matchingContenderIDEntryCount < 2,
-                "There shouldn't be more than one LeaderInformation per contenderID.");
+            LeaderInformationRegister leaderInformationRegister) {
+        leaderInformationRegister
+                .forContenderID(contenderID)
+                .ifPresent(this::onLeaderInformationChange);
     }
 
     private class LeaderElectionFatalErrorHandler implements FatalErrorHandler {
