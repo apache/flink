@@ -33,9 +33,8 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.util.SerializedValue;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnull;
 
@@ -45,14 +44,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link TaskDeploymentDescriptor}. */
-public class TaskDeploymentDescriptorTest extends TestLogger {
+class TaskDeploymentDescriptorTest {
 
     private static final JobID jobID = new JobID();
     private static final JobVertexID vertexID = new JobVertexID();
@@ -96,10 +92,10 @@ public class TaskDeploymentDescriptorTest extends TestLogger {
                             invokableClass.getName(),
                             taskConfiguration));
 
-    public TaskDeploymentDescriptorTest() throws IOException {}
+    TaskDeploymentDescriptorTest() throws IOException {}
 
     @Test
-    public void testSerialization() throws Exception {
+    void testSerialization() throws Exception {
         final TaskDeploymentDescriptor orig =
                 createTaskDeploymentDescriptor(
                         new TaskDeploymentDescriptor.NonOffloaded<>(serializedJobInformation),
@@ -108,31 +104,33 @@ public class TaskDeploymentDescriptorTest extends TestLogger {
 
         final TaskDeploymentDescriptor copy = CommonTestUtils.createCopySerializable(orig);
 
-        assertFalse(orig.getSerializedJobInformation() == copy.getSerializedJobInformation());
-        assertFalse(orig.getSerializedTaskInformation() == copy.getSerializedTaskInformation());
-        assertFalse(orig.getExecutionAttemptId() == copy.getExecutionAttemptId());
-        assertFalse(orig.getTaskRestore() == copy.getTaskRestore());
-        assertFalse(orig.getProducedPartitions() == copy.getProducedPartitions());
-        assertFalse(orig.getInputGates() == copy.getInputGates());
+        assertThat(orig.getSerializedJobInformation())
+                .isNotSameAs(copy.getSerializedJobInformation());
+        assertThat(orig.getSerializedTaskInformation())
+                .isNotSameAs(copy.getSerializedTaskInformation());
+        assertThat(orig.getExecutionAttemptId()).isNotSameAs(copy.getExecutionAttemptId());
+        assertThat(orig.getTaskRestore()).isNotSameAs(copy.getTaskRestore());
+        assertThat(orig.getProducedPartitions()).isNotSameAs(copy.getProducedPartitions());
+        assertThat(orig.getInputGates()).isNotSameAs(copy.getInputGates());
 
-        assertEquals(orig.getSerializedJobInformation(), copy.getSerializedJobInformation());
-        assertEquals(orig.getSerializedTaskInformation(), copy.getSerializedTaskInformation());
-        assertEquals(orig.getExecutionAttemptId(), copy.getExecutionAttemptId());
-        assertEquals(orig.getAllocationId(), copy.getAllocationId());
-        assertEquals(orig.getSubtaskIndex(), copy.getSubtaskIndex());
-        assertEquals(orig.getAttemptNumber(), copy.getAttemptNumber());
-        assertEquals(
-                orig.getTaskRestore().getRestoreCheckpointId(),
-                copy.getTaskRestore().getRestoreCheckpointId());
-        assertEquals(
-                orig.getTaskRestore().getTaskStateSnapshot(),
-                copy.getTaskRestore().getTaskStateSnapshot());
-        assertEquals(orig.getProducedPartitions(), copy.getProducedPartitions());
-        assertEquals(orig.getInputGates(), copy.getInputGates());
+        assertThat(orig.getSerializedJobInformation())
+                .isEqualTo(copy.getSerializedJobInformation());
+        assertThat(orig.getSerializedTaskInformation())
+                .isEqualTo(copy.getSerializedTaskInformation());
+        assertThat(orig.getExecutionAttemptId()).isEqualTo(copy.getExecutionAttemptId());
+        assertThat(orig.getAllocationId()).isEqualTo(copy.getAllocationId());
+        assertThat(orig.getSubtaskIndex()).isEqualTo(copy.getSubtaskIndex());
+        assertThat(orig.getAttemptNumber()).isEqualTo(copy.getAttemptNumber());
+        assertThat(orig.getTaskRestore().getRestoreCheckpointId())
+                .isEqualTo(copy.getTaskRestore().getRestoreCheckpointId());
+        assertThat(orig.getTaskRestore().getTaskStateSnapshot())
+                .isEqualTo(copy.getTaskRestore().getTaskStateSnapshot());
+        assertThat(orig.getProducedPartitions()).isEqualTo(copy.getProducedPartitions());
+        assertThat(orig.getInputGates()).isEqualTo(copy.getInputGates());
     }
 
     @Test
-    public void testOffLoadedAndNonOffLoadedPayload() {
+    void testOffLoadedAndNonOffLoadedPayload() {
         final TaskDeploymentDescriptor taskDeploymentDescriptor =
                 createTaskDeploymentDescriptor(
                         new TaskDeploymentDescriptor.NonOffloaded<>(serializedJobInformation),
@@ -140,14 +138,10 @@ public class TaskDeploymentDescriptorTest extends TestLogger {
 
         SerializedValue<JobInformation> actualSerializedJobInformation =
                 taskDeploymentDescriptor.getSerializedJobInformation();
-        assertThat(actualSerializedJobInformation, is(serializedJobInformation));
+        assertThat(actualSerializedJobInformation).isSameAs(serializedJobInformation);
 
-        try {
-            taskDeploymentDescriptor.getSerializedTaskInformation();
-            fail("Expected to fail since the task information should be offloaded.");
-        } catch (IllegalStateException expected) {
-            // expected
-        }
+        assertThatThrownBy(taskDeploymentDescriptor::getSerializedTaskInformation)
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Nonnull
