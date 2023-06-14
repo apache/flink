@@ -225,10 +225,8 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
                         Preconditions.checkNotNull(leadershipOperationExecutor).shutdownNow();
                 if (!outstandingEventHandlingCalls.isEmpty()) {
                     LOG.debug(
-                            "The DefaultLeaderElectionService was closed with {} still not being processed. No further action necessary.",
-                            outstandingEventHandlingCalls.size() == 1
-                                    ? "one event"
-                                    : (outstandingEventHandlingCalls.size() + " events"));
+                            "The DefaultLeaderElectionService was closed with {} event(s) still not being processed. No further action necessary.",
+                            outstandingEventHandlingCalls.size());
                 }
             } else {
                 LOG.debug("The HA backend connection isn't established. No actions taken.");
