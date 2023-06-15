@@ -29,6 +29,9 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.changelog.fs.FsStateChangelogOptions;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackendBuilder;
@@ -36,22 +39,29 @@ import org.apache.flink.contrib.streaming.state.RocksDBResourceContainer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.KeyedStateFunction;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
+import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorageLoader;
+import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageAccess;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackendBuilder;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.state.changelog.ChangelogKeyedStateBackend;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionStateBackend;
 import org.apache.flink.util.IOUtils;
+import org.apache.flink.util.Preconditions;
 
 import org.rocksdb.RocksDBException;
 
@@ -59,11 +69,16 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
 
+import static java.util.Collections.emptyList;
+import static org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups.createUnregisteredTaskManagerJobMetricGroup;
+
 /** Utils to create keyed state backend for state micro benchmark. */
 public class StateBackendBenchmarkUtils {
     private static final String rootDirName = "benchmark";
     private static final String recoveryDirName = "localRecovery";
     private static final String dbDirName = "dbPath";
+    private static final String checkpointDirName = "checkpointPath";
+    private static final String changelogDirName = "changelogPath";
     private static File rootDir;
 
     public static KeyedStateBackend<Long> createKeyedStateBackend(
@@ -75,6 +90,12 @@ public class StateBackendBenchmarkUtils {
             case ROCKSDB:
                 rootDir = prepareDirectory(rootDirName, baseDir);
                 return createRocksDBKeyedStateBackend(rootDir);
+            case HEAP_CHANGELOG:
+                rootDir = prepareDirectory(rootDirName, baseDir);
+                return createChangelogKeyedStateBackend(createHeapKeyedStateBackend(rootDir));
+            case ROCKSDB_CHANGELOG:
+                rootDir = prepareDirectory(rootDirName, baseDir);
+                return createChangelogKeyedStateBackend(createRocksDBKeyedStateBackend(rootDir));
             case BATCH_EXECUTION:
                 return createBatchExecutionStateBackend();
             default:
@@ -101,6 +122,35 @@ public class StateBackendBenchmarkUtils {
                         new UnregisteredMetricsGroup(),
                         Collections.emptyList(),
                         null);
+    }
+
+    private static ChangelogKeyedStateBackend<Long> createChangelogKeyedStateBackend(
+            AbstractKeyedStateBackend<Long> delegatedKeyedStateBackend) throws IOException {
+        File cpPathFile = prepareDirectory(checkpointDirName, rootDir);
+        File changelogPathFile = prepareDirectory(changelogDirName, rootDir);
+        return new ChangelogKeyedStateBackend<>(
+                delegatedKeyedStateBackend,
+                "Test",
+                new ExecutionConfig(),
+                TtlTimeProvider.DEFAULT,
+                UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup(),
+                Preconditions.checkNotNull(
+                                StateChangelogStorageLoader.load(
+                                        JobID.generate(),
+                                        new Configuration()
+                                                .set(
+                                                        StateChangelogOptions
+                                                                .STATE_CHANGE_LOG_STORAGE,
+                                                        "filesystem")
+                                                .set(
+                                                        FsStateChangelogOptions.BASE_PATH,
+                                                        changelogPathFile.getPath()),
+                                        createUnregisteredTaskManagerJobMetricGroup(),
+                                        TestLocalRecoveryConfig.disabled()))
+                        .createWriter("test", KeyGroupRange.EMPTY_KEY_GROUP_RANGE, null),
+                emptyList(),
+                new FsCheckpointStorageAccess(
+                        new Path(cpPathFile.getPath()), null, new JobID(), 1024, 4096));
     }
 
     private static RocksDBKeyedStateBackend<Long> createRocksDBKeyedStateBackend(File rootDir)
@@ -230,6 +280,8 @@ public class StateBackendBenchmarkUtils {
     public enum StateBackendType {
         HEAP,
         ROCKSDB,
+        HEAP_CHANGELOG,
+        ROCKSDB_CHANGELOG,
         BATCH_EXECUTION
     }
 }

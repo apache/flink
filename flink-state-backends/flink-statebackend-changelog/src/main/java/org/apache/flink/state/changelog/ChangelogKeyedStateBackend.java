@@ -27,6 +27,7 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
@@ -197,7 +198,7 @@ public class ChangelogKeyedStateBackend<K>
             String subtaskName,
             ExecutionConfig executionConfig,
             TtlTimeProvider ttlTimeProvider,
-            ChangelogStateBackendMetricGroup metricGroup,
+            MetricGroup metricGroup,
             StateChangelogWriter<? extends ChangelogStateHandle> stateChangelogWriter,
             Collection<ChangelogStateBackendHandle> initialState,
             CheckpointStorageWorkerView checkpointStorageWorkerView) {
@@ -206,7 +207,7 @@ public class ChangelogKeyedStateBackend<K>
                 subtaskName,
                 executionConfig,
                 ttlTimeProvider,
-                metricGroup,
+                new ChangelogStateBackendMetricGroup(metricGroup),
                 stateChangelogWriter,
                 initialState,
                 checkpointStorageWorkerView,

@@ -109,8 +109,7 @@ public class ChangelogKeyedStateBackendTest {
                 "test",
                 new ExecutionConfig(),
                 TtlTimeProvider.DEFAULT,
-                new ChangelogStateBackendMetricGroup(
-                        UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup()),
+                UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup(),
                 new InMemoryStateChangelogStorage()
                         .createWriter("test", KeyGroupRange.EMPTY_KEY_GROUP_RANGE, null),
                 emptyList(),
