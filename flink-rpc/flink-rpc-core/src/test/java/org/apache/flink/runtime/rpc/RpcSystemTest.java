@@ -27,7 +27,6 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import javax.annotation.Nullable;
 
 import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -38,18 +37,20 @@ class RpcSystemTest {
             ContextClassLoaderExtension.builder()
                     .withServiceEntry(
                             RpcSystemLoader.class,
-                            // usually loader 2 would be loaded first
-                            TestRpcSystemLoader2.class.getName(),
-                            TestRpcSystemLoader1.class.getName())
+                            // usually this loader would be loaded first because it appears first
+                            LowPriorityRpcSystemLoader.class.getName(),
+                            HighPriorityRpcSystemLoader.class.getName())
                     .build();
 
     @Test
     void testRpcSystemPrioritization() {
-        assertThat(RpcSystem.load()).isNotNull();
+        assertThat(RpcSystem.load())
+                .as("The wrong loader was selected.")
+                .isInstanceOf(DummyTestRpcSystem.class);
     }
 
     /** Test {@link RpcSystemLoader} with a high priority. */
-    public static final class TestRpcSystemLoader1 implements RpcSystemLoader {
+    public static final class HighPriorityRpcSystemLoader implements RpcSystemLoader {
 
         @Override
         public int getLoadPriority() {
@@ -63,7 +64,7 @@ class RpcSystemTest {
     }
 
     /** Test {@link RpcSystemLoader} with a low priority. */
-    public static final class TestRpcSystemLoader2 implements RpcSystemLoader {
+    public static final class LowPriorityRpcSystemLoader implements RpcSystemLoader {
 
         @Override
         public int getLoadPriority() {
@@ -97,13 +98,12 @@ class RpcSystemTest {
                 int port,
                 String endpointName,
                 AddressResolution addressResolution,
-                Configuration config)
-                throws UnknownHostException {
+                Configuration config) {
             return null;
         }
 
         @Override
-        public InetSocketAddress getInetSocketAddressFromRpcUrl(String url) throws Exception {
+        public InetSocketAddress getInetSocketAddressFromRpcUrl(String url) {
             return null;
         }
 
