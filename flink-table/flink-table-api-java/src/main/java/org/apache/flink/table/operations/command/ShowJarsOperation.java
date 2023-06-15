@@ -18,9 +18,23 @@
 
 package org.apache.flink.table.operations.command;
 
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.internal.TableResultInternal;
+import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CatalogFunction;
+import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.FunctionCatalog;
+import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
+import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.operations.ShowOperation;
+import org.apache.flink.table.resource.ResourceManager;
+import org.apache.flink.table.resource.ResourceType;
 import org.apache.flink.table.resource.ResourceUri;
+
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.internal.TableResultUtils.buildStringArrayResult;
 
@@ -34,10 +48,53 @@ public class ShowJarsOperation implements ShowOperation {
 
     @Override
     public TableResultInternal execute(Context ctx) {
-        String[] jars =
-                ctx.getResourceManager().getResources().keySet().stream()
+        ResourceManager resourceManager = ctx.getResourceManager();
+        FunctionCatalog functionCatalog = ctx.getFunctionCatalog();
+        CatalogManager catalogManager = ctx.getCatalogManager();
+        Set<String> jars = getJars(resourceManager, functionCatalog, catalogManager);
+
+        return buildStringArrayResult("jars", jars.toArray(new String[0]));
+    }
+
+    public static Set<String> getJars(
+            ResourceManager resourceManager,
+            FunctionCatalog functionCatalog,
+            CatalogManager catalogManager) {
+        Set<String> jars =
+                resourceManager.getResources().keySet().stream()
                         .map(ResourceUri::getUri)
-                        .toArray(String[]::new);
-        return buildStringArrayResult("jars", jars);
+                        .collect(Collectors.toSet());
+        Set<FunctionIdentifier> identifiers =
+                functionCatalog.getUserDefinedFunctions(
+                        catalogManager.getCurrentCatalog(), catalogManager.getCurrentDatabase());
+        Catalog catalog = catalogManager.getCatalog(catalogManager.getCurrentCatalog()).get();
+        for (FunctionIdentifier identifier : identifiers) {
+            if (identifier.getIdentifier().isPresent()) {
+                ObjectIdentifier objectIdentifier = identifier.getIdentifier().get();
+                try {
+                    ObjectPath functionPath =
+                            new ObjectPath(
+                                    objectIdentifier.getDatabaseName(),
+                                    objectIdentifier.getObjectName());
+                    if (catalog.functionExists(functionPath)) {
+                        CatalogFunction function = catalog.getFunction(functionPath);
+                        jars.addAll(
+                                function.getFunctionResources().stream()
+                                        .filter(
+                                                resourceUri ->
+                                                        resourceUri.getResourceType()
+                                                                == ResourceType.JAR)
+                                        .map(ResourceUri::getUri)
+                                        .collect(Collectors.toList()));
+                    }
+                } catch (FunctionNotExistException e) {
+                    throw new TableException(
+                            String.format(
+                                    "Could not find catalog function [%s].", objectIdentifier),
+                            e);
+                }
+            }
+        }
+        return jars;
     }
 }

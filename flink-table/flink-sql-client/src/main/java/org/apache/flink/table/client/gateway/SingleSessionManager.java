@@ -36,11 +36,13 @@ import org.apache.flink.table.gateway.service.operation.OperationManager;
 import org.apache.flink.table.gateway.service.result.ResultFetcher;
 import org.apache.flink.table.gateway.service.session.Session;
 import org.apache.flink.table.gateway.service.session.SessionManager;
+import org.apache.flink.table.operations.command.ShowJarsOperation;
 import org.apache.flink.util.MutableURLClassLoader;
 import org.apache.flink.util.Preconditions;
 
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -171,6 +173,11 @@ public class SingleSessionManager implements SessionManager {
             URL jarURL =
                     ((ClientResourceManager) sessionContext.getSessionState().resourceManager)
                             .unregisterJarResource(jarPath);
+            Set<String> jars =
+                    ShowJarsOperation.getJars(
+                            sessionContext.getSessionState().resourceManager,
+                            sessionContext.getSessionState().functionCatalog,
+                            sessionContext.getSessionState().catalogManager);
             if (jarURL != null) {
                 ((ClientWrapperClassLoader)
                                 sessionContext
@@ -178,6 +185,12 @@ public class SingleSessionManager implements SessionManager {
                                         .resourceManager
                                         .getUserClassLoader())
                         .removeURL(jarURL);
+            }
+            if (jars.contains(jarPath)) {
+                throw new UnsupportedOperationException(
+                        String.format(
+                                "Can not delete jar file [%s] while it is being used by function.",
+                                jarPath));
             }
             return ResultFetcher.fromTableResult(
                     operationHandle, TableResultInternal.TABLE_RESULT_OK, false);

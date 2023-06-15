@@ -230,6 +230,15 @@ create function upperudf AS 'UpperUDF' using jar '$VAR_UDF_JAR_PATH';
 [INFO] Execute statement succeed.
 !info
 
+SHOW JARS;
++-$VAR_UDF_JAR_PATH_DASH-----+
+| $VAR_UDF_JAR_PATH_SPACEjars |
++-$VAR_UDF_JAR_PATH_DASH-----+
+| $VAR_UDF_JAR_PATH |
++-$VAR_UDF_JAR_PATH_DASH-----+
+1 row in set
+!ok
+
 # run a query to verify the registered UDF works
 SELECT id, upperudf(str) FROM (VALUES (1, 'hello world'), (2, 'hi')) as T(id, str);
 +----+-------------+--------------------------------+
@@ -251,9 +260,15 @@ SHOW JARS;
 !ok
 
 REMOVE JAR '$VAR_UDF_JAR_PATH';
-[INFO] Execute statement succeed.
-!info
+[ERROR] Could not execute SQL statement. Reason:
+java.lang.UnsupportedOperationException: Can not delete jar file [$VAR_UDF_JAR_PATH] while it is being used by function.
+!error
 
 SHOW JARS;
-Empty set
++-$VAR_UDF_JAR_PATH_DASH-----+
+| $VAR_UDF_JAR_PATH_SPACEjars |
++-$VAR_UDF_JAR_PATH_DASH-----+
+| $VAR_UDF_JAR_PATH |
++-$VAR_UDF_JAR_PATH_DASH-----+
+1 row in set
 !ok
