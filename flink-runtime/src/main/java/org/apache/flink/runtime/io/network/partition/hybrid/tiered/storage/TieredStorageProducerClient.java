@@ -112,10 +112,13 @@ public class TieredStorageProducerClient {
                 // TieredStorageSubpartitionId objects is expected to be manageable. If the
                 // performance is significantly affected, this logic will be optimized accordingly.
                 bufferAccumulator.receive(
-                        record.duplicate(), new TieredStorageSubpartitionId(i), dataType);
+                        record.duplicate(),
+                        new TieredStorageSubpartitionId(i),
+                        dataType,
+                        isBroadcast);
             }
         } else {
-            bufferAccumulator.receive(record, subpartitionId, dataType);
+            bufferAccumulator.receive(record, subpartitionId, dataType, isBroadcast);
         }
     }
 

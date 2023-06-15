@@ -44,7 +44,10 @@ public class TestingBufferAccumulator implements BufferAccumulator {
 
     @Override
     public void receive(
-            ByteBuffer record, TieredStorageSubpartitionId subpartitionId, Buffer.DataType dataType)
+            ByteBuffer record,
+            TieredStorageSubpartitionId subpartitionId,
+            Buffer.DataType dataType,
+            boolean isBroadcast)
             throws IOException {
         MemorySegment recordData = MemorySegmentFactory.wrap(record.array());
         bufferFlusher.accept(

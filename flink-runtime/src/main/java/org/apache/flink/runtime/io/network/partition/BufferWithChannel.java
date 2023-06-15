@@ -29,7 +29,7 @@ public class BufferWithChannel {
 
     private final int channelIndex;
 
-    BufferWithChannel(Buffer buffer, int channelIndex) {
+    public BufferWithChannel(Buffer buffer, int channelIndex) {
         this.buffer = checkNotNull(buffer);
         this.channelIndex = channelIndex;
     }
