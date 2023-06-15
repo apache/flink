@@ -135,6 +135,8 @@ public class SchedulerBenchmarkUtils {
         return schedulerBuilder
                 .setVertexParallelismAndInputInfosDecider(
                         createCustomParallelismDecider(jobConfiguration.getParallelism()))
+                .setHybridPartitionDataConsumeConstraint(
+                        jobConfiguration.getHybridPartitionDataConsumeConstraint())
                 .setInputConsumableDeciderFactory(
                         loadInputConsumableDeciderFactory(
                                 jobConfiguration.getHybridPartitionDataConsumeConstraint()))
