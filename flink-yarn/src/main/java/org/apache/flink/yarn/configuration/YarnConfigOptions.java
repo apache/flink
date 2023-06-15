@@ -241,7 +241,9 @@ public class YarnConfigOptions {
                     .defaultValue("")
                     .withDescription(
                             "Users and groups to give VIEW access. The ACLs are of for"
-                                    + " comma-separated-usersspacecomma-separated-groups");
+                                    + " comma-separated-users&lt;space&gt;comma-separated-groups."
+                                    + " Wildcard ACL is also supported. The only valid wildcard ACL "
+                                    + " is *, which grants permission to all users and groups.");
 
     /** Users and groups to give MODIFY access. */
     public static final ConfigOption<String> APPLICATION_MODIFY_ACLS =
@@ -250,7 +252,9 @@ public class YarnConfigOptions {
                     .defaultValue("")
                     .withDescription(
                             "Users and groups to give MODIFY access. The ACLs are of for"
-                                    + " comma-separated-usersspacecomma-separated-groups");
+                                    + " comma-separated-users&lt;space&gt;comma-separated-groups."
+                                    + " Wildcard ACL is also supported. The only valid wildcard ACL "
+                                    + " is *, which grants permission to all users and groups.");
 
     // ----------------------- YARN CLI OPTIONS ------------------------------------
 
