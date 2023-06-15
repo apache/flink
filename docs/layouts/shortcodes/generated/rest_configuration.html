@@ -128,5 +128,11 @@
             <td>Integer</td>
             <td>Thread priority of the REST server's executor for processing asynchronous requests. Lowering the thread priority will give Flink's main components more CPU time whereas increasing will allocate more time for the REST server's processing.</td>
         </tr>
+        <tr>
+            <td><h5>rest.url-prefix</h5></td>
+            <td style="word-wrap: break-word;">"/"</td>
+            <td>String</td>
+            <td>The url prefix that should be used by clients to construct the full target url, must start and end with '/'. This will be added between the address and version prefix. For example, if the option is set to '/foo/', the overview query URL will be transformed to 'localhost:8081/foo/v1/overview'. Attention: This option is respected only if the high-availability configuration is NONE.</td>
+        </tr>
     </tbody>
 </table>

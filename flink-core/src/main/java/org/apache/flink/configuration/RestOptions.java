@@ -58,6 +58,17 @@ public class RestOptions {
                                     + " (“50100-50200”) or a combination of both. It is recommended to set a range of ports to avoid"
                                     + " collisions when multiple Rest servers are running on the same machine.");
 
+    /** The url prefix that should be used by clients to construct the full target url. */
+    public static final ConfigOption<String> URL_PREFIX =
+            key("rest.url-prefix")
+                    .stringType()
+                    .defaultValue("/")
+                    .withDescription(
+                            "The url prefix that should be used by clients to construct the full target url, must start and end with '/'."
+                                    + " This will be added between the address and version prefix. For example, if the option is set to '/foo/',"
+                                    + " the overview query URL will be transformed to 'localhost:8081/foo/v1/overview'."
+                                    + " Attention: This option is respected only if the high-availability configuration is NONE.");
+
     /** The address that should be used by clients to connect to the server. */
     @Documentation.Section(Documentation.Sections.COMMON_HOST_PORT)
     public static final ConfigOption<String> ADDRESS =
