@@ -136,6 +136,15 @@ under the License.
 				<excludeE2E>org.apache.flink.testutils.junit.FailsOnJava11</excludeE2E>
 			</properties>
 		</profile>
+		<profile>
+			<id>java17</id>
+			<activation>
+				<jdk>[17,)</jdk>
+			</activation>
+			<properties>
+				<excludeE2E>org.apache.flink.testutils.junit.FailsOnJava17</excludeE2E>
+			</properties>
+		</profile>
 	</profiles>
 
 	<build>
