@@ -144,6 +144,7 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-statebackend-rocksdb</artifactId>
 			<version>${project.version}</version>
+			<scope>runtime</scope>
 		</dependency>
 
         <dependency>
@@ -154,6 +155,31 @@ under the License.
             <scope>runtime</scope>
         </dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-dstl-dfs</artifactId>
+			<version>${project.version}</version>
+			<!-- the dependency should be transitive -->
+			<scope>runtime</scope>
+		</dependency>
+
 	</dependencies>
+
+	<!-- build a test jar -->
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
 
 </project>

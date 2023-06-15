@@ -285,8 +285,7 @@ public class ChangelogStateDiscardTest {
                 "test-subtask",
                 executionConfig,
                 TtlTimeProvider.DEFAULT,
-                new ChangelogStateBackendMetricGroup(
-                        UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup()),
+                UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup(),
                 writer,
                 emptyList(),
                 new MemoryBackendCheckpointStorageAccess(
