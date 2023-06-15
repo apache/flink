@@ -27,7 +27,6 @@ import java.sql.NClob;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
-import java.sql.SQLWarning;
 import java.sql.SQLXML;
 import java.sql.Savepoint;
 import java.sql.Statement;
@@ -57,18 +56,6 @@ abstract class BaseConnection implements Connection {
     }
 
     @Override
-    public void setAutoCommit(boolean autoCommit) throws SQLException {
-        throw new SQLFeatureNotSupportedException(
-                "FlinkConnection#setAutoCommit is not supported yet.");
-    }
-
-    @Override
-    public boolean getAutoCommit() throws SQLException {
-        throw new SQLFeatureNotSupportedException(
-                "FlinkConnection#getAutoCommit is not supported yet.");
-    }
-
-    @Override
     public void commit() throws SQLException {
         throw new SQLFeatureNotSupportedException("FlinkConnection#commit is not supported yet.");
     }
@@ -88,24 +75,6 @@ abstract class BaseConnection implements Connection {
     public boolean isReadOnly() throws SQLException {
         throw new SQLFeatureNotSupportedException(
                 "FlinkConnection#isReadOnly is not supported yet.");
-    }
-
-    @Override
-    public void setTransactionIsolation(int level) throws SQLException {
-        throw new SQLFeatureNotSupportedException(
-                "FlinkConnection#setTransactionIsolation is not supported yet.");
-    }
-
-    @Override
-    public int getTransactionIsolation() throws SQLException {
-        throw new SQLFeatureNotSupportedException(
-                "FlinkConnection#getTransactionIsolation is not supported yet.");
-    }
-
-    @Override
-    public SQLWarning getWarnings() throws SQLException {
-        throw new SQLFeatureNotSupportedException(
-                "FlinkConnection#getWarnings is not supported yet.");
     }
 
     @Override
