@@ -961,7 +961,7 @@ public class StreamGraph implements Pipeline {
                         ITERATION_SINK_NAME_PREFIX + "-" + loopId);
         sinks.add(sink.getId());
         setParallelism(sink.getId(), parallelism);
-        setMaxParallelism(sink.getId(), parallelism);
+        setMaxParallelism(sink.getId(), maxParallelism);
         // The tail node is always in the same slot sharing group with the head node
         // so that they can share resources (they do not use non-sharable resources,
         // i.e. managed memory). There is no contract on how the resources should be
