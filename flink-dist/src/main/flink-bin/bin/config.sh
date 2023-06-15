@@ -172,7 +172,7 @@ KEY_TASKM_COMPUTE_NUMA="taskmanager.compute.numa"
 KEY_ENV_PID_DIR="env.pid.dir"
 KEY_ENV_LOG_DIR="env.log.dir"
 KEY_ENV_LOG_MAX="env.log.max"
-KEY_ENV_STD_REDIRECT="env.std.redirect"
+KEY_ENV_STD_REDIRECT_TO_FILE="env.stdout-err.redirect-to-file"
 KEY_ENV_YARN_CONF_DIR="env.yarn.conf.dir"
 KEY_ENV_HADOOP_CONF_DIR="env.hadoop.conf.dir"
 KEY_ENV_HBASE_CONF_DIR="env.hbase.conf.dir"
@@ -292,8 +292,8 @@ if [ -z "${MAX_LOG_FILE_NUMBER}" ]; then
     export MAX_LOG_FILE_NUMBER
 fi
 
-if [ -z "${STD_REDIRECT}" ]; then
-    STD_REDIRECT=$(readFromConfig ${KEY_ENV_STD_REDIRECT} "false" "${YAML_CONF}")
+if [ -z "${STD_REDIRECT_TO_FILE}" ]; then
+    STD_REDIRECT_TO_FILE=$(readFromConfig ${KEY_ENV_STD_REDIRECT_TO_FILE} "false" "${YAML_CONF}")
 fi
 
 if [ -z "${FLINK_LOG_DIR}" ]; then

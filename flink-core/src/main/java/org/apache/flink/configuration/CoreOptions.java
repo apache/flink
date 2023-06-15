@@ -312,8 +312,8 @@ public class CoreOptions {
      * scripts.
      */
     @SuppressWarnings("unused")
-    public static final ConfigOption<Boolean> FLINK_STD_REDIRECT =
-            ConfigOptions.key("env.std.redirect")
+    public static final ConfigOption<Boolean> FLINK_STD_REDIRECT_TO_FILE =
+            ConfigOptions.key("env.stdout-err.redirect-to-file")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(

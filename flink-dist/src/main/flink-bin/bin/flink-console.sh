@@ -118,8 +118,8 @@ echo $$ >> "$pid" 2>/dev/null
 # Evaluate user options for local variable expansion
 FLINK_ENV_JAVA_OPTS=$(eval echo ${FLINK_ENV_JAVA_OPTS})
 
-if [ "${STD_REDIRECT}" == "true" ]; then
-  # disable console appender to avoid redundant logs in log file and out file
+if [ "${STD_REDIRECT_TO_FILE}" == "true" ]; then
+  # disable console appender to avoid redundant logs in out file
   log_setting=("-Dconsole.log.level=OFF" "${log_setting[@]}")
   exec 1>"${out}"
   exec 2>"${err}"
