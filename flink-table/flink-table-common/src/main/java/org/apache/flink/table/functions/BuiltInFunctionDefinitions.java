@@ -34,6 +34,7 @@ import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategies;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.inference.strategies.ArrayElementOutputTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.ArrayOfStringArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies;
 import org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -306,6 +307,24 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(new ArrayElementOutputTypeStrategy())
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.ArrayMaxFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition ARRAY_JOIN =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ARRAY_JOIN")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            or(
+                                    sequence(
+                                            new ArrayOfStringArgumentTypeStrategy(),
+                                            logical(LogicalTypeFamily.CHARACTER_STRING)),
+                                    sequence(
+                                            new ArrayOfStringArgumentTypeStrategy(),
+                                            logical(LogicalTypeFamily.CHARACTER_STRING),
+                                            logical(LogicalTypeFamily.CHARACTER_STRING))))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING().nullable())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.ArrayJoinFunction")
                     .build();
 
     public static final BuiltInFunctionDefinition INTERNAL_REPLICATE_ROWS =
