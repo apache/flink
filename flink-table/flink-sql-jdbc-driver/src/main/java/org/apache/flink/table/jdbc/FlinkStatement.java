@@ -28,6 +28,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
+import java.sql.SQLWarning;
 
 /** Statement for flink jdbc driver. Notice that the statement is not thread safe. */
 @NotThreadSafe
@@ -88,6 +89,18 @@ public class FlinkStatement extends BaseStatement {
         checkClosed();
         clearCurrentResults();
     }
+
+    // TODO We currently do not support this, but we can't throw a SQLException here because we want
+    // to support jdbc tools such as beeline and sqlline.
+    @Override
+    public SQLWarning getWarnings() throws SQLException {
+        return null;
+    }
+
+    // TODO We currently do not support this, but we can't throw a SQLException here because we want
+    // to support jdbc tools such as beeline and sqlline.
+    @Override
+    public void clearWarnings() throws SQLException {}
 
     private void checkClosed() throws SQLException {
         if (closed) {

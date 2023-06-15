@@ -27,9 +27,11 @@ import org.apache.flink.table.jdbc.utils.DriverUtils;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
+import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.SQLClientInfoException;
 import java.sql.SQLException;
+import java.sql.SQLWarning;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -72,6 +74,18 @@ public class FlinkConnection extends BaseConnection {
         final Statement statement = new FlinkStatement(this);
         statements.add(statement);
         return statement;
+    }
+
+    // TODO We currently do not support this, but we can't throw a SQLException here because we want
+    // to support jdbc tools such as beeline and sqlline.
+    @Override
+    public void setAutoCommit(boolean autoCommit) throws SQLException {}
+
+    // TODO We currently do not support this, but we can't throw a SQLException here because we want
+    // to support jdbc tools such as beeline and sqlline.
+    @Override
+    public boolean getAutoCommit() throws SQLException {
+        return true;
     }
 
     @VisibleForTesting
@@ -142,6 +156,25 @@ public class FlinkConnection extends BaseConnection {
                 throw new SQLException("No catalog");
             }
         }
+    }
+
+    // TODO We currently do not support this, but we can't throw a SQLException here because we want
+    // to support jdbc tools such as beeline and sqlline.
+    @Override
+    public void setTransactionIsolation(int level) throws SQLException {}
+
+    // TODO We currently do not support this, but we can't throw a SQLException here because we want
+    // to support jdbc tools such as beeline and sqlline.
+    @Override
+    public int getTransactionIsolation() throws SQLException {
+        return Connection.TRANSACTION_NONE;
+    }
+
+    // TODO We currently do not support this, but we can't throw a SQLException here because we want
+    // to support jdbc tools such as beeline and sqlline.
+    @Override
+    public SQLWarning getWarnings() throws SQLException {
+        return null;
     }
 
     @Override

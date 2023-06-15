@@ -21,7 +21,6 @@ package org.apache.flink.table.jdbc;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
-import java.sql.SQLWarning;
 import java.sql.Statement;
 
 /** Base statement in flink driver. */
@@ -72,18 +71,6 @@ public abstract class BaseStatement implements Statement {
     public void setQueryTimeout(int seconds) throws SQLException {
         throw new SQLFeatureNotSupportedException(
                 "FlinkStatement#setQueryTimeout is not supported yet.");
-    }
-
-    @Override
-    public SQLWarning getWarnings() throws SQLException {
-        throw new SQLFeatureNotSupportedException(
-                "FlinkStatement#getWarnings is not supported yet.");
-    }
-
-    @Override
-    public void clearWarnings() throws SQLException {
-        throw new SQLFeatureNotSupportedException(
-                "FlinkStatement#clearWarnings is not supported yet.");
     }
 
     @Override
