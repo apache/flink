@@ -228,6 +228,7 @@ advanced type helper functions
     Expression.array_concat
     Expression.array_contains
     Expression.array_distinct
+    Expression.array_join
     Expression.array_position
     Expression.array_remove
     Expression.array_reverse
