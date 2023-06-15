@@ -330,6 +330,9 @@ under the License.
 		</profile>
 		<profile>
 			<id>java17</id>
+			<activation>
+				<jdk>[17,)</jdk>
+			</activation>
 			<build>
 				<plugins>
 					<plugin>
