@@ -80,6 +80,52 @@ No rows affected (0.108 seconds)
 0: jdbc:flink://localhost:8083> 
 ```
 
+### Use with SqlLine
+
+[SqlLine] (https://github.com/julianhyde/sqlline) is a lightweight JDBC command line tool, it supports general JDBC drivers. You need to clone the codes from github and compile the project with mvn first.
+
+1. Download flink-jdbc-driver-bundle-{VERSION}.jar and add it to `target` directory of SqlLine project. Notice that you need to copy slf4j-api-{slf4j.version}.jar to `target` which will be used by flink JDBC driver. 
+2. Run SqlLine with command `bin/sqlline` and connect to a Flink SQL gateway. As Flink SQL gateway currently ignores user names and passwords, just leave them empty.
+    ```
+    sqlline> !connect jdbc:flink://localhost:8083
+    ```
+3. Execute any statement you want.
+
+**Sample Commands**
+```
+sqlline version 1.12.0
+sqlline> !connect jdbc:flink://localhost:8083
+Enter username for jdbc:flink://localhost:8083:
+Enter password for jdbc:flink://localhost:8083:
+0: jdbc:flink://localhost:8083> CREATE TABLE T(
+. . . . . . . . . . . . . . .)>      a INT,
+. . . . . . . . . . . . . . .)>      b VARCHAR(10)
+. . . . . . . . . . . . . . .)>  ) WITH (
+. . . . . . . . . . . . . . .)>      'connector' = 'filesystem',
+. . . . . . . . . . . . . . .)>      'path' = 'file:///tmp/T.csv',
+. . . . . . . . . . . . . . .)>      'format' = 'csv'
+. . . . . . . . . . . . . . .)>  );
+No rows affected (0.122 seconds)
+0: jdbc:flink://localhost:8083> INSERT INTO T VALUES (1, 'Hi'), (2, 'Hello');
++----------------------------------+
+|              job id              |
++----------------------------------+
+| fbade1ab4450fc57ebd5269fdf60dcfd |
++----------------------------------+
+1 row selected (1.282 seconds)
+0: jdbc:flink://localhost:8083> SELECT * FROM T;
++---+-------+
+| a |   b   |
++---+-------+
+| 1 | Hi    |
+| 2 | Hello |
+| 1 | Hi    |
+| 2 | Hello |
++---+-------+
+4 rows selected (1.955 seconds)
+0: jdbc:flink://localhost:8083>
+```
+
 ## Use with Java
 
 Flink JDBC driver is a library for accessing Flink clusters through the JDBC API. For the general usage of JDBC in Java, see [JDBC tutorial](https://docs.oracle.com/javase/tutorial/jdbc/index.html).
