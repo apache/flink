@@ -104,6 +104,12 @@ public abstract class OpFusionCodegenSpecGenerator {
      */
     public abstract String endInputConsume();
 
+    public abstract void addReusableInitCode(CodeGeneratorContext fusionCtx);
+
+    public abstract void addReusableOpenCode(CodeGeneratorContext fusionCtx);
+
+    public abstract void addReusableCloseCode(CodeGeneratorContext fusionCtx);
+
     /** Implementation of {@link OpFusionContext}. */
     private static class OpFusionContextImpl implements OpFusionContext {
 

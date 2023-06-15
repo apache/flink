@@ -77,6 +77,12 @@ By default no operator is disabled.</td>
             <td>The maximum number of input records can be buffered for MiniBatch. MiniBatch is an optimization to buffer input records to reduce state access. MiniBatch is triggered with the allowed latency interval and when the maximum number of buffered records reached. NOTE: MiniBatch only works for non-windowed aggregations currently. If table.exec.mini-batch.enabled is set true, its value must be positive.</td>
         </tr>
         <tr>
+            <td><h5>table.exec.operator-fusion-codegen.enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>If true, multiple physical operators will be compiled into a single operator by planner which can improve the performance.</td>
+        </tr>
+        <tr>
             <td><h5>table.exec.rank.topn-cache-size</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">10000</td>
             <td>Long</td>

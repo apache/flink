@@ -52,6 +52,41 @@ abstract class OpFusionCodegenSpecGeneratorBase(
 
   override def getManagedMemory: Long = managedMemory
 
+  def addReusableInitCode(fusionCtx: CodeGeneratorContext): Unit = {
+    val operatorCtx = getOperatorCtx
+    // add operator reusable member and inner class definition to multiple codegen ctx
+    fusionCtx.addReusableMember(operatorCtx.reuseMemberCode())
+    fusionCtx.addReusableInnerClass(
+      newName(this.getClass.getCanonicalName),
+      operatorCtx.reuseInnerClassDefinitionCode())
+
+    // add init code
+    val initCode = operatorCtx.reuseInitCode()
+    if (initCode.nonEmpty) {
+      val initMethodTerm = newName(variablePrefix + "init")
+      fusionCtx.addReusableMember(
+        s"""
+           |private void $initMethodTerm(Object[] references) throws Exception {
+           |  ${operatorCtx.reuseInitCode()}
+           |}
+     """.stripMargin)
+
+      val refs =
+        fusionCtx.addReusableObject(operatorCtx.references.toArray, variablePrefix + "Refs")
+      fusionCtx.addReusableInitStatement(s"$initMethodTerm($refs);")
+    }
+  }
+
+  def addReusableOpenCode(fusionCtx: CodeGeneratorContext): Unit = {
+    // add open code
+    fusionCtx.addReusableOpenStatement(getOperatorCtx.reuseOpenCode())
+  }
+
+  def addReusableCloseCode(fusionCtx: CodeGeneratorContext): Unit = {
+    // add close code
+    fusionCtx.addReusableCloseStatement(getOperatorCtx.reuseCloseCode())
+  }
+
   def processProduce(fusionCtx: CodeGeneratorContext): Unit = {
     if (!hasProcessProduceTraversed) {
       opFusionCodegenSpec.doProcessProduce(fusionCtx)

@@ -581,11 +581,21 @@ public class MultipleInputNodeCreationProcessor implements ExecNodeGraphProcesso
             originalEdges.add(edge);
         }
 
+        List<ExecNode<?>> memberExecNodes =
+                group.members.stream()
+                        .map(ExecNodeWrapper::getExecNode)
+                        .collect(Collectors.toList());
+
         String description =
                 ExecNodeUtil.getMultipleInputDescription(rootNode, inputNodes, inputProperties);
         BatchExecMultipleInput multipleInput =
                 new BatchExecMultipleInput(
-                        tableConfig, inputProperties, rootNode, originalEdges, description);
+                        tableConfig,
+                        inputProperties,
+                        rootNode,
+                        memberExecNodes,
+                        originalEdges,
+                        description);
 
         List<ExecEdge> inputEdges = new ArrayList<>(inputNodes.size());
         for (ExecNode<?> inputNode : inputNodes) {
@@ -610,6 +620,10 @@ public class MultipleInputNodeCreationProcessor implements ExecNodeGraphProcesso
             this.inputs = new ArrayList<>();
             this.outputs = new ArrayList<>();
             this.group = null;
+        }
+
+        public ExecNode<?> getExecNode() {
+            return execNode;
         }
     }
 

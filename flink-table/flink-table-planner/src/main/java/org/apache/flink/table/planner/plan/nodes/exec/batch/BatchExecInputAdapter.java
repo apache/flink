@@ -18,53 +18,54 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.fusion.OpFusionCodegenSpecGenerator;
-import org.apache.flink.table.planner.plan.fusion.generator.OneInputOpFusionCodegenSpecGenerator;
-import org.apache.flink.table.planner.plan.fusion.spec.CalcFusionCodegenSpec;
+import org.apache.flink.table.planner.plan.fusion.generator.SourceOpFusionCodegenSpecGenerator;
+import org.apache.flink.table.planner.plan.fusion.spec.InputAdapterFusionCodegenSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
-import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecCalc;
-import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
-import org.apache.flink.table.runtime.operators.TableStreamOperator;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.apache.calcite.rex.RexNode;
-
-import javax.annotation.Nullable;
-
 import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
 
-/** Batch {@link ExecNode} for Calc. */
-public class BatchExecCalc extends CommonExecCalc implements BatchExecNode<RowData> {
+/** Batch {@link ExecNode} for multiple operator fusion codegen input, it is adapter source node. */
+public class BatchExecInputAdapter extends ExecNodeBase<RowData>
+        implements BatchExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
-    public BatchExecCalc(
+    private final int multipleInputId;
+
+    public BatchExecInputAdapter(
+            int multipleInputId,
             ReadableConfig tableConfig,
-            List<RexNode> projection,
-            @Nullable RexNode condition,
             InputProperty inputProperty,
-            RowType outputType,
+            LogicalType outputType,
             String description) {
         super(
                 ExecNodeContext.newNodeId(),
-                ExecNodeContext.newContext(BatchExecCalc.class),
-                ExecNodeContext.newPersistedConfig(BatchExecCalc.class, tableConfig),
-                projection,
-                condition,
-                TableStreamOperator.class,
-                false, // retainHeader
+                ExecNodeContext.newContext(BatchExecInputAdapter.class),
+                ExecNodeContext.newPersistedConfig(BatchExecInputAdapter.class, tableConfig),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
+        this.multipleInputId = multipleInputId;
     }
 
+    @Override
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
+        return (Transformation<RowData>) getInputEdges().get(0).translateToPlan(planner);
+    }
+
+    @Override
     public boolean supportFusionCodegen() {
         return true;
     }
@@ -72,19 +73,11 @@ public class BatchExecCalc extends CommonExecCalc implements BatchExecNode<RowDa
     @Override
     protected OpFusionCodegenSpecGenerator translateToFusionCodegenSpecInternal(
             PlannerBase planner, ExecNodeConfig config) {
-        OpFusionCodegenSpecGenerator input =
-                getInputEdges().get(0).translateToFusionCodegenSpec(planner);
-        OpFusionCodegenSpecGenerator calcGenerator =
-                new OneInputOpFusionCodegenSpecGenerator(
-                        input,
-                        0L,
-                        (RowType) getOutputType(),
-                        new CalcFusionCodegenSpec(
-                                new CodeGeneratorContext(
-                                        config, planner.getFlinkContext().getClassLoader()),
-                                JavaScalaConversionUtil.toScala(projection),
-                                JavaScalaConversionUtil.toScala(Optional.ofNullable(condition))));
-        input.addOutput(1, calcGenerator);
-        return calcGenerator;
+        return new SourceOpFusionCodegenSpecGenerator(
+                (RowType) getOutputType(),
+                new InputAdapterFusionCodegenSpec(
+                        new CodeGeneratorContext(
+                                config, planner.getFlinkContext().getClassLoader()),
+                        multipleInputId));
     }
 }
