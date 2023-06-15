@@ -432,7 +432,7 @@ public class StateAssignmentOperation {
         // old assignment: 0 -> [0;43); 1 -> [43;87); 2 -> [87;128)
         // new assignment: 0 -> [0;64]; 1 -> [64;128)
         // subtask 0 recovers data from old subtask 0 + 1 and subtask 1 recovers data from old
-        // subtask 0 + 2
+        // subtask 1 + 2
         for (int gateIndex = 0; gateIndex < inputs.size(); gateIndex++) {
             final RescaleMappings mapping =
                     stateAssignment.getInputMapping(gateIndex).getRescaleMappings();
