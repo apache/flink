@@ -21,6 +21,9 @@
         <encoder>
             <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{60} %X{sourceThread} - %msg%n</pattern>
         </encoder>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>${console.log.level:-ALL}</level>
+        </filter>
     </appender>
 
     <appender name="rolling" class="ch.qos.logback.core.rolling.RollingFileAppender">
