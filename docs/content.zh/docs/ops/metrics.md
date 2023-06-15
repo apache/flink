@@ -1632,7 +1632,7 @@ Note that the metrics are only available via reporters.
       <td>Histogram</td>
     </tr>
     <tr>
-      <th rowspan="23"><strong>Task</strong></th>
+      <th rowspan="24"><strong>Task</strong></th>
       <td>numBytesInLocal</td>
       <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{{< ref "docs/ops/metrics" >}}#default-shuffle-service">Default shuffle service metrics</a>.</td>
       <td>Counter</td>
@@ -1730,6 +1730,11 @@ Note that the metrics are only available via reporters.
     <tr>
       <td>maxHardBackPressuredTimeMs</td>
       <td>Maximum recorded duration of a single consecutive period of the task being in the hard back pressure state in the last sampling period. Please check softBackPressuredTimeMsPerSecond and hardBackPressuredTimeMsPerSecond for more information.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>changelogBusyTimeMsPerSecond</td>
+      <td>The time (in milliseconds) taken by the Changelog state backend to do IO operations, only positive when Changelog state backend is enabled. Please check 'dstl.dfs.upload.max-in-flight' for more information.</td>
       <td>Gauge</td>
     </tr>
     <tr>

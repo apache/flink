@@ -596,9 +596,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             timer = new GaugePeriodTimer(ioMetrics.getIdleTimeMsPerSecond());
             resumeFuture = inputProcessor.getAvailableFuture();
         } else if (changelogWriterAvailabilityProvider != null) {
-            // currently, waiting for changelog availability is reported as busy
-            // todo: add new metric (FLINK-24402)
-            timer = null;
+            // waiting for changelog availability is reported as busy
+            timer = new GaugePeriodTimer(ioMetrics.getChangelogBusyTimeMsPerSecond());
             resumeFuture = changelogWriterAvailabilityProvider.getAvailableFuture();
         } else {
             // data availability has changed in the meantime; retry immediately

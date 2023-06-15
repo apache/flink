@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.metrics.groups;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
@@ -59,6 +60,7 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
     private final Gauge<Long> backPressuredTimePerSecond;
     private final TimerGauge softBackPressuredTimePerSecond;
     private final TimerGauge hardBackPressuredTimePerSecond;
+    private final TimerGauge changelogBusyTimeMsPerSecond;
     private final Gauge<Long> maxSoftBackPressuredTime;
     private final Gauge<Long> maxHardBackPressuredTime;
     private final Gauge<Long> accumulatedBackPressuredTime;
@@ -112,6 +114,9 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
                         hardBackPressuredTimePerSecond::getMaxSingleMeasurement);
 
         this.busyTimePerSecond = gauge(MetricNames.TASK_BUSY_TIME, this::getBusyTimePerSecond);
+
+        this.changelogBusyTimeMsPerSecond =
+                gauge(MetricNames.CHANGELOG_BUSY_TIME, new TimerGauge());
 
         this.accumulatedBusyTime =
                 gauge(MetricNames.ACC_TASK_BUSY_TIME, this::getAccumulatedBusyTime);
@@ -182,6 +187,10 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
         return hardBackPressuredTimePerSecond;
     }
 
+    public TimerGauge getChangelogBusyTimeMsPerSecond() {
+        return changelogBusyTimeMsPerSecond;
+    }
+
     public long getBackPressuredTimeMsPerSecond() {
         return getSoftBackPressuredTimePerSecond().getValue()
                 + getHardBackPressuredTimePerSecond().getValue();
@@ -200,12 +209,14 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
         busyTimeEnabled = enabled;
     }
 
-    private double getBusyTimePerSecond() {
+    @VisibleForTesting
+    double getBusyTimePerSecond() {
         double busyTime = idleTimePerSecond.getValue() + getBackPressuredTimeMsPerSecond();
         return busyTimeEnabled ? 1000.0 - Math.min(busyTime, 1000.0) : Double.NaN;
     }
 
-    private double getAccumulatedBusyTime() {
+    @VisibleForTesting
+    double getAccumulatedBusyTime() {
         return busyTimeEnabled
                 ? Math.max(
                         System.currentTimeMillis()

@@ -71,6 +71,11 @@ class TaskIOMetricGroupTest {
         Thread.sleep(hardSleepTime);
         taskIO.getHardBackPressuredTimePerSecond().markEnd();
 
+        long ioSleepTime = 3L;
+        taskIO.getChangelogBusyTimeMsPerSecond().markStart();
+        Thread.sleep(ioSleepTime);
+        taskIO.getChangelogBusyTimeMsPerSecond().markEnd();
+
         IOMetrics io = taskIO.createSnapshot();
         assertThat(io.getNumRecordsIn()).isEqualTo(32L);
         assertThat(io.getNumRecordsOut()).isEqualTo(64L);
@@ -95,6 +100,54 @@ class TaskIOMetricGroupTest {
                 .isGreaterThanOrEqualTo(softSleepTime);
         assertThat(taskIO.getHardBackPressuredTimePerSecond().getCount())
                 .isGreaterThanOrEqualTo(hardSleepTime);
+        assertThat(taskIO.getChangelogBusyTimeMsPerSecond().getCount())
+                .isGreaterThanOrEqualTo(ioSleepTime);
+    }
+
+    @Test
+    void testConsistencyOfTime() throws InterruptedException {
+        TaskMetricGroup task = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
+        TaskIOMetricGroup taskIO = task.getIOMetricGroup();
+        taskIO.setEnableBusyTime(true);
+        taskIO.markTaskStart();
+        final long startTime = System.currentTimeMillis();
+        long softBackpressureTime = 100L;
+        taskIO.getSoftBackPressuredTimePerSecond().markStart();
+        Thread.sleep(softBackpressureTime);
+        taskIO.getSoftBackPressuredTimePerSecond().markEnd();
+        assertThat(taskIO.getSoftBackPressuredTimePerSecond().getAccumulatedCount())
+                .isGreaterThanOrEqualTo(softBackpressureTime);
+
+        long hardBackpressureTime = 200L;
+        taskIO.getHardBackPressuredTimePerSecond().markStart();
+        Thread.sleep(hardBackpressureTime);
+        taskIO.getHardBackPressuredTimePerSecond().markEnd();
+        assertThat(taskIO.getHardBackPressuredTimePerSecond().getAccumulatedCount())
+                .isGreaterThanOrEqualTo(hardBackpressureTime);
+
+        long changelogBusyTime = 300L;
+        taskIO.getChangelogBusyTimeMsPerSecond().markStart();
+        Thread.sleep(changelogBusyTime);
+        taskIO.getChangelogBusyTimeMsPerSecond().markEnd();
+        assertThat(taskIO.getChangelogBusyTimeMsPerSecond().getAccumulatedCount())
+                .isGreaterThanOrEqualTo(changelogBusyTime);
+
+        long idleTime = 200L;
+        taskIO.getIdleTimeMsPerSecond().markStart();
+        Thread.sleep(idleTime);
+        taskIO.getIdleTimeMsPerSecond().markEnd();
+        assertThat(taskIO.getIdleTimeMsPerSecond().getAccumulatedCount())
+                .isGreaterThanOrEqualTo(idleTime);
+        long totalDuration = System.currentTimeMillis() - startTime;
+
+        // Theoretically: busy time = total time - idle time - backpressure time.
+        // For the robustness, let the error be within 10ms.
+        assertThat(
+                        totalDuration
+                                - (taskIO.getAccumulatedBusyTime()
+                                        + taskIO.getAccumulatedBackPressuredTimeMs()
+                                        + taskIO.getIdleTimeMsPerSecond().getAccumulatedCount()))
+                .isLessThan(10);
     }
 
     @Test
