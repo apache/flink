@@ -95,7 +95,11 @@ class HashJoinFusionCodegenSpec(
 
     buildType = buildInput.getOutputType
     probeType = probeInput.getOutputType
-    keyType = RowType.of(joinSpec.getLeftKeys.map(idx => buildType.getTypeAt(idx)): _*)
+    if (leftIsBuild) {
+      keyType = RowType.of(joinSpec.getLeftKeys.map(idx => buildType.getTypeAt(idx)): _*)
+    } else {
+      keyType = RowType.of(joinSpec.getLeftKeys.map(idx => probeType.getTypeAt(idx)): _*)
+    }
   }
 
   override def variablePrefix: String = if (isBroadcast) { "bhj" }
@@ -132,6 +136,7 @@ class HashJoinFusionCodegenSpec(
     if (isBroadcast) {
       codegenHashTable(false)
     } else {
+      // TODO Shuffled HashJoin support build side spill to disk
       codegenHashTable(true)
     }
 
@@ -189,7 +194,6 @@ class HashJoinFusionCodegenSpec(
   }
 
   private def codegenProbeOuterProbe(inputVars: util.List[GeneratedExpression]): String = {
-    println("left outer join codegen")
     val (keyEv, anyNull) = genStreamSideJoinKey(probeKeys, inputVars)
     val keyCode = keyEv.getCode
     val matched = newName("buildRow")
@@ -252,7 +256,6 @@ class HashJoinFusionCodegenSpec(
   }
 
   private def codegenSemiProbe(inputVars: util.List[GeneratedExpression]): String = {
-    println("semi join codegen")
     val (keyEv, anyNull) = genStreamSideJoinKey(probeKeys, inputVars)
     val keyCode = keyEv.getCode
     val (matched, checkCondition, buildLocalVars, _) = getJoinCondition(buildType)
@@ -454,7 +457,7 @@ class HashJoinFusionCodegenSpec(
     }
   }
 
-  def codegenHashTable(spillEnabled: Boolean): Unit = {
+  private def codegenHashTable(spillEnabled: Boolean): Unit = {
     val buildSer = new BinaryRowDataSerializer(buildType.getFieldCount)
     val buildSerTerm = operatorCtx.addReusableObject(buildSer, "buildSer")
     val probeSer = new BinaryRowDataSerializer(probeType.getFieldCount)

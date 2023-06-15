@@ -389,6 +389,14 @@ public class ExecutionConfigOptions {
                                     + "\"SortMergeJoin\", \"HashAgg\", \"SortAgg\".\n"
                                     + "By default no operator is disabled.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> TABLE_EXEC_OPERATOR_FUSION_CODEGEN_ENABLED =
+            key("table.exec.operator-fusion-codegen.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "If true, multiple physical operators will be compiled into a single operator by planner which can improve the performance.");
+
     /** @deprecated Use {@link ExecutionOptions#BATCH_SHUFFLE_MODE} instead. */
     @Deprecated
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)

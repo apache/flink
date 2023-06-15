@@ -35,6 +35,7 @@ import org.apache.flink.util.MathUtils;
 
 import java.io.EOFException;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -79,6 +80,32 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
             IOManager ioManager,
             int avgRecordLen,
             long buildRowCount) {
+        this(
+                owner,
+                compressionEnabled,
+                compressionBlockSize,
+                buildSideSerializer,
+                probeSideSerializer,
+                memManager,
+                reservedMemorySize,
+                ioManager,
+                avgRecordLen,
+                buildRowCount,
+                true);
+    }
+
+    public LongHybridHashTable(
+            Object owner,
+            boolean compressionEnabled,
+            int compressionBlockSize,
+            BinaryRowDataSerializer buildSideSerializer,
+            BinaryRowDataSerializer probeSideSerializer,
+            MemoryManager memManager,
+            long reservedMemorySize,
+            IOManager ioManager,
+            int avgRecordLen,
+            long buildRowCount,
+            boolean spillEnabled) {
         super(
                 owner,
                 compressionEnabled,
@@ -88,7 +115,8 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
                 ioManager,
                 avgRecordLen,
                 buildRowCount,
-                false);
+                false,
+                spillEnabled);
         this.buildSideSerializer = buildSideSerializer;
         this.probeSideSerializer = probeSideSerializer;
 
@@ -118,6 +146,35 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
         this.probeIterator = new ProbeIterator(this.probeSideSerializer.createInstance());
 
         tryDenseMode();
+    }
+
+    /** This method is only used for operator fusion codegen to get build row from hash table. */
+    public final RowIterator<BinaryRowData> get(long probeKey) throws IOException {
+        if (denseMode) {
+            if (probeKey >= minKey && probeKey <= maxKey) {
+                long denseBucket = probeKey - minKey;
+                long denseBucketOffset = denseBucket << 3;
+                int denseSegIndex = (int) (denseBucketOffset >>> segmentSizeBits);
+                int denseSegOffset = (int) (denseBucketOffset & segmentSizeMask);
+
+                long address = denseBuckets[denseSegIndex].getLong(denseSegOffset);
+                this.matchIterator = densePartition.valueIter(address);
+            } else {
+                this.matchIterator = densePartition.valueIter(INVALID_ADDRESS);
+            }
+
+            return matchIterator;
+        } else {
+            final int hash = hashLong(probeKey, this.currentRecursionDepth);
+            LongHashPartition p = this.partitionsBeingBuilt.get(hash % partitionsBeingBuilt.size());
+            if (p.isInMemory()) {
+                this.matchIterator = p.get(probeKey, hash);
+                return matchIterator;
+            } else {
+                throw new UnsupportedOperationException(
+                        "LongHashTable doesn't support spill to disk when operator fusion codegen is enabled.");
+            }
+        }
     }
 
     public boolean tryProbe(RowData record) throws IOException {
@@ -542,6 +599,11 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
 
     @Override
     public int spillPartition() throws IOException {
+        if (!spillEnabled) {
+            throw new UnsupportedEncodingException(
+                    "Currently doesn't support spill to disk for grace hash join "
+                            + "when broadcast hash join strategy is chosen and operator fusion codegen is enabled simultaneously.");
+        }
         // find the largest partition
         int largestNumBlocks = 0;
         int largestPartNum = -1;

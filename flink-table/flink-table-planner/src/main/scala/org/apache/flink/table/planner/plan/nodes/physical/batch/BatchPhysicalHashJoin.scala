@@ -170,6 +170,7 @@ class BatchPhysicalHashJoin(
       rightRowSize,
       leftRowCount,
       rightRowCount,
+      isBroadcast,
       leftIsBuild,
       tryDistinctBuildRow,
       leftEdge,

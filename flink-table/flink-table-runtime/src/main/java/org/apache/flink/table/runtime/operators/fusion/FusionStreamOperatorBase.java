@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
+import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.table.data.RowData;
 
 /**
@@ -40,7 +41,7 @@ public abstract class FusionStreamOperatorBase extends AbstractStreamOperatorV2<
         this.parameters = parameters;
     }
 
-    public org.apache.flink.streaming.runtime.tasks.StreamTask<?, ?> getContainingTask() {
+    public StreamTask<?, ?> getContainingTask() {
         return parameters.getContainingTask();
     }
 

@@ -82,11 +82,12 @@ public interface OpFusionCodegenSpec {
      * needs to implement this method to generate the code to process the row. This should only be
      * called from {@link OpFusionCodegenSpecGenerator#processConsume(List, String)}.
      *
+     * <p>Note: A operator can either consume the rows as RowData (row), or a list of variables
+     * (inputVars).
+     *
      * @param inputId This is numbered starting from 1, and `1` indicates the first input.
      * @param inputVars field variables of current input.
      * @param row row variable of current input.
-     *     <p>Note: A operator can either consume the rows as RowData (row), or a list of variables
-     *     (inputVars).
      */
     String doProcessConsume(
             int inputId, List<GeneratedExpression> inputVars, GeneratedExpression row);

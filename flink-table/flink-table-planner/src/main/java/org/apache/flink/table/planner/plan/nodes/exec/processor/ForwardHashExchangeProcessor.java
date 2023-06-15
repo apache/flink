@@ -279,5 +279,9 @@ public class ForwardHashExchangeProcessor implements ExecNodeGraphProcessor {
                         originalEdge.getExchangeMode());
         newEdges.set(edgeIdxInTargetNode, newEdge2);
         targetNode.setInputEdges(newEdges);
+
+        // update the originalEdge in MultipleInput, this is need for multiple operator fusion
+        // codegen
+        multipleInput.getOriginalEdges().set(edgeIdx, newEdge2);
     }
 }
