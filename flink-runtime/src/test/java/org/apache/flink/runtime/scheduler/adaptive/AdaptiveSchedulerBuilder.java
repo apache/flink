@@ -61,6 +61,7 @@ public class AdaptiveSchedulerBuilder {
     private final JobGraph jobGraph;
 
     private final ComponentMainThreadExecutor mainThreadExecutor;
+    private final ScheduledExecutorService executorService;
 
     @Nullable private JobResourceRequirements jobResourceRequirements;
 
@@ -89,7 +90,9 @@ public class AdaptiveSchedulerBuilder {
     @Nullable private SlotAllocator slotAllocator;
 
     public AdaptiveSchedulerBuilder(
-            final JobGraph jobGraph, ComponentMainThreadExecutor mainThreadExecutor) {
+            final JobGraph jobGraph,
+            ComponentMainThreadExecutor mainThreadExecutor,
+            ScheduledExecutorService executorService) {
         this.jobGraph = jobGraph;
         this.mainThreadExecutor = mainThreadExecutor;
 
@@ -100,6 +103,7 @@ public class AdaptiveSchedulerBuilder {
                         ignored -> {},
                         DEFAULT_TIMEOUT,
                         rpcTimeout);
+        this.executorService = executorService;
     }
 
     public AdaptiveSchedulerBuilder setJobResourceRequirements(
@@ -196,7 +200,7 @@ public class AdaptiveSchedulerBuilder {
         return this;
     }
 
-    public AdaptiveScheduler build(ScheduledExecutorService executorService) throws Exception {
+    public AdaptiveScheduler build() throws Exception {
         final ExecutionGraphFactory executionGraphFactory =
                 new DefaultExecutionGraphFactory(
                         jobMasterConfiguration,
