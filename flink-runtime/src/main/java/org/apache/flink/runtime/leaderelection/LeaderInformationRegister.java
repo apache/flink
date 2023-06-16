@@ -23,17 +23,21 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * A register containing the {@link LeaderInformation} for multiple contenders based on their {@code contenderID}.
+ * A register containing the {@link LeaderInformation} for multiple contenders based on their {@code
+ * contenderID}.
  */
 public class LeaderInformationRegister {
 
     private final Map<String, LeaderInformation> leaderInformationPerContenderID;
 
-    public static LeaderInformationRegister of(String contenderID, LeaderInformation leaderInformation) {
-        return new LeaderInformationRegister(Collections.singletonMap(contenderID, leaderInformation));
+    public static LeaderInformationRegister of(
+            String contenderID, LeaderInformation leaderInformation) {
+        return new LeaderInformationRegister(
+                Collections.singletonMap(contenderID, leaderInformation));
     }
 
-    public LeaderInformationRegister(Map<String, LeaderInformation> leaderInformationPerContenderID) {
+    public LeaderInformationRegister(
+            Map<String, LeaderInformation> leaderInformationPerContenderID) {
         this.leaderInformationPerContenderID = leaderInformationPerContenderID;
     }
 
