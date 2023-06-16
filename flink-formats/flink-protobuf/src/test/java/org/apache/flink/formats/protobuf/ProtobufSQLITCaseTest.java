@@ -22,6 +22,7 @@ import org.apache.flink.formats.protobuf.table.TestProtobufTestStore;
 import org.apache.flink.formats.protobuf.testproto.MapTest;
 import org.apache.flink.formats.protobuf.testproto.Pb3Test;
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
@@ -31,6 +32,8 @@ import org.junit.Test;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -327,5 +330,34 @@ public class ProtobufSQLITCaseTest extends BatchTestBase {
         assertEquals("\"NULL\"", mapTest.getMap1Map().get("a"));
         MapTest.InnerMessageTest innerMessageTest = mapTest.getMap2Map().get("b");
         assertEquals(MapTest.InnerMessageTest.getDefaultInstance(), innerMessageTest);
+    }
+
+    @Test
+    public void testUnsupportedBulkFilesystemSink() {
+        env().setParallelism(1);
+        String sql =
+                "create table bigdata_sink ( "
+                        + "	a int, "
+                        + "	map1 map<string,string>,"
+                        + " map2 map<string, row<a int, b bigint>>"
+                        + ")  with ("
+                        + "	'connector' = 'filesystem', "
+                        + "	'path' = '/tmp/unused', "
+                        + "	'format' = 'protobuf', "
+                        + " 'protobuf.message-class-name' = 'org.apache.flink.formats.protobuf.testproto.MapTest'"
+                        + ")";
+        tEnv().executeSql(sql);
+
+        assertThatThrownBy(
+                        () -> {
+                            TableResult tableResult =
+                                    tEnv().executeSql(
+                                                    "insert into bigdata_sink select 1, map['a', 'b', 'c', 'd'], map['f', row(1,cast(2 as bigint))] ");
+                            tableResult.await();
+                        })
+                .satisfies(
+                        anyCauseMatches(
+                                ValidationException.class,
+                                "The 'protobuf' format is not supported for the 'filesystem' connector."));
     }
 }
