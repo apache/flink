@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.executiongraph;
+package org.apache.flink.core.execution;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
