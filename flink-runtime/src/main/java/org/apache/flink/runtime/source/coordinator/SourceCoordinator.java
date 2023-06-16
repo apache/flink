@@ -184,8 +184,12 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
                 "Distributing maxAllowedWatermark={} to subTaskIds={}",
                 maxAllowedWatermark,
                 subTaskIds);
+
+        // Subtask maybe during deploying or restarting, so we only send WatermarkAlignmentEvent
+        // to ready task to avoid period task fail (Java-ThreadPoolExecutor will not schedule
+        // the period task if it throws an exception).
         for (Integer subtaskId : subTaskIds) {
-            context.sendEventToSourceOperator(
+            context.sendEventToSourceOperatorIfTaskReady(
                     subtaskId, new WatermarkAlignmentEvent(maxAllowedWatermark));
         }
     }
@@ -259,12 +263,11 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
             LOG.info("Starting schedule the period announceCombinedWatermark task");
             coordinatorStore.putIfAbsent(
                     watermarkAlignmentParams.getWatermarkGroup(), new WatermarkAggregator<>());
-            context.getCoordinatorExecutor()
-                    .scheduleAtFixedRate(
-                            this::announceCombinedWatermark,
-                            watermarkAlignmentParams.getUpdateInterval(),
-                            watermarkAlignmentParams.getUpdateInterval(),
-                            TimeUnit.MILLISECONDS);
+            context.schedulePeriodTask(
+                    this::announceCombinedWatermark,
+                    watermarkAlignmentParams.getUpdateInterval(),
+                    watermarkAlignmentParams.getUpdateInterval(),
+                    TimeUnit.MILLISECONDS);
         }
     }
 
