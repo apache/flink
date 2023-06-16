@@ -191,6 +191,9 @@ public class ChangelogKeyedStateBackend<K>
 
     private long lastConfirmedMaterializationId = -1L;
 
+    /** last failed or cancelled materialization. */
+    private long lastFailedMaterializationId = -1L;
+
     private final ChangelogTruncateHelper changelogTruncateHelper;
 
     public ChangelogKeyedStateBackend(
@@ -729,6 +732,7 @@ public class ChangelogKeyedStateBackend<K>
                 materializationId = Math.max(materializationId, h.getMaterializationID());
             }
         }
+        this.lastConfirmedMaterializationId = materializationId;
         this.materializedId = materializationId + 1;
 
         if (!localMaterialized.isEmpty() || !localRestoredNonMaterialized.isEmpty()) {
@@ -759,6 +763,18 @@ public class ChangelogKeyedStateBackend<K>
      */
     @Override
     public Optional<MaterializationRunnable> initMaterialization() throws Exception {
+        if (lastConfirmedMaterializationId < materializedId - 1
+                && lastFailedMaterializationId < materializedId - 1) {
+            // SharedStateRegistry potentially requires that the checkpoint's dependency on the
+            // shared file be continuous, it will be broken if we trigger a new materialization
+            // before the previous one has either confirmed or failed. See discussion in
+            // https://github.com/apache/flink/pull/22669#issuecomment-1593370772 .
+            LOG.info(
+                    "materialization:{} not confirmed or failed or cancelled, skip trigger new one.",
+                    materializedId - 1);
+            return Optional.empty();
+        }
+
         SequenceNumber upTo = stateChangelogWriter.nextSequenceNumber();
         SequenceNumber lastMaterializedTo = changelogSnapshotState.lastMaterializedTo();
 
@@ -831,6 +847,18 @@ public class ChangelogKeyedStateBackend<K>
                                 materializationID);
 
         changelogTruncateHelper.materialized(upTo);
+    }
+
+    @Override
+    public void handleMaterializationFailureOrCancellation(
+            long materializationID, SequenceNumber upTo, Throwable cause) {
+
+        LOG.info(
+                "Task {} failed or cancelled materialization:{} which is upTo:{}",
+                subtaskName,
+                materializationID,
+                upTo);
+        lastFailedMaterializationId = Math.max(lastFailedMaterializationId, materializationID);
     }
 
     // TODO: this method may change after the ownership PR
