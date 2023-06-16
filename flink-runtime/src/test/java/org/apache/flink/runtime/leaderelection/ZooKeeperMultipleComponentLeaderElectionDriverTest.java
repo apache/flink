@@ -38,7 +38,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.time.Duration;
-import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -394,7 +393,7 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
 
         @Override
         public void notifyAllKnownLeaderInformation(
-                Collection<LeaderInformationWithComponentId> leaderInformationWithComponentIds) {}
+                LeaderInformationRegister leaderInformationRegister) {}
     }
 
     private static ZooKeeperMultipleComponentLeaderElectionDriver createLeaderElectionDriver(

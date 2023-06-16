@@ -30,7 +30,6 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -225,13 +224,12 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
             registerLeaderElectionEventHandler(leaderElectionService, unknownLeaderInformation);
 
             leaderElectionService.notifyAllKnownLeaderInformation(
-                    knownLeaderInformation.stream()
-                            .map(
-                                    component ->
-                                            LeaderInformationWithComponentId.create(
-                                                    component.getComponentId(),
-                                                    component.getLeaderInformation()))
-                            .collect(Collectors.toList()));
+                    new LeaderInformationRegister(
+                            knownLeaderInformation.stream()
+                                    .collect(
+                                            Collectors.toMap(
+                                                    Component::getComponentId,
+                                                    Component::getLeaderInformation))));
 
             for (Component component : knownLeaderInformation) {
                 assertThat(component.getLeaderElectionEventListener().getLeaderInformation())
@@ -273,10 +271,9 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
 
             // make sure that this call succeeds w/o blocking
             leaderElectionService.notifyAllKnownLeaderInformation(
-                    Collections.singleton(
-                            LeaderInformationWithComponentId.create(
-                                    knownLeaderInformationComponent,
-                                    LeaderInformation.known(UUID.randomUUID(), "localhost"))));
+                    LeaderInformationRegister.of(
+                            knownLeaderInformationComponent,
+                            LeaderInformation.known(UUID.randomUUID(), "localhost")));
 
             knownLeaderElectionEventHandler.unblock();
             unknownLeaderElectionEventHandler.unblock();

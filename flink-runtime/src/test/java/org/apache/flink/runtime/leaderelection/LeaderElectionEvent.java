@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.leaderelection;
 
-import java.util.Collection;
-
 /** Leader election event. */
 public abstract class LeaderElectionEvent {
     public boolean isIsLeaderEvent() {
@@ -88,12 +86,10 @@ public abstract class LeaderElectionEvent {
     }
 
     public static class AllKnownLeaderInformationEvent extends LeaderElectionEvent {
-        private final Collection<LeaderInformationWithComponentId>
-                leaderInformationWithComponentIds;
+        private final LeaderInformationRegister leaderInformationRegister;
 
-        AllKnownLeaderInformationEvent(
-                Collection<LeaderInformationWithComponentId> leaderInformationWithComponentIds) {
-            this.leaderInformationWithComponentIds = leaderInformationWithComponentIds;
+        AllKnownLeaderInformationEvent(LeaderInformationRegister leaderInformationRegister) {
+            this.leaderInformationRegister = leaderInformationRegister;
         }
 
         @Override
@@ -101,8 +97,8 @@ public abstract class LeaderElectionEvent {
             return true;
         }
 
-        public Collection<LeaderInformationWithComponentId> getLeaderInformationWithComponentIds() {
-            return leaderInformationWithComponentIds;
+        public LeaderInformationRegister getLeaderInformationRegister() {
+            return leaderInformationRegister;
         }
     }
 }
