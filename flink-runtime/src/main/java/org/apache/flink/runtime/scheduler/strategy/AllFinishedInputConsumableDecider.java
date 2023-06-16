@@ -37,14 +37,15 @@ public class AllFinishedInputConsumableDecider implements InputConsumableDecider
                 executionVertex.getConsumedPartitionGroups()) {
 
             if (!consumableStatusCache.computeIfAbsent(
-                    consumedPartitionGroup, this::isConsumedPartitionGroupConsumable)) {
+                    consumedPartitionGroup, this::isConsumableBasedOnFinishedProducers)) {
                 return false;
             }
         }
         return true;
     }
 
-    private boolean isConsumedPartitionGroupConsumable(
+    @Override
+    public boolean isConsumableBasedOnFinishedProducers(
             final ConsumedPartitionGroup consumedPartitionGroup) {
         return consumedPartitionGroup.getNumberOfUnfinishedPartitions() == 0;
     }
