@@ -33,7 +33,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class RpcSystemTest {
 
     @RegisterExtension
-    static final ContextClassLoaderExtension classLoaderExtension =
+    static final ContextClassLoaderExtension CLASS_LOADER_EXTENSION =
             ContextClassLoaderExtension.builder()
                     .withServiceEntry(
                             RpcSystemLoader.class,
