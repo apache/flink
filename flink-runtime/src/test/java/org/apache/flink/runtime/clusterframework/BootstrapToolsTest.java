@@ -179,21 +179,7 @@ public class BootstrapToolsTest extends TestLogger {
         final String redirects = "1> ./logs/taskmanager.out 2> ./logs/taskmanager.err";
 
         assertEquals(
-                java
-                        + " "
-                        + jvmmem
-                        + ""
-                        + // jvmOpts
-                        ""
-                        + // logging
-                        " "
-                        + mainClass
-                        + " "
-                        + dynamicConfigs
-                        + " "
-                        + basicArgs
-                        + " "
-                        + redirects,
+                String.join(" ", java, jvmmem, mainClass, dynamicConfigs, basicArgs, redirects),
                 BootstrapTools.getTaskManagerShellCommand(
                         cfg,
                         containeredParams,
@@ -206,9 +192,7 @@ public class BootstrapToolsTest extends TestLogger {
                         ""));
 
         assertEquals(
-                java + " " + jvmmem + "" + // jvmOpts
-                        "" + // logging
-                        " " + mainClass + " " + args + " " + redirects,
+                String.join(" ", java, jvmmem, mainClass, args, redirects),
                 BootstrapTools.getTaskManagerShellCommand(
                         cfg,
                         containeredParams,
@@ -222,9 +206,7 @@ public class BootstrapToolsTest extends TestLogger {
 
         final String krb5 = "-Djava.security.krb5.conf=krb5.conf";
         assertEquals(
-                java + " " + jvmmem + " " + krb5 + // jvmOpts
-                        "" + // logging
-                        " " + mainClass + " " + args + " " + redirects,
+                String.join(" ", java, jvmmem, krb5, mainClass, args, redirects),
                 BootstrapTools.getTaskManagerShellCommand(
                         cfg,
                         containeredParams,
@@ -238,9 +220,7 @@ public class BootstrapToolsTest extends TestLogger {
 
         // logback only, with/out krb5
         assertEquals(
-                java + " " + jvmmem + "" + // jvmOpts
-                        " " + logfile + " " + logback + " " + mainClass + " " + args + " "
-                        + redirects,
+                String.join(" ", java, jvmmem, logfile, logback, mainClass, args, redirects),
                 BootstrapTools.getTaskManagerShellCommand(
                         cfg,
                         containeredParams,
@@ -253,9 +233,7 @@ public class BootstrapToolsTest extends TestLogger {
                         mainArgs));
 
         assertEquals(
-                java + " " + jvmmem + " " + krb5 + // jvmOpts
-                        " " + logfile + " " + logback + " " + mainClass + " " + args + " "
-                        + redirects,
+                String.join(" ", java, jvmmem, krb5, logfile, logback, mainClass, args, redirects),
                 BootstrapTools.getTaskManagerShellCommand(
                         cfg,
                         containeredParams,
@@ -269,9 +247,7 @@ public class BootstrapToolsTest extends TestLogger {
 
         // log4j, with/out krb5
         assertEquals(
-                java + " " + jvmmem + "" + // jvmOpts
-                        " " + logfile + " " + log4j + " " + mainClass + " " + args + " "
-                        + redirects,
+                String.join(" ", java, jvmmem, logfile, log4j, mainClass, args, redirects),
                 BootstrapTools.getTaskManagerShellCommand(
                         cfg,
                         containeredParams,
@@ -284,9 +260,7 @@ public class BootstrapToolsTest extends TestLogger {
                         mainArgs));
 
         assertEquals(
-                java + " " + jvmmem + " " + krb5 + // jvmOpts
-                        " " + logfile + " " + log4j + " " + mainClass + " " + args + " "
-                        + redirects,
+                String.join(" ", java, jvmmem, krb5, logfile, log4j, mainClass, args, redirects),
                 BootstrapTools.getTaskManagerShellCommand(
                         cfg,
                         containeredParams,
@@ -300,9 +274,7 @@ public class BootstrapToolsTest extends TestLogger {
 
         // logback + log4j, with/out krb5
         assertEquals(
-                java + " " + jvmmem + "" + // jvmOpts
-                        " " + logfile + " " + logback + " " + log4j + " " + mainClass + " " + args
-                        + " " + redirects,
+                String.join(" ", java, jvmmem, logfile, logback, log4j, mainClass, args, redirects),
                 BootstrapTools.getTaskManagerShellCommand(
                         cfg,
                         containeredParams,
@@ -315,9 +287,9 @@ public class BootstrapToolsTest extends TestLogger {
                         mainArgs));
 
         assertEquals(
-                java + " " + jvmmem + " " + krb5 + // jvmOpts
-                        " " + logfile + " " + logback + " " + log4j + " " + mainClass + " " + args
-                        + " " + redirects,
+                String.join(
+                        " ", java, jvmmem, krb5, logfile, logback, log4j, mainClass, args,
+                        redirects),
                 BootstrapTools.getTaskManagerShellCommand(
                         cfg,
                         containeredParams,
@@ -332,8 +304,9 @@ public class BootstrapToolsTest extends TestLogger {
         // logback + log4j, with/out krb5, different JVM opts
         cfg.setString(CoreOptions.FLINK_JVM_OPTIONS, jvmOpts);
         assertEquals(
-                java + " " + jvmmem + " " + jvmOpts + " " + logfile + " " + logback + " " + log4j
-                        + " " + mainClass + " " + args + " " + redirects,
+                String.join(
+                        " ", java, jvmmem, jvmOpts, logfile, logback, log4j, mainClass, args,
+                        redirects),
                 BootstrapTools.getTaskManagerShellCommand(
                         cfg,
                         containeredParams,
@@ -346,9 +319,9 @@ public class BootstrapToolsTest extends TestLogger {
                         mainArgs));
 
         assertEquals(
-                java + " " + jvmmem + " " + jvmOpts + " " + krb5 + // jvmOpts
-                        " " + logfile + " " + logback + " " + log4j + " " + mainClass + " " + args
-                        + " " + redirects,
+                String.join(
+                        " ", java, jvmmem, jvmOpts, krb5, logfile, logback, log4j, mainClass, args,
+                        redirects),
                 BootstrapTools.getTaskManagerShellCommand(
                         cfg,
                         containeredParams,
@@ -363,8 +336,9 @@ public class BootstrapToolsTest extends TestLogger {
         // logback + log4j, with/out krb5, different JVM opts
         cfg.setString(CoreOptions.FLINK_TM_JVM_OPTIONS, tmJvmOpts);
         assertEquals(
-                java + " " + jvmmem + " " + jvmOpts + " " + tmJvmOpts + " " + logfile + " "
-                        + logback + " " + log4j + " " + mainClass + " " + args + " " + redirects,
+                String.join(
+                        " ", java, jvmmem, jvmOpts, tmJvmOpts, logfile, logback, log4j, mainClass,
+                        args, redirects),
                 BootstrapTools.getTaskManagerShellCommand(
                         cfg,
                         containeredParams,
@@ -377,9 +351,9 @@ public class BootstrapToolsTest extends TestLogger {
                         mainArgs));
 
         assertEquals(
-                java + " " + jvmmem + " " + jvmOpts + " " + tmJvmOpts + " " + krb5 + // jvmOpts
-                        " " + logfile + " " + logback + " " + log4j + " " + mainClass + " " + args
-                        + " " + redirects,
+                String.join(
+                        " ", java, jvmmem, jvmOpts, tmJvmOpts, krb5, logfile, logback, log4j,
+                        mainClass, args, redirects),
                 BootstrapTools.getTaskManagerShellCommand(
                         cfg,
                         containeredParams,
@@ -397,9 +371,9 @@ public class BootstrapToolsTest extends TestLogger {
                 ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
                 "%java% 1 %jvmmem% 2 %jvmopts% 3 %logging% 4 %class% 5 %args% 6 %redirects%");
         assertEquals(
-                java + " 1 " + jvmmem + " 2 " + jvmOpts + " " + tmJvmOpts + " " + krb5 + // jvmOpts
-                        " 3 " + logfile + " " + logback + " " + log4j + " 4 " + mainClass + " 5 "
-                        + args + " 6 " + redirects,
+                String.join(
+                        " ", java, "1", jvmmem, "2", jvmOpts, tmJvmOpts, krb5, "3", logfile,
+                        logback, log4j, "4", mainClass, "5", args, "6", redirects),
                 BootstrapTools.getTaskManagerShellCommand(
                         cfg,
                         containeredParams,
@@ -415,9 +389,9 @@ public class BootstrapToolsTest extends TestLogger {
                 ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
                 "%java% %logging% %jvmopts% %jvmmem% %class% %args% %redirects%");
         assertEquals(
-                java + " " + logfile + " " + logback + " " + log4j + " " + jvmOpts + " " + tmJvmOpts
-                        + " " + krb5 + // jvmOpts
-                        " " + jvmmem + " " + mainClass + " " + args + " " + redirects,
+                String.join(
+                        " ", java, logfile, logback, log4j, jvmOpts, tmJvmOpts, krb5, jvmmem,
+                        mainClass, args, redirects),
                 BootstrapTools.getTaskManagerShellCommand(
                         cfg,
                         containeredParams,
