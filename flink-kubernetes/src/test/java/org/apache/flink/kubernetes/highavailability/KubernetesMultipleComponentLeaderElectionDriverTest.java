@@ -150,8 +150,7 @@ class KubernetesMultipleComponentLeaderElectionDriverTest {
                                                             .AllKnownLeaderInformationEvent.class);
 
                             final LeaderInformationRegister actualLeaderInformationRegister =
-                                    allKnownLeaderInformationEvent
-                                            .getLeaderInformationWithComponentIds();
+                                    allKnownLeaderInformationEvent.getLeaderInformationRegister();
 
                             assertThat(actualLeaderInformationRegister.getRegisteredContenderIDs())
                                     .containsExactlyInAnyOrder(componentA, componentB);

@@ -86,11 +86,10 @@ public abstract class LeaderElectionEvent {
     }
 
     public static class AllKnownLeaderInformationEvent extends LeaderElectionEvent {
-        private final LeaderInformationRegister leaderInformationWithComponentIds;
+        private final LeaderInformationRegister leaderInformationRegister;
 
-        AllKnownLeaderInformationEvent(
-                LeaderInformationRegister leaderInformationWithComponentIds) {
-            this.leaderInformationWithComponentIds = leaderInformationWithComponentIds;
+        AllKnownLeaderInformationEvent(LeaderInformationRegister leaderInformationRegister) {
+            this.leaderInformationRegister = leaderInformationRegister;
         }
 
         @Override
@@ -98,8 +97,8 @@ public abstract class LeaderElectionEvent {
             return true;
         }
 
-        public LeaderInformationRegister getLeaderInformationWithComponentIds() {
-            return leaderInformationWithComponentIds;
+        public LeaderInformationRegister getLeaderInformationRegister() {
+            return leaderInformationRegister;
         }
     }
 }
