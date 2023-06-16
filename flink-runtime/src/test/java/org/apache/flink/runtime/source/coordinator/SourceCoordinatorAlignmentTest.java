@@ -24,6 +24,7 @@ import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.core.fs.AutoCloseableRegistry;
 import org.apache.flink.runtime.operators.coordination.CoordinatorStoreImpl;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
+import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
 import org.apache.flink.runtime.source.event.ReportedWatermarkEvent;
 import org.apache.flink.runtime.source.event.WatermarkAlignmentEvent;
 
@@ -196,6 +197,65 @@ class SourceCoordinatorAlignmentTest extends SourceCoordinatorTestBase {
         assertThat(counter1.get()).isZero();
 
         sourceCoordinator.close();
+    }
+
+    @Test
+    void testSendWatermarkAlignmentEventFailed() throws Exception {
+        long maxDrift = 1000L;
+
+        WatermarkAlignmentParams params =
+                new WatermarkAlignmentParams(maxDrift, "group1", maxDrift);
+
+        final Source<Integer, MockSourceSplit, Set<MockSourceSplit>> mockSource =
+                createMockSource();
+
+        CountDownLatch latch = new CountDownLatch(1);
+        sourceCoordinator =
+                new SourceCoordinator<MockSourceSplit, Set<MockSourceSplit>>(
+                        OPERATOR_NAME,
+                        mockSource,
+                        getNewSourceCoordinatorContext(),
+                        new CoordinatorStoreImpl(),
+                        params,
+                        null) {
+                    @Override
+                    void announceCombinedWatermark() {
+                        // announceCombinedWatermark maybe throw some RuntimeException, we catch
+                        // these exception first and rethrow it after latch.countDown() to make
+                        // latch.wait return
+                        RuntimeException exception = null;
+                        try {
+                            super.announceCombinedWatermark();
+                        } catch (RuntimeException t) {
+                            exception = t;
+                        }
+
+                        latch.countDown();
+                        if (exception != null) {
+                            throw exception;
+                        }
+                    }
+                };
+        sourceCoordinator.start();
+
+        final int subtask = 0;
+        int attemptNumber = 0;
+        sourceCoordinator.handleEventFromOperator(
+                subtask,
+                attemptNumber,
+                new ReaderRegistrationEvent(subtask, createLocationFor(subtask, attemptNumber)));
+        // SubTask ReportedWatermarkEvent before setReaderTaskReady to simulate task failover
+        sourceCoordinator.handleEventFromOperator(
+                subtask, attemptNumber, new ReportedWatermarkEvent(1000));
+
+        // wait the period task is called at least once
+        latch.await();
+
+        setReaderTaskReady(sourceCoordinator, subtask, attemptNumber);
+
+        waitForSentEvents(5);
+        // SourceAlignment will ignore the task not ready error, so job will not fail
+        assertThat(operatorCoordinatorContext.isJobFailed()).isFalse();
     }
 
     private SourceCoordinator<?, ?> getAndStartNewSourceCoordinator(
