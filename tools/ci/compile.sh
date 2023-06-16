@@ -110,8 +110,10 @@ EXIT_CODE=$(($EXIT_CODE+$?))
 echo "============ Run license check ============"
 
 find $MVN_VALIDATION_DIR
-
-${CI_DIR}/license_check.sh $MVN_CLEAN_COMPILE_OUT $CI_DIR $(pwd) $MVN_VALIDATION_DIR || exit $?
+# We use a different Scala version with Java 17
+if [[ ${PROFILE} != *"jdk17"* ]]; then
+  ${CI_DIR}/license_check.sh $MVN_CLEAN_COMPILE_OUT $CI_DIR $(pwd) $MVN_VALIDATION_DIR || exit $?
+fi
 
 exit $EXIT_CODE
 
