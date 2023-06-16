@@ -79,6 +79,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.Attr
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.DefaultHttpDataFactory;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.HttpPostRequestEncoder;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.MemoryAttribute;
+import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedWriteHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.timeout.IdleStateEvent;
 import org.apache.flink.shaded.netty4.io.netty.handler.timeout.IdleStateHandler;
@@ -90,6 +91,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -106,6 +108,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.configuration.SecurityOptions.SSL_REST_ENABLED;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE;
 
 /** This client is the counter-part to the {@link RestServerEndpoint}. */
@@ -127,7 +130,27 @@ public class RestClient implements AutoCloseableAsync {
 
     @VisibleForTesting List<OutboundChannelHandlerFactory> outboundChannelHandlerFactories;
 
+    /**
+     * Creates a new RestClient for the provided root URL. If the protocol of the URL is "https",
+     * then SSL is automatically enabled for the REST client.
+     */
+    public static RestClient forUrl(Configuration configuration, Executor executor, URL rootUrl)
+            throws ConfigurationException {
+        Preconditions.checkNotNull(configuration);
+        Preconditions.checkNotNull(rootUrl);
+        if ("https".equals(rootUrl.getProtocol())) {
+            configuration = configuration.clone();
+            configuration.setBoolean(SSL_REST_ENABLED, true);
+        }
+        return new RestClient(configuration, executor, rootUrl.getHost(), rootUrl.getPort());
+    }
+
     public RestClient(Configuration configuration, Executor executor)
+            throws ConfigurationException {
+        this(configuration, executor, null, -1);
+    }
+
+    public RestClient(Configuration configuration, Executor executor, String host, int port)
             throws ConfigurationException {
         Preconditions.checkNotNull(configuration);
         this.executor = Preconditions.checkNotNull(executor);
@@ -161,14 +184,14 @@ public class RestClient implements AutoCloseableAsync {
                         try {
                             // SSL should be the first handler in the pipeline
                             if (sslHandlerFactory != null) {
-                                socketChannel
-                                        .pipeline()
-                                        .addLast(
-                                                "ssl",
-                                                sslHandlerFactory.createNettySSLHandler(
-                                                        socketChannel.alloc()));
+                                SslHandler nettySSLHandler =
+                                        host == null
+                                                ? sslHandlerFactory.createNettySSLHandler(
+                                                        socketChannel.alloc())
+                                                : sslHandlerFactory.createNettySSLHandler(
+                                                        socketChannel.alloc(), host, port);
+                                socketChannel.pipeline().addLast("ssl", nettySSLHandler);
                             }
-
                             socketChannel
                                     .pipeline()
                                     .addLast(new HttpClientCodec())

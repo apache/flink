@@ -23,7 +23,9 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
+import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
+import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorResource;
@@ -43,7 +45,10 @@ import org.junit.Test;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.URL;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
@@ -81,6 +86,26 @@ public class RestClientTest extends TestLogger {
             final Throwable throwable = ExceptionUtils.stripExecutionException(e);
             assertThat(throwable, instanceOf(ConnectTimeoutException.class));
             assertThat(throwable.getMessage(), containsString(unroutableIp));
+        }
+    }
+
+    @Test
+    public void testHttpsConnectionWithDefaultCerts() throws Exception {
+        final Configuration config = new Configuration();
+        final URL httpsUrl = new URL("https://raw.githubusercontent.com");
+        TestUrlMessageHeaders testUrlMessageHeaders =
+                new TestUrlMessageHeaders(
+                        "apache/flink/master/flink-runtime-web/web-dashboard/package.json");
+        try (final RestClient restClient =
+                RestClient.forUrl(config, Executors.directExecutor(), httpsUrl)) {
+            restClient
+                    .sendRequest(
+                            httpsUrl.getHost(),
+                            443,
+                            testUrlMessageHeaders,
+                            EmptyMessageParameters.getInstance(),
+                            EmptyRequestBody.getInstance())
+                    .get(60, TimeUnit.SECONDS);
         }
     }
 
@@ -246,4 +271,84 @@ public class RestClientTest extends TestLogger {
             return "/";
         }
     }
+
+    private static class TestUrlMessageHeaders
+            implements RuntimeMessageHeaders<
+                    EmptyRequestBody, GenericResponseBody, EmptyMessageParameters> {
+
+        private final String endpointUrl;
+
+        private final Collection<RestAPIVersion<EmptyRestAPIVersion>> supportedVersions =
+                Collections.singleton(new EmptyRestAPIVersion());
+
+        TestUrlMessageHeaders(String endpointUrl) {
+            this.endpointUrl = endpointUrl;
+        }
+
+        @Override
+        public HttpMethodWrapper getHttpMethod() {
+            return HttpMethodWrapper.GET;
+        }
+
+        @Override
+        public String getTargetRestEndpointURL() {
+            return endpointUrl;
+        }
+
+        @Override
+        public Collection<? extends RestAPIVersion<?>> getSupportedAPIVersions() {
+            return supportedVersions;
+        }
+
+        @Override
+        public Class<GenericResponseBody> getResponseClass() {
+            return GenericResponseBody.class;
+        }
+
+        @Override
+        public HttpResponseStatus getResponseStatusCode() {
+            return HttpResponseStatus.OK;
+        }
+
+        @Override
+        public String getDescription() {
+            return "";
+        }
+
+        @Override
+        public Class<EmptyRequestBody> getRequestClass() {
+            return EmptyRequestBody.class;
+        }
+
+        @Override
+        public EmptyMessageParameters getUnresolvedMessageParameters() {
+            return EmptyMessageParameters.getInstance();
+        }
+
+        private static class EmptyRestAPIVersion implements RestAPIVersion<EmptyRestAPIVersion> {
+
+            @Override
+            public String getURLVersionPrefix() {
+                return "";
+            }
+
+            @Override
+            public boolean isDefaultVersion() {
+                return true;
+            }
+
+            @Override
+            public boolean isStableVersion() {
+                return true;
+            }
+
+            @Override
+            public int compareTo(EmptyRestAPIVersion o) {
+                return 0;
+            }
+        }
+    }
+
+    @SuppressWarnings("rawtypes")
+    private static class GenericResponseBody extends LinkedHashMap implements ResponseBody {}
 }

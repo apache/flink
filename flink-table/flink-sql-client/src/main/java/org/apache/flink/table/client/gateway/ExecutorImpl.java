@@ -174,7 +174,9 @@ public class ExecutorImpl implements Executor {
             // register required resource
             this.executorService = Executors.newCachedThreadPool();
             registry.registerCloseable(executorService::shutdownNow);
-            this.restClient = new RestClient(defaultContext.getFlinkConfig(), executorService);
+            Configuration flinkConfig = defaultContext.getFlinkConfig();
+
+            this.restClient = RestClient.forUrl(flinkConfig, executorService, gatewayUrl);
             registry.registerCloseable(restClient);
 
             // determine gateway rest api version
@@ -189,8 +191,7 @@ public class ExecutorImpl implements Executor {
                     sendRequest(
                                     OpenSessionHeaders.getInstance(),
                                     EmptyMessageParameters.getInstance(),
-                                    new OpenSessionRequestBody(
-                                            sessionId, defaultContext.getFlinkConfig().toMap()))
+                                    new OpenSessionRequestBody(sessionId, flinkConfig.toMap()))
                             .get();
             this.sessionHandle = new SessionHandle(UUID.fromString(response.getSessionHandle()));
             registry.registerCloseable(this::closeSession);
