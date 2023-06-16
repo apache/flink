@@ -560,9 +560,9 @@ class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTestBase 
                             final FlinkKubeClient anotherFlinkKubeClient =
                                     createFlinkKubeClientBuilder()
                                             .setCheckAndUpdateConfigMapFunction(
-                                                    (configMapName, function) -> {
-                                                        throw updateException;
-                                                    })
+                                                    (configMapName, function) ->
+                                                            FutureUtils.completedExceptionally(
+                                                                    updateException))
                                             .build();
                             final KubernetesStateHandleStore<
                                             TestingLongStateHandleHelper.LongStateHandle>
