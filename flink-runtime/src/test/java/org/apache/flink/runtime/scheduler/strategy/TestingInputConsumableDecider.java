@@ -42,6 +42,12 @@ public class TestingInputConsumableDecider implements InputConsumableDecider {
                 || inputConsumableExecutionVertices.contains(executionVertex);
     }
 
+    @Override
+    public boolean isConsumableBasedOnFinishedProducers(
+            ConsumedPartitionGroup consumedPartitionGroup) {
+        return true;
+    }
+
     public void setInputConsumable(SchedulingExecutionVertex executionVertex) {
         inputConsumableExecutionVertices.add(executionVertex);
     }
