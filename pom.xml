@@ -121,7 +121,7 @@ under the License.
 		<flink.forkCountITCase>2</flink.forkCountITCase>
 		<flink.forkCountUnitTest>4</flink.forkCountUnitTest>
 		<flink.reuseForks>true</flink.reuseForks>
-		<flink.surefire.baseArgLine>-XX:+UseG1GC -Xms256m</flink.surefire.baseArgLine>
+		<flink.surefire.baseArgLine>-XX:+UseG1GC -Xms256m -XX:+IgnoreUnrecognizedVMOptions</flink.surefire.baseArgLine>
 		<flink.shaded.version>16.1</flink.shaded.version>
 		<flink.shaded.jackson.version>2.13.4</flink.shaded.jackson.version>
 		<flink.markBundledAsOptional>true</flink.markBundledAsOptional>
