@@ -51,6 +51,11 @@ public class FallbackAkkaRpcSystemLoader implements RpcSystemLoader {
     private static final String MODULE_FLINK_RPC_AKKA = "flink-rpc-akka";
 
     @Override
+    public int getLoadPriority() {
+        return AkkaRpcSystemLoader.LOAD_PRIORITY + 1;
+    }
+
+    @Override
     public RpcSystem loadRpcSystem(Configuration config) {
         try {
             LOG.debug(
