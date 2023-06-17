@@ -69,6 +69,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.FullHttpRespon
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpClientCodec;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderNames;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderValues;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpMethod;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpObjectAggregator;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
@@ -376,7 +377,8 @@ public class RestClient implements AutoCloseableAsync {
                         targetUrl,
                         messageHeaders.getHttpMethod().getNettyHttpMethod(),
                         payload,
-                        fileUploads);
+                        fileUploads,
+                        messageHeaders.getCustomHeaders());
 
         final JavaType responseType;
 
@@ -411,7 +413,8 @@ public class RestClient implements AutoCloseableAsync {
             String targetUrl,
             HttpMethod httpMethod,
             ByteBuf jsonPayload,
-            Collection<FileUpload> fileUploads)
+            Collection<FileUpload> fileUploads,
+            Collection<HttpHeader> customHeaders)
             throws IOException {
         if (fileUploads.isEmpty()) {
 
@@ -419,22 +422,22 @@ public class RestClient implements AutoCloseableAsync {
                     new DefaultFullHttpRequest(
                             HttpVersion.HTTP_1_1, httpMethod, targetUrl, jsonPayload);
 
-            httpRequest
-                    .headers()
-                    .set(HttpHeaderNames.HOST, targetAddress)
+            HttpHeaders headers = httpRequest.headers();
+            headers.set(HttpHeaderNames.HOST, targetAddress)
                     .set(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE)
                     .add(HttpHeaderNames.CONTENT_LENGTH, jsonPayload.capacity())
                     .add(HttpHeaderNames.CONTENT_TYPE, RestConstants.REST_CONTENT_TYPE);
+            customHeaders.forEach(ch -> headers.add(ch.getName(), ch.getValue()));
 
             return new SimpleRequest(httpRequest);
         } else {
             HttpRequest httpRequest =
                     new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, httpMethod, targetUrl);
 
-            httpRequest
-                    .headers()
-                    .set(HttpHeaderNames.HOST, targetAddress)
+            HttpHeaders headers = httpRequest.headers();
+            headers.set(HttpHeaderNames.HOST, targetAddress)
                     .set(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
+            customHeaders.forEach(ch -> headers.set(ch.getName(), ch.getValue()));
 
             // takes care of splitting the request into multiple parts
             HttpPostRequestEncoder bodyRequestEncoder;
