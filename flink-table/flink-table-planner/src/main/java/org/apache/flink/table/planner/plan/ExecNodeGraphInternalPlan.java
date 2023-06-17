@@ -75,6 +75,7 @@ public class ExecNodeGraphInternalPlan implements InternalPlan {
             }
         }
         try {
+            Files.createDirectories(file.toPath().getParent());
             Files.write(
                     file.toPath(),
                     serializedPlan.getBytes(StandardCharsets.UTF_8),

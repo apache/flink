@@ -26,7 +26,6 @@ import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 import org.apache.flink.table.planner.utils.JsonTestUtils;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
-import org.apache.commons.io.FileUtils;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -136,7 +135,6 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
     @Test
     public void testCompileWriteToFileAndThenExecuteSql() throws Exception {
         Path planPath = Paths.get(URI.create(getTempDirPath("plan")).getPath(), "plan.json");
-        FileUtils.createParentDirectories(planPath.toFile());
 
         File sinkPath = createSourceSinkTables();
 
@@ -153,7 +151,6 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
         Path planPath =
                 Paths.get(URI.create(getTempDirPath("plan")).getPath(), "plan.json")
                         .toAbsolutePath();
-        FileUtils.createParentDirectories(planPath.toFile());
 
         File sinkPath = createSourceSinkTables();
 
@@ -184,7 +181,6 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
         Path planPath =
                 Paths.get(URI.create(getTempDirPath("plan")).getPath(), "plan.json")
                         .toAbsolutePath();
-        FileUtils.createParentDirectories(planPath.toFile());
 
         createTestCsvSourceTable("src", DATA, COLUMNS_DEFINITION);
         File sinkAPath = createTestCsvSinkTable("sinkA", COLUMNS_DEFINITION);
@@ -216,7 +212,6 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
         Path planPath =
                 Paths.get(URI.create(getTempDirPath("plan")).getPath(), "plan.json")
                         .toAbsolutePath();
-        FileUtils.createParentDirectories(planPath.toFile());
 
         File sinkPath = createSourceSinkTables();
 
@@ -249,7 +244,6 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
         Path planPath =
                 Paths.get(URI.create(getTempDirPath("plan")).getPath(), "plan.json")
                         .toAbsolutePath();
-        FileUtils.createParentDirectories(planPath.toFile());
 
         List<String> expectedData =
                 Arrays.asList(
@@ -289,7 +283,6 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
         Path planPath =
                 Paths.get(URI.create(getTempDirPath("plan")).getPath(), "plan.json")
                         .toAbsolutePath();
-        FileUtils.createParentDirectories(planPath.toFile());
 
         File sinkPath = createSourceSinkTables();
 
@@ -309,7 +302,6 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
         Path planPath =
                 Paths.get(URI.create(getTempDirPath("plan")).getPath(), "plan.json")
                         .toAbsolutePath();
-        FileUtils.createParentDirectories(planPath.toFile());
 
         createTestCsvSourceTable("src", DATA, COLUMNS_DEFINITION);
         File sinkAPath = createTestCsvSinkTable("sinkA", COLUMNS_DEFINITION);
@@ -351,9 +343,6 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
 
     @Test
     public void testPersistedConfigOption() throws Exception {
-        Path planPath = Paths.get(URI.create(getTempDirPath("plan")).getPath(), "plan.json");
-        FileUtils.createParentDirectories(planPath.toFile());
-
         List<String> data =
                 Stream.concat(
                                 DATA.stream(),
