@@ -26,6 +26,7 @@ import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 import org.apache.flink.table.planner.utils.JsonTestUtils;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
+import org.apache.commons.io.FileUtils;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -142,6 +143,23 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
         plan.writeToFile(planPath);
 
         tableEnv.executeSql(String.format("EXECUTE PLAN '%s'", planPath.toAbsolutePath())).await();
+
+        assertResult(DATA, sinkPath);
+    }
+
+    @Test
+    public void testCompileWriteToFilePathWithSchemeAndThenExecuteSql() throws Exception {
+        Path planPath = Paths.get(URI.create(getTempDirPath("plan")).getPath(), "plan.json");
+
+        File sinkPath = createSourceSinkTables();
+
+        tableEnv.executeSql(
+                String.format(
+                        "COMPILE PLAN 'file://%s' FOR INSERT INTO sink SELECT * FROM src",
+                        planPath.toAbsolutePath()));
+
+        tableEnv.executeSql(String.format("EXECUTE PLAN 'file://%s'", planPath.toAbsolutePath()))
+                .await();
 
         assertResult(DATA, sinkPath);
     }
