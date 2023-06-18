@@ -108,7 +108,8 @@ create table StreamingTableForPlan (
 1 row in set
 !ok
 
-COMPILE AND EXECUTE PLAN '$VAR_STREAMING_PLAN_PATH/plan1.json' FOR INSERT INTO StreamingTableForPlan SELECT * FROM (VALUES (1, 'Hello'));
+# test path with scheme
+COMPILE AND EXECUTE PLAN 'file://$VAR_STREAMING_PLAN_PATH/plan1.json' FOR INSERT INTO StreamingTableForPlan SELECT * FROM (VALUES (1, 'Hello'));
 !output
 Job ID:
 !info
@@ -134,6 +135,7 @@ SELECT * FROM StreamingTableForPlan;
 !ok
 
 
+# test absolute path without scheme
 COMPILE PLAN '$VAR_STREAMING_PLAN_PATH/plan2.json' FOR INSERT INTO StreamingTableForPlan SELECT * FROM (VALUES (1, 'Hello'));
 !output
 +--------+
@@ -144,7 +146,8 @@ COMPILE PLAN '$VAR_STREAMING_PLAN_PATH/plan2.json' FOR INSERT INTO StreamingTabl
 1 row in set
 !ok
 
-EXECUTE PLAN '$VAR_STREAMING_PLAN_PATH/plan2.json';
+# test relative path without scheme
+EXECUTE PLAN '$VAR_STREAMING_PLAN_RELATIVE_PATH/plan2.json';
 !output
 Job ID:
 !info

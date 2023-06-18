@@ -2214,6 +2214,8 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         sql("execute plan './test.json'").ok("EXECUTE PLAN './test.json'");
         sql("execute plan '/some/absolute/dir/plan.json'")
                 .ok("EXECUTE PLAN '/some/absolute/dir/plan.json'");
+        sql("execute plan 'file:///foo/bar/test.json'")
+                .ok("EXECUTE PLAN 'file:///foo/bar/test.json'");
     }
 
     @Test
@@ -2226,6 +2228,11 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         sql("compile plan './test.json' if not exists for insert into t1 select * from t2")
                 .ok(
                         "COMPILE PLAN './test.json' IF NOT EXISTS FOR INSERT INTO `T1`\n"
+                                + "(SELECT *\n"
+                                + "FROM `T2`)");
+        sql("compile plan 'file:///foo/bar/test.json' if not exists for insert into t1 select * from t2")
+                .ok(
+                        "COMPILE PLAN 'file:///foo/bar/test.json' IF NOT EXISTS FOR INSERT INTO `T1`\n"
                                 + "(SELECT *\n"
                                 + "FROM `T2`)");
 
@@ -2246,6 +2253,20 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         + "begin insert into t1 select * from t2; insert into t2 select * from t3; end")
                 .ok(
                         "COMPILE PLAN './test.json' IF NOT EXISTS FOR STATEMENT SET BEGIN\n"
+                                + "INSERT INTO `T1`\n"
+                                + "(SELECT *\n"
+                                + "FROM `T2`)\n"
+                                + ";\n"
+                                + "INSERT INTO `T2`\n"
+                                + "(SELECT *\n"
+                                + "FROM `T3`)\n"
+                                + ";\n"
+                                + "END");
+
+        sql("compile plan 'file:///foo/bar/test.json' if not exists for statement set "
+                        + "begin insert into t1 select * from t2; insert into t2 select * from t3; end")
+                .ok(
+                        "COMPILE PLAN 'file:///foo/bar/test.json' IF NOT EXISTS FOR STATEMENT SET BEGIN\n"
                                 + "INSERT INTO `T1`\n"
                                 + "(SELECT *\n"
                                 + "FROM `T2`)\n"
@@ -2278,6 +2299,11 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                                 + "FROM `T3`)\n"
                                 + ";\n"
                                 + "END");
+        sql("compile and execute plan 'file:///foo/bar/test.json' for insert into t1 select * from t2")
+                .ok(
+                        "COMPILE AND EXECUTE PLAN 'file:///foo/bar/test.json' FOR INSERT INTO `T1`\n"
+                                + "(SELECT *\n"
+                                + "FROM `T2`)");
     }
 
     @Test

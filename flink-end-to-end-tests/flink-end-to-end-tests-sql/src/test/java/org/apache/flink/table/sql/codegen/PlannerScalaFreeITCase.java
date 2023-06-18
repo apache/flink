@@ -28,7 +28,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * End to End tests for table planner scala-free since 1.15. Due to scala-free of table planner
+ * End-to-End tests for table planner scala-free since 1.15. Due to scala-free of table planner
  * introduced, the class in table planner is not visible in distribution runtime, if we use these
  * class in execution time, ClassNotFound exception will be thrown. ITCase in table planner can not
  * cover it, so we should add E2E test for these case.
@@ -42,8 +42,6 @@ public class PlannerScalaFreeITCase extends SqlITCaseBase {
     public void testImperativeUdaf() throws Exception {
         runAndCheckSQL(
                 "scala_free_e2e.sql",
-                generateReplaceVars(),
-                2,
                 Arrays.asList(
                         "{\"before\":null,\"after\":{\"user_name\":\"Alice\",\"order_cnt\":1},\"op\":\"c\"}",
                         "{\"before\":null,\"after\":{\"user_name\":\"Bob\",\"order_cnt\":2},\"op\":\"c\"}"));
