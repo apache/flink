@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.catalog;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ContextResolvedFunction;
+import org.apache.flink.table.catalog.ContextResolvedProcedure;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
@@ -35,6 +36,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.RexFactory;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlProcedure;
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
@@ -87,10 +89,22 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 
         final UnresolvedIdentifier identifier = UnresolvedIdentifier.of(opName.names);
 
-        functionCatalog
-                .lookupFunction(identifier)
-                .flatMap(resolvedFunction -> convertToSqlFunction(category, resolvedFunction))
-                .ifPresent(operatorList::add);
+        if (category == SqlFunctionCategory.USER_DEFINED_PROCEDURE) {
+            functionCatalog
+                    .lookupProcedure(identifier)
+                    .flatMap(this::convertToSqlProcedure)
+                    .ifPresent(operatorList::add);
+        } else {
+            functionCatalog
+                    .lookupFunction(identifier)
+                    .flatMap(resolvedFunction -> convertToSqlFunction(category, resolvedFunction))
+                    .ifPresent(operatorList::add);
+        }
+    }
+
+    private Optional<SqlFunction> convertToSqlProcedure(
+            ContextResolvedProcedure resolvedProcedure) {
+        return Optional.of(BridgingSqlProcedure.of(dataTypeFactory, resolvedProcedure));
     }
 
     private Optional<SqlFunction> convertToSqlFunction(
