@@ -24,7 +24,7 @@ from pyflink.table.schema import Schema
 from pyflink.table.table_schema import TableSchema
 
 __all__ = ['Catalog', 'CatalogDatabase', 'CatalogBaseTable', 'CatalogPartition', 'CatalogFunction',
-           'ObjectPath', 'CatalogPartitionSpec', 'CatalogTableStatistics',
+           'Procedure', 'ObjectPath', 'CatalogPartitionSpec', 'CatalogTableStatistics',
            'CatalogColumnStatistics', 'HiveCatalog']
 
 
@@ -366,6 +366,17 @@ class Catalog(object):
                 FunctionNotExistException if the function does not exist in the catalog.
         """
         return CatalogFunction._get(self._j_catalog.getFunction(function_path._j_object_path))
+
+    def get_procedure(self, procedure_path: 'ObjectPath') -> 'Procedure':
+        """
+        Get the procedure.
+
+        :param procedure_path: Path :class:`ObjectPath` of the procedure.
+        :return: The requested procedure :class:`Procedure`.
+        :raise: CatalogException in case of any runtime exception.
+                ProcedureNotExistException if the procedure does not exist in the catalog.
+        """
+        return Procedure._get(self._j_catalog.getProcedure(procedure_path._j_object_path))
 
     def function_exists(self, function_path: 'ObjectPath') -> bool:
         """
@@ -1003,6 +1014,19 @@ class CatalogFunction(object):
         .. versionadded:: 1.10.0
         """
         return self._j_catalog_function.getFunctionLanguage()
+
+
+class Procedure(object):
+    """
+    Interface for a procedure in a catalog.
+    """
+
+    def __init__(self, j_procedure):
+        self._j_procedure = j_procedure
+
+    @staticmethod
+    def _get(j_procedure):
+        return Procedure(j_procedure)
 
 
 class ObjectPath(object):
