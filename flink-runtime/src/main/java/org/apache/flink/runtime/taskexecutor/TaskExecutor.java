@@ -1191,7 +1191,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         permanentBlobService.registerJob(jobId);
 
         return TaskExecutorJobServices.create(
-                libraryCacheManager.registerClassLoaderLease(jobId, false),
+                libraryCacheManager.registerClassLoaderLease(jobId),
                 () -> permanentBlobService.releaseJob(jobId));
     }
 

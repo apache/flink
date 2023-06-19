@@ -26,19 +26,21 @@ import java.util.function.BiFunction;
 public class TestingLibraryCacheManager implements LibraryCacheManager {
     private final BiFunction<JobID, Boolean, ClassLoaderLease> registerOrRetainClassLoaderFunction;
     private final Runnable shutdownRunnable;
+    private final boolean wrapsSystemClassLoader;
 
     private TestingLibraryCacheManager(
             BiFunction<JobID, Boolean, LibraryCacheManager.ClassLoaderLease>
                     registerOrRetainClassLoaderFunction,
-            Runnable shutdownRunnable) {
+            Runnable shutdownRunnable,
+            boolean wrapsSystemClassLoader) {
         this.registerOrRetainClassLoaderFunction = registerOrRetainClassLoaderFunction;
         this.shutdownRunnable = shutdownRunnable;
+        this.wrapsSystemClassLoader = wrapsSystemClassLoader;
     }
 
     @Override
-    public LibraryCacheManager.ClassLoaderLease registerClassLoaderLease(
-            JobID jobId, boolean useSystemClassLoader) {
-        return registerOrRetainClassLoaderFunction.apply(jobId, useSystemClassLoader);
+    public LibraryCacheManager.ClassLoaderLease registerClassLoaderLease(JobID jobId) {
+        return registerOrRetainClassLoaderFunction.apply(jobId, wrapsSystemClassLoader);
     }
 
     @Override
@@ -57,6 +59,8 @@ public class TestingLibraryCacheManager implements LibraryCacheManager {
                 registerOrRetainClassLoaderFunction =
                         (ignored1, ignore2) -> TestingClassLoaderLease.newBuilder().build();
 
+        private boolean wrapsSystemClassLoader = false;
+
         private Builder() {}
 
         public Builder setShutdownRunnable(Runnable shutdownRunnable) {
@@ -70,9 +74,14 @@ public class TestingLibraryCacheManager implements LibraryCacheManager {
             return this;
         }
 
+        public Builder setWrapsSystemClassLoader(boolean wrapsSystemClassLoader) {
+            this.wrapsSystemClassLoader = wrapsSystemClassLoader;
+            return this;
+        }
+
         public TestingLibraryCacheManager build() {
             return new TestingLibraryCacheManager(
-                    registerOrRetainClassLoaderFunction, shutdownRunnable);
+                    registerOrRetainClassLoaderFunction, shutdownRunnable, wrapsSystemClassLoader);
         }
     }
 }

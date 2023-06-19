@@ -76,20 +76,26 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 
     private final ClassLoaderFactory classLoaderFactory;
 
+    /** If true, it will use system class loader when the jars and classpaths of job are empty. */
+    private final boolean wrapsSystemClassLoader;
+
     // --------------------------------------------------------------------------------------------
 
     public BlobLibraryCacheManager(
-            PermanentBlobService blobService, ClassLoaderFactory classLoaderFactory) {
+            PermanentBlobService blobService,
+            ClassLoaderFactory classLoaderFactory,
+            boolean wrapsSystemClassLoader) {
         this.blobService = checkNotNull(blobService);
         this.classLoaderFactory = checkNotNull(classLoaderFactory);
+        this.wrapsSystemClassLoader = wrapsSystemClassLoader;
     }
 
     @Override
-    public ClassLoaderLease registerClassLoaderLease(JobID jobId, boolean useSystemClassloader) {
+    public ClassLoaderLease registerClassLoaderLease(JobID jobId) {
         synchronized (lockObject) {
             return cacheEntries
                     .computeIfAbsent(jobId, jobID -> new LibraryCacheEntry(jobId))
-                    .obtainLease(useSystemClassloader);
+                    .obtainLease();
         }
     }
 
@@ -221,16 +227,14 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
         }
 
         private UserCodeClassLoader getOrResolveClassLoader(
-                Collection<PermanentBlobKey> libraries,
-                Collection<URL> classPaths,
-                boolean useSystemClassLoader)
+                Collection<PermanentBlobKey> libraries, Collection<URL> classPaths)
                 throws IOException {
             synchronized (lockObject) {
                 verifyIsNotReleased();
 
                 if (resolvedClassLoader == null) {
                     boolean systemClassLoader =
-                            useSystemClassLoader && libraries.isEmpty() && classPaths.isEmpty();
+                            wrapsSystemClassLoader && libraries.isEmpty() && classPaths.isEmpty();
                     resolvedClassLoader =
                             new ResolvedClassLoader(
                                     systemClassLoader
@@ -285,10 +289,10 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
         }
 
         @GuardedBy("lockObject")
-        private DefaultClassLoaderLease obtainLease(boolean useSystemClassloader) {
+        private DefaultClassLoaderLease obtainLease() {
             verifyIsNotReleased();
             referenceCount += 1;
-            return DefaultClassLoaderLease.create(this, useSystemClassloader);
+            return DefaultClassLoaderLease.create(this);
         }
 
         private void release() {
@@ -329,14 +333,11 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
             implements LibraryCacheManager.ClassLoaderLease {
 
         private final LibraryCacheEntry libraryCacheEntry;
-        private final boolean useSystemClassLoader;
 
         private boolean isClosed;
 
-        private DefaultClassLoaderLease(
-                LibraryCacheEntry libraryCacheEntry, boolean useSystemClassLoader) {
+        private DefaultClassLoaderLease(LibraryCacheEntry libraryCacheEntry) {
             this.libraryCacheEntry = libraryCacheEntry;
-            this.useSystemClassLoader = useSystemClassLoader;
             this.isClosed = false;
         }
 
@@ -345,8 +346,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
                 Collection<PermanentBlobKey> requiredJarFiles, Collection<URL> requiredClasspaths)
                 throws IOException {
             verifyIsNotClosed();
-            return libraryCacheEntry.getOrResolveClassLoader(
-                    requiredJarFiles, requiredClasspaths, useSystemClassLoader);
+            return libraryCacheEntry.getOrResolveClassLoader(requiredJarFiles, requiredClasspaths);
         }
 
         private void verifyIsNotClosed() {
@@ -364,9 +364,8 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
             libraryCacheEntry.release();
         }
 
-        private static DefaultClassLoaderLease create(
-                LibraryCacheEntry libraryCacheEntry, boolean useSystemClassLoader) {
-            return new DefaultClassLoaderLease(libraryCacheEntry, useSystemClassLoader);
+        private static DefaultClassLoaderLease create(LibraryCacheEntry libraryCacheEntry) {
+            return new DefaultClassLoaderLease(libraryCacheEntry);
         }
     }
 

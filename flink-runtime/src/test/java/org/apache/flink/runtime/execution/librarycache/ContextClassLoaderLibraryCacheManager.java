@@ -25,7 +25,7 @@ public enum ContextClassLoaderLibraryCacheManager implements LibraryCacheManager
     INSTANCE;
 
     @Override
-    public ClassLoaderLease registerClassLoaderLease(JobID jobId, boolean useSystemClassLoader) {
+    public ClassLoaderLease registerClassLoaderLease(JobID jobId) {
         return TestingClassLoaderLease.newBuilder().build();
     }
 
