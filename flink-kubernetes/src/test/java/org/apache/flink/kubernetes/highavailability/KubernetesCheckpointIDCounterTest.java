@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
+import org.apache.flink.runtime.leaderelection.LeaderElectionEvent;
 
 import org.junit.jupiter.api.Test;
 
@@ -185,7 +186,8 @@ class KubernetesCheckpointIDCounterTest extends KubernetesHighAvailabilityTestBa
 
                             // lost leadership
                             getLeaderCallback().notLeader();
-                            electionEventHandler.waitForRevokeLeader();
+
+                            electionEventHandler.await(LeaderElectionEvent.NotLeaderEvent.class);
                             getLeaderConfigMap()
                                     .getAnnotations()
                                     .remove(KubernetesLeaderElector.LEADER_ANNOTATION_KEY);
@@ -260,7 +262,8 @@ class KubernetesCheckpointIDCounterTest extends KubernetesHighAvailabilityTestBa
 
                             // lost leadership
                             getLeaderCallback().notLeader();
-                            electionEventHandler.waitForRevokeLeader();
+                            electionEventHandler.await(LeaderElectionEvent.NotLeaderEvent.class);
+
                             getLeaderConfigMap()
                                     .getAnnotations()
                                     .remove(KubernetesLeaderElector.LEADER_ANNOTATION_KEY);

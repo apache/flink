@@ -21,13 +21,16 @@ package org.apache.flink.kubernetes.highavailability;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesException;
+import org.apache.flink.runtime.leaderelection.LeaderElectionEvent;
 import org.apache.flink.runtime.leaderelection.LeaderElectionException;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
+import org.apache.flink.runtime.leaderelection.LeaderInformationRegister;
 
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
@@ -45,14 +48,10 @@ class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabilityTestB
             {
                 runTest(
                         () -> {
-                            // Grant leadership
-                            leaderCallbackGrantLeadership();
-                            assertThat(electionEventHandler.isLeader()).isTrue();
-                            assertThat(
-                                            electionEventHandler
-                                                    .getConfirmedLeaderInformation()
-                                                    .getLeaderAddress())
-                                    .isEqualTo(LEADER_ADDRESS);
+                            grantLeadership();
+
+                            // the following call shouldn't block
+                            electionEventHandler.await(LeaderElectionEvent.IsLeaderEvent.class);
                         });
             }
         };
@@ -68,10 +67,8 @@ class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabilityTestB
                             // Revoke leadership
                             getLeaderCallback().notLeader();
 
-                            electionEventHandler.waitForRevokeLeader();
-                            assertThat(electionEventHandler.isLeader()).isFalse();
-                            assertThat(electionEventHandler.getConfirmedLeaderInformation())
-                                    .isEqualTo(LeaderInformation.empty());
+                            electionEventHandler.await(LeaderElectionEvent.NotLeaderEvent.class);
+
                             // The ConfigMap should also be cleared
                             assertThat(getLeaderConfigMap().getData())
                                     .doesNotContainKey(LEADER_ADDRESS_KEY);
@@ -89,12 +86,14 @@ class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabilityTestB
                 runTest(
                         () -> {
                             leaderElectionDriver.hasLeadership();
-                            electionEventHandler.waitForError();
-                            final String errorMsg =
+
+                            final String expectedErrorMessage =
                                     "ConfigMap " + LEADER_CONFIGMAP_NAME + " does not exist.";
-                            assertThat(electionEventHandler.getError())
+                            assertThat(fatalErrorHandler.getException())
                                     .isInstanceOf(KubernetesException.class)
-                                    .hasMessage(errorMsg);
+                                    .hasMessageContaining(expectedErrorMessage);
+
+                            fatalErrorHandler.clearError();
                         });
             }
         };
@@ -106,18 +105,13 @@ class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabilityTestB
             {
                 runTest(
                         () -> {
-                            leaderCallbackGrantLeadership();
+                            final UUID leaderSessionID = leaderCallbackGrantLeadership();
 
-                            final LeaderInformation leader =
-                                    LeaderInformation.known(UUID.randomUUID(), LEADER_ADDRESS);
-                            leaderElectionDriver.writeLeaderInformation(leader);
+                            final LeaderInformation leaderInformation =
+                                    LeaderInformation.known(leaderSessionID, leaderAddress);
 
-                            assertThat(getLeaderConfigMap().getData())
-                                    .containsEntry(LEADER_ADDRESS_KEY, leader.getLeaderAddress());
-                            assertThat(getLeaderConfigMap().getData())
-                                    .containsEntry(
-                                            LEADER_SESSION_ID_KEY,
-                                            leader.getLeaderSessionID().toString());
+                            assertThat(getLeaderInformationFromConfigMap())
+                                    .hasValue(leaderInformation);
                         });
             }
         };
@@ -129,17 +123,18 @@ class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabilityTestB
             {
                 runTest(
                         () -> {
-                            leaderElectionDriver.writeLeaderInformation(
+                            leaderElectionDriver.publishLeaderInformation(
+                                    contenderID,
                                     LeaderInformation.known(UUID.randomUUID(), LEADER_ADDRESS));
-                            electionEventHandler.waitForError();
 
-                            final String errorMsg =
-                                    "Could not write leader information since ConfigMap "
-                                            + LEADER_CONFIGMAP_NAME
-                                            + " does not exist.";
-                            assertThat(electionEventHandler.getError())
+                            final String expectedErrorMessage =
+                                    "ConfigMap " + LEADER_CONFIGMAP_NAME + " does not exist.";
+                            assertThat(fatalErrorHandler.getException())
+                                    .cause()
                                     .isInstanceOf(KubernetesException.class)
-                                    .hasMessage(errorMsg);
+                                    .hasMessage(expectedErrorMessage);
+
+                            fatalErrorHandler.clearError();
                         });
             }
         };
@@ -151,34 +146,48 @@ class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabilityTestB
             {
                 runTest(
                         () -> {
-                            leaderCallbackGrantLeadership();
+                            final UUID leaderSessionID = leaderCallbackGrantLeadership();
 
+                            final Optional<LeaderInformation> leaderInformation =
+                                    getLeaderInformationFromConfigMap();
+                            assertThat(leaderInformation.map(LeaderInformation::getLeaderSessionID))
+                                    .hasValue(leaderSessionID);
+
+                            // Update ConfigMap with wrong data
+                            final UUID faultySessionID = UUID.randomUUID();
+                            final String faultyAddress = "faultyLeaderAddress";
+                            putLeaderInformationIntoConfigMap(faultySessionID, faultyAddress);
+
+                            // Simulate ConfigMap modification event
                             final FlinkKubeClient.WatchCallbackHandler<KubernetesConfigMap>
                                     callbackHandler = getLeaderElectionConfigMapCallback();
-                            // Update ConfigMap with wrong data
-                            final KubernetesConfigMap updatedConfigMap = getLeaderConfigMap();
-                            final UUID leaderSessionId =
-                                    UUID.fromString(
-                                            updatedConfigMap.getData().get(LEADER_SESSION_ID_KEY));
-                            final LeaderInformation faultyLeader =
-                                    LeaderInformation.known(
-                                            UUID.randomUUID(), "faultyLeaderAddress");
-                            updatedConfigMap
-                                    .getData()
-                                    .put(LEADER_ADDRESS_KEY, faultyLeader.getLeaderAddress());
-                            updatedConfigMap
-                                    .getData()
-                                    .put(
-                                            LEADER_SESSION_ID_KEY,
-                                            faultyLeader.getLeaderSessionID().toString());
+                            callbackHandler.onModified(
+                                    Collections.singletonList(getLeaderConfigMap()));
 
-                            callbackHandler.onModified(Collections.singletonList(updatedConfigMap));
-                            // The leader should be corrected
-                            assertThat(getLeaderConfigMap().getData())
-                                    .containsEntry(LEADER_ADDRESS_KEY, LEADER_ADDRESS);
-                            assertThat(getLeaderConfigMap().getData())
-                                    .containsEntry(
-                                            LEADER_SESSION_ID_KEY, leaderSessionId.toString());
+                            final LeaderInformationRegister leaderInformationRegister =
+                                    electionEventHandler
+                                            .await(
+                                                    LeaderElectionEvent
+                                                            .AllKnownLeaderInformationEvent.class)
+                                            .getLeaderInformationRegister();
+
+                            assertThat(leaderInformationRegister.getRegisteredContenderIDs())
+                                    .containsExactly(contenderID);
+
+                            final LeaderInformation expectedFaultyLeaderInformation =
+                                    LeaderInformation.known(faultySessionID, faultyAddress);
+                            assertThat(leaderInformationRegister.forContenderID(contenderID))
+                                    .hasValue(expectedFaultyLeaderInformation);
+
+                            leaderElectionDriver.publishLeaderInformation(
+                                    contenderID,
+                                    LeaderInformation.known(leaderSessionID, leaderAddress));
+
+                            assertThat(getLeaderInformationFromConfigMap())
+                                    .as("LeaderInformation should have been corrected.")
+                                    .hasValue(
+                                            LeaderInformation.known(
+                                                    leaderSessionID, leaderAddress));
                         });
             }
         };
@@ -197,12 +206,15 @@ class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabilityTestB
                             callbackHandler.onDeleted(
                                     Collections.singletonList(getLeaderConfigMap()));
 
-                            electionEventHandler.waitForError();
-                            final String errorMsg =
-                                    "ConfigMap " + LEADER_CONFIGMAP_NAME + " is deleted externally";
-                            assertThat(electionEventHandler.getError())
+                            final String expectedErrorMessage =
+                                    "ConfigMap "
+                                            + LEADER_CONFIGMAP_NAME
+                                            + " has been deleted externally.";
+                            assertThat(fatalErrorHandler.getException())
                                     .isInstanceOf(LeaderElectionException.class)
-                                    .hasMessage(errorMsg);
+                                    .hasMessage(expectedErrorMessage);
+
+                            fatalErrorHandler.clearError();
                         });
             }
         };
@@ -221,12 +233,15 @@ class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabilityTestB
                             callbackHandler.onError(
                                     Collections.singletonList(getLeaderConfigMap()));
 
-                            electionEventHandler.waitForError();
-                            final String errorMsg =
-                                    "Error while watching the ConfigMap " + LEADER_CONFIGMAP_NAME;
-                            assertThat(electionEventHandler.getError())
+                            final String expectedErrorMessage =
+                                    "Error while watching the ConfigMap "
+                                            + LEADER_CONFIGMAP_NAME
+                                            + ".";
+                            assertThat(fatalErrorHandler.getException())
                                     .isInstanceOf(LeaderElectionException.class)
-                                    .hasMessage(errorMsg);
+                                    .hasMessage(expectedErrorMessage);
+
+                            fatalErrorHandler.clearError();
                         });
             }
         };
