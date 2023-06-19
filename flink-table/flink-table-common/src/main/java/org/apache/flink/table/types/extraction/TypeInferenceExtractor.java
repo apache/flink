@@ -29,6 +29,8 @@ import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
+import org.apache.flink.table.procedures.Procedure;
+import org.apache.flink.table.procedures.ProcedureDefinition;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.InputTypeStrategies;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
@@ -143,6 +145,27 @@ public final class TypeInferenceExtractor {
         return extractTypeInference(mappingExtractor);
     }
 
+    public static TypeInference forProcedure(
+            DataTypeFactory typeFactory, Class<? extends Procedure> procedure) {
+        final ProcedureMappingExtractor mappingExtractor =
+                new ProcedureMappingExtractor(
+                        typeFactory,
+                        procedure,
+                        ProcedureDefinition.PROCEDURE_CALL,
+                        ProcedureMappingExtractor.createParameterSignatureExtraction(1),
+                        ProcedureMappingExtractor.createReturnTypeResultExtraction(),
+                        ProcedureMappingExtractor.createParameterAndReturnTypeVerification());
+        try {
+            return extractTypeInferenceOrError(mappingExtractor);
+        } catch (Throwable t) {
+            throw extractionError(
+                    t,
+                    "Could not extract a valid type inference for procedure class '%s'. "
+                            + "Please check for implementation mistakes and/or provide a corresponding hint.",
+                    mappingExtractor.getFunctionClass().getName());
+        }
+    }
+
     private static TypeInference extractTypeInference(FunctionMappingExtractor mappingExtractor) {
         try {
             return extractTypeInferenceOrError(mappingExtractor);
@@ -167,6 +190,13 @@ public final class TypeInferenceExtractor {
         final Map<FunctionSignatureTemplate, FunctionResultTemplate> accumulatorMapping =
                 mappingExtractor.extractAccumulatorMapping();
         return buildInference(accumulatorMapping, outputMapping);
+    }
+
+    private static TypeInference extractTypeInferenceOrError(
+            ProcedureMappingExtractor mappingExtractor) {
+        final Map<FunctionSignatureTemplate, FunctionResultTemplate> outputMapping =
+                mappingExtractor.extractOutputMapping();
+        return buildInference(null, outputMapping);
     }
 
     private static TypeInference buildInference(
