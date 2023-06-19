@@ -155,6 +155,7 @@ public class LeaderElectionTest {
         LeaderElection createLeaderElection() throws Exception;
     }
 
+    @Deprecated
     private static final class ZooKeeperServiceClass implements ServiceClass {
 
         private TestingServer testingServer;
