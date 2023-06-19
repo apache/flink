@@ -25,6 +25,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
+import org.apache.flink.table.catalog.exceptions.ProcedureNotExistException;
 import org.apache.flink.table.delegation.PlannerTypeInferenceUtil;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
@@ -40,6 +41,7 @@ import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.module.ModuleManager;
+import org.apache.flink.table.procedures.Procedure;
 import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.util.Preconditions;
@@ -387,6 +389,23 @@ public final class FunctionCatalog {
                 return plannerTypeInferenceUtil;
             }
         };
+    }
+
+    public Optional<ContextResolvedProcedure> lookupProcedure(UnresolvedIdentifier identifier) {
+        ObjectIdentifier procedureIdentifier = catalogManager.qualifyIdentifier(identifier);
+        Optional<Catalog> catalog = catalogManager.getCatalog(procedureIdentifier.getCatalogName());
+        if (catalog.isPresent()) {
+            Procedure procedure;
+            try {
+                procedure = catalog.get().getProcedure(procedureIdentifier.toObjectPath());
+            } catch (ProcedureNotExistException e) {
+                return Optional.empty();
+            }
+            return Optional.of(
+                    new ContextResolvedProcedure(
+                            FunctionIdentifier.of(procedureIdentifier), procedure));
+        }
+        return Optional.empty();
     }
 
     public Optional<ContextResolvedFunction> lookupFunction(UnresolvedIdentifier identifier) {
