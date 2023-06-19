@@ -356,6 +356,14 @@ public final class InputTypeStrategies {
         return new CommonArrayInputTypeStrategy(ConstantArgumentCount.of(count));
     }
 
+    /**
+     * An {@link InputTypeStrategy} that expects {@code minCount} arguments that have a common array
+     * type.
+     */
+    public static InputTypeStrategy commonMultipleArrayType(int minCount) {
+        return new CommonArrayInputTypeStrategy(ConstantArgumentCount.from(minCount));
+    }
+
     // --------------------------------------------------------------------------------------------
 
     private InputTypeStrategies() {

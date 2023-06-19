@@ -225,6 +225,7 @@ advanced type helper functions
     Expression.at
     Expression.cardinality
     Expression.element
+    Expression.array_concat
     Expression.array_contains
     Expression.array_distinct
     Expression.array_position

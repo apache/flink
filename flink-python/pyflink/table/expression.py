@@ -1519,6 +1519,15 @@ class Expression(Generic[T]):
         """
         return _binary_op("arrayUnion")(self, array)
 
+    def array_concat(self, *arrays) -> 'Expression':
+        """
+        Returns an array that is the result of concatenating at least one array.
+        This array contains all the elements in the first array, followed by all
+        the elements in the second array, and so forth, up to the Nth array.
+        If any input array is NULL, the function returns NULL.
+        """
+        return _binary_op("arrayConcat")(self, *arrays)
+
     @property
     def map_keys(self) -> 'Expression':
         """

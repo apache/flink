@@ -53,6 +53,7 @@ import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ABS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ACOS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_CONCAT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_CONTAINS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_DISTINCT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_ELEMENT;
@@ -1406,6 +1407,40 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType arrayUnion(InType array) {
         return toApiSpecificExpression(
                 unresolvedCall(ARRAY_UNION, toExpr(), objectToExpression(array)));
+    }
+
+    /**
+     * Returns an array that is the result of concatenating at least one array. This array contains
+     * all the elements in the first array, followed by all the elements in the second array, and so
+     * forth, up to the Nth array.
+     *
+     * <p>If any input array is NULL, the function returns NULL.
+     */
+    public OutType arrayConcat(InType... arrays) {
+        arrays = convertToArrays(arrays);
+        Expression[] args =
+                Stream.concat(
+                                Stream.of(toExpr()),
+                                Arrays.stream(arrays).map(ApiExpressionUtils::objectToExpression))
+                        .toArray(Expression[]::new);
+        return toApiSpecificExpression(unresolvedCall(ARRAY_CONCAT, args));
+    }
+
+    private InType[] convertToArrays(InType[] arrays) {
+        if (arrays == null || arrays.length == 0) {
+            return arrays;
+        }
+        InType notNullArray = null;
+        for (int i = 0; i < arrays.length; ++i) {
+            if (arrays[i] != null) {
+                notNullArray = arrays[i];
+            }
+        }
+        if (!(notNullArray instanceof Object[])) {
+            return (InType[]) new Object[] {arrays};
+        } else {
+            return arrays;
+        }
     }
 
     /** Returns the keys of the map as an array. */
