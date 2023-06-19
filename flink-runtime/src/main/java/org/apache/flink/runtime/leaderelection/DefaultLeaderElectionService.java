@@ -46,7 +46,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>{@code DefaultLeaderElectionService} handles a single {@link LeaderContender}.
  */
 public class DefaultLeaderElectionService extends AbstractLeaderElectionService
-        implements LeaderElectionEventHandler, AutoCloseable {
+        implements LeaderElectionEventHandler,
+                MultipleComponentLeaderElectionDriver.Listener,
+                AutoCloseable {
 
     private static final Logger LOG = LoggerFactory.getLogger(DefaultLeaderElectionService.class);
 
@@ -494,6 +496,32 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
                 leaderContender.handleError(new LeaderElectionException(t));
             }
         }
+    }
+
+    @Override
+    public void isLeader() {
+        onGrantLeadership(UUID.randomUUID());
+    }
+
+    @Override
+    public void notLeader() {
+        onRevokeLeadership();
+    }
+
+    @Override
+    public void notifyLeaderInformationChange(
+            String contenderID, LeaderInformation leaderInformation) {
+        if (contenderID.equals(this.contenderID)) {
+            onLeaderInformationChange(leaderInformation);
+        }
+    }
+
+    @Override
+    public void notifyAllKnownLeaderInformation(
+            LeaderInformationRegister leaderInformationRegister) {
+        leaderInformationRegister
+                .forContenderID(contenderID)
+                .ifPresent(this::onLeaderInformationChange);
     }
 
     private class LeaderElectionFatalErrorHandler implements FatalErrorHandler {
