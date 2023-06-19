@@ -26,7 +26,6 @@ import org.apache.flink.table.planner.hint.JoinStrategy
 import org.apache.flink.table.planner.parse.CalciteParser
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
-
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.config.NullCollation
 import org.apache.calcite.plan._
@@ -35,7 +34,7 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelFieldCollation, RelRoot}
 import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rex.{RexInputRef, RexNode}
-import org.apache.calcite.sql.{SqlCall, SqlHint, SqlKind, SqlNode, SqlNodeList, SqlOperatorTable, SqlSelect, SqlTableRef}
+import org.apache.calcite.sql.{SqlBasicCall, SqlCall, SqlHint, SqlKind, SqlNode, SqlNodeList, SqlOperatorTable, SqlProcedureCallOperator, SqlSelect, SqlTableRef}
 import org.apache.calcite.sql.advise.SqlAdvisorValidator
 import org.apache.calcite.sql.util.SqlShuttle
 import org.apache.calcite.sql.validate.SqlValidator
@@ -43,12 +42,10 @@ import org.apache.calcite.sql2rel.{SqlRexConvertletTable, SqlToRelConverter}
 import org.apache.calcite.tools.{FrameworkConfig, RelConversionException}
 
 import javax.annotation.Nullable
-
 import java.lang.{Boolean => JBoolean}
 import java.util
 import java.util.Locale
 import java.util.function.{Function => JFunction}
-
 import scala.collection.JavaConverters._
 
 /**
@@ -60,7 +57,7 @@ class FlinkPlannerImpl(
     val config: FrameworkConfig,
     catalogReaderSupplier: JFunction[JBoolean, CalciteCatalogReader],
     typeFactory: FlinkTypeFactory,
-    cluster: RelOptCluster) {
+    val cluster: RelOptCluster) {
 
   val operatorTable: SqlOperatorTable = config.getOperatorTable
   val parser: CalciteParser = new CalciteParser(config.getParserConfig)
@@ -179,6 +176,18 @@ class FlinkPlannerImpl(
         case compileAndExecute: SqlCompileAndExecutePlan =>
           compileAndExecute.setOperand(0, validate(compileAndExecute.getOperandList.get(0)))
           compileAndExecute
+        // for call procedure statement
+        case sqlCallNode
+          if sqlCallNode.isInstanceOf[SqlBasicCall]
+            && sqlCallNode
+            .asInstanceOf[SqlBasicCall]
+            .getOperator
+            .isInstanceOf[SqlProcedureCallOperator] =>
+          val callNode = sqlCallNode.asInstanceOf[SqlBasicCall]
+          callNode.getOperandList.asScala.zipWithIndex.foreach {
+            case (operand, idx) => callNode.setOperand(idx, validate(operand))
+          }
+          callNode
         case _ =>
           validator.validate(sqlNode)
       }
