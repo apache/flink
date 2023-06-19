@@ -31,6 +31,8 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * The {@link ClientResourceManager} is able to remove the registered JAR resources with the
@@ -47,6 +49,13 @@ public class ClientResourceManager extends ResourceManager {
         super(config, userClassLoader);
     }
 
+    private ClientResourceManager(
+            Path localResourceDir,
+            Map<ResourceUri, URL> resourceInfos,
+            MutableURLClassLoader userClassLoader) {
+        super(localResourceDir, resourceInfos, userClassLoader);
+    }
+
     @Nullable
     public URL unregisterJarResource(String jarPath) {
         Path path = new Path(jarPath);
@@ -58,5 +67,11 @@ public class ClientResourceManager extends ResourceManager {
             throw new SqlExecutionException(
                     String.format("Failed to unregister the jar resource [%s]", jarPath), e);
         }
+    }
+
+    @Override
+    public ResourceManager copy() {
+        return new ClientResourceManager(
+                localResourceDir, new HashMap<>(resourceInfos), userClassLoader);
     }
 }

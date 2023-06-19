@@ -306,6 +306,11 @@ create function upperudf AS 'UpperUDF' using jar '$VAR_UDF_JAR_PATH';
 [INFO] Execute statement succeed.
 !info
 
+# `SHOW JARS` does not list the jars being used by function, it only list all the jars added by `ADD JAR`
+SHOW JARS;
+Empty set
+!ok
+
 # run a query to verify the registered UDF works
 SELECT id, upperudf(str) FROM (VALUES (1, 'hello world'), (2, 'hi')) as T(id, str);
 +----+-------------+--------------------------------+
@@ -317,19 +322,7 @@ SELECT id, upperudf(str) FROM (VALUES (1, 'hello world'), (2, 'hi')) as T(id, st
 Received a total of 2 rows
 !ok
 
-SHOW JARS;
-+-$VAR_UDF_JAR_PATH_DASH-----+
-| $VAR_UDF_JAR_PATH_SPACEjars |
-+-$VAR_UDF_JAR_PATH_DASH-----+
-| $VAR_UDF_JAR_PATH |
-+-$VAR_UDF_JAR_PATH_DASH-----+
-1 row in set
-!ok
-
-REMOVE JAR '$VAR_UDF_JAR_PATH';
-[INFO] Execute statement succeed.
-!info
-
+# Each query registers its jar to resource manager could not affect the session in sql gateway
 SHOW JARS;
 Empty set
 !ok

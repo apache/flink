@@ -69,7 +69,7 @@ public class ResourceManager implements Closeable {
     private static final String JAR_SUFFIX = "jar";
     private static final String FILE_SCHEME = "file";
 
-    private final Path localResourceDir;
+    protected final Path localResourceDir;
     /** Resource infos for functions. */
     private final Map<ResourceUri, ResourceCounter> functionResourceInfos;
 
@@ -84,12 +84,21 @@ public class ResourceManager implements Closeable {
     }
 
     public ResourceManager(ReadableConfig config, MutableURLClassLoader userClassLoader) {
-        this.localResourceDir =
+        this(
                 new Path(
                         config.get(TableConfigOptions.RESOURCES_DOWNLOAD_DIR),
-                        String.format("flink-table-%s", UUID.randomUUID()));
+                        String.format("flink-table-%s", UUID.randomUUID())),
+                new HashMap<>(),
+                userClassLoader);
+    }
+
+    protected ResourceManager(
+            Path localResourceDir,
+            Map<ResourceUri, URL> resourceInfos,
+            MutableURLClassLoader userClassLoader) {
+        this.localResourceDir = localResourceDir;
         this.functionResourceInfos = new HashMap<>();
-        this.resourceInfos = new HashMap<>();
+        this.resourceInfos = resourceInfos;
         this.userClassLoader = userClassLoader;
     }
 
@@ -230,6 +239,10 @@ public class ResourceManager implements Closeable {
                         .orElseGet(LinkedHashSet::new);
         jarFiles.addAll(jars);
         tableConfig.set(PipelineOptions.JARS, new ArrayList<>(jarFiles));
+    }
+
+    public ResourceManager copy() {
+        return new ResourceManager(localResourceDir, new HashMap<>(resourceInfos), userClassLoader);
     }
 
     @Override

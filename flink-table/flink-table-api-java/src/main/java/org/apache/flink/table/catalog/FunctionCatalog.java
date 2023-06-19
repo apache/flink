@@ -78,9 +78,8 @@ public final class FunctionCatalog {
     private final CatalogManager catalogManager;
     private final ModuleManager moduleManager;
 
-    private final Map<String, CatalogFunction> tempSystemFunctions = new LinkedHashMap<>();
-    private final Map<ObjectIdentifier, CatalogFunction> tempCatalogFunctions =
-            new LinkedHashMap<>();
+    private final Map<String, CatalogFunction> tempSystemFunctions;
+    private final Map<ObjectIdentifier, CatalogFunction> tempCatalogFunctions;
 
     /**
      * Temporary utility until the new type inference is fully functional. It needs to be set by the
@@ -93,10 +92,31 @@ public final class FunctionCatalog {
             ResourceManager resourceManager,
             CatalogManager catalogManager,
             ModuleManager moduleManager) {
+        this(
+                config,
+                resourceManager,
+                catalogManager,
+                moduleManager,
+                new LinkedHashMap<>(),
+                new LinkedHashMap<>(),
+                null);
+    }
+
+    private FunctionCatalog(
+            ReadableConfig config,
+            ResourceManager resourceManager,
+            CatalogManager catalogManager,
+            ModuleManager moduleManager,
+            Map<String, CatalogFunction> tempSystemFunctions,
+            Map<ObjectIdentifier, CatalogFunction> tempCatalogFunctions,
+            PlannerTypeInferenceUtil plannerTypeInferenceUtil) {
         this.config = checkNotNull(config);
         this.resourceManager = checkNotNull(resourceManager);
         this.catalogManager = checkNotNull(catalogManager);
         this.moduleManager = checkNotNull(moduleManager);
+        this.tempSystemFunctions = tempSystemFunctions;
+        this.tempCatalogFunctions = tempCatalogFunctions;
+        this.plannerTypeInferenceUtil = plannerTypeInferenceUtil;
     }
 
     public void setPlannerTypeInferenceUtil(PlannerTypeInferenceUtil plannerTypeInferenceUtil) {
@@ -775,6 +795,17 @@ public final class FunctionCatalog {
                             resourceUris, functionName),
                     e);
         }
+    }
+
+    public FunctionCatalog copy(ResourceManager newResourceManager) {
+        return new FunctionCatalog(
+                config,
+                newResourceManager,
+                catalogManager,
+                moduleManager,
+                tempSystemFunctions,
+                tempCatalogFunctions,
+                plannerTypeInferenceUtil);
     }
 
     private void registerCatalogFunction(
