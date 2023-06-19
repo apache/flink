@@ -21,6 +21,7 @@ package org.apache.flink.table.types.extraction;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
+import org.apache.flink.table.annotation.ProcedureHint;
 import org.apache.flink.table.catalog.DataTypeFactory;
 
 import javax.annotation.Nullable;
@@ -33,7 +34,7 @@ import java.util.stream.Collectors;
 import static org.apache.flink.table.types.extraction.ExtractionUtils.extractionError;
 
 /**
- * Internal representation of a {@link FunctionHint}.
+ * Internal representation of a {@link FunctionHint} or {@link ProcedureHint}.
  *
  * <p>All parameters of a template are optional. An empty annotation results in a template where all
  * members are {@code null}.
@@ -71,6 +72,21 @@ final class FunctionTemplate {
                         hint.isVarArgs()),
                 createResultTemplate(typeFactory, defaultAsNull(hint, FunctionHint::accumulator)),
                 createResultTemplate(typeFactory, defaultAsNull(hint, FunctionHint::output)));
+    }
+
+    /**
+     * Creates an instance using the given {@link ProcedureHint}. It resolves explicitly defined
+     * data types.
+     */
+    static FunctionTemplate fromAnnotation(DataTypeFactory typeFactory, ProcedureHint hint) {
+        return new FunctionTemplate(
+                createSignatureTemplate(
+                        typeFactory,
+                        defaultAsNull(hint, ProcedureHint::input),
+                        defaultAsNull(hint, ProcedureHint::argumentNames),
+                        hint.isVarArgs()),
+                null,
+                createResultTemplate(typeFactory, defaultAsNull(hint, ProcedureHint::output)));
     }
 
     /** Creates an instance of {@link FunctionResultTemplate} from a {@link DataTypeHint}. */
@@ -133,12 +149,30 @@ final class FunctionTemplate {
         // no implementation
     }
 
+    @ProcedureHint
+    private static class DefaultProcedureAnnotationHelper {
+        // no implementation
+    }
+
     private static FunctionHint getDefaultAnnotation() {
         return DefaultAnnotationHelper.class.getAnnotation(FunctionHint.class);
     }
 
+    private static ProcedureHint getDefaultProcedureHintAnnotation() {
+        return DefaultProcedureAnnotationHelper.class.getAnnotation(ProcedureHint.class);
+    }
+
     private static <T> T defaultAsNull(FunctionHint hint, Function<FunctionHint, T> accessor) {
         final T defaultValue = accessor.apply(DEFAULT_ANNOTATION);
+        final T actualValue = accessor.apply(hint);
+        if (Objects.deepEquals(defaultValue, actualValue)) {
+            return null;
+        }
+        return actualValue;
+    }
+
+    private static <T> T defaultAsNull(ProcedureHint hint, Function<ProcedureHint, T> accessor) {
+        final T defaultValue = accessor.apply(getDefaultProcedureHintAnnotation());
         final T actualValue = accessor.apply(hint);
         if (Objects.deepEquals(defaultValue, actualValue)) {
             return null;
