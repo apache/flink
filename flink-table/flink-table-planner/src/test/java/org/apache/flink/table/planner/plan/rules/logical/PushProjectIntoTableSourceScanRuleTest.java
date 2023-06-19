@@ -360,16 +360,16 @@ public class PushProjectIntoTableSourceScanRuleTest
 
     private void replaceProgramWithProjectMergeRule() {
         FlinkChainedProgram programs = new FlinkChainedProgram<BatchOptimizeContext>();
-        programs
-                .addLast(
-                        "rules",
-                        FlinkHepRuleSetProgramBuilder.<BatchOptimizeContext>newBuilder()
-                                .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE())
-                                .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-                                .add(RuleSets.ofList(
+        programs.addLast(
+                "rules",
+                FlinkHepRuleSetProgramBuilder.<BatchOptimizeContext>newBuilder()
+                        .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE())
+                        .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+                        .add(
+                                RuleSets.ofList(
                                         CoreRules.PROJECT_MERGE,
                                         PushProjectIntoTableSourceScanRule.INSTANCE))
-                                .build());
+                        .build());
         util().replaceBatchProgram(programs);
     }
 

@@ -2283,4 +2283,19 @@ class CalcITCase extends BatchTestBase {
         |""".stripMargin,
       Seq(row(2, "cbc\"ddd")))
   }
+
+  @Test
+  def testNonMergeableRandCall(): Unit = {
+    // reported in FLINK-20887
+    checkResult(
+      s"""
+         |SELECT b - a FROM (
+         |  SELECT r + 5 AS a, r + 7 AS b FROM (
+         |    SELECT RAND() AS r FROM SmallTable3
+         |  ) t1
+         |) t2
+         |""".stripMargin,
+      Seq(row(2.0), row(2.0), row(2.0))
+    )
+  }
 }

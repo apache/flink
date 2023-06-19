@@ -22,30 +22,27 @@ import org.apache.flink.table.planner.plan.utils.FlinkRelUtil;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.rel.core.Calc;
-import org.apache.calcite.rel.core.Filter;
-import org.apache.calcite.rel.logical.LogicalCalc;
-import org.apache.calcite.rel.logical.LogicalFilter;
-import org.apache.calcite.rel.rules.FilterCalcMergeRule;
+import org.apache.calcite.rel.core.Project;
+import org.apache.calcite.rel.rules.ProjectMergeRule;
 import org.apache.calcite.rex.RexNode;
 
 /**
- * Extends calcite's FilterCalcMergeRule, modification: only merge the two neighbouring {@link
- * Filter} and {@link Calc} if each non-deterministic {@link RexNode} of bottom {@link Calc} should
- * appear at most once in the implicit project list and condition of top {@link Filter}.
+ * Extends calcite's ProjectMergeRule, modification: only merge the two neighbouring {@link
+ * Project}s if each non-deterministic {@link RexNode} of bottom {@link Project} should appear at
+ * most once in the project list of top {@link Project}.
  */
-public class FlinkFilterCalcMergeRule extends FilterCalcMergeRule {
+public class FlinkProjectMergeRule extends ProjectMergeRule {
 
-    public static final RelOptRule INSTANCE = new FlinkFilterCalcMergeRule(Config.DEFAULT);
+    public static final RelOptRule INSTANCE = new FlinkProjectMergeRule(Config.DEFAULT);
 
-    protected FlinkFilterCalcMergeRule(Config config) {
+    protected FlinkProjectMergeRule(Config config) {
         super(config);
     }
 
     @Override
     public boolean matches(RelOptRuleCall call) {
-        final LogicalFilter topFilter = call.rel(0);
-        final LogicalCalc bottomCalc = call.rel(1);
-        return FlinkRelUtil.isMergeable(topFilter, bottomCalc);
+        final Project topProject = call.rel(0);
+        final Project bottomProject = call.rel(1);
+        return FlinkRelUtil.isMergeable(topProject, bottomProject);
     }
 }

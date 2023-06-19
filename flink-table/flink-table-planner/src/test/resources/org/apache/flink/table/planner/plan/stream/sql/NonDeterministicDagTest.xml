@@ -2529,10 +2529,10 @@ LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a,
     <Resource name="optimized exec plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
-+- Calc(select=[a, IF((a > 100), (d + $3), d) AS b, CASE(($3 > 100), JSON_VALUE(c, '$.count'), ||(CAST(d AS VARCHAR(2147483647)), '#')) AS c])
-   +- Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[$3 DESC], select=[a, c, d, $3])
++- Calc(select=[a, IF((a > 100), (b + d), b) AS b, CASE((d > 100), JSON_VALUE(c, '$.count'), ||(CAST(b AS VARCHAR(2147483647)), '#')) AS c])
+   +- Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[d DESC], select=[a, b, c, d])
       +- Exchange(distribution=[hash[a]])
-         +- Calc(select=[a, c, d, ndFunc(b) AS $3])
+         +- Calc(select=[a, d AS b, c, ndFunc(b) AS d])
             +- TableSourceScan(table=[[default_catalog, default_database, cdc]], fields=[a, b, c, d])
 ]]>
     </Resource>
