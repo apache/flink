@@ -24,10 +24,14 @@ import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.TestingFlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
-import org.apache.flink.runtime.leaderelection.LeaderElectionDriver;
-import org.apache.flink.runtime.leaderelection.TestingLeaderElectionEventHandler;
+import org.apache.flink.kubernetes.utils.KubernetesUtils;
+import org.apache.flink.runtime.leaderelection.LeaderElectionEvent;
+import org.apache.flink.runtime.leaderelection.LeaderInformation;
+import org.apache.flink.runtime.leaderelection.MultipleComponentLeaderElectionDriver;
+import org.apache.flink.runtime.leaderelection.TestingLeaderElectionListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalDriver;
 import org.apache.flink.runtime.leaderretrieval.TestingLeaderRetrievalEventHandler;
+import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.function.RunnableWithException;
@@ -36,6 +40,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -73,8 +78,12 @@ class KubernetesHighAvailabilityTestBase {
     protected class Context {
         private final KubernetesTestFixture kubernetesTestFixture;
 
-        final LeaderElectionDriver leaderElectionDriver;
-        final TestingLeaderElectionEventHandler electionEventHandler;
+        final String contenderID;
+        final String leaderAddress;
+        final MultipleComponentLeaderElectionDriver leaderElectionDriver;
+        final TestingLeaderElectionListener electionEventHandler;
+
+        final TestingFatalErrorHandler fatalErrorHandler;
 
         final LeaderRetrievalDriver leaderRetrievalDriver;
         final TestingLeaderRetrievalEventHandler retrievalEventHandler;
@@ -85,15 +94,21 @@ class KubernetesHighAvailabilityTestBase {
         final CompletableFuture<Void> closeKubeClientFuture;
         final CompletableFuture<Map<String, String>> deleteConfigMapByLabelsFuture;
 
-        Context() {
+        Context() throws Exception {
             kubernetesTestFixture =
                     new KubernetesTestFixture(CLUSTER_ID, LEADER_CONFIGMAP_NAME, LOCK_IDENTITY);
+
+            final UUID randomTestID = UUID.randomUUID();
+            contenderID = "random-contender-id-" + randomTestID;
+            leaderAddress = "random-address-" + randomTestID;
+
             flinkKubeClient = kubernetesTestFixture.getFlinkKubeClient();
             configuration = kubernetesTestFixture.getConfiguration();
             closeKubeClientFuture = kubernetesTestFixture.getCloseKubeClientFuture();
             deleteConfigMapByLabelsFuture =
                     kubernetesTestFixture.getDeleteConfigMapByLabelsFuture();
-            electionEventHandler = new TestingLeaderElectionEventHandler(LEADER_ADDRESS);
+            electionEventHandler = new TestingLeaderElectionListener();
+            fatalErrorHandler = new TestingFatalErrorHandler();
             leaderElectionDriver = createLeaderElectionDriver();
 
             retrievalEventHandler = new TestingLeaderRetrievalEventHandler();
@@ -101,15 +116,14 @@ class KubernetesHighAvailabilityTestBase {
         }
 
         void runTest(RunnableWithException testMethod) throws Exception {
-            electionEventHandler.init(leaderElectionDriver);
-
             try {
                 testMethod.run();
             } finally {
-                electionEventHandler.close();
                 leaderElectionDriver.close();
                 leaderRetrievalDriver.close();
                 kubernetesTestFixture.close();
+
+                fatalErrorHandler.rethrowError();
             }
         }
 
@@ -125,10 +139,38 @@ class KubernetesHighAvailabilityTestBase {
             return kubernetesTestFixture.getLeaderConfigMap();
         }
 
-        // Use the leader callback to manually grant leadership
-        void leaderCallbackGrantLeadership() throws Exception {
+        String getLeaderInformationKey() {
+            return KubernetesUtils.createSingleLeaderKey(contenderID);
+        }
+
+        Optional<LeaderInformation> getLeaderInformationFromConfigMap() {
+            return KubernetesUtils.parseLeaderInformationSafely(
+                    getLeaderConfigMap().getData().get(getLeaderInformationKey()));
+        }
+
+        void putLeaderInformationIntoConfigMap(UUID leaderSessionID, String leaderAddress) {
+            getLeaderConfigMap()
+                    .getData()
+                    .put(
+                            getLeaderInformationKey(),
+                            KubernetesUtils.encodeLeaderInformation(
+                                    LeaderInformation.known(leaderSessionID, leaderAddress)));
+        }
+
+        void grantLeadership() throws Exception {
             kubernetesTestFixture.leaderCallbackGrantLeadership();
-            electionEventHandler.waitForLeader();
+        }
+
+        // Use the leader callback to manually grant leadership
+        UUID leaderCallbackGrantLeadership() throws Exception {
+            grantLeadership();
+            electionEventHandler.await(LeaderElectionEvent.IsLeaderEvent.class);
+
+            final UUID leaderSessionID = UUID.randomUUID();
+            leaderElectionDriver.publishLeaderInformation(
+                    contenderID, LeaderInformation.known(leaderSessionID, leaderAddress));
+
+            return leaderSessionID;
         }
 
         FlinkKubeClient.WatchCallbackHandler<KubernetesConfigMap>
@@ -145,26 +187,27 @@ class KubernetesHighAvailabilityTestBase {
             return kubernetesTestFixture.getLeaderCallback();
         }
 
-        private LeaderElectionDriver createLeaderElectionDriver() {
+        private MultipleComponentLeaderElectionDriver createLeaderElectionDriver()
+                throws Exception {
             final KubernetesLeaderElectionConfiguration leaderConfig =
                     new KubernetesLeaderElectionConfiguration(
                             LEADER_CONFIGMAP_NAME, LOCK_IDENTITY, configuration);
-            final KubernetesLeaderElectionDriverFactory factory =
-                    new KubernetesLeaderElectionDriverFactory(
+            final KubernetesMultipleComponentLeaderElectionDriverFactory factory =
+                    new KubernetesMultipleComponentLeaderElectionDriverFactory(
                             flinkKubeClient,
+                            leaderConfig,
                             kubernetesTestFixture.getConfigMapSharedWatcher(),
-                            watchCallbackExecutorService,
-                            leaderConfig);
-            return factory.createLeaderElectionDriver(
-                    electionEventHandler, electionEventHandler::handleError);
+                            watchCallbackExecutorService);
+            return factory.create(electionEventHandler, fatalErrorHandler);
         }
 
         private LeaderRetrievalDriver createLeaderRetrievalDriver() {
-            final KubernetesLeaderRetrievalDriverFactory factory =
-                    new KubernetesLeaderRetrievalDriverFactory(
+            final KubernetesMultipleComponentLeaderRetrievalDriverFactory factory =
+                    new KubernetesMultipleComponentLeaderRetrievalDriverFactory(
                             kubernetesTestFixture.getConfigMapSharedWatcher(),
                             watchCallbackExecutorService,
-                            LEADER_CONFIGMAP_NAME);
+                            LEADER_CONFIGMAP_NAME,
+                            contenderID);
             return factory.createLeaderRetrievalDriver(
                     retrievalEventHandler, retrievalEventHandler::handleError);
         }
