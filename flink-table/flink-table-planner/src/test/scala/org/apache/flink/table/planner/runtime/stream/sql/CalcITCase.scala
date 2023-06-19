@@ -769,4 +769,28 @@ class CalcITCase extends StreamingTestBase {
     val expected = List("2,cbc\"ddd")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
+
+  @Test
+  def testNonMergeableRandCall(): Unit = {
+    val t = env
+      .fromCollection(TestData.smallTupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
+    tEnv.createTemporaryView("SimpleTable", t)
+
+    val result = tEnv
+      .sqlQuery(s"""
+                   |SELECT b - a FROM (
+                   |  SELECT r + 5 AS a, r + 7 AS b FROM (
+                   |    SELECT RAND() AS r FROM SimpleTable
+                   |  ) t1
+                   |) t2
+                   |""".stripMargin)
+      .toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List("2.0", "2.0", "2.0")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
 }
