@@ -18,13 +18,13 @@
 
 package org.apache.flink.table.planner.operations.converters;
 
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlNode;
+
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.planner.operations.converters.SqlNodeConverter.ConvertContext;
-
-import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlNode;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -51,6 +51,7 @@ public class SqlNodeConverters {
         register(new SqlShowFunctionsConverter());
         register(new SqlShowProcedureConverter());
         register(new SqlReplaceTableAsConverter());
+        register(new SqlProcedureCallConverter());
     }
 
     /**
