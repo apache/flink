@@ -31,7 +31,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.apache.kerby:kerby-pkix:1.0.1
 - org.apache.kerby:kerby-asn1:1.0.1
 - org.apache.kerby:kerby-util:1.0.1
-- org.xerial.snappy:snappy-java:1.1.8.3
+- org.xerial.snappy:snappy-java:1.1.10.1
 
 This project bundles the following dependencies under the MIT (https://opensource.org/licenses/MIT)
 
