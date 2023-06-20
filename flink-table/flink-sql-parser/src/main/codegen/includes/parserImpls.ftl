@@ -1912,6 +1912,25 @@ SqlDrop SqlDropExtended(Span s, boolean replace) :
     }
 }
 
+/** SHOW PARTITIONS table_name [PARTITION partition_spec]; */
+SqlShowPartitions SqlShowPartitions() :
+{
+    SqlParserPos pos;
+    SqlIdentifier tableIdentifier;
+    SqlNodeList partSpec = null;
+}
+{
+    <SHOW> <PARTITIONS> { pos = getPos(); }
+    tableIdentifier = CompoundIdentifier()
+    [
+        <PARTITION> {
+            partSpec = new SqlNodeList(getPos());
+            PartitionSpecCommaList(partSpec);
+        }
+    ]
+    { return new SqlShowPartitions(pos, tableIdentifier, partSpec); }
+}
+
 /**
 * Parses a load module statement.
 * LOAD MODULE module_name [WITH (property_name=property_value, ...)];

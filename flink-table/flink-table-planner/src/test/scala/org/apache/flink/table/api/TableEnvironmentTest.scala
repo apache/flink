@@ -2754,6 +2754,57 @@ class TableEnvironmentTest {
 
   }
 
+  @Test
+  def testShowPartitions(): Unit = {
+    val createTableStmt =
+      """
+        |CREATE TABLE tbl (
+        |  a INT,
+        |  b BIGINT,
+        |  c DATE
+        |) PARTITIONED BY (b, c)
+        |WITH (
+        |  'connector' = 'COLLECTION'
+        |)
+          """.stripMargin
+    tableEnv.executeSql(createTableStmt)
+
+    // partitions
+    val catalog = tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
+    val spec1 = new CatalogPartitionSpec(Map("b" -> "1000", "c" -> "2020-05-01").asJava)
+    val part1 = new CatalogPartitionImpl(Map("k1" -> "v1").asJava, "")
+    val spec2 = new CatalogPartitionSpec(Map("b" -> "2000", "c" -> "2020-01-01").asJava)
+    val part2 = new CatalogPartitionImpl(Map("k1" -> "v1").asJava, "")
+    val spec3 = new CatalogPartitionSpec(Map("b" -> "2000", "c" -> "2020-05-01").asJava)
+    val part3 = new CatalogPartitionImpl(Map("k1" -> "v1").asJava, "")
+
+    val tablePath = new ObjectPath("default_database", "tbl")
+    // create partition
+    catalog.createPartition(tablePath, spec1, part1, false)
+    catalog.createPartition(tablePath, spec2, part2, false)
+    catalog.createPartition(tablePath, spec3, part3, false)
+
+    // test show all partitions
+    var tableResult =
+      tableEnv.executeSql("show partitions tbl")
+
+    var expectedResult = util.Arrays.asList(
+      Row.of("b=1000/c=2020-05-01"),
+      Row.of("b=2000/c=2020-01-01"),
+      Row.of("b=2000/c=2020-05-01")
+    )
+
+    checkData(expectedResult.iterator(), tableResult.collect())
+
+    // test show partitions with partition spec
+    tableResult = tableEnv.executeSql("show partitions tbl partition (b=2000)")
+    expectedResult = util.Arrays.asList(
+      Row.of("b=2000/c=2020-01-01"),
+      Row.of("b=2000/c=2020-05-01")
+    )
+    checkData(expectedResult.iterator(), tableResult.collect())
+  }
+
   private def checkData(expected: util.Iterator[Row], actual: util.Iterator[Row]): Unit = {
     while (expected.hasNext && actual.hasNext) {
       assertEquals(expected.next(), actual.next())

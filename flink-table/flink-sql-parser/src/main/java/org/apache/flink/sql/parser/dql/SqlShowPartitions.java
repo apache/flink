@@ -44,8 +44,8 @@ public class SqlShowPartitions extends SqlCall {
     public static final SqlSpecialOperator OPERATOR =
             new SqlSpecialOperator("SHOW PARTITIONS", SqlKind.OTHER);
 
-    protected final SqlIdentifier tableIdentifier;
-    protected final SqlNodeList partitionSpec;
+    private final SqlIdentifier tableIdentifier;
+    @Nullable private final SqlNodeList partitionSpec;
 
     public SqlShowPartitions(
             SqlParserPos pos, SqlIdentifier tableName, @Nullable SqlNodeList partitionSpec) {
