@@ -61,6 +61,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_POSITION;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_REMOVE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_REVERSE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_SLICE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_UNION;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ASCII;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ASIN;
@@ -1398,6 +1399,29 @@ public abstract class BaseExpressions<InType, OutType> {
      */
     public OutType arrayReverse() {
         return toApiSpecificExpression(unresolvedCall(ARRAY_REVERSE, toExpr()));
+    }
+
+    /**
+     * Returns a subarray of the input array between 'start_offset' and 'end_offset' inclusive. The
+     * offsets are 1-based however 0 is also treated as the beginning of the array. Positive values
+     * are counted from the beginning of the array while negative from the end. If 'end_offset' is
+     * omitted then this offset is treated as the length of the array. If 'start_offset' is after
+     * 'end_offset' or both are out of array bounds an empty array will be returned.
+     *
+     * <p>Returns null if any input is null.
+     */
+    public OutType arraySlice(InType startOffset, InType endOffset) {
+        return toApiSpecificExpression(
+                unresolvedCall(
+                        ARRAY_SLICE,
+                        toExpr(),
+                        objectToExpression(startOffset),
+                        objectToExpression(endOffset)));
+    }
+
+    public OutType arraySlice(InType startOffset) {
+        return toApiSpecificExpression(
+                unresolvedCall(ARRAY_SLICE, toExpr(), objectToExpression(startOffset)));
     }
 
     /**
