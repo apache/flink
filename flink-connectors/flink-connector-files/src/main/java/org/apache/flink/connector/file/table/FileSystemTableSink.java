@@ -199,7 +199,10 @@ public class FileSystemTableSink extends AbstractFileSystemTable
                                                 .SINK_PARTITION_COMMIT_POLICY_CLASS),
                                 tableOptions.get(
                                         FileSystemConnectorOptions
-                                                .SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME)));
+                                                .SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME),
+                                tableOptions.get(
+                                        FileSystemConnectorOptions
+                                                .SINK_PARTITION_COMMIT_POLICY_CLASS_PARAMETERS)));
 
         DataStreamSink<RowData> sink = inputStream.writeUsingOutputFormat(builder.build());
         sink.getTransformation().setParallelism(parallelism, parallelismConfigured);

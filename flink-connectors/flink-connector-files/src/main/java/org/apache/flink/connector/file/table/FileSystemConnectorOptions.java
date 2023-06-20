@@ -27,6 +27,7 @@ import org.apache.flink.configuration.description.InlineElement;
 import org.apache.flink.table.factories.FactoryUtil;
 
 import java.time.Duration;
+import java.util.List;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.TextElement.text;
@@ -219,6 +220,15 @@ public class FileSystemConnectorOptions {
                     .withDescription(
                             "The partition commit policy class for implement"
                                     + " PartitionCommitPolicy interface. Only work in custom commit policy");
+
+    public static final ConfigOption<List<String>> SINK_PARTITION_COMMIT_POLICY_CLASS_PARAMETERS =
+            key("sink.partition-commit.policy.class.parameters")
+                    .stringType()
+                    .asList()
+                    .defaultValues()
+                    .withDescription(
+                            "The parameters list for custom policy class"
+                                    + " A (semicolon-separated) list of patterns");
 
     public static final ConfigOption<String> SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME =
             key("sink.partition-commit.success-file.name")
