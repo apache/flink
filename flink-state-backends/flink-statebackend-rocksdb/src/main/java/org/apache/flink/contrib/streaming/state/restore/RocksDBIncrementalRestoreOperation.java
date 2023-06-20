@@ -47,6 +47,7 @@ import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StateSerializerProvider;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
@@ -275,8 +276,8 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                 restoreSourcePath);
     }
 
-    private void transferRemoteStateToLocalDirectory(List<StateHandleDownloadSpec> downloadRequests)
-            throws Exception {
+    private void transferRemoteStateToLocalDirectory(
+            Collection<StateHandleDownloadSpec> downloadRequests) throws Exception {
         try (RocksDBStateDownloader rocksDBStateDownloader =
                 new RocksDBStateDownloader(numberOfTransferringThreads)) {
             rocksDBStateDownloader.transferAllStateDataToDirectory(
@@ -302,6 +303,9 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
 
         Preconditions.checkArgument(restoreStateHandles != null && !restoreStateHandles.isEmpty());
 
+        Map<StateHandleID, StateHandleDownloadSpec> allDownloadSpecs =
+                CollectionUtil.newHashMapWithExpectedSize(restoreStateHandles.size());
+
         // Choose the best state handle for the initial DB
         final KeyedStateHandle selectedInitialHandle =
                 RocksDBIncrementalCheckpointUtils.chooseTheBestStateHandleForInitial(
@@ -310,9 +314,6 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
         Preconditions.checkNotNull(selectedInitialHandle);
 
         final Path absolutInstanceBasePath = instanceBasePath.getAbsoluteFile().toPath();
-
-        final List<StateHandleDownloadSpec> allDownloadSpecs =
-                new ArrayList<>(restoreStateHandles.size());
 
         // Prepare and collect all the download request to pull remote state to a local directory
         for (KeyedStateHandle stateHandle : restoreStateHandles) {
@@ -324,20 +325,14 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                     new StateHandleDownloadSpec(
                             (IncrementalRemoteKeyedStateHandle) stateHandle,
                             absolutInstanceBasePath.resolve(UUID.randomUUID().toString()));
-
-            if (stateHandle == selectedInitialHandle) {
-                // Insert the initial handle at the head of the list
-                allDownloadSpecs.add(0, downloadRequest);
-            } else {
-                allDownloadSpecs.add(downloadRequest);
-            }
+            allDownloadSpecs.put(stateHandle.getStateHandleId(), downloadRequest);
         }
 
         // Process all state downloads
-        transferRemoteStateToLocalDirectory(allDownloadSpecs);
+        transferRemoteStateToLocalDirectory(allDownloadSpecs.values());
 
         // Init the base DB instance with the initial state
-        initBaseDBForRescaling(allDownloadSpecs.get(0));
+        initBaseDBForRescaling(allDownloadSpecs.remove(selectedInitialHandle.getStateHandleId()));
 
         // Transfer remaining key-groups from temporary instance into base DB
         byte[] startKeyGroupPrefixBytes = new byte[keyGroupPrefixBytes];
@@ -349,10 +344,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                 keyGroupRange.getEndKeyGroup() + 1, stopKeyGroupPrefixBytes);
 
         // Insert all remaining state through creating temporary RocksDB instances
-        for (int stateIdx = 1; stateIdx < allDownloadSpecs.size(); ++stateIdx) {
-
-            final StateHandleDownloadSpec downloadRequest = allDownloadSpecs.get(stateIdx);
-
+        for (StateHandleDownloadSpec downloadRequest : allDownloadSpecs.values()) {
             logger.info(
                     "Starting to restore from state handle: {} with rescaling.",
                     downloadRequest.getStateHandle());

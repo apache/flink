@@ -83,8 +83,9 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
         } finally {
             // Unregister and close the internal closer. In a failure case, this should interrupt
             // ongoing downloads.
-            closeableRegistry.unregisterCloseable(internalCloser);
-            IOUtils.closeQuietly(internalCloser);
+            if (closeableRegistry.unregisterCloseable(internalCloser)) {
+                IOUtils.closeQuietly(internalCloser);
+            }
             if (failureCleanupRequired) {
                 // Cleanup on exception: cancel all tasks and delete the created directories
                 futures.forEach(future -> future.cancel(true));
@@ -98,14 +99,6 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
 
     /** Asynchronously runs the specified download requests on executorService. */
     private Stream<CompletableFuture<Void>> transferAllStateDataToDirectoryAsync(
-            Collection<StateHandleDownloadSpec> handleWithPaths,
-            CloseableRegistry closeableRegistry) {
-        return createDownloadRunnables(handleWithPaths, closeableRegistry)
-                .map(runnable -> CompletableFuture.runAsync(runnable, executorService));
-    }
-
-    /** Creates the {@link Runnable} instances for each files in the download requests. */
-    private Stream<Runnable> createDownloadRunnables(
             Collection<StateHandleDownloadSpec> handleWithPaths,
             CloseableRegistry closeableRegistry) {
         return handleWithPaths.stream()
@@ -135,7 +128,8 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
                                                                             downloadDest,
                                                                             remoteFileHandle,
                                                                             closeableRegistry));
-                                                }));
+                                                }))
+                .map(runnable -> CompletableFuture.runAsync(runnable, executorService));
     }
 
     /** Copies the file from a single state handle to the given path. */

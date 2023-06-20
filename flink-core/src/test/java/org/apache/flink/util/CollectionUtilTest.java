@@ -18,6 +18,7 @@
 
 package org.apache.flink.util;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -51,5 +52,34 @@ public class CollectionUtilTest {
     public void testFromNullableWithObject() {
         final Object element = new Object();
         assertThat(CollectionUtil.ofNullable(element)).singleElement().isEqualTo(element);
+    }
+
+    @Test
+    public void testComputeCapacity() {
+        Assertions.assertEquals(1, CollectionUtil.computeRequiredCapacity(0));
+        Assertions.assertEquals(2, CollectionUtil.computeRequiredCapacity(1));
+        Assertions.assertEquals(3, CollectionUtil.computeRequiredCapacity(2));
+        Assertions.assertEquals(5, CollectionUtil.computeRequiredCapacity(3));
+        Assertions.assertEquals(6, CollectionUtil.computeRequiredCapacity(4));
+        Assertions.assertEquals(134, CollectionUtil.computeRequiredCapacity(100));
+        Assertions.assertEquals(1334, CollectionUtil.computeRequiredCapacity(1000));
+        Assertions.assertEquals(13334, CollectionUtil.computeRequiredCapacity(10000));
+        Assertions.assertEquals(
+                1431655808, CollectionUtil.computeRequiredCapacity(Integer.MAX_VALUE / 2));
+        Assertions.assertEquals(
+                Integer.MAX_VALUE,
+                CollectionUtil.computeRequiredCapacity(1 + Integer.MAX_VALUE / 2));
+
+        try {
+            CollectionUtil.computeRequiredCapacity(-1);
+            Assertions.fail();
+        } catch (IllegalArgumentException expected) {
+        }
+
+        try {
+            CollectionUtil.computeRequiredCapacity(Integer.MIN_VALUE);
+            Assertions.fail();
+        } catch (IllegalArgumentException expected) {
+        }
     }
 }
