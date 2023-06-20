@@ -20,8 +20,6 @@ package org.apache.flink.table.planner.operations.converters;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.data.conversion.DataStructureConverter;
-import org.apache.flink.table.data.conversion.DataStructureConverters;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlProcedure;
 import org.apache.flink.table.planner.functions.inference.OperatorBindingCallContext;
@@ -31,7 +29,6 @@ import org.apache.flink.table.planner.typeutils.LogicalRelDataTypeConverter;
 import org.apache.flink.table.procedures.ProcedureDefinition;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeInferenceUtil;
-import org.apache.flink.table.types.utils.DataTypeUtils;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexLiteral;
@@ -116,17 +113,19 @@ public class SqlProcedureConverter implements SqlNodeConverter<SqlNode> {
                     RexLiteralUtil.toFlinkInternalValue(
                             literalOperand.getValueAs(Comparable.class),
                             inputTypes[i].getLogicalType());
+            params[i] = internalValue;
 
-            if (!(DataTypeUtils.isInternal(inputTypes[i]))) {
-                // if the expected input type is not internal type,
-                // which means the converted Flink internal value doesn't
-                // match the expected input type, then we need to convert the Flink internal value
-                DataStructureConverter<Object, Object> converter =
-                        DataStructureConverters.getConverter(inputTypes[i]);
-                params[i] = converter.toExternalOrNull(internalValue);
-            } else {
-                params[i] = internalValue;
-            }
+            //            if (!(DataTypeUtils.isInternal(inputTypes[i]))) {
+            //                // if the expected input type is not internal type,
+            //                // which means the converted Flink internal value doesn't
+            //                // match the expected input type, then we need to convert the Flink
+            // internal value
+            //                DataStructureConverter<Object, Object> converter =
+            //                        DataStructureConverters.getConverter(inputTypes[i]);
+            //                params[i] = converter.toExternalOrNull(internalValue);
+            //            } else {
+            //                params[i] = internalValue;
+            //            }
         }
         return new PlannerCallProcedureOperation(
                 sqlProcedure.getContextResolveProcedure().getIdentifier().getIdentifier().get(),
