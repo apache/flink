@@ -1345,7 +1345,8 @@ public class SingleInputGateTest extends InputGateTestBase {
                         0,
                         gateDesc,
                         SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER,
-                        newUnregisteredInputChannelMetrics());
+                        newUnregisteredInputChannelMetrics(),
+                        null);
     }
 
     private static Map<InputGateID, SingleInputGate> createInputGateWithLocalChannels(
