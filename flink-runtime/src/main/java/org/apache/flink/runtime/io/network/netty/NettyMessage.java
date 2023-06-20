@@ -240,6 +240,9 @@ public abstract class NettyMessage {
                     case NewBufferSize.ID:
                         decodedMsg = NewBufferSize.readFrom(msg);
                         break;
+                    case SegmentId.ID:
+                        decodedMsg = SegmentId.readFrom(msg);
+                        break;
                     default:
                         throw new ProtocolException(
                                 "Received unknown message from producer: " + msg);
@@ -892,6 +895,52 @@ public abstract class NettyMessage {
         @Override
         public String toString() {
             return String.format("NewBufferSize(%s : %d)", receiverId, bufferSize);
+        }
+    }
+
+    /** Message to notify producer about the id of required segment. */
+    static class SegmentId extends NettyMessage {
+
+        private static final byte ID = 11;
+
+        final int segmentId;
+
+        final InputChannelID receiverId;
+
+        SegmentId(int segmentId, InputChannelID receiverId) {
+            checkArgument(segmentId > 0L, "The segmentId should be greater than 0");
+            this.segmentId = segmentId;
+            this.receiverId = receiverId;
+        }
+
+        @Override
+        void write(ChannelOutboundInvoker out, ChannelPromise promise, ByteBufAllocator allocator)
+                throws IOException {
+            ByteBuf result = null;
+
+            try {
+                result =
+                        allocateBuffer(
+                                allocator, ID, Integer.BYTES + InputChannelID.getByteBufLength());
+                result.writeInt(segmentId);
+                receiverId.writeTo(result);
+
+                out.write(result, promise);
+            } catch (Throwable t) {
+                handleException(result, null, t);
+            }
+        }
+
+        static SegmentId readFrom(ByteBuf buffer) {
+            int segmentId = buffer.readInt();
+            InputChannelID receiverId = InputChannelID.fromByteBuf(buffer);
+
+            return new SegmentId(segmentId, receiverId);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("SegmentId(%s : %d)", receiverId, segmentId);
         }
     }
 

@@ -813,6 +813,13 @@ public class RemoteInputChannel extends InputChannel {
                 "Bug: partitionRequestClient is not initialized before processing data and no error is detected.");
     }
 
+    @Override
+    public void notifyRequiredSegmentId(int segmentId) throws IOException {
+        checkState(!isReleased.get(), "Channel released.");
+        checkPartitionRequestQueueInitialized();
+        partitionRequestClient.notifyRequiredSegmentId(this, segmentId);
+    }
+
     private static class BufferReorderingException extends IOException {
 
         private static final long serialVersionUID = -888282210356266816L;
