@@ -54,7 +54,7 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
 
     private final Object lock = new Object();
 
-    private final LeaderElectionDriverFactory leaderElectionDriverFactory;
+    private final MultipleComponentLeaderElectionDriverFactory leaderElectionDriverFactory;
 
     /**
      * {@code contenderID} being {@code null} indicates that no {@link LeaderContender} is
@@ -104,7 +104,7 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
      *
      * <p>The driver is guarded by this instance's {@link #running} state.
      */
-    private LeaderElectionDriver leaderElectionDriver;
+    private MultipleComponentLeaderElectionDriver leaderElectionDriver;
 
     /**
      * This {@link ExecutorService} is used for running the leader event handling logic. Production
@@ -117,7 +117,8 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
 
     private final FatalErrorHandler fallbackErrorHandler;
 
-    public DefaultLeaderElectionService(LeaderElectionDriverFactory leaderElectionDriverFactory) {
+    public DefaultLeaderElectionService(
+            MultipleComponentLeaderElectionDriverFactory leaderElectionDriverFactory) {
         this(
                 leaderElectionDriverFactory,
                 t ->
@@ -127,7 +128,7 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
 
     @VisibleForTesting
     public DefaultLeaderElectionService(
-            LeaderElectionDriverFactory leaderElectionDriverFactory,
+            MultipleComponentLeaderElectionDriverFactory leaderElectionDriverFactory,
             FatalErrorHandler fallbackErrorHandler) {
         this(
                 leaderElectionDriverFactory,
@@ -139,7 +140,7 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
 
     @VisibleForTesting
     DefaultLeaderElectionService(
-            LeaderElectionDriverFactory leaderElectionDriverFactory,
+            MultipleComponentLeaderElectionDriverFactory leaderElectionDriverFactory,
             FatalErrorHandler fallbackErrorHandler,
             ExecutorService leadershipOperationExecutor) {
         this.leaderElectionDriverFactory = checkNotNull(leaderElectionDriverFactory);
@@ -176,8 +177,7 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
             running = true;
 
             leaderElectionDriver =
-                    leaderElectionDriverFactory.createLeaderElectionDriver(
-                            this, new LeaderElectionFatalErrorHandler());
+                    leaderElectionDriverFactory.create(this, new LeaderElectionFatalErrorHandler());
 
             LOG.info("Instantiating DefaultLeaderElectionService with {}.", leaderElectionDriver);
         }
@@ -235,7 +235,7 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
                         "DefaultLeaderElectionService is stopping while having the leadership acquired. The revoke event is forwarded to the LeaderContender.");
 
                 if (leaderElectionDriver.hasLeadership()) {
-                    leaderElectionDriver.writeLeaderInformation(LeaderInformation.empty());
+                    leaderElectionDriver.deleteLeaderInformation(contenderID);
                     LOG.debug("Leader information is cleaned up while stopping.");
                 }
             } else {
@@ -303,7 +303,8 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
 
                 confirmedLeaderInformation =
                         LeaderInformation.known(leaderSessionID, leaderAddress);
-                leaderElectionDriver.writeLeaderInformation(confirmedLeaderInformation);
+                leaderElectionDriver.publishLeaderInformation(
+                        contenderID, confirmedLeaderInformation);
             } else {
                 if (!leaderSessionID.equals(this.issuedLeaderSessionID)) {
                     LOG.debug(
@@ -463,13 +464,13 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
                     LOG.debug(
                             "Writing leader information by {} since the external storage is empty.",
                             leaderContender.getDescription());
-                    leaderElectionDriver.writeLeaderInformation(confirmedLeaderInfo);
+                    leaderElectionDriver.publishLeaderInformation(contenderID, confirmedLeaderInfo);
                 } else if (!leaderInformation.equals(confirmedLeaderInfo)) {
                     // the data field does not correspond to the expected leader information
                     LOG.debug(
                             "Correcting leader information by {}.",
                             leaderContender.getDescription());
-                    leaderElectionDriver.writeLeaderInformation(confirmedLeaderInfo);
+                    leaderElectionDriver.publishLeaderInformation(contenderID, confirmedLeaderInfo);
                 }
             }
         } else {
@@ -516,8 +517,8 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
     }
 
     @Override
-    public void isLeader() {
-        onGrantLeadership(UUID.randomUUID());
+    public void isLeader(UUID leaderSessionID) {
+        onGrantLeadership(leaderSessionID);
     }
 
     @Override

@@ -109,7 +109,7 @@ public class DefaultMultipleComponentLeaderElectionService
     }
 
     @Override
-    public LeaderElectionDriverFactory createDriverFactory(String componentId) {
+    public MultipleComponentLeaderElectionDriverFactory createDriverFactory(String componentId) {
         return new MultipleComponentLeaderElectionDriverAdapterFactory(componentId, this);
     }
 
@@ -169,8 +169,7 @@ public class DefaultMultipleComponentLeaderElectionService
     }
 
     @Override
-    public void isLeader() {
-        final UUID newLeaderSessionId = UUID.randomUUID();
+    public void isLeader(UUID leaderSessionID) {
         synchronized (lock) {
             if (!running) {
                 return;
@@ -179,11 +178,11 @@ public class DefaultMultipleComponentLeaderElectionService
             Preconditions.checkState(
                     currentLeaderSessionId == null,
                     "notLeader() wasn't called by the LeaderElection backend before assigning leadership to this LeaderElectionService.");
-            currentLeaderSessionId = newLeaderSessionId;
+            currentLeaderSessionId = leaderSessionID;
 
             forEachLeaderElectionEventHandler(
                     leaderElectionEventHandler ->
-                            leaderElectionEventHandler.onGrantLeadership(newLeaderSessionId));
+                            leaderElectionEventHandler.onGrantLeadership(leaderSessionID));
         }
     }
 

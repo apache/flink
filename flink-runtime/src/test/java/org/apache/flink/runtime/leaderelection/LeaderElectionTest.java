@@ -155,7 +155,6 @@ public class LeaderElectionTest {
         LeaderElection createLeaderElection() throws Exception;
     }
 
-    @Deprecated
     private static final class ZooKeeperServiceClass implements ServiceClass {
 
         private TestingServer testingServer;
@@ -181,9 +180,11 @@ public class LeaderElectionTest {
             curatorFrameworkWrapper =
                     ZooKeeperUtils.startCuratorFramework(configuration, fatalErrorHandler);
 
-            leaderElectionService =
-                    ZooKeeperUtils.createLeaderElectionService(
+            final MultipleComponentLeaderElectionDriverFactory driverFactory =
+                    new ZooKeeperMultipleComponentLeaderElectionDriverFactory(
                             curatorFrameworkWrapper.asCuratorFramework());
+            leaderElectionService = new DefaultLeaderElectionService(driverFactory);
+            leaderElectionService.startLeaderElectionBackend();
         }
 
         @Override

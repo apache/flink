@@ -78,7 +78,7 @@ import static org.mockito.Mockito.when;
  * org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalDriver}. To directly test the
  * {@link ZooKeeperMultipleComponentLeaderElectionDriver} and {@link
  * org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalDriver}, some simple tests will
- * use {@link TestingLeaderElectionEventHandler} which will not write the leader information to
+ * use {@link TestingLeaderElectionListener} which will not write the leader information to
  * ZooKeeper. For the complicated tests(e.g. multiple leaders), we will use {@link
  * DefaultLeaderElectionService} with {@link TestingContender}.
  */
@@ -165,17 +165,20 @@ class ZooKeeperLeaderElectionTest {
 
         try {
             leaderRetrievalService =
-                    ZooKeeperUtils.createLeaderRetrievalService(createZooKeeperClient());
+                    ZooKeeperUtils.createLeaderRetrievalService(
+                            createZooKeeperClient(), CONTENDER_ID, new Configuration());
 
             LOG.debug("Start leader retrieval service for the TestingListener.");
 
             leaderRetrievalService.start(listener);
 
             for (int i = 0; i < num; i++) {
-                leaderElectionService[i] =
-                        ZooKeeperUtils.createLeaderElectionService(createZooKeeperClient());
-                leaderElections[i] =
-                        leaderElectionService[i].createLeaderElection("random-contender-id");
+                final MultipleComponentLeaderElectionDriverFactory driverFactory =
+                        new ZooKeeperMultipleComponentLeaderElectionDriverFactory(
+                                createZooKeeperClient());
+                leaderElectionService[i] = new DefaultLeaderElectionService(driverFactory);
+                leaderElectionService[i].startLeaderElectionBackend();
+                leaderElections[i] = leaderElectionService[i].createLeaderElection(CONTENDER_ID);
                 contenders[i] = new TestingContender(createAddress(i), leaderElections[i]);
 
                 LOG.debug("Start leader election service for contender #{}.", i);
@@ -266,13 +269,17 @@ class ZooKeeperLeaderElectionTest {
 
         try {
             leaderRetrievalService =
-                    ZooKeeperUtils.createLeaderRetrievalService(createZooKeeperClient());
+                    ZooKeeperUtils.createLeaderRetrievalService(
+                            createZooKeeperClient(), CONTENDER_ID, new Configuration());
 
             leaderRetrievalService.start(listener);
 
             for (int i = 0; i < num; i++) {
-                leaderElectionService[i] =
-                        ZooKeeperUtils.createLeaderElectionService(createZooKeeperClient());
+                final MultipleComponentLeaderElectionDriverFactory driverFactory =
+                        new ZooKeeperMultipleComponentLeaderElectionDriverFactory(
+                                createZooKeeperClient());
+                leaderElectionService[i] = new DefaultLeaderElectionService(driverFactory);
+                leaderElectionService[i].startLeaderElectionBackend();
                 leaderElections[i] = leaderElectionService[i].createLeaderElection(CONTENDER_ID);
                 contenders[i] =
                         new TestingContender(LEADER_ADDRESS + "_" + i + "_0", leaderElections[i]);
@@ -304,8 +311,11 @@ class ZooKeeperLeaderElectionTest {
                     leaderElections[index] = null;
 
                     // create new leader election service which takes part in the leader election
-                    leaderElectionService[index] =
-                            ZooKeeperUtils.createLeaderElectionService(createZooKeeperClient());
+                    final MultipleComponentLeaderElectionDriverFactory driverFactory =
+                            new ZooKeeperMultipleComponentLeaderElectionDriverFactory(
+                                    createZooKeeperClient());
+                    leaderElectionService[index] = new DefaultLeaderElectionService(driverFactory);
+                    leaderElectionService[index].startLeaderElectionBackend();
                     leaderElections[index] =
                             leaderElectionService[index].createLeaderElection(CONTENDER_ID);
 

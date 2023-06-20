@@ -392,7 +392,7 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
         }
 
         @Override
-        public void isLeader() {
+        public void isLeader(UUID ignoredSessionID) {
             leadershipFuture.complete(null);
         }
 

@@ -18,7 +18,10 @@
 
 package org.apache.flink.runtime.leaderelection;
 
+import javax.annotation.Nullable;
+
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -28,12 +31,47 @@ import java.util.Optional;
  */
 public class LeaderInformationRegister {
 
+    private static final LeaderInformationRegister EMPTY_REGISTER =
+            new LeaderInformationRegister(Collections.emptyMap());
+
     private final Map<String, LeaderInformation> leaderInformationPerContenderID;
+
+    public static LeaderInformationRegister empty() {
+        return EMPTY_REGISTER;
+    }
 
     public static LeaderInformationRegister of(
             String contenderID, LeaderInformation leaderInformation) {
         return new LeaderInformationRegister(
                 Collections.singletonMap(contenderID, leaderInformation));
+    }
+
+    public static LeaderInformationRegister merge(
+            @Nullable LeaderInformationRegister leaderInformationRegister,
+            String contenderID,
+            LeaderInformation leaderInformation) {
+        final Map<String, LeaderInformation> existingLeaderInformation =
+                new HashMap<>(
+                        leaderInformationRegister == null
+                                ? Collections.emptyMap()
+                                : leaderInformationRegister.leaderInformationPerContenderID);
+        if (leaderInformation.isEmpty()) {
+            existingLeaderInformation.remove(contenderID);
+        } else {
+            existingLeaderInformation.put(contenderID, leaderInformation);
+        }
+
+        return new LeaderInformationRegister(existingLeaderInformation);
+    }
+
+    public static LeaderInformationRegister clear(
+            @Nullable LeaderInformationRegister leaderInformationRegister, String contenderID) {
+        if (leaderInformationRegister == null
+                || !leaderInformationRegister.getRegisteredContenderIDs().iterator().hasNext()) {
+            return LeaderInformationRegister.empty();
+        }
+
+        return merge(leaderInformationRegister, contenderID, LeaderInformation.empty());
     }
 
     public LeaderInformationRegister(

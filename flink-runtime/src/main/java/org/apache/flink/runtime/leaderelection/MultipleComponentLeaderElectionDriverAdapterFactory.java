@@ -23,7 +23,7 @@ import org.apache.flink.util.Preconditions;
 
 /** Factory for a {@link MultipleComponentLeaderElectionDriverAdapter}. */
 final class MultipleComponentLeaderElectionDriverAdapterFactory
-        implements LeaderElectionDriverFactory {
+        implements LeaderElectionDriverFactory, MultipleComponentLeaderElectionDriverFactory {
     private final String leaderName;
     private final MultipleComponentLeaderElectionService singleLeaderElectionService;
 
@@ -39,5 +39,14 @@ final class MultipleComponentLeaderElectionDriverAdapterFactory
             throws Exception {
         return new MultipleComponentLeaderElectionDriverAdapter(
                 leaderName, singleLeaderElectionService, leaderEventHandler);
+    }
+
+    @Override
+    public MultipleComponentLeaderElectionDriver create(
+            MultipleComponentLeaderElectionDriver.Listener leaderElectionListener,
+            FatalErrorHandler fatalErrorHandler)
+            throws Exception {
+        return new MultipleComponentLeaderElectionDriverAdapter(
+                leaderName, singleLeaderElectionService, leaderElectionListener);
     }
 }
