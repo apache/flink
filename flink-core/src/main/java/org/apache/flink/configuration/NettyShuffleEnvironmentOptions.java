@@ -491,6 +491,36 @@ public class NettyShuffleEnvironmentOptions {
                                     + " based on the platform. Note that the \"epoll\" mode can get better performance, less GC and have more advanced features which are"
                                     + " only available on modern Linux.");
 
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    public static final ConfigOption<Integer> CLIENT_TCP_KEEP_IDLE_SECONDS =
+            key("taskmanager.network.netty.client.tcp.keepIdleSec")
+                    .intType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The time (in seconds) the connection needs to remain idle before TCP starts sending keepalive probes. "
+                                    + "Note: This will not take effect when using netty transport type of nio with an older version of JDK 8, "
+                                    + "refer to https://bugs.openjdk.org/browse/JDK-8194298.");
+
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    public static final ConfigOption<Integer> CLIENT_TCP_KEEP_INTERVAL_SECONDS =
+            key("taskmanager.network.netty.client.tcp.keepIntervalSec")
+                    .intType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The time (in seconds) between individual keepalive probes. "
+                                    + "Note: This will not take effect when using netty transport type of nio with an older version of JDK 8, "
+                                    + "refer to https://bugs.openjdk.org/browse/JDK-8194298.");
+
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    public static final ConfigOption<Integer> CLIENT_TCP_KEEP_COUNT =
+            key("taskmanager.network.netty.client.tcp.keepCount")
+                    .intType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The maximum number of keepalive probes TCP should send before Netty client dropping the connection. "
+                                    + "Note: This will not take effect when using netty transport type of nio with an older version of JDK 8, "
+                                    + "refer to https://bugs.openjdk.org/browse/JDK-8194298.");
+
     // ------------------------------------------------------------------------
     //  Partition Request Options
     // ------------------------------------------------------------------------
