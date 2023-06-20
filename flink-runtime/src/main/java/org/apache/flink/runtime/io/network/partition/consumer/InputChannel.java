@@ -314,12 +314,9 @@ public abstract class InputChannel {
     /**
      * Notify the upstream the id of required segment that should be sent to netty connection.
      *
-     * <p>TODO, This method will be implemented by {@link LocalInputChannel} and {@link
-     * RemoteInputChannel} in the future.
-     *
      * @param segmentId segment id indicates the id of segment.
      */
-    public void notifyRequiredSegmentId(int segmentId) {}
+    public void notifyRequiredSegmentId(int segmentId) throws IOException {}
 
     // ------------------------------------------------------------------------
 

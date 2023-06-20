@@ -58,6 +58,14 @@ public interface PartitionRequestClient {
     void notifyNewBufferSize(RemoteInputChannel inputChannel, int bufferSize);
 
     /**
+     * Notifies the id of segment required from one remote input channel.
+     *
+     * @param inputChannel The remote input channel who requires segment.
+     * @param segmentId The id of segment.
+     */
+    void notifyRequiredSegmentId(RemoteInputChannel inputChannel, int segmentId);
+
+    /**
      * Requests to resume data consumption from one remote input channel.
      *
      * @param inputChannel The remote input channel who is ready to resume data consumption.

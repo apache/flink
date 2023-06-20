@@ -53,6 +53,13 @@ public interface NetworkSequenceViewReader {
      */
     void addCredit(int creditDeltas);
 
+    /**
+     * Notify the id of required segment from consumer.
+     *
+     * @param segmentId The id of required segment.
+     */
+    void notifyRequiredSegmentId(int segmentId);
+
     /** Resumes data consumption after an exactly once checkpoint. */
     void resumeConsumption();
 

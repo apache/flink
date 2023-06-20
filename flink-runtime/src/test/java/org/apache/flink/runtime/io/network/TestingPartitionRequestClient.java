@@ -48,6 +48,9 @@ public class TestingPartitionRequestClient implements PartitionRequestClient {
     public void acknowledgeAllRecordsProcessed(RemoteInputChannel inputChannel) {}
 
     @Override
+    public void notifyRequiredSegmentId(RemoteInputChannel inputChannel, int segmentId) {}
+
+    @Override
     public void sendTaskEvent(
             ResultPartitionID partitionId, TaskEvent event, RemoteInputChannel inputChannel) {}
 
