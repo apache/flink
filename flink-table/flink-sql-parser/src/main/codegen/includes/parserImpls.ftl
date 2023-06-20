@@ -601,7 +601,7 @@ SqlAlterTable SqlAlterTable() :
     SqlIdentifier newColumnIdentifier;
     AlterTableContext ctx = new AlterTableContext();
     AlterTableAddPartitionContext addPartitionCtx = new AlterTableAddPartitionContext();
-    DropPartitionsContext dropPartitionsCtx = new DropPartitionsContext();
+    AlterTableDropPartitionsContext dropPartitionsCtx = new AlterTableDropPartitionsContext();
 }
 {
     <ALTER> <TABLE> { startPos = getPos(); }
@@ -708,13 +708,13 @@ SqlAlterTable SqlAlterTable() :
     |
      <DROP>
         (
-       AlterTableDropPartitions(dropPartitionsCtx) {
-       return new SqlDropPartitions(
-       startPos.plus(getPos()),
-       tableIdentifier,
-       dropPartitionsCtx.ifExists,
-       dropPartitionsCtx.partSpecs);
-       }
+            AlterTableDropPartitions(dropPartitionsCtx) {
+                return new SqlDropPartitions(
+                        startPos.plus(getPos()),
+                        tableIdentifier,
+                        dropPartitionsCtx.ifExists,
+                        dropPartitionsCtx.partSpecs);
+            }
        |
        (
             { SqlIdentifier columnName = null; }
@@ -1042,7 +1042,7 @@ void AddOrModifyColumn(AlterTableContext context) :
 }
 
 /** Parses {@code ALTER TABLE table_name DROP [IF EXISTS] PARTITION partition_spec[, PARTITION partition_spec, ...]}. */
-void  AlterTableDropPartitions(DropPartitionsContext context) :
+void  AlterTableDropPartitions(AlterTableDropPartitionsContext context) :
 {
     List<SqlNodeList> partSpecs = new ArrayList();
     SqlNodeList partSpec;

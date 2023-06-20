@@ -90,7 +90,7 @@ public class SqlDropPartitions extends SqlAlterTable {
     }
 
     /** Alter table add partition context. */
-    public static class DropPartitionsContext {
+    public static class AlterTableDropPartitionsContext {
         public boolean ifExists;
         public List<SqlNodeList> partSpecs;
     }

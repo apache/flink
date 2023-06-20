@@ -2195,7 +2195,7 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testAlterTableDropPartition() throws Exception {
+    public void testAlterTableDropPartitions() throws Exception {
         prepareTable("tb1", false, true, true, 0);
         // test drop single partition
         Operation operation = parse("alter table tb1 drop partition (b = '1', c = '2')");
