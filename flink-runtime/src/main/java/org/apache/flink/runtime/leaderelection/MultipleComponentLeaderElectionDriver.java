@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.leaderelection;
 
+import java.util.UUID;
+
 /**
  * A leader election driver that allows to write {@link LeaderInformation} for multiple components.
  */
@@ -51,7 +53,7 @@ public interface MultipleComponentLeaderElectionDriver extends AutoCloseable {
     interface Listener {
 
         /** Callback that is called once the driver obtains the leadership. */
-        void isLeader();
+        void isLeader(UUID leaderSessionID);
 
         /** Callback that is called once the driver loses the leadership. */
         void notLeader();

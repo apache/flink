@@ -33,13 +33,13 @@ public interface MultipleComponentLeaderElectionService {
     void close() throws Exception;
 
     /**
-     * Creates a {@link LeaderElectionDriverFactory} for the given leader name.
+     * Creates a {@link MultipleComponentLeaderElectionDriverFactory} for the given leader name.
      *
      * @param componentId identifying the component for which to create a leader election driver
      *     factory
      * @return Leader election driver factory
      */
-    LeaderElectionDriverFactory createDriverFactory(String componentId);
+    MultipleComponentLeaderElectionDriverFactory createDriverFactory(String componentId);
 
     /**
      * Publishes the given leader information for the component identified by the given leader name.
