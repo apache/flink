@@ -128,11 +128,9 @@ public class HighAvailabilityServicesUtils {
                                 RpcServiceUtils.createWildcardName(Dispatcher.DISPATCHER_NAME),
                                 addressResolution,
                                 configuration);
-                final String webMonitorAddress =
-                        getWebMonitorAddress(configuration, addressResolution);
 
                 return new StandaloneHaServices(
-                        resourceManagerRpcUrl, dispatcherRpcUrl, webMonitorAddress);
+                        resourceManagerRpcUrl, dispatcherRpcUrl, configuration);
             case ZOOKEEPER:
                 return createZooKeeperHaServices(configuration, executor, fatalErrorHandler);
             case KUBERNETES:

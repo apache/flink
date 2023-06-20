@@ -178,6 +178,9 @@ public class DefaultDispatcherResourceManagerComponentFactory
             log.debug("Starting Dispatcher REST endpoint.");
             webMonitorEndpoint.start();
 
+            configuration.setInteger(RestOptions.PORT, webMonitorEndpoint.getRestPort());
+            configuration.setString(RestOptions.ADDRESS, webMonitorEndpoint.getServerAddress().getHostString());
+
             final String hostname = RpcUtils.getHostname(rpcService);
 
             resourceManagerService =
