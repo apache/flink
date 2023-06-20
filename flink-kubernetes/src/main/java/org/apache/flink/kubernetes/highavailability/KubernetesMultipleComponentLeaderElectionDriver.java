@@ -40,6 +40,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
@@ -137,15 +138,18 @@ public class KubernetesMultipleComponentLeaderElectionDriver
     }
 
     @Override
-    public void publishLeaderInformation(String componentId, LeaderInformation leaderInformation)
-            throws Exception {
+    public void publishLeaderInformation(String componentId, LeaderInformation leaderInformation) {
         Preconditions.checkState(running.get());
 
-        kubeClient
-                .checkAndUpdateConfigMap(
-                        configMapName,
-                        updateConfigMapWithLeaderInformation(componentId, leaderInformation))
-                .get();
+        try {
+            kubeClient
+                    .checkAndUpdateConfigMap(
+                            configMapName,
+                            updateConfigMapWithLeaderInformation(componentId, leaderInformation))
+                    .get();
+        } catch (InterruptedException | ExecutionException e) {
+            fatalErrorHandler.onFatalError(e);
+        }
 
         LOG.debug(
                 "Successfully wrote leader information {} for leader {} into the config map {}.",
@@ -155,7 +159,7 @@ public class KubernetesMultipleComponentLeaderElectionDriver
     }
 
     @Override
-    public void deleteLeaderInformation(String componentId) throws Exception {
+    public void deleteLeaderInformation(String componentId) {
         publishLeaderInformation(componentId, LeaderInformation.empty());
     }
 
