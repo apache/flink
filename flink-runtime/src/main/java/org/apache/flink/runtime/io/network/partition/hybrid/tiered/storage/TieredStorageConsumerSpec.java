@@ -16,37 +16,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier;
+package org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage;
 
-import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 
-import java.io.IOException;
-import java.util.Optional;
+/** Describe the different data sources in {@link TieredStorageConsumerClient}. */
+public class TieredStorageConsumerSpec {
 
-/**
- * The {@link TierConsumerAgent} is the consumer agent of each tier in tiered store, which could
- * read data from responding tier.
- */
-public interface TierConsumerAgent {
+    private final TieredStoragePartitionId tieredStoragePartitionId;
 
-    /** Start the consumer agent. */
-    void start();
+    private final TieredStorageSubpartitionId tieredStorageSubpartitionId;
 
-    /**
-     * Get buffer from the consumer agent.
-     *
-     * @param partitionId the id of partition.
-     * @param subpartitionId the id of subpartition.
-     * @param segmentId the id of segment.
-     * @return buffer.
-     */
-    Optional<Buffer> getNextBuffer(
-            TieredStoragePartitionId partitionId,
-            TieredStorageSubpartitionId subpartitionId,
-            int segmentId);
+    public TieredStorageConsumerSpec(
+            TieredStoragePartitionId tieredStoragePartitionId,
+            TieredStorageSubpartitionId tieredStorageSubpartitionId) {
+        this.tieredStoragePartitionId = tieredStoragePartitionId;
+        this.tieredStorageSubpartitionId = tieredStorageSubpartitionId;
+    }
 
-    /** Close the consumer agent. */
-    void close() throws IOException;
+    public TieredStoragePartitionId getPartitionId() {
+        return tieredStoragePartitionId;
+    }
+
+    public TieredStorageSubpartitionId getSubpartitionId() {
+        return tieredStorageSubpartitionId;
+    }
 }

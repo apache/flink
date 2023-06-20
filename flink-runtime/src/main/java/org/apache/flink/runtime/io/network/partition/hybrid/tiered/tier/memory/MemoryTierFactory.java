@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.memory;
 
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyService;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageConsumerSpec;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageMemoryManager;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageResourceRegistry;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.NoOpMasterAgent;
@@ -27,6 +28,8 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierCons
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierFactory;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierMasterAgent;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierProducerAgent;
+
+import java.util.List;
 
 /** The implementation of {@link TierFactory} for memory tier. */
 public class MemoryTierFactory implements TierFactory {
@@ -67,8 +70,9 @@ public class MemoryTierFactory implements TierFactory {
     }
 
     @Override
-    public TierConsumerAgent createConsumerAgent() {
-        // TODO, create the memory tier consumer agent.
-        return null;
+    public TierConsumerAgent createConsumerAgent(
+            List<TieredStorageConsumerSpec> tieredStorageConsumerSpecs,
+            TieredStorageNettyService nettyService) {
+        return new MemoryTierConsumerAgent(tieredStorageConsumerSpecs, nettyService);
     }
 }

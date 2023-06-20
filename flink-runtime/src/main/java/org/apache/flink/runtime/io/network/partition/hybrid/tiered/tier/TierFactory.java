@@ -20,8 +20,11 @@ package org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier;
 
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyService;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageConsumerSpec;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageMemoryManager;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageResourceRegistry;
+
+import java.util.List;
 
 /** A factory that creates all the components of a tier. */
 public interface TierFactory {
@@ -40,5 +43,7 @@ public interface TierFactory {
             TieredStorageResourceRegistry resourceRegistry);
 
     /** Creates the consumer-side agent of a Tier. */
-    TierConsumerAgent createConsumerAgent();
+    TierConsumerAgent createConsumerAgent(
+            List<TieredStorageConsumerSpec> tieredStorageConsumerSpecs,
+            TieredStorageNettyService nettyService);
 }
