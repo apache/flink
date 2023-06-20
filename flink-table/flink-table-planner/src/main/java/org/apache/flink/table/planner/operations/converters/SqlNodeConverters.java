@@ -44,6 +44,7 @@ public class SqlNodeConverters {
         register(new SqlAlterViewPropertiesConverter());
         register(new SqlAlterViewAsConverter());
         register(new SqlQueryConverter());
+        register(new SqlAlterTableAddPartitionConverter());
     }
 
     /**

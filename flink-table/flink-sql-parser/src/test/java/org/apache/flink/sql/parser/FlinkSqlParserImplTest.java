@@ -701,6 +701,25 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    public void testAddPartition() {
+        sql("alter table c1.d1.tbl add partition (p1=1,p2='a')")
+                .ok("ALTER TABLE `C1`.`D1`.`TBL`\n" + "ADD\n" + "PARTITION (`P1` = 1, `P2` = 'a')");
+
+        sql("alter table tbl add partition (p1=1,p2='a') with ('k1'='v1')")
+                .ok(
+                        "ALTER TABLE `TBL`\n"
+                                + "ADD\n"
+                                + "PARTITION (`P1` = 1, `P2` = 'a') WITH ('k1' = 'v1')");
+
+        sql("alter table tbl add if not exists partition (p=1) partition (p=2) with ('k1' = 'v1')")
+                .ok(
+                        "ALTER TABLE `TBL`\n"
+                                + "ADD IF NOT EXISTS\n"
+                                + "PARTITION (`P` = 1)\n"
+                                + "PARTITION (`P` = 2) WITH ('k1' = 'v1')");
+    }
+
+    @Test
     void testCreateTable() {
         final String sql =
                 "CREATE TABLE tbl1 (\n"

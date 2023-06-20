@@ -591,6 +591,7 @@ SqlAlterTable SqlAlterTable() :
     SqlIdentifier tableIdentifier;
     SqlIdentifier newTableIdentifier = null;
     boolean ifExists = false;
+    boolean ifNotExists = false;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
     SqlNodeList propertyKeyList = SqlNodeList.EMPTY;
     SqlNodeList partitionSpec = null;
@@ -599,6 +600,7 @@ SqlAlterTable SqlAlterTable() :
     SqlIdentifier originColumnIdentifier;
     SqlIdentifier newColumnIdentifier;
     AlterTableContext ctx = new AlterTableContext();
+    AlterTableAddPartitionContext addPartitionCtx = new AlterTableAddPartitionContext();
 }
 {
     <ALTER> <TABLE> { startPos = getPos(); }
@@ -651,6 +653,16 @@ SqlAlterTable SqlAlterTable() :
     |
         <ADD>
         (
+            AlterTableAddPartition(addPartitionCtx)
+            {
+                return new SqlAddPartitions(startPos.plus(getPos()),
+                        tableIdentifier,
+                        addPartitionCtx.ifNotExists,
+                        addPartitionCtx.partSpecs,
+                        addPartitionCtx.partProps);
+            }
+        |
+        (
             AlterTableAddOrModify(ctx)
         |
             <LPAREN>
@@ -669,6 +681,7 @@ SqlAlterTable SqlAlterTable() :
                         ctx.watermark,
                         ifExists);
         }
+        )
     |
         <MODIFY>
         (
@@ -920,6 +933,35 @@ SqlTableColumn RegularColumn(TableCreationContext context, SqlIdentifier name, S
             constraint);
         context.columnList.add(regularColumn);
         return regularColumn;
+    }
+}
+
+/** Parses {@code ALTER TABLE table_name ADD [IF NOT EXISTS] PARTITION partition_spec [PARTITION partition_spec][...]}. */
+void  AlterTableAddPartition(AlterTableAddPartitionContext context) :
+{
+    List<SqlNodeList> partSpecs = new ArrayList();
+    List<SqlNodeList> partProps = new ArrayList();
+    SqlNodeList partSpec;
+    SqlNodeList partProp;
+}
+{
+    context.ifNotExists = IfNotExistsOpt()
+    (
+        <PARTITION>
+        {
+            partSpec = new SqlNodeList(getPos());
+            partProp = null;
+            PartitionSpecCommaList(partSpec);
+        }
+        [ <WITH> { partProp = TableProperties(); } ]
+        {
+            partSpecs.add(partSpec);
+            partProps.add(partProp);
+        }
+    )+
+    {
+        context.partSpecs = partSpecs;
+        context.partProps = partProps;
     }
 }
 
