@@ -388,7 +388,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
          */
         private final Set<String> classPaths;
 
-        private final boolean systemClassLoader;
+        private final boolean wrapsSystemClassLoader;
 
         private final Map<String, Runnable> releaseHooks;
 
@@ -396,7 +396,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
                 ClassLoader classLoader,
                 Collection<PermanentBlobKey> requiredLibraries,
                 Collection<URL> requiredClassPaths,
-                boolean systemClassLoader) {
+                boolean wrapsSystemClassLoader) {
             this.classLoader = classLoader;
 
             // NOTE: do not store the class paths, i.e. URLs, into a set for performance reasons
@@ -407,7 +407,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
                 classPaths.add(url.toString());
             }
             this.libraries = new HashSet<>(requiredLibraries);
-            this.systemClassLoader = systemClassLoader;
+            this.wrapsSystemClassLoader = wrapsSystemClassLoader;
 
             this.releaseHooks = new HashMap<>();
         }
@@ -464,7 +464,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
         private void releaseClassLoader() {
             runReleaseHooks();
 
-            if (!systemClassLoader) {
+            if (!wrapsSystemClassLoader) {
                 try {
                     ((Closeable) classLoader).close();
                 } catch (IOException e) {

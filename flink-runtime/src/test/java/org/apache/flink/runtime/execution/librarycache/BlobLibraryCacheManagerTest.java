@@ -499,11 +499,11 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 
         classLoaderLease2.release();
 
-        if (!wrapsSystemClassLoader) {
-            assertTrue(classLoader.isClosed());
-        } else {
+        if (wrapsSystemClassLoader) {
             assertEquals(userCodeClassLoader.asClassLoader(), ClassLoader.getSystemClassLoader());
             assertFalse(classLoader.isClosed());
+        } else {
+            assertTrue(classLoader.isClosed());
         }
     }
 
@@ -555,11 +555,11 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 
         libraryCacheManager.shutdown();
 
-        if (!wrapsSystemClassLoader) {
-            assertTrue(classLoader.isClosed());
-        } else {
+        if (wrapsSystemClassLoader) {
             assertEquals(userCodeClassLoader.asClassLoader(), ClassLoader.getSystemClassLoader());
             assertFalse(classLoader.isClosed());
+        } else {
+            assertTrue(classLoader.isClosed());
         }
     }
 
