@@ -24,6 +24,8 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.shuffle.Tiere
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierConsumerAgent;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierProducerAgent;
 
+import java.util.concurrent.CompletableFuture;
+
 /** {@link TieredStorageNettyService} is used to create writers and readers to netty. */
 public interface TieredStorageNettyService {
 
@@ -39,13 +41,13 @@ public interface TieredStorageNettyService {
             TieredStoragePartitionId partitionId, NettyServiceProducer serviceProducer);
 
     /**
-     * {@link TierConsumerAgent} will register to {@link TieredStorageNettyService} and get a {@link
-     * NettyConnectionReader}.
+     * {@link TierConsumerAgent} will register to {@link TieredStorageNettyService} and get a future
+     * of {@link NettyConnectionReader}.
      *
      * @param partitionId partition id indicates the unique id of {@link TieredResultPartition}.
      * @param subpartitionId subpartition id indicates the unique id of subpartition.
-     * @return the netty connection reader.
+     * @return the future of netty connection reader.
      */
-    NettyConnectionReader registerConsumer(
+    CompletableFuture<NettyConnectionReader> registerConsumer(
             TieredStoragePartitionId partitionId, TieredStorageSubpartitionId subpartitionId);
 }
