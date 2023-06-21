@@ -256,7 +256,7 @@ public class PojoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
     private static <K> LinkedHashMap<K, TypeSerializer<?>> restoreSerializers(
             LinkedHashMap<K, TypeSerializerSnapshot<?>> snapshotsMap) {
         final LinkedHashMap<K, TypeSerializer<?>> restoredSerializersMap =
-                new LinkedHashMap<>(snapshotsMap.size());
+                CollectionUtil.newLinkedHashMapWithExpectedSize(snapshotsMap.size());
         snapshotsMap.forEach(
                 (key, snapshot) -> restoredSerializersMap.put(key, snapshot.restoreSerializer()));
         return restoredSerializersMap;
@@ -274,7 +274,7 @@ public class PojoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
                     LinkedHashMap<Class<?>, TypeSerializer<?>> subclassSerializerRegistry) {
 
         final LinkedHashMap<Class<?>, Integer> subclassIds =
-                new LinkedHashMap<>(subclassSerializerRegistry.size());
+                CollectionUtil.newLinkedHashMapWithExpectedSize(subclassSerializerRegistry.size());
         final TypeSerializer[] subclassSerializers =
                 new TypeSerializer[subclassSerializerRegistry.size()];
 

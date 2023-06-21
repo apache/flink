@@ -657,7 +657,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
     LinkedHashMap<Class<?>, TypeSerializer<?>> getBundledSubclassSerializerRegistry() {
         final LinkedHashMap<Class<?>, TypeSerializer<?>> result =
-                new LinkedHashMap<>(registeredClasses.size());
+                CollectionUtil.newLinkedHashMapWithExpectedSize(registeredClasses.size());
         registeredClasses.forEach(
                 (registeredClass, id) -> result.put(registeredClass, registeredSerializers[id]));
         return result;
@@ -790,7 +790,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
             Map<Class<?>, TypeSerializer<?>> nonRegisteredSubclassSerializerCache) {
 
         final LinkedHashMap<Class<?>, TypeSerializer<?>> subclassRegistry =
-                new LinkedHashMap<>(registeredSubclassesToTags.size());
+                CollectionUtil.newLinkedHashMapWithExpectedSize(registeredSubclassesToTags.size());
 
         for (Map.Entry<Class<?>, Integer> entry : registeredSubclassesToTags.entrySet()) {
             subclassRegistry.put(entry.getKey(), registeredSubclassSerializers[entry.getValue()]);

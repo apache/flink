@@ -100,7 +100,8 @@ final class PojoSerializerSnapshotData<T> {
         }
 
         LinkedHashMap<Class<?>, TypeSerializerSnapshot<?>> registeredSubclassSerializerSnapshots =
-                new LinkedHashMap<>(registeredSubclassSerializers.size());
+                CollectionUtil.newLinkedHashMapWithExpectedSize(
+                        registeredSubclassSerializers.size());
         registeredSubclassSerializers.forEach(
                 (k, v) -> registeredSubclassSerializerSnapshots.put(k, v.snapshotConfiguration()));
 
