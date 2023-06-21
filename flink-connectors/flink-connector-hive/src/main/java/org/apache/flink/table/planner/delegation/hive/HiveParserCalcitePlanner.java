@@ -55,6 +55,7 @@ import org.apache.flink.table.planner.delegation.hive.parse.HiveParserCreateView
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserErrorMsg;
 import org.apache.flink.table.planner.plan.nodes.hive.LogicalDistribution;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableList;
@@ -1150,7 +1151,7 @@ public class HiveParserCalcitePlanner {
         // Grouping sets: we need to transform them into ImmutableBitSet objects for Calcite
         List<ImmutableBitSet> transformedGroupSets = null;
         if (hasGroupSets) {
-            Set<ImmutableBitSet> set = new HashSet<>(groupSets.size());
+            Set<ImmutableBitSet> set = CollectionUtil.newHashSetWithExpectedSize(groupSets.size());
             for (int val : groupSets) {
                 set.add(convert(val, groupSet.cardinality()));
             }

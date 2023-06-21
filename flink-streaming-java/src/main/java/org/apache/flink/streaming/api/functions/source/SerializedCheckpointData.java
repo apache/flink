@@ -22,10 +22,10 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.util.CollectionUtil;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
-import java.util.HashSet;
 import java.util.Set;
 
 /** This class represents serialized checkpoint data for a collection of elements. */
@@ -165,7 +165,7 @@ class SerializedCheckpointData implements java.io.Serializable {
                 deser.setBuffer(serializedData);
             }
 
-            final Set<T> ids = new HashSet<>(checkpoint.getNumIds());
+            final Set<T> ids = CollectionUtil.newHashSetWithExpectedSize(checkpoint.getNumIds());
             final int numIds = checkpoint.getNumIds();
 
             for (int i = 0; i < numIds; i++) {

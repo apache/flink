@@ -24,9 +24,9 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.tests.artificialstate.builder.ArtificialStateBuilder;
+import org.apache.flink.util.CollectionUtil;
 
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -53,7 +53,8 @@ public class ArtificialKeyedStateMapper<IN, OUT> extends RichMapFunction<IN, OUT
 
         this.mapFunction = mapFunction;
         this.artificialStateBuilders = artificialStateBuilders;
-        Set<String> stateNames = new HashSet<>(this.artificialStateBuilders.size());
+        Set<String> stateNames =
+                CollectionUtil.newHashSetWithExpectedSize(this.artificialStateBuilders.size());
         for (ArtificialStateBuilder<IN> stateBuilder : this.artificialStateBuilders) {
             if (!stateNames.add(stateBuilder.getStateName())) {
                 throw new IllegalArgumentException(

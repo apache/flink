@@ -338,7 +338,7 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
         Set<AllocationID> slots = slotsPerJob.get(jobId);
 
         if (slots == null) {
-            slots = new HashSet<>(4);
+            slots = CollectionUtil.newHashSetWithExpectedSize(4);
             slotsPerJob.put(jobId, slots);
         }
 

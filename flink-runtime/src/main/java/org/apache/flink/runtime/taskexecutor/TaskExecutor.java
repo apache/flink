@@ -1578,7 +1578,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                     taskSlotTable.getAllocatedSlots(jobId);
             final JobMasterId jobMasterId = jobManagerConnection.getJobMasterId();
 
-            final Collection<SlotOffer> reservedSlots = new HashSet<>(2);
+            final Collection<SlotOffer> reservedSlots =
+                    CollectionUtil.newHashSetWithExpectedSize(2);
 
             while (reservedSlotsIterator.hasNext()) {
                 SlotOffer offer = reservedSlotsIterator.next().generateSlotOffer();
