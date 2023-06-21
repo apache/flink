@@ -78,12 +78,7 @@ class ThreadInfoSampleServiceTest {
                     tasks.add(new IdleTestTask());
                     Thread.sleep(2000);
 
-                    Map<Long, ExecutionAttemptID> threads =
-                            tasks.stream()
-                                    .collect(
-                                            Collectors.toMap(
-                                                    task -> task.getExecutingThread().getId(),
-                                                    IdleTestTask::getExecutionId));
+                    Map<Long, ExecutionAttemptID> threads = collectExecutionAttempts(tasks);
                     final Map<ExecutionAttemptID, Collection<ThreadInfoSample>> threadInfoSamples =
                             threadInfoSampleService
                                     .requestThreadInfoSamples(threads, requestParams)
@@ -109,12 +104,8 @@ class ThreadInfoSampleServiceTest {
         executeWithTerminationGuarantee(
                 () -> {
                     tasks.add(new IdleTestTask());
-                    Map<Long, ExecutionAttemptID> threads =
-                            tasks.stream()
-                                    .collect(
-                                            Collectors.toMap(
-                                                    task -> task.getExecutingThread().getId(),
-                                                    IdleTestTask::getExecutionId));
+                    Map<Long, ExecutionAttemptID> threads = collectExecutionAttempts(tasks);
+
                     final Map<ExecutionAttemptID, Collection<ThreadInfoSample>> threadInfoSamples1 =
                             threadInfoSampleService
                                     .requestThreadInfoSamples(threads, requestParams)
@@ -158,14 +149,7 @@ class ThreadInfoSampleServiceTest {
                                             tasks.add(new IdleTestTask());
 
                                             Map<Long, ExecutionAttemptID> threads =
-                                                    tasks.stream()
-                                                            .collect(
-                                                                    Collectors.toMap(
-                                                                            task ->
-                                                                                    task.getExecutingThread()
-                                                                                            .getId(),
-                                                                            IdleTestTask
-                                                                                    ::getExecutionId));
+                                                    collectExecutionAttempts(tasks);
                                             threadInfoSampleService.requestThreadInfoSamples(
                                                     threads,
                                                     new ThreadInfoSamplesRequest(
@@ -186,12 +170,7 @@ class ThreadInfoSampleServiceTest {
         Set<SampleableTask> tasks = new HashSet<>();
         tasks.add(new NotRunningTask());
 
-        Map<Long, ExecutionAttemptID> threads =
-                tasks.stream()
-                        .collect(
-                                Collectors.toMap(
-                                        task -> task.getExecutingThread().getId(),
-                                        SampleableTask::getExecutionId));
+        Map<Long, ExecutionAttemptID> threads = collectExecutionAttempts(tasks);
         final CompletableFuture<Map<ExecutionAttemptID, Collection<ThreadInfoSample>>>
                 sampleFuture =
                         threadInfoSampleService.requestThreadInfoSamples(threads, requestParams);
@@ -199,6 +178,15 @@ class ThreadInfoSampleServiceTest {
         assertThatFuture(sampleFuture).eventuallyFails();
         assertThat(sampleFuture.handle((ignored, e) -> e).get())
                 .isInstanceOf(IllegalStateException.class);
+    }
+
+    private static Map<Long, ExecutionAttemptID> collectExecutionAttempts(
+            Set<? extends SampleableTask> tasks) {
+        return tasks.stream()
+                .collect(
+                        Collectors.toMap(
+                                task -> task.getExecutingThread().getId(),
+                                SampleableTask::getExecutionId));
     }
 
     private static class NotRunningTask implements SampleableTask {
