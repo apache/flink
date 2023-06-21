@@ -68,6 +68,17 @@ public class FileSystemConnectorOptions {
                                     + "The statistics reporting is a heavy operation in some cases,"
                                     + "this config allows users to choose the statistics type according to different situations.");
 
+    public static final ConfigOption<String> SOURCE_PATH_REGEX_PATTERN =
+            key("source.path.regex-pattern")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The regex pattern to filter files or directories in the directory of the `path` option. "
+                                    + "This regex pattern should be matched with the absolute file path."
+                                    + "For example, if we want to get all files under some path like '/dir', "
+                                    + "the table should set 'path'='/dir' and 'source.regex-pattern'='/dir/.*'."
+                                    + "The hidden files and directories will not be matched.");
+
     public static final ConfigOption<MemorySize> SINK_ROLLING_POLICY_FILE_SIZE =
             key("sink.rolling-policy.file-size")
                     .memoryType()
