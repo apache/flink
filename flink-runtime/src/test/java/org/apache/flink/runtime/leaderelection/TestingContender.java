@@ -64,11 +64,6 @@ public class TestingContender extends TestingLeaderBase implements LeaderContend
     }
 
     @Override
-    public String getDescription() {
-        return address;
-    }
-
-    @Override
     public void handleError(Exception exception) {
         super.handleError(exception);
     }
