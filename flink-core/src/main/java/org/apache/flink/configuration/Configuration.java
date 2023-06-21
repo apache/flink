@@ -25,6 +25,7 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.StringValue;
+import org.apache.flink.util.CollectionUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -751,7 +752,8 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
     @Override
     public Map<String, String> toMap() {
         synchronized (this.confData) {
-            Map<String, String> ret = new HashMap<>(this.confData.size());
+            Map<String, String> ret =
+                    CollectionUtil.newHashMapWithExpectedSize(this.confData.size());
             for (Map.Entry<String, Object> entry : confData.entrySet()) {
                 ret.put(entry.getKey(), ConfigurationUtils.convertToString(entry.getValue()));
             }

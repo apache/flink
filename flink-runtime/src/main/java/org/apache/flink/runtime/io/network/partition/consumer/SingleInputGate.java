@@ -51,6 +51,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
 import org.apache.flink.runtime.throughput.BufferDebloater;
 import org.apache.flink.runtime.throughput.ThroughputCalculator;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.SupplierWithException;
 
@@ -65,7 +66,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -255,7 +255,7 @@ public class SingleInputGate extends IndexedInputGate {
         checkArgument(numberOfInputChannels > 0);
         this.numberOfInputChannels = numberOfInputChannels;
 
-        this.inputChannels = new HashMap<>(numberOfInputChannels);
+        this.inputChannels = CollectionUtil.newHashMapWithExpectedSize(numberOfInputChannels);
         this.channels = new InputChannel[numberOfInputChannels];
         this.channelsWithEndOfPartitionEvents = new BitSet(numberOfInputChannels);
         this.channelsWithEndOfUserRecords = new BitSet(numberOfInputChannels);

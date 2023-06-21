@@ -20,6 +20,7 @@ package org.apache.flink.api.java.utils;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.java.Utils;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.lang3.math.NumberUtils;
@@ -60,7 +61,8 @@ public class MultipleParameterTool extends AbstractParameterTool {
      * @return A {@link MultipleParameterTool}
      */
     public static MultipleParameterTool fromArgs(String[] args) {
-        final Map<String, Collection<String>> map = new HashMap<>(args.length / 2);
+        final Map<String, Collection<String>> map =
+                CollectionUtil.newHashMapWithExpectedSize(args.length / 2);
 
         int i = 0;
         while (i < args.length) {
@@ -214,7 +216,7 @@ public class MultipleParameterTool extends AbstractParameterTool {
      */
     public MultipleParameterTool mergeWith(MultipleParameterTool other) {
         final Map<String, Collection<String>> resultData =
-                new HashMap<>(data.size() + other.data.size());
+                CollectionUtil.newHashMapWithExpectedSize(data.size() + other.data.size());
         resultData.putAll(data);
         other.data.forEach(
                 (key, value) -> {

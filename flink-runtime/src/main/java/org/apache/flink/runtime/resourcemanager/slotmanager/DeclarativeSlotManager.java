@@ -39,6 +39,7 @@ import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotOccupiedException;
 import org.apache.flink.runtime.util.ResourceCounter;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
@@ -122,7 +123,7 @@ public class DeclarativeSlotManager implements SlotManager {
         this.scheduledExecutor = Preconditions.checkNotNull(scheduledExecutor);
         this.requirementsCheckDelay = slotManagerConfiguration.getRequirementCheckDelay();
 
-        pendingSlotAllocations = new HashMap<>(16);
+        pendingSlotAllocations = CollectionUtil.newHashMapWithExpectedSize(16);
 
         this.slotTracker = Preconditions.checkNotNull(slotTracker);
         slotTracker.registerSlotStatusUpdateListener(createSlotStatusUpdateListener());

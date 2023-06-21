@@ -22,13 +22,13 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CompositeStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -71,7 +71,7 @@ public class OperatorState implements CompositeStateHandle {
 
         this.operatorID = operatorID;
 
-        this.operatorSubtaskStates = new HashMap<>(parallelism);
+        this.operatorSubtaskStates = CollectionUtil.newHashMapWithExpectedSize(parallelism);
 
         this.parallelism = parallelism;
         this.maxParallelism = maxParallelism;

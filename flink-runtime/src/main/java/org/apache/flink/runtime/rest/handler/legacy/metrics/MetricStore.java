@@ -23,6 +23,7 @@ import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails.CurrentAttempts;
 import org.apache.flink.runtime.metrics.dump.MetricDump;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
+import org.apache.flink.util.CollectionUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,7 +96,10 @@ public class MetricStore {
                     job.getCurrentExecutionAttempts();
             Map<String, Map<Integer, Integer>> jobRepresentativeAttempts =
                     representativeAttempts.compute(
-                            jobId, (k, overwritten) -> new HashMap<>(currentAttempts.size()));
+                            jobId,
+                            (k, overwritten) ->
+                                    CollectionUtil.newHashMapWithExpectedSize(
+                                            currentAttempts.size()));
             currentAttempts.forEach(
                     (vertexId, subtaskAttempts) -> {
                         Map<Integer, Integer> vertexAttempts =

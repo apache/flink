@@ -91,6 +91,7 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcServiceUtils;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -293,7 +294,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         this.cleanupRunnerFactory = dispatcherServices.getCleanupRunnerFactory();
 
         this.jobManagerRunnerTerminationFutures =
-                new HashMap<>(INITIAL_JOB_MANAGER_RUNNER_REGISTRY_CAPACITY);
+                CollectionUtil.newHashMapWithExpectedSize(
+                        INITIAL_JOB_MANAGER_RUNNER_REGISTRY_CAPACITY);
         this.submittedAndWaitingTerminationJobIDs = new HashSet<>();
 
         this.shutDownFuture = new CompletableFuture<>();

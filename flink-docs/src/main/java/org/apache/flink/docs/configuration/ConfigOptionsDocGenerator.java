@@ -32,6 +32,7 @@ import org.apache.flink.configuration.description.InlineElement;
 import org.apache.flink.configuration.description.TextElement;
 import org.apache.flink.docs.util.ConfigurationOptionLocator;
 import org.apache.flink.docs.util.OptionWithMetaInfo;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TimeUtils;
 
@@ -51,7 +52,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -602,7 +602,7 @@ public class ConfigOptionsDocGenerator {
 
         private static class Node {
             private final List<OptionWithMetaInfo> configOptions = new ArrayList<>(8);
-            private final Map<String, Node> children = new HashMap<>(8);
+            private final Map<String, Node> children = CollectionUtil.newHashMapWithExpectedSize(8);
             private boolean isGroupRoot = false;
 
             private Node addChild(String keyComponent) {

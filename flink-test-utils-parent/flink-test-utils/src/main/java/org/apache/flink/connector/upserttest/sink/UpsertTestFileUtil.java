@@ -20,6 +20,7 @@ package org.apache.flink.connector.upserttest.sink;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.util.CollectionUtil;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -110,7 +111,7 @@ public class UpsertTestFileUtil {
             throws IOException {
         checkNotNull(bis);
         Map<ImmutableByteArrayWrapper, ImmutableByteArrayWrapper> bytesMap = readRecords(bis);
-        Map<K, V> typedMap = new HashMap<>(bytesMap.size());
+        Map<K, V> typedMap = CollectionUtil.newHashMapWithExpectedSize(bytesMap.size());
 
         Iterator<Map.Entry<ImmutableByteArrayWrapper, ImmutableByteArrayWrapper>> it =
                 bytesMap.entrySet().iterator();

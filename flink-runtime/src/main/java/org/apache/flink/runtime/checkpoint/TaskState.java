@@ -21,11 +21,11 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.CompositeStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -71,7 +71,7 @@ public class TaskState implements CompositeStateHandle {
 
         this.jobVertexID = jobVertexID;
 
-        this.subtaskStates = new HashMap<>(parallelism);
+        this.subtaskStates = CollectionUtil.newHashMapWithExpectedSize(parallelism);
 
         this.parallelism = parallelism;
         this.maxParallelism = maxParallelism;

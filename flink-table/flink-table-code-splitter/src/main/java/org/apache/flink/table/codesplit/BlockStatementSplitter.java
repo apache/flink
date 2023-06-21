@@ -20,6 +20,7 @@ package org.apache.flink.table.codesplit;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.codesplit.JavaParser.BlockStatementContext;
 import org.apache.flink.table.codesplit.JavaParser.StatementContext;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
 import org.antlr.v4.runtime.CharStreams;
@@ -145,7 +146,8 @@ public class BlockStatementSplitter {
      */
     public Map<String, List<String>> extractBlocks() {
 
-        Map<String, List<String>> allBlocks = new HashMap<>(visitor.blocks.size());
+        Map<String, List<String>> allBlocks =
+                CollectionUtil.newHashMapWithExpectedSize(visitor.blocks.size());
 
         for (Entry<String, List<ParserRuleContext>> entry : visitor.blocks.entrySet()) {
 
