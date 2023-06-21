@@ -58,8 +58,8 @@ jobs:
       displayName: Create cache directories
     - task: Cache@2
       inputs:
-        key: $(CACHE_KEY)
-        restoreKeys: $(CACHE_FALLBACK_KEY)
+        key: $(PIPELINE_START_YEAR) | $(CACHE_KEY)
+        restoreKeys: $(PIPELINE_START_YEAR) | $(CACHE_FALLBACK_KEY)
         path: $(MAVEN_CACHE_FOLDER)
       displayName: Cache Maven local repo
       continueOnError: true
