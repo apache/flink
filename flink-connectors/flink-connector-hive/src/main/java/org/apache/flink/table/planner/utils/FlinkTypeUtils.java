@@ -51,13 +51,8 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import static org.apache.calcite.sql.type.SqlTypeName.DAY_INTERVAL_TYPES;
 import static org.apache.calcite.sql.type.SqlTypeName.YEAR_INTERVAL_TYPES;
 
-/** Utils for Mapping Calcite's type to Flink's type, most code is copied from FlinkTypeFactory. */
+/** Utils for mapping Calcite's type to Flink's type, most code is copied from FlinkTypeFactory. */
 public class FlinkTypeUtils {
-
-    public static Class<?> getConversionClass(RelDataType relDataType) {
-        // just use default conversion class
-        return toLogicalType(relDataType).getDefaultConversion();
-    }
 
     public static LogicalType toLogicalType(RelDataType relDataType) {
         SqlTypeName sqlTypeName = relDataType.getSqlTypeName();
@@ -71,71 +66,101 @@ public class FlinkTypeUtils {
             }
             return DataTypes.INTERVAL(DataTypes.SECOND(3)).getLogicalType();
         }
+        LogicalType logicalType;
         switch (relDataType.getSqlTypeName()) {
-                // todo: need to figure which sql types that hive supports
             case BOOLEAN:
-                return new BooleanType();
+                logicalType = new BooleanType();
+                break;
             case TINYINT:
-                return new TinyIntType();
+                logicalType = new TinyIntType();
+                break;
             case SMALLINT:
-                return new SmallIntType();
+                logicalType = new SmallIntType();
+                break;
             case INTEGER:
-                return new IntType();
+                logicalType = new IntType();
+                break;
             case BIGINT:
-                return new BigIntType();
+                logicalType = new BigIntType();
+                break;
             case FLOAT:
-                return new FloatType();
+                logicalType = new FloatType();
+                break;
             case DOUBLE:
-                return new DoubleType();
+                logicalType = new DoubleType();
+                break;
             case CHAR:
-                return relDataType.getPrecision() == 0
-                        ? CharType.ofEmptyLiteral()
-                        : new CharType(relDataType.getPrecision());
+                logicalType =
+                        relDataType.getPrecision() == 0
+                                ? CharType.ofEmptyLiteral()
+                                : new CharType(relDataType.getPrecision());
+                break;
             case VARCHAR:
-                return relDataType.getPrecision() == 0
-                        ? VarCharType.ofEmptyLiteral()
-                        : new VarCharType(relDataType.getPrecision());
+                logicalType =
+                        relDataType.getPrecision() == 0
+                                ? VarCharType.ofEmptyLiteral()
+                                : new VarCharType(relDataType.getPrecision());
+                break;
             case BINARY:
-                return relDataType.getPrecision() == 0
-                        ? BinaryType.ofEmptyLiteral()
-                        : new BinaryType(relDataType.getPrecision());
+                logicalType =
+                        relDataType.getPrecision() == 0
+                                ? BinaryType.ofEmptyLiteral()
+                                : new BinaryType(relDataType.getPrecision());
+                break;
             case VARBINARY:
-                return relDataType.getPrecision() == 0
-                        ? VarBinaryType.ofEmptyLiteral()
-                        : new VarBinaryType(relDataType.getPrecision());
+                logicalType =
+                        relDataType.getPrecision() == 0
+                                ? VarBinaryType.ofEmptyLiteral()
+                                : new VarBinaryType(relDataType.getPrecision());
+                break;
             case DECIMAL:
-                return new DecimalType(relDataType.getPrecision(), relDataType.getScale());
+                logicalType = new DecimalType(relDataType.getPrecision(), relDataType.getScale());
+                break;
             case TIMESTAMP:
-                return new TimestampType(relDataType.getPrecision());
+                logicalType = new TimestampType(relDataType.getPrecision());
+                break;
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-                return new LocalZonedTimestampType(relDataType.getPrecision());
+                logicalType = new LocalZonedTimestampType(relDataType.getPrecision());
+                break;
             case DATE:
-                return new DateType();
+                logicalType = new DateType();
+                break;
             case TIME:
-                return new TimeType();
+                logicalType = new TimeType();
+                break;
             case NULL:
-                return new NullType();
+                logicalType = new NullType();
+                break;
             case SYMBOL:
-                return new SymbolType();
+                logicalType = new SymbolType();
+                break;
             case ROW:
                 {
                     Preconditions.checkArgument(relDataType.isStruct());
-                    return RowType.of(
-                            relDataType.getFieldList().stream()
-                                    .map(fieldType -> toLogicalType(fieldType.getType()))
-                                    .toArray(LogicalType[]::new),
-                            relDataType.getFieldNames().toArray(new String[0]));
+                    logicalType =
+                            RowType.of(
+                                    relDataType.getFieldList().stream()
+                                            .map(fieldType -> toLogicalType(fieldType.getType()))
+                                            .toArray(LogicalType[]::new),
+                                    relDataType.getFieldNames().toArray(new String[0]));
+                    break;
                 }
             case MULTISET:
-                return new MultisetType(toLogicalType(relDataType.getComponentType()));
+                logicalType = new MultisetType(toLogicalType(relDataType.getComponentType()));
+                break;
             case MAP:
-                return new MapType(
-                        toLogicalType(relDataType.getKeyType()),
-                        toLogicalType(relDataType.getValueType()));
+                logicalType =
+                        new MapType(
+                                toLogicalType(relDataType.getKeyType()),
+                                toLogicalType(relDataType.getValueType()));
+                break;
             case ARRAY:
-                return new ArrayType(toLogicalType(relDataType.getComponentType()));
+                logicalType = new ArrayType(toLogicalType(relDataType.getComponentType()));
+                break;
+            default:
+                // shouldn't arrive in here
+                throw new TableException("Type is not supported: " + relDataType.getSqlTypeName());
         }
-        // shouldn't arrive in here
-        throw new TableException("Type is not supported: " + relDataType.getSqlTypeName());
+        return logicalType.copy(relDataType.isNullable());
     }
 }
