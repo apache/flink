@@ -26,6 +26,7 @@ import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.util.CollectionUtil;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -119,7 +120,8 @@ public class TestManagedSinkCommittableSerializer
     private CatalogPartitionSpec deserializePartitionSpec(DataInputDeserializer in)
             throws IOException {
         int size = in.readInt();
-        LinkedHashMap<String, String> partitionKVs = new LinkedHashMap<>(size);
+        LinkedHashMap<String, String> partitionKVs =
+                CollectionUtil.newLinkedHashMapWithExpectedSize(size);
         for (int i = 0; i < size; i++) {
             String partitionKey = in.readUTF();
             String partitionValue = in.readUTF();

@@ -123,7 +123,6 @@ import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -2188,7 +2187,8 @@ public class HiveParserBaseSemanticAnalyzer {
                         cluster);
 
                 List<String> parts = ((CatalogTable) table).getPartitionKeys();
-                partSpec = new LinkedHashMap<>(partspec.getChildCount());
+                partSpec =
+                        CollectionUtil.newLinkedHashMapWithExpectedSize(partspec.getChildCount());
                 for (String part : parts) {
                     partSpec.put(part, tmpPartSpec.get(part));
                 }

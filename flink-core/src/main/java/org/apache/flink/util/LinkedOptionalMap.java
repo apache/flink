@@ -63,7 +63,8 @@ public final class LinkedOptionalMap<K, V> {
     public static <K, V> LinkedOptionalMap<K, V> optionalMapOf(
             Map<K, V> sourceMap, Function<K, String> keyNameGetter) {
 
-        LinkedHashMap<String, KeyValue<K, V>> underlyingMap = new LinkedHashMap<>(sourceMap.size());
+        LinkedHashMap<String, KeyValue<K, V>> underlyingMap =
+                CollectionUtil.newLinkedHashMapWithExpectedSize(sourceMap.size());
 
         sourceMap.forEach(
                 (k, v) -> {
@@ -94,7 +95,7 @@ public final class LinkedOptionalMap<K, V> {
     }
 
     public LinkedOptionalMap(int initialSize) {
-        this(new LinkedHashMap<>(initialSize));
+        this(CollectionUtil.newLinkedHashMapWithExpectedSize(initialSize));
     }
 
     @SuppressWarnings("CopyConstructorMissesField")
@@ -174,7 +175,8 @@ public final class LinkedOptionalMap<K, V> {
      * IllegalStateException}.
      */
     public LinkedHashMap<K, V> unwrapOptionals() {
-        final LinkedHashMap<K, V> unwrapped = new LinkedHashMap<>(underlyingMap.size());
+        final LinkedHashMap<K, V> unwrapped =
+                CollectionUtil.newLinkedHashMapWithExpectedSize(underlyingMap.size());
 
         for (Entry<String, KeyValue<K, V>> entry : underlyingMap.entrySet()) {
             String namedKey = entry.getKey();
