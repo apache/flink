@@ -154,9 +154,9 @@ public class EmbeddedLeaderService {
     //  creating contenders and listeners
     // ------------------------------------------------------------------------
 
-    public LeaderElection createLeaderElectionService() {
+    public LeaderElection createLeaderElectionService(String contenderID) {
         checkState(!shutdown, "leader election service is shut down");
-        return new EmbeddedLeaderElection();
+        return new EmbeddedLeaderElection(contenderID);
     }
 
     public LeaderRetrievalService createLeaderRetrievalService() {
@@ -311,9 +311,7 @@ public class EmbeddedLeaderService {
                 currentLeaderProposed = embeddedLeaderElection;
                 currentLeaderProposed.isLeader = true;
 
-                LOG.info(
-                        "Proposing leadership to contender {}",
-                        embeddedLeaderElection.contender.getDescription());
+                LOG.info("Proposing leadership to contender {}", embeddedLeaderElection.contender);
 
                 return execute(
                         new GrantLeadershipCall(
@@ -442,11 +440,16 @@ public class EmbeddedLeaderService {
 
     private class EmbeddedLeaderElection implements LeaderElection {
 
+        final String contenderID;
         volatile LeaderContender contender;
 
         volatile boolean isLeader;
 
         volatile boolean running;
+
+        EmbeddedLeaderElection(String contenderID) {
+            this.contenderID = contenderID;
+        }
 
         @Override
         public void startLeaderElection(LeaderContender contender) throws Exception {
