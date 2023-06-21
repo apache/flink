@@ -31,6 +31,7 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.JavaSerializer;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -155,7 +156,7 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId> extends RichSour
                                         "message-acknowledging-source-state",
                                         new JavaSerializer<>()));
 
-        this.idsForCurrentCheckpoint = new HashSet<>(64);
+        this.idsForCurrentCheckpoint = CollectionUtil.newHashSetWithExpectedSize(64);
         this.pendingCheckpoints = new ArrayDeque<>();
         this.idsProcessedButNotAcknowledged = new HashSet<>();
 
@@ -235,7 +236,7 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId> extends RichSour
 
         pendingCheckpoints.addLast(
                 new Tuple2<>(context.getCheckpointId(), idsForCurrentCheckpoint));
-        idsForCurrentCheckpoint = new HashSet<>(64);
+        idsForCurrentCheckpoint = CollectionUtil.newHashSetWithExpectedSize(64);
 
         this.checkpointedState.clear();
         this.checkpointedState.add(

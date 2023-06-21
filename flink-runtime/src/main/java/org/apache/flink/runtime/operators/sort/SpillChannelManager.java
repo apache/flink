@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.operators.sort;
 
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
+import org.apache.flink.util.CollectionUtil;
 
 import java.io.File;
 import java.util.HashSet;
@@ -36,8 +37,8 @@ final class SpillChannelManager implements AutoCloseable {
     private volatile boolean closed;
 
     public SpillChannelManager() {
-        this.channelsToDeleteAtShutdown = new HashSet<>(64);
-        this.openChannels = new HashSet<>(64);
+        this.channelsToDeleteAtShutdown = CollectionUtil.newHashSetWithExpectedSize(64);
+        this.openChannels = CollectionUtil.newHashSetWithExpectedSize(64);
     }
 
     /**

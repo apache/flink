@@ -33,6 +33,7 @@ import org.apache.flink.runtime.rest.messages.job.metrics.MetricsAggregationPara
 import org.apache.flink.runtime.rest.messages.job.metrics.MetricsFilterParameter;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
@@ -43,7 +44,6 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -182,7 +182,7 @@ public abstract class AbstractAggregatingMetricsHandler<
      */
     private static Collection<String> getAvailableMetrics(
             Collection<? extends MetricStore.ComponentMetricStore> stores) {
-        Set<String> uniqueMetrics = new HashSet<>(32);
+        Set<String> uniqueMetrics = CollectionUtil.newHashSetWithExpectedSize(32);
         for (MetricStore.ComponentMetricStore store : stores) {
             uniqueMetrics.addAll(store.metrics.keySet());
         }

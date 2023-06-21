@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkUserCodeClassLoader;
 import org.apache.flink.util.FlinkUserCodeClassLoaders;
@@ -402,7 +403,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
             // NOTE: do not store the class paths, i.e. URLs, into a set for performance reasons
             //       see http://findbugs.sourceforge.net/bugDescriptions.html#DMI_COLLECTION_OF_URLS
             //       -> alternatively, compare their string representation
-            this.classPaths = new HashSet<>(requiredClassPaths.size());
+            this.classPaths = CollectionUtil.newHashSetWithExpectedSize(requiredClassPaths.size());
             for (URL url : requiredClassPaths) {
                 classPaths.add(url.toString());
             }
