@@ -26,6 +26,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
+import static org.apache.flink.util.CollectionUtil.HASH_MAP_DEFAULT_LOAD_FACTOR;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for java collection utilities. */
@@ -56,28 +57,44 @@ public class CollectionUtilTest {
 
     @Test
     public void testComputeCapacity() {
-        Assertions.assertEquals(1, CollectionUtil.computeRequiredCapacity(0));
-        Assertions.assertEquals(2, CollectionUtil.computeRequiredCapacity(1));
-        Assertions.assertEquals(3, CollectionUtil.computeRequiredCapacity(2));
-        Assertions.assertEquals(5, CollectionUtil.computeRequiredCapacity(3));
-        Assertions.assertEquals(6, CollectionUtil.computeRequiredCapacity(4));
-        Assertions.assertEquals(134, CollectionUtil.computeRequiredCapacity(100));
-        Assertions.assertEquals(1334, CollectionUtil.computeRequiredCapacity(1000));
-        Assertions.assertEquals(13334, CollectionUtil.computeRequiredCapacity(10000));
         Assertions.assertEquals(
-                1431655808, CollectionUtil.computeRequiredCapacity(Integer.MAX_VALUE / 2));
+                1, CollectionUtil.computeRequiredCapacity(0, HASH_MAP_DEFAULT_LOAD_FACTOR));
+        Assertions.assertEquals(
+                2, CollectionUtil.computeRequiredCapacity(1, HASH_MAP_DEFAULT_LOAD_FACTOR));
+        Assertions.assertEquals(
+                3, CollectionUtil.computeRequiredCapacity(2, HASH_MAP_DEFAULT_LOAD_FACTOR));
+        Assertions.assertEquals(
+                5, CollectionUtil.computeRequiredCapacity(3, HASH_MAP_DEFAULT_LOAD_FACTOR));
+        Assertions.assertEquals(
+                6, CollectionUtil.computeRequiredCapacity(4, HASH_MAP_DEFAULT_LOAD_FACTOR));
+        Assertions.assertEquals(
+                134, CollectionUtil.computeRequiredCapacity(100, HASH_MAP_DEFAULT_LOAD_FACTOR));
+        Assertions.assertEquals(
+                1334, CollectionUtil.computeRequiredCapacity(1000, HASH_MAP_DEFAULT_LOAD_FACTOR));
+        Assertions.assertEquals(
+                13334, CollectionUtil.computeRequiredCapacity(10000, HASH_MAP_DEFAULT_LOAD_FACTOR));
+
+        Assertions.assertEquals(20001, CollectionUtil.computeRequiredCapacity(10000, 0.5f));
+
+        Assertions.assertEquals(100001, CollectionUtil.computeRequiredCapacity(10000, 0.1f));
+
+        Assertions.assertEquals(
+                1431655808,
+                CollectionUtil.computeRequiredCapacity(
+                        Integer.MAX_VALUE / 2, HASH_MAP_DEFAULT_LOAD_FACTOR));
         Assertions.assertEquals(
                 Integer.MAX_VALUE,
-                CollectionUtil.computeRequiredCapacity(1 + Integer.MAX_VALUE / 2));
+                CollectionUtil.computeRequiredCapacity(
+                        1 + Integer.MAX_VALUE / 2, HASH_MAP_DEFAULT_LOAD_FACTOR));
 
         try {
-            CollectionUtil.computeRequiredCapacity(-1);
+            CollectionUtil.computeRequiredCapacity(-1, HASH_MAP_DEFAULT_LOAD_FACTOR);
             Assertions.fail();
         } catch (IllegalArgumentException expected) {
         }
 
         try {
-            CollectionUtil.computeRequiredCapacity(Integer.MIN_VALUE);
+            CollectionUtil.computeRequiredCapacity(Integer.MIN_VALUE, HASH_MAP_DEFAULT_LOAD_FACTOR);
             Assertions.fail();
         } catch (IllegalArgumentException expected) {
         }

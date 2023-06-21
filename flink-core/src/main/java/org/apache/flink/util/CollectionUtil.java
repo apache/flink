@@ -151,7 +151,9 @@ public final class CollectionUtil {
      * @param <V> the type of mapped values.
      */
     public static <K, V> HashMap<K, V> newHashMapWithExpectedSize(int expectedSize) {
-        return new HashMap<>(computeRequiredCapacity(expectedSize), HASH_MAP_DEFAULT_LOAD_FACTOR);
+        return new HashMap<>(
+                computeRequiredCapacity(expectedSize, HASH_MAP_DEFAULT_LOAD_FACTOR),
+                HASH_MAP_DEFAULT_LOAD_FACTOR);
     }
 
     /**
@@ -165,7 +167,8 @@ public final class CollectionUtil {
      */
     public static <K, V> LinkedHashMap<K, V> newLinkedHashMapWithExpectedSize(int expectedSize) {
         return new LinkedHashMap<>(
-                computeRequiredCapacity(expectedSize), HASH_MAP_DEFAULT_LOAD_FACTOR);
+                computeRequiredCapacity(expectedSize, HASH_MAP_DEFAULT_LOAD_FACTOR),
+                HASH_MAP_DEFAULT_LOAD_FACTOR);
     }
 
     /**
@@ -177,7 +180,9 @@ public final class CollectionUtil {
      * @param <E> the type of elements stored by this set.
      */
     public static <E> HashSet<E> newHashSetWithExpectedSize(int expectedSize) {
-        return new HashSet<>(computeRequiredCapacity(expectedSize), HASH_MAP_DEFAULT_LOAD_FACTOR);
+        return new HashSet<>(
+                computeRequiredCapacity(expectedSize, HASH_MAP_DEFAULT_LOAD_FACTOR),
+                HASH_MAP_DEFAULT_LOAD_FACTOR);
     }
 
     /**
@@ -190,7 +195,8 @@ public final class CollectionUtil {
      */
     public static <E> LinkedHashSet<E> newLinkedHashSetWithExpectedSize(int expectedSize) {
         return new LinkedHashSet<>(
-                computeRequiredCapacity(expectedSize), HASH_MAP_DEFAULT_LOAD_FACTOR);
+                computeRequiredCapacity(expectedSize, HASH_MAP_DEFAULT_LOAD_FACTOR),
+                HASH_MAP_DEFAULT_LOAD_FACTOR);
     }
 
     /**
@@ -198,13 +204,14 @@ public final class CollectionUtil {
      * HASH_MAP_DEFAULT_LOAD_FACTOR.
      */
     @VisibleForTesting
-    static int computeRequiredCapacity(int expectedSize) {
+    static int computeRequiredCapacity(int expectedSize, float loadFactor) {
         Preconditions.checkArgument(expectedSize >= 0);
+        Preconditions.checkArgument(loadFactor > 0f);
         if (expectedSize <= 2) {
             return expectedSize + 1;
         }
         return expectedSize < (Integer.MAX_VALUE / 2 + 1)
-                ? (int) ((float) expectedSize / HASH_MAP_DEFAULT_LOAD_FACTOR + 1.0f)
+                ? (int) ((float) expectedSize / loadFactor + 1.0f)
                 : Integer.MAX_VALUE;
     }
 }

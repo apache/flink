@@ -38,7 +38,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -58,41 +57,40 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
             Collection<StateHandleDownloadSpec> downloadRequests,
             CloseableRegistry closeableRegistry)
             throws Exception {
+
         // We use this closer for fine-grained shutdown of all parallel downloading.
         CloseableRegistry internalCloser = new CloseableRegistry();
         // Make sure we also react to external close signals.
         closeableRegistry.registerCloseable(internalCloser);
-        boolean failureCleanupRequired = true;
         List<CompletableFuture<Void>> futures = Collections.emptyList();
         try {
-            futures =
-                    transferAllStateDataToDirectoryAsync(downloadRequests, internalCloser)
-                            .collect(Collectors.toList());
-            // Wait until either all futures completed successfully or one failed exceptionally.
-            FutureUtils.waitForAll(futures).get();
-            // All went well, no failure cleanup required
-            failureCleanupRequired = false;
-        } catch (ExecutionException e) {
+            try {
+                futures =
+                        transferAllStateDataToDirectoryAsync(downloadRequests, internalCloser)
+                                .collect(Collectors.toList());
+                // Wait until either all futures completed successfully or one failed exceptionally.
+                FutureUtils.waitForAll(futures).get();
+            } finally {
+                // Unregister and close the internal closer. In a failure case, this should
+                // interrupt ongoing downloads.
+                if (closeableRegistry.unregisterCloseable(internalCloser)) {
+                    IOUtils.closeQuietly(internalCloser);
+                }
+            }
+        } catch (Exception e) {
+            // Cleanup on exception: cancel all tasks and delete the created directories
+            futures.forEach(future -> future.cancel(true));
+            downloadRequests.stream()
+                    .map(StateHandleDownloadSpec::getDownloadDestination)
+                    .map(Path::toFile)
+                    .forEach(FileUtils::deleteDirectoryQuietly);
+            // Error reporting
             Throwable throwable = ExceptionUtils.stripExecutionException(e);
             throwable = ExceptionUtils.stripException(throwable, RuntimeException.class);
             if (throwable instanceof IOException) {
                 throw (IOException) throwable;
             } else {
                 throw new FlinkRuntimeException("Failed to download data for state handles.", e);
-            }
-        } finally {
-            // Unregister and close the internal closer. In a failure case, this should interrupt
-            // ongoing downloads.
-            if (closeableRegistry.unregisterCloseable(internalCloser)) {
-                IOUtils.closeQuietly(internalCloser);
-            }
-            if (failureCleanupRequired) {
-                // Cleanup on exception: cancel all tasks and delete the created directories
-                futures.forEach(future -> future.cancel(true));
-                downloadRequests.stream()
-                        .map(StateHandleDownloadSpec::getDownloadDestination)
-                        .map(Path::toFile)
-                        .forEach(FileUtils::deleteDirectoryQuietly);
             }
         }
     }
