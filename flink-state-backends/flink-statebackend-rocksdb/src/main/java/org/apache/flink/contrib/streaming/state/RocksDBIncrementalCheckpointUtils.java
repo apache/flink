@@ -186,7 +186,7 @@ public class RocksDBIncrementalCheckpointUtils {
             Score handleScore =
                     stateHandleEvaluator(
                             rawStateHandle, targetKeyGroupRange, overlapFractionThreshold);
-            if (handleScore.compareTo(bestScore) > 0) {
+            if (bestStateHandle == null || handleScore.compareTo(bestScore) > 0) {
                 bestStateHandle = rawStateHandle;
                 bestScore = handleScore;
             }
