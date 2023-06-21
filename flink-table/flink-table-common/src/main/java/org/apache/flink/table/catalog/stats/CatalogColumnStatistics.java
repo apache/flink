@@ -19,6 +19,7 @@
 package org.apache.flink.table.catalog.stats;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.util.CollectionUtil;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -67,7 +68,7 @@ public class CatalogColumnStatistics {
      */
     public CatalogColumnStatistics copy() {
         Map<String, CatalogColumnStatisticsDataBase> copy =
-                new HashMap<>(columnStatisticsData.size());
+                CollectionUtil.newHashMapWithExpectedSize(columnStatisticsData.size());
         for (Map.Entry<String, CatalogColumnStatisticsDataBase> entry :
                 columnStatisticsData.entrySet()) {
             copy.put(entry.getKey(), entry.getValue().copy());

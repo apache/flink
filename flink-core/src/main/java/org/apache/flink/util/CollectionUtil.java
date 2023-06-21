@@ -77,7 +77,7 @@ public final class CollectionUtil {
 
     /** Partition a collection into approximately n buckets. */
     public static <T> Collection<List<T>> partition(Collection<T> elements, int numBuckets) {
-        Map<Integer, List<T>> buckets = new HashMap<>(numBuckets);
+        Map<Integer, List<T>> buckets = newHashMapWithExpectedSize(numBuckets);
 
         int initialCapacity = elements.size() / numBuckets;
 
@@ -211,7 +211,7 @@ public final class CollectionUtil {
             return expectedSize + 1;
         }
         return expectedSize < (Integer.MAX_VALUE / 2 + 1)
-                ? (int) ((float) expectedSize / loadFactor + 1.0f)
+                ? (int) Math.ceil(expectedSize / loadFactor)
                 : Integer.MAX_VALUE;
     }
 }

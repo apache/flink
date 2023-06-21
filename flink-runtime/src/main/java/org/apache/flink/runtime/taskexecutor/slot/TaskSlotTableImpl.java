@@ -32,6 +32,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -44,7 +45,6 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -127,7 +127,7 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
         this.defaultSlotResourceProfile = Preconditions.checkNotNull(defaultSlotResourceProfile);
         this.memoryPageSize = memoryPageSize;
 
-        this.taskSlots = new HashMap<>(numberSlots);
+        this.taskSlots = CollectionUtil.newHashMapWithExpectedSize(numberSlots);
 
         this.timerService = Preconditions.checkNotNull(timerService);
 
@@ -135,11 +135,11 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
                 new ResourceBudgetManager(
                         Preconditions.checkNotNull(totalAvailableResourceProfile));
 
-        allocatedSlots = new HashMap<>(numberSlots);
+        allocatedSlots = CollectionUtil.newHashMapWithExpectedSize(numberSlots);
 
-        taskSlotMappings = new HashMap<>(4 * numberSlots);
+        taskSlotMappings = CollectionUtil.newHashMapWithExpectedSize(4 * numberSlots);
 
-        slotsPerJob = new HashMap<>(4);
+        slotsPerJob = CollectionUtil.newHashMapWithExpectedSize(4);
 
         slotActions = null;
         state = State.CREATED;

@@ -31,6 +31,7 @@ import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -152,7 +153,9 @@ public class PendingCheckpoint implements Checkpoint {
         this.checkpointTimestamp = checkpointTimestamp;
         this.checkpointPlan = checkNotNull(checkpointPlan);
 
-        this.notYetAcknowledgedTasks = new HashMap<>(checkpointPlan.getTasksToWaitFor().size());
+        this.notYetAcknowledgedTasks =
+                CollectionUtil.newHashMapWithExpectedSize(
+                        checkpointPlan.getTasksToWaitFor().size());
         for (Execution execution : checkpointPlan.getTasksToWaitFor()) {
             notYetAcknowledgedTasks.put(execution.getAttemptId(), execution.getVertex());
         }

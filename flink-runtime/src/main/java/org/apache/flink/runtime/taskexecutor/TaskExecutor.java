@@ -131,6 +131,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.threadinfo.ThreadInfoSamplesRequest;
 import org.apache.flink.types.SerializableOptional;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkExpectedException;
@@ -284,7 +285,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     @Nullable private UUID currentRegistrationTimeoutId;
 
     private final Map<JobID, Collection<CompletableFuture<ExecutionState>>>
-            taskResultPartitionCleanupFuturesPerJob = new HashMap<>(8);
+            taskResultPartitionCleanupFuturesPerJob = CollectionUtil.newHashMapWithExpectedSize(8);
 
     private final ThreadInfoSampleService threadInfoSampleService;
 

@@ -20,6 +20,7 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.util.CollectionUtil;
 
 import org.rocksdb.CompactionStyle;
 
@@ -163,7 +164,7 @@ public enum PredefinedOptions {
     private final Map<String, Object> options;
 
     PredefinedOptions(Map<ConfigOption<?>, Object> initMap) {
-        options = new HashMap<>(initMap.size());
+        options = CollectionUtil.newHashMapWithExpectedSize(initMap.size());
         for (Map.Entry<ConfigOption<?>, Object> entry : initMap.entrySet()) {
             options.put(entry.getKey().key(), entry.getValue());
         }

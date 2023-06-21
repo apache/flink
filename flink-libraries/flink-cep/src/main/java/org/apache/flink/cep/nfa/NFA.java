@@ -38,6 +38,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
@@ -119,7 +120,7 @@ public class NFA<T> {
     }
 
     private Map<String, State<T>> loadStates(final Collection<State<T>> validStates) {
-        Map<String, State<T>> tmp = new HashMap<>(4);
+        Map<String, State<T>> tmp = CollectionUtil.newHashMapWithExpectedSize(4);
         for (State<T> state : validStates) {
             tmp.put(state.getName(), state);
         }

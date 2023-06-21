@@ -22,6 +22,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CompositeStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateUtil;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
@@ -75,7 +76,7 @@ public class TaskStateSnapshot implements CompositeStateHandle {
     }
 
     public TaskStateSnapshot(int size, boolean isTaskFinished) {
-        this(new HashMap<>(size), false, isTaskFinished);
+        this(CollectionUtil.newHashMapWithExpectedSize(size), false, isTaskFinished);
     }
 
     public TaskStateSnapshot(Map<OperatorID, OperatorSubtaskState> subtaskStatesByOperatorID) {

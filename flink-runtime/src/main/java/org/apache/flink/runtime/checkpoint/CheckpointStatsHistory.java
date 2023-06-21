@@ -18,12 +18,13 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.util.CollectionUtil;
+
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -171,7 +172,7 @@ public class CheckpointStatsHistory implements Serializable {
         List<AbstractCheckpointStats> checkpointsHistory;
         Map<Long, AbstractCheckpointStats> checkpointsById;
 
-        checkpointsById = new HashMap<>(checkpointsArray.length);
+        checkpointsById = CollectionUtil.newHashMapWithExpectedSize(checkpointsArray.length);
 
         if (maxSize == 0) {
             checkpointsHistory = Collections.emptyList();

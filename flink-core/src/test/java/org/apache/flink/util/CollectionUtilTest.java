@@ -64,9 +64,17 @@ public class CollectionUtilTest {
         Assertions.assertEquals(
                 3, CollectionUtil.computeRequiredCapacity(2, HASH_MAP_DEFAULT_LOAD_FACTOR));
         Assertions.assertEquals(
-                5, CollectionUtil.computeRequiredCapacity(3, HASH_MAP_DEFAULT_LOAD_FACTOR));
+                4, CollectionUtil.computeRequiredCapacity(3, HASH_MAP_DEFAULT_LOAD_FACTOR));
         Assertions.assertEquals(
                 6, CollectionUtil.computeRequiredCapacity(4, HASH_MAP_DEFAULT_LOAD_FACTOR));
+        Assertions.assertEquals(
+                7, CollectionUtil.computeRequiredCapacity(5, HASH_MAP_DEFAULT_LOAD_FACTOR));
+        Assertions.assertEquals(
+                8, CollectionUtil.computeRequiredCapacity(6, HASH_MAP_DEFAULT_LOAD_FACTOR));
+        Assertions.assertEquals(
+                10, CollectionUtil.computeRequiredCapacity(7, HASH_MAP_DEFAULT_LOAD_FACTOR));
+        Assertions.assertEquals(
+                11, CollectionUtil.computeRequiredCapacity(8, HASH_MAP_DEFAULT_LOAD_FACTOR));
         Assertions.assertEquals(
                 134, CollectionUtil.computeRequiredCapacity(100, HASH_MAP_DEFAULT_LOAD_FACTOR));
         Assertions.assertEquals(
@@ -74,9 +82,9 @@ public class CollectionUtilTest {
         Assertions.assertEquals(
                 13334, CollectionUtil.computeRequiredCapacity(10000, HASH_MAP_DEFAULT_LOAD_FACTOR));
 
-        Assertions.assertEquals(20001, CollectionUtil.computeRequiredCapacity(10000, 0.5f));
+        Assertions.assertEquals(20000, CollectionUtil.computeRequiredCapacity(10000, 0.5f));
 
-        Assertions.assertEquals(100001, CollectionUtil.computeRequiredCapacity(10000, 0.1f));
+        Assertions.assertEquals(100000, CollectionUtil.computeRequiredCapacity(10000, 0.1f));
 
         Assertions.assertEquals(
                 1431655808,
