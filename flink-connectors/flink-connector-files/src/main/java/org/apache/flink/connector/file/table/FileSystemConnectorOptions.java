@@ -225,10 +225,10 @@ public class FileSystemConnectorOptions {
             key("sink.partition-commit.policy.class.parameters")
                     .stringType()
                     .asList()
-                    .defaultValues()
+                    .noDefaultValue()
                     .withDescription(
-                            "The parameters list for custom policy class"
-                                    + " A (semicolon-separated) list of patterns");
+                            "A (semicolon-separated) list of patterns that for custom policy class"
+                                    + "PartitionCommitPolicy interface. Only work in custom commit policy");
 
     public static final ConfigOption<String> SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME =
             key("sink.partition-commit.success-file.name")

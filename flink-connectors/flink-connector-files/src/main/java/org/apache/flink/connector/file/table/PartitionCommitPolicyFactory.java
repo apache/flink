@@ -46,7 +46,7 @@ public class PartitionCommitPolicyFactory implements Serializable {
         this.policyKind = policyKind;
         this.customClass = customClass;
         this.successFileName = successFileName;
-        this.parameters = Arrays.asList();
+        this.parameters = null;
     }
 
     public PartitionCommitPolicyFactory(
@@ -64,11 +64,6 @@ public class PartitionCommitPolicyFactory implements Serializable {
             return Collections.emptyList();
         }
         String[] policyStrings = policyKind.split(",");
-        String[] paramStrings = parameters.toArray(new String[parameters.size()]);
-        Class<?>[] classes = new Class<?>[parameters.size()];
-        for (int i = 0; i < parameters.size(); i++) {
-            classes[i] = String.class;
-        }
         return Arrays.stream(policyStrings)
                 .map(
                         name -> {
@@ -80,7 +75,12 @@ public class PartitionCommitPolicyFactory implements Serializable {
                                             successFileName, fsSupplier.get());
                                 case PartitionCommitPolicy.CUSTOM:
                                     try {
-                                        if (classes.length != 0) {
+                                        if (parameters != null && !parameters.isEmpty()) {
+                                            String[] paramStrings = parameters.toArray(new String[parameters.size()]);
+                                            Class<?>[] classes = new Class<?>[parameters.size()];
+                                            for (int i = 0; i < parameters.size(); i++) {
+                                                classes[i] = String.class;
+                                            }
                                             return (PartitionCommitPolicy)
                                                     cl.loadClass(customClass)
                                                             .getConstructor(classes)
