@@ -24,11 +24,14 @@ import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.JobStatusHook;
 import org.apache.flink.python.PythonOptions;
 import org.apache.flink.python.chain.PythonOperatorChainingOptimizer;
 import org.apache.flink.python.util.PythonConfigUtil;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.util.List;
 
@@ -61,6 +64,24 @@ public class ChainingOptimizingExecutor implements Executor {
 
         PythonConfigUtil.setPartitionCustomOperatorNumPartitions(chainedTransformations);
         return executor.createPipeline(chainedTransformations, configuration, defaultJobName);
+    }
+
+    @Override
+    public Pipeline createPipeline(
+            List<Transformation<?>> transformations,
+            ReadableConfig configuration,
+            @Nullable String defaultJobName,
+            List<JobStatusHook> jobStatusHookList) {
+        List<Transformation<?>> chainedTransformations = transformations;
+        if (configuration
+                .getOptional(PythonOptions.PYTHON_OPERATOR_CHAINING_ENABLED)
+                .orElse(getConfiguration().get(PythonOptions.PYTHON_OPERATOR_CHAINING_ENABLED))) {
+            chainedTransformations = PythonOperatorChainingOptimizer.optimize(transformations);
+        }
+
+        PythonConfigUtil.setPartitionCustomOperatorNumPartitions(chainedTransformations);
+        return executor.createPipeline(
+                chainedTransformations, configuration, defaultJobName, jobStatusHookList);
     }
 
     @Override

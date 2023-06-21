@@ -27,6 +27,7 @@ import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.JobStatusHook;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.table.api.TableException;
@@ -82,6 +83,21 @@ public class DefaultExecutor implements Executor {
 
         final StreamGraph streamGraph = executionEnvironment.generateStreamGraph(transformations);
         setJobName(streamGraph, defaultJobName);
+        return streamGraph;
+    }
+
+    @Override
+    public Pipeline createPipeline(
+            List<Transformation<?>> transformations,
+            ReadableConfig tableConfiguration,
+            @Nullable String defaultJobName,
+            List<JobStatusHook> jobStatusHookList) {
+        StreamGraph streamGraph =
+                (StreamGraph) createPipeline(transformations, tableConfiguration, defaultJobName);
+        for (JobStatusHook hook : jobStatusHookList) {
+            streamGraph.registerJobStatusHook(hook);
+        }
+        jobStatusHookList.clear();
         return streamGraph;
     }
 
