@@ -142,6 +142,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiPredicate;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.planner.delegation.hive.HiveParserTypeCheckProcFactory.DefaultExprProcessor.getFunctionText;
@@ -155,7 +156,7 @@ public class HiveParserUtils {
 
     public static final String BRIDGING_SQL_FUNCTION_CLZ_NAME =
             "org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction";
-    private static final String bridgingSqlAggFunctionClzName =
+    private static final String BRIDGING_SQL_AGG_FUNCTION_CLZ_NAME =
             "org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction";
 
     private static final Class immutableListClz =
@@ -171,6 +172,21 @@ public class HiveParserUtils {
             HiveReflectionUtils.tryGetClass(
                     "org.apache.flink.calcite.shaded.com.google.common.collect.ImmutableSet");
     private static final boolean useShadedImmutableSet = shadedImmutableSetClz != null;
+
+    private static final BiPredicate<SqlOperator, String> BRIDGING_SQL_FUNCTION_CHECKER =
+            (sqlOperator, clazzName) -> {
+                if (sqlOperator != null) {
+                    Class<?> clazz = HiveReflectionUtils.tryGetClass(clazzName);
+                    if (clazz == null) {
+                        throw new FlinkHiveException(
+                                String.format(
+                                        "Fail to get class %s for the class can't be found",
+                                        clazzName));
+                    }
+                    return clazz.isInstance(sqlOperator);
+                }
+                return false;
+            };
 
     private HiveParserUtils() {}
 
@@ -622,10 +638,9 @@ public class HiveParserUtils {
             SqlOperator sqlOperator =
                     getSqlOperator(aggName, opTable, SqlFunctionCategory.USER_DEFINED_FUNCTION);
             if (isBridgingSqlAggFunction(sqlOperator)
-                    && getBridgingAggSqlFunctionDefinition(sqlOperator)
-                            instanceof HiveGenericUDAF) {
+                    && getBridgingSqlFunctionDefinition(sqlOperator) instanceof HiveGenericUDAF) {
                 HiveGenericUDAF hiveGenericUDAF =
-                        (HiveGenericUDAF) getBridgingAggSqlFunctionDefinition(sqlOperator);
+                        (HiveGenericUDAF) getBridgingSqlFunctionDefinition(sqlOperator);
                 result =
                         hiveGenericUDAF.createEvaluator(
                                 originalParameterTypeInfos.toArray(new ObjectInspector[0]));
@@ -645,48 +660,14 @@ public class HiveParserUtils {
     }
 
     public static boolean isBridgingSqlFunction(SqlOperator sqlOperator) {
-        if (sqlOperator != null) {
-            Class<?> clazz = HiveReflectionUtils.tryGetClass(BRIDGING_SQL_FUNCTION_CLZ_NAME);
-            if (clazz == null) {
-                throw new FlinkHiveException(
-                        String.format(
-                                "Fail to get class %s for the class can't be found.",
-                                BRIDGING_SQL_FUNCTION_CLZ_NAME));
-            }
-            return clazz.isInstance(sqlOperator);
-        }
-        return false;
+        return BRIDGING_SQL_FUNCTION_CHECKER.test(sqlOperator, BRIDGING_SQL_FUNCTION_CLZ_NAME);
     }
 
     private static boolean isBridgingSqlAggFunction(SqlOperator sqlOperator) {
-        if (sqlOperator != null) {
-            Class<?> clazz = HiveReflectionUtils.tryGetClass(bridgingSqlAggFunctionClzName);
-            if (clazz == null) {
-                throw new FlinkHiveException(
-                        String.format(
-                                "Fail to get class %s for the class can't be found",
-                                bridgingSqlAggFunctionClzName));
-            }
-            return clazz.isInstance(sqlOperator);
-        }
-        return false;
+        return BRIDGING_SQL_FUNCTION_CHECKER.test(sqlOperator, BRIDGING_SQL_AGG_FUNCTION_CLZ_NAME);
     }
 
     private static FunctionDefinition getBridgingSqlFunctionDefinition(SqlOperator sqlOperator) {
-        try {
-            return (FunctionDefinition)
-                    HiveReflectionUtils.invokeMethod(
-                            sqlOperator.getClass(),
-                            sqlOperator,
-                            "getDefinition",
-                            new Class[] {},
-                            new Object[] {});
-        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-            throw new FlinkHiveException("Failed to create immutable list", e);
-        }
-    }
-
-    private static FunctionDefinition getBridgingAggSqlFunctionDefinition(SqlOperator sqlOperator) {
         try {
             return (FunctionDefinition)
                     HiveReflectionUtils.invokeMethod(
