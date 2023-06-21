@@ -228,7 +228,7 @@ public class LeaderElectionTest {
 
         @Override
         public LeaderElection createLeaderElection() {
-            return embeddedLeaderService.createLeaderElectionService();
+            return embeddedLeaderService.createLeaderElectionService("embedded_leader_election");
         }
     }
 
