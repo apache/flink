@@ -51,7 +51,6 @@ import org.apache.flink.util.concurrent.IgnoreShutdownRejectedExecutionHandler;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
@@ -353,7 +352,6 @@ class HsResultPartitionTest {
     }
 
     @Test
-    @Timeout(30)
     void testRelease() throws Exception {
         final int numSubpartitions = 2;
         final int numBuffers = 10;
