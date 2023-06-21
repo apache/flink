@@ -172,8 +172,8 @@ public class TieredResultPartition extends ResultPartition {
 
     @Override
     public void close() {
-        super.close();
         tieredStorageProducerClient.close();
+        super.close();
     }
 
     @Override
