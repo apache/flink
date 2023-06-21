@@ -46,6 +46,7 @@ import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+import org.apache.flink.util.concurrent.IgnoreShutdownRejectedExecutionHandler;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -62,7 +63,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Queue;
 import java.util.Random;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -106,13 +106,7 @@ class HsResultPartitionTest {
                 new ScheduledThreadPoolExecutor(
                         numThreads,
                         new ExecutorThreadFactory("test-io-scheduler-thread"),
-                        (ignored, executor) -> {
-                            if (executor.isShutdown()) {
-                                // ignore rejected as shutdown.
-                            } else {
-                                throw new RejectedExecutionException();
-                            }
-                        });
+                        new IgnoreShutdownRejectedExecutionHandler());
     }
 
     @AfterEach

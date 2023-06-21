@@ -17,6 +17,8 @@
 
 package org.apache.flink.changelog.fs;
 
+import org.apache.flink.util.concurrent.IgnoreShutdownRejectedExecutionHandler;
+
 import org.slf4j.Logger;
 
 import java.util.concurrent.RejectedExecutionException;
@@ -50,12 +52,6 @@ class SchedulerFactory {
                     thread.setUncaughtExceptionHandler(INSTANCE);
                     return thread;
                 },
-                (ignored, executor) -> {
-                    if (executor.isShutdown()) {
-                        log.debug("Execution rejected because shutdown is in progress");
-                    } else {
-                        throw new RejectedExecutionException();
-                    }
-                });
+                new IgnoreShutdownRejectedExecutionHandler(log));
     }
 }
