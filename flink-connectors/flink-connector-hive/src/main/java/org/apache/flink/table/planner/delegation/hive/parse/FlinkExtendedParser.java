@@ -48,7 +48,7 @@ public class FlinkExtendedParser {
                     ResetOperationParseStrategy.INSTANCE);
 
     /**
-     * Convert the statement which match some special command of Flink to {@link Operation}.
+     * Convert the statement which matches some special command of Flink to {@link Operation}.
      *
      * @return the operation for Flink's extended command, empty for no match Flink's extended
      *     command.
@@ -75,9 +75,9 @@ public class FlinkExtendedParser {
     }
 
     /**
-     * Strategy to parse statement to {@link Operation}. parsing some special command which can't
-     * supported by {@link org.apache.flink.table.planner.delegation.hive.HiveParser}, e.g. {@code
-     * QUIT}, {@code CLEAR}.
+     * Strategy to parse some special command which cannot be supported by {@link
+     * org.apache.flink.table.planner.delegation.hive.HiveParser}, e.g. {@code QUIT}, {@code CLEAR},
+     * to {@link Operation}.
      */
     private interface ExtendedParseStrategy {
         /** Determine whether the input statement is satisfied the strategy. */
