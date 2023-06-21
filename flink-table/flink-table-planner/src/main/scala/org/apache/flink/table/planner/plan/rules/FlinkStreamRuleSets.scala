@@ -257,7 +257,7 @@ object FlinkStreamRuleSets {
     CoreRules.UNION_TO_DISTINCT,
 
     // aggregation and projection rules
-    CoreRules.AGGREGATE_PROJECT_MERGE,
+    FlinkAggregateProjectMergeRule.INSTANCE,
     CoreRules.AGGREGATE_PROJECT_PULL_UP_CONSTANTS,
 
     // remove aggregation if it does not aggregate and input is already distinct
