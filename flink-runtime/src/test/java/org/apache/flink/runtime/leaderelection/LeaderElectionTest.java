@@ -127,11 +127,6 @@ public class LeaderElectionTest {
         }
 
         @Override
-        public String getDescription() {
-            return "foobar";
-        }
-
-        @Override
         public void handleError(Exception exception) {
             this.exception = exception;
         }

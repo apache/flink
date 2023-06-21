@@ -203,7 +203,7 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
 
             LOG.info(
                     "LeaderContender {} has been registered for {}.",
-                    contender.getDescription(),
+                    this.contenderID,
                     leaderElectionDriver);
 
             if (issuedLeaderSessionID != null) {
@@ -395,7 +395,7 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
 
         LOG.debug(
                 "Granting leadership to contender {} with session ID {}.",
-                leaderContender.getDescription(),
+                contenderID,
                 issuedLeaderSessionID);
 
         leaderContender.grantLeadership(issuedLeaderSessionID);
@@ -433,11 +433,11 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
         if (confirmedLeaderInformation.isEmpty()) {
             LOG.debug(
                     "Revoking leadership to contender {} while a previous leadership grant wasn't confirmed, yet.",
-                    leaderContender.getDescription());
+                    contenderID);
         } else {
             LOG.debug(
                     "Revoking leadership to contender {} for {}.",
-                    leaderContender.getDescription(),
+                    contenderID,
                     LeaderElectionUtils.convertToString(confirmedLeaderInformation));
         }
 
@@ -455,7 +455,7 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
         if (leaderContender != null) {
             LOG.trace(
                     "Leader node changed while {} is the leader with {}. New leader information {}.",
-                    leaderContender.getDescription(),
+                    contenderID,
                     LeaderElectionUtils.convertToString(confirmedLeaderInformation),
                     LeaderElectionUtils.convertToString(leaderInformation));
             if (!confirmedLeaderInformation.isEmpty()) {
@@ -463,13 +463,11 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
                 if (leaderInformation.isEmpty()) {
                     LOG.debug(
                             "Writing leader information by {} since the external storage is empty.",
-                            leaderContender.getDescription());
+                            contenderID);
                     leaderElectionDriver.publishLeaderInformation(contenderID, confirmedLeaderInfo);
                 } else if (!leaderInformation.equals(confirmedLeaderInfo)) {
                     // the data field does not correspond to the expected leader information
-                    LOG.debug(
-                            "Correcting leader information by {}.",
-                            leaderContender.getDescription());
+                    LOG.debug("Correcting leader information by {}.", contenderID);
                     leaderElectionDriver.publishLeaderInformation(contenderID, confirmedLeaderInfo);
                 }
             }

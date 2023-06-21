@@ -62,7 +62,6 @@ class DefaultLeaderElectionServiceTest {
                             grantLeadership(leaderSessionID);
 
                             testingContender.waitForLeader();
-                            assertThat(testingContender.getDescription()).isEqualTo(TEST_URL);
                             assertThat(testingContender.getLeaderSessionID())
                                     .isEqualTo(
                                             leaderElectionService.getLeaderSessionID(contenderID))
