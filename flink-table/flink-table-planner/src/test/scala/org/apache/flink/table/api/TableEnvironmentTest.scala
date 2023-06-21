@@ -951,6 +951,60 @@ class TableEnvironmentTest {
   }
 
   @Test
+  def testAlterTableDropPartitions(): Unit = {
+    val createTableStmt =
+      """
+        |CREATE TABLE tbl (
+        |  a INT,
+        |  b BIGINT,
+        |  c DATE
+        |) PARTITIONED BY (b, c)
+        |WITH (
+        |  'connector' = 'COLLECTION'
+        |)
+          """.stripMargin
+    tableEnv.executeSql(createTableStmt)
+
+    val catalog = tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
+    val spec1 = new CatalogPartitionSpec(Map("b" -> "1000", "c" -> "2020-05-01").asJava)
+    val part1 = new CatalogPartitionImpl(Map("k1" -> "v1").asJava, "")
+    val spec2 = new CatalogPartitionSpec(Map("b" -> "2000", "c" -> "2020-01-01").asJava)
+    val part2 = new CatalogPartitionImpl(Map("k1" -> "v1").asJava, "")
+    val tablePath = new ObjectPath("default_database", "tbl")
+    // create partition
+    catalog.createPartition(tablePath, spec1, part1, false)
+    catalog.createPartition(tablePath, spec2, part2, false)
+
+    // check the partitions
+    assertThat(catalog.listPartitions(tablePath).toString)
+      .isEqualTo(
+        "[CatalogPartitionSpec{{b=1000, c=2020-05-01}}," +
+          " CatalogPartitionSpec{{b=2000, c=2020-01-01}}]")
+
+    // drop the partitions
+    var tableResult =
+      tableEnv.executeSql("alter table tbl drop partition(b='1000', c ='2020-05-01')")
+    assertEquals(ResultKind.SUCCESS, tableResult.getResultKind)
+    assertThat(catalog.listPartitions(tablePath).toString)
+      .isEqualTo("[CatalogPartitionSpec{{b=2000, c=2020-01-01}}]")
+
+    // drop the partition again with if exists
+    tableResult =
+      tableEnv.executeSql("alter table tbl drop if exists partition(b='1000', c='2020-05-01')")
+    assertEquals(ResultKind.SUCCESS, tableResult.getResultKind)
+    assertThat(catalog.listPartitions(tablePath).toString)
+      .isEqualTo("[CatalogPartitionSpec{{b=2000, c=2020-01-01}}]")
+
+    // drop the partition again without if exists,
+    // should throw exception then
+    assertThatThrownBy(
+      () => tableEnv.executeSql("alter table tbl drop partition (b=1000,c='2020-05-01')"))
+      .isInstanceOf(classOf[TableException])
+      .hasMessageContaining("Could not execute ALTER TABLE default_catalog.default_database.tbl" +
+        " DROP PARTITION (b=1000, c=2020-05-01)")
+  }
+
+  @Test
   def testAlterTableCompactOnNonManagedTable(): Unit = {
     val statement =
       """

@@ -41,7 +41,6 @@ import org.apache.flink.sql.parser.ddl.SqlCreateTableAs;
 import org.apache.flink.sql.parser.ddl.SqlDropCatalog;
 import org.apache.flink.sql.parser.ddl.SqlDropDatabase;
 import org.apache.flink.sql.parser.ddl.SqlDropFunction;
-import org.apache.flink.sql.parser.ddl.SqlDropPartitions;
 import org.apache.flink.sql.parser.ddl.SqlDropTable;
 import org.apache.flink.sql.parser.ddl.SqlDropView;
 import org.apache.flink.sql.parser.ddl.SqlRemoveJar;
@@ -167,7 +166,6 @@ import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropCatalogOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
-import org.apache.flink.table.operations.ddl.DropPartitionsOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropViewOperation;
@@ -470,13 +468,6 @@ public class SqlNodeToOperationConversion {
         } else if (sqlAlterTable instanceof SqlAlterTableRenameColumn) {
             return alterSchemaConverter.convertAlterSchema(
                     (SqlAlterTableRenameColumn) sqlAlterTable, resolvedCatalogTable);
-        } else if (sqlAlterTable instanceof SqlDropPartitions) {
-            SqlDropPartitions dropPartitions = (SqlDropPartitions) sqlAlterTable;
-            List<CatalogPartitionSpec> specs = new ArrayList<>();
-            for (int i = 0; i < dropPartitions.getPartSpecs().size(); i++) {
-                specs.add(new CatalogPartitionSpec(dropPartitions.getPartitionKVs(i)));
-            }
-            return new DropPartitionsOperation(tableIdentifier, dropPartitions.ifExists(), specs);
         } else if (sqlAlterTable instanceof SqlAlterTableCompact) {
             return convertAlterTableCompact(
                     tableIdentifier,
