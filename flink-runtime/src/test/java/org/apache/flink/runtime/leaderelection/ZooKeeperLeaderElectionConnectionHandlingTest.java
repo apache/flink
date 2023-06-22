@@ -138,7 +138,9 @@ class ZooKeeperLeaderElectionConnectionHandlingTest {
         LeaderElectionDriverFactory leaderElectionDriverFactory =
                 new ZooKeeperLeaderElectionDriverFactory(client, PATH);
         DefaultLeaderElectionService leaderElectionService =
-                new DefaultLeaderElectionService(leaderElectionDriverFactory);
+                new DefaultLeaderElectionService(
+                        leaderElectionDriverFactory,
+                        testingFatalErrorHandlerResource.getTestingFatalErrorHandler());
         leaderElectionService.startLeaderElectionBackend();
 
         final TestingConnectionStateListener connectionStateListener =

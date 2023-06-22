@@ -21,12 +21,14 @@ package org.apache.flink.runtime.leaderelection;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorService;
+import org.apache.flink.runtime.util.TestingFatalErrorHandlerExtension;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -39,6 +41,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link DefaultLeaderElectionService}. */
 class DefaultLeaderElectionServiceTest {
+
+    @RegisterExtension
+    public final TestingFatalErrorHandlerExtension fatalErrorHandlerExtension =
+            new TestingFatalErrorHandlerExtension();
 
     private static final String TEST_URL = "akka//user/jobmanager";
 
@@ -103,7 +109,10 @@ class DefaultLeaderElectionServiceTest {
         final ManuallyTriggeredScheduledExecutorService executorService =
                 new ManuallyTriggeredScheduledExecutorService();
         final DefaultLeaderElectionService testInstance =
-                new DefaultLeaderElectionService(driverFactory, executorService);
+                new DefaultLeaderElectionService(
+                        driverFactory,
+                        fatalErrorHandlerExtension.getTestingFatalErrorHandler(),
+                        executorService);
         testInstance.startLeaderElectionBackend();
         final TestingLeaderElectionDriver driver = driverFactory.getCurrentLeaderDriver();
         assertThat(driver).isNotNull();
@@ -156,6 +165,7 @@ class DefaultLeaderElectionServiceTest {
                                     eventHandler.onGrantLeadership(expectedLeaderSessionID);
                                     return driver;
                                 },
+                                fatalErrorHandlerExtension.getTestingFatalErrorHandler(),
                                 Executors.newDirectExecutorService())) {
             testInstance.startLeaderElectionBackend();
 
@@ -248,7 +258,8 @@ class DefaultLeaderElectionServiceTest {
                         LeaderElectionEventHandler::onRevokeLeadership);
 
         try (final DefaultLeaderElectionService testInstance =
-                new DefaultLeaderElectionService(driverFactory)) {
+                new DefaultLeaderElectionService(
+                        driverFactory, fatalErrorHandlerExtension.getTestingFatalErrorHandler())) {
             testInstance.startLeaderElectionBackend();
 
             final TestingLeaderElectionDriver driver = driverFactory.getCurrentLeaderDriver();
@@ -276,7 +287,8 @@ class DefaultLeaderElectionServiceTest {
                 new TestingLeaderElectionDriver.TestingLeaderElectionDriverFactory();
 
         try (final DefaultLeaderElectionService testInstance =
-                new DefaultLeaderElectionService(driverFactory)) {
+                new DefaultLeaderElectionService(
+                        driverFactory, fatalErrorHandlerExtension.getTestingFatalErrorHandler())) {
             testInstance.startLeaderElectionBackend();
 
             final TestingLeaderElectionDriver driver = driverFactory.getCurrentLeaderDriver();
@@ -296,7 +308,8 @@ class DefaultLeaderElectionServiceTest {
     void testContenderRegistrationWithoutDriverBeingInstantiatedFails() throws Exception {
         try (final DefaultLeaderElectionService leaderElectionService =
                 new DefaultLeaderElectionService(
-                        new TestingLeaderElectionDriver.TestingLeaderElectionDriverFactory())) {
+                        new TestingLeaderElectionDriver.TestingLeaderElectionDriverFactory(),
+                        fatalErrorHandlerExtension.getTestingFatalErrorHandler())) {
             final LeaderElection leaderElection =
                     leaderElectionService.createLeaderElection(createRandomContenderID());
             assertThatThrownBy(
@@ -668,6 +681,16 @@ class DefaultLeaderElectionServiceTest {
 
                             testingLeaderElectionDriver.onFatalError(testException);
                             assertThat(testingContender.getError()).isNull();
+
+                            assertThat(
+                                            fatalErrorHandlerExtension
+                                                    .getTestingFatalErrorHandler()
+                                                    .getException())
+                                    .as(
+                                            "The fallback error handler should have caught the error in this case.")
+                                    .isEqualTo(testException);
+
+                            fatalErrorHandlerExtension.getTestingFatalErrorHandler().clearError();
                         });
             }
         };
@@ -683,7 +706,9 @@ class DefaultLeaderElectionServiceTest {
                 testingLeaderElectionDriverFactory =
                         new TestingLeaderElectionDriver.TestingLeaderElectionDriverFactory();
         final DefaultLeaderElectionService leaderElectionService =
-                new DefaultLeaderElectionService(testingLeaderElectionDriverFactory);
+                new DefaultLeaderElectionService(
+                        testingLeaderElectionDriverFactory,
+                        fatalErrorHandlerExtension.getTestingFatalErrorHandler());
         leaderElectionService.startLeaderElectionBackend();
 
         final LeaderElection leaderElection =
@@ -725,7 +750,8 @@ class DefaultLeaderElectionServiceTest {
 
         final DefaultLeaderElectionService testInstance =
                 new DefaultLeaderElectionService(
-                        (leaderElectionEventHandler, errorHandler) -> driver);
+                        (leaderElectionEventHandler, errorHandler) -> driver,
+                        fatalErrorHandlerExtension.getTestingFatalErrorHandler());
         testInstance.startLeaderElectionBackend();
 
         final String contenderID = "contender-id";
@@ -782,7 +808,7 @@ class DefaultLeaderElectionServiceTest {
                 });
     }
 
-    private static void testNonBlockingCall(
+    private void testNonBlockingCall(
             Function<OneShotLatch, TestingGenericLeaderContender> contenderCreator,
             Consumer<TestingLeaderElectionDriver> driverAction)
             throws Exception {
@@ -793,7 +819,8 @@ class DefaultLeaderElectionServiceTest {
                 new TestingLeaderElectionDriver.TestingLeaderElectionDriverFactory();
 
         final DefaultLeaderElectionService testInstance =
-                new DefaultLeaderElectionService(driverFactory);
+                new DefaultLeaderElectionService(
+                        driverFactory, fatalErrorHandlerExtension.getTestingFatalErrorHandler());
         testInstance.startLeaderElectionBackend();
         final LeaderElection leaderElection =
                 testInstance.createLeaderElection(createRandomContenderID());
@@ -814,7 +841,7 @@ class DefaultLeaderElectionServiceTest {
         return String.format("contender-id-%s", UUID.randomUUID());
     }
 
-    private static class Context {
+    private class Context {
 
         final String contenderID = createRandomContenderID();
 
@@ -845,7 +872,10 @@ class DefaultLeaderElectionServiceTest {
                         new TestingLeaderElectionDriver.TestingLeaderElectionDriverFactory();
                 leaderElectionService =
                         new DefaultLeaderElectionService(
-                                driverFactory, leaderEventOperationExecutor);
+                                driverFactory,
+                                DefaultLeaderElectionServiceTest.this.fatalErrorHandlerExtension
+                                        .getTestingFatalErrorHandler(),
+                                leaderEventOperationExecutor);
                 leaderElectionService.startLeaderElectionBackend();
 
                 leaderElection = leaderElectionService.createLeaderElection(contenderID);
