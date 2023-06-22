@@ -32,6 +32,7 @@ import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.api.connector.source.lib.NumberSequenceSource.NumberSequenceSplit;
 import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
 import org.apache.flink.api.java.ClosureCleaner;
+import org.apache.flink.api.java.typeutils.OutputTypeConfigurable;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
@@ -93,14 +94,17 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Experimental
 public class DataGeneratorSource<OUT>
         implements Source<OUT, NumberSequenceSplit, Collection<NumberSequenceSplit>>,
-                ResultTypeQueryable<OUT> {
+                ResultTypeQueryable<OUT>,
+                OutputTypeConfigurable<OUT> {
 
     private static final long serialVersionUID = 1L;
 
     private final SourceReaderFactory<OUT, NumberSequenceSplit> sourceReaderFactory;
-    private final TypeInformation<OUT> typeInfo;
+    private TypeInformation<OUT> typeInfo;
 
     private final NumberSequenceSource numberSource;
+
+    private final GeneratorFunction<Long, OUT> generatorFunction;
 
     public DataGeneratorSource(GeneratorFunction<Long, OUT> generatorFunction, long count) {
         this(
@@ -128,6 +132,7 @@ public class DataGeneratorSource<OUT>
             RateLimiterStrategy rateLimiterStrategy) {
         this(
                 new GeneratorSourceReaderFactory<>(generatorFunction, rateLimiterStrategy),
+                generatorFunction,
                 count,
                 getGeneratorFunctionReturnType(generatorFunction));
         ClosureCleaner.clean(
@@ -165,6 +170,7 @@ public class DataGeneratorSource<OUT>
             TypeInformation<OUT> typeInfo) {
         this(
                 new GeneratorSourceReaderFactory<>(generatorFunction, rateLimiterStrategy),
+                generatorFunction,
                 count,
                 typeInfo);
         ClosureCleaner.clean(
@@ -175,9 +181,11 @@ public class DataGeneratorSource<OUT>
 
     private DataGeneratorSource(
             SourceReaderFactory<OUT, NumberSequenceSplit> sourceReaderFactory,
+            GeneratorFunction<Long, OUT> generatorFunction,
             long count,
             TypeInformation<OUT> typeInfo) {
         this.sourceReaderFactory = checkNotNull(sourceReaderFactory);
+        this.generatorFunction = generatorFunction;
         ClosureCleaner.clean(
                 sourceReaderFactory, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
         this.typeInfo = checkNotNull(typeInfo);
@@ -226,5 +234,15 @@ public class DataGeneratorSource<OUT>
     public SimpleVersionedSerializer<Collection<NumberSequenceSplit>>
             getEnumeratorCheckpointSerializer() {
         return numberSource.getEnumeratorCheckpointSerializer();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public void setOutputType(TypeInformation<OUT> outTypeInfo, ExecutionConfig executionConfig) {
+        this.typeInfo = outTypeInfo;
+        if (generatorFunction instanceof OutputTypeConfigurable) {
+            ((OutputTypeConfigurable<OUT>) generatorFunction)
+                    .setOutputType(outTypeInfo, executionConfig);
+        }
     }
 }

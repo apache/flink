@@ -38,6 +38,7 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -123,7 +124,8 @@ public class MultipleInputNodeCreationProcessorTest extends TableTestBase {
     }
 
     private void createNonChainableStream(TableTestUtil util) {
-        DataStreamSource<Integer> dataStream = util.getStreamEnv().fromElements(1, 2, 3);
+        DataStreamSource<Integer> dataStream =
+                util.getStreamEnv().fromCollection(Arrays.asList(1, 2, 3));
         TableTestUtil.createTemporaryView(
                 util.tableEnv(),
                 "nonChainableStream",
