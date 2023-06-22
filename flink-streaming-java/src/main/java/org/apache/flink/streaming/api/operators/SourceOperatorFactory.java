@@ -159,7 +159,7 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
     @Override
     public boolean isOutputTypeConfigurable() {
         return source instanceof OutputTypeConfigurable
-                || source // legacy kept for compatibility purposes
+                || source // legacy interface check is kept for compatibility purposes
                         instanceof org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
     }
 
@@ -168,7 +168,7 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
     public void setOutputType(TypeInformation<OUT> type, ExecutionConfig executionConfig) {
         if (source instanceof OutputTypeConfigurable) {
             ((OutputTypeConfigurable<OUT>) source).setOutputType(type, executionConfig);
-        } else if (source // legacy kept for compatibility purposes
+        } else if (source // legacy interface check is kept for compatibility purposes
                 instanceof org.apache.flink.streaming.api.operators.OutputTypeConfigurable) {
             ((org.apache.flink.streaming.api.operators.OutputTypeConfigurable<OUT>) source)
                     .setOutputType(type, executionConfig);

@@ -111,7 +111,7 @@ public class SimpleOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
     @Override
     public boolean isOutputTypeConfigurable() {
         return operator instanceof OutputTypeConfigurable
-                || operator // legacy kept for compatibility purposes
+                || operator // legacy interface check is kept for compatibility purposes
                         instanceof org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
     }
 
@@ -120,7 +120,7 @@ public class SimpleOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
     public void setOutputType(TypeInformation<OUT> type, ExecutionConfig executionConfig) {
         if (operator instanceof OutputTypeConfigurable) {
             ((OutputTypeConfigurable<OUT>) operator).setOutputType(type, executionConfig);
-        } else if (operator // legacy kept for compatibility purposes
+        } else if (operator // legacy interface check is kept for compatibility purposes
                 instanceof org.apache.flink.streaming.api.operators.OutputTypeConfigurable) {
             ((org.apache.flink.streaming.api.operators.OutputTypeConfigurable<OUT>) operator)
                     .setOutputType(type, executionConfig);

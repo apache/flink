@@ -62,6 +62,8 @@ import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.StateChangelogOptions;
+import org.apache.flink.connector.datagen.functions.FromElementsGeneratorFunction;
+import org.apache.flink.connector.datagen.source.DataGeneratorSource;
 import org.apache.flink.core.execution.CacheSupportedPipelineExecutor;
 import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
@@ -1186,7 +1188,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
                             + "StreamExecutionEnvironment#fromElements(Collection, TypeInformation)",
                     e);
         }
-        return fromCollection(Arrays.asList(data), typeInfo);
+        return fromData(Arrays.asList(data), typeInfo);
     }
 
     /**
@@ -1219,7 +1221,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
                             + "StreamExecutionEnvironment#fromElements(Collection, TypeInformation)",
                     e);
         }
-        return fromCollection(Arrays.asList(data), typeInfo);
+        return fromData(Arrays.asList(data), typeInfo);
     }
 
     /**
@@ -1283,6 +1285,26 @@ public class StreamExecutionEnvironment implements AutoCloseable {
         SourceFunction<OUT> function = new FromElementsFunction<>(data);
         return addSource(function, "Collection Source", typeInfo, Boundedness.BOUNDED)
                 .setParallelism(1);
+    }
+
+    private <OUT> DataStreamSource<OUT> fromData(
+            Collection<OUT> data, TypeInformation<OUT> typeInfo) {
+        Preconditions.checkNotNull(data, "Collection must not be null");
+
+        // must not have null elements and mixed elements
+        FromElementsGeneratorFunction.checkCollection(data, typeInfo.getTypeClass());
+
+        FromElementsGeneratorFunction<OUT> generatorFunction =
+                new FromElementsGeneratorFunction<>(data);
+
+        DataGeneratorSource<OUT> generatorSource =
+                new DataGeneratorSource<>(generatorFunction, data.size(), typeInfo);
+
+        return fromSource(
+                        generatorSource,
+                        WatermarkStrategy.forMonotonousTimestamps(),
+                        "Collection Source")
+                .forceNonParallel();
     }
 
     /**

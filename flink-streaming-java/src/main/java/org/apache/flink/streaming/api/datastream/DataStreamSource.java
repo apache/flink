@@ -37,7 +37,7 @@ import org.apache.flink.streaming.api.transformations.SourceTransformation;
 @Public
 public class DataStreamSource<T> extends SingleOutputStreamOperator<T> {
 
-    private final boolean isParallel;
+    private boolean isParallel;
 
     public DataStreamSource(
             StreamExecutionEnvironment environment,
@@ -115,6 +115,13 @@ public class DataStreamSource<T> extends SingleOutputStreamOperator<T> {
     public DataStreamSource<T> setParallelism(int parallelism) {
         OperatorValidationUtils.validateParallelism(parallelism, isParallel);
         super.setParallelism(parallelism);
+        return this;
+    }
+
+    @Override
+    public DataStreamSource<T> forceNonParallel() {
+        super.forceNonParallel();
+        this.isParallel = false;
         return this;
     }
 }

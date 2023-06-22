@@ -18,11 +18,15 @@
 
 package org.apache.flink.connector.datagen.source;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
+import org.apache.flink.api.java.typeutils.OutputTypeConfigurable;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -30,6 +34,7 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
@@ -200,6 +205,55 @@ class DataGeneratorSourceITCase extends TestLogger {
         assertThat(results).hasSize(capacityPerCheckpoint);
     }
 
+    @Test
+    @DisplayName("Stream returns() call is propagated correctly.")
+    @SuppressWarnings("unchecked")
+    void testReturnsIsCorrectlyPropagated() throws Exception {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(PARALLELISM);
+
+        OutputTypeConfigurableGeneratorFunction generatorFunction =
+                new OutputTypeConfigurableGeneratorFunction(BasicTypeInfo.STRING_TYPE_INFO);
+
+        final DataStreamSource<Long> streamSource =
+                getGeneratorSourceStream(generatorFunction, env, 1);
+        streamSource.returns(BasicTypeInfo.LONG_TYPE_INFO).executeAndCollect(1);
+
+        DataGeneratorSource<Long> dataGeneratorSource =
+                (DataGeneratorSource<Long>)
+                        ((SourceTransformation<Long, ?, ?>) streamSource.getTransformation())
+                                .getSource();
+
+        assertThat(dataGeneratorSource.getProducedType()).isEqualTo(BasicTypeInfo.LONG_TYPE_INFO);
+        assertThat(generatorFunction.getTypeInformation()).isEqualTo(BasicTypeInfo.LONG_TYPE_INFO);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private static class OutputTypeConfigurableGeneratorFunction
+            implements GeneratorFunction<Long, Long>, OutputTypeConfigurable<Long> {
+
+        public OutputTypeConfigurableGeneratorFunction(TypeInformation typeInformation) {
+            this.typeInformation = typeInformation;
+        }
+
+        private TypeInformation typeInformation;
+
+        @Override
+        public Long map(Long value) throws Exception {
+            return 0L;
+        }
+
+        @Override
+        public void setOutputType(
+                TypeInformation<Long> outTypeInfo, ExecutionConfig executionConfig) {
+            typeInformation = outTypeInfo;
+        }
+
+        public TypeInformation getTypeInformation() {
+            return typeInformation;
+        }
+    }
+
     private static class FirstCheckpointFilter
             implements FlatMapFunction<Long, Long>, CheckpointedFunction {
 
@@ -221,7 +275,7 @@ class DataGeneratorSourceITCase extends TestLogger {
         public void initializeState(FunctionInitializationContext context) throws Exception {}
     }
 
-    private DataStream<Long> getGeneratorSourceStream(
+    private DataStreamSource<Long> getGeneratorSourceStream(
             GeneratorFunction<Long, Long> generatorFunction,
             StreamExecutionEnvironment env,
             long count) {

@@ -1566,6 +1566,8 @@ under the License.
 						<exclude>flink-end-to-end-tests/flink-tpcds-test/tpcds-tool/answer_set/*</exclude>
 						<exclude>flink-end-to-end-tests/flink-tpcds-test/tpcds-tool/query/*</exclude>
 						<exclude>flink-table/flink-table-code-splitter/src/test/resources/**</exclude>
+						<exclude>flink-tests/src/test/resources/avro/*.avsc</exclude>
+						<exclude>flink-connectors/flink-connector-datagen-test/src/test/resources/avro/*.avsc</exclude>
 
 						<!-- ArchUnit violation stores  -->
 						<exclude>**/archunit-violations/**</exclude>

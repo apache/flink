@@ -85,6 +85,7 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
@@ -1113,9 +1114,10 @@ class StreamingJobGraphGeneratorTest {
 
     @Test
     void testYieldingOperatorNotChainableToTaskChainedToLegacySource() {
+        // TODO: this test can be removed when the legacy SourceFunction API gets removed
         StreamExecutionEnvironment chainEnv = StreamExecutionEnvironment.createLocalEnvironment(1);
 
-        chainEnv.fromElements(1)
+        chainEnv.addSource(new LegacySource())
                 .map((x) -> x)
                 // not chainable because of YieldingOperatorFactory and legacy source
                 .transform(
@@ -1161,9 +1163,10 @@ class StreamingJobGraphGeneratorTest {
      */
     @Test
     void testYieldingOperatorProperlyChainedOnLegacySources() {
+        // TODO: this test can be removed when the legacy SourceFunction API gets removed
         StreamExecutionEnvironment chainEnv = StreamExecutionEnvironment.createLocalEnvironment(1);
 
-        chainEnv.fromElements(1)
+        chainEnv.addSource(new LegacySource())
                 .map((x) -> x)
                 // should automatically break chain here
                 .transform("test", BasicTypeInfo.INT_TYPE_INFO, new YieldingTestOperatorFactory<>())
@@ -1188,14 +1191,14 @@ class StreamingJobGraphGeneratorTest {
         configuration.set(
                 PipelineOptions.OPERATOR_CHAINING_CHAIN_OPERATORS_WITH_DIFFERENT_MAX_PARALLELISM,
                 chainingOfOperatorsWithDifferentMaxParallelismEnabled);
-        configuration.set(PipelineOptions.MAX_PARALLELISM, 10);
+        configuration.set(PipelineOptions.MAX_PARALLELISM, 1);
         try (StreamExecutionEnvironment chainEnv =
                 StreamExecutionEnvironment.createLocalEnvironment(1, configuration)) {
             chainEnv.fromElements(1)
                     .map(x -> x)
                     // should automatically break chain here
                     .map(x -> x)
-                    .setMaxParallelism(1)
+                    .setMaxParallelism(10)
                     .map(x -> x);
 
             final JobGraph jobGraph = chainEnv.getStreamGraph().getJobGraph();
@@ -2651,5 +2654,14 @@ class StreamingJobGraphGeneratorTest {
         public Set<AbstractID> listCompletedClusterDatasets() {
             return new HashSet<>(completedClusterDatasetIds);
         }
+    }
+
+    private static class LegacySource implements SourceFunction<Integer> {
+        public void run(SourceContext<Integer> sourceContext) {
+            sourceContext.collect(1);
+        }
+
+        @Override
+        public void cancel() {}
     }
 }
