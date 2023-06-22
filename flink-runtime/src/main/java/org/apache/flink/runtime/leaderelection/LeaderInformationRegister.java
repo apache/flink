@@ -111,7 +111,7 @@ public class LeaderInformationRegister {
      * Returns a {@link LeaderInformation} which is empty if no {@code LeaderInformation} is stored
      * for the passed {@code contenderID}.
      */
-    public LeaderInformation forContenderIDOrEmpty(String contenderID) {
+    public LeaderInformation forContenderIdOrEmpty(String contenderID) {
         return forContenderID(contenderID).orElse(LeaderInformation.empty());
     }
 

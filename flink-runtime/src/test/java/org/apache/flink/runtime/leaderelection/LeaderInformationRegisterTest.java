@@ -113,6 +113,25 @@ class LeaderInformationRegisterTest {
     }
 
     @Test
+    void testMergeKnownLeaderInformationForExistingContenderID() {
+        final String contenderID = "contender-id";
+        final LeaderInformation oldLeaderInformation =
+                LeaderInformation.known(UUID.randomUUID(), "old-address");
+
+        final LeaderInformationRegister initialRegister =
+                LeaderInformationRegister.of(contenderID, oldLeaderInformation);
+
+        final LeaderInformation newLeaderInformation =
+                LeaderInformation.known(UUID.randomUUID(), "new-address");
+        final LeaderInformationRegister newRegister =
+                LeaderInformationRegister.merge(initialRegister, contenderID, newLeaderInformation);
+
+        assertThat(newRegister).isNotSameAs(initialRegister);
+        assertThat(newRegister.getRegisteredContenderIDs()).containsExactly(contenderID);
+        assertThat(newRegister.forContenderID(contenderID)).hasValue(newLeaderInformation);
+    }
+
+    @Test
     void testClear() {
         final String contenderID = "contender-id";
         final LeaderInformation leaderInformation =
@@ -184,7 +203,7 @@ class LeaderInformationRegisterTest {
                 LeaderInformation.known(UUID.randomUUID(), "address");
         assertThat(
                         LeaderInformationRegister.of(contenderID, leaderInformation)
-                                .forContenderIDOrEmpty(contenderID))
+                                .forContenderIdOrEmpty(contenderID))
                 .isEqualTo(leaderInformation);
     }
 
@@ -202,7 +221,7 @@ class LeaderInformationRegisterTest {
         final String contenderID = "contender-id";
         assertThat(
                         LeaderInformationRegister.of(contenderID, LeaderInformation.empty())
-                                .forContenderIDOrEmpty(contenderID))
+                                .forContenderIdOrEmpty(contenderID))
                 .isEqualTo(LeaderInformation.empty());
     }
 

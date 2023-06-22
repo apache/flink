@@ -34,7 +34,11 @@ import java.util.UUID;
  *
  * <p>The order of events matters. Therefore, calling event processing functions of this interface
  * should happen in a single-thread environment.
+ *
+ * @deprecated {@link LeaderElectionEventHandler} will be replaced by {@link
+ *     MultipleComponentLeaderElectionDriver.Listener}.
  */
+@Deprecated
 @NotThreadSafe
 public interface LeaderElectionEventHandler {
 
@@ -43,12 +47,14 @@ public interface LeaderElectionEventHandler {
      *
      * @param newLeaderSessionId the valid leader session id
      */
+    @Deprecated
     void onGrantLeadership(UUID newLeaderSessionId);
 
     /**
      * Called by specific {@link LeaderElectionDriver} when the leadership is revoked. Updating the
      * LeaderElection data at this point doesn't have any effect anymore.
      */
+    @Deprecated
     void onRevokeLeadership();
 
     /**
@@ -61,5 +67,6 @@ public interface LeaderElectionEventHandler {
      * @param leaderInformation leader information which contains leader session id and leader
      *     address.
      */
+    @Deprecated
     void onLeaderInformationChange(LeaderInformation leaderInformation);
 }
