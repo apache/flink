@@ -503,6 +503,9 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     private void emitLatestWatermark(long time) {
         checkState(currentMainOutput != null);
+        if (lastEmittedWatermark == Watermark.UNINITIALIZED.getTimestamp()) {
+            return;
+        }
         operatorEventGateway.sendEventToCoordinator(
                 new ReportedWatermarkEvent(lastEmittedWatermark));
     }
