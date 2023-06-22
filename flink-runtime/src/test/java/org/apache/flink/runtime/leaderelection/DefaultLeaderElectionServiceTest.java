@@ -931,13 +931,13 @@ class DefaultLeaderElectionServiceTest {
 
         void runTest(RunnableWithException testMethod, ExecutorService leaderEventOperationExecutor)
                 throws Exception {
-            try {
-                leaderElectionService =
+            try (final DefaultLeaderElectionService localLeaderElectionService =
                         new DefaultLeaderElectionService(
                                 driverFactory,
                                 DefaultLeaderElectionServiceTest.this.fatalErrorHandlerExtension
                                         .getTestingFatalErrorHandler(),
-                                leaderEventOperationExecutor);
+                                leaderEventOperationExecutor)) {
+                leaderElectionService = localLeaderElectionService;
                 leaderElectionService.startLeaderElectionBackend();
                 testingLeaderElectionDriver = driverFactory.assertAndGetOnlyCreatedDriver();
 
@@ -949,10 +949,6 @@ class DefaultLeaderElectionServiceTest {
             } finally {
                 if (leaderElection != null) {
                     leaderElection.close();
-                }
-
-                if (leaderElectionService != null) {
-                    leaderElectionService.close();
                 }
 
                 if (testingContender != null) {
