@@ -1609,6 +1609,15 @@ class Expression(Generic[T]):
         """
         return _unary_op("arrayMin")(self)
 
+    def field(self, *args) -> 'Expression':
+        """
+        Returns the position of the first argument within the list of the following arguments.
+        The position count starts from 1. If the value is not found in the list or the value is
+        null, the function returns 0. If the list is null or the list is empty, the function
+        returns 0.
+        """
+        return _binary_op("field")(self, *args)
+
     @property
     def map_keys(self) -> 'Expression':
         """

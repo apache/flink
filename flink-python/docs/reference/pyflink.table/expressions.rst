@@ -238,6 +238,7 @@ advanced type helper functions
     Expression.array_min
     Expression.array_sort
     Expression.array_union
+    Expression.field
     Expression.map_entries
     Expression.map_keys
     Expression.map_values

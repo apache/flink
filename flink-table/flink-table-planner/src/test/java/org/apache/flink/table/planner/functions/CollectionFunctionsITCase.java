@@ -54,7 +54,8 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                         arrayJoinTestCases(),
                         arraySliceTestCases(),
                         arrayMinTestCases(),
-                        arraySortTestCases())
+                        arraySortTestCases(),
+                        fieldTestCases())
                 .flatMap(s -> s);
     }
 
@@ -1595,5 +1596,82 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                     LocalDate.of(2012, 5, 16)
                                 },
                                 DataTypes.ARRAY(DataTypes.DATE())));
+    }
+
+    private Stream<TestSetSpec> fieldTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.FIELD)
+                        .onFieldsWithData(
+                                new Integer[] {1, 2, 2, null},
+                                null,
+                                new Row[] {
+                                    Row.of(true, LocalDate.of(2022, 4, 20)),
+                                    Row.of(true, LocalDate.of(1990, 10, 14)),
+                                    null
+                                },
+                                1,
+                                2.1,
+                                "3")
+                        .andDataTypes(
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(
+                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE())),
+                                DataTypes.INT().notNull(),
+                                DataTypes.DOUBLE().notNull(),
+                                DataTypes.STRING().notNull())
+                        .testResult($("f0").field(), "FIELD(f0)", 0, DataTypes.INT().nullable())
+                        .testResult(
+                                $("f0").field(new Integer[] {1, 2, 2, null}, 1, 2.0, "3"),
+                                "FIELD(f0, ARRAY[1,2,2,null], 1, 2.0, '3')",
+                                1,
+                                DataTypes.INT().nullable())
+                        .testResult($("f0").field(), "FIELD(f0)", 0, DataTypes.INT())
+                        .testResult(
+                                $("f0").field((Integer) null),
+                                "FIELD(f0, null)",
+                                0,
+                                DataTypes.INT().nullable())
+                        .testResult(
+                                $("f1").field(new Integer[] {1, 2, 2, null}, 1, 2.0, "3"),
+                                "FIELD(f1, ARRAY[1,2,2,null], 1, 2.0, '3')",
+                                0,
+                                DataTypes.INT().nullable())
+                        .testResult(
+                                $("f2").field(new Integer[] {1, 2, 2, null}, 1, 2.0, "3"),
+                                "FIELD(f2, ARRAY[1,2,2,null], 1, 2.0, '3')",
+                                0,
+                                DataTypes.INT().nullable())
+                        .testResult(
+                                $("f2").field(
+                                                new Integer[] {1, 2, 2, null},
+                                                1,
+                                                2.0,
+                                                "3",
+                                                new Row[] {
+                                                    Row.of(true, LocalDate.of(2022, 4, 20)),
+                                                    Row.of(true, LocalDate.of(1990, 10, 14)),
+                                                    null
+                                                }),
+                                "FIELD(f2, ARRAY[1,2,2,null], 1, 2.0, '3', ARRAY[(TRUE, DATE '2022-4-20'), (TRUE, DATE '1990-10-14'), NULL])",
+                                5,
+                                DataTypes.INT())
+                        .testResult(
+                                $("f3").field(new Integer[] {1, 2, 2, null}, 1, 2.0, "3"),
+                                "FIELD(f3, ARRAY[1,2,2,null], 1, 2.0, '3')",
+                                2,
+                                DataTypes.INT().notNull())
+                        .testResult(
+                                $("f4").field(new Integer[] {1, 2, 2, null}, 1, 2.1, "3"),
+                                "FIELD(f4, ARRAY[1,2,2,null], 1, 2.1E0, '3')",
+                                3,
+                                DataTypes.INT().notNull())
+                        .testResult(
+                                $("f5").field(new Integer[] {1, 2, 2, null}, 1, 2.0, "3"),
+                                "FIELD(f5, ARRAY[1,2,2,null], 1, 2.0, '3')",
+                                4,
+                                DataTypes.INT().notNull())
+                        .testSqlValidationError(
+                                "FIELD()", "No match found for function signature FIELD()"));
     }
 }
