@@ -526,7 +526,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(BIGINT(), DEFAULT_NEGATIVE_BIGINT, DEFAULT_NEGATIVE_BIGINT)
                         .fromCase(FLOAT(), DEFAULT_POSITIVE_FLOAT, 123L)
                         .fromCase(FLOAT(), DEFAULT_NEGATIVE_FLOAT, -123L)
-                        .fromCase(FLOAT(), 9234567891.12, 9234568192L)
+                        .fromCase(FLOAT(), 9234567891.12, (long) 9234567891.12f)
                         .fromCase(DOUBLE(), DEFAULT_POSITIVE_DOUBLE, 123L)
                         .fromCase(DOUBLE(), DEFAULT_NEGATIVE_DOUBLE, -123L)
                         .fromCase(DOUBLE(), 9234567891.12345, 9234567891L)
