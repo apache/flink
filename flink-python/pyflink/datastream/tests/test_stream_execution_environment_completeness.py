@@ -41,7 +41,7 @@ class StreamExecutionEnvironmentCompletenessTests(PythonAPICompletenessTestCase,
         # is deprecated, exclude them.
         return {'getLastJobExecutionResult', 'getId', 'getIdString',
                 'createCollectionsEnvironment', 'createLocalEnvironment',
-                'createRemoteEnvironment', 'addOperator', 'fromElements',
+                'createRemoteEnvironment', 'addOperator', 'fromElements', 'fromData',
                 'resetContextEnvironment', 'getCachedFiles', 'generateSequence',
                 'getNumberOfExecutionRetries', 'getStreamGraph', 'fromParallelCollection',
                 'readFileStream', 'isForceCheckpointing', 'readFile', 'clean',

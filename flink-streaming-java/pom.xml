@@ -88,6 +88,12 @@ under the License.
 			<version>3.6.1</version>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-datagen</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
 		<!-- test dependencies -->
 
 		<dependency>

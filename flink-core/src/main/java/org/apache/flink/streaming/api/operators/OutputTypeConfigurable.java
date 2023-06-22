@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.typeutils;
+package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -27,6 +27,12 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
  * at {@code org.apache.flink.streaming.api.graph.StreamGraph} generation. This can be useful for
  * cases where the output type is specified by the returns method and, thus, after the stream
  * operator has been created.
+ *
+ * <p>NOTE: this class was moved from flink-streaming-java to the same package in flink-core. This
+ * was required in order to avoid cyclic dependencies for internal connectors, such as
+ * flink-connector-datagen that is used in flink-streaming-java but also relies on {@code
+ * OutputTypeConfigurable}. Since flink-core is the dependency of flink-streaming-java, this does
+ * not introduce breaking changes.
  */
 @PublicEvolving
 public interface OutputTypeConfigurable<OUT> {

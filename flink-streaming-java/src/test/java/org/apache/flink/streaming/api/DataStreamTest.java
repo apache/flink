@@ -657,13 +657,6 @@ public class DataStreamTest extends TestLogger {
                         .getStreamNode(sink.getTransformation().getId())
                         .getParallelism());
 
-        try {
-            src.setParallelism(3);
-            fail();
-        } catch (IllegalArgumentException success) {
-            // do nothing
-        }
-
         DataStreamSource<Long> parallelSource = env.generateSequence(0, 0);
         parallelSource.sinkTo(new DiscardingSink<Long>());
         assertEquals(7, getStreamGraph(env).getStreamNode(parallelSource.getId()).getParallelism());
