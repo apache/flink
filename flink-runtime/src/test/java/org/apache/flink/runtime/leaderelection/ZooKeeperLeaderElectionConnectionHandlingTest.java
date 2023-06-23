@@ -37,8 +37,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 
 /**
  * Test behaviors of {@link ZooKeeperLeaderElectionDriver} when losing the connection to ZooKeeper.
@@ -66,9 +67,9 @@ class ZooKeeperLeaderElectionConnectionHandlingTest {
     void testLoseLeadershipOnConnectionSuspended() throws Exception {
         runTestWithBrieflySuspendedZooKeeperConnection(
                 configuration,
-                (connectionStateListener, contender) -> {
+                (connectionStateListener, revokeCallEventFuture) -> {
                     connectionStateListener.awaitSuspendedConnection();
-                    contender.awaitRevokeLeadership();
+                    revokeCallEventFuture.get();
                 });
     }
 
@@ -78,10 +79,10 @@ class ZooKeeperLeaderElectionConnectionHandlingTest {
         configuration.set(HighAvailabilityOptions.ZOOKEEPER_TOLERATE_SUSPENDED_CONNECTIONS, true);
         runTestWithBrieflySuspendedZooKeeperConnection(
                 configuration,
-                (connectionStateListener, contender) -> {
+                (connectionStateListener, revokeCallEventFuture) -> {
                     connectionStateListener.awaitSuspendedConnection();
                     connectionStateListener.awaitReconnectedConnection();
-                    assertThat(contender.hasRevokeLeadershipBeenTriggered()).isFalse();
+                    assertThatFuture(revokeCallEventFuture).isNotDone();
                 });
     }
 
@@ -93,15 +94,16 @@ class ZooKeeperLeaderElectionConnectionHandlingTest {
         configuration.set(HighAvailabilityOptions.ZOOKEEPER_TOLERATE_SUSPENDED_CONNECTIONS, true);
         runTestWithLostZooKeeperConnection(
                 configuration,
-                (connectionStateListener, contender) -> {
+                (connectionStateListener, revokeCallEventFuture) -> {
                     connectionStateListener.awaitLostConnection();
-                    contender.awaitRevokeLeadership();
+                    revokeCallEventFuture.get();
                 });
     }
 
     private void runTestWithLostZooKeeperConnection(
             Configuration configuration,
-            BiConsumerWithException<TestingConnectionStateListener, TestingContender, Exception>
+            BiConsumerWithException<
+                            TestingConnectionStateListener, CompletableFuture<Void>, Exception>
                     validationLogic)
             throws Exception {
         runTestWithZooKeeperConnectionProblem(
@@ -110,7 +112,8 @@ class ZooKeeperLeaderElectionConnectionHandlingTest {
 
     private void runTestWithBrieflySuspendedZooKeeperConnection(
             Configuration configuration,
-            BiConsumerWithException<TestingConnectionStateListener, TestingContender, Exception>
+            BiConsumerWithException<
+                            TestingConnectionStateListener, CompletableFuture<Void>, Exception>
                     validationLogic)
             throws Exception {
         runTestWithZooKeeperConnectionProblem(
@@ -124,7 +127,8 @@ class ZooKeeperLeaderElectionConnectionHandlingTest {
 
     private void runTestWithZooKeeperConnectionProblem(
             Configuration configuration,
-            BiConsumerWithException<TestingConnectionStateListener, TestingContender, Exception>
+            BiConsumerWithException<
+                            TestingConnectionStateListener, CompletableFuture<Void>, Exception>
                     validationLogic,
             Problem problem)
             throws Exception {
@@ -145,12 +149,21 @@ class ZooKeeperLeaderElectionConnectionHandlingTest {
                 new TestingConnectionStateListener();
         client.getConnectionStateListenable().addListener(connectionStateListener);
 
-        final TestingContender contender = new TestingContender();
+        final CompletableFuture<UUID> grantCallEventFuture = new CompletableFuture<>();
+        final CompletableFuture<Void> revokeCallEventFuture = new CompletableFuture<>();
+        final LeaderContender contender =
+                TestingGenericLeaderContender.newBuilderForNoOpContender()
+                        .setGrantLeadershipConsumer(
+                                (ignoredLock, sessionID) ->
+                                        grantCallEventFuture.complete(sessionID))
+                        .setRevokeLeadershipConsumer(
+                                ignoredLock -> revokeCallEventFuture.complete(null))
+                        .build();
         try (LeaderElection leaderElection =
                 leaderElectionService.createLeaderElection("random-contender-id")) {
             leaderElection.startLeaderElection(contender);
 
-            contender.awaitGrantLeadership();
+            assertThatFuture(grantCallEventFuture).eventuallySucceeds();
 
             switch (problem) {
                 case SUSPENDED_CONNECTION:
@@ -164,7 +177,7 @@ class ZooKeeperLeaderElectionConnectionHandlingTest {
                             String.format("Unknown problem type %s.", problem));
             }
 
-            validationLogic.accept(connectionStateListener, contender);
+            validationLogic.accept(connectionStateListener, revokeCallEventFuture);
         } finally {
             leaderElectionService.close();
             curatorFrameworkWrapper.close();
@@ -173,47 +186,6 @@ class ZooKeeperLeaderElectionConnectionHandlingTest {
                 // in case of lost connections we accept that some unhandled error can occur
                 testingFatalErrorHandlerResource.getTestingFatalErrorHandler().clearError();
             }
-        }
-    }
-
-    private final class TestingContender implements LeaderContender {
-
-        private final OneShotLatch grantLeadershipLatch;
-        private final OneShotLatch revokeLeadershipLatch;
-
-        private TestingContender() {
-            this.grantLeadershipLatch = new OneShotLatch();
-            this.revokeLeadershipLatch = new OneShotLatch();
-        }
-
-        @Override
-        public void grantLeadership(UUID leaderSessionID) {
-            grantLeadershipLatch.trigger();
-        }
-
-        @Override
-        public void revokeLeadership() {
-            revokeLeadershipLatch.trigger();
-        }
-
-        @Override
-        public void handleError(Exception exception) {
-            ZooKeeperLeaderElectionConnectionHandlingTest.this
-                    .testingFatalErrorHandlerResource
-                    .getTestingFatalErrorHandler()
-                    .onFatalError(exception);
-        }
-
-        public void awaitGrantLeadership() throws InterruptedException {
-            grantLeadershipLatch.await();
-        }
-
-        public boolean hasRevokeLeadershipBeenTriggered() {
-            return revokeLeadershipLatch.isTriggered();
-        }
-
-        public void awaitRevokeLeadership() throws InterruptedException {
-            revokeLeadershipLatch.await();
         }
     }
 
