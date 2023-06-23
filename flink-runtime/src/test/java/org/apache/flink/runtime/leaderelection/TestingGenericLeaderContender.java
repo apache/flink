@@ -67,6 +67,18 @@ public class TestingGenericLeaderContender implements LeaderContender {
     public static Builder newBuilder(
             Collection<LeaderElectionEvent> leaderElectionEventQueue,
             Consumer<Throwable> errorHandler) {
+        return newBuilder(
+                leaderElectionEventQueue,
+                NoOpLeaderElection.INSTANCE,
+                "unused-address",
+                errorHandler);
+    }
+
+    public static Builder newBuilder(
+            Collection<LeaderElectionEvent> leaderElectionEventQueue,
+            LeaderElection leaderElection,
+            String address,
+            Consumer<Throwable> errorHandler) {
         return newBuilderForNoOpContender()
                 .setGrantLeadershipConsumer(
                         (lock, leaderSessionID) -> {
@@ -74,6 +86,7 @@ public class TestingGenericLeaderContender implements LeaderContender {
                                 lock.lock();
                                 leaderElectionEventQueue.add(
                                         new LeaderElectionEvent.IsLeaderEvent(leaderSessionID));
+                                leaderElection.confirmLeadership(leaderSessionID, address);
                             } finally {
                                 lock.unlock();
                             }
