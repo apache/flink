@@ -20,15 +20,25 @@ package org.apache.flink.runtime.highavailability.nonha.embedded;
 
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
+import org.apache.flink.runtime.leaderelection.LeaderElectionEvent;
+import org.apache.flink.runtime.leaderelection.TestingGenericLeaderContender;
+import org.apache.flink.runtime.util.TestingFatalErrorHandlerExtension;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.util.LinkedList;
+import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link EmbeddedLeaderService}. */
 class EmbeddedLeaderServiceTest {
+
+    @RegisterExtension
+    public final TestingFatalErrorHandlerExtension errorHandlerExtension =
+            new TestingFatalErrorHandlerExtension();
 
     /**
      * Tests that the {@link EmbeddedLeaderService} can handle a concurrent grant leadership call
@@ -41,18 +51,24 @@ class EmbeddedLeaderServiceTest {
         final EmbeddedLeaderService embeddedLeaderService =
                 new EmbeddedLeaderService(executorService);
 
+        final Queue<LeaderElectionEvent> eventQueue = new LinkedList<>();
         try {
-            final TestingLeaderContender contender = new TestingLeaderContender();
-
             final LeaderElection leaderElection =
                     embeddedLeaderService.createLeaderElectionService("contender_id");
-            leaderElection.startLeaderElection(contender);
+
+            leaderElection.startLeaderElection(
+                    TestingGenericLeaderContender.newBuilder(
+                                    eventQueue,
+                                    leaderElection,
+                                    "unused-address",
+                                    errorHandlerExtension.getTestingFatalErrorHandler()
+                                            ::onFatalError)
+                            .build());
             leaderElection.close();
 
-            assertThat(contender.getLeaderSessionFuture())
-                    .as(
-                            "The future shouldn't have completed because the grant event wasn't processed, yet.")
-                    .isNotDone();
+            assertThat(eventQueue.remove().isNotLeaderEvent())
+                    .as("The close call should have triggered the leadership revocation.")
+                    .isTrue();
 
             // the election service should still be running
             assertThat(embeddedLeaderService.isShutdown()).isFalse();
@@ -61,6 +77,8 @@ class EmbeddedLeaderServiceTest {
 
             // triggers the grant event processing after shutdown
             executorService.triggerAll();
+            assertThat(eventQueue.remove().isIsLeaderEvent()).isTrue();
+            assertThat(eventQueue).isEmpty();
         }
     }
 
@@ -75,16 +93,22 @@ class EmbeddedLeaderServiceTest {
         final EmbeddedLeaderService embeddedLeaderService =
                 new EmbeddedLeaderService(executorService);
 
+        final Queue<LeaderElectionEvent> eventQueue = new LinkedList<>();
         try {
-            final TestingLeaderContender contender = new TestingLeaderContender();
-
             final LeaderElection leaderElection =
                     embeddedLeaderService.createLeaderElectionService("contender_id");
-            leaderElection.startLeaderElection(contender);
+            leaderElection.startLeaderElection(
+                    TestingGenericLeaderContender.newBuilder(
+                                    eventQueue,
+                                    leaderElection,
+                                    "unused-address",
+                                    errorHandlerExtension.getTestingFatalErrorHandler()
+                                            ::onFatalError)
+                            .build());
 
             // wait for the leadership
             executorService.trigger();
-            contender.getLeaderSessionFuture().get();
+            assertThat(eventQueue.remove().isIsLeaderEvent()).isTrue();
 
             final CompletableFuture<Void> revokeLeadershipFuture =
                     embeddedLeaderService.revokeLeadership();
@@ -94,6 +118,7 @@ class EmbeddedLeaderServiceTest {
                     .as(
                             "The future shouldn't have completed because the revoke event wasn't processed, yet.")
                     .isNotDone();
+            assertThat(eventQueue).as("No revoke event should have been sent, yet.").isEmpty();
 
             // the election service should still be running
             assertThat(embeddedLeaderService.isShutdown()).isFalse();
@@ -102,6 +127,9 @@ class EmbeddedLeaderServiceTest {
 
             // triggers the revoke event processing after shutdown
             executorService.triggerAll();
+            assertThat(eventQueue.remove().isNotLeaderEvent())
+                    .as("The event is handled and the contender should deal with it properly.")
+                    .isTrue();
         }
     }
 }
