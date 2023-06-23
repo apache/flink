@@ -380,8 +380,8 @@ class ZooKeeperLeaderElectionTest {
     }
 
     /**
-     * Test that errors in the {@link LeaderElectionDriver} are correctly forwarded to the {@link
-     * LeaderContender}.
+     * Test that errors in the {@link MultipleComponentLeaderElectionDriver} are correctly forwarded
+     * to the {@link LeaderContender}.
      */
     @Test
     void testExceptionForwarding() throws Exception {
@@ -552,8 +552,8 @@ class ZooKeeperLeaderElectionTest {
     }
 
     /**
-     * Test that background errors in the {@link LeaderElectionDriver} are correctly forwarded to
-     * the {@link FatalErrorHandler}.
+     * Test that background errors in the {@link MultipleComponentLeaderElectionDriver} are
+     * correctly forwarded to the {@link FatalErrorHandler}.
      */
     @Test
     public void testUnExpectedErrorForwarding() throws Exception {
