@@ -28,7 +28,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * Base class which provides some convenience functions for testing purposes of {@link
- * LeaderContender} and {@link LeaderElectionEventHandler}.
+ * LeaderContender}.
  */
 public class TestingLeaderBase {
     // The queues will be offered by subclasses

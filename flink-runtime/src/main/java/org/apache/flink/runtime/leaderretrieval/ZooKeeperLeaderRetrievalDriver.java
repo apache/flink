@@ -20,7 +20,7 @@ package org.apache.flink.runtime.leaderretrieval;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
-import org.apache.flink.runtime.leaderelection.ZooKeeperLeaderElectionDriver;
+import org.apache.flink.runtime.leaderelection.ZooKeeperMultipleComponentLeaderElectionDriver;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.ExceptionUtils;
@@ -41,10 +41,10 @@ import java.util.UUID;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * The counterpart to the {@link ZooKeeperLeaderElectionDriver}. {@link LeaderRetrievalService}
- * implementation for Zookeeper. It retrieves the current leader which has been elected by the
- * {@link ZooKeeperLeaderElectionDriver}. The leader address as well as the current leader session
- * ID is retrieved from ZooKeeper.
+ * The counterpart to the {@link ZooKeeperMultipleComponentLeaderElectionDriver}. {@link
+ * LeaderRetrievalService} implementation for Zookeeper. It retrieves the current leader which has
+ * been elected by the {@link ZooKeeperMultipleComponentLeaderElectionDriver}. The leader address as
+ * well as the current leader session ID is retrieved from ZooKeeper.
  */
 public class ZooKeeperLeaderRetrievalDriver implements LeaderRetrievalDriver {
     private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperLeaderRetrievalDriver.class);

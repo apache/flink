@@ -42,15 +42,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Default implementation for leader election service. Composed with different {@link
- * LeaderElectionDriver}, we could perform a leader election for the contender, and then persist the
- * leader information to various storage.
+ * MultipleComponentLeaderElectionDriver}, we could perform a leader election for the contender, and
+ * then persist the leader information to various storage.
  *
  * <p>{@code DefaultLeaderElectionService} handles a single {@link LeaderContender}.
  */
 public class DefaultLeaderElectionService extends AbstractLeaderElectionService
-        implements LeaderElectionEventHandler,
-                MultipleComponentLeaderElectionDriver.Listener,
-                AutoCloseable {
+        implements MultipleComponentLeaderElectionDriver.Listener, AutoCloseable {
 
     private static final Logger LOG = LoggerFactory.getLogger(DefaultLeaderElectionService.class);
 
@@ -69,10 +67,10 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
     private final Map<String, LeaderContender> leaderContenderRegistry = new HashMap<>();
 
     /**
-     * Saves the session ID which was issued by the {@link LeaderElectionDriver} if and only if the
-     * leadership is acquired by this service. {@code issuedLeaderSessionID} being {@code null}
-     * indicates that this service isn't the leader right now (i.e. {@link
-     * #onGrantLeadership(UUID)}) wasn't called, yet (independently of what {@code
+     * Saves the session ID which was issued by the {@link MultipleComponentLeaderElectionDriver} if
+     * and only if the leadership is acquired by this service. {@code issuedLeaderSessionID} being
+     * {@code null} indicates that this service isn't the leader right now (i.e. {@link
+     * #isLeader(UUID)}) wasn't called, yet (independently of what {@code
      * leaderElectionDriver#hasLeadership()} returns).
      */
     @GuardedBy("lock")
@@ -379,11 +377,6 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
         }
     }
 
-    @Override
-    public void onGrantLeadership(UUID newLeaderSessionId) {
-        isLeader(newLeaderSessionId);
-    }
-
     @GuardedBy("lock")
     private void onGrantLeadershipInternal(UUID newLeaderSessionId) {
         Preconditions.checkNotNull(newLeaderSessionId);
@@ -430,11 +423,6 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
         leaderContenderRegistry.get(contenderID).grantLeadership(issuedLeaderSessionID);
     }
 
-    @Override
-    public void onRevokeLeadership() {
-        notLeader();
-    }
-
     @GuardedBy("lock")
     private void onRevokeLeadershipInternal() {
         // TODO: FLINK-31814 covers adding this Precondition
@@ -475,20 +463,6 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
         confirmedLeaderInformation =
                 LeaderInformationRegister.clear(confirmedLeaderInformation, contenderID);
         leaderContender.revokeLeadership();
-    }
-
-    @Override
-    public void onLeaderInformationChange(LeaderInformation leaderInformation) {
-        if (leaderContenderRegistry.size() > 1) {
-            throw new UnsupportedOperationException(
-                    "The only way this method works is when there's only a single contender registered.");
-        }
-
-        leaderContenderRegistry
-                .keySet()
-                .forEach(
-                        contenderID ->
-                                notifyLeaderInformationChange(contenderID, leaderInformation));
     }
 
     @GuardedBy("lock")

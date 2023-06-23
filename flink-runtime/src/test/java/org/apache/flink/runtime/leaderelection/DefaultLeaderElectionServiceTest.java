@@ -41,7 +41,6 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link DefaultLeaderElectionService}. */
@@ -130,8 +129,9 @@ class DefaultLeaderElectionServiceTest {
     }
 
     /**
-     * Tests that we can shut down the DefaultLeaderElectionService if the used LeaderElectionDriver
-     * holds an internal lock. See FLINK-20008 for more details.
+     * Tests that we can shut down the DefaultLeaderElectionService if the used {@link
+     * MultipleComponentLeaderElectionDriver} holds an internal lock. See FLINK-20008 for more
+     * details.
      */
     @Test
     void testCloseGrantDeadlock() throws Exception {
@@ -333,7 +333,7 @@ class DefaultLeaderElectionServiceTest {
         try (final DefaultLeaderElectionService testInstance =
                 new DefaultLeaderElectionService(
                         driverFactory, fatalErrorHandlerExtension.getTestingFatalErrorHandler())) {
-            driverBuilder.setCloseConsumer(lock -> testInstance.onRevokeLeadership());
+            driverBuilder.setCloseConsumer(lock -> testInstance.notLeader());
             testInstance.startLeaderElectionBackend();
 
             leadershipGranted.set(true);
@@ -743,50 +743,6 @@ class DefaultLeaderElectionServiceTest {
                                                     .forContenderID(contenderContext0.contenderID))
                                     .as("The external storage shouldn't have been changed.")
                                     .hasValue(differentLeaderInformation);
-                        });
-            }
-        };
-    }
-
-    /**
-     * This code path is still used by {@link DefaultMultipleComponentLeaderElectionService} where
-     * there's only a single contender registered with the {@link DefaultLeaderElectionService}.
-     * That method should become unused with FLINK-32409.
-     */
-    @Test
-    void testDeprecatedLeaderInformationChangedFailsForMoreThanOneContender() throws Exception {
-        final AtomicReference<LeaderInformationRegister> storedLeaderInformation =
-                new AtomicReference<>();
-        new Context(storedLeaderInformation) {
-            {
-                runTestWithSynchronousEventHandling(
-                        () -> {
-                            grantLeadership();
-
-                            assertThatThrownBy(
-                                            () ->
-                                                    leaderElectionService.onLeaderInformationChange(
-                                                            LeaderInformation.empty()))
-                                    .isInstanceOf(UnsupportedOperationException.class);
-
-                            contenderContext1.leaderElection.close();
-
-                            storedLeaderInformation.set(LeaderInformationRegister.empty());
-
-                            assertThatNoException()
-                                    .isThrownBy(
-                                            () ->
-                                                    leaderElectionService.onLeaderInformationChange(
-                                                            LeaderInformation.empty()));
-
-                            assertThat(
-                                            storedLeaderInformation
-                                                    .get()
-                                                    .hasLeaderInformation(
-                                                            contenderContext0.contenderID))
-                                    .as(
-                                            "The LeaderInformation for the registered contender should have been corrected.")
-                                    .isTrue();
                         });
             }
         };
