@@ -36,6 +36,7 @@ import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategies;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.inference.strategies.ArrayOfStringArgumentTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.MixedTypeOutputForRowStrategy;
 import org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies;
 import org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
@@ -407,6 +408,17 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(forceNullable(SpecificTypeStrategies.ARRAY_ELEMENT))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.ArrayMinFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition ELT =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ELT")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    logical(LogicalTypeRoot.ROW), logical(LogicalTypeRoot.INTEGER)))
+                    .outputTypeStrategy(new MixedTypeOutputForRowStrategy())
+                    .runtimeClass("org.apache.flink.table.runtime.functions.scalar.EltFunction")
                     .build();
 
     public static final BuiltInFunctionDefinition INTERNAL_REPLICATE_ROWS =
