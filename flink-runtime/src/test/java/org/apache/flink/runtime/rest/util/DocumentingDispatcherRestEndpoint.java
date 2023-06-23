@@ -25,8 +25,7 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.blob.NoOpTransientBlobService;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherRestEndpoint;
-import org.apache.flink.runtime.leaderelection.LeaderContender;
-import org.apache.flink.runtime.leaderelection.LeaderElection;
+import org.apache.flink.runtime.leaderelection.NoOpLeaderElection;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
@@ -39,7 +38,6 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 
@@ -84,23 +82,5 @@ public class DocumentingDispatcherRestEndpoint extends DispatcherRestEndpoint
     public List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(
             final CompletableFuture<String> localAddressFuture) {
         return super.initializeHandlers(localAddressFuture);
-    }
-
-    private enum NoOpLeaderElection implements LeaderElection {
-        INSTANCE;
-
-        @Override
-        public void startLeaderElection(LeaderContender contender) {}
-
-        @Override
-        public void confirmLeadership(UUID leaderSessionID, String leaderAddress) {}
-
-        @Override
-        public boolean hasLeadership(UUID leaderSessionId) {
-            return false;
-        }
-
-        @Override
-        public void close() {}
     }
 }
