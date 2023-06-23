@@ -18,7 +18,10 @@
 
 package org.apache.flink.runtime.leaderelection;
 
+import java.util.Collection;
 import java.util.UUID;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
@@ -27,75 +30,113 @@ import java.util.function.Consumer;
  */
 public class TestingGenericLeaderContender implements LeaderContender {
 
-    private final Object lock = new Object();
+    private final ReentrantLock lock = new ReentrantLock();
 
-    private final Consumer<UUID> grantLeadershipConsumer;
-    private final Runnable revokeLeadershipRunnable;
-    private final Consumer<Exception> handleErrorConsumer;
+    private final BiConsumer<ReentrantLock, UUID> grantLeadershipConsumer;
+    private final Consumer<ReentrantLock> revokeLeadershipConsumer;
+    private final BiConsumer<ReentrantLock, Exception> handleErrorConsumer;
 
-    private TestingGenericLeaderContender(
-            Consumer<UUID> grantLeadershipConsumer,
-            Runnable revokeLeadershipRunnable,
-            Consumer<Exception> handleErrorConsumer) {
+    public TestingGenericLeaderContender(
+            BiConsumer<ReentrantLock, UUID> grantLeadershipConsumer,
+            Consumer<ReentrantLock> revokeLeadershipConsumer,
+            BiConsumer<ReentrantLock, Exception> handleErrorConsumer) {
         this.grantLeadershipConsumer = grantLeadershipConsumer;
-        this.revokeLeadershipRunnable = revokeLeadershipRunnable;
+        this.revokeLeadershipConsumer = revokeLeadershipConsumer;
         this.handleErrorConsumer = handleErrorConsumer;
     }
 
     @Override
     public void grantLeadership(UUID leaderSessionID) {
-        synchronized (lock) {
-            grantLeadershipConsumer.accept(leaderSessionID);
-        }
+        grantLeadershipConsumer.accept(lock, leaderSessionID);
     }
 
     @Override
     public void revokeLeadership() {
-        synchronized (lock) {
-            revokeLeadershipRunnable.run();
-        }
+        revokeLeadershipConsumer.accept(lock);
     }
 
     @Override
     public void handleError(Exception exception) {
-        synchronized (lock) {
-            handleErrorConsumer.accept(exception);
-        }
+        handleErrorConsumer.accept(lock, exception);
     }
 
-    public static Builder newBuilder() {
+    public static Builder newBuilderForNoOpContender() {
         return new Builder();
+    }
+
+    public static Builder newBuilder(
+            Collection<LeaderElectionEvent> leaderElectionEventQueue,
+            Consumer<Throwable> errorHandler) {
+        return newBuilderForNoOpContender()
+                .setGrantLeadershipConsumer(
+                        (lock, leaderSessionID) -> {
+                            try {
+                                lock.lock();
+                                leaderElectionEventQueue.add(
+                                        new LeaderElectionEvent.IsLeaderEvent(leaderSessionID));
+                            } finally {
+                                lock.unlock();
+                            }
+                        })
+                .setRevokeLeadershipConsumer(
+                        lock -> {
+                            try {
+                                lock.lock();
+                                leaderElectionEventQueue.add(
+                                        new LeaderElectionEvent.NotLeaderEvent());
+                            } finally {
+                                lock.unlock();
+                            }
+                        })
+                .setHandleErrorConsumer(
+                        (lock, throwable) -> {
+                            try {
+                                lock.lock();
+                                errorHandler.accept(throwable);
+                            } finally {
+                                lock.unlock();
+                            }
+                        });
     }
 
     /** {@code Builder} for creating {@code TestingGenericLeaderContender} instances. */
     public static class Builder {
-        private Consumer<UUID> grantLeadershipConsumer = ignoredSessionID -> {};
-        private Runnable revokeLeadershipRunnable = () -> {};
-        private Consumer<Exception> handleErrorConsumer =
-                error -> {
-                    throw new AssertionError(error);
+        private BiConsumer<ReentrantLock, UUID> grantLeadershipConsumer =
+                (ignoredLock, ignoredSessionID) -> {};
+        private Consumer<ReentrantLock> revokeLeadershipConsumer = ignoredLock -> {};
+        private BiConsumer<ReentrantLock, Exception> handleErrorConsumer =
+                (lock, error) -> {
+                    try {
+                        lock.lock();
+                        throw new AssertionError(error);
+                    } finally {
+                        lock.unlock();
+                    }
                 };
 
         private Builder() {}
 
-        public Builder setGrantLeadershipConsumer(Consumer<UUID> grantLeadershipConsumer) {
+        public Builder setGrantLeadershipConsumer(
+                BiConsumer<ReentrantLock, UUID> grantLeadershipConsumer) {
             this.grantLeadershipConsumer = grantLeadershipConsumer;
             return this;
         }
 
-        public Builder setRevokeLeadershipRunnable(Runnable revokeLeadershipRunnable) {
-            this.revokeLeadershipRunnable = revokeLeadershipRunnable;
+        public Builder setRevokeLeadershipConsumer(
+                Consumer<ReentrantLock> revokeLeadershipConsumer) {
+            this.revokeLeadershipConsumer = revokeLeadershipConsumer;
             return this;
         }
 
-        public Builder setHandleErrorConsumer(Consumer<Exception> handleErrorConsumer) {
+        public Builder setHandleErrorConsumer(
+                BiConsumer<ReentrantLock, Exception> handleErrorConsumer) {
             this.handleErrorConsumer = handleErrorConsumer;
             return this;
         }
 
         public TestingGenericLeaderContender build() {
             return new TestingGenericLeaderContender(
-                    grantLeadershipConsumer, revokeLeadershipRunnable, handleErrorConsumer);
+                    grantLeadershipConsumer, revokeLeadershipConsumer, handleErrorConsumer);
         }
     }
 }

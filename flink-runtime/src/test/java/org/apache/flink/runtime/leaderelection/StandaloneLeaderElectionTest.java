@@ -68,8 +68,10 @@ class StandaloneLeaderElectionTest {
     void testStartLeaderElection() throws Exception {
         final CompletableFuture<UUID> grantLeadershipResult = new CompletableFuture<>();
         final TestingGenericLeaderContender contender =
-                TestingGenericLeaderContender.newBuilder()
-                        .setGrantLeadershipConsumer(grantLeadershipResult::complete)
+                TestingGenericLeaderContender.newBuilderForNoOpContender()
+                        .setGrantLeadershipConsumer(
+                                (ignoredLock, sessionID) ->
+                                        grantLeadershipResult.complete(sessionID))
                         .build();
         try (final LeaderElection testInstance = new StandaloneLeaderElection(SESSION_ID)) {
             testInstance.startLeaderElection(contender);
@@ -81,7 +83,7 @@ class StandaloneLeaderElectionTest {
     @Test
     void testHasLeadershipWithContender() throws Exception {
         final TestingGenericLeaderContender contender =
-                TestingGenericLeaderContender.newBuilder().build();
+                TestingGenericLeaderContender.newBuilderForNoOpContender().build();
         try (final LeaderElection testInstance = new StandaloneLeaderElection(SESSION_ID)) {
             testInstance.startLeaderElection(contender);
 
@@ -106,8 +108,9 @@ class StandaloneLeaderElectionTest {
     void testRevokeCallOnClose() throws Exception {
         final AtomicBoolean revokeLeadershipCalled = new AtomicBoolean(false);
         final TestingGenericLeaderContender contender =
-                TestingGenericLeaderContender.newBuilder()
-                        .setRevokeLeadershipRunnable(() -> revokeLeadershipCalled.set(true))
+                TestingGenericLeaderContender.newBuilderForNoOpContender()
+                        .setRevokeLeadershipConsumer(
+                                ignoredLock -> revokeLeadershipCalled.set(true))
                         .build();
         try (final LeaderElection testInstance = new StandaloneLeaderElection(SESSION_ID)) {
             testInstance.startLeaderElection(contender);

@@ -1083,9 +1083,9 @@ class DefaultLeaderElectionServiceTest {
     void testOnGrantLeadershipAsyncDoesNotBlock() throws Exception {
         testNonBlockingCall(
                 latch ->
-                        TestingGenericLeaderContender.newBuilder()
+                        TestingGenericLeaderContender.newBuilderForNoOpContender()
                                 .setGrantLeadershipConsumer(
-                                        ignoredSessionID -> latch.awaitQuietly())
+                                        (ignoredLock, ignoredSessionID) -> latch.awaitQuietly())
                                 .build(),
                 (leadershipGranted, listener) -> {
                     leadershipGranted.set(true);
@@ -1097,8 +1097,8 @@ class DefaultLeaderElectionServiceTest {
     void testOnRevokeLeadershipDoesNotBlock() throws Exception {
         testNonBlockingCall(
                 latch ->
-                        TestingGenericLeaderContender.newBuilder()
-                                .setRevokeLeadershipRunnable(latch::awaitQuietly)
+                        TestingGenericLeaderContender.newBuilderForNoOpContender()
+                                .setRevokeLeadershipConsumer(ignoredLock -> latch.awaitQuietly())
                                 .build(),
                 (leadershipGranted, listener) -> {
                     leadershipGranted.set(true);
