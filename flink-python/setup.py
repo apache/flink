@@ -303,7 +303,7 @@ try:
                         'cloudpickle==2.2.0', 'avro-python3>=1.8.1,!=1.9.2,<1.10.0',
                         'pytz>=2018.3', 'fastavro>=1.1.0,<1.4.8', 'requests>=2.26.0',
                         'protobuf>=3.19.0,<=3.21',
-                        'numpy>=1.21.4,<1.22.0',
+                        'numpy>=1.21.4,<1.24.0',
                         'pandas>=1.3.0,<1.4.0',
                         'pyarrow>=5.0.0,<9.0.0',
                         'pemja==0.3.0;platform_system != "Windows"',
