@@ -35,8 +35,7 @@ import java.util.concurrent.Executor;
  * Factory that instantiates a {@link KubernetesLeaderRetrievalDriver} in single leader election
  * mode.
  */
-public class KubernetesMultipleComponentLeaderRetrievalDriverFactory
-        implements LeaderRetrievalDriverFactory {
+public class KubernetesLeaderRetrievalDriverFactory implements LeaderRetrievalDriverFactory {
 
     private final KubernetesConfigMapSharedWatcher configMapSharedWatcher;
 
@@ -44,17 +43,17 @@ public class KubernetesMultipleComponentLeaderRetrievalDriverFactory
 
     private final String configMapName;
 
-    private final String componentId;
+    private final String contenderID;
 
-    public KubernetesMultipleComponentLeaderRetrievalDriverFactory(
+    public KubernetesLeaderRetrievalDriverFactory(
             KubernetesConfigMapSharedWatcher configMapSharedWatcher,
             Executor watchExecutor,
             String configMapName,
-            String componentId) {
+            String contenderID) {
         this.configMapSharedWatcher = Preconditions.checkNotNull(configMapSharedWatcher);
         this.watchExecutor = Preconditions.checkNotNull(watchExecutor);
         this.configMapName = Preconditions.checkNotNull(configMapName);
-        this.componentId = Preconditions.checkNotNull(componentId);
+        this.contenderID = Preconditions.checkNotNull(contenderID);
     }
 
     @Override
@@ -70,7 +69,7 @@ public class KubernetesMultipleComponentLeaderRetrievalDriverFactory
     }
 
     public LeaderInformation extractLeaderInformation(KubernetesConfigMap configMap) {
-        final String configDataLeaderKey = KubernetesUtils.createSingleLeaderKey(componentId);
+        final String configDataLeaderKey = KubernetesUtils.createSingleLeaderKey(contenderID);
 
         final Map<String, String> data = configMap.getData();
 

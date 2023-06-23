@@ -772,7 +772,7 @@ class JobMasterServiceLeadershipRunnerTest {
 
             // grant leadership to create jobMasterServiceProcess
             final UUID leaderSessionID = UUID.randomUUID();
-            defaultLeaderElectionService.isLeader(leaderSessionID);
+            defaultLeaderElectionService.onGrantLeadership(leaderSessionID);
 
             while (!currentLeaderDriver.hasLeadership()
                     || !leaderElection.hasLeadership(leaderSessionID)) {
@@ -792,8 +792,8 @@ class JobMasterServiceLeadershipRunnerTest {
                                 // order (i.e. no two grant or revoke events should appear after
                                 // each other). This requires the leadership to be revoked before
                                 // regaining leadership in this test.
-                                defaultLeaderElectionService.notLeader();
-                                defaultLeaderElectionService.isLeader(UUID.randomUUID());
+                                defaultLeaderElectionService.onRevokeLeadership();
+                                defaultLeaderElectionService.onGrantLeadership(UUID.randomUUID());
                             });
             grantLeadershipThread.start();
 

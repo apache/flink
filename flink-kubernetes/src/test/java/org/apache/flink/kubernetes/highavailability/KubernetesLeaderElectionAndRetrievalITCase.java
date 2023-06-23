@@ -47,10 +47,10 @@ import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_H
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * IT Tests for the {@link KubernetesMultipleComponentLeaderElectionDriver} and {@link
- * KubernetesLeaderRetrievalDriver}. We expect the {@link
- * KubernetesMultipleComponentLeaderElectionDriver} could become the leader and {@link
- * KubernetesLeaderRetrievalDriver} could retrieve the leader address from Kubernetes.
+ * IT Tests for the {@link KubernetesLeaderElectionDriver} and {@link
+ * KubernetesLeaderRetrievalDriver}. We expect the {@link KubernetesLeaderElectionDriver} could
+ * become the leader and {@link KubernetesLeaderRetrievalDriver} could retrieve the leader address
+ * from Kubernetes.
  */
 class KubernetesLeaderElectionAndRetrievalITCase {
 
@@ -97,8 +97,8 @@ class KubernetesLeaderElectionAndRetrievalITCase {
         final TestingFatalErrorHandler fatalErrorHandler = new TestingFatalErrorHandler();
 
         try {
-            final KubernetesMultipleComponentLeaderElectionDriver leaderElectionDriver =
-                    new KubernetesMultipleComponentLeaderElectionDriver(
+            final KubernetesLeaderElectionDriver leaderElectionDriver =
+                    new KubernetesLeaderElectionDriver(
                             new KubernetesLeaderElectionConfiguration(
                                     configMapName, UUID.randomUUID().toString(), configuration),
                             flinkKubeClient,
@@ -108,8 +108,8 @@ class KubernetesLeaderElectionAndRetrievalITCase {
                             fatalErrorHandler);
             closeables.add(leaderElectionDriver);
 
-            final KubernetesMultipleComponentLeaderRetrievalDriverFactory driverFactory =
-                    new KubernetesMultipleComponentLeaderRetrievalDriverFactory(
+            final KubernetesLeaderRetrievalDriverFactory driverFactory =
+                    new KubernetesLeaderRetrievalDriverFactory(
                             configMapSharedWatcher,
                             EXECUTOR_EXTENSION.getExecutor(),
                             configMapName,

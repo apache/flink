@@ -26,7 +26,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.leaderelection.DefaultLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
-import org.apache.flink.runtime.leaderelection.MultipleComponentLeaderElectionDriverFactory;
+import org.apache.flink.runtime.leaderelection.LeaderElectionDriverFactory;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.util.ExceptionUtils;
 
@@ -70,7 +70,7 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
 
     private final JobResultStore jobResultStore;
 
-    private final MultipleComponentLeaderElectionDriverFactory driverFactory;
+    private final LeaderElectionDriverFactory driverFactory;
 
     private final Object lock = new Object();
 
@@ -79,7 +79,7 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
 
     protected AbstractHaServices(
             Configuration config,
-            MultipleComponentLeaderElectionDriverFactory driverFactory,
+            LeaderElectionDriverFactory driverFactory,
             Executor ioExecutor,
             BlobStoreService blobStoreService,
             JobResultStore jobResultStore) {

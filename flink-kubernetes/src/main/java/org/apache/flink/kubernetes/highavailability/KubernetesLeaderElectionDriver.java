@@ -26,10 +26,10 @@ import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesException;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
+import org.apache.flink.runtime.leaderelection.LeaderElectionDriver;
 import org.apache.flink.runtime.leaderelection.LeaderElectionException;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderelection.LeaderInformationRegister;
-import org.apache.flink.runtime.leaderelection.MultipleComponentLeaderElectionDriver;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.util.Preconditions;
 
@@ -49,12 +49,10 @@ import java.util.function.Function;
 import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
 import static org.apache.flink.kubernetes.utils.KubernetesUtils.getOnlyConfigMap;
 
-/** {@link MultipleComponentLeaderElectionDriver} for Kubernetes. */
-public class KubernetesMultipleComponentLeaderElectionDriver
-        implements MultipleComponentLeaderElectionDriver {
+/** {@link LeaderElectionDriver} for Kubernetes. */
+public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
 
-    private static final Logger LOG =
-            LoggerFactory.getLogger(KubernetesMultipleComponentLeaderElectionDriver.class);
+    private static final Logger LOG = LoggerFactory.getLogger(KubernetesLeaderElectionDriver.class);
 
     private final FlinkKubeClient kubeClient;
 
@@ -62,7 +60,7 @@ public class KubernetesMultipleComponentLeaderElectionDriver
 
     private final String lockIdentity;
 
-    private final MultipleComponentLeaderElectionDriver.Listener leaderElectionListener;
+    private final LeaderElectionDriver.Listener leaderElectionListener;
 
     private final KubernetesLeaderElector leaderElector;
 
@@ -75,7 +73,7 @@ public class KubernetesMultipleComponentLeaderElectionDriver
 
     private final AtomicBoolean running = new AtomicBoolean(true);
 
-    public KubernetesMultipleComponentLeaderElectionDriver(
+    public KubernetesLeaderElectionDriver(
             KubernetesLeaderElectionConfiguration leaderElectionConfiguration,
             FlinkKubeClient kubeClient,
             Listener leaderElectionListener,
@@ -139,14 +137,14 @@ public class KubernetesMultipleComponentLeaderElectionDriver
     }
 
     @Override
-    public void publishLeaderInformation(String componentId, LeaderInformation leaderInformation) {
+    public void publishLeaderInformation(String contenderID, LeaderInformation leaderInformation) {
         Preconditions.checkState(running.get());
 
         try {
             kubeClient
                     .checkAndUpdateConfigMap(
                             configMapName,
-                            updateConfigMapWithLeaderInformation(componentId, leaderInformation))
+                            updateConfigMapWithLeaderInformation(contenderID, leaderInformation))
                     .get();
         } catch (InterruptedException | ExecutionException e) {
             fatalErrorHandler.onFatalError(e);
@@ -155,13 +153,13 @@ public class KubernetesMultipleComponentLeaderElectionDriver
         LOG.debug(
                 "Successfully wrote leader information {} for leader {} into the config map {}.",
                 leaderInformation,
-                componentId,
+                contenderID,
                 configMapName);
     }
 
     @Override
-    public void deleteLeaderInformation(String componentId) {
-        publishLeaderInformation(componentId, LeaderInformation.empty());
+    public void deleteLeaderInformation(String contenderID) {
+        publishLeaderInformation(contenderID, LeaderInformation.empty());
     }
 
     private Function<KubernetesConfigMap, Optional<KubernetesConfigMap>>
@@ -212,12 +210,12 @@ public class KubernetesMultipleComponentLeaderElectionDriver
     private class LeaderCallbackHandlerImpl extends KubernetesLeaderElector.LeaderCallbackHandler {
         @Override
         public void isLeader() {
-            leaderElectionListener.isLeader(UUID.randomUUID());
+            leaderElectionListener.onGrantLeadership(UUID.randomUUID());
         }
 
         @Override
         public void notLeader() {
-            leaderElectionListener.notLeader();
+            leaderElectionListener.onRevokeLeadership();
             leaderElector.run();
         }
     }
@@ -234,7 +232,7 @@ public class KubernetesMultipleComponentLeaderElectionDriver
             final KubernetesConfigMap configMap = getOnlyConfigMap(configMaps, configMapName);
 
             if (KubernetesLeaderElector.hasLeadership(configMap, lockIdentity)) {
-                leaderElectionListener.notifyAllKnownLeaderInformation(
+                leaderElectionListener.onLeaderInformationChange(
                         extractLeaderInformation(configMap));
             }
         }

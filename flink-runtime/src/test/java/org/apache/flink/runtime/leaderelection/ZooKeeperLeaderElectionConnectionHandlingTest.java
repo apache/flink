@@ -41,8 +41,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Test behaviors of {@link ZooKeeperMultipleComponentLeaderElectionDriver} when losing the
- * connection to ZooKeeper.
+ * Test behaviors of {@link ZooKeeperLeaderElectionDriver} when losing the connection to ZooKeeper.
  */
 class ZooKeeperLeaderElectionConnectionHandlingTest {
 
@@ -134,8 +133,8 @@ class ZooKeeperLeaderElectionConnectionHandlingTest {
                         configuration,
                         testingFatalErrorHandlerResource.getTestingFatalErrorHandler());
         CuratorFramework client = curatorFrameworkWrapper.asCuratorFramework();
-        MultipleComponentLeaderElectionDriverFactory leaderElectionDriverFactory =
-                new ZooKeeperMultipleComponentLeaderElectionDriverFactory(client);
+        LeaderElectionDriverFactory leaderElectionDriverFactory =
+                new ZooKeeperLeaderElectionDriverFactory(client);
         DefaultLeaderElectionService leaderElectionService =
                 new DefaultLeaderElectionService(
                         leaderElectionDriverFactory,

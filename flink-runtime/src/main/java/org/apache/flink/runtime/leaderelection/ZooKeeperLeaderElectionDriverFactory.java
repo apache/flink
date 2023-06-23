@@ -19,22 +19,25 @@
 package org.apache.flink.runtime.leaderelection;
 
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.util.Preconditions;
 
-/** Factory for {@link MultipleComponentLeaderElectionDriver}. */
-public interface MultipleComponentLeaderElectionDriverFactory {
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
 
-    /**
-     * Creates a {@link MultipleComponentLeaderElectionDriver} for the given leader contender
-     * description. Moreover, it registers the given leader election listener with the service.
-     *
-     * @param leaderElectionListener listener for the callbacks of the {@link
-     *     MultipleComponentLeaderElectionDriver}
-     * @param fatalErrorHandler component for handling fatal errors.
-     * @return created {@link MultipleComponentLeaderElectionDriver} instance
-     * @throws Exception if the creation fails
-     */
-    MultipleComponentLeaderElectionDriver create(
-            MultipleComponentLeaderElectionDriver.Listener leaderElectionListener,
+/** Factory for {@link ZooKeeperLeaderElectionDriver}. */
+public class ZooKeeperLeaderElectionDriverFactory implements LeaderElectionDriverFactory {
+
+    private final CuratorFramework curatorFramework;
+
+    public ZooKeeperLeaderElectionDriverFactory(CuratorFramework curatorFramework) {
+        this.curatorFramework = Preconditions.checkNotNull(curatorFramework);
+    }
+
+    @Override
+    public ZooKeeperLeaderElectionDriver create(
+            LeaderElectionDriver.Listener leaderElectionListener,
             FatalErrorHandler fatalErrorHandler)
-            throws Exception;
+            throws Exception {
+        return new ZooKeeperLeaderElectionDriver(
+                curatorFramework, leaderElectionListener, fatalErrorHandler);
+    }
 }

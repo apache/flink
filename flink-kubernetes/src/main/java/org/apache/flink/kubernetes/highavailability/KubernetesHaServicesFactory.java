@@ -32,7 +32,7 @@ public class KubernetesHaServicesFactory implements HighAvailabilityServicesFact
     @Override
     public HighAvailabilityServices createHAServices(Configuration configuration, Executor executor)
             throws Exception {
-        return new KubernetesMultipleComponentLeaderElectionHaServices(
+        return new KubernetesLeaderElectionHaServices(
                 FlinkKubeClientFactory.getInstance()
                         .fromConfiguration(configuration, "kubernetes-ha-services"),
                 executor,

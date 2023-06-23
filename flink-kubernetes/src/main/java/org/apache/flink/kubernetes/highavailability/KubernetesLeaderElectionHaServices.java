@@ -30,7 +30,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.AbstractHaServices;
 import org.apache.flink.runtime.highavailability.FileSystemJobResultStore;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
-import org.apache.flink.runtime.leaderelection.MultipleComponentLeaderElectionDriverFactory;
+import org.apache.flink.runtime.leaderelection.LeaderElectionDriverFactory;
 import org.apache.flink.runtime.leaderretrieval.DefaultLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.util.ExceptionUtils;
@@ -51,10 +51,10 @@ import static org.apache.flink.kubernetes.utils.Constants.NAME_SEPARATOR;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Kubernetes HA services that use a single leader election service per JobManager. */
-public class KubernetesMultipleComponentLeaderElectionHaServices extends AbstractHaServices {
+public class KubernetesLeaderElectionHaServices extends AbstractHaServices {
 
     private static final Logger LOG =
-            LoggerFactory.getLogger(KubernetesMultipleComponentLeaderElectionHaServices.class);
+            LoggerFactory.getLogger(KubernetesLeaderElectionHaServices.class);
 
     private final String clusterId;
 
@@ -65,7 +65,7 @@ public class KubernetesMultipleComponentLeaderElectionHaServices extends Abstrac
 
     private final String lockIdentity;
 
-    KubernetesMultipleComponentLeaderElectionHaServices(
+    KubernetesLeaderElectionHaServices(
             FlinkKubeClient kubeClient,
             Executor ioExecutor,
             Configuration configuration,
@@ -86,7 +86,7 @@ public class KubernetesMultipleComponentLeaderElectionHaServices extends Abstrac
                 blobStoreService);
     }
 
-    private KubernetesMultipleComponentLeaderElectionHaServices(
+    private KubernetesLeaderElectionHaServices(
             FlinkKubeClient kubeClient,
             KubernetesConfigMapSharedWatcher configMapSharedWatcher,
             ExecutorService watchExecutorService,
@@ -116,7 +116,7 @@ public class KubernetesMultipleComponentLeaderElectionHaServices extends Abstrac
         this.lockIdentity = checkNotNull(lockIdentity);
     }
 
-    private static MultipleComponentLeaderElectionDriverFactory createDriverFactory(
+    private static LeaderElectionDriverFactory createDriverFactory(
             FlinkKubeClient kubeClient,
             KubernetesConfigMapSharedWatcher configMapSharedWatcher,
             Executor watchExecutorService,
@@ -126,7 +126,7 @@ public class KubernetesMultipleComponentLeaderElectionHaServices extends Abstrac
         final KubernetesLeaderElectionConfiguration leaderElectionConfiguration =
                 new KubernetesLeaderElectionConfiguration(
                         getClusterConfigMap(clusterId), lockIdentity, configuration);
-        return new KubernetesMultipleComponentLeaderElectionDriverFactory(
+        return new KubernetesLeaderElectionDriverFactory(
                 kubeClient,
                 leaderElectionConfiguration,
                 configMapSharedWatcher,
@@ -134,13 +134,13 @@ public class KubernetesMultipleComponentLeaderElectionHaServices extends Abstrac
     }
 
     @Override
-    protected LeaderRetrievalService createLeaderRetrievalService(String componentId) {
+    protected LeaderRetrievalService createLeaderRetrievalService(String contenderID) {
         return new DefaultLeaderRetrievalService(
-                new KubernetesMultipleComponentLeaderRetrievalDriverFactory(
+                new KubernetesLeaderRetrievalDriverFactory(
                         configMapSharedWatcher,
                         watchExecutorService,
                         getClusterConfigMap(),
-                        componentId));
+                        contenderID));
     }
 
     @Override

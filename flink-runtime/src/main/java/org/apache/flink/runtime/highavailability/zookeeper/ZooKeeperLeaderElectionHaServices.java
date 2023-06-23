@@ -26,7 +26,7 @@ import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.AbstractHaServices;
 import org.apache.flink.runtime.highavailability.FileSystemJobResultStore;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
-import org.apache.flink.runtime.leaderelection.ZooKeeperMultipleComponentLeaderElectionDriverFactory;
+import org.apache.flink.runtime.leaderelection.ZooKeeperLeaderElectionDriverFactory;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 
@@ -59,11 +59,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *      |                 |       /checkpoint_id_counter
  * </pre>
  */
-public class ZooKeeperMultipleComponentLeaderElectionHaServices extends AbstractHaServices {
+public class ZooKeeperLeaderElectionHaServices extends AbstractHaServices {
     /** The curator resource to use. */
     private final CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper;
 
-    public ZooKeeperMultipleComponentLeaderElectionHaServices(
+    public ZooKeeperLeaderElectionHaServices(
             CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper,
             Configuration configuration,
             Executor executor,
@@ -71,7 +71,7 @@ public class ZooKeeperMultipleComponentLeaderElectionHaServices extends Abstract
             throws Exception {
         super(
                 configuration,
-                new ZooKeeperMultipleComponentLeaderElectionDriverFactory(
+                new ZooKeeperLeaderElectionDriverFactory(
                         ZooKeeperUtils.useNamespaceAndEnsurePath(
                                 curatorFrameworkWrapper.asCuratorFramework(),
                                 ZooKeeperUtils.getLeaderPath())),
