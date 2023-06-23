@@ -75,7 +75,20 @@ public class TestingGenericLeaderContender implements LeaderContender {
     }
 
     public static Builder newBuilder(
+            LeaderElection leaderElection, String address, Consumer<Throwable> errorHandler) {
+        return newBuilder(event -> {}, leaderElection, address, errorHandler);
+    }
+
+    public static Builder newBuilder(
             Collection<LeaderElectionEvent> leaderElectionEventQueue,
+            LeaderElection leaderElection,
+            String address,
+            Consumer<Throwable> errorHandler) {
+        return newBuilder(leaderElectionEventQueue::add, leaderElection, address, errorHandler);
+    }
+
+    private static Builder newBuilder(
+            Consumer<LeaderElectionEvent> leaderElectionEventQueue,
             LeaderElection leaderElection,
             String address,
             Consumer<Throwable> errorHandler) {
@@ -84,7 +97,7 @@ public class TestingGenericLeaderContender implements LeaderContender {
                         (lock, leaderSessionID) -> {
                             try {
                                 lock.lock();
-                                leaderElectionEventQueue.add(
+                                leaderElectionEventQueue.accept(
                                         new LeaderElectionEvent.IsLeaderEvent(leaderSessionID));
                                 leaderElection.confirmLeadership(leaderSessionID, address);
                             } finally {
@@ -95,7 +108,7 @@ public class TestingGenericLeaderContender implements LeaderContender {
                         lock -> {
                             try {
                                 lock.lock();
-                                leaderElectionEventQueue.add(
+                                leaderElectionEventQueue.accept(
                                         new LeaderElectionEvent.NotLeaderEvent());
                             } finally {
                                 lock.unlock();
