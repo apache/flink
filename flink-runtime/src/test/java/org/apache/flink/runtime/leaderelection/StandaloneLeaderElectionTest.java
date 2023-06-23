@@ -55,7 +55,7 @@ class StandaloneLeaderElectionTest {
         try (LeaderElection leaderElection = new StandaloneLeaderElection(expectedSessionID)) {
             final Queue<LeaderElectionEvent> eventQueue = new LinkedList<>();
             final LeaderContender contender =
-                    TestingGenericLeaderContender.newBuilder(
+                    TestingLeaderContender.newBuilder(
                                     eventQueue,
                                     leaderElection,
                                     TEST_URL,
@@ -82,8 +82,8 @@ class StandaloneLeaderElectionTest {
     @Test
     void testStartLeaderElection() throws Exception {
         final CompletableFuture<UUID> grantLeadershipResult = new CompletableFuture<>();
-        final TestingGenericLeaderContender contender =
-                TestingGenericLeaderContender.newBuilderForNoOpContender()
+        final TestingLeaderContender contender =
+                TestingLeaderContender.newBuilderForNoOpContender()
                         .setGrantLeadershipConsumer(
                                 (ignoredLock, sessionID) ->
                                         grantLeadershipResult.complete(sessionID))
@@ -97,8 +97,8 @@ class StandaloneLeaderElectionTest {
 
     @Test
     void testHasLeadershipWithContender() throws Exception {
-        final TestingGenericLeaderContender contender =
-                TestingGenericLeaderContender.newBuilderForNoOpContender().build();
+        final TestingLeaderContender contender =
+                TestingLeaderContender.newBuilderForNoOpContender().build();
         try (final LeaderElection testInstance = new StandaloneLeaderElection(SESSION_ID)) {
             testInstance.startLeaderElection(contender);
 
@@ -122,8 +122,8 @@ class StandaloneLeaderElectionTest {
     @Test
     void testRevokeCallOnClose() throws Exception {
         final AtomicBoolean revokeLeadershipCalled = new AtomicBoolean(false);
-        final TestingGenericLeaderContender contender =
-                TestingGenericLeaderContender.newBuilderForNoOpContender()
+        final TestingLeaderContender contender =
+                TestingLeaderContender.newBuilderForNoOpContender()
                         .setRevokeLeadershipConsumer(
                                 ignoredLock -> revokeLeadershipCalled.set(true))
                         .build();

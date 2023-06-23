@@ -82,7 +82,7 @@ import static org.mockito.Mockito.when;
  * org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalDriver}, some simple tests will
  * use {@link TestingLeaderElectionListener} which will not write the leader information to
  * ZooKeeper. For the complicated tests(e.g. multiple leaders), we will use {@link
- * DefaultLeaderElectionService} with {@link TestingGenericLeaderContender}.
+ * DefaultLeaderElectionService} with {@link TestingLeaderContender}.
  */
 class ZooKeeperLeaderElectionTest {
 
@@ -313,7 +313,7 @@ class ZooKeeperLeaderElectionTest {
             leaderElection = leaderElectionService.createLeaderElection(contenderID);
 
             final LeaderContender contender =
-                    TestingGenericLeaderContender.newBuilder(
+                    TestingLeaderContender.newBuilder(
                                     eventQueue, leaderElection, address, errorHandler::onFatalError)
                             .build();
             leaderElection.startLeaderElection(contender);

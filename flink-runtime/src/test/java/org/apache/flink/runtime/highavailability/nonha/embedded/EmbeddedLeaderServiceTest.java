@@ -21,7 +21,7 @@ package org.apache.flink.runtime.highavailability.nonha.embedded;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderelection.LeaderElectionEvent;
-import org.apache.flink.runtime.leaderelection.TestingGenericLeaderContender;
+import org.apache.flink.runtime.leaderelection.TestingLeaderContender;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerExtension;
 
 import org.junit.jupiter.api.Test;
@@ -57,7 +57,7 @@ class EmbeddedLeaderServiceTest {
                     embeddedLeaderService.createLeaderElectionService("contender_id");
 
             leaderElection.startLeaderElection(
-                    TestingGenericLeaderContender.newBuilder(
+                    TestingLeaderContender.newBuilder(
                                     eventQueue,
                                     leaderElection,
                                     "unused-address",
@@ -98,7 +98,7 @@ class EmbeddedLeaderServiceTest {
             final LeaderElection leaderElection =
                     embeddedLeaderService.createLeaderElectionService("contender_id");
             leaderElection.startLeaderElection(
-                    TestingGenericLeaderContender.newBuilder(
+                    TestingLeaderContender.newBuilder(
                                     eventQueue,
                                     leaderElection,
                                     "unused-address",

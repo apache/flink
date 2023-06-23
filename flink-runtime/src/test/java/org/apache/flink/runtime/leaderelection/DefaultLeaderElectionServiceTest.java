@@ -48,7 +48,6 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -245,7 +244,7 @@ class DefaultLeaderElectionServiceTest {
                     testInstance.createLeaderElection(createRandomContenderID());
             final BlockingQueue<LeaderElectionEvent> eventQueue = new ArrayBlockingQueue<>(1);
             final LeaderContender testingContender =
-                    TestingGenericLeaderContender.newBuilder(
+                    TestingLeaderContender.newBuilder(
                                     eventQueue,
                                     leaderElection,
                                     "unused-address",
@@ -279,7 +278,7 @@ class DefaultLeaderElectionServiceTest {
                                 final Collection<LeaderElectionEvent> eventQueue =
                                         new ArrayList<>();
                                 final LeaderContender leaderContender =
-                                        TestingGenericLeaderContender.newBuilder(
+                                        TestingLeaderContender.newBuilder(
                                                         eventQueue,
                                                         anotherLeaderElection,
                                                         "another-address-for-" + anotherContenderID,
@@ -342,7 +341,7 @@ class DefaultLeaderElectionServiceTest {
                                     leaderElectionService.createLeaderElection(
                                             anotherContenderID)) {
                                 final LeaderContender newContender =
-                                        TestingGenericLeaderContender.newBuilder(
+                                        TestingLeaderContender.newBuilder(
                                                         eventQueue,
                                                         newLeaderElection,
                                                         "another-address-for-" + anotherContenderID,
@@ -361,53 +360,47 @@ class DefaultLeaderElectionServiceTest {
     }
 
     @Test
-    void testDelayedRevokeCallAfterContenderBeingDeregisteredAgain() throws Exception {
-        new Context() {
-            {
-                runTestWithManuallyTriggeredEvents(
-                        executorService -> {
-                            final UUID expectedSessionID = UUID.randomUUID();
-                            grantLeadership(expectedSessionID);
-                            executorService.trigger();
+    void testOnRevokeCallWhileClosingService() throws Exception {
+        final AtomicBoolean leadershipGranted = new AtomicBoolean();
+        final TestingLeaderElectionDriver.Builder driverBuilder =
+                TestingLeaderElectionDriver.newBuilder(leadershipGranted);
 
-                            final LeaderElection leaderElection =
-                                    leaderElectionService.createLeaderElection("contender_id");
+        final TestingLeaderElectionDriver.Factory driverFactory =
+                new TestingLeaderElectionDriver.Factory(driverBuilder);
+        try (final DefaultLeaderElectionService testInstance =
+                new DefaultLeaderElectionService(
+                        driverFactory,
+                        fatalErrorHandlerExtension.getTestingFatalErrorHandler(),
+                        Executors.newDirectExecutorService())) {
+            driverBuilder.setCloseConsumer(lock -> testInstance.onRevokeLeadership());
+            testInstance.startLeaderElectionBackend();
 
-                            final AtomicInteger revokeCallCount = new AtomicInteger();
-                            final LeaderContender contender =
-                                    TestingGenericLeaderContender.newBuilder()
-                                            .setRevokeLeadershipRunnable(
-                                                    revokeCallCount::incrementAndGet)
-                                            .build();
-                            leaderElection.startLeaderElection(contender);
-                            executorService.trigger();
+            final UUID expectedLeaderSessionID = UUID.randomUUID();
+            leadershipGranted.set(true);
+            testInstance.onGrantLeadership(expectedLeaderSessionID);
 
-                            assertThat(revokeCallCount)
-                                    .as("No revocation should have been triggered, yet.")
-                                    .hasValue(0);
+            final LeaderElection leaderElection =
+                    testInstance.createLeaderElection(createRandomContenderID());
 
-                            revokeLeadership();
+            final Queue<LeaderElectionEvent> eventQueue = new LinkedList<>();
+            final LeaderContender contender =
+                    TestingLeaderContender.newBuilder(
+                                    eventQueue,
+                                    fatalErrorHandlerExtension.getTestingFatalErrorHandler()
+                                            ::onFatalError)
+                            .build();
+            leaderElection.startLeaderElection(contender);
 
-                            assertThat(revokeCallCount)
-                                    .as("A revocation was triggered but not processed, yet.")
-                                    .hasValue(0);
+            assertThat(eventQueue.remove().asIsLeaderEvent().getLeaderSessionID())
+                    .as("The next event should have been the triggered leader acquisition.")
+                    .isEqualTo(expectedLeaderSessionID);
 
-                            leaderElection.close();
+            leaderElection.close();
 
-                            assertThat(revokeCallCount)
-                                    .as(
-                                            "A revocation should have been triggered and immediately processed through the close call.")
-                                    .hasValue(1);
-
-                            executorService.triggerAll();
-
-                            assertThat(revokeCallCount)
-                                    .as(
-                                            "The leadership revocation event that was triggered by the HA backend shouldn't have been forwarded to the contender, anymore.")
-                                    .hasValue(1);
-                        });
-            }
-        };
+            assertThat(eventQueue)
+                    .as("No additional event should have been forwarded to the contender.")
+                    .isEmpty();
+        }
     }
 
     @Test
@@ -421,8 +414,7 @@ class DefaultLeaderElectionServiceTest {
             assertThatThrownBy(
                             () ->
                                     leaderElection.startLeaderElection(
-                                            TestingGenericLeaderContender
-                                                    .newBuilderForNoOpContender()
+                                            TestingLeaderContender.newBuilderForNoOpContender()
                                                     .build()))
                     .isInstanceOf(IllegalStateException.class);
 
@@ -1201,7 +1193,7 @@ class DefaultLeaderElectionServiceTest {
     void testOnGrantLeadershipAsyncDoesNotBlock() throws Exception {
         testNonBlockingCall(
                 latch ->
-                        TestingGenericLeaderContender.newBuilderForNoOpContender()
+                        TestingLeaderContender.newBuilderForNoOpContender()
                                 .setGrantLeadershipConsumer(
                                         (ignoredLock, ignoredSessionID) -> latch.awaitQuietly())
                                 .build(),
@@ -1215,7 +1207,7 @@ class DefaultLeaderElectionServiceTest {
     void testOnRevokeLeadershipDoesNotBlock() throws Exception {
         testNonBlockingCall(
                 latch ->
-                        TestingGenericLeaderContender.newBuilderForNoOpContender()
+                        TestingLeaderContender.newBuilderForNoOpContender()
                                 .setRevokeLeadershipConsumer(ignoredLock -> latch.awaitQuietly())
                                 .build(),
                 (leadershipGranted, listener) -> {
@@ -1229,11 +1221,11 @@ class DefaultLeaderElectionServiceTest {
     }
 
     private void testNonBlockingCall(
-            Function<OneShotLatch, TestingGenericLeaderContender> contenderCreator,
+            Function<OneShotLatch, LeaderContender> contenderCreator,
             BiConsumer<AtomicBoolean, LeaderElectionDriver.Listener> listenerAction)
             throws Exception {
         final OneShotLatch latch = new OneShotLatch();
-        final TestingGenericLeaderContender contender = contenderCreator.apply(latch);
+        final LeaderContender contender = contenderCreator.apply(latch);
 
         final AtomicBoolean leadershipGranted = new AtomicBoolean(false);
         final TestingLeaderElectionDriver.Factory driverFactory =
@@ -1394,7 +1386,7 @@ class DefaultLeaderElectionServiceTest {
 
             this.eventQueue = new ArrayBlockingQueue<>(100);
             final LeaderContender contender =
-                    TestingGenericLeaderContender.newBuilder(
+                    TestingLeaderContender.newBuilder(
                                     eventQueue,
                                     leaderElection,
                                     address,

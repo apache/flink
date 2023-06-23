@@ -53,7 +53,7 @@ class DefaultLeaderElectionTest {
                 new DefaultLeaderElection(parentService, DEFAULT_TEST_CONTENDER_ID)) {
 
             final LeaderContender contender =
-                    TestingGenericLeaderContender.newBuilderForNoOpContender().build();
+                    TestingLeaderContender.newBuilderForNoOpContender().build();
             testInstance.startLeaderElection(contender);
 
             assertThat(contenderIDRef).hasValue(DEFAULT_TEST_CONTENDER_ID);
@@ -88,8 +88,7 @@ class DefaultLeaderElectionTest {
             assertThatThrownBy(
                             () ->
                                     testInstance.startLeaderElection(
-                                            TestingGenericLeaderContender
-                                                    .newBuilderForNoOpContender()
+                                            TestingLeaderContender.newBuilderForNoOpContender()
                                                     .build()))
                     .isEqualTo(expectedException);
         }
@@ -135,7 +134,7 @@ class DefaultLeaderElectionTest {
                 new DefaultLeaderElection(parentService, DEFAULT_TEST_CONTENDER_ID);
 
         testInstance.startLeaderElection(
-                TestingGenericLeaderContender.newBuilderForNoOpContender().build());
+                TestingLeaderContender.newBuilderForNoOpContender().build());
         testInstance.close();
 
         assertThat(actualContenderID).isCompletedWithValue(DEFAULT_TEST_CONTENDER_ID);

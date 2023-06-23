@@ -83,7 +83,7 @@ public class LeaderElectionTest {
     void testHasLeadership() throws Exception {
         final ArrayBlockingQueue<LeaderElectionEvent> eventQueue = new ArrayBlockingQueue<>(10);
         final LeaderContender manualLeaderContender =
-                TestingGenericLeaderContender.newBuilder(
+                TestingLeaderContender.newBuilder(
                                 eventQueue,
                                 testingFatalErrorHandlerResource.getTestingFatalErrorHandler()
                                         ::onFatalError)

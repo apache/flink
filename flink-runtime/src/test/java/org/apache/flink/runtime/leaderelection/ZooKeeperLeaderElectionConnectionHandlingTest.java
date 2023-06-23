@@ -152,7 +152,7 @@ class ZooKeeperLeaderElectionConnectionHandlingTest {
         final CompletableFuture<UUID> grantCallEventFuture = new CompletableFuture<>();
         final CompletableFuture<Void> revokeCallEventFuture = new CompletableFuture<>();
         final LeaderContender contender =
-                TestingGenericLeaderContender.newBuilderForNoOpContender()
+                TestingLeaderContender.newBuilderForNoOpContender()
                         .setGrantLeadershipConsumer(
                                 (ignoredLock, sessionID) ->
                                         grantCallEventFuture.complete(sessionID))

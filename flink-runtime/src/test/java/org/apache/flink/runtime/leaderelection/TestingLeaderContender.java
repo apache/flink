@@ -25,10 +25,10 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
- * {@code TestingGenericLeaderContender} is a more generic testing implementation of the {@link
+ * {@code TestingLeaderContender} is a more generic testing implementation of the {@link
  * LeaderContender} interface.
  */
-public class TestingGenericLeaderContender implements LeaderContender {
+public class TestingLeaderContender implements LeaderContender {
 
     private final ReentrantLock lock = new ReentrantLock();
 
@@ -36,7 +36,7 @@ public class TestingGenericLeaderContender implements LeaderContender {
     private final Consumer<ReentrantLock> revokeLeadershipConsumer;
     private final BiConsumer<ReentrantLock, Exception> handleErrorConsumer;
 
-    public TestingGenericLeaderContender(
+    public TestingLeaderContender(
             BiConsumer<ReentrantLock, UUID> grantLeadershipConsumer,
             Consumer<ReentrantLock> revokeLeadershipConsumer,
             BiConsumer<ReentrantLock, Exception> handleErrorConsumer) {
@@ -125,7 +125,7 @@ public class TestingGenericLeaderContender implements LeaderContender {
                         });
     }
 
-    /** {@code Builder} for creating {@code TestingGenericLeaderContender} instances. */
+    /** {@code Builder} for creating {@code TestingLeaderContender} instances. */
     public static class Builder {
         private BiConsumer<ReentrantLock, UUID> grantLeadershipConsumer =
                 (ignoredLock, ignoredSessionID) -> {};
@@ -160,8 +160,8 @@ public class TestingGenericLeaderContender implements LeaderContender {
             return this;
         }
 
-        public TestingGenericLeaderContender build() {
-            return new TestingGenericLeaderContender(
+        public TestingLeaderContender build() {
+            return new TestingLeaderContender(
                     grantLeadershipConsumer, revokeLeadershipConsumer, handleErrorConsumer);
         }
     }

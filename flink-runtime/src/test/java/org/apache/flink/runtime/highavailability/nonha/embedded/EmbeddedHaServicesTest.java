@@ -22,14 +22,14 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderelection.LeaderElectionEvent;
-import org.apache.flink.runtime.leaderelection.TestingGenericLeaderContender;
+import org.apache.flink.runtime.leaderelection.TestingLeaderContender;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerExtension;
 import org.apache.flink.util.concurrent.Executors;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -153,7 +153,7 @@ public class EmbeddedHaServicesTest {
                 new LeaderRetrievalUtils.LeaderConnectionInfoListener();
         final Collection<LeaderElectionEvent> eventQueue = createEventQueue();
         final LeaderContender leaderContender =
-                TestingGenericLeaderContender.newBuilder(
+                TestingLeaderContender.newBuilder(
                                 eventQueue,
                                 leaderElection,
                                 ADDRESS,
@@ -195,7 +195,7 @@ public class EmbeddedHaServicesTest {
 
         final Queue<LeaderElectionEvent> eventQueue = createEventQueue();
         leaderElection.startLeaderElection(
-                TestingGenericLeaderContender.newBuilder(
+                TestingLeaderContender.newBuilder(
                                 eventQueue,
                                 leaderElection,
                                 ADDRESS,

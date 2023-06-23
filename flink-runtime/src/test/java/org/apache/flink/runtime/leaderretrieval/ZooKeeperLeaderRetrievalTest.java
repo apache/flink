@@ -28,7 +28,7 @@ import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
-import org.apache.flink.runtime.leaderelection.TestingGenericLeaderContender;
+import org.apache.flink.runtime.leaderelection.TestingLeaderContender;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionListener;
 import org.apache.flink.runtime.leaderelection.ZooKeeperLeaderElectionDriver;
 import org.apache.flink.runtime.rpc.AddressResolution;
@@ -185,7 +185,7 @@ class ZooKeeperLeaderRetrievalTest {
                         highAvailabilityServices.getJobManagerLeaderElection(
                                 HighAvailabilityServices.DEFAULT_JOB_ID);
                 final LeaderContender correctLeaderAddressContender =
-                        TestingGenericLeaderContender.newBuilder(
+                        TestingLeaderContender.newBuilder(
                                         leaderElection,
                                         correctAddress,
                                         testingFatalErrorHandlerResource
