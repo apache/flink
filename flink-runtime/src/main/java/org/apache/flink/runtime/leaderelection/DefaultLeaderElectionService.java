@@ -42,13 +42,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Default implementation for leader election service. Composed with different {@link
- * MultipleComponentLeaderElectionDriver}, we could perform a leader election for the contender, and
- * then persist the leader information to various storage.
+ * LeaderElectionDriver}, we could perform a leader election for the contender, and then persist the
+ * leader information to various storage.
  *
  * <p>{@code DefaultLeaderElectionService} handles a single {@link LeaderContender}.
  */
 public class DefaultLeaderElectionService extends AbstractLeaderElectionService
-        implements MultipleComponentLeaderElectionDriver.Listener, AutoCloseable {
+        implements LeaderElectionDriver.Listener, AutoCloseable {
 
     private static final Logger LOG = LoggerFactory.getLogger(DefaultLeaderElectionService.class);
 
@@ -61,16 +61,16 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
 
     private final Object lock = new Object();
 
-    private final MultipleComponentLeaderElectionDriverFactory leaderElectionDriverFactory;
+    private final LeaderElectionDriverFactory leaderElectionDriverFactory;
 
     @GuardedBy("lock")
     private final Map<String, LeaderContender> leaderContenderRegistry = new HashMap<>();
 
     /**
-     * Saves the session ID which was issued by the {@link MultipleComponentLeaderElectionDriver} if
-     * and only if the leadership is acquired by this service. {@code issuedLeaderSessionID} being
-     * {@code null} indicates that this service isn't the leader right now (i.e. {@link
-     * #isLeader(UUID)}) wasn't called, yet (independently of what {@code
+     * Saves the session ID which was issued by the {@link LeaderElectionDriver} if and only if the
+     * leadership is acquired by this service. {@code issuedLeaderSessionID} being {@code null}
+     * indicates that this service isn't the leader right now (i.e. {@link
+     * #onGrantLeadership(UUID)}) wasn't called, yet (independently of what {@code
      * leaderElectionDriver#hasLeadership()} returns).
      */
     @GuardedBy("lock")
@@ -101,7 +101,7 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
      *
      * <p>The driver is guarded by this instance's {@link #running} state.
      */
-    private MultipleComponentLeaderElectionDriver leaderElectionDriver;
+    private LeaderElectionDriver leaderElectionDriver;
 
     /**
      * This {@link ExecutorService} is used for running the leader event handling logic. Production
@@ -114,8 +114,7 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
 
     private final FatalErrorHandler fallbackErrorHandler;
 
-    public DefaultLeaderElectionService(
-            MultipleComponentLeaderElectionDriverFactory leaderElectionDriverFactory) {
+    public DefaultLeaderElectionService(LeaderElectionDriverFactory leaderElectionDriverFactory) {
         this(
                 leaderElectionDriverFactory,
                 t ->
@@ -125,7 +124,7 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
 
     @VisibleForTesting
     public DefaultLeaderElectionService(
-            MultipleComponentLeaderElectionDriverFactory leaderElectionDriverFactory,
+            LeaderElectionDriverFactory leaderElectionDriverFactory,
             FatalErrorHandler fallbackErrorHandler) {
         this(
                 leaderElectionDriverFactory,
@@ -137,7 +136,7 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
 
     @VisibleForTesting
     DefaultLeaderElectionService(
-            MultipleComponentLeaderElectionDriverFactory leaderElectionDriverFactory,
+            LeaderElectionDriverFactory leaderElectionDriverFactory,
             FatalErrorHandler fallbackErrorHandler,
             ExecutorService leadershipOperationExecutor) {
         this.leaderElectionDriverFactory = checkNotNull(leaderElectionDriverFactory);
@@ -550,20 +549,19 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
     }
 
     @Override
-    public void isLeader(UUID leaderSessionID) {
+    public void onGrantLeadership(UUID leaderSessionID) {
         runInLeaderEventThread(
                 LEADER_ACQUISITION_EVENT_LOG_NAME,
                 () -> onGrantLeadershipInternal(leaderSessionID));
     }
 
     @Override
-    public void notLeader() {
+    public void onRevokeLeadership() {
         runInLeaderEventThread(LEADER_REVOCATION_EVENT_LOG_NAME, this::onRevokeLeadershipInternal);
     }
 
     @Override
-    public void notifyLeaderInformationChange(
-            String contenderID, LeaderInformation leaderInformation) {
+    public void onLeaderInformationChange(String contenderID, LeaderInformation leaderInformation) {
         synchronized (lock) {
             notifyLeaderInformationChangeInternal(
                     contenderID,
@@ -573,8 +571,7 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
     }
 
     @Override
-    public void notifyAllKnownLeaderInformation(
-            LeaderInformationRegister changedLeaderInformation) {
+    public void onLeaderInformationChange(LeaderInformationRegister changedLeaderInformation) {
         synchronized (lock) {
             leaderContenderRegistry.forEach(
                     (contenderID, leaderContender) -> {

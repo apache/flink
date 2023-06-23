@@ -23,13 +23,13 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.testutils.EachCallbackWrapper;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperMultipleComponentLeaderElectionHaServices;
+import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperLeaderElectionHaServices;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderelection.TestingContender;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionListener;
-import org.apache.flink.runtime.leaderelection.ZooKeeperMultipleComponentLeaderElectionDriver;
+import org.apache.flink.runtime.leaderelection.ZooKeeperLeaderElectionDriver;
 import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
@@ -88,7 +88,7 @@ class ZooKeeperLeaderRetrievalTest {
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperExtension.getConnectString());
 
         highAvailabilityServices =
-                new ZooKeeperMultipleComponentLeaderElectionHaServices(
+                new ZooKeeperLeaderElectionHaServices(
                         ZooKeeperUtils.startCuratorFramework(
                                 config,
                                 testingFatalErrorHandlerResource.getTestingFatalErrorHandler()),
@@ -154,8 +154,8 @@ class ZooKeeperLeaderRetrievalTest {
 
                 // create driver to simulate a separate Flink process having leadership that writes
                 // its leader information to the ZooKeeper backend and gets lost afterward
-                final ZooKeeperMultipleComponentLeaderElectionDriver externalProcessDriver =
-                        new ZooKeeperMultipleComponentLeaderElectionDriver(
+                final ZooKeeperLeaderElectionDriver externalProcessDriver =
+                        new ZooKeeperLeaderElectionDriver(
                                 ZooKeeperUtils.useNamespaceAndEnsurePath(
                                         zooKeeperExtension.getZooKeeperClient(
                                                 testingFatalErrorHandlerResource

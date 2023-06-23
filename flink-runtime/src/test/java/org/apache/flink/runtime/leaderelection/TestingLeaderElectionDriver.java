@@ -33,9 +33,9 @@ import java.util.function.Function;
 
 /**
  * {@code TestingLeaderElectionDriver} is a generic test implementation of {@link
- * MultipleComponentLeaderElectionDriver} which can be used in test cases.
+ * LeaderElectionDriver} which can be used in test cases.
  */
-public class TestingLeaderElectionDriver implements MultipleComponentLeaderElectionDriver {
+public class TestingLeaderElectionDriver implements LeaderElectionDriver {
 
     private final Function<ReentrantLock, Boolean> hasLeadershipFunction;
     private final TriConsumer<ReentrantLock, String, LeaderInformation>
@@ -100,8 +100,7 @@ public class TestingLeaderElectionDriver implements MultipleComponentLeaderElect
 
     /**
      * Returns a {@code Builder} that comes with a basic default implementation of the {@link
-     * MultipleComponentLeaderElectionDriver} contract using the passed parameters for information
-     * storage.
+     * LeaderElectionDriver} contract using the passed parameters for information storage.
      *
      * @param hasLeadership saves the current leadership state of the instance that is created from
      *     the {@code Builder}.
@@ -174,10 +173,10 @@ public class TestingLeaderElectionDriver implements MultipleComponentLeaderElect
     }
 
     /**
-     * {@code Factory} implements {@link MultipleComponentLeaderElectionDriverFactory} for the
-     * {@code TestingLeaderElectionDriver}.
+     * {@code Factory} implements {@link LeaderElectionDriverFactory} for the {@code
+     * TestingLeaderElectionDriver}.
      */
-    public static class Factory implements MultipleComponentLeaderElectionDriverFactory {
+    public static class Factory implements LeaderElectionDriverFactory {
 
         private final Builder driverBuilder;
 
@@ -202,7 +201,7 @@ public class TestingLeaderElectionDriver implements MultipleComponentLeaderElect
         }
 
         @Override
-        public MultipleComponentLeaderElectionDriver create(
+        public LeaderElectionDriver create(
                 Listener leaderElectionListener, FatalErrorHandler fatalErrorHandler)
                 throws Exception {
             final TestingLeaderElectionDriver driver =
@@ -216,10 +215,9 @@ public class TestingLeaderElectionDriver implements MultipleComponentLeaderElect
          * Returns the {@link TestingLeaderElectionDriver} instance that was created by this {@code
          * Factory} and verifies that no other driver was created.
          *
-         * @return The only {@code MultipleComponentLeaderElectionDriver} that was created by this
-         *     {@code Factory}.
-         * @throws AssertionError if no {@code MultipleComponentLeaderElectionDriver} or more than
-         *     one instance was created by this {@code Factory}.
+         * @return The only {@code LeaderElectionDriver} that was created by this {@code Factory}.
+         * @throws AssertionError if no {@code LeaderElectionDriver} or more than one instance was
+         *     created by this {@code Factory}.
          */
         public TestingLeaderElectionDriver assertAndGetOnlyCreatedDriver() {
             final TestingLeaderElectionDriver driver = createdDrivers.poll();

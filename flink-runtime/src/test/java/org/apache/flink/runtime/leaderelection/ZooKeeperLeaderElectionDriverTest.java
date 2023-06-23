@@ -49,8 +49,8 @@ import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Tests for the {@link ZooKeeperMultipleComponentLeaderElectionDriver}. */
-class ZooKeeperMultipleComponentLeaderElectionDriverTest {
+/** Tests for the {@link ZooKeeperLeaderElectionDriver}. */
+class ZooKeeperLeaderElectionDriverTest {
 
     private final ZooKeeperExtension zooKeeperExtension = new ZooKeeperExtension();
 
@@ -96,12 +96,12 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
                         () -> {
                             leaderElectionListener.await(LeaderElectionEvent.IsLeaderEvent.class);
 
-                            final String componentId = "retrieved-component";
+                            final String contenderID = "retrieved-component";
                             final DefaultLeaderRetrievalService defaultLeaderRetrievalService =
                                     new DefaultLeaderRetrievalService(
                                             new ZooKeeperLeaderRetrievalDriverFactory(
                                                     curatorFramework.asCuratorFramework(),
-                                                    componentId,
+                                                    contenderID,
                                                     ZooKeeperLeaderRetrievalDriver
                                                             .LeaderInformationClearancePolicy
                                                             .ON_LOST_CONNECTION));
@@ -112,7 +112,7 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
                             final LeaderInformation leaderInformation =
                                     LeaderInformation.known(UUID.randomUUID(), "foobar");
                             leaderElectionDriver.publishLeaderInformation(
-                                    componentId, leaderInformation);
+                                    contenderID, leaderInformation);
 
                             leaderRetrievalListener.waitForNewLeader();
 
@@ -131,12 +131,12 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
                         () -> {
                             leaderElectionListener.await(LeaderElectionEvent.IsLeaderEvent.class);
 
-                            final String componentId = "retrieved-component";
+                            final String contenderID = "retrieved-component";
                             final DefaultLeaderRetrievalService defaultLeaderRetrievalService =
                                     new DefaultLeaderRetrievalService(
                                             new ZooKeeperLeaderRetrievalDriverFactory(
                                                     curatorFramework.asCuratorFramework(),
-                                                    componentId,
+                                                    contenderID,
                                                     ZooKeeperLeaderRetrievalDriver
                                                             .LeaderInformationClearancePolicy
                                                             .ON_LOST_CONNECTION));
@@ -145,13 +145,13 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
                             defaultLeaderRetrievalService.start(leaderRetrievalListener);
 
                             leaderElectionDriver.publishLeaderInformation(
-                                    componentId,
+                                    contenderID,
                                     LeaderInformation.known(UUID.randomUUID(), "foobar"));
 
                             leaderRetrievalListener.waitForNewLeader();
 
                             leaderElectionDriver.publishLeaderInformation(
-                                    componentId, LeaderInformation.empty());
+                                    contenderID, LeaderInformation.empty());
 
                             leaderRetrievalListener.waitForEmptyLeaderInformation();
 
@@ -182,7 +182,7 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
                                 assertThat(otherLeaderElectionDriver.hasLeadership()).isFalse();
 
                                 otherLeaderElectionDriver.publishLeaderInformation(
-                                        "componentId",
+                                        "contenderID",
                                         LeaderInformation.known(UUID.randomUUID(), "localhost"));
 
                                 assertThat(
@@ -211,9 +211,9 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
 
                             final LeaderInformation leaderInformation =
                                     LeaderInformation.known(UUID.randomUUID(), "foobar");
-                            final String componentId = "componentId";
+                            final String contenderID = "contenderID";
                             final String path =
-                                    ZooKeeperUtils.generateConnectionInformationPath(componentId);
+                                    ZooKeeperUtils.generateConnectionInformationPath(contenderID);
 
                             ZooKeeperUtils.writeLeaderInformationToZooKeeper(
                                     leaderInformation,
@@ -227,8 +227,8 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
                                                     LeaderElectionEvent.LeaderInformationChangeEvent
                                                             .class);
 
-                            assertThat(leaderInformationChangeEvent.getComponentId())
-                                    .isEqualTo(componentId);
+                            assertThat(leaderInformationChangeEvent.getContenderID())
+                                    .isEqualTo(contenderID);
                             assertThat(leaderInformationChangeEvent.getLeaderInformation())
                                     .isEqualTo(leaderInformation);
                         });
@@ -306,9 +306,9 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
 
                             final LeaderInformation leaderInformation =
                                     LeaderInformation.known(UUID.randomUUID(), "foobar");
-                            final String componentId = "componentId";
+                            final String contenderID = "contenderID";
                             final String path =
-                                    ZooKeeperUtils.generateConnectionInformationPath(componentId);
+                                    ZooKeeperUtils.generateConnectionInformationPath(contenderID);
 
                             ZooKeeperUtils.writeLeaderInformationToZooKeeper(
                                     leaderInformation,
@@ -328,8 +328,8 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
                                             leaderElectionListener.await(
                                                     LeaderElectionEvent.LeaderInformationChangeEvent
                                                             .class);
-                            assertThat(leaderInformationChangeEvent.getComponentId())
-                                    .isEqualTo(componentId);
+                            assertThat(leaderInformationChangeEvent.getContenderID())
+                                    .isEqualTo(contenderID);
                             assertThat(leaderInformationChangeEvent.getLeaderInformation())
                                     .isEqualTo(LeaderInformation.empty());
                         });
@@ -343,7 +343,7 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
                 new SimpleLeaderElectionListener();
 
         try {
-            final ZooKeeperMultipleComponentLeaderElectionDriver leaderElectionDriver =
+            final ZooKeeperLeaderElectionDriver leaderElectionDriver =
                     createLeaderElectionDriver(
                             leaderElectionListener, curatorFramework, fatalErrorHandler);
             return new ElectionDriver(leaderElectionDriver, leaderElectionListener);
@@ -354,11 +354,11 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
     }
 
     private static final class ElectionDriver {
-        private final ZooKeeperMultipleComponentLeaderElectionDriver leaderElectionDriver;
+        private final ZooKeeperLeaderElectionDriver leaderElectionDriver;
         private final SimpleLeaderElectionListener leaderElectionListener;
 
         private ElectionDriver(
-                ZooKeeperMultipleComponentLeaderElectionDriver leaderElectionDriver,
+                ZooKeeperLeaderElectionDriver leaderElectionDriver,
                 SimpleLeaderElectionListener leaderElectionListener) {
             this.leaderElectionDriver = leaderElectionDriver;
             this.leaderElectionListener = leaderElectionListener;
@@ -376,14 +376,14 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
             return leaderElectionListener.getLeadershipFuture();
         }
 
-        void publishLeaderInformation(String componentId, LeaderInformation leaderInformation)
+        void publishLeaderInformation(String contenderID, LeaderInformation leaderInformation)
                 throws Exception {
-            leaderElectionDriver.publishLeaderInformation(componentId, leaderInformation);
+            leaderElectionDriver.publishLeaderInformation(contenderID, leaderInformation);
         }
     }
 
     private static final class SimpleLeaderElectionListener
-            implements MultipleComponentLeaderElectionDriver.Listener {
+            implements LeaderElectionDriver.Listener {
 
         private final CompletableFuture<Void> leadershipFuture = new CompletableFuture<>();
 
@@ -392,28 +392,28 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
         }
 
         @Override
-        public void isLeader(UUID ignoredSessionID) {
+        public void onGrantLeadership(UUID ignoredSessionID) {
             leadershipFuture.complete(null);
         }
 
         @Override
-        public void notLeader() {}
+        public void onRevokeLeadership() {}
 
         @Override
-        public void notifyLeaderInformationChange(
-                String componentId, LeaderInformation leaderInformation) {}
+        public void onLeaderInformationChange(
+                String contenderID, LeaderInformation leaderInformation) {}
 
         @Override
-        public void notifyAllKnownLeaderInformation(
+        public void onLeaderInformationChange(
                 LeaderInformationRegister leaderInformationRegister) {}
     }
 
-    private static ZooKeeperMultipleComponentLeaderElectionDriver createLeaderElectionDriver(
-            MultipleComponentLeaderElectionDriver.Listener leaderElectionListener,
+    private static ZooKeeperLeaderElectionDriver createLeaderElectionDriver(
+            LeaderElectionDriver.Listener leaderElectionListener,
             CuratorFramework curatorFramework,
             FatalErrorHandler fatalErrorHandler)
             throws Exception {
-        return new ZooKeeperMultipleComponentLeaderElectionDriver(
+        return new ZooKeeperLeaderElectionDriver(
                 curatorFramework, leaderElectionListener, fatalErrorHandler);
     }
 
@@ -427,7 +427,7 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
     private class Context {
         protected final TestingLeaderElectionListener leaderElectionListener;
         protected final CuratorFrameworkWithUnhandledErrorListener curatorFramework;
-        protected final ZooKeeperMultipleComponentLeaderElectionDriver leaderElectionDriver;
+        protected final ZooKeeperLeaderElectionDriver leaderElectionDriver;
 
         private Context() throws Exception {
             this.leaderElectionListener = new TestingLeaderElectionListener();

@@ -39,10 +39,10 @@ import static org.apache.flink.kubernetes.utils.KubernetesUtils.getOnlyConfigMap
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * The counterpart to the {@link KubernetesMultipleComponentLeaderElectionDriver}. {@link
- * LeaderRetrievalDriver} implementation for Kubernetes. It retrieves the current leader which has
- * been elected by the {@link KubernetesMultipleComponentLeaderElectionDriver}. The leader address
- * as well as the current leader session ID is retrieved from Kubernetes ConfigMap.
+ * The counterpart to the {@link KubernetesLeaderElectionDriver}. {@link LeaderRetrievalDriver}
+ * implementation for Kubernetes. It retrieves the current leader which has been elected by the
+ * {@link KubernetesLeaderElectionDriver}. The leader address as well as the current leader session
+ * ID is retrieved from Kubernetes ConfigMap.
  */
 public class KubernetesLeaderRetrievalDriver implements LeaderRetrievalDriver {
 
@@ -98,7 +98,7 @@ public class KubernetesLeaderRetrievalDriver implements LeaderRetrievalDriver {
 
         @Override
         public void onAdded(List<KubernetesConfigMap> configMaps) {
-            // The ConfigMap is created by KubernetesMultipleComponentLeaderElectionDriver with
+            // The ConfigMap is created by KubernetesLeaderElectionDriver with
             // empty data. We don't really need to process anything unless the retriever was started
             // after the leader election has already succeeded.
             final KubernetesConfigMap configMap = getOnlyConfigMap(configMaps, configMapName);

@@ -175,8 +175,8 @@ public class LeaderElectionTest {
             curatorFrameworkWrapper =
                     ZooKeeperUtils.startCuratorFramework(configuration, fatalErrorHandler);
 
-            final MultipleComponentLeaderElectionDriverFactory driverFactory =
-                    new ZooKeeperMultipleComponentLeaderElectionDriverFactory(
+            final LeaderElectionDriverFactory driverFactory =
+                    new ZooKeeperLeaderElectionDriverFactory(
                             curatorFrameworkWrapper.asCuratorFramework());
             leaderElectionService = new DefaultLeaderElectionService(driverFactory);
             leaderElectionService.startLeaderElectionBackend();

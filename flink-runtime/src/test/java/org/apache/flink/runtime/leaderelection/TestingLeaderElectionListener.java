@@ -28,35 +28,29 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Simple {@link MultipleComponentLeaderElectionDriver.Listener} implementation for testing
- * purposes.
- */
-public final class TestingLeaderElectionListener
-        implements MultipleComponentLeaderElectionDriver.Listener {
+/** Simple {@link LeaderElectionDriver.Listener} implementation for testing purposes. */
+public final class TestingLeaderElectionListener implements LeaderElectionDriver.Listener {
     private final BlockingQueue<LeaderElectionEvent> leaderElectionEvents =
             new ArrayBlockingQueue<>(10);
 
     @Override
-    public void isLeader(UUID leaderSessionID) {
+    public void onGrantLeadership(UUID leaderSessionID) {
         put(new LeaderElectionEvent.IsLeaderEvent(leaderSessionID));
     }
 
     @Override
-    public void notLeader() {
+    public void onRevokeLeadership() {
         put(new LeaderElectionEvent.NotLeaderEvent());
     }
 
     @Override
-    public void notifyLeaderInformationChange(
-            String componentId, LeaderInformation leaderInformation) {
-        put(new LeaderElectionEvent.LeaderInformationChangeEvent(componentId, leaderInformation));
+    public void onLeaderInformationChange(String contenderID, LeaderInformation leaderInformation) {
+        put(new LeaderElectionEvent.LeaderInformationChangeEvent(contenderID, leaderInformation));
     }
 
     @Override
-    public void notifyAllKnownLeaderInformation(
-            LeaderInformationRegister leaderInformationRegister) {
-        put(new LeaderElectionEvent.AllKnownLeaderInformationEvent(leaderInformationRegister));
+    public void onLeaderInformationChange(LeaderInformationRegister leaderInformationRegister) {
+        put(new LeaderElectionEvent.AllLeaderInformationChangeEvent(leaderInformationRegister));
     }
 
     private void put(LeaderElectionEvent leaderElectionEvent) {

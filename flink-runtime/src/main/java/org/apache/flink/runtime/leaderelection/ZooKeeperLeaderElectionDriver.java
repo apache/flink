@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.leaderelection;
 
-import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperMultipleComponentLeaderElectionHaServices;
+import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperLeaderElectionHaServices;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.ExceptionUtils;
@@ -40,16 +40,14 @@ import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/** ZooKeeper based {@link MultipleComponentLeaderElectionDriver} implementation. */
-public class ZooKeeperMultipleComponentLeaderElectionDriver
-        implements MultipleComponentLeaderElectionDriver, LeaderLatchListener {
+/** ZooKeeper based {@link LeaderElectionDriver} implementation. */
+public class ZooKeeperLeaderElectionDriver implements LeaderElectionDriver, LeaderLatchListener {
 
-    private static final Logger LOG =
-            LoggerFactory.getLogger(ZooKeeperMultipleComponentLeaderElectionDriver.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperLeaderElectionDriver.class);
 
     private final CuratorFramework curatorFramework;
 
-    private final MultipleComponentLeaderElectionDriver.Listener leaderElectionListener;
+    private final LeaderElectionDriver.Listener leaderElectionListener;
 
     private final FatalErrorHandler fatalErrorHandler;
 
@@ -62,9 +60,9 @@ public class ZooKeeperMultipleComponentLeaderElectionDriver
 
     private AtomicBoolean running = new AtomicBoolean(true);
 
-    public ZooKeeperMultipleComponentLeaderElectionDriver(
+    public ZooKeeperLeaderElectionDriver(
             CuratorFramework curatorFramework,
-            MultipleComponentLeaderElectionDriver.Listener leaderElectionListener,
+            LeaderElectionDriver.Listener leaderElectionListener,
             FatalErrorHandler fatalErrorHandler)
             throws Exception {
         this.curatorFramework = Preconditions.checkNotNull(curatorFramework);
@@ -76,8 +74,7 @@ public class ZooKeeperMultipleComponentLeaderElectionDriver
                 ZooKeeperUtils.createTreeCache(
                         curatorFramework,
                         "/",
-                        new ZooKeeperMultipleComponentLeaderElectionDriver
-                                .ConnectionInfoNodeSelector());
+                        new ZooKeeperLeaderElectionDriver.ConnectionInfoNodeSelector());
 
         treeCache
                 .getListenable()
@@ -137,7 +134,7 @@ public class ZooKeeperMultipleComponentLeaderElectionDriver
     }
 
     @Override
-    public void publishLeaderInformation(String componentId, LeaderInformation leaderInformation) {
+    public void publishLeaderInformation(String contenderID, LeaderInformation leaderInformation) {
         Preconditions.checkState(running.get());
 
         if (!leaderLatch.hasLeadership()) {
@@ -145,12 +142,12 @@ public class ZooKeeperMultipleComponentLeaderElectionDriver
         }
 
         final String connectionInformationPath =
-                ZooKeeperUtils.generateConnectionInformationPath(componentId);
+                ZooKeeperUtils.generateConnectionInformationPath(contenderID);
 
         LOG.debug(
                 "Write leader information {} for {} to {}.",
                 leaderInformation,
-                componentId,
+                contenderID,
                 ZooKeeperUtils.generateZookeeperPath(
                         curatorFramework.getNamespace(), connectionInformationPath));
 
@@ -166,10 +163,10 @@ public class ZooKeeperMultipleComponentLeaderElectionDriver
     }
 
     @Override
-    public void deleteLeaderInformation(String leaderName) {
+    public void deleteLeaderInformation(String contenderID) {
         try {
             ZooKeeperUtils.deleteZNode(
-                    curatorFramework, ZooKeeperUtils.generateZookeeperPath(leaderName));
+                    curatorFramework, ZooKeeperUtils.generateZookeeperPath(contenderID));
         } catch (Exception e) {
             fatalErrorHandler.onFatalError(e);
         }
@@ -199,13 +196,13 @@ public class ZooKeeperMultipleComponentLeaderElectionDriver
     public void isLeader() {
         final UUID leaderSessionID = UUID.randomUUID();
         LOG.debug("{} obtained the leadership with session ID {}.", this, leaderSessionID);
-        leaderElectionListener.isLeader(leaderSessionID);
+        leaderElectionListener.onGrantLeadership(leaderSessionID);
     }
 
     @Override
     public void notLeader() {
         LOG.debug("{} lost the leadership.", this);
-        leaderElectionListener.notLeader();
+        leaderElectionListener.onRevokeLeadership();
     }
 
     private void handleChangedLeaderInformation(ChildData childData) {
@@ -215,7 +212,7 @@ public class ZooKeeperMultipleComponentLeaderElectionDriver
             final LeaderInformation leaderInformation =
                     tryReadingLeaderInformation(childData, leaderName);
 
-            leaderElectionListener.notifyLeaderInformationChange(leaderName, leaderInformation);
+            leaderElectionListener.onLeaderInformationChange(leaderName, leaderInformation);
         }
     }
 
@@ -235,8 +232,7 @@ public class ZooKeeperMultipleComponentLeaderElectionDriver
         if (shouldHandleLeaderInformationEvent(removedNodePath)) {
             final String leaderName = extractLeaderName(removedNodePath);
 
-            leaderElectionListener.notifyLeaderInformationChange(
-                    leaderName, LeaderInformation.empty());
+            leaderElectionListener.onLeaderInformationChange(leaderName, LeaderInformation.empty());
         }
     }
 
@@ -262,8 +258,8 @@ public class ZooKeeperMultipleComponentLeaderElectionDriver
     }
 
     /**
-     * This selector finds all connection info nodes. See {@link
-     * ZooKeeperMultipleComponentLeaderElectionHaServices} for more details on the Znode layout.
+     * This selector finds all connection info nodes. See {@link ZooKeeperLeaderElectionHaServices}
+     * for more details on the Znode layout.
      */
     private static class ConnectionInfoNodeSelector implements TreeCacheSelector {
         @Override
@@ -279,6 +275,6 @@ public class ZooKeeperMultipleComponentLeaderElectionDriver
 
     @Override
     public String toString() {
-        return "ZooKeeperMultipleComponentLeaderElectionDriver";
+        return "ZooKeeperLeaderElectionDriver";
     }
 }

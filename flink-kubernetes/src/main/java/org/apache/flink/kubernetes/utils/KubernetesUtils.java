@@ -635,8 +635,8 @@ public class KubernetesUtils {
         return LeaderInformation.known(leaderSessionId, leaderAddress);
     }
 
-    public static String createSingleLeaderKey(String componentId) {
-        return LEADER_PREFIX + componentId;
+    public static String createSingleLeaderKey(String contenderID) {
+        return LEADER_PREFIX + contenderID;
     }
 
     public static boolean isSingleLeaderKey(String key) {

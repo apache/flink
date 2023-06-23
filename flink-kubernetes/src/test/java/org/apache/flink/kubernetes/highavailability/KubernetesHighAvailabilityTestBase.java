@@ -25,9 +25,9 @@ import org.apache.flink.kubernetes.kubeclient.TestingFlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
+import org.apache.flink.runtime.leaderelection.LeaderElectionDriver;
 import org.apache.flink.runtime.leaderelection.LeaderElectionEvent;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
-import org.apache.flink.runtime.leaderelection.MultipleComponentLeaderElectionDriver;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalDriver;
 import org.apache.flink.runtime.leaderretrieval.TestingLeaderRetrievalEventHandler;
@@ -80,7 +80,7 @@ class KubernetesHighAvailabilityTestBase {
 
         final String contenderID;
         final String leaderAddress;
-        final MultipleComponentLeaderElectionDriver leaderElectionDriver;
+        final LeaderElectionDriver leaderElectionDriver;
         final TestingLeaderElectionListener electionEventHandler;
 
         final TestingFatalErrorHandler fatalErrorHandler;
@@ -187,13 +187,12 @@ class KubernetesHighAvailabilityTestBase {
             return kubernetesTestFixture.getLeaderCallback();
         }
 
-        private MultipleComponentLeaderElectionDriver createLeaderElectionDriver()
-                throws Exception {
+        private LeaderElectionDriver createLeaderElectionDriver() throws Exception {
             final KubernetesLeaderElectionConfiguration leaderConfig =
                     new KubernetesLeaderElectionConfiguration(
                             LEADER_CONFIGMAP_NAME, LOCK_IDENTITY, configuration);
-            final KubernetesMultipleComponentLeaderElectionDriverFactory factory =
-                    new KubernetesMultipleComponentLeaderElectionDriverFactory(
+            final KubernetesLeaderElectionDriverFactory factory =
+                    new KubernetesLeaderElectionDriverFactory(
                             flinkKubeClient,
                             leaderConfig,
                             kubernetesTestFixture.getConfigMapSharedWatcher(),
@@ -202,8 +201,8 @@ class KubernetesHighAvailabilityTestBase {
         }
 
         private LeaderRetrievalDriver createLeaderRetrievalDriver() {
-            final KubernetesMultipleComponentLeaderRetrievalDriverFactory factory =
-                    new KubernetesMultipleComponentLeaderRetrievalDriverFactory(
+            final KubernetesLeaderRetrievalDriverFactory factory =
+                    new KubernetesLeaderRetrievalDriverFactory(
                             kubernetesTestFixture.getConfigMapSharedWatcher(),
                             watchCallbackExecutorService,
                             LEADER_CONFIGMAP_NAME,

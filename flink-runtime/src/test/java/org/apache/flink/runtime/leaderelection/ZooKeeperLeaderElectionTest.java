@@ -74,9 +74,9 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 /**
- * Tests for the {@link ZooKeeperMultipleComponentLeaderElectionDriver} and the {@link
+ * Tests for the {@link ZooKeeperLeaderElectionDriver} and the {@link
  * org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalDriver}. To directly test the
- * {@link ZooKeeperMultipleComponentLeaderElectionDriver} and {@link
+ * {@link ZooKeeperLeaderElectionDriver} and {@link
  * org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalDriver}, some simple tests will
  * use {@link TestingLeaderElectionListener} which will not write the leader information to
  * ZooKeeper. For the complicated tests(e.g. multiple leaders), we will use {@link
@@ -119,7 +119,7 @@ class ZooKeeperLeaderElectionTest {
                 new TestingLeaderElectionListener();
         final TestingLeaderRetrievalEventHandler retrievalEventHandler =
                 new TestingLeaderRetrievalEventHandler();
-        try (MultipleComponentLeaderElectionDriver leaderElectionDriver =
+        try (LeaderElectionDriver leaderElectionDriver =
                         createAndInitLeaderElectionDriver(
                                 createZooKeeperClient(),
                                 electionEventHandler,
@@ -173,9 +173,8 @@ class ZooKeeperLeaderElectionTest {
             leaderRetrievalService.start(listener);
 
             for (int i = 0; i < num; i++) {
-                final MultipleComponentLeaderElectionDriverFactory driverFactory =
-                        new ZooKeeperMultipleComponentLeaderElectionDriverFactory(
-                                createZooKeeperClient());
+                final LeaderElectionDriverFactory driverFactory =
+                        new ZooKeeperLeaderElectionDriverFactory(createZooKeeperClient());
                 leaderElectionService[i] = new DefaultLeaderElectionService(driverFactory);
                 leaderElectionService[i].startLeaderElectionBackend();
                 leaderElections[i] = leaderElectionService[i].createLeaderElection(CONTENDER_ID);
@@ -275,9 +274,8 @@ class ZooKeeperLeaderElectionTest {
             leaderRetrievalService.start(listener);
 
             for (int i = 0; i < num; i++) {
-                final MultipleComponentLeaderElectionDriverFactory driverFactory =
-                        new ZooKeeperMultipleComponentLeaderElectionDriverFactory(
-                                createZooKeeperClient());
+                final LeaderElectionDriverFactory driverFactory =
+                        new ZooKeeperLeaderElectionDriverFactory(createZooKeeperClient());
                 leaderElectionService[i] = new DefaultLeaderElectionService(driverFactory);
                 leaderElectionService[i].startLeaderElectionBackend();
                 leaderElections[i] = leaderElectionService[i].createLeaderElection(CONTENDER_ID);
@@ -311,9 +309,8 @@ class ZooKeeperLeaderElectionTest {
                     leaderElections[index] = null;
 
                     // create new leader election service which takes part in the leader election
-                    final MultipleComponentLeaderElectionDriverFactory driverFactory =
-                            new ZooKeeperMultipleComponentLeaderElectionDriverFactory(
-                                    createZooKeeperClient());
+                    final LeaderElectionDriverFactory driverFactory =
+                            new ZooKeeperLeaderElectionDriverFactory(createZooKeeperClient());
                     leaderElectionService[index] = new DefaultLeaderElectionService(driverFactory);
                     leaderElectionService[index].startLeaderElectionBackend();
                     leaderElections[index] =
@@ -355,7 +352,7 @@ class ZooKeeperLeaderElectionTest {
         final TestingLeaderElectionListener electionEventHandler =
                 new TestingLeaderElectionListener();
 
-        try (ZooKeeperMultipleComponentLeaderElectionDriver leaderElectionDriver =
+        try (ZooKeeperLeaderElectionDriver leaderElectionDriver =
                 createAndInitLeaderElectionDriver(
                         createZooKeeperClient(),
                         electionEventHandler,
@@ -380,8 +377,8 @@ class ZooKeeperLeaderElectionTest {
     }
 
     /**
-     * Test that errors in the {@link MultipleComponentLeaderElectionDriver} are correctly forwarded
-     * to the {@link LeaderContender}.
+     * Test that errors in the {@link LeaderElectionDriver} are correctly forwarded to the {@link
+     * LeaderContender}.
      */
     @Test
     void testExceptionForwarding() throws Exception {
@@ -405,7 +402,7 @@ class ZooKeeperLeaderElectionTest {
                     new TestingLeaderElectionListener();
             final TestingFatalErrorHandler fatalErrorHandler =
                     testingFatalErrorHandlerResource.getTestingFatalErrorHandler();
-            try (ZooKeeperMultipleComponentLeaderElectionDriver leaderElectionDriver =
+            try (ZooKeeperLeaderElectionDriver leaderElectionDriver =
                     createAndInitLeaderElectionDriver(
                             client, electionEventHandler, fatalErrorHandler)) {
 
@@ -428,7 +425,7 @@ class ZooKeeperLeaderElectionTest {
      */
     @Test
     void testEphemeralZooKeeperNodes() throws Exception {
-        ZooKeeperMultipleComponentLeaderElectionDriver leaderElectionDriver;
+        ZooKeeperLeaderElectionDriver leaderElectionDriver;
         LeaderRetrievalDriver leaderRetrievalDriver = null;
         final TestingLeaderElectionListener electionEventHandler =
                 new TestingLeaderElectionListener();
@@ -519,7 +516,7 @@ class ZooKeeperLeaderElectionTest {
                 new TestingLeaderElectionListener();
         final TestingLeaderRetrievalEventHandler retrievalEventHandler =
                 new TestingLeaderRetrievalEventHandler();
-        try (ZooKeeperMultipleComponentLeaderElectionDriver leaderElectionDriver =
+        try (ZooKeeperLeaderElectionDriver leaderElectionDriver =
                 createAndInitLeaderElectionDriver(
                         createZooKeeperClient(),
                         electionEventHandler,
@@ -552,12 +549,12 @@ class ZooKeeperLeaderElectionTest {
     }
 
     /**
-     * Test that background errors in the {@link MultipleComponentLeaderElectionDriver} are
-     * correctly forwarded to the {@link FatalErrorHandler}.
+     * Test that background errors in the {@link LeaderElectionDriver} are correctly forwarded to
+     * the {@link FatalErrorHandler}.
      */
     @Test
     public void testUnExpectedErrorForwarding() throws Exception {
-        MultipleComponentLeaderElectionDriver leaderElectionDriver = null;
+        LeaderElectionDriver leaderElectionDriver = null;
         final TestingLeaderElectionListener electionEventHandler =
                 new TestingLeaderElectionListener();
 
@@ -675,13 +672,13 @@ class ZooKeeperLeaderElectionTest {
         }
     }
 
-    private ZooKeeperMultipleComponentLeaderElectionDriver createAndInitLeaderElectionDriver(
+    private ZooKeeperLeaderElectionDriver createAndInitLeaderElectionDriver(
             CuratorFramework client,
             TestingLeaderElectionListener electionEventHandler,
             FatalErrorHandler fatalErrorHandler)
             throws Exception {
 
-        return new ZooKeeperMultipleComponentLeaderElectionDriverFactory(client)
+        return new ZooKeeperLeaderElectionDriverFactory(client)
                 .create(electionEventHandler, fatalErrorHandler);
     }
 }

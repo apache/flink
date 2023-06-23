@@ -39,7 +39,7 @@ import static org.apache.flink.kubernetes.utils.Constants.LEADER_ADDRESS_KEY;
 import static org.apache.flink.kubernetes.utils.Constants.LEADER_SESSION_ID_KEY;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Tests for the {@link KubernetesMultipleComponentLeaderElectionDriver}. */
+/** Tests for the {@link KubernetesLeaderElectionDriver}. */
 class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabilityTestBase {
 
     @Test
@@ -168,7 +168,7 @@ class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabilityTestB
                                     electionEventHandler
                                             .await(
                                                     LeaderElectionEvent
-                                                            .AllKnownLeaderInformationEvent.class)
+                                                            .AllLeaderInformationChangeEvent.class)
                                             .getLeaderInformationRegister();
 
                             assertThat(leaderInformationRegister.getRegisteredContenderIDs())

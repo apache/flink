@@ -21,16 +21,15 @@ package org.apache.flink.kubernetes.highavailability;
 import org.apache.flink.kubernetes.configuration.KubernetesLeaderElectionConfiguration;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.KubernetesConfigMapSharedWatcher;
-import org.apache.flink.runtime.leaderelection.MultipleComponentLeaderElectionDriver;
-import org.apache.flink.runtime.leaderelection.MultipleComponentLeaderElectionDriverFactory;
+import org.apache.flink.runtime.leaderelection.LeaderElectionDriver;
+import org.apache.flink.runtime.leaderelection.LeaderElectionDriverFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.util.Preconditions;
 
 import java.util.concurrent.Executor;
 
-/** Factory that instantiates a {@link KubernetesMultipleComponentLeaderElectionDriver}. */
-public class KubernetesMultipleComponentLeaderElectionDriverFactory
-        implements MultipleComponentLeaderElectionDriverFactory {
+/** Factory that instantiates a {@link KubernetesLeaderElectionDriver}. */
+public class KubernetesLeaderElectionDriverFactory implements LeaderElectionDriverFactory {
     private final FlinkKubeClient kubeClient;
 
     private final KubernetesLeaderElectionConfiguration kubernetesLeaderElectionConfiguration;
@@ -39,7 +38,7 @@ public class KubernetesMultipleComponentLeaderElectionDriverFactory
 
     private final Executor watchExecutor;
 
-    public KubernetesMultipleComponentLeaderElectionDriverFactory(
+    public KubernetesLeaderElectionDriverFactory(
             FlinkKubeClient kubeClient,
             KubernetesLeaderElectionConfiguration kubernetesLeaderElectionConfiguration,
             KubernetesConfigMapSharedWatcher configMapSharedWatcher,
@@ -52,11 +51,11 @@ public class KubernetesMultipleComponentLeaderElectionDriverFactory
     }
 
     @Override
-    public KubernetesMultipleComponentLeaderElectionDriver create(
-            MultipleComponentLeaderElectionDriver.Listener leaderElectionListener,
+    public KubernetesLeaderElectionDriver create(
+            LeaderElectionDriver.Listener leaderElectionListener,
             FatalErrorHandler fatalErrorHandler)
             throws Exception {
-        return new KubernetesMultipleComponentLeaderElectionDriver(
+        return new KubernetesLeaderElectionDriver(
                 kubernetesLeaderElectionConfiguration,
                 kubeClient,
                 leaderElectionListener,

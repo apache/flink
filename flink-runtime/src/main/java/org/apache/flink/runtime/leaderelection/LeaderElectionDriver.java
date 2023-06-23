@@ -23,7 +23,7 @@ import java.util.UUID;
 /**
  * A leader election driver that allows to write {@link LeaderInformation} for multiple components.
  */
-public interface MultipleComponentLeaderElectionDriver extends AutoCloseable {
+public interface LeaderElectionDriver extends AutoCloseable {
 
     /**
      * Returns whether the driver has currently leadership.
@@ -35,38 +35,36 @@ public interface MultipleComponentLeaderElectionDriver extends AutoCloseable {
     /**
      * Publishes the leader information for the given component.
      *
-     * @param componentId identifying the component for which to publish the leader information
+     * @param contenderID identifying the component for which to publish the leader information
      * @param leaderInformation leader information of the respective component
      */
-    void publishLeaderInformation(String componentId, LeaderInformation leaderInformation);
+    void publishLeaderInformation(String contenderID, LeaderInformation leaderInformation);
 
     /**
      * Deletes the leader information for the given component.
      *
-     * @param componentId identifying the component for which to delete the leader information
+     * @param contenderID identifying the component for which to delete the leader information
      */
-    void deleteLeaderInformation(String componentId);
+    void deleteLeaderInformation(String contenderID);
 
-    /**
-     * Listener interface for state changes of the {@link MultipleComponentLeaderElectionDriver}.
-     */
+    /** Listener interface for state changes of the {@link LeaderElectionDriver}. */
     interface Listener {
 
         /** Callback that is called once the driver obtains the leadership. */
-        void isLeader(UUID leaderSessionID);
+        void onGrantLeadership(UUID leaderSessionID);
 
         /** Callback that is called once the driver loses the leadership. */
-        void notLeader();
+        void onRevokeLeadership();
 
         /**
          * Notifies the listener about a changed leader information for the given component.
          *
-         * @param componentId identifying the component whose leader information has changed
+         * @param contenderID identifying the component whose leader information has changed
          * @param leaderInformation new leader information
          */
-        void notifyLeaderInformationChange(String componentId, LeaderInformation leaderInformation);
+        void onLeaderInformationChange(String contenderID, LeaderInformation leaderInformation);
 
         /** Notifies the listener about all currently known leader information. */
-        void notifyAllKnownLeaderInformation(LeaderInformationRegister leaderInformationRegister);
+        void onLeaderInformationChange(LeaderInformationRegister leaderInformationRegister);
     }
 }
