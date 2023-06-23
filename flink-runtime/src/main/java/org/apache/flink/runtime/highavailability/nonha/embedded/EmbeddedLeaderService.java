@@ -48,9 +48,9 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * A simple leader election service, which selects a leader among contenders and notifies listeners.
  *
- * <p>An election service for contenders can be created via {@link #createLeaderElectionService()},
- * a listener service for leader observers can be created via {@link
- * #createLeaderRetrievalService()}.
+ * <p>An election service for contenders can be created via {@link
+ * #createLeaderElectionService(String)}, a listener service for leader observers can be created via
+ * {@link #createLeaderRetrievalService()}.
  */
 public class EmbeddedLeaderService {
 
