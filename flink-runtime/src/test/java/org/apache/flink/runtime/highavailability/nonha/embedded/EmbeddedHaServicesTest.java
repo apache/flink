@@ -21,16 +21,25 @@ package org.apache.flink.runtime.highavailability.nonha.embedded;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
+import org.apache.flink.runtime.leaderelection.LeaderElectionEvent;
+import org.apache.flink.runtime.leaderelection.TestingGenericLeaderContender;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
+import org.apache.flink.runtime.util.TestingFatalErrorHandlerExtension;
 import org.apache.flink.util.concurrent.Executors;
+
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.mockito.ArgumentCaptor;
 
+import java.util.Collection;
+import java.util.LinkedList;
+import java.util.Queue;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -44,11 +53,21 @@ public class EmbeddedHaServicesTest {
 
     private static final String ADDRESS = "foobar";
 
+    @RegisterExtension
+    public final TestingFatalErrorHandlerExtension errorHandlerExtension =
+            new TestingFatalErrorHandlerExtension();
+
     private EmbeddedHaServices embeddedHaServices;
 
     @BeforeEach
     public void setupTest() {
         embeddedHaServices = new EmbeddedHaServices(Executors.directExecutor());
+    }
+
+    private static Queue<LeaderElectionEvent> createEventQueue() {
+        // the tests of this test class can use a Collection implementation that's not thread-safe
+        // because the ExecutorService of the EmbeddedHaServices is not multi-threaded
+        return new LinkedList<>();
     }
 
     @AfterEach
@@ -132,12 +151,20 @@ public class EmbeddedHaServicesTest {
             throws Exception {
         LeaderRetrievalUtils.LeaderConnectionInfoListener leaderRetrievalListener =
                 new LeaderRetrievalUtils.LeaderConnectionInfoListener();
-        TestingLeaderContender leaderContender = new TestingLeaderContender();
+        final Collection<LeaderElectionEvent> eventQueue = createEventQueue();
+        final LeaderContender leaderContender =
+                TestingGenericLeaderContender.newBuilder(
+                                eventQueue,
+                                leaderElection,
+                                ADDRESS,
+                                errorHandlerExtension.getTestingFatalErrorHandler()::onFatalError)
+                        .build();
 
         leaderRetrievalService.start(leaderRetrievalListener);
         leaderElection.startLeaderElection(leaderContender);
 
-        final UUID leaderId = leaderContender.getLeaderSessionFuture().get();
+        final UUID leaderId =
+                Iterables.getOnlyElement(eventQueue).asIsLeaderEvent().getLeaderSessionID();
 
         leaderElection.confirmLeadership(leaderId, ADDRESS);
 
@@ -165,19 +192,32 @@ public class EmbeddedHaServicesTest {
     @Test
     public void testConcurrentLeadershipOperations() throws Exception {
         final LeaderElection leaderElection = embeddedHaServices.getDispatcherLeaderElection();
-        final TestingLeaderContender leaderContender = new TestingLeaderContender();
 
-        leaderElection.startLeaderElection(leaderContender);
+        final Queue<LeaderElectionEvent> eventQueue = createEventQueue();
+        leaderElection.startLeaderElection(
+                TestingGenericLeaderContender.newBuilder(
+                                eventQueue,
+                                leaderElection,
+                                ADDRESS,
+                                errorHandlerExtension.getTestingFatalErrorHandler()::onFatalError)
+                        .build());
+        final LeaderElectionEvent firstGrantEvent = eventQueue.remove();
+        assertThat(firstGrantEvent.isIsLeaderEvent()).isTrue();
 
-        final UUID oldLeaderSessionId = leaderContender.getLeaderSessionFuture().get();
+        final UUID oldLeaderSessionId = firstGrantEvent.asIsLeaderEvent().getLeaderSessionID();
 
         assertThat(leaderElection.hasLeadership(oldLeaderSessionId)).isTrue();
 
         embeddedHaServices.getDispatcherLeaderService().revokeLeadership().get();
         assertThat(leaderElection.hasLeadership(oldLeaderSessionId)).isFalse();
 
+        assertThat(eventQueue.remove().isNotLeaderEvent()).isTrue();
+
         embeddedHaServices.getDispatcherLeaderService().grantLeadership();
-        final UUID newLeaderSessionId = leaderContender.getLeaderSessionFuture().get();
+
+        final LeaderElectionEvent secondGrantEvent = eventQueue.remove();
+        assertThat(secondGrantEvent.isIsLeaderEvent()).isTrue();
+        final UUID newLeaderSessionId = secondGrantEvent.asIsLeaderEvent().getLeaderSessionID();
 
         assertThat(leaderElection.hasLeadership(newLeaderSessionId)).isTrue();
 
@@ -185,7 +225,5 @@ public class EmbeddedHaServicesTest {
         leaderElection.confirmLeadership(newLeaderSessionId, ADDRESS);
 
         assertThat(leaderElection.hasLeadership(newLeaderSessionId)).isTrue();
-
-        leaderContender.tryRethrowException();
     }
 }
