@@ -81,65 +81,33 @@ public class LeaderElectionTest {
 
     @TestTemplate
     void testHasLeadership() throws Exception {
-        final ManualLeaderContender manualLeaderContender = new ManualLeaderContender();
+        final ArrayBlockingQueue<LeaderElectionEvent> eventQueue = new ArrayBlockingQueue<>(10);
+        final LeaderContender manualLeaderContender =
+                TestingGenericLeaderContender.newBuilder(
+                                eventQueue,
+                                testingFatalErrorHandlerResource.getTestingFatalErrorHandler()
+                                        ::onFatalError)
+                        .build();
 
-        try {
-            final LeaderElection leaderElection = serviceClass.createLeaderElection();
-            leaderElection.startLeaderElection(manualLeaderContender);
+        final LeaderElection leaderElection = serviceClass.createLeaderElection();
+        leaderElection.startLeaderElection(manualLeaderContender);
 
-            final UUID leaderSessionId = manualLeaderContender.waitForLeaderSessionId();
+        final UUID leaderSessionId = eventQueue.take().asIsLeaderEvent().getLeaderSessionID();
 
-            assertThat(leaderElection.hasLeadership(leaderSessionId)).isTrue();
-            assertThat(leaderElection.hasLeadership(UUID.randomUUID())).isFalse();
+        assertThat(leaderElection.hasLeadership(leaderSessionId)).isTrue();
+        assertThat(leaderElection.hasLeadership(UUID.randomUUID())).isFalse();
 
-            leaderElection.confirmLeadership(leaderSessionId, "foobar");
+        leaderElection.confirmLeadership(leaderSessionId, "foobar");
 
-            assertThat(leaderElection.hasLeadership(leaderSessionId)).isTrue();
+        assertThat(leaderElection.hasLeadership(leaderSessionId)).isTrue();
 
-            leaderElection.close();
+        leaderElection.close();
 
-            assertThat(leaderElection.hasLeadership(leaderSessionId)).isFalse();
+        assertThat(leaderElection.hasLeadership(leaderSessionId)).isFalse();
 
-            assertThat(manualLeaderContender.waitForLeaderSessionId())
-                    .as("The leadership has been revoked from the contender.")
-                    .isEqualTo(ManualLeaderContender.NULL_LEADER_SESSION_ID);
-        } finally {
-            manualLeaderContender.rethrowError();
-        }
-    }
-
-    private static final class ManualLeaderContender implements LeaderContender {
-
-        private static final UUID NULL_LEADER_SESSION_ID = new UUID(0L, 0L);
-
-        private final ArrayBlockingQueue<UUID> leaderSessionIds = new ArrayBlockingQueue<>(10);
-
-        private volatile Exception exception;
-
-        @Override
-        public void grantLeadership(UUID leaderSessionID) {
-            leaderSessionIds.offer(leaderSessionID);
-        }
-
-        @Override
-        public void revokeLeadership() {
-            leaderSessionIds.offer(NULL_LEADER_SESSION_ID);
-        }
-
-        @Override
-        public void handleError(Exception exception) {
-            this.exception = exception;
-        }
-
-        void rethrowError() throws Exception {
-            if (exception != null) {
-                throw exception;
-            }
-        }
-
-        UUID waitForLeaderSessionId() throws InterruptedException {
-            return leaderSessionIds.take();
-        }
+        assertThat(eventQueue.take().isNotLeaderEvent())
+                .as("The leadership has been revoked from the contender.")
+                .isTrue();
     }
 
     private interface ServiceClass {
