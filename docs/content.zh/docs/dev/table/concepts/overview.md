@@ -51,15 +51,14 @@ Flink 的 [Table API]({{< ref "docs/dev/table/tableApi" >}}) 和 [SQL]({{< ref "
 由于 Table API & SQL 程序是声明式的，管道内的状态会在哪以及如何被使用并不明确。 Planner 会确认是否需要状态来得到正确的计算结果，
 管道会被现有优化规则集优化成尽可能少地使用状态。
 
-#### 状态算子
-
 {{< hint info >}}
 从概念上讲， 源表从来不会在状态中被完全保存。 实现者处理的是逻辑表（即[动态表]({{< ref "docs/dev/table/concepts/dynamic_tables" >}})）。
 它们的状态取决于用到的操作。
 {{< /hint >}}
 
-包含诸如[连接]({{< ref "docs/dev/table/sql/queries/joins" >}})、[聚合]({{< ref "docs/dev/table/sql/queries/group-agg" >}})
-或[去重]({{< ref "docs/dev/table/sql/queries/deduplication" >}}) 等操作的语句需要在 Flink 抽象的容错存储内保存中间结果。
+#### 状态算子
+
+包含诸如[连接]({{< ref "docs/dev/table/sql/queries/joins" >}})、[聚合]({{< ref "docs/dev/table/sql/queries/group-agg" >}})或[去重]({{< ref "docs/dev/table/sql/queries/deduplication" >}}) 等操作的语句需要在 Flink 抽象的容错存储内保存中间结果。
 
 例如对两个表进行 join 操作的普通 SQL 需要算子保存两个表的全部输入。基于正确的 SQL 语义，运行时假设两表会在任意时间点进行匹配。
 Flink 提供了 [优化窗口和时段 Join 聚合]({{< ref "docs/dev/table/sql/queries/joins" >}}) 
@@ -87,14 +86,13 @@ GROUP BY word;
 ```
 
 `word` 是用于分组的键，连续查询（Continuous Query）维护了每个观察到的 `word` 次数。
-输入 `word` 的值随时间变化并且由于这个查询一直持续，Flink 会为每个 `word` 维护一个中间状态来保存当前词频，
-因此总状态量会随着 `word` 的发现不断地增长。
+输入 `word` 的值随时间变化。由于这个查询一直持续，Flink 会为每个 `word` 维护一个中间状态来保存当前词频，因此总状态量会随着 `word` 的发现不断地增长。
 
-{{< img alt="Explicit-derived stateful op" src="/fig/table-streaming/explicit-derived-stateful-op.png" width="85%">}}
+{{< img alt="Explicit-derived stateful op" src="/fig/table-streaming/explicit-derived-stateful-op.png" width="60%">}}
 
-形如 `SELECT ... FROM ... WHERE` 这种只包含字段映射或过滤器的查询的查询语句通常是无状态的管道。
+形如 `SELECT ... FROM ... WHERE` 这种只包含字段映射或过滤器的查询语句通常是无状态的管道。
 然而在某些情况下，根据输入数据的特征（比如输入表是不带 *UPDATE_BEFORE* 的更新流，参考
-[表到流的转换]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#table-to-stream-conversion)）或配置（参考 [`table-exec-source-cdc-events-duplicate`]({{< ref "docs/dev/table/config" >}}#table-exec-source-cdc-events-duplicate)）状态算子可能会被隐式地推导出来。
+[表到流的转换]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#table-to-stream-conversion)）或配置（参考 [`table-exec-source-cdc-events-duplicate`]({{< ref "docs/dev/table/config" >}}#table-exec-source-cdc-events-duplicate)），状态算子可能会被隐式地推导出来。
 
 下面的例子展示了使用 `SELECT ... FROM` 语句查询 [upsert kafka 源表]({{< ref "docs/connectors/table/upsert-kafka" >}})。
 ```sql
@@ -110,7 +108,7 @@ SELECT * FROM upsert_kakfa;
 ```
 源表的消息类型只包含 *INSERT*，*UPDATE_AFTER* 和 *DELETE*，然而下游要求完整的 changelog（包含 *UPDATE_BEFORE*）。
 所以虽然查询本身没有包含状态计算，但是优化器依然隐式地推导出了一个 ChangelogNormalize 状态算子来生成完整的 changelog。
-{{< img alt="Implicit-derived stateful op" src="/fig/table-streaming/implicit-derived-stateful-op.png" width="85%">}}
+{{< img alt="Implicit-derived stateful op" src="/fig/table-streaming/implicit-derived-stateful-op.png" width="60%">}}
 
 {{< hint info >}}
 请参考独立的算子文档来获取更多关于状态需求量和限制潜在增长状态大小的信息。
@@ -124,8 +122,7 @@ SELECT * FROM upsert_kakfa;
 定义了状态的键在被更新后要保持多长时间才被移除。
 在之前的查询例子中，`word` 的数目会在配置的时间内未更新时立刻被移除。
 
-通过移除状态的键，连续查询会完全忘记它曾经见过这个键。如果一个状态带有曾被移除状态的键被处理了，这条记录将被认为是
-对应键的第一条记录。上述例子中意味着 `cnt` 会再次从 `0` 开始计数。
+通过移除状态的键，连续查询会完全忘记它曾经见过这个键。如果一个状态带有曾被移除状态的键被处理了，这条记录将被认为是对应键的第一条记录。上述例子中意味着 `cnt` 会再次从 `0` 开始计数。
 
 #### 配置算子粒度的状态 TTL
 --------------------------
@@ -136,7 +133,7 @@ SELECT * FROM upsert_kakfa;
 
 {{< /hint >}}
 
-从 Flink v1.18 开始 Table API & SQL 支持配置细粒度的状态 TTL 来优化状态使用。具体来说, 支持为每个状态算子用到的状态配置单独的 TTL。
+从 Flink v1.18 开始，Table API & SQL 支持配置细粒度的状态 TTL 来优化状态使用。最小可配置粒度为每个状态算子的入边数。具体而言，`OneInputStreamOperator` 可以配置一个状态的 TTL，而 `TwoInputStreamOperator`（例如双流 join）则可以分别为左状态和右状态配置 TTL。更一般地，对于具有 K 个输入的 `MultipleInputStreamOperator`，可以配置 K 个状态 TTL。
 
 一些典型的使用场景如下
 - 为 [双流 Join]({{< ref "docs/dev/table/sql/queries/joins" >}}#regular-joins) 的左右流配置不同 TTL。 
@@ -145,6 +142,10 @@ SELECT * FROM upsert_kakfa;
 举例来说，假设一个 ETL 作业使用 `ROW_NUMBER` 进行[去重]({{< ref "docs/dev/table/sql/queries/deduplication" >}})操作后，
 紧接着使用 `GROUP BY` 语句进行[聚合]({{< ref "docs/dev/table/sql/queries/group-agg" >}})操作。
 该作业会分别生成两个拥有单条输入边的 `OneInputStreamOperator` 状态算子。您可以为去重算子和聚合算子的状态分别设置不同的 TTL。
+
+{{< hint info >}}
+由于基于窗口的操作（例如[窗口连接]({{< ref "docs/dev/table/sql/queries/window-join" >}})、[窗口聚合]({{< ref "docs/dev/table/sql/queries/window-agg" >}})、[窗口 Top-N]({{< ref "docs/dev/table/sql/queries/window-topn" >}}) 等）和 [Interval Join]({{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins) 不依赖于 `table.exec.state.ttl` 来控制状态保留，因此它们的状态无法在算子级别进行配置。
+{{< /hint >}}
 
 **生成 Compiled Plan**
 
@@ -226,7 +227,7 @@ Flink SQL> COMPILE PLAN 'file:///path/to/plan.json' FOR INSERT INTO enriched_ord
 - SQL 语法
 
     ```sql
-    COMPILE PLAN [IF NOT EXISTS] <plan_file> FOR <insert_statement>|<statement_set>;
+    COMPILE PLAN [IF NOT EXISTS] <plan_file_path> FOR <insert_statement>|<statement_set>;
     
     statement_set:
         EXECUTE STATEMENT SET
@@ -272,12 +273,12 @@ Flink SQL> COMPILE PLAN 'file:///path/to/plan.json' FOR INSERT INTO enriched_ord
 理论上，下游状态算子的 TTL 不应小于上游状态算子的 TTL。
 {{< /hint >}}
 
-**运行 Compiled Plan**
+**执行 Compiled Plan**
 
 `EXECUTE PLAN` 语句将会反序列化上述 JSON 文件，进一步生成 JobGraph 并提交作业。
 通过 `EXECUTE PLAN` 语句提交的作业，其状态算子的 TTL 的值将会从文件中读取，配置项 `table.exec.state.ttl` 的值将会被忽略。
 
-- 运行 `EXECUTE PLAN` 语句
+- 执行 `EXECUTE PLAN` 语句
 {{< tabs "execute-plan" >}}
 {{< tab "Java" >}}
 ```java
@@ -335,13 +336,13 @@ Job ID: 79fbe3fa497e4689165dd81b1d225ea8
 - SQL 语法
 
     ```sql
-    EXECUTE PLAN [IF EXISTS] <plan_file>;
+    EXECUTE PLAN [IF EXISTS] <plan_file_path>;
     ```
     该语句反序列化指定的 JSON 文件，并提交作业。
 
 **完整示例**
 
-下面的例子展示了通过双流 Join 计算订单明细的作业如何为左右流设置不同的 TTL。
+下面的例子展示了一个通过双流 Join 计算订单明细的作业，并且如何为左右流设置不同的 TTL。
 
 - 生成 compiled plan
     ```sql
@@ -460,7 +461,7 @@ Job ID: 79fbe3fa497e4689165dd81b1d225ea8
     }
     ```
 
-- 修改和运行 compiled plan
+- 修改和执行 compiled plan
 
     如下 JSON 格式代表了 Join 算子的状态信息。
     ```json

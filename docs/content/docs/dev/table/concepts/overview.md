@@ -50,14 +50,13 @@ Due to the declarative nature of Table API & SQL programs, it is not always obvi
 state is used within a pipeline. The planner decides whether state is necessary to compute a correct
 result. A pipeline is optimized to claim as little state as possible given the current set of optimizer
 rules.
-
-#### Stateful Operators
-
 {{< hint info >}}
 Conceptually, source tables are never kept entirely in state. An implementer deals with logical tables
 (i.e. [dynamic tables]({{< ref "docs/dev/table/concepts/dynamic_tables" >}})). Their state requirements
 depend on the used operations.
 {{< /hint >}}
+
+#### Stateful Operators
 
 Queries contain stateful operations such as [joins]({{< ref "docs/dev/table/sql/queries/joins" >}}), [aggregations]({{< ref "docs/dev/table/sql/queries/group-agg" >}}), 
 or [deduplication]({{< ref "docs/dev/table/sql/queries/deduplication" >}})
@@ -94,11 +93,11 @@ for each `word` it observes to the sink.
 The `word` value is evolving over time, and due to the continuous query never ends, the framework needs to maintain a count for each observed `word` value.
 Consequently, the total state size of the query is continuously growing as more and more `word` values are observed.
 
-{{< img alt="Explicit-derived stateful op" src="/fig/table-streaming/explicit-derived-stateful-op.png" width="85%">}}
+{{< img alt="Explicit-derived stateful op" src="/fig/table-streaming/explicit-derived-stateful-op.png" width="60%">}}
 
 Queries such as `SELECT ... FROM ... WHERE` which only consist of field projections or filters are usually
 stateless pipelines.
-However, under some situations, the stateful operation is implicitly derived through the trait of input (*e.g.*, input is a changelog, see
+However, under some situations, the stateful operation is implicitly derived through the trait of input (*e.g.*, input is a changelog without *UPDATE_BEFORE*, see
 [Table to Stream Conversion]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#table-to-stream-conversion)), 
 or through user configuration (see [`table-exec-source-cdc-events-duplicate`]({{< ref "docs/dev/table/config" >}}#table-exec-source-cdc-events-duplicate)).
 
@@ -116,7 +115,7 @@ SELECT * FROM upsert_kakfa;
 ```
 The table source only provides messages with *INSERT*, *UPDATE_AFTER* and *DELETE* type, while the downstream sink requires a complete changelog (including *UPDATE_BEFORE*). 
 As a result, although this query itself does not involve explicit stateful calculation, the planner still generates a stateful operator called "ChangelogNormalize" to help obtain the complete changelog.
-{{< img alt="Implicit-derived stateful op" src="/fig/table-streaming/implicit-derived-stateful-op.png" width="85%">}}
+{{< img alt="Implicit-derived stateful op" src="/fig/table-streaming/implicit-derived-stateful-op.png" width="60%">}}
 
 {{< hint info >}}
 Please refer to the individual operator documentation for more details about how much state is required
@@ -127,7 +126,7 @@ and how to limit a potentially ever-growing state size.
 
 The *Idle State Retention Time* parameter [`table.exec.state.ttl`]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl)
 defines for how long the state of a key is retained without being updated before it is removed.
-For the previous example query, the count of a`word` would be removed as soon as it has not
+For the previous example query, the count of a `word` would be removed as soon as it has not
 been updated for the configured period of time.
 
 By removing the state of a key, the continuous query completely forgets that it has seen this key
@@ -147,17 +146,24 @@ at pipeline level.
 {{< /hint >}}
 
 From Flink v1.18, Table API & SQL supports configuring fine-grained state TTL at operator-level to improve the state usage. 
-To be more specific, the number of used states can be defined as the configuration granularity and is associated with each input state of the operator. 
+The minimum configurable granularity is defined as the number of incoming input edges for each state operator. 
+Specifically, `OneInputStreamOperator` can configure the TTL for one state, while `TwoInputStreamOperator` (such as regular join), which has two inputs, can configure the TTL for the left and right states separately. 
+More generally, for `MultipleInputStreamOperator` which has K inputs, K state TTLs can be configured.
 
 Typical use cases are as follows. 
 - Set different TTLs for [regular joins]({{< ref "docs/dev/table/sql/queries/joins" >}}#regular-joins). 
-Regular join generates a `TwoInputStreamOperator` with left states to keep left inputs and right states to keep right inputs. From Flink v1.18,
+Regular join generates a `TwoInputStreamOperator` with left state to keep left input and right state to keep right input. From Flink v1.18,
 you can set the different state TTL for left state and right state. 
 - Set different TTLs for different transformations within one pipeline.
 For example, there is an ETL pipeline which uses `ROW_NUMBER` to perform [deduplication]({{< ref "docs/dev/table/sql/queries/deduplication" >}}),
 and then use `GROUP BY` to perform [aggregation]({{< ref "docs/dev/table/sql/queries/group-agg" >}}). 
-This table program will generate two `OneInputStreamOperator`s with their own state. 
+This table program will generate two `OneInputStreamOperator`s with their own states. 
 Now you can set different state TTL for deduplicate state and aggregate state.
+
+{{< hint info >}}
+Window-based operations (like [Window Join]({{< ref "docs/dev/table/sql/queries/window-join" >}}), [Window Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}}), [Window Top-N]({{< ref "docs/dev/table/sql/queries/window-topn" >}}) *etc.*) and [Interval Joins]({{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins) do not rely on `table.exec.state.ttl` to control the state retention, and their states cannot be configured at operator-level.
+
+{{< /hint >}}
 
 **Generate a Compiled Plan**
 
@@ -240,7 +246,7 @@ Flink SQL> COMPILE PLAN 'file:///path/to/plan.json' FOR INSERT INTO enriched_ord
 - SQL Syntax
 
     ```sql
-    COMPILE PLAN [IF NOT EXISTS] <plan_file> FOR <insert_statement>|<statement_set>;
+    COMPILE PLAN [IF NOT EXISTS] <plan_file_path> FOR <insert_statement>|<statement_set>;
     
     statement_set:
         EXECUTE STATEMENT SET
@@ -350,7 +356,7 @@ Job ID: 79fbe3fa497e4689165dd81b1d225ea8
 - SQL Syntax
 
     ```sql
-    EXECUTE PLAN [IF EXISTS] <plan_file>;
+    EXECUTE PLAN [IF EXISTS] <plan_file_path>;
     ```
     This will deserialize the JSON file and submit an insert statement job.
 
