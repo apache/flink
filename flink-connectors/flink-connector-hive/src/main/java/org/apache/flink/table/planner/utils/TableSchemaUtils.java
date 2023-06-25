@@ -55,6 +55,11 @@ public class TableSchemaUtils {
         return ResolvedSchema.physical(fieldNames, fieldTypes);
     }
 
+    /**
+     * This method is copied from OperationConverterUtils#buildModifyColumnChange located in
+     * flink-table-planner, and should be synchronized if
+     * OperationConverterUtils#buildModifyColumnChange changes in the the future.
+     */
     public static List<TableChange> buildModifyColumnChange(
             Column oldColumn,
             Column newColumn,
@@ -93,7 +98,7 @@ public class TableSchemaUtils {
         }
     }
 
-    // change a column in the old table schema and return the updated table schema
+    /** Change a column in the old table schema and return the updated table schema. */
     public static ResolvedSchema changeColumn(
             ResolvedSchema oldSchema,
             String oldName,

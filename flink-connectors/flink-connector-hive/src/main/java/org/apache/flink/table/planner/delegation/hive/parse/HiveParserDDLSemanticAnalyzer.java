@@ -1956,17 +1956,23 @@ public class HiveParserDDLSemanticAnalyzer {
             props.put(ALTER_COL_CASCADE, "true");
         }
 
+        Column oldColumn =
+                oldSchema
+                        .getColumn(oldName)
+                        .orElseThrow(
+                                () ->
+                                        new ValidationException(
+                                                "Can not find the old column: " + oldColName));
+        if (newComment != null) {
+            newTableColumn = newTableColumn.withComment(newComment);
+        } else {
+            newTableColumn = newTableColumn.withComment(oldColumn.getComment().orElse(null));
+        }
+
         List<TableChange> tableChanges =
                 TableSchemaUtils.buildModifyColumnChange(
-                        oldTable.getResolvedSchema()
-                                .getColumn(oldName)
-                                .orElseThrow(
-                                        () ->
-                                                new ValidationException(
-                                                        "Can not find the old column: "
-                                                                + oldColName)),
-                        Column.physical(newTableColumn.getName(), newTableColumn.getDataType())
-                                .withComment(newComment),
+                        oldColumn,
+                        newTableColumn,
                         first
                                 ? TableChange.ColumnPosition.first()
                                 : (flagCol == null
