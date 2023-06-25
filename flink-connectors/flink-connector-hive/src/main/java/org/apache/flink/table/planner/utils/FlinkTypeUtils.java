@@ -56,18 +56,19 @@ public class FlinkTypeUtils {
 
     public static LogicalType toLogicalType(RelDataType relDataType) {
         SqlTypeName sqlTypeName = relDataType.getSqlTypeName();
+        boolean isNullable = relDataType.isNullable();
         if (YEAR_INTERVAL_TYPES.contains(sqlTypeName)) {
-            return DataTypes.INTERVAL(DataTypes.MONTH()).getLogicalType();
+            return DataTypes.INTERVAL(DataTypes.MONTH()).getLogicalType().copy(isNullable);
         } else if (DAY_INTERVAL_TYPES.contains(sqlTypeName)) {
             if (relDataType.getPrecision() > 3) {
                 throw new TableException(
                         "DAY_INTERVAL_TYPES precision is not supported:"
                                 + relDataType.getPrecision());
             }
-            return DataTypes.INTERVAL(DataTypes.SECOND(3)).getLogicalType();
+            return DataTypes.INTERVAL(DataTypes.SECOND(3)).getLogicalType().copy(isNullable);
         }
         LogicalType logicalType;
-        switch (relDataType.getSqlTypeName()) {
+        switch (sqlTypeName) {
             case BOOLEAN:
                 logicalType = new BooleanType();
                 break;
@@ -161,6 +162,6 @@ public class FlinkTypeUtils {
                 // shouldn't arrive in here
                 throw new TableException("Type is not supported: " + relDataType.getSqlTypeName());
         }
-        return logicalType.copy(relDataType.isNullable());
+        return logicalType.copy(isNullable);
     }
 }
