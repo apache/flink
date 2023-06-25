@@ -46,7 +46,6 @@ import org.apache.parquet.schema.Type;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
@@ -54,9 +53,14 @@ import java.nio.ByteOrder;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
 /** Utils for Parquet format statistics report. */
@@ -70,12 +74,28 @@ public class ParquetFormatStatisticsReportUtil {
             DataType producedDataType,
             Configuration hadoopConfig,
             boolean isUtcTimestamp) {
+        return getTableStatistics(files, producedDataType, hadoopConfig, isUtcTimestamp,
+                Runtime.getRuntime().availableProcessors());
+    }
+
+    public static TableStats getTableStatistics(
+            List<Path> files,
+            DataType producedDataType,
+            Configuration hadoopConfig,
+            boolean isUtcTimestamp,
+            int statisticsThreadNum) {
         try {
             Map<String, Statistics<?>> columnStatisticsMap = new HashMap<>();
             RowType producedRowType = (RowType) producedDataType.getLogicalType();
+            ExecutorService executorService = Executors.newFixedThreadPool(statisticsThreadNum);
             long rowCount = 0;
+            List<Future<Long>> fileRowCountFutures = new ArrayList<>();
             for (Path file : files) {
-                rowCount += updateStatistics(hadoopConfig, file, columnStatisticsMap);
+                fileRowCountFutures.add(executorService.
+                        submit(new ParquetFileRowCountCalculator(hadoopConfig, file, columnStatisticsMap)));
+            }
+            for (Future<Long> fileCountFuture : fileRowCountFutures) {
+                rowCount += fileCountFuture.get();
             }
             Map<String, ColumnStats> columnStatsMap =
                     convertToColumnStats(columnStatisticsMap, producedRowType, isUtcTimestamp);
@@ -252,42 +272,6 @@ public class ParquetFormatStatisticsReportUtil {
         return builder.build();
     }
 
-    private static long updateStatistics(
-            Configuration hadoopConfig, Path file, Map<String, Statistics<?>> columnStatisticsMap)
-            throws IOException {
-        org.apache.hadoop.fs.Path hadoopPath = new org.apache.hadoop.fs.Path(file.toUri());
-        ParquetMetadata metadata = ParquetFileReader.readFooter(hadoopConfig, hadoopPath);
-        MessageType schema = metadata.getFileMetaData().getSchema();
-        List<String> columns =
-                schema.asGroupType().getFields().stream()
-                        .map(Type::getName)
-                        .collect(Collectors.toList());
-        List<BlockMetaData> blocks = metadata.getBlocks();
-        long rowCount = 0;
-        for (BlockMetaData block : blocks) {
-            rowCount += block.getRowCount();
-            for (int i = 0; i < columns.size(); ++i) {
-                updateStatistics(
-                        block.getColumns().get(i).getStatistics(),
-                        columns.get(i),
-                        columnStatisticsMap);
-            }
-        }
-        return rowCount;
-    }
-
-    private static void updateStatistics(
-            Statistics<?> statistics,
-            String column,
-            Map<String, Statistics<?>> columnStatisticsMap) {
-        Statistics<?> previousStatistics = columnStatisticsMap.get(column);
-        if (previousStatistics == null) {
-            columnStatisticsMap.put(column, statistics);
-        } else {
-            previousStatistics.mergeStatistics(statistics);
-        }
-    }
-
     private static BigDecimal binaryToDecimal(Binary decimal, int scale) {
         BigInteger bigInteger = new BigInteger(decimal.getBytesUnsafe());
         return new BigDecimal(bigInteger, scale);
@@ -303,5 +287,55 @@ public class ParquetFormatStatisticsReportUtil {
         TimestampData timestampData =
                 TimestampColumnReader.int96ToTimestamp(utcTimestamp, timeOfDayNanos, julianDay);
         return timestampData.toTimestamp();
+    }
+
+    private static class ParquetFileRowCountCalculator implements Callable<Long> {
+        private final  Configuration hadoopConfig;
+        private final  Path file;
+        private final  Map<String, Statistics<?>> columnStatisticsMap;
+
+        public ParquetFileRowCountCalculator(
+                Configuration hadoopConfig,
+                Path file,
+                Map<String, Statistics<?>> columnStatisticsMap) {
+            this.hadoopConfig = hadoopConfig;
+            this.file = file;
+            this.columnStatisticsMap = columnStatisticsMap;
+        }
+
+        @Override
+        public Long call() throws Exception {
+            org.apache.hadoop.fs.Path hadoopPath = new org.apache.hadoop.fs.Path(file.toUri());
+            ParquetMetadata metadata = ParquetFileReader.readFooter(hadoopConfig, hadoopPath);
+            MessageType schema = metadata.getFileMetaData().getSchema();
+            List<String> columns =
+                    schema.asGroupType().getFields().stream()
+                            .map(Type::getName)
+                            .collect(Collectors.toList());
+            List<BlockMetaData> blocks = metadata.getBlocks();
+            long rowCount = 0;
+            for (BlockMetaData block : blocks) {
+                rowCount += block.getRowCount();
+                for (int i = 0; i < columns.size(); ++i) {
+                    updateStatistics(
+                            block.getColumns().get(i).getStatistics(),
+                            columns.get(i),
+                            columnStatisticsMap);
+                }
+            }
+            return rowCount;
+        }
+
+        private static void updateStatistics(
+                Statistics<?> statistics,
+                String column,
+                Map<String, Statistics<?>> columnStatisticsMap) {
+            Statistics<?> previousStatistics = columnStatisticsMap.get(column);
+            if (previousStatistics == null) {
+                columnStatisticsMap.put(column, statistics);
+            } else {
+                previousStatistics.mergeStatistics(statistics);
+            }
+        }
     }
 }

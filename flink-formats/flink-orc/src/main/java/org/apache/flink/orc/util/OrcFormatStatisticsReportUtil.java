@@ -59,15 +59,22 @@ public class OrcFormatStatisticsReportUtil {
 
     public static TableStats getTableStatistics(
             List<Path> files, DataType producedDataType, Configuration hadoopConfig) {
+        return getTableStatistics(files, producedDataType, hadoopConfig,
+                Runtime.getRuntime().availableProcessors());
+    }
+
+    public static TableStats getTableStatistics(
+            List<Path> files, DataType producedDataType, Configuration hadoopConfig, int statisticsThreadNum) {
         try {
             long rowCount = 0;
             Map<String, ColumnStatistics> columnStatisticsMap = new HashMap<>();
             RowType producedRowType = (RowType) producedDataType.getLogicalType();
-            ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+
+            ExecutorService executorService = Executors.newFixedThreadPool(statisticsThreadNum);
             List<Future<Long>> fileRowCountFutures = new ArrayList<>();
             for (Path file : files) {
                 fileRowCountFutures.add(executorService.
-                        submit(new FileRowCountCalculator(hadoopConfig, file, columnStatisticsMap, producedRowType)));
+                        submit(new OrcFileRowCountCalculator(hadoopConfig, file, columnStatisticsMap, producedRowType)));
             }
             for (Future<Long> fileCountFuture : fileRowCountFutures) {
                 rowCount += fileCountFuture.get();
@@ -185,14 +192,14 @@ public class OrcFormatStatisticsReportUtil {
         return builder.build();
     }
 
-    private static class FileRowCountCalculator implements Callable<Long> {
+    private static class OrcFileRowCountCalculator implements Callable<Long> {
 
         private final  Configuration hadoopConf;
         private final  Path file;
         private final  Map<String, ColumnStatistics> columnStatisticsMap;
         private final  RowType producedRowType;
 
-        public FileRowCountCalculator (Configuration hadoopConf,
+        public OrcFileRowCountCalculator (Configuration hadoopConf,
                            Path file,
                            Map<String, ColumnStatistics> columnStatisticsMap,
                            RowType producedRowType) {
