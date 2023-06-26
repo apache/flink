@@ -20,20 +20,15 @@ package org.apache.flink.runtime.highavailability.nonha.embedded;
 
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link EmbeddedLeaderService}. */
-public class EmbeddedLeaderServiceTest extends TestLogger {
+class EmbeddedLeaderServiceTest {
 
     /**
      * Tests that the {@link EmbeddedLeaderService} can handle a concurrent grant leadership call
@@ -54,16 +49,13 @@ public class EmbeddedLeaderServiceTest extends TestLogger {
             leaderElection.startLeaderElection(contender);
             leaderElection.close();
 
-            try {
-                // check that no exception occurred
-                contender.getLeaderSessionFuture().get(10L, TimeUnit.MILLISECONDS);
-                fail("The future shouldn't have completed.");
-            } catch (TimeoutException ignored) {
-                // we haven't participated in the leader election
-            }
+            assertThat(contender.getLeaderSessionFuture())
+                    .as(
+                            "The future shouldn't have completed because the grant event wasn't processed, yet.")
+                    .isNotDone();
 
             // the election service should still be running
-            Assert.assertThat(embeddedLeaderService.isShutdown(), is(false));
+            assertThat(embeddedLeaderService.isShutdown()).isFalse();
         } finally {
             embeddedLeaderService.shutdown();
 
@@ -98,16 +90,13 @@ public class EmbeddedLeaderServiceTest extends TestLogger {
                     embeddedLeaderService.revokeLeadership();
             leaderElection.close();
 
-            try {
-                // check that no exception occurred
-                revokeLeadershipFuture.get(10L, TimeUnit.MILLISECONDS);
-                fail("The future shouldn't have completed.");
-            } catch (TimeoutException ignored) {
-                // the leader election service has been stopped before revoking could be executed
-            }
+            assertThat(revokeLeadershipFuture)
+                    .as(
+                            "The future shouldn't have completed because the revoke event wasn't processed, yet.")
+                    .isNotDone();
 
             // the election service should still be running
-            Assert.assertThat(embeddedLeaderService.isShutdown(), is(false));
+            assertThat(embeddedLeaderService.isShutdown()).isFalse();
         } finally {
             embeddedLeaderService.shutdown();
 
