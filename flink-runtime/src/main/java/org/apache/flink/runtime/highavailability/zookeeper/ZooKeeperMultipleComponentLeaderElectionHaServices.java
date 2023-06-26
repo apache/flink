@@ -26,24 +26,14 @@ import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.AbstractHaServices;
 import org.apache.flink.runtime.highavailability.FileSystemJobResultStore;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
-import org.apache.flink.runtime.leaderelection.DefaultMultipleComponentLeaderElectionService;
-import org.apache.flink.runtime.leaderelection.MultipleComponentLeaderElectionDriverFactory;
-import org.apache.flink.runtime.leaderelection.MultipleComponentLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.ZooKeeperMultipleComponentLeaderElectionDriverFactory;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
-import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.shaded.curator5.org.apache.curator.utils.ZKPaths;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.KeeperException;
 
-import javax.annotation.Nullable;
-import javax.annotation.concurrent.GuardedBy;
-
-import java.io.IOException;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -73,29 +63,22 @@ public class ZooKeeperMultipleComponentLeaderElectionHaServices extends Abstract
     /** The curator resource to use. */
     private final CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper;
 
-    private final Object lock = new Object();
-
-    private final FatalErrorHandler fatalErrorHandler;
-
-    @Nullable
-    @GuardedBy("lock")
-    private MultipleComponentLeaderElectionService multipleComponentLeaderElectionService = null;
-
     public ZooKeeperMultipleComponentLeaderElectionHaServices(
             CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper,
             Configuration configuration,
             Executor executor,
-            BlobStoreService blobStoreService,
-            FatalErrorHandler fatalErrorHandler)
-            throws IOException {
+            BlobStoreService blobStoreService)
+            throws Exception {
         super(
                 configuration,
+                new ZooKeeperMultipleComponentLeaderElectionDriverFactory(
+                        ZooKeeperUtils.useNamespaceAndEnsurePath(
+                                curatorFrameworkWrapper.asCuratorFramework(),
+                                ZooKeeperUtils.getLeaderPath())),
                 executor,
                 blobStoreService,
                 FileSystemJobResultStore.fromConfiguration(configuration));
         this.curatorFrameworkWrapper = checkNotNull(curatorFrameworkWrapper);
-
-        this.fatalErrorHandler = fatalErrorHandler;
     }
 
     @Override
@@ -114,26 +97,8 @@ public class ZooKeeperMultipleComponentLeaderElectionHaServices extends Abstract
     }
 
     @Override
-    protected void internalClose() throws Exception {
-        Exception exception = null;
-        synchronized (lock) {
-            if (multipleComponentLeaderElectionService != null) {
-                try {
-                    multipleComponentLeaderElectionService.close();
-                } catch (Exception e) {
-                    exception = e;
-                }
-                multipleComponentLeaderElectionService = null;
-            }
-        }
-
-        try {
-            curatorFrameworkWrapper.close();
-        } catch (Exception e) {
-            exception = ExceptionUtils.firstOrSuppressed(e, exception);
-        }
-
-        ExceptionUtils.tryRethrowException(exception);
+    protected void internalClose() {
+        curatorFrameworkWrapper.close();
     }
 
     @Override
@@ -207,42 +172,11 @@ public class ZooKeeperMultipleComponentLeaderElectionHaServices extends Abstract
     // ///////////////////////////////////////////////
 
     @Override
-    protected MultipleComponentLeaderElectionDriverFactory createLeaderElectionDriverFactory(
-            String leaderName) {
-        return getOrInitializeSingleLeaderElectionService().createDriverFactory(leaderName);
-    }
-
-    private MultipleComponentLeaderElectionService getOrInitializeSingleLeaderElectionService() {
-        synchronized (lock) {
-            if (multipleComponentLeaderElectionService == null) {
-                try {
-                    multipleComponentLeaderElectionService =
-                            new DefaultMultipleComponentLeaderElectionService(
-                                    fatalErrorHandler,
-                                    new ZooKeeperMultipleComponentLeaderElectionDriverFactory(
-                                            ZooKeeperUtils.useNamespaceAndEnsurePath(
-                                                    curatorFrameworkWrapper.asCuratorFramework(),
-                                                    ZooKeeperUtils.getLeaderPath())));
-                } catch (Exception e) {
-                    throw new FlinkRuntimeException(
-                            String.format(
-                                    "Could not initialize the %s",
-                                    DefaultMultipleComponentLeaderElectionService.class
-                                            .getSimpleName()),
-                            e);
-                }
-            }
-
-            return multipleComponentLeaderElectionService;
-        }
-    }
-
-    @Override
-    protected LeaderRetrievalService createLeaderRetrievalService(String leaderPath) {
+    protected LeaderRetrievalService createLeaderRetrievalService(String contenderID) {
         // Maybe use a single service for leader retrieval
         return ZooKeeperUtils.createLeaderRetrievalService(
                 curatorFrameworkWrapper.asCuratorFramework(),
-                ZooKeeperUtils.generateZookeeperPath(ZooKeeperUtils.getLeaderPath(), leaderPath),
+                ZooKeeperUtils.generateZookeeperPath(ZooKeeperUtils.getLeaderPath(), contenderID),
                 configuration);
     }
 

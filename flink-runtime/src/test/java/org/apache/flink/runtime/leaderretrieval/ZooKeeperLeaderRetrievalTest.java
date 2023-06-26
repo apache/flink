@@ -94,8 +94,7 @@ class ZooKeeperLeaderRetrievalTest {
                                 testingFatalErrorHandlerResource.getTestingFatalErrorHandler()),
                         config,
                         EXECUTOR_RESOURCE.getExecutor(),
-                        new VoidBlobStore(),
-                        testingFatalErrorHandlerResource.getTestingFatalErrorHandler());
+                        new VoidBlobStore());
     }
 
     @AfterEach

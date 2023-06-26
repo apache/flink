@@ -23,7 +23,6 @@ import org.apache.flink.kubernetes.kubeclient.FlinkKubeClientFactory;
 import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesFactory;
-import org.apache.flink.util.FatalExitExceptionHandler;
 
 import java.util.concurrent.Executor;
 
@@ -38,9 +37,6 @@ public class KubernetesHaServicesFactory implements HighAvailabilityServicesFact
                         .fromConfiguration(configuration, "kubernetes-ha-services"),
                 executor,
                 configuration,
-                BlobUtils.createBlobStoreFromConfig(configuration),
-                error ->
-                        FatalExitExceptionHandler.INSTANCE.uncaughtException(
-                                Thread.currentThread(), error));
+                BlobUtils.createBlobStoreFromConfig(configuration));
     }
 }

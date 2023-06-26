@@ -24,7 +24,6 @@ import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
-import org.apache.flink.runtime.leaderelection.MultipleComponentLeaderElectionDriverFactory;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.util.FlinkException;
@@ -81,7 +80,7 @@ class AbstractHaServicesTest {
      * services. See FLINK-22014 for more details.
      */
     @Test
-    void testCloseAndCleanupAllDataDoesNotDeleteBlobsIfCleaningUpHADataFails() {
+    void testCloseAndCleanupAllDataDoesNotDeleteBlobsIfCleaningUpHADataFails() throws Exception {
         final Queue<CloseOperations> closeOperations = new ArrayDeque<>(3);
 
         final TestingBlobStoreService testingBlobStoreService =
@@ -183,9 +182,11 @@ class AbstractHaServicesTest {
                 BlobStoreService blobStoreService,
                 Queue<? super CloseOperations> closeOperations,
                 RunnableWithException internalCleanupRunnable,
-                ThrowingConsumer<JobID, Exception> internalJobCleanupConsumer) {
+                ThrowingConsumer<JobID, Exception> internalJobCleanupConsumer)
+                throws Exception {
             super(
                     config,
+                    (listener, fatalErrorHandler) -> null,
                     ioExecutor,
                     blobStoreService,
                     TestingJobResultStore.builder()
@@ -198,12 +199,6 @@ class AbstractHaServicesTest {
             this.closeOperations = closeOperations;
             this.internalCleanupRunnable = internalCleanupRunnable;
             this.internalJobCleanupConsumer = internalJobCleanupConsumer;
-        }
-
-        @Override
-        protected MultipleComponentLeaderElectionDriverFactory createLeaderElectionDriverFactory(
-                String leaderName) {
-            throw new UnsupportedOperationException("Not supported by this test implementation.");
         }
 
         @Override

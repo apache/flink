@@ -92,11 +92,7 @@ public class HighAvailabilityServicesUtils {
                 ZooKeeperUtils.startCuratorFramework(configuration, fatalErrorHandler);
 
         return new ZooKeeperMultipleComponentLeaderElectionHaServices(
-                curatorFrameworkWrapper,
-                configuration,
-                executor,
-                blobStoreService,
-                fatalErrorHandler);
+                curatorFrameworkWrapper, configuration, executor, blobStoreService);
     }
 
     public static HighAvailabilityServices createHighAvailabilityServices(
