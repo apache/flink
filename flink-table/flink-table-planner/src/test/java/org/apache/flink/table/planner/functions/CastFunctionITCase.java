@@ -1107,14 +1107,14 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                 CastTestSpecBuilder.testCastTo(TINYINT())
                         .fromCase(TINYINT(), Byte.MIN_VALUE, Byte.MIN_VALUE)
                         .fromCase(TINYINT(), Byte.MAX_VALUE, Byte.MAX_VALUE)
-                        .fromCase(TINYINT(), Byte.MIN_VALUE - 1, Byte.MAX_VALUE)
-                        .fromCase(TINYINT(), Byte.MAX_VALUE + 1, Byte.MIN_VALUE)
+                        .fromCase(TINYINT(), (byte) (Byte.MIN_VALUE - 1), Byte.MAX_VALUE)
+                        .fromCase(TINYINT(), (byte) (Byte.MAX_VALUE + 1), Byte.MIN_VALUE)
                         .build(),
                 CastTestSpecBuilder.testCastTo(SMALLINT())
                         .fromCase(SMALLINT(), Short.MIN_VALUE, Short.MIN_VALUE)
                         .fromCase(SMALLINT(), Short.MAX_VALUE, Short.MAX_VALUE)
-                        .fromCase(SMALLINT(), Short.MIN_VALUE - 1, Short.MAX_VALUE)
-                        .fromCase(SMALLINT(), Short.MAX_VALUE + 1, Short.MIN_VALUE)
+                        .fromCase(SMALLINT(), (short) (Short.MIN_VALUE - 1), Short.MAX_VALUE)
+                        .fromCase(SMALLINT(), (short) (Short.MAX_VALUE + 1), Short.MIN_VALUE)
                         .build(),
                 CastTestSpecBuilder.testCastTo(INT())
                         .fromCase(INT(), Integer.MIN_VALUE, Integer.MIN_VALUE)
@@ -1132,14 +1132,28 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(DOUBLE(), -1.7976931348623157E308d, Float.NEGATIVE_INFINITY)
                         .build(),
                 CastTestSpecBuilder.testCastTo(DECIMAL(38, 0))
-                        .fromCase(TINYINT(), Byte.MIN_VALUE - 1, new BigDecimal(Byte.MAX_VALUE))
-                        .fromCase(TINYINT(), Byte.MAX_VALUE + 1, new BigDecimal(Byte.MIN_VALUE))
-                        .fromCase(SMALLINT(), Short.MIN_VALUE - 1, new BigDecimal(Short.MAX_VALUE))
-                        .fromCase(SMALLINT(), Short.MAX_VALUE + 1, new BigDecimal(Short.MIN_VALUE))
-                        .fromCase(INT(), Integer.MIN_VALUE - 1, new BigDecimal(Integer.MAX_VALUE))
-                        .fromCase(INT(), Integer.MAX_VALUE + 1, new BigDecimal(Integer.MIN_VALUE))
-                        .fromCase(BIGINT(), Long.MIN_VALUE - 1, new BigDecimal(Long.MAX_VALUE))
-                        .fromCase(BIGINT(), Long.MAX_VALUE + 1, new BigDecimal(Long.MIN_VALUE))
+                        .fromCase(
+                                TINYINT(),
+                                (byte) (Byte.MIN_VALUE - 1),
+                                BigDecimal.valueOf(Byte.MAX_VALUE))
+                        .fromCase(
+                                TINYINT(),
+                                (byte) (Byte.MAX_VALUE + 1),
+                                BigDecimal.valueOf(Byte.MIN_VALUE))
+                        .fromCase(
+                                SMALLINT(),
+                                (short) (Short.MIN_VALUE - 1),
+                                BigDecimal.valueOf(Short.MAX_VALUE))
+                        .fromCase(
+                                SMALLINT(),
+                                (short) (Short.MAX_VALUE + 1),
+                                BigDecimal.valueOf(Short.MIN_VALUE))
+                        .fromCase(
+                                INT(), Integer.MIN_VALUE - 1, BigDecimal.valueOf(Integer.MAX_VALUE))
+                        .fromCase(
+                                INT(), Integer.MAX_VALUE + 1, BigDecimal.valueOf(Integer.MIN_VALUE))
+                        .fromCase(BIGINT(), Long.MIN_VALUE - 1, BigDecimal.valueOf(Long.MAX_VALUE))
+                        .fromCase(BIGINT(), Long.MAX_VALUE + 1, BigDecimal.valueOf(Long.MIN_VALUE))
                         .build(),
                 CastTestSpecBuilder.testCastTo(DECIMAL(38, 32))
                         .fromCase(FLOAT(), -Float.MAX_VALUE, null)
