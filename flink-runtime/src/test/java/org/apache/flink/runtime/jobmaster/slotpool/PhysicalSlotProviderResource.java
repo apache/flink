@@ -29,6 +29,7 @@ import org.junit.rules.ExternalResource;
 import javax.annotation.Nonnull;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -72,7 +73,10 @@ public class PhysicalSlotProviderResource extends ExternalResource {
 
     public CompletableFuture<PhysicalSlotRequest.Result> allocateSlot(PhysicalSlotRequest request) {
         return CompletableFuture.supplyAsync(
-                        () -> physicalSlotProvider.allocatePhysicalSlot(request),
+                        () ->
+                                physicalSlotProvider
+                                        .allocatePhysicalSlots(Collections.singletonList(request))
+                                        .get(request.getSlotRequestId()),
                         mainThreadExecutor)
                 .thenCompose(Function.identity());
     }
