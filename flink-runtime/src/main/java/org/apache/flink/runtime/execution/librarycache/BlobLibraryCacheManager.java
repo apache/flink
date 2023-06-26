@@ -37,6 +37,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -75,12 +76,18 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 
     private final ClassLoaderFactory classLoaderFactory;
 
+    /** If true, it will use system class loader when the jars and classpaths of job are empty. */
+    private final boolean wrapsSystemClassLoader;
+
     // --------------------------------------------------------------------------------------------
 
     public BlobLibraryCacheManager(
-            PermanentBlobService blobService, ClassLoaderFactory classLoaderFactory) {
+            PermanentBlobService blobService,
+            ClassLoaderFactory classLoaderFactory,
+            boolean wrapsSystemClassLoader) {
         this.blobService = checkNotNull(blobService);
         this.classLoaderFactory = checkNotNull(classLoaderFactory);
+        this.wrapsSystemClassLoader = wrapsSystemClassLoader;
     }
 
     @Override
@@ -226,11 +233,17 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
                 verifyIsNotReleased();
 
                 if (resolvedClassLoader == null) {
+                    boolean systemClassLoader =
+                            wrapsSystemClassLoader && libraries.isEmpty() && classPaths.isEmpty();
                     resolvedClassLoader =
                             new ResolvedClassLoader(
-                                    createUserCodeClassLoader(jobId, libraries, classPaths),
+                                    systemClassLoader
+                                            ? ClassLoader.getSystemClassLoader()
+                                            : createUserCodeClassLoader(
+                                                    jobId, libraries, classPaths),
                                     libraries,
-                                    classPaths);
+                                    classPaths,
+                                    systemClassLoader);
                 } else {
                     resolvedClassLoader.verifyClassLoader(libraries, classPaths);
                 }
@@ -357,7 +370,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
     }
 
     private static final class ResolvedClassLoader implements UserCodeClassLoader {
-        private final URLClassLoader classLoader;
+        private final ClassLoader classLoader;
 
         /**
          * Set of BLOB keys used for a previous job/task registration.
@@ -375,12 +388,15 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
          */
         private final Set<String> classPaths;
 
+        private final boolean wrapsSystemClassLoader;
+
         private final Map<String, Runnable> releaseHooks;
 
         private ResolvedClassLoader(
-                URLClassLoader classLoader,
+                ClassLoader classLoader,
                 Collection<PermanentBlobKey> requiredLibraries,
-                Collection<URL> requiredClassPaths) {
+                Collection<URL> requiredClassPaths,
+                boolean wrapsSystemClassLoader) {
             this.classLoader = classLoader;
 
             // NOTE: do not store the class paths, i.e. URLs, into a set for performance reasons
@@ -391,6 +407,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
                 classPaths.add(url.toString());
             }
             this.libraries = new HashSet<>(requiredLibraries);
+            this.wrapsSystemClassLoader = wrapsSystemClassLoader;
 
             this.releaseHooks = new HashMap<>();
         }
@@ -447,12 +464,14 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
         private void releaseClassLoader() {
             runReleaseHooks();
 
-            try {
-                classLoader.close();
-            } catch (IOException e) {
-                LOG.warn(
-                        "Failed to release user code class loader for "
-                                + Arrays.toString(libraries.toArray()));
+            if (!wrapsSystemClassLoader) {
+                try {
+                    ((Closeable) classLoader).close();
+                } catch (IOException e) {
+                    LOG.warn(
+                            "Failed to release user code class loader for "
+                                    + Arrays.toString(libraries.toArray()));
+                }
             }
             // clear potential references to user-classes in the singleton cache
             TypeFactory.defaultInstance().clearCache();
