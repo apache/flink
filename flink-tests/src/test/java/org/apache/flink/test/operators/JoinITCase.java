@@ -40,7 +40,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.test.operators.util.CollectionDataSets;
 import org.apache.flink.test.operators.util.CollectionDataSets.CustomType;
 import org.apache.flink.test.operators.util.CollectionDataSets.POJO;
-import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.test.util.MultipleProgramsTestBaseJUnit4;
 import org.apache.flink.util.Collector;
 
 import org.junit.Assert;
@@ -57,7 +57,7 @@ import static org.apache.flink.test.util.TestBaseUtils.compareResultAsTuples;
 /** Integration tests for {@link JoinFunction} and {@link FlatJoinFunction}. */
 @SuppressWarnings("serial")
 @RunWith(Parameterized.class)
-public class JoinITCase extends MultipleProgramsTestBase {
+public class JoinITCase extends MultipleProgramsTestBaseJUnit4 {
 
     public JoinITCase(TestExecutionMode mode) {
         super(mode);

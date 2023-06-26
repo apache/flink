@@ -24,7 +24,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.hadoopcompatibility.mapred.HadoopReduceCombineFunction;
 import org.apache.flink.hadoopcompatibility.mapred.HadoopReduceFunction;
-import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.test.util.MultipleProgramsTestBaseJUnit4;
 
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
@@ -46,7 +46,7 @@ import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMe
 
 /** IT case for the {@link HadoopReduceCombineFunction}. */
 @RunWith(Parameterized.class)
-public class HadoopReduceCombineFunctionITCase extends MultipleProgramsTestBase {
+public class HadoopReduceCombineFunctionITCase extends MultipleProgramsTestBaseJUnit4 {
 
     public HadoopReduceCombineFunctionITCase(TestExecutionMode mode) {
         super(mode);

@@ -33,7 +33,7 @@ import org.apache.flink.state.api.functions.KeyedStateReaderFunction;
 import org.apache.flink.state.api.utils.JobResultRetriever;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Collector;
 
@@ -61,7 +61,7 @@ import static org.junit.Assert.assertThat;
 
 /** Test the savepoint deep copy. */
 @RunWith(value = Parameterized.class)
-public class SavepointDeepCopyTest extends AbstractTestBase {
+public class SavepointDeepCopyTest extends AbstractTestBaseJUnit4 {
 
     private static final MemorySize FILE_STATE_SIZE_THRESHOLD = new MemorySize(1);
 

@@ -28,7 +28,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.UniqueBucketAssigner;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
@@ -58,7 +58,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Simple integration test case for writing bulk encoded files with the {@link StreamingFileSink}
  * with Avro.
  */
-public class AvroStreamingFileSinkITCase extends AbstractTestBase {
+public class AvroStreamingFileSinkITCase extends AbstractTestBaseJUnit4 {
 
     @Rule public final Timeout timeoutPerTest = Timeout.seconds(20);
 

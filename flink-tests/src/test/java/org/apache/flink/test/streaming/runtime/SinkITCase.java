@@ -25,7 +25,7 @@ import org.apache.flink.connector.datagen.source.TestDataGenerators;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.runtime.operators.sink.TestSink;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -48,7 +48,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 /**
  * Integration test for {@link org.apache.flink.api.connector.sink.Sink} run time implementation.
  */
-public class SinkITCase extends AbstractTestBase {
+public class SinkITCase extends AbstractTestBaseJUnit4 {
     static final List<Integer> SOURCE_DATA =
             Arrays.asList(
                     895, 127, 148, 161, 148, 662, 822, 491, 275, 122, 850, 630, 682, 765, 434, 970,

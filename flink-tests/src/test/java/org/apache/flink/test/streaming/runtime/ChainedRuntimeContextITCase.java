@@ -23,7 +23,7 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 
 import org.junit.Test;
 
@@ -31,7 +31,7 @@ import static org.junit.Assert.assertNotEquals;
 
 /** Test creation of context for chained streaming operators. */
 @SuppressWarnings("serial")
-public class ChainedRuntimeContextITCase extends AbstractTestBase {
+public class ChainedRuntimeContextITCase extends AbstractTestBaseJUnit4 {
     private static RuntimeContext srcContext;
     private static RuntimeContext mapContext;
 

@@ -22,8 +22,8 @@ import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.test.operators.GroupCombineITCase.ScalaGroupCombineFunctionExample
-import org.apache.flink.test.util.MultipleProgramsTestBase
-import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
+import org.apache.flink.test.util.MultipleProgramsTestBaseJUnit4
+import org.apache.flink.test.util.MultipleProgramsTestBaseJUnit4.TestExecutionMode
 import org.apache.flink.util.Collector
 
 import org.junit._
@@ -32,7 +32,7 @@ import org.junit.runners.Parameterized
 
 /** Java interoperability tests. Main tests are in GroupCombineITCase Java. */
 @RunWith(classOf[Parameterized])
-class GroupCombineITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
+class GroupCombineITCase(mode: TestExecutionMode) extends MultipleProgramsTestBaseJUnit4(mode) {
 
   @Test
   def testApi(): Unit = {

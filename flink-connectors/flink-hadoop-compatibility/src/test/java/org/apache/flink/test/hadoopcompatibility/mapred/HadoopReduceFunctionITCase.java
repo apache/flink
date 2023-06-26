@@ -23,7 +23,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.hadoopcompatibility.mapred.HadoopReduceFunction;
-import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.test.util.MultipleProgramsTestBaseJUnit4;
 
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
@@ -44,7 +44,7 @@ import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMe
 
 /** IT cases for the {@link HadoopReduceFunction}. */
 @RunWith(Parameterized.class)
-public class HadoopReduceFunctionITCase extends MultipleProgramsTestBase {
+public class HadoopReduceFunctionITCase extends MultipleProgramsTestBaseJUnit4 {
 
     public HadoopReduceFunctionITCase(TestExecutionMode mode) {
         super(mode);

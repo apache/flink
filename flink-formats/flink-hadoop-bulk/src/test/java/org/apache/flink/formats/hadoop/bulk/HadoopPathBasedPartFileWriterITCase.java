@@ -26,7 +26,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.HadoopPathBasedBulkFormatBuilder;
 import org.apache.flink.streaming.api.functions.sink.filesystem.TestStreamingFileSinkFactory;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.BasePathBucketAssigner;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -50,7 +50,7 @@ import static org.apache.flink.formats.hadoop.bulk.HadoopPathBasedPartFileWriter
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Base class for testing writing data to the hadoop file system with different configurations. */
-public class HadoopPathBasedPartFileWriterITCase extends AbstractTestBase {
+public class HadoopPathBasedPartFileWriterITCase extends AbstractTestBaseJUnit4 {
     @Rule public final Timeout timeoutPerTest = Timeout.seconds(2000);
 
     @Test

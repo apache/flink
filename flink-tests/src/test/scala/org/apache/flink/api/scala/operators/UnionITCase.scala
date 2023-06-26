@@ -19,9 +19,9 @@ package org.apache.flink.api.scala.operators
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
-import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
+import org.apache.flink.test.util.{MultipleProgramsTestBaseJUnit4, TestBaseUtils}
 
+import MultipleProgramsTestBaseJUnit4.TestExecutionMode
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -29,7 +29,7 @@ import org.junit.runners.Parameterized
 import scala.collection.mutable.ArrayBuffer
 
 @RunWith(classOf[Parameterized])
-class UnionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
+class UnionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBaseJUnit4(mode) {
   private var result: Seq[String] = null
   private var expected: String = null
 

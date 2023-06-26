@@ -22,7 +22,7 @@ import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor
 import org.apache.flink.streaming.api.windowing.time.Time
-import org.apache.flink.test.util.AbstractTestBase
+import org.apache.flink.test.util.AbstractTestBaseJUnit4
 import org.apache.flink.util.Collector
 
 import org.junit.Assert.assertTrue
@@ -30,7 +30,7 @@ import org.junit.Test
 
 import scala.collection.mutable.ListBuffer
 
-class IntervalJoinITCase extends AbstractTestBase {
+class IntervalJoinITCase extends AbstractTestBaseJUnit4 {
 
   @Test
   def testInclusiveBounds(): Unit = {

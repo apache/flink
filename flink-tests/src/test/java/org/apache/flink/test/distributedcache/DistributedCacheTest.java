@@ -25,7 +25,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.Collector;
 
 import org.junit.Test;
@@ -43,7 +43,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /** Test the distributed cache. */
-public class DistributedCacheTest extends AbstractTestBase {
+public class DistributedCacheTest extends AbstractTestBaseJUnit4 {
 
     public static final String DATA =
             "machen\n" + "zeit\n" + "heerscharen\n" + "keiner\n" + "meine\n";

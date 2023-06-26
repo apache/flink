@@ -45,7 +45,7 @@ import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.test.streaming.runtime.util.NoOpIntMap;
 import org.apache.flink.test.streaming.runtime.util.ReceiveCheckNoOpSink;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.OutputTag;
@@ -65,7 +65,7 @@ import static org.junit.Assert.fail;
 
 /** Tests for streaming iterations. */
 @SuppressWarnings({"unchecked", "unused", "serial"})
-public class IterateITCase extends AbstractTestBase {
+public class IterateITCase extends AbstractTestBaseJUnit4 {
 
     private static final Logger LOG = LoggerFactory.getLogger(IterateITCase.class);
 

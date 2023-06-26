@@ -39,7 +39,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.transformations.CacheTransformation;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Collector;
@@ -65,7 +65,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test datastream cache. */
-public class CacheITCase extends AbstractTestBase {
+public class CacheITCase extends AbstractTestBaseJUnit4 {
     private StreamExecutionEnvironment env;
     private MiniClusterWithClientResource miniClusterWithClientResource;
 

@@ -31,7 +31,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.examples.java.graph.ConnectedComponents.DuplicateValue;
 import org.apache.flink.examples.java.graph.ConnectedComponents.NeighborWithComponentIDJoin;
 import org.apache.flink.test.testdata.ConnectedComponentsData;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 import org.apache.flink.util.Collector;
 
 import java.util.ArrayList;
@@ -40,7 +40,7 @@ import java.util.List;
 
 /** Delta iteration test implementing the connected components algorithm with a cogroup. */
 @SuppressWarnings("serial")
-public class CoGroupConnectedComponentsSecondITCase extends JavaProgramTestBase {
+public class CoGroupConnectedComponentsSecondITCase extends JavaProgramTestBaseJUnit4 {
 
     private static final long SEED = 0xBADC0FFEEBEEFL;
 

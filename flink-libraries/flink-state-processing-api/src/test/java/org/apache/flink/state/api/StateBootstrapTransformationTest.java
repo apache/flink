@@ -32,13 +32,13 @@ import org.apache.flink.state.api.runtime.OperatorIDGenerator;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 /** Tests for bootstrap transformations. */
-public class StateBootstrapTransformationTest extends AbstractTestBase {
+public class StateBootstrapTransformationTest extends AbstractTestBaseJUnit4 {
 
     @Test
     public void testBroadcastStateTransformationParallelism() {

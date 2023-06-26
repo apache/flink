@@ -28,7 +28,7 @@ import org.apache.flink.table.gateway.utils.TestSqlStatement;
 import org.apache.flink.table.utils.print.PrintStyle;
 import org.apache.flink.table.utils.print.RowDataToStringConverter;
 import org.apache.flink.test.junit5.MiniClusterExtension;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
@@ -74,7 +74,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Base ITCase tests for statements. */
 @ExtendWith(ParameterizedTestExtension.class)
-public abstract class AbstractSqlGatewayStatementITCase extends AbstractTestBase {
+public abstract class AbstractSqlGatewayStatementITCase extends AbstractTestBaseJUnit4 {
 
     private static final Logger LOG =
             LoggerFactory.getLogger(AbstractSqlGatewayStatementITCase.class);

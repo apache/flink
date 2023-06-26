@@ -41,7 +41,7 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
@@ -60,7 +60,7 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 
 /** Integration test for streaming programs using side outputs. */
-public class SideOutputITCase extends AbstractTestBase implements Serializable {
+public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializable {
 
     @Rule public transient ExpectedException expectedException = ExpectedException.none();
 

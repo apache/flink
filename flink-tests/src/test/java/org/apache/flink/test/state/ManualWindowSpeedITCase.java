@@ -34,7 +34,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -55,7 +55,7 @@ import java.util.Random;
  * processed in each window. This gives an estimate of the throughput.
  */
 @Ignore
-public class ManualWindowSpeedITCase extends AbstractTestBase {
+public class ManualWindowSpeedITCase extends AbstractTestBaseJUnit4 {
 
     @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 

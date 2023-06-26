@@ -38,7 +38,7 @@ import org.apache.flink.streaming.api.transformations.MultipleInputTransformatio
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 
 import org.junit.Test;
 
@@ -53,7 +53,7 @@ import static org.junit.Assert.assertEquals;
 
 /** Integration tests for {@link MultipleInputStreamOperator}. */
 @SuppressWarnings("serial")
-public class MultipleInputITCase extends AbstractTestBase {
+public class MultipleInputITCase extends AbstractTestBaseJUnit4 {
 
     @Test
     public void testBasicProcessing() throws Exception {

@@ -50,7 +50,7 @@ import java.util.Collection;
  *
  * }</pre>
  */
-public class MultipleProgramsTestBase extends AbstractTestBase {
+public class MultipleProgramsTestBaseJUnit4 extends AbstractTestBaseJUnit4 {
 
     /**
      * Enum that defines which execution environment to run the next test on: An embedded local
@@ -66,7 +66,7 @@ public class MultipleProgramsTestBase extends AbstractTestBase {
 
     protected final TestExecutionMode mode;
 
-    public MultipleProgramsTestBase(TestExecutionMode mode) {
+    public MultipleProgramsTestBaseJUnit4(TestExecutionMode mode) {
         this.mode = mode;
     }
 

@@ -21,7 +21,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.hadoop.mapreduce.HadoopOutputFormat
 import org.apache.flink.hadoopcompatibility.scala.HadoopInputs
 import org.apache.flink.test.testdata.WordCountData
-import org.apache.flink.test.util.{JavaProgramTestBase, TestBaseUtils}
+import org.apache.flink.test.util.{JavaProgramTestBaseJUnit4, TestBaseUtils}
 import org.apache.flink.util.OperatingSystem
 
 import org.apache.hadoop.fs.Path
@@ -31,7 +31,7 @@ import org.apache.hadoop.mapreduce.lib.input.TextInputFormat
 import org.apache.hadoop.mapreduce.lib.output.{FileOutputFormat, TextOutputFormat}
 import org.junit.{Assume, Before}
 
-class WordCountMapreduceITCase extends JavaProgramTestBase {
+class WordCountMapreduceITCase extends JavaProgramTestBaseJUnit4 {
   protected var textPath: String = null
   protected var resultPath: String = null
 

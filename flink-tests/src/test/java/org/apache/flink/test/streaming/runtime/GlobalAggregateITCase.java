@@ -25,7 +25,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 
 import org.junit.Test;
 
@@ -34,7 +34,7 @@ import java.io.IOException;
 import static org.junit.Assert.assertEquals;
 
 /** Tests for GlobalAggregate functionality. */
-public class GlobalAggregateITCase extends AbstractTestBase {
+public class GlobalAggregateITCase extends AbstractTestBaseJUnit4 {
 
     @Test
     public void testSuccessfulUpdateToGlobalAggregate() throws Exception {

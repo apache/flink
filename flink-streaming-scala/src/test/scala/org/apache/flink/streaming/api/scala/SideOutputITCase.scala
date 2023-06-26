@@ -24,7 +24,7 @@ import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindo
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 import org.apache.flink.test.streaming.runtime.util.TestListResultSink
-import org.apache.flink.test.util.AbstractTestBase
+import org.apache.flink.test.util.AbstractTestBaseJUnit4
 import org.apache.flink.util.Collector
 
 import org.junit.Assert._
@@ -33,7 +33,7 @@ import org.junit.Test
 import java.util
 
 /** Integration test for streaming programs using side outputs. */
-class SideOutputITCase extends AbstractTestBase {
+class SideOutputITCase extends AbstractTestBaseJUnit4 {
 
   /** Test ProcessFunction side output. */
   @Test

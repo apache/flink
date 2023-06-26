@@ -28,7 +28,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.test.util.MultipleProgramsTestBaseJUnit4;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.Collector;
@@ -46,7 +46,7 @@ import static org.junit.Assert.assertEquals;
 /** Connected Components test case that uses a parameterizable convergence criterion. */
 @RunWith(Parameterized.class)
 @SuppressWarnings("serial")
-public class AggregatorConvergenceITCase extends MultipleProgramsTestBase {
+public class AggregatorConvergenceITCase extends MultipleProgramsTestBaseJUnit4 {
 
     public AggregatorConvergenceITCase(TestExecutionMode mode) {
         super(mode);

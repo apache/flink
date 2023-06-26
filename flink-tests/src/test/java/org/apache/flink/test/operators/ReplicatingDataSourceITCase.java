@@ -29,7 +29,7 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.io.GenericInputSplit;
-import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.test.util.MultipleProgramsTestBaseJUnit4;
 import org.apache.flink.util.NumberSequenceIterator;
 
 import org.junit.Test;
@@ -42,7 +42,7 @@ import static org.apache.flink.test.util.TestBaseUtils.compareResultAsText;
 
 /** Tests for replicating DataSources. */
 @RunWith(Parameterized.class)
-public class ReplicatingDataSourceITCase extends MultipleProgramsTestBase {
+public class ReplicatingDataSourceITCase extends MultipleProgramsTestBaseJUnit4 {
 
     public ReplicatingDataSourceITCase(TestExecutionMode mode) {
         super(mode);

@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
-import org.apache.flink.test.util.AbstractTestBase
+import org.apache.flink.test.util.AbstractTestBaseJUnit4
 
 import org.junit.Assert._
 import org.junit.Test
@@ -40,7 +40,7 @@ import scala.collection.mutable
  * Tests for Folds over windows. These also test whether OutputTypeConfigurable functions work for
  * windows, because FoldWindowFunction is OutputTypeConfigurable.
  */
-class WindowReduceITCase extends AbstractTestBase {
+class WindowReduceITCase extends AbstractTestBaseJUnit4 {
 
   @Test
   def testReduceWindow(): Unit = {

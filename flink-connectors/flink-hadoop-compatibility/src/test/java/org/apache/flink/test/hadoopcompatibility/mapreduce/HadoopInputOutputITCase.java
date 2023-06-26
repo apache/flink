@@ -22,7 +22,7 @@ import org.apache.flink.api.java.hadoop.mapreduce.HadoopInputFormat;
 import org.apache.flink.api.java.hadoop.mapreduce.HadoopOutputFormat;
 import org.apache.flink.test.hadoopcompatibility.mapreduce.example.WordCount;
 import org.apache.flink.test.testdata.WordCountData;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 import org.apache.flink.util.OperatingSystem;
 
 import org.junit.Assume;
@@ -31,7 +31,7 @@ import org.junit.Before;
 import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
 
 /** IT cases for both the {@link HadoopInputFormat} and {@link HadoopOutputFormat}. */
-public class HadoopInputOutputITCase extends JavaProgramTestBase {
+public class HadoopInputOutputITCase extends JavaProgramTestBaseJUnit4 {
 
     protected String textPath;
     protected String resultPath;

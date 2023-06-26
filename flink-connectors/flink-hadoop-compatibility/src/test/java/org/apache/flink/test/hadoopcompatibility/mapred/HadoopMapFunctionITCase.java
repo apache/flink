@@ -23,7 +23,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.hadoopcompatibility.mapred.HadoopMapFunction;
-import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.test.util.MultipleProgramsTestBaseJUnit4;
 
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
@@ -43,7 +43,7 @@ import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMe
 
 /** IT cases for the {@link HadoopMapFunction}. */
 @RunWith(Parameterized.class)
-public class HadoopMapFunctionITCase extends MultipleProgramsTestBase {
+public class HadoopMapFunctionITCase extends MultipleProgramsTestBaseJUnit4 {
 
     public HadoopMapFunctionITCase(TestExecutionMode mode) {
         super(mode);

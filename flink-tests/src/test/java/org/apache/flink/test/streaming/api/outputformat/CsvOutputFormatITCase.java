@@ -22,14 +22,14 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.testfunctions.Tokenizer;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 
 import org.junit.Test;
 
 import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
 
 /** Integration tests for {@link org.apache.flink.api.java.io.CsvOutputFormat}. */
-public class CsvOutputFormatITCase extends AbstractTestBase {
+public class CsvOutputFormatITCase extends AbstractTestBaseJUnit4 {
 
     @Test
     public void testProgram() throws Exception {

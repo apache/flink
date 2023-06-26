@@ -18,7 +18,7 @@
 
 package org.apache.flink.formats.hadoop.bulk;
 
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.IOUtils;
 
 import org.apache.hadoop.conf.Configuration;
@@ -46,7 +46,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests the behaviors of {@link HadoopFileCommitter}. */
 @RunWith(Parameterized.class)
-public abstract class AbstractFileCommitterTest extends AbstractTestBase {
+public abstract class AbstractFileCommitterTest extends AbstractTestBaseJUnit4 {
 
     private static final List<String> CONTENTS =
             new ArrayList<>(Arrays.asList("first line", "second line", "third line"));

@@ -33,7 +33,7 @@ import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorageAccess;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Test;
@@ -44,7 +44,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Integration tests for {@link OperatorStateBackend}. */
-public class StateBackendITCase extends AbstractTestBase {
+public class StateBackendITCase extends AbstractTestBaseJUnit4 {
 
     /** Verify that the user-specified state backend is used even if checkpointing is disabled. */
     @Test

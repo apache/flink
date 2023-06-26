@@ -20,7 +20,7 @@ package org.apache.flink.test.hadoopcompatibility.mapred;
 
 import org.apache.flink.test.hadoopcompatibility.mapred.example.HadoopMapredCompatWordCount;
 import org.apache.flink.test.testdata.WordCountData;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 import org.apache.flink.util.OperatingSystem;
 
 import org.junit.Assume;
@@ -29,7 +29,7 @@ import org.junit.Before;
 import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
 
 /** IT cases for mapred. */
-public class HadoopMapredITCase extends JavaProgramTestBase {
+public class HadoopMapredITCase extends JavaProgramTestBaseJUnit4 {
 
     protected String textPath;
     protected String resultPath;

@@ -28,7 +28,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.streaming.runtime.util.NoOpIntMap;
 import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 
 import org.junit.Test;
 
@@ -48,7 +48,7 @@ import static org.junit.Assert.fail;
 
 /** IT case that tests the different stream partitioning schemes. */
 @SuppressWarnings("serial")
-public class PartitionerITCase extends AbstractTestBase {
+public class PartitionerITCase extends AbstractTestBaseJUnit4 {
 
     private static final int PARALLELISM = 3;
 

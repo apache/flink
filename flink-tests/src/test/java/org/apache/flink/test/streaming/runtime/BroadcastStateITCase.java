@@ -30,7 +30,7 @@ import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.Collector;
 
 import org.junit.Rule;
@@ -45,7 +45,7 @@ import java.util.Map;
 import static org.junit.Assert.assertEquals;
 
 /** ITCase for the {@link org.apache.flink.api.common.state.BroadcastState}. */
-public class BroadcastStateITCase extends AbstractTestBase {
+public class BroadcastStateITCase extends AbstractTestBaseJUnit4 {
 
     @Rule public ExpectedException thrown = ExpectedException.none();
 
