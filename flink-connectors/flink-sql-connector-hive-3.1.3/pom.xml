@@ -149,6 +149,14 @@ under the License.
 				</exclusion>
 			</exclusions>
 		</dependency>
+
+		<!--Hive 3.1.x depends on calcite-1.16 -->
+		<dependency>
+			<groupId>org.apache.calcite</groupId>
+			<artifactId>calcite-core</artifactId>
+			<version>1.16.0</version>
+			<optional>${flink.markBundledAsOptional}</optional>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -184,6 +192,19 @@ under the License.
 										<exclude>org/apache/hadoop/hive/metastore/HiveMetaStoreClient.class</exclude>
 									</excludes>
 								</filter>
+								<filter>
+									<artifact>org.apache.calcite:calcite-core</artifact>
+									<includes>
+										<!-- We need include RelOptRule, otherwise, it'll throw class not found exception in Hive dialect.
+										  When use Hive dialect, user need to put hive-connector to FLINK_HOME/lib. And then
+										  in Hive parser, it will call method Hive#closeCurrent; But the class Hive is loaded by
+										  app classloader, see in org.apache.flink.table.planner.loader#PlannerModule. When load the class
+										  Hive, it requires org.apache.calcite.plan.RelOptRule, but this class won't be in app classloader,
+										  and then it'll throw class not found exception. So, we need to include this class.
+										  -->
+										<include>org/apache/calcite/plan/RelOptRule.class</include>
+									</includes>
+								</filter>
 							</filters>
 							<artifactSet>
 								<includes>
@@ -193,6 +214,8 @@ under the License.
 									<include>org.antlr:antlr-runtime</include>
 									<include>org.apache.avro:avro</include>
 									<include>org.apache.avro:avro-mapred</include>
+									<!-- calcite -->
+									<include>org.apache.calcite:calcite-core</include>
 								</includes>
 							</artifactSet>
 							<relocations>
