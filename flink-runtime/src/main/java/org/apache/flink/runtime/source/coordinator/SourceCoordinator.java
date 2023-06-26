@@ -146,21 +146,11 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
         this.watermarkAlignmentParams = watermarkAlignmentParams;
         this.coordinatorListeningID = coordinatorListeningID;
 
-        if (watermarkAlignmentParams.isEnabled()) {
-            if (context.isConcurrentExecutionAttemptsSupported()) {
-                throw new IllegalArgumentException(
-                        "Watermark alignment is not supported in concurrent execution attempts "
-                                + "scenario (e.g. if speculative execution is enabled)");
-            }
-
-            coordinatorStore.putIfAbsent(
-                    watermarkAlignmentParams.getWatermarkGroup(), new WatermarkAggregator<>());
-            context.getCoordinatorExecutor()
-                    .scheduleAtFixedRate(
-                            this::announceCombinedWatermark,
-                            watermarkAlignmentParams.getUpdateInterval(),
-                            watermarkAlignmentParams.getUpdateInterval(),
-                            TimeUnit.MILLISECONDS);
+        if (watermarkAlignmentParams.isEnabled()
+                && context.isConcurrentExecutionAttemptsSupported()) {
+            throw new IllegalArgumentException(
+                    "Watermark alignment is not supported in concurrent execution attempts "
+                            + "scenario (e.g. if speculative execution is enabled)");
         }
     }
 
@@ -264,6 +254,18 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
                             return null;
                         }
                     });
+        }
+
+        if (watermarkAlignmentParams.isEnabled()) {
+            LOG.info("Starting schedule the period announceCombinedWatermark task");
+            coordinatorStore.putIfAbsent(
+                    watermarkAlignmentParams.getWatermarkGroup(), new WatermarkAggregator<>());
+            context.getCoordinatorExecutor()
+                    .scheduleAtFixedRate(
+                            this::announceCombinedWatermark,
+                            watermarkAlignmentParams.getUpdateInterval(),
+                            watermarkAlignmentParams.getUpdateInterval(),
+                            TimeUnit.MILLISECONDS);
         }
     }
 
