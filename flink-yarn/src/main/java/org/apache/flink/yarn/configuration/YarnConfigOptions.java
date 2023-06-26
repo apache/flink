@@ -238,7 +238,7 @@ public class YarnConfigOptions {
     public static final ConfigOption<String> APPLICATION_VIEW_ACLS =
             key("yarn.view.acls")
                     .stringType()
-                    .defaultValue("")
+                    .noDefaultValue()
                     .withDescription(
                             "Users and groups to give VIEW access. The ACLs are of for"
                                     + " comma-separated-users&lt;space&gt;comma-separated-groups."
@@ -249,7 +249,7 @@ public class YarnConfigOptions {
     public static final ConfigOption<String> APPLICATION_MODIFY_ACLS =
             key("yarn.modify.acls")
                     .stringType()
-                    .defaultValue("")
+                    .noDefaultValue()
                     .withDescription(
                             "Users and groups to give MODIFY access. The ACLs are of for"
                                     + " comma-separated-users&lt;space&gt;comma-separated-groups."

@@ -642,8 +642,8 @@ public final class Utils {
             ContainerLaunchContext amContainer,
             org.apache.flink.configuration.Configuration flinkConfig) {
         Map<ApplicationAccessType, String> acls = new HashMap<>();
-        String viewAcls = flinkConfig.getString(YarnConfigOptions.APPLICATION_VIEW_ACLS, null);
-        String modifyAcls = flinkConfig.getString(YarnConfigOptions.APPLICATION_MODIFY_ACLS, null);
+        final String viewAcls = flinkConfig.getString(YarnConfigOptions.APPLICATION_VIEW_ACLS);
+        final String modifyAcls = flinkConfig.getString(YarnConfigOptions.APPLICATION_MODIFY_ACLS);
         validateAclString(viewAcls);
         validateAclString(modifyAcls);
 
