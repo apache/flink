@@ -234,13 +234,8 @@ public class HiveITCase extends TestLogger {
     }
 
     private static FlinkResource buildFlinkResource() {
-        // swap planner
-        // todo: should remove planner swap logic after FLINK-31575
         FlinkResourceSetup.FlinkResourceSetupBuilder builder =
-                FlinkResourceSetup.builder()
-                        .addJar(sqlHiveJar, JarLocation.LIB)
-                        .moveJar("flink-table-planner", JarLocation.OPT, JarLocation.LIB)
-                        .moveJar("flink-table-planner-loader", JarLocation.LIB, JarLocation.OPT);
+                FlinkResourceSetup.builder().addJar(sqlHiveJar, JarLocation.LIB);
 
         // add hadoop jars
         File hadoopClasspathFile = new File(HADOOP_CLASS_PATH.toAbsolutePath().toString());
