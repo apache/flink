@@ -26,24 +26,24 @@ import org.apache.flink.table.planner.plan.fusion.OpFusionCodegenSpecBase
 import java.util
 
 /** The operator fusion codegen spec for input operator. */
-class InputAdapterFusionCodegenSpec(operatorCtx: CodeGeneratorContext, inputId: Int)
-  extends OpFusionCodegenSpecBase(operatorCtx) {
+class InputAdapterFusionCodegenSpec(opCodegenCtx: CodeGeneratorContext, inputId: Int)
+  extends OpFusionCodegenSpecBase(opCodegenCtx) {
 
   override def variablePrefix: String = "input"
 
-  override protected def doProcessProduce(fusionCtx: CodeGeneratorContext): Unit = {
+  override protected def doProcessProduce(codegenCtx: CodeGeneratorContext): Unit = {
     val inputTypeTerm = boxedTypeTermForType(fusionContext.getOutputType)
     val inputTerm = DEFAULT_INPUT_TERM + inputId
 
     val processTerm = "processInput" + inputId
-    fusionCtx.addReusableMember(
+    codegenCtx.addReusableMember(
       s"""
          |public void $processTerm($inputTypeTerm $inputTerm) throws Exception {
          |  ${fusionContext.processConsume(null, inputTerm)}
          |}
          |""".stripMargin
     )
-    fusionCtx.addReusableFusionCodegenProcessStatement(
+    codegenCtx.addReusableFusionCodegenProcessStatement(
       inputId,
       s"""
          |new ${className[AbstractInput[_, _]]}(this, $inputId) {
@@ -64,16 +64,16 @@ class InputAdapterFusionCodegenSpec(operatorCtx: CodeGeneratorContext, inputId: 
     throw new UnsupportedOperationException
   }
 
-  override protected def doEndInputProduce(fusionCtx: CodeGeneratorContext): Unit = {
+  override protected def doEndInputProduce(codegenCtx: CodeGeneratorContext): Unit = {
     val endInputTerm = "endInput" + inputId
-    fusionCtx.addReusableMember(
+    codegenCtx.addReusableMember(
       s"""
          |public void $endInputTerm() throws Exception {
          |  ${fusionContext.endInputConsume()}
          |}
          |""".stripMargin
     )
-    fusionCtx.addReusableFusionCodegenEndInputStatement(inputId, s"$endInputTerm();")
+    codegenCtx.addReusableFusionCodegenEndInputStatement(inputId, s"$endInputTerm();")
   }
 
   override def doEndInputConsume(inputId: Int): String = {

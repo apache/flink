@@ -19,30 +19,34 @@ package org.apache.flink.table.planner.plan.fusion
 
 import org.apache.flink.streaming.api.operators.{Input, InputSelection, StreamOperatorParameters}
 import org.apache.flink.table.data.RowData
-import org.apache.flink.table.planner.codegen.CodeGeneratorContext
+import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenException, GeneratedExpression}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{className, newName}
+import org.apache.flink.table.planner.codegen.GeneratedExpression.NO_CODE
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.{OUT_ELEMENT, STREAM_RECORD}
 import org.apache.flink.table.planner.plan.fusion.OpFusionCodegenSpecGenerator.Context
 import org.apache.flink.table.runtime.generated.GeneratedOperator
 import org.apache.flink.table.runtime.operators.fusion.{FusionStreamOperatorBase, OperatorFusionCodegenFactory}
-import org.apache.flink.table.runtime.operators.multipleinput.MultipleInputSpec
-import org.apache.flink.table.runtime.operators.multipleinput.input.InputSelectionHandler
+import org.apache.flink.table.runtime.operators.multipleinput.input.{InputSelectionHandler, InputSelectionSpec}
+import org.apache.flink.table.types.logical.{LogicalType, RowType}
+
+import org.apache.calcite.rex.{RexInputRef, RexNode, RexVisitorImpl}
 
 import java.util
 
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
+import scala.collection.mutable
 
 object FusionCodegenUtil {
 
   def generateFusionOperator(
       outputGenerator: OpFusionCodegenSpecGenerator,
-      inputSpecs: util.List[MultipleInputSpec]): (OperatorFusionCodegenFactory[RowData], Long) = {
+      inputSpecs: util.List[InputSelectionSpec]): (OperatorFusionCodegenFactory[RowData], Long) = {
     // Must initialize operator managedMemoryFraction before produce-consume call, codegen need it
     val (opSpecGenerators, totalManagedMemory) = setupOpSpecGenerator(outputGenerator)
 
     val fusionCtx = new CodeGeneratorContext(
-      outputGenerator.getOpFusionCodegenSpec.getOperatorCtx.tableConfig,
-      outputGenerator.getOpFusionCodegenSpec.getOperatorCtx.classLoader)
+      outputGenerator.getOpFusionCodegenSpec.getCodeGeneratorContext.tableConfig,
+      outputGenerator.getOpFusionCodegenSpec.getCodeGeneratorContext.classLoader)
 
     // generate process code
     outputGenerator.processProduce(fusionCtx)
@@ -167,5 +171,73 @@ object FusionCodegenUtil {
     operators.add(outputOp)
     // visit all input operator from output to leaf recursively
     outputOp.getInputs.foreach(op => getAllOpSpecGenerator(op, operators))
+  }
+
+  /**
+   * Returns source code to evaluate all the variables, and clear the code of them, to prevent them
+   * to be evaluated twice.
+   */
+  def evaluateVariables(varExprs: Seq[GeneratedExpression]): String = {
+    val evaluate = varExprs.filter(_.code.nonEmpty).map(_.code).mkString("\n")
+    varExprs.foreach(_.code = NO_CODE)
+    evaluate
+  }
+
+  /**
+   * Returns source code to evaluate the variables for required attributes, to prevent them to be
+   * evaluated twice.
+   */
+  def evaluateRequiredVariables(
+      varExprs: Seq[GeneratedExpression],
+      requiredVarIndices: Set[Int]): String = {
+    val evaluateVars = new StringBuilder
+    requiredVarIndices.foreach(
+      index => {
+        val expr = varExprs(index)
+        if (expr.code.nonEmpty) {
+          evaluateVars.append(expr.code + "\n")
+          expr.code = NO_CODE
+        }
+      })
+    evaluateVars.toString()
+  }
+
+  def extractRefInputFields(
+      exprs: Seq[RexNode],
+      input1Type: LogicalType,
+      input2Type: LogicalType): (Set[Int], Set[Int]) = {
+    val visitor = new InputRefVisitor(input1Type, Option(input2Type))
+    // extract referenced input fields from expressions
+    exprs.foreach(_.accept(visitor))
+    (visitor.input1Fields.toSet, visitor.input2Fields.toSet)
+  }
+
+  def extractRefInputFields(exprs: Seq[RexNode], input1Type: LogicalType): Set[Int] = {
+    val visitor = new InputRefVisitor(input1Type)
+    // extract referenced input fields from expressions
+    exprs.foreach(_.accept(visitor))
+    visitor.input1Fields.toSet
+  }
+}
+
+/** An RexVisitor to extract all referenced input fields */
+class InputRefVisitor(input1Type: LogicalType, input2Type: Option[LogicalType] = None)
+  extends RexVisitorImpl[Unit](true) {
+
+  val input1Fields = mutable.ListBuffer[Int]()
+  val input2Fields = mutable.ListBuffer[Int]()
+
+  override def visitInputRef(inputRef: RexInputRef): Unit = {
+    val input1Arity = input1Type match {
+      case r: RowType => r.getFieldCount
+      case _ => 1
+    }
+    // if inputRef index is within size of input1 we work with input1, input2 otherwise
+    if (inputRef.getIndex < input1Arity) {
+      input1Fields += inputRef.getIndex
+    } else {
+      input2Type.getOrElse(throw new CodeGenException("Invalid input access."))
+      input2Fields += inputRef.getIndex - input1Arity
+    }
   }
 }

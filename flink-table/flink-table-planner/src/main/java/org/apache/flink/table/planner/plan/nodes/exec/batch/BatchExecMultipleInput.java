@@ -44,8 +44,8 @@ import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.AbstractExecNodeExactlyOnceVisitor;
 import org.apache.flink.table.runtime.operators.fusion.OperatorFusionCodegenFactory;
 import org.apache.flink.table.runtime.operators.multipleinput.BatchMultipleInputStreamOperatorFactory;
-import org.apache.flink.table.runtime.operators.multipleinput.MultipleInputSpec;
 import org.apache.flink.table.runtime.operators.multipleinput.TableOperatorWrapperGenerator;
+import org.apache.flink.table.runtime.operators.multipleinput.input.InputSelectionSpec;
 import org.apache.flink.table.runtime.operators.multipleinput.input.InputSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
@@ -140,7 +140,7 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
         boolean fusionCodegenEnabled = config.get(TABLE_EXEC_OPERATOR_FUSION_CODEGEN_ENABLED);
         // multiple operator fusion codegen
         if (fusionCodegenEnabled && allSupportFusionCodegen()) {
-            final List<MultipleInputSpec> multipleInputSpecs = new ArrayList<>();
+            final List<InputSelectionSpec> inputSelectionSpecs = new ArrayList<>();
             int i = 0;
             for (ExecEdge inputEdge : originalEdges) {
                 int multipleInputId = i + 1;
@@ -165,7 +165,7 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
                         ExecEdge.builder().source(inputAdapter).target(target).build());
 
                 // The input id and read order
-                multipleInputSpecs.add(new MultipleInputSpec(multipleInputId, readOrders[i]));
+                inputSelectionSpecs.add(new InputSelectionSpec(multipleInputId, readOrders[i]));
                 i++;
             }
 
@@ -184,7 +184,7 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
 
             // generate fusion operator
             Tuple2<OperatorFusionCodegenFactory<RowData>, Object> multipleOperatorTuple =
-                    FusionCodegenUtil.generateFusionOperator(outputGenerator, multipleInputSpecs);
+                    FusionCodegenUtil.generateFusionOperator(outputGenerator, inputSelectionSpecs);
             operatorFactory = multipleOperatorTuple._1;
 
             Pair<Integer, Integer> parallelismPair = getInputMaxParallelism(inputTransforms);

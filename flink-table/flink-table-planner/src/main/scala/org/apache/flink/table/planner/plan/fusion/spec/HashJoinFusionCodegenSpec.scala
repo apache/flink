@@ -22,7 +22,8 @@ import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression, GenerateUtils}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{fieldIndices, newName, newNames, primitiveDefaultValue, primitiveTypeTermForType, BINARY_ROW, ROW_DATA}
 import org.apache.flink.table.planner.codegen.LongHashJoinGenerator.{genGetLongKey, genProjection}
-import org.apache.flink.table.planner.plan.fusion.{OpFusionCodegenSpecBase, OpFusionCodegenSpecGenerator, OpFusionContext}
+import org.apache.flink.table.planner.plan.fusion.{OpFusionCodegenSpecBase, OpFusionContext}
+import org.apache.flink.table.planner.plan.fusion.FusionCodegenUtil.{evaluateRequiredVariables, extractRefInputFields}
 import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.{toJava, toScala}
 import org.apache.flink.table.runtime.hashtable.LongHybridHashTable
@@ -31,11 +32,13 @@ import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer
 import org.apache.flink.table.runtime.util.RowIterator
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
 
+import org.apache.calcite.rex.RexNode
+
 import java.util
 
 /** Base operator fusion codegen spec for HashJoin. */
 class HashJoinFusionCodegenSpec(
-    operatorCtx: CodeGeneratorContext,
+    opCodegenCtx: CodeGeneratorContext,
     isBroadcast: Boolean,
     leftIsBuild: Boolean,
     joinSpec: JoinSpec,
@@ -45,7 +48,7 @@ class HashJoinFusionCodegenSpec(
     estimatedRightRowCount: Long,
     compressionEnabled: Boolean,
     compressionBlockSize: Int)
-  extends OpFusionCodegenSpecBase(operatorCtx) {
+  extends OpFusionCodegenSpecBase(opCodegenCtx) {
 
   private lazy val joinType: FlinkJoinType = joinSpec.getJoinType
   private lazy val hashJoinType: HashJoinType = HashJoinType.of(
@@ -75,26 +78,26 @@ class HashJoinFusionCodegenSpec(
 
   private lazy val hashTableTerm: String = newName("hashTable")
 
-  private var buildInput: OpFusionCodegenSpecGenerator = _
-  private var probeInput: OpFusionCodegenSpecGenerator = _
+  private var buildContext: OpFusionContext = _
+  private var probeContext: OpFusionContext = _
   private var buildType: RowType = _
   private var probeType: RowType = _
   private var keyType: RowType = _
 
   override def setup(opFusionContext: OpFusionContext): Unit = {
     super.setup(opFusionContext)
-    val inputs = toScala(fusionContext.getInputs)
-    assert(inputs.size == 2)
+    val inputContexts = toScala(fusionContext.getInputFusionContexts)
+    assert(inputContexts.size == 2)
     if (leftIsBuild) {
-      buildInput = inputs.head
-      probeInput = inputs(1)
+      buildContext = inputContexts.head
+      probeContext = inputContexts(1)
     } else {
-      buildInput = inputs(1)
-      probeInput = inputs.head
+      buildContext = inputContexts(1)
+      probeContext = inputContexts.head
     }
 
-    buildType = buildInput.getOutputType
-    probeType = probeInput.getOutputType
+    buildType = buildContext.getOutputType
+    probeType = probeContext.getOutputType
     if (leftIsBuild) {
       keyType = RowType.of(joinSpec.getLeftKeys.map(idx => buildType.getTypeAt(idx)): _*)
     } else {
@@ -105,16 +108,16 @@ class HashJoinFusionCodegenSpec(
   override def variablePrefix: String = if (isBroadcast) { "bhj" }
   else { "shj" }
 
-  override protected def doProcessProduce(fusionCtx: CodeGeneratorContext): Unit = {
+  override protected def doProcessProduce(codegenCtx: CodeGeneratorContext): Unit = {
     // call build side first, then call probe side
-    buildInput.processProduce(fusionCtx)
-    probeInput.processProduce(fusionCtx)
+    buildContext.processProduce(codegenCtx)
+    probeContext.processProduce(codegenCtx)
   }
 
-  override protected def doEndInputProduce(fusionCtx: CodeGeneratorContext): Unit = {
+  override protected def doEndInputProduce(codegenCtx: CodeGeneratorContext): Unit = {
     // call build side first, then call probe side
-    buildInput.endInputProduce(fusionCtx)
-    probeInput.endInputProduce(fusionCtx)
+    buildContext.endInputProduce(codegenCtx)
+    probeContext.endInputProduce(codegenCtx)
   }
 
   override def doProcessConsume(
@@ -125,7 +128,7 @@ class HashJoinFusionCodegenSpec(
     if (inputId == buildInputId) {
       codegenBuild(toScala(inputVars), row)
     } else {
-      codegenProbe(inputVars)
+      codegenProbe(toScala(inputVars))
     }
   }
 
@@ -136,7 +139,7 @@ class HashJoinFusionCodegenSpec(
     if (isBroadcast) {
       codegenHashTable(false)
     } else {
-      // TODO Shuffled HashJoin support build side spill to disk
+      // TODO FLINK-32279 Shuffle HashJoin support build side spill to disk
       codegenHashTable(true)
     }
 
@@ -146,13 +149,13 @@ class HashJoinFusionCodegenSpec(
     s"""
        |$nullCheckBuildCode
        |if (!$nullCheckBuildTerm) {
-       |  ${row.getCode}
+       |  ${row.code}
        |  $hashTableTerm.putBuildRow(($BINARY_ROW) ${row.resultTerm});
        |}
        """.stripMargin
   }
 
-  private def codegenProbe(inputVars: util.List[GeneratedExpression]): String = {
+  private def codegenProbe(inputVars: Seq[GeneratedExpression]): String = {
     hashJoinType match {
       case HashJoinType.INNER =>
         codegenInnerProbe(inputVars)
@@ -165,19 +168,19 @@ class HashJoinFusionCodegenSpec(
     }
   }
 
-  private def codegenInnerProbe(inputVars: util.List[GeneratedExpression]): String = {
+  private def codegenInnerProbe(inputVars: Seq[GeneratedExpression]): String = {
     val (keyEv, anyNull) = genStreamSideJoinKey(probeKeys, inputVars)
-    val keyCode = keyEv.getCode
-    val (matched, checkCondition, buildLocalVars, buildVars) = getJoinCondition(buildType)
+    val (matched, checkCondition, buildLocalVars, buildVars) =
+      getJoinCondition(inputVars, buildType)
     val resultVars = if (leftIsBuild) {
-      buildVars ++ toScala(inputVars)
+      buildVars ++ inputVars
     } else {
-      toScala(inputVars) ++ buildVars
+      inputVars ++ buildVars
     }
     val buildIterTerm = newName("buildIter")
     s"""
        |// generate join key for probe side
-       |$keyCode
+       |${keyEv.code}
        |// find matches from hash table
        |${classOf[RowIterator[_]].getCanonicalName} $buildIterTerm = $anyNull ?
        |  null : $hashTableTerm.get(${keyEv.resultTerm});
@@ -193,13 +196,12 @@ class HashJoinFusionCodegenSpec(
            """.stripMargin
   }
 
-  private def codegenProbeOuterProbe(inputVars: util.List[GeneratedExpression]): String = {
+  private def codegenProbeOuterProbe(inputVars: Seq[GeneratedExpression]): String = {
     val (keyEv, anyNull) = genStreamSideJoinKey(probeKeys, inputVars)
-    val keyCode = keyEv.getCode
     val matched = newName("buildRow")
     // start new local variable
-    getOperatorCtx.startNewLocalVariableStatement(matched)
-    val buildVars = genInputVars(matched, buildType)
+    opCodegenCtx.startNewLocalVariableStatement(matched)
+    val buildVars = genBuildSideVars(opCodegenCtx, matched, buildType)
 
     // filter the output via condition
     val conditionPassed = newName("conditionPassed")
@@ -210,13 +212,16 @@ class HashJoinFusionCodegenSpec(
       } else {
         getExprCodeGenerator.bindSecondInput(buildType, matched)
       }
-      // TODO evaluate the variables from probe and build side that used by condition in advance
       // generate the expr code
-      val expr = getExprCodeGenerator.generateExpression(joinSpec.getNonEquiCondition.get)
+      val joinCondition = joinSpec.getNonEquiCondition.get
+      // evaluate the variables from probe and build side that used by condition
+      val evalCode = evaluateVarUsedInCondition(joinCondition, inputVars, buildVars)
+      val expr = getExprCodeGenerator.generateExpression(joinCondition)
       s"""
          |boolean $conditionPassed = true;
+         |$evalCode
          |if ($matched != null) {
-         |  ${expr.getCode}
+         |  ${expr.code}
          |  $conditionPassed = !${expr.nullTerm} && ${expr.resultTerm};
          |}
        """.stripMargin
@@ -224,26 +229,24 @@ class HashJoinFusionCodegenSpec(
       s"final boolean $conditionPassed = true;"
     }
 
-    // generate the final result vars that need to consider the null for outer join
-    val buildResultVars = genProbeOuterBuildVars(matched, buildVars)
     val resultVars = if (leftIsBuild) {
-      buildResultVars ++ toScala(inputVars)
+      buildVars ++ inputVars
     } else {
-      toScala(inputVars) ++ buildResultVars
+      inputVars ++ buildVars
     }
     val buildIterTerm = newName("buildIter")
     val found = newName("found")
     val hasNext = newName("hasNext")
     s"""
        |// generate join key for probe side
-       |$keyCode
+       |${keyEv.code}
        |
        |boolean $found = false;
        |boolean $hasNext = false;
        |// find matches from hash table
        |${classOf[RowIterator[_]].getCanonicalName} $buildIterTerm = $anyNull ?
        |  null : $hashTableTerm.get(${keyEv.resultTerm});
-       |${getOperatorCtx.reuseLocalVariableCode(matched)}
+       |${opCodegenCtx.reuseLocalVariableCode(matched)}
        |while (($buildIterTerm != null && ($hasNext = $buildIterTerm.advanceNext())) || !$found) {
        |  $ROW_DATA $matched = $buildIterTerm != null && $hasNext ? $buildIterTerm.getRow() : null;
        |  ${checkCondition.trim}
@@ -255,15 +258,14 @@ class HashJoinFusionCodegenSpec(
            """.stripMargin
   }
 
-  private def codegenSemiProbe(inputVars: util.List[GeneratedExpression]): String = {
+  private def codegenSemiProbe(inputVars: Seq[GeneratedExpression]): String = {
     val (keyEv, anyNull) = genStreamSideJoinKey(probeKeys, inputVars)
-    val keyCode = keyEv.getCode
-    val (matched, checkCondition, buildLocalVars, _) = getJoinCondition(buildType)
+    val (matched, checkCondition, buildLocalVars, _) = getJoinCondition(inputVars, buildType)
 
     val buildIterTerm = newName("buildIter")
     s"""
        |// generate join key for probe side
-       |$keyCode
+       |${keyEv.code}
        |// find matches from hash table
        |${classOf[RowIterator[_]].getCanonicalName} $buildIterTerm = $anyNull ?
        |  null : $hashTableTerm.get(${keyEv.resultTerm});
@@ -272,7 +274,7 @@ class HashJoinFusionCodegenSpec(
        |  while ($buildIterTerm.advanceNext()) {
        |    $ROW_DATA $matched = $buildIterTerm.getRow();
        |    $checkCondition {
-       |      ${fusionContext.processConsume(inputVars)}
+       |      ${fusionContext.processConsume(toJava(inputVars))}
        |      break;
        |    }
        |  }
@@ -280,17 +282,16 @@ class HashJoinFusionCodegenSpec(
            """.stripMargin
   }
 
-  private def codegenAntiProbe(inputVars: util.List[GeneratedExpression]): String = {
+  private def codegenAntiProbe(inputVars: Seq[GeneratedExpression]): String = {
     val (keyEv, anyNull) = genStreamSideJoinKey(probeKeys, inputVars)
-    val keyCode = keyEv.getCode
-    val (matched, checkCondition, buildLocalVars, _) = getJoinCondition(buildType)
+    val (matched, checkCondition, buildLocalVars, _) = getJoinCondition(inputVars, buildType)
 
     val buildIterTerm = newName("buildIter")
     val found = newName("found")
 
     s"""
        |// generate join key for probe side
-       |$keyCode
+       |${keyEv.code}
        |boolean $found = false;
        |// find matches from hash table
        |${classOf[RowIterator[_]].getCanonicalName} $buildIterTerm = $anyNull ?
@@ -307,7 +308,7 @@ class HashJoinFusionCodegenSpec(
        |}
        |
        |if (!$found) {
-       |  ${fusionContext.processConsume(inputVars)}
+       |  ${fusionContext.processConsume(toJava(inputVars))}
        |}
            """.stripMargin
   }
@@ -329,13 +330,13 @@ class HashJoinFusionCodegenSpec(
    * Returns the code for generating join key for stream side, and expression of whether the key has
    * any null in it or not.
    */
-  protected def genStreamSideJoinKey(
+  private def genStreamSideJoinKey(
       probeKeyMapping: Array[Int],
-      inputVars: util.List[GeneratedExpression]): (GeneratedExpression, String) = {
+      inputVars: Seq[GeneratedExpression]): (GeneratedExpression, String) = {
     // current only support one join key which is long type
     if (probeKeyMapping.length == 1) {
       // generate the join key as Long
-      val ev = inputVars.get(probeKeyMapping(0))
+      val ev = inputVars(probeKeyMapping(0))
       (ev, ev.nullTerm)
     } else {
       // generate the join key as BinaryRowData
@@ -344,7 +345,7 @@ class HashJoinFusionCodegenSpec(
     }
   }
 
-  protected def genAnyNullsInKeys(
+  private def genAnyNullsInKeys(
       keyMapping: Array[Int],
       input: Seq[GeneratedExpression]): (String, String) = {
     val builder = new StringBuilder
@@ -353,7 +354,7 @@ class HashJoinFusionCodegenSpec(
 
     keyMapping.foreach(
       key => {
-        codeBuilder.append(input(key).getCode + "\n")
+        codeBuilder.append(input(key).code + "\n")
         builder.append(s"$anyNullTerm |= ${input(key).nullTerm};")
       })
     (
@@ -365,7 +366,8 @@ class HashJoinFusionCodegenSpec(
       anyNullTerm)
   }
 
-  protected def getJoinCondition(
+  private def getJoinCondition(
+      probeVars: Seq[GeneratedExpression],
       buildType: RowType): (String, String, String, Seq[GeneratedExpression]) = {
     val buildRow = newName("buildRow")
     // here need bind the buildRow before generate build condition
@@ -375,15 +377,18 @@ class HashJoinFusionCodegenSpec(
       getExprCodeGenerator.bindSecondInput(buildType, buildRow)
     }
 
-    getOperatorCtx.startNewLocalVariableStatement(buildRow)
-    val buildVars = genInputVars(buildRow, buildType)
+    opCodegenCtx.startNewLocalVariableStatement(buildRow)
+    val buildVars = genBuildSideVars(opCodegenCtx, buildRow, buildType)
     val checkCondition = if (joinSpec.getNonEquiCondition.isPresent) {
-      // bind the build row name again
-      val expr = getExprCodeGenerator.generateExpression(joinSpec.getNonEquiCondition.get)
+      val joinCondition = joinSpec.getNonEquiCondition.get
+      // evaluate the variables from probe and build side that used by condition
+      val eval = evaluateVarUsedInCondition(joinCondition, probeVars, buildVars)
+      val expr = getExprCodeGenerator.generateExpression(joinCondition)
       val skipRow = s"${expr.nullTerm} || !${expr.resultTerm}"
       s"""
+         |$eval
          |// generate join condition
-         |${expr.getCode}
+         |${expr.code}
          |if (!($skipRow))
        """.stripMargin
     } else {
@@ -393,59 +398,75 @@ class HashJoinFusionCodegenSpec(
       if (hashJoinType.leftSemiOrAnti() && !joinSpec.getNonEquiCondition.isPresent) {
         ""
       } else {
-        getOperatorCtx.reuseLocalVariableCode(buildRow)
+        opCodegenCtx.reuseLocalVariableCode(buildRow)
       }
 
     (buildRow, checkCondition, buildLocalVars, buildVars)
   }
 
-  /** Generates build side expr for outer join. */
-  protected def genProbeOuterBuildVars(
-      buildRow: String,
-      buildVars: Seq[GeneratedExpression]): Seq[GeneratedExpression] = {
-    buildVars.zipWithIndex.map {
-      case (expr, i) =>
-        val fieldType = buildType.getTypeAt(i)
-        val resultTypeTerm = primitiveTypeTermForType(fieldType)
-        val defaultValue = primitiveDefaultValue(fieldType)
-        val Seq(fieldTerm, nullTerm) =
-          getOperatorCtx.addReusableLocalVariables((resultTypeTerm, "field"), ("boolean", "isNull"))
-        val code = s"""
-                      |$nullTerm = true;
-                      |$fieldTerm = $defaultValue;
-                      |if ($buildRow != null) {
-                      |  ${expr.getCode}
-                      |  $nullTerm = ${expr.nullTerm};
-                      |  $fieldTerm = ${expr.resultTerm};
-                      |}
-          """.stripMargin
-        GeneratedExpression(fieldTerm, nullTerm, code, fieldType)
-    }
-  }
-
   /** Generates the input row variables expr. */
-  def genInputVars(inputRowTerm: String, inputType: RowType): Seq[GeneratedExpression] = {
-    val indices = fieldIndices(inputType)
-    val buildExprs = indices
+  private def genBuildSideVars(
+      ctx: CodeGeneratorContext,
+      buildRow: String,
+      buildType: RowType): Seq[GeneratedExpression] = {
+    fieldIndices(buildType)
       .map(
-        index => GenerateUtils.generateFieldAccess(getOperatorCtx, inputType, inputRowTerm, index))
-      .toSeq
-    indices.foreach(
-      index =>
-        getOperatorCtx
-          .addReusableInputUnboxingExprs(inputRowTerm, index, buildExprs(index)))
+        index => {
+          var expr = GenerateUtils.generateFieldAccess(opCodegenCtx, buildType, buildRow, index)
 
-    buildExprs
+          if (hashJoinType == HashJoinType.PROBE_OUTER) {
+            val fieldType = buildType.getTypeAt(index)
+            val resultTypeTerm = primitiveTypeTermForType(fieldType)
+            val defaultValue = primitiveDefaultValue(fieldType)
+            val Seq(fieldTerm, nullTerm) =
+              opCodegenCtx
+                .addReusableLocalVariables((resultTypeTerm, "field"), ("boolean", "isNull"))
+            val code = s"""
+                          |$nullTerm = true;
+                          |$fieldTerm = $defaultValue;
+                          |if ($buildRow != null) {
+                          |  ${expr.code}
+                          |  $nullTerm = ${expr.nullTerm};
+                          |  $fieldTerm = ${expr.resultTerm};
+                          |}
+          """.stripMargin
+            expr = GeneratedExpression(fieldTerm, nullTerm, code, fieldType)
+          }
+          // bind the field expr to ctx to reuse when generate join condition code
+          ctx
+            .addReusableInputUnboxingExprs(buildRow, index, expr)
+
+          expr
+        })
+      .toSeq
   }
 
-  override def usedInputVars(inputId: Int): util.Set[Integer] = {
-    if (inputId == buildInputId) {
-      val set: util.Set[Integer] = new util.HashSet[Integer]()
-      buildKeys.toStream.map(key => set.add(key))
-      set
+  private def evaluateVarUsedInCondition(
+      joinCondition: RexNode,
+      probeVars: Seq[GeneratedExpression],
+      buildVars: Seq[GeneratedExpression]): String = {
+    val (buildIndices, probeIndices) = if (buildInputId == 1) {
+      extractRefInputFields(Seq(joinCondition), buildType, probeType)
     } else {
-      super.usedInputVars(inputId)
+      val (input1Indices, input2Indices) =
+        extractRefInputFields(Seq(joinCondition), probeType, buildType)
+      (input2Indices, input1Indices)
     }
+
+    s"""
+       |${evaluateRequiredVariables(probeVars, probeIndices)}
+       |${evaluateRequiredVariables(buildVars, buildIndices)}
+       |""".stripMargin
+  }
+
+  override def usedInputColumns(inputId: Int): util.Set[Integer] = {
+    val set: util.Set[Integer] = new util.HashSet[Integer]()
+    if (inputId == buildInputId) {
+      buildKeys.toStream.map(key => set.add(key))
+    } else {
+      probeKeys.toStream.map(key => set.add(key))
+    }
+    set
   }
 
   override def getInputRowDataClass(inputId: Int): Class[_ <: RowData] = {
@@ -459,31 +480,31 @@ class HashJoinFusionCodegenSpec(
 
   private def codegenHashTable(spillEnabled: Boolean): Unit = {
     val buildSer = new BinaryRowDataSerializer(buildType.getFieldCount)
-    val buildSerTerm = operatorCtx.addReusableObject(buildSer, "buildSer")
+    val buildSerTerm = opCodegenCtx.addReusableObject(buildSer, "buildSer")
     val probeSer = new BinaryRowDataSerializer(probeType.getFieldCount)
-    val probeSerTerm = operatorCtx.addReusableObject(probeSer, "probeSer")
+    val probeSerTerm = opCodegenCtx.addReusableObject(probeSer, "probeSer")
 
     val bGenProj =
       genProjection(
-        operatorCtx.tableConfig,
-        operatorCtx.classLoader,
+        opCodegenCtx.tableConfig,
+        opCodegenCtx.classLoader,
         buildType.getChildren.toArray(Array[LogicalType]()))
-    operatorCtx.addReusableInnerClass(bGenProj.getClassName, bGenProj.getCode)
+    opCodegenCtx.addReusableInnerClass(bGenProj.getClassName, bGenProj.getCode)
     val pGenProj =
       genProjection(
-        operatorCtx.tableConfig,
-        operatorCtx.classLoader,
+        opCodegenCtx.tableConfig,
+        opCodegenCtx.classLoader,
         probeType.getChildren.toArray(Array[LogicalType]()))
-    operatorCtx.addReusableInnerClass(pGenProj.getClassName, pGenProj.getCode)
+    opCodegenCtx.addReusableInnerClass(pGenProj.getClassName, pGenProj.getCode)
 
-    operatorCtx.addReusableMember(s"${bGenProj.getClassName} $buildToBinaryRow;")
-    val buildProjRefs = operatorCtx.addReusableObject(bGenProj.getReferences, "buildProjRefs")
-    operatorCtx.addReusableInitStatement(
+    opCodegenCtx.addReusableMember(s"${bGenProj.getClassName} $buildToBinaryRow;")
+    val buildProjRefs = opCodegenCtx.addReusableObject(bGenProj.getReferences, "buildProjRefs")
+    opCodegenCtx.addReusableInitStatement(
       s"$buildToBinaryRow = new ${bGenProj.getClassName}($buildProjRefs);")
 
-    operatorCtx.addReusableMember(s"${pGenProj.getClassName} $probeToBinaryRow;")
-    val probeProjRefs = operatorCtx.addReusableObject(pGenProj.getReferences, "probeProjRefs")
-    operatorCtx.addReusableInitStatement(
+    opCodegenCtx.addReusableMember(s"${pGenProj.getClassName} $probeToBinaryRow;")
+    val probeProjRefs = opCodegenCtx.addReusableObject(pGenProj.getReferences, "probeProjRefs")
+    opCodegenCtx.addReusableInitStatement(
       s"$probeToBinaryRow = new ${pGenProj.getClassName}($probeProjRefs);")
 
     val hashTableClassTerm = newName("LongHashTable")
@@ -523,20 +544,20 @@ class HashJoinFusionCodegenSpec(
          |  }
          |}
        """.stripMargin
-    operatorCtx.addReusableInnerClass(hashTableClassTerm, tableCode)
-    operatorCtx.addReusableMember(s"$hashTableClassTerm $hashTableTerm;")
+    opCodegenCtx.addReusableInnerClass(hashTableClassTerm, tableCode)
+    opCodegenCtx.addReusableMember(s"$hashTableClassTerm $hashTableTerm;")
     val memorySizeTerm = newName("memorySize")
-    operatorCtx.addReusableOpenStatement(
+    opCodegenCtx.addReusableOpenStatement(
       s"long $memorySizeTerm = computeMemorySize(${fusionContext.getManagedMemoryFraction});")
-    operatorCtx.addReusableOpenStatement(
+    opCodegenCtx.addReusableOpenStatement(
       s"$hashTableTerm = new $hashTableClassTerm($memorySizeTerm);")
 
-    operatorCtx.addReusableCloseStatement(s"""
-                                             |if (this.$hashTableTerm != null) {
-                                             |  this.$hashTableTerm.close();
-                                             |  this.$hashTableTerm.free();
-                                             |  this.$hashTableTerm = null;
-                                             |}
+    opCodegenCtx.addReusableCloseStatement(s"""
+                                              |if (this.$hashTableTerm != null) {
+                                              |  this.$hashTableTerm.close();
+                                              |  this.$hashTableTerm.free();
+                                              |  this.$hashTableTerm = null;
+                                              |}
        """.stripMargin)
   }
 }
