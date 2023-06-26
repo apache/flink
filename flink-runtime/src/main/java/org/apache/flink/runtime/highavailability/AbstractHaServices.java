@@ -20,20 +20,20 @@ package org.apache.flink.runtime.highavailability;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.AutoCloseableRegistry;
 import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.leaderelection.DefaultLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
-import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderelection.MultipleComponentLeaderElectionDriverFactory;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.concurrent.GuardedBy;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -70,10 +70,16 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
 
     private final JobResultStore jobResultStore;
 
-    private final AutoCloseableRegistry closeableRegistry = new AutoCloseableRegistry();
+    private final MultipleComponentLeaderElectionDriverFactory driverFactory;
+
+    private final Object lock = new Object();
+
+    @GuardedBy("lock")
+    private DefaultLeaderElectionService leaderElectionService;
 
     protected AbstractHaServices(
             Configuration config,
+            MultipleComponentLeaderElectionDriverFactory driverFactory,
             Executor ioExecutor,
             BlobStoreService blobStoreService,
             JobResultStore jobResultStore) {
@@ -82,6 +88,8 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
         this.ioExecutor = checkNotNull(ioExecutor);
         this.blobStoreService = checkNotNull(blobStoreService);
         this.jobResultStore = checkNotNull(jobResultStore);
+
+        this.driverFactory = driverFactory;
     }
 
     @Override
@@ -161,7 +169,11 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
         }
 
         try {
-            closeableRegistry.close();
+            synchronized (lock) {
+                if (leaderElectionService != null) {
+                    leaderElectionService.close();
+                }
+            }
         } catch (Throwable t) {
             exception = ExceptionUtils.firstOrSuppressed(t, exception);
         }
@@ -194,7 +206,11 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
         }
 
         try {
-            closeableRegistry.close();
+            synchronized (lock) {
+                if (leaderElectionService != null) {
+                    leaderElectionService.close();
+                }
+            }
         } catch (Throwable t) {
             exception = ExceptionUtils.firstOrSuppressed(t, exception);
         }
@@ -242,29 +258,15 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
     }
 
     private LeaderElection createLeaderElection(String leaderName) throws Exception {
-        final DefaultLeaderElectionService leaderElectionService =
-                new DefaultLeaderElectionService(createLeaderElectionDriverFactory(leaderName));
-        leaderElectionService.startLeaderElectionBackend();
+        synchronized (lock) {
+            if (leaderElectionService == null) {
+                leaderElectionService = new DefaultLeaderElectionService(driverFactory);
+                leaderElectionService.startLeaderElectionBackend();
+            }
 
-        closeableRegistry.registerCloseable(leaderElectionService);
-        // the leaderName which is passed as a contenderID here is not actively used within the
-        // DefaultLeaderElectionService for now - this will change in a future step where the
-        // DefaultLeaderElectionService will start to use MultipleComponentLeaderElectionDriver
-        // instead of LeaderElectionDriver and fully replace
-        // DefaultMultipleComponentLeaderElectionService (FLINK-31783)
-        return leaderElectionService.createLeaderElection("unused-contender-id");
+            return leaderElectionService.createLeaderElection(leaderName);
+        }
     }
-
-    /**
-     * Create {@link MultipleComponentLeaderElectionDriverFactory} instance for the specified
-     * leaderName.
-     *
-     * @param leaderName ConfigMap name in Kubernetes or child node path in Zookeeper.
-     * @return Return {@code MultipleComponentLeaderElectionDriverFactory} used for the {@link
-     *     LeaderElectionService}.
-     */
-    protected abstract MultipleComponentLeaderElectionDriverFactory
-            createLeaderElectionDriverFactory(String leaderName);
 
     /**
      * Create leader retrieval service with specified leaderName.

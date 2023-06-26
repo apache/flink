@@ -30,21 +30,13 @@ import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.AbstractHaServices;
 import org.apache.flink.runtime.highavailability.FileSystemJobResultStore;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
-import org.apache.flink.runtime.leaderelection.DefaultMultipleComponentLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.MultipleComponentLeaderElectionDriverFactory;
-import org.apache.flink.runtime.leaderelection.MultipleComponentLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.DefaultLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
-import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
-import javax.annotation.Nullable;
-import javax.annotation.concurrent.GuardedBy;
-
-import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -58,8 +50,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** Kubernetes HA services that use a single leader election service per JobManager. */
 public class KubernetesMultipleComponentLeaderElectionHaServices extends AbstractHaServices {
 
-    private final Object lock = new Object();
-
     private final String clusterId;
 
     private final FlinkKubeClient kubeClient;
@@ -69,75 +59,72 @@ public class KubernetesMultipleComponentLeaderElectionHaServices extends Abstrac
 
     private final String lockIdentity;
 
-    private final FatalErrorHandler fatalErrorHandler;
-
-    @Nullable
-    @GuardedBy("lock")
-    private DefaultMultipleComponentLeaderElectionService multipleComponentLeaderElectionService =
-            null;
-
     KubernetesMultipleComponentLeaderElectionHaServices(
             FlinkKubeClient kubeClient,
-            Executor executor,
-            Configuration config,
-            BlobStoreService blobStoreService,
-            FatalErrorHandler fatalErrorHandler)
-            throws IOException {
-
-        super(
-                config,
-                executor,
-                blobStoreService,
-                FileSystemJobResultStore.fromConfiguration(config));
-        this.kubeClient = checkNotNull(kubeClient);
-        this.clusterId = checkNotNull(config.get(KubernetesConfigOptions.CLUSTER_ID));
-        this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
-
-        this.configMapSharedWatcher =
-                this.kubeClient.createConfigMapSharedWatcher(
+            Executor ioExecutor,
+            Configuration configuration,
+            BlobStoreService blobStoreService)
+            throws Exception {
+        this(
+                kubeClient,
+                kubeClient.createConfigMapSharedWatcher(
                         KubernetesUtils.getConfigMapLabels(
-                                clusterId, LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY));
-        this.watchExecutorService =
+                                configuration.get(KubernetesConfigOptions.CLUSTER_ID),
+                                LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY)),
                 Executors.newCachedThreadPool(
-                        new ExecutorThreadFactory("config-map-watch-handler"));
-
-        lockIdentity = UUID.randomUUID().toString();
+                        new ExecutorThreadFactory("config-map-watch-handler")),
+                ioExecutor,
+                configuration.get(KubernetesConfigOptions.CLUSTER_ID),
+                UUID.randomUUID().toString(),
+                configuration,
+                blobStoreService);
     }
 
-    @Override
-    protected MultipleComponentLeaderElectionDriverFactory createLeaderElectionDriverFactory(
-            String leaderName) {
-        final MultipleComponentLeaderElectionService multipleComponentLeaderElectionService =
-                getOrInitializeSingleLeaderElectionService();
+    private KubernetesMultipleComponentLeaderElectionHaServices(
+            FlinkKubeClient kubeClient,
+            KubernetesConfigMapSharedWatcher configMapSharedWatcher,
+            ExecutorService watchExecutorService,
+            Executor ioExecutor,
+            String clusterId,
+            String lockIdentity,
+            Configuration configuration,
+            BlobStoreService blobStoreService)
+            throws Exception {
+        super(
+                configuration,
+                createDriverFactory(
+                        kubeClient,
+                        configMapSharedWatcher,
+                        watchExecutorService,
+                        clusterId,
+                        lockIdentity,
+                        configuration),
+                ioExecutor,
+                blobStoreService,
+                FileSystemJobResultStore.fromConfiguration(configuration));
 
-        return multipleComponentLeaderElectionService.createDriverFactory(leaderName);
+        this.kubeClient = checkNotNull(kubeClient);
+        this.clusterId = checkNotNull(clusterId);
+        this.configMapSharedWatcher = checkNotNull(configMapSharedWatcher);
+        this.watchExecutorService = checkNotNull(watchExecutorService);
+        this.lockIdentity = checkNotNull(lockIdentity);
     }
 
-    private DefaultMultipleComponentLeaderElectionService
-            getOrInitializeSingleLeaderElectionService() {
-        synchronized (lock) {
-            if (multipleComponentLeaderElectionService == null) {
-                try {
-
-                    final KubernetesLeaderElectionConfiguration leaderElectionConfiguration =
-                            new KubernetesLeaderElectionConfiguration(
-                                    getClusterConfigMap(), lockIdentity, configuration);
-                    multipleComponentLeaderElectionService =
-                            new DefaultMultipleComponentLeaderElectionService(
-                                    fatalErrorHandler,
-                                    new KubernetesMultipleComponentLeaderElectionDriverFactory(
-                                            kubeClient,
-                                            leaderElectionConfiguration,
-                                            configMapSharedWatcher,
-                                            watchExecutorService));
-                } catch (Exception e) {
-                    throw new FlinkRuntimeException(
-                            "Could not initialize the default single leader election service.", e);
-                }
-            }
-
-            return multipleComponentLeaderElectionService;
-        }
+    private static MultipleComponentLeaderElectionDriverFactory createDriverFactory(
+            FlinkKubeClient kubeClient,
+            KubernetesConfigMapSharedWatcher configMapSharedWatcher,
+            Executor watchExecutorService,
+            String clusterId,
+            String lockIdentity,
+            Configuration configuration) {
+        final KubernetesLeaderElectionConfiguration leaderElectionConfiguration =
+                new KubernetesLeaderElectionConfiguration(
+                        getClusterConfigMap(clusterId), lockIdentity, configuration);
+        return new KubernetesMultipleComponentLeaderElectionDriverFactory(
+                kubeClient,
+                leaderElectionConfiguration,
+                configMapSharedWatcher,
+                watchExecutorService);
     }
 
     @Override
@@ -167,6 +154,10 @@ public class KubernetesMultipleComponentLeaderElectionHaServices extends Abstrac
     }
 
     private String getClusterConfigMap() {
+        return getClusterConfigMap(clusterId);
+    }
+
+    private static String getClusterConfigMap(String clusterId) {
         return clusterId + NAME_SEPARATOR + "cluster-config-map";
     }
 
@@ -185,22 +176,8 @@ public class KubernetesMultipleComponentLeaderElectionHaServices extends Abstrac
         ExceptionUtils.tryRethrowException(exception);
     }
 
-    private void closeK8sServices() throws Exception {
-        Exception exception = null;
-        synchronized (lock) {
-            if (multipleComponentLeaderElectionService != null) {
-                try {
-                    multipleComponentLeaderElectionService.close();
-                } catch (Exception e) {
-                    exception = e;
-                }
-                multipleComponentLeaderElectionService = null;
-            }
-        }
-
+    private void closeK8sServices() {
         configMapSharedWatcher.close();
-
-        ExceptionUtils.tryRethrowException(exception);
     }
 
     @Override
