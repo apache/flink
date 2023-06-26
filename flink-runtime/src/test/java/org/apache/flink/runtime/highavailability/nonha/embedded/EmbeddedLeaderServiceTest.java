@@ -18,36 +18,33 @@
 
 package org.apache.flink.runtime.highavailability.nonha.embedded;
 
+import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
-import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
-import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.fail;
 
 /** Tests for the {@link EmbeddedLeaderService}. */
 public class EmbeddedLeaderServiceTest extends TestLogger {
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
     /**
      * Tests that the {@link EmbeddedLeaderService} can handle a concurrent grant leadership call
      * and a shutdown.
      */
     @Test
     public void testConcurrentGrantLeadershipAndShutdown() throws Exception {
+        final ManuallyTriggeredScheduledExecutorService executorService =
+                new ManuallyTriggeredScheduledExecutorService();
         final EmbeddedLeaderService embeddedLeaderService =
-                new EmbeddedLeaderService(EXECUTOR_RESOURCE.getExecutor());
+                new EmbeddedLeaderService(executorService);
 
         try {
             final TestingLeaderContender contender = new TestingLeaderContender();
@@ -60,6 +57,7 @@ public class EmbeddedLeaderServiceTest extends TestLogger {
             try {
                 // check that no exception occurred
                 contender.getLeaderSessionFuture().get(10L, TimeUnit.MILLISECONDS);
+                fail("The future shouldn't have completed.");
             } catch (TimeoutException ignored) {
                 // we haven't participated in the leader election
             }
@@ -68,6 +66,9 @@ public class EmbeddedLeaderServiceTest extends TestLogger {
             Assert.assertThat(embeddedLeaderService.isShutdown(), is(false));
         } finally {
             embeddedLeaderService.shutdown();
+
+            // triggers the grant event processing after shutdown
+            executorService.triggerAll();
         }
     }
 
@@ -77,8 +78,10 @@ public class EmbeddedLeaderServiceTest extends TestLogger {
      */
     @Test
     public void testConcurrentRevokeLeadershipAndShutdown() throws Exception {
+        final ManuallyTriggeredScheduledExecutorService executorService =
+                new ManuallyTriggeredScheduledExecutorService();
         final EmbeddedLeaderService embeddedLeaderService =
-                new EmbeddedLeaderService(EXECUTOR_RESOURCE.getExecutor());
+                new EmbeddedLeaderService(executorService);
 
         try {
             final TestingLeaderContender contender = new TestingLeaderContender();
@@ -88,6 +91,7 @@ public class EmbeddedLeaderServiceTest extends TestLogger {
             leaderElection.startLeaderElection(contender);
 
             // wait for the leadership
+            executorService.trigger();
             contender.getLeaderSessionFuture().get();
 
             final CompletableFuture<Void> revokeLeadershipFuture =
@@ -97,6 +101,7 @@ public class EmbeddedLeaderServiceTest extends TestLogger {
             try {
                 // check that no exception occurred
                 revokeLeadershipFuture.get(10L, TimeUnit.MILLISECONDS);
+                fail("The future shouldn't have completed.");
             } catch (TimeoutException ignored) {
                 // the leader election service has been stopped before revoking could be executed
             }
@@ -105,6 +110,9 @@ public class EmbeddedLeaderServiceTest extends TestLogger {
             Assert.assertThat(embeddedLeaderService.isShutdown(), is(false));
         } finally {
             embeddedLeaderService.shutdown();
+
+            // triggers the revoke event processing after shutdown
+            executorService.triggerAll();
         }
     }
 }
