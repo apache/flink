@@ -19,8 +19,9 @@ package org.apache.flink.table.planner.plan.fusion.spec
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression}
+import org.apache.flink.table.planner.plan.fusion.FusionCodegenUtil.{evaluateRequiredVariables, extractRefInputFields, extractUsedMoreThanOnceRefInputFields}
 import org.apache.flink.table.planner.plan.fusion.OpFusionCodegenSpecBase
-import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toJava
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.{toJava, toScala}
 
 import org.apache.calcite.rex.{RexInputRef, RexNode}
 
@@ -30,16 +31,23 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 /** The operator fusion codegen spec for Calc. */
 class CalcFusionCodegenSpec(
-    operatorCtx: CodeGeneratorContext,
+    opCodegenCtx: CodeGeneratorContext,
     projection: Seq[RexNode],
     condition: Option[RexNode])
-  extends OpFusionCodegenSpecBase(operatorCtx) {
+  extends OpFusionCodegenSpecBase(opCodegenCtx) {
 
   override def variablePrefix: String = "calc"
 
-  override def doProcessProduce(fusionCtx: CodeGeneratorContext): Unit = {
-    assert(fusionContext.getInputs.size == 1)
-    fusionContext.getInputs.head.processProduce(fusionCtx)
+  override def usedInputColumns(inputId: Int): util.Set[Integer] = {
+    toJava(
+      extractUsedMoreThanOnceRefInputFields(
+        projection,
+        fusionContext.getInputFusionContexts.head.getOutputType))
+  }
+
+  override def doProcessProduce(codegenCtx: CodeGeneratorContext): Unit = {
+    assert(fusionContext.getInputFusionContexts.size == 1)
+    fusionContext.getInputFusionContexts.head.processProduce(codegenCtx)
   }
 
   override def doProcessConsume(
@@ -47,7 +55,8 @@ class CalcFusionCodegenSpec(
       inputVars: util.List[GeneratedExpression],
       row: GeneratedExpression): String = {
     val onlyFilter =
-      projection.lengthCompare(fusionContext.getInputs.head.getOutputType.getFieldCount) == 0 &&
+      projection.lengthCompare(
+        fusionContext.getInputFusionContexts.head.getOutputType.getFieldCount) == 0 &&
         projection.zipWithIndex.forall {
           case (rexNode, index) =>
             rexNode.isInstanceOf[RexInputRef] && rexNode.asInstanceOf[RexInputRef].getIndex == index
@@ -63,12 +72,18 @@ class CalcFusionCodegenSpec(
          |${fusionContext.processConsume(toJava(projectionExprs))}
          |""".stripMargin
     } else {
-      val filterCondition = getExprCodeGenerator.generateExpression(condition.get)
+      // materialize the field access code in advance which is referenced by filter condition to avoid it be evaluated more time
+      val referencedFields = extractRefInputFields(
+        Seq(condition.get),
+        fusionContext.getInputFusionContexts.head.getOutputType)
+      val evaluateFieldCode = evaluateRequiredVariables(toScala(inputVars), referencedFields)
+      val filterExpr = getExprCodeGenerator.generateExpression(condition.get)
       // only filter
       if (onlyFilter) {
         s"""
-           |${filterCondition.code}
-           |if (${filterCondition.resultTerm}) {
+           |$evaluateFieldCode
+           |${filterExpr.code}
+           |if (${filterExpr.resultTerm}) {
            |  ${fusionContext.processConsume(inputVars)}
            |}
            |""".stripMargin
@@ -76,8 +91,9 @@ class CalcFusionCodegenSpec(
         // if any filter conditions, projection code will enter an new scope
         val projectionExprs = projection.map(getExprCodeGenerator.generateExpression)
         s"""
-           |${filterCondition.code}
-           |if (${filterCondition.resultTerm}) {
+           |$evaluateFieldCode
+           |${filterExpr.code}
+           |if (${filterExpr.resultTerm}) {
            |  ${fusionContext.processConsume(toJava(projectionExprs))}
            |}
            |""".stripMargin
@@ -85,8 +101,8 @@ class CalcFusionCodegenSpec(
     }
   }
 
-  override def doEndInputProduce(fusionCtx: CodeGeneratorContext): Unit = {
-    fusionContext.getInputs.head.endInputProduce(fusionCtx)
+  override def doEndInputProduce(codegenCtx: CodeGeneratorContext): Unit = {
+    fusionContext.getInputFusionContexts.head.endInputProduce(codegenCtx)
   }
 
   override def doEndInputConsume(inputId: Int): String = {

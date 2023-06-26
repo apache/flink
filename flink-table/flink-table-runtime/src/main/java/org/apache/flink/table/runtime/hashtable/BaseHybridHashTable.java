@@ -101,7 +101,7 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
 
     /**
      * In operator fusion codegen case, we don't support spill to disk for broadcast hashjoin, so
-     * his flag is introduced.
+     * this flag is introduced.
      */
     protected final boolean spillEnabled;
 

@@ -21,10 +21,10 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExprCodeGenerator, GeneratedExpression, GenerateUtils}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{fieldIndices, newName, DEFAULT_OUT_RECORD_WRITER_TERM}
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
+import org.apache.flink.table.planner.plan.fusion.FusionCodegenUtil.{evaluateRequiredVariables, evaluateVariables}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.{toJava, toScala}
 import org.apache.flink.table.types.logical.RowType
 
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable.ListBuffer
 
 /** The base class of {@link OpFusionCodegenSpecGenerator} that support operator fusion codegen. */
@@ -52,44 +52,44 @@ abstract class OpFusionCodegenSpecGeneratorBase(
 
   override def getManagedMemory: Long = managedMemory
 
-  def addReusableInitCode(fusionCtx: CodeGeneratorContext): Unit = {
-    val operatorCtx = getOperatorCtx
+  def addReusableInitCode(codegenCtx: CodeGeneratorContext): Unit = {
+    val opCodegenCtx = getCodeGeneratorContext
     // add operator reusable member and inner class definition to multiple codegen ctx
-    fusionCtx.addReusableMember(operatorCtx.reuseMemberCode())
-    fusionCtx.addReusableInnerClass(
+    codegenCtx.addReusableMember(opCodegenCtx.reuseMemberCode())
+    codegenCtx.addReusableInnerClass(
       newName(this.getClass.getCanonicalName),
-      operatorCtx.reuseInnerClassDefinitionCode())
+      opCodegenCtx.reuseInnerClassDefinitionCode())
 
     // add init code
-    val initCode = operatorCtx.reuseInitCode()
+    val initCode = opCodegenCtx.reuseInitCode()
     if (initCode.nonEmpty) {
       val initMethodTerm = newName(variablePrefix + "init")
-      fusionCtx.addReusableMember(
+      codegenCtx.addReusableMember(
         s"""
            |private void $initMethodTerm(Object[] references) throws Exception {
-           |  ${operatorCtx.reuseInitCode()}
+           |  ${opCodegenCtx.reuseInitCode()}
            |}
      """.stripMargin)
 
       val refs =
-        fusionCtx.addReusableObject(operatorCtx.references.toArray, variablePrefix + "Refs")
-      fusionCtx.addReusableInitStatement(s"$initMethodTerm($refs);")
+        codegenCtx.addReusableObject(opCodegenCtx.references.toArray, variablePrefix + "Refs")
+      codegenCtx.addReusableInitStatement(s"$initMethodTerm($refs);")
     }
   }
 
-  def addReusableOpenCode(fusionCtx: CodeGeneratorContext): Unit = {
+  def addReusableOpenCode(codegenCtx: CodeGeneratorContext): Unit = {
     // add open code
-    fusionCtx.addReusableOpenStatement(getOperatorCtx.reuseOpenCode())
+    codegenCtx.addReusableOpenStatement(getCodeGeneratorContext.reuseOpenCode())
   }
 
-  def addReusableCloseCode(fusionCtx: CodeGeneratorContext): Unit = {
+  def addReusableCloseCode(codegenCtx: CodeGeneratorContext): Unit = {
     // add close code
-    fusionCtx.addReusableCloseStatement(getOperatorCtx.reuseCloseCode())
+    codegenCtx.addReusableCloseStatement(getCodeGeneratorContext.reuseCloseCode())
   }
 
-  def processProduce(fusionCtx: CodeGeneratorContext): Unit = {
+  def processProduce(codegenCtx: CodeGeneratorContext): Unit = {
     if (!hasProcessProduceTraversed) {
-      opFusionCodegenSpec.doProcessProduce(fusionCtx)
+      opFusionCodegenSpec.doProcessProduce(codegenCtx)
       hasProcessProduceTraversed = true
     }
   }
@@ -102,17 +102,19 @@ abstract class OpFusionCodegenSpecGeneratorBase(
       (toScala(outputVars), "")
     } else {
       assert(row != null, "outputVars and row can't both be null.")
-      getOperatorCtx.startNewLocalVariableStatement(row)
+      getCodeGeneratorContext.startNewLocalVariableStatement(row)
       val fieldExprs = fieldIndices(outputType)
-        .map(index => GenerateUtils.generateFieldAccess(getOperatorCtx, outputType, row, index))
+        .map(
+          index =>
+            GenerateUtils.generateFieldAccess(getCodeGeneratorContext, outputType, row, index))
         .toSeq
-      (fieldExprs, getOperatorCtx.reuseLocalVariableCode(row))
+      (fieldExprs, getCodeGeneratorContext.reuseLocalVariableCode(row))
     }
 
     // if this operator has multiple output operators, we need to materialize all vars in advance to
     // avoid be evaluated multiple times in downstream
     val evaluatedAllVars = if (outputs.length > 1) {
-      toScala(outputVars).map(expr => expr.getCode).mkString("\n")
+      evaluateVariables(inputVars)
     } else {
       ""
     }
@@ -126,7 +128,9 @@ abstract class OpFusionCodegenSpecGeneratorBase(
 
           // evaluate the expr code which will be used more than once in advance to avoid evaluated more time
           val evaluatedReqVars =
-            evaluateRequiredVariables(inputVars, outputSpec.usedInputVars(inputIdOfOutput))
+            evaluateRequiredVariables(
+              inputVars,
+              toScala(outputSpec.usedInputColumns(inputIdOfOutput)))
           val inputRowDataClass = outputSpec.getInputRowDataClass(inputIdOfOutput)
           val rowVar = prepareRowVar(row, inputVars, inputRowDataClass)
 
@@ -134,7 +138,7 @@ abstract class OpFusionCodegenSpecGeneratorBase(
           val indices = fieldIndices(outputType)
           indices.foreach(
             index =>
-              outputSpec.getOperatorCtx
+              outputSpec.getCodeGeneratorContext
                 .addReusableInputUnboxingExprs(rowVar.resultTerm, index, inputVars(index)))
           // bind downstream operator input type and input row before call its doProcessConsume
           if (inputIdOfOutput == 1) {
@@ -146,22 +150,21 @@ abstract class OpFusionCodegenSpecGeneratorBase(
           }
 
           // need to copy composite type such as varchar for each output if has multiple output
-          val (deepCopyLocalVariable, deepCopyCode) = if (outputs.length > 1) {
+          val (deepCopyLocalVariable, copiedInputVars) = if (outputs.length > 1) {
             val copiedRowVarTerm = newName("copiedRowVar")
-            getOperatorCtx.startNewLocalVariableStatement(copiedRowVarTerm)
-            (
-              getOperatorCtx.reuseLocalVariableCode(copiedRowVarTerm),
-              inputVars.map(_.deepCopyMutableExpr(getOperatorCtx)).mkString("\n"))
+            getCodeGeneratorContext.startNewLocalVariableStatement(copiedRowVarTerm)
+            val copiedInputVars: Seq[GeneratedExpression] =
+              inputVars.map(_.deepCopy(getCodeGeneratorContext))
+            (getCodeGeneratorContext.reuseLocalVariableCode(copiedRowVarTerm), copiedInputVars)
           } else {
-            ("", "")
+            ("", inputVars)
           }
           // always pass column vars and row var to output op simultaneously, the output decide to use which one
           s"""
              |$evaluatedReqVars
              |$deepCopyLocalVariable
-             |$deepCopyCode
              | // consume code
-             |${outputSpec.doProcessConsume(inputIdOfOutput, toJava(inputVars), rowVar)}
+             |${outputSpec.doProcessConsume(inputIdOfOutput, toJava(copiedInputVars), rowVar)}
              |""".stripMargin
         })
       .mkString("\n")
@@ -174,9 +177,9 @@ abstract class OpFusionCodegenSpecGeneratorBase(
      """.stripMargin
   }
 
-  def endInputProduce(fusionCtx: CodeGeneratorContext): Unit = {
+  def endInputProduce(codegenCtx: CodeGeneratorContext): Unit = {
     if (!hasEndInputProduceTraversed) {
-      opFusionCodegenSpec.doEndInputProduce(fusionCtx)
+      opFusionCodegenSpec.doEndInputProduce(codegenCtx)
       hasEndInputProduceTraversed = true
     }
   }
@@ -211,7 +214,7 @@ abstract class OpFusionCodegenSpecGeneratorBase(
     } else {
       getExprCodeGenerator.generateResultExpression(
         // need copy the colVars first to avoid it code is used during generate row
-        colVars.map(_.copyExpr),
+        colVars.map(_.copy()),
         outputType,
         rowTypeClazz,
         getOutputRowTerm(row),
@@ -220,25 +223,7 @@ abstract class OpFusionCodegenSpecGeneratorBase(
     }
   }
 
-  /**
-   * Returns source code to evaluate the variables for required attributes, to prevent them to be
-   * evaluated twice.
-   */
-  private def evaluateRequiredVariables(
-      inputVars: Seq[GeneratedExpression],
-      requiredVariables: java.util.Set[Integer]): String = {
-    val evaluateVars = new StringBuilder
-    requiredVariables.foreach(
-      index => {
-        val expr = inputVars(index)
-        if (!expr.codeUsed) {
-          evaluateVars.append(expr.getCode + "\n")
-        }
-      })
-    evaluateVars.toString()
-  }
-
-  def getOperatorCtx: CodeGeneratorContext = opFusionCodegenSpec.getOperatorCtx
+  def getCodeGeneratorContext: CodeGeneratorContext = opFusionCodegenSpec.getCodeGeneratorContext
 
   def getExprCodeGenerator: ExprCodeGenerator = opFusionCodegenSpec.getExprCodeGenerator
 

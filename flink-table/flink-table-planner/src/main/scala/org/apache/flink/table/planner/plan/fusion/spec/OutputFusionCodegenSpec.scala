@@ -29,21 +29,21 @@ class OutputFusionCodegenSpec(operatorCtx: CodeGeneratorContext)
 
   override def variablePrefix: String = "output"
 
-  override protected def doProcessProduce(fusionCtx: CodeGeneratorContext): Unit =
-    fusionContext.getInputs.get(0).processProduce(fusionCtx)
+  override protected def doProcessProduce(codegenCtx: CodeGeneratorContext): Unit =
+    fusionContext.getInputFusionContexts.get(0).processProduce(codegenCtx)
 
   override def doProcessConsume(
       inputId: Int,
       inputVars: util.List[GeneratedExpression],
       row: GeneratedExpression): String = {
     s"""
-       |${row.getCode}
+       |${row.code}
        |${generateCollect(row.resultTerm)}
        |""".stripMargin.trim
   }
 
   override protected def doEndInputProduce(fusionCtx: CodeGeneratorContext): Unit =
-    fusionContext.getInputs.get(0).endInputProduce(fusionCtx)
+    fusionContext.getInputFusionContexts.get(0).endInputProduce(fusionCtx)
 
   override def doEndInputConsume(inputId: Int): String = ""
 }
