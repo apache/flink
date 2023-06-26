@@ -266,9 +266,14 @@ public class StateAssignmentOperation {
     }
 
     public void checkParallelismPreconditions(TaskStateAssignment taskStateAssignment) {
-        for (OperatorState operatorState : taskStateAssignment.oldState.values()) {
-            checkParallelismPreconditions(operatorState, taskStateAssignment.executionJobVertex);
-        }
+        // Check against the minimum maxParallelism of the chain.
+        taskStateAssignment.oldState.values().stream()
+                .mapToInt(OperatorState::getMaxParallelism)
+                .min()
+                .ifPresent(
+                        minMaxParallelism ->
+                                checkParallelismPreconditions(
+                                        minMaxParallelism, taskStateAssignment.executionJobVertex));
     }
 
     private void reDistributeKeyedStates(
@@ -656,20 +661,20 @@ public class StateAssignmentOperation {
      * Verifies conditions in regards to parallelism and maxParallelism that must be met when
      * restoring state.
      *
-     * @param operatorState state to restore
+     * @param maxParallelism the maximum parallelism
      * @param executionJobVertex task for which the state should be restored
      */
     private static void checkParallelismPreconditions(
-            OperatorState operatorState, ExecutionJobVertex executionJobVertex) {
+            int maxParallelism, ExecutionJobVertex executionJobVertex) {
         // ----------------------------------------max parallelism
         // preconditions-------------------------------------
 
-        if (operatorState.getMaxParallelism() < executionJobVertex.getParallelism()) {
+        if (maxParallelism < executionJobVertex.getParallelism()) {
             throw new IllegalStateException(
                     "The state for task "
                             + executionJobVertex.getJobVertexId()
                             + " can not be restored. The maximum parallelism ("
-                            + operatorState.getMaxParallelism()
+                            + maxParallelism
                             + ") of the restored state is lower than the configured parallelism ("
                             + executionJobVertex.getParallelism()
                             + "). Please reduce the parallelism of the task to be lower or equal to the maximum parallelism.");
@@ -677,21 +682,21 @@ public class StateAssignmentOperation {
 
         // check that the number of key groups have not changed or if we need to override it to
         // satisfy the restored state
-        if (operatorState.getMaxParallelism() != executionJobVertex.getMaxParallelism()) {
+        if (maxParallelism != executionJobVertex.getMaxParallelism()) {
 
-            if (executionJobVertex.canRescaleMaxParallelism(operatorState.getMaxParallelism())) {
+            if (executionJobVertex.canRescaleMaxParallelism(maxParallelism)) {
                 LOG.debug(
                         "Rescaling maximum parallelism for JobVertex {} from {} to {}",
                         executionJobVertex.getJobVertexId(),
                         executionJobVertex.getMaxParallelism(),
-                        operatorState.getMaxParallelism());
+                        maxParallelism);
 
-                executionJobVertex.setMaxParallelism(operatorState.getMaxParallelism());
+                executionJobVertex.setMaxParallelism(maxParallelism);
             } else {
                 // if the max parallelism cannot be rescaled, we complain on mismatch
                 throw new IllegalStateException(
                         "The maximum parallelism ("
-                                + operatorState.getMaxParallelism()
+                                + maxParallelism
                                 + ") with which the latest "
                                 + "checkpoint of the execution job vertex "
                                 + executionJobVertex

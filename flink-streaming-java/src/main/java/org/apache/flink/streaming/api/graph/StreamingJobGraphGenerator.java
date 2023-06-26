@@ -1008,6 +1008,23 @@ public class StreamingJobGraphGenerator {
 
         jobVertex.setInvokableClass(streamNode.getJobVertexClass());
 
+        // Find the minimal max parallelism in the chain for operators that have a configured max
+        // parallelism (>0). If no operator has max parallelism configured, returns the default -1.
+        int chainMinimalMaxParallelism =
+                chainInfo.getAllChainedNodes().stream()
+                        .mapToInt(StreamNode::getMaxParallelism)
+                        .filter(maxParallelism -> maxParallelism > 0)
+                        .min()
+                        .orElse(-1);
+
+        jobVertex.setMaxParallelism(chainMinimalMaxParallelism);
+
+        boolean anyParallelismInChainConfigured =
+                chainInfo.getAllChainedNodes().stream()
+                        .anyMatch(StreamNode::isParallelismConfigured);
+
+        jobVertex.setParallelismConfigured(anyParallelismInChainConfigured);
+
         int parallelism = streamNode.getParallelism();
 
         if (parallelism > 0) {
@@ -1016,8 +1033,6 @@ public class StreamingJobGraphGenerator {
             parallelism = jobVertex.getParallelism();
         }
 
-        jobVertex.setMaxParallelism(streamNode.getMaxParallelism());
-
         if (LOG.isDebugEnabled()) {
             LOG.debug("Parallelism set: {} for {}", parallelism, streamNodeId);
         }
@@ -1025,10 +1040,6 @@ public class StreamingJobGraphGenerator {
         jobVertices.put(streamNodeId, jobVertex);
         builtVertices.add(streamNodeId);
         jobGraph.addVertex(jobVertex);
-
-        jobVertex.setParallelismConfigured(
-                chainInfo.getAllChainedNodes().stream()
-                        .anyMatch(StreamNode::isParallelismConfigured));
 
         return new StreamConfig(jobVertex.getConfiguration());
     }

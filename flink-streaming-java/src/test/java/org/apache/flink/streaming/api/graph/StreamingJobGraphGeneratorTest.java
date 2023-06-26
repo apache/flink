@@ -304,6 +304,64 @@ class StreamingJobGraphGeneratorTest {
                 .isEqualTo(20);
     }
 
+    /**
+     * Tests that the maxParallelism for an operator chain is correctly determined as the minimal
+     * maxParallelism of all operators in the chain.
+     */
+    @Test
+    void testTransformationSetMinimalMaxParallelismForChain_1() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setMaxParallelism(16);
+
+        DataStreamSource<Long> source = env.fromSequence(1L, 3L);
+        source.setParallelism(1)
+                .setMaxParallelism(128)
+                .map(i -> i)
+                .setParallelism(1)
+                .setMaxParallelism(1)
+                .print()
+                .setParallelism(1);
+
+        StreamGraph streamGraph = env.getStreamGraph();
+
+        List<JobVertex> vertices =
+                streamGraph.getJobGraph().getVerticesSortedTopologicallyFromSources();
+
+        assertThat(vertices).hasSize(1);
+        JobVertex jobVertex = vertices.get(0);
+        assertThat(jobVertex.getMaxParallelism()).isEqualTo(1);
+        assertThat(jobVertex.getParallelism()).isEqualTo(1);
+    }
+
+    /**
+     * Tests that the maxParallelism for an operator chain is correctly determined as the minimal
+     * maxParallelism of all operators in the chain.
+     */
+    @Test
+    void testTransformationSetMinimalMaxParallelismForChain_2() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setMaxParallelism(16);
+
+        DataStreamSource<Long> source = env.fromSequence(1L, 3L);
+        source.setParallelism(1)
+                .map(i -> i)
+                .setParallelism(1)
+                .setMaxParallelism(1)
+                .print()
+                .setMaxParallelism(128)
+                .setParallelism(1);
+
+        StreamGraph streamGraph = env.getStreamGraph();
+
+        List<JobVertex> vertices =
+                streamGraph.getJobGraph().getVerticesSortedTopologicallyFromSources();
+
+        assertThat(vertices).hasSize(1);
+        JobVertex jobVertex = vertices.get(0);
+        assertThat(jobVertex.getMaxParallelism()).isEqualTo(1);
+        assertThat(jobVertex.getParallelism()).isEqualTo(1);
+    }
+
     @Test
     void testChainNodeSetParallelism() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
