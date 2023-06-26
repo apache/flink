@@ -471,6 +471,14 @@ The partition commit policy defines what action is taken when partitions are com
         <td>The partition commit policy class for implement PartitionCommitPolicy interface. Only work in custom commit policy.</td>
     </tr>
     <tr>
+        <td><h5>sink.partition-commit.policy.class.parameters</h5></td>
+        <td>optional</td>
+        <td>yes</td>
+        <td style="word-wrap: break-word;">(none)</td>
+        <td>String</td>
+        <td>The custom commit policy class can accept a string argument, which can include multiple arguments separated by semicolons. For example, 'param1;param2'. The string argument will be split into a list (['param1', 'param2']) and passed as constructor parameters to the custom commit policy class.</td>
+    </tr>
+    <tr>
         <td><h5>sink.partition-commit.success-file.name</h5></td>
         <td>optional</td>
         <td>yes</td>

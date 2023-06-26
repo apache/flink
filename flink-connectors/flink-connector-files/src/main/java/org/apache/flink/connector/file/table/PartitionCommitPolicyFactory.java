@@ -42,14 +42,6 @@ public class PartitionCommitPolicyFactory implements Serializable {
     private final List<String> parameters;
 
     public PartitionCommitPolicyFactory(
-            String policyKind, String customClass, String successFileName) {
-        this.policyKind = policyKind;
-        this.customClass = customClass;
-        this.successFileName = successFileName;
-        this.parameters = null;
-    }
-
-    public PartitionCommitPolicyFactory(
             String policyKind, String customClass, String successFileName, List<String> parameters) {
         this.policyKind = policyKind;
         this.customClass = customClass;

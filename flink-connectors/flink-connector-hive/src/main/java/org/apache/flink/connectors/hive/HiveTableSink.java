@@ -456,7 +456,8 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                 new PartitionCommitPolicyFactory(
                         conf.get(HiveOptions.SINK_PARTITION_COMMIT_POLICY_KIND),
                         conf.get(HiveOptions.SINK_PARTITION_COMMIT_POLICY_CLASS),
-                        conf.get(HiveOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME));
+                        conf.get(HiveOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME),
+                        conf.get(HiveOptions.SINK_PARTITION_COMMIT_POLICY_CLASS_PARAMETERS));
 
         org.apache.flink.core.fs.Path path = new org.apache.flink.core.fs.Path(sd.getLocation());
         BucketsBuilder<RowData, String, ? extends BucketsBuilder<RowData, ?, ?>> builder =
@@ -610,7 +611,8 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                 new PartitionCommitPolicyFactory(
                         conf.get(HiveOptions.SINK_PARTITION_COMMIT_POLICY_KIND),
                         conf.get(HiveOptions.SINK_PARTITION_COMMIT_POLICY_CLASS),
-                        conf.get(HiveOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME)));
+                        conf.get(HiveOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME),
+                        conf.get(HiveOptions.SINK_PARTITION_COMMIT_POLICY_CLASS_PARAMETERS)));
         return BatchSink.createBatchNoCompactSink(
                 dataStream, converter, builder.build(), sinkParallelism, sinkParallelismConfigured);
     }
