@@ -23,7 +23,8 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.hadoopcompatibility.mapred.HadoopMapFunction;
-import org.apache.flink.test.util.MultipleProgramsTestBaseJUnit4;
+import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
@@ -31,28 +32,21 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.Mapper;
 import org.apache.hadoop.mapred.OutputCollector;
 import org.apache.hadoop.mapred.Reporter;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.nio.file.Path;
 
 import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
 
 /** IT cases for the {@link HadoopMapFunction}. */
-@RunWith(Parameterized.class)
-public class HadoopMapFunctionITCase extends MultipleProgramsTestBaseJUnit4 {
+@ExtendWith(ParameterizedTestExtension.class)
+class HadoopMapFunctionITCase extends MultipleProgramsTestBase {
 
-    public HadoopMapFunctionITCase(TestExecutionMode mode) {
-        super(mode);
-    }
-
-    @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
-
-    @Test
-    public void testNonPassingMapper() throws Exception {
+    @TestTemplate
+    void testNonPassingMapper(@TempDir Path tempFolder) throws Exception {
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         DataSet<Tuple2<IntWritable, Text>> ds = HadoopTestData.getKVPairDataSet(env);
@@ -61,7 +55,7 @@ public class HadoopMapFunctionITCase extends MultipleProgramsTestBaseJUnit4 {
                         new HadoopMapFunction<IntWritable, Text, IntWritable, Text>(
                                 new NonPassingMapper()));
 
-        String resultPath = tempFolder.newFile().toURI().toString();
+        String resultPath = tempFolder.toUri().toString();
 
         nonPassingFlatMapDs.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
         env.execute();
@@ -69,8 +63,8 @@ public class HadoopMapFunctionITCase extends MultipleProgramsTestBaseJUnit4 {
         compareResultsByLinesInMemory("\n", resultPath);
     }
 
-    @Test
-    public void testDataDuplicatingMapper() throws Exception {
+    @TestTemplate
+    void testDataDuplicatingMapper(@TempDir Path tempFolder) throws Exception {
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         DataSet<Tuple2<IntWritable, Text>> ds = HadoopTestData.getKVPairDataSet(env);
@@ -79,7 +73,7 @@ public class HadoopMapFunctionITCase extends MultipleProgramsTestBaseJUnit4 {
                         new HadoopMapFunction<IntWritable, Text, IntWritable, Text>(
                                 new DuplicatingMapper()));
 
-        String resultPath = tempFolder.newFile().toURI().toString();
+        String resultPath = tempFolder.toUri().toString();
 
         duplicatingFlatMapDs.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
         env.execute();
@@ -131,8 +125,8 @@ public class HadoopMapFunctionITCase extends MultipleProgramsTestBaseJUnit4 {
         compareResultsByLinesInMemory(expected, resultPath);
     }
 
-    @Test
-    public void testConfigurableMapper() throws Exception {
+    @TestTemplate
+    void testConfigurableMapper(@TempDir Path tempFolder) throws Exception {
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         JobConf conf = new JobConf();
@@ -144,7 +138,7 @@ public class HadoopMapFunctionITCase extends MultipleProgramsTestBaseJUnit4 {
                         new HadoopMapFunction<IntWritable, Text, IntWritable, Text>(
                                 new ConfigurableMapper(), conf));
 
-        String resultPath = tempFolder.newFile().toURI().toString();
+        String resultPath = tempFolder.toUri().toString();
 
         hellos.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
         env.execute();
