@@ -34,7 +34,7 @@ import org.junit.Test;
  * <p>To skip the execution against collection environments you have to override {@link
  * #skipCollectionExecution()}.
  */
-public abstract class JavaProgramTestBase extends AbstractTestBase {
+public abstract class JavaProgramTestBaseJUnit4 extends AbstractTestBaseJUnit4 {
 
     private JobExecutionResult latestExecutionResult;
 

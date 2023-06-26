@@ -24,14 +24,14 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /** Test empty (identity) delta iteration. */
 @SuppressWarnings("serial")
-public class EmptyWorksetIterationITCase extends JavaProgramTestBase {
+public class EmptyWorksetIterationITCase extends JavaProgramTestBaseJUnit4 {
 
     private List<Tuple2<Long, Long>> result = new ArrayList<Tuple2<Long, Long>>();
 

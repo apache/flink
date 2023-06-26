@@ -46,7 +46,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.graph.StreamGraph;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Collector;
@@ -65,7 +65,7 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT test for writing savepoints. */
-public class WritableSavepointITCase extends AbstractTestBase {
+public class WritableSavepointITCase extends AbstractTestBaseJUnit4 {
     private static final int FILE_STATE_SIZE = 1;
 
     private static final String ACCOUNT_UID = "accounts";

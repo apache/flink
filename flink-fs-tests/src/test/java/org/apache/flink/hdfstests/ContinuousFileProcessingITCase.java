@@ -33,7 +33,7 @@ import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringF
 import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperatorFactory;
 import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
 import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -62,7 +62,7 @@ import static org.junit.Assert.assertEquals;
  * IT cases for the {@link ContinuousFileMonitoringFunction} and {@link
  * ContinuousFileReaderOperator}.
  */
-public class ContinuousFileProcessingITCase extends AbstractTestBase {
+public class ContinuousFileProcessingITCase extends AbstractTestBaseJUnit4 {
 
     private static final int NO_OF_FILES = 5;
     private static final int LINES_PER_FILE = 100;

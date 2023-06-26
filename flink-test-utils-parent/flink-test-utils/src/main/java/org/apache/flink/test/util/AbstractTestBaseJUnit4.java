@@ -57,9 +57,9 @@ import java.io.IOException;
  *
  * </pre>
  */
-public abstract class AbstractTestBase extends TestLogger {
+public abstract class AbstractTestBaseJUnit4 extends TestLogger {
 
-    private static final Logger LOG = LoggerFactory.getLogger(AbstractTestBase.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractTestBaseJUnit4.class);
 
     private static final int DEFAULT_PARALLELISM = 4;
 

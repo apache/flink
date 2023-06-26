@@ -23,7 +23,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.hadoop.mapred.HadoopInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 import org.apache.flink.util.OperatingSystem;
 
 import org.apache.hadoop.fs.FileSystem;
@@ -50,7 +50,7 @@ import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMe
 
 /** Integration tests for Hadoop IO formats. */
 @RunWith(Parameterized.class)
-public class HadoopIOFormatsITCase extends JavaProgramTestBase {
+public class HadoopIOFormatsITCase extends JavaProgramTestBaseJUnit4 {
 
     private static final int NUM_PROGRAMS = 2;
 

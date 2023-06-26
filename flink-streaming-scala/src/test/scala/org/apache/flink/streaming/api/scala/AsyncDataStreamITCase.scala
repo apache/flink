@@ -22,7 +22,7 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.scala.AsyncDataStreamITCase._
 import org.apache.flink.streaming.api.scala.async.{AsyncRetryStrategies, ResultFuture, RetryPredicates, RichAsyncFunction}
-import org.apache.flink.test.util.AbstractTestBase
+import org.apache.flink.test.util.AbstractTestBaseJUnit4
 
 import org.junit.Assert._
 import org.junit.Test
@@ -44,7 +44,7 @@ object AsyncDataStreamITCase {
 }
 
 @RunWith(value = classOf[Parameterized])
-class AsyncDataStreamITCase(ordered: Boolean) extends AbstractTestBase {
+class AsyncDataStreamITCase(ordered: Boolean) extends AbstractTestBaseJUnit4 {
 
   @Test
   def testAsyncWithTimeout(): Unit = {

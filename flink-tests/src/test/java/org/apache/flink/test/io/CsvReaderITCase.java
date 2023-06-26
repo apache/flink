@@ -21,7 +21,7 @@ package org.apache.flink.test.io;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple8;
-import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.test.util.MultipleProgramsTestBaseJUnit4;
 import org.apache.flink.types.BooleanValue;
 import org.apache.flink.types.ByteValue;
 import org.apache.flink.types.DoubleValue;
@@ -47,7 +47,7 @@ import static org.apache.flink.test.util.TestBaseUtils.compareResultAsTuples;
 
 /** Tests for {@link ExecutionEnvironment#readCsvFile}. */
 @RunWith(Parameterized.class)
-public class CsvReaderITCase extends MultipleProgramsTestBase {
+public class CsvReaderITCase extends MultipleProgramsTestBaseJUnit4 {
     private String expected;
 
     @Rule public TemporaryFolder tempFolder = new TemporaryFolder();

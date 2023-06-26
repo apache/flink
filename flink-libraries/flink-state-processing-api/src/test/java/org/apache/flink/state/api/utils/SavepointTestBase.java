@@ -30,7 +30,7 @@ import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.AbstractID;
 
@@ -46,7 +46,7 @@ import java.util.stream.Collectors;
 import static org.apache.flink.runtime.execution.ExecutionState.RUNNING;
 
 /** A test base that includes utilities for taking a savepoint. */
-public abstract class SavepointTestBase extends AbstractTestBase {
+public abstract class SavepointTestBase extends AbstractTestBaseJUnit4 {
 
     public String takeSavepoint(StreamExecutionEnvironment executionEnvironment) {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();

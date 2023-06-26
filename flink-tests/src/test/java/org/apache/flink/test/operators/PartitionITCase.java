@@ -35,7 +35,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.test.operators.util.CollectionDataSets;
 import org.apache.flink.test.operators.util.CollectionDataSets.POJO;
-import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.test.util.MultipleProgramsTestBaseJUnit4;
 import org.apache.flink.util.Collector;
 
 import org.junit.Test;
@@ -56,7 +56,7 @@ import static org.junit.Assert.assertTrue;
 /** Integration tests for {@link MapPartitionFunction}. */
 @RunWith(Parameterized.class)
 @SuppressWarnings("serial")
-public class PartitionITCase extends MultipleProgramsTestBase {
+public class PartitionITCase extends MultipleProgramsTestBaseJUnit4 {
 
     public PartitionITCase(TestExecutionMode mode) {
         super(mode);

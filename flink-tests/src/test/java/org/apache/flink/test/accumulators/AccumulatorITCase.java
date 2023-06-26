@@ -31,7 +31,7 @@ import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.Collector;
 
@@ -52,7 +52,7 @@ import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMe
  * type. The conflict will occur in JobManager while merging.
  */
 @SuppressWarnings("serial")
-public class AccumulatorITCase extends JavaProgramTestBase {
+public class AccumulatorITCase extends JavaProgramTestBaseJUnit4 {
 
     private static final String INPUT = "one\n" + "two two\n" + "three three three\n";
     private static final String EXPECTED = "one 1\ntwo 2\nthree 3\n";

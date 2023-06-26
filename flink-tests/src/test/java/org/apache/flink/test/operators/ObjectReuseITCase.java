@@ -23,7 +23,7 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.test.util.MultipleProgramsTestBaseJUnit4;
 import org.apache.flink.test.util.TestBaseUtils.TupleComparator;
 import org.apache.flink.util.Collector;
 
@@ -42,7 +42,7 @@ import static org.junit.Assert.assertEquals;
 /** These check whether the object-reuse execution mode does really reuse objects. */
 @SuppressWarnings("serial")
 @RunWith(Parameterized.class)
-public class ObjectReuseITCase extends MultipleProgramsTestBase {
+public class ObjectReuseITCase extends MultipleProgramsTestBaseJUnit4 {
 
     private static final List<Tuple2<String, Integer>> REDUCE_DATA =
             Arrays.asList(

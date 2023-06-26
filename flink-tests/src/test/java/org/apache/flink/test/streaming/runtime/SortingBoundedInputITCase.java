@@ -59,7 +59,7 @@ import org.apache.flink.streaming.api.transformations.KeyedMultipleInputTransfor
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
@@ -84,7 +84,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /** An end to end test for sorted inputs for a keyed operator with bounded inputs. */
-public class SortingBoundedInputITCase extends AbstractTestBase {
+public class SortingBoundedInputITCase extends AbstractTestBaseJUnit4 {
 
     @Test
     public void testOneInputOperator() {

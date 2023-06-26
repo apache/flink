@@ -24,7 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.runtime.operators.sink.TestSinkV2;
 import org.apache.flink.streaming.util.FiniteTestSource;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -45,7 +45,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 /**
  * Integration test for {@link org.apache.flink.api.connector.sink.Sink} run time implementation.
  */
-public class SinkV2ITCase extends AbstractTestBase {
+public class SinkV2ITCase extends AbstractTestBaseJUnit4 {
     static final List<Integer> SOURCE_DATA =
             Arrays.asList(
                     895, 127, 148, 161, 148, 662, 822, 491, 275, 122, 850, 630, 682, 765, 434, 970,

@@ -20,7 +20,7 @@ package org.apache.flink.streaming.scala.api;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.scala.OutputFormatTestPrograms;
 import org.apache.flink.test.testdata.WordCountData;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 
 import org.junit.After;
 import org.junit.Before;
@@ -34,7 +34,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** IT cases for the {@link org.apache.flink.api.java.io.CsvOutputFormat}. */
-public class CsvOutputFormatITCase extends AbstractTestBase {
+public class CsvOutputFormatITCase extends AbstractTestBaseJUnit4 {
 
     protected String resultPath;
 

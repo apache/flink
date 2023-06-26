@@ -23,7 +23,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.test.optimizer.iterations.MultipleJoinsWithSolutionSetCompilerTest;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 
 import org.junit.Assert;
 
@@ -31,7 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Test multiple joins with the solution set. */
-public class MultipleSolutionSetJoinsITCase extends JavaProgramTestBase {
+public class MultipleSolutionSetJoinsITCase extends JavaProgramTestBaseJUnit4 {
 
     @Override
     protected void testProgram() throws Exception {

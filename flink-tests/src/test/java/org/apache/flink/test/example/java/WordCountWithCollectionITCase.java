@@ -26,7 +26,7 @@ import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.examples.java.wordcount.WordCount;
 import org.apache.flink.test.testdata.WordCountData;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 
 import org.junit.Assert;
 
@@ -35,7 +35,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /** WordCount with collection example. */
-public class WordCountWithCollectionITCase extends JavaProgramTestBase {
+public class WordCountWithCollectionITCase extends JavaProgramTestBaseJUnit4 {
 
     private final List<Tuple2<String, Integer>> resultsCollected =
             new ArrayList<Tuple2<String, Integer>>();

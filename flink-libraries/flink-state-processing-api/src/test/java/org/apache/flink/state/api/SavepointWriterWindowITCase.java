@@ -44,7 +44,7 @@ import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindo
 import org.apache.flink.streaming.api.windowing.evictors.CountEvictor;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Collector;
@@ -64,7 +64,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** IT Test for writing savepoints to the {@code WindowOperator}. */
 @SuppressWarnings("unchecked")
 @RunWith(Parameterized.class)
-public class SavepointWriterWindowITCase extends AbstractTestBase {
+public class SavepointWriterWindowITCase extends AbstractTestBaseJUnit4 {
 
     private static final String UID = "uid";
 

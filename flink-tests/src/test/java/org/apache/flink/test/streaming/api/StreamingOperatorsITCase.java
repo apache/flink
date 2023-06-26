@@ -29,7 +29,7 @@ import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MathUtils;
 
@@ -47,7 +47,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /** Integration tests for streaming operators. */
-public class StreamingOperatorsITCase extends AbstractTestBase {
+public class StreamingOperatorsITCase extends AbstractTestBaseJUnit4 {
 
     /**
      * Tests the basic functionality of the AsyncWaitOperator: Processing a limited stream of

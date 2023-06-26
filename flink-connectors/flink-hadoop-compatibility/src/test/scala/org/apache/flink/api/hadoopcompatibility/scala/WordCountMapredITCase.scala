@@ -21,7 +21,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.hadoop.mapred.HadoopOutputFormat
 import org.apache.flink.hadoopcompatibility.scala.HadoopInputs
 import org.apache.flink.test.testdata.WordCountData
-import org.apache.flink.test.util.{JavaProgramTestBase, TestBaseUtils}
+import org.apache.flink.test.util.{JavaProgramTestBaseJUnit4, TestBaseUtils}
 import org.apache.flink.util.OperatingSystem
 
 import org.apache.hadoop.fs.Path
@@ -29,7 +29,7 @@ import org.apache.hadoop.io.{LongWritable, Text}
 import org.apache.hadoop.mapred.{FileOutputFormat, JobConf, TextInputFormat, TextOutputFormat}
 import org.junit.{Assume, Before}
 
-class WordCountMapredITCase extends JavaProgramTestBase {
+class WordCountMapredITCase extends JavaProgramTestBaseJUnit4 {
   protected var textPath: String = null
   protected var resultPath: String = null
 

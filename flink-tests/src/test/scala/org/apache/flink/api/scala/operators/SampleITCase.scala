@@ -20,9 +20,9 @@ package org.apache.flink.api.scala.operators
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.scala.utils._
-import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
-import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
+import org.apache.flink.test.util.{MultipleProgramsTestBaseJUnit4, TestBaseUtils}
 
+import MultipleProgramsTestBaseJUnit4.TestExecutionMode
 import org.junit.{After, Before, Test}
 import org.junit.Assert._
 import org.junit.runner.RunWith
@@ -33,7 +33,7 @@ import java.util.{List => JavaList, Random}
 import scala.collection.JavaConverters._
 
 @RunWith(classOf[Parameterized])
-class SampleITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
+class SampleITCase(mode: TestExecutionMode) extends MultipleProgramsTestBaseJUnit4(mode) {
   private val RNG: Random = new Random
 
   private var result: JavaList[String] = null;

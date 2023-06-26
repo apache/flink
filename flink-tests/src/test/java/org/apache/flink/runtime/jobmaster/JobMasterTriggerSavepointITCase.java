@@ -37,7 +37,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser;
 import org.apache.flink.util.ExceptionUtils;
 
@@ -73,7 +73,7 @@ import static org.junit.Assert.assertTrue;
  *
  * @see org.apache.flink.runtime.jobmaster.JobMaster
  */
-public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
+public class JobMasterTriggerSavepointITCase extends AbstractTestBaseJUnit4 {
 
     private static CountDownLatch invokeLatch;
 

@@ -31,7 +31,7 @@ import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.test.operators.util.CollectionDataSets;
-import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.test.util.MultipleProgramsTestBaseJUnit4;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.Collector;
 
@@ -56,7 +56,7 @@ import static org.junit.Assert.assertEquals;
 
 /** Test the functionality of aggregators in bulk and delta iterative cases. */
 @RunWith(Parameterized.class)
-public class AggregatorsITCase extends MultipleProgramsTestBase {
+public class AggregatorsITCase extends MultipleProgramsTestBaseJUnit4 {
 
     private static final int MAX_ITERATIONS = 20;
     private static final int parallelism = 2;

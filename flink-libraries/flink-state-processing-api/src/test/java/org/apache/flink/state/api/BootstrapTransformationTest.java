@@ -35,14 +35,14 @@ import org.apache.flink.state.api.functions.StateBootstrapFunction;
 import org.apache.flink.state.api.output.TaggedOperatorSubtaskState;
 import org.apache.flink.state.api.runtime.OperatorIDGenerator;
 import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 /** Tests for bootstrap transformations. */
 @SuppressWarnings("serial")
-public class BootstrapTransformationTest extends AbstractTestBase {
+public class BootstrapTransformationTest extends AbstractTestBaseJUnit4 {
 
     @Test
     public void testBroadcastStateTransformationParallelism() {

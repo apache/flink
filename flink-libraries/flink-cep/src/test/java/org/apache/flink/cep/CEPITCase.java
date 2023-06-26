@@ -44,7 +44,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Collector;
@@ -67,7 +67,7 @@ import static org.junit.Assert.assertEquals;
 /** End to end tests of both CEP operators and {@link NFA}. */
 @SuppressWarnings("serial")
 @RunWith(Parameterized.class)
-public class CEPITCase extends AbstractTestBase {
+public class CEPITCase extends AbstractTestBaseJUnit4 {
 
     @Parameterized.Parameter public Configuration envConfiguration;
 

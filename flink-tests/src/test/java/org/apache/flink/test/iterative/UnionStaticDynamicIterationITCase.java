@@ -22,14 +22,14 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
 import org.apache.flink.api.java.operators.IterativeDataSet;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 
 import java.util.ArrayList;
 
 import static org.junit.Assert.assertEquals;
 
 /** Test union between static and dynamic path in an iteration. */
-public class UnionStaticDynamicIterationITCase extends JavaProgramTestBase {
+public class UnionStaticDynamicIterationITCase extends JavaProgramTestBaseJUnit4 {
 
     private final ArrayList<Long> result = new ArrayList<Long>();
 

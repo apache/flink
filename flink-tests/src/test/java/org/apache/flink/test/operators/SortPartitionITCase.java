@@ -30,7 +30,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.test.operators.util.CollectionDataSets;
 import org.apache.flink.test.operators.util.CollectionDataSets.POJO;
-import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.test.util.MultipleProgramsTestBaseJUnit4;
 import org.apache.flink.util.Collector;
 
 import org.junit.Test;
@@ -45,7 +45,7 @@ import static org.apache.flink.test.util.TestBaseUtils.compareResultAsText;
 
 /** Tests for {@link DataSet#sortPartition}. */
 @RunWith(Parameterized.class)
-public class SortPartitionITCase extends MultipleProgramsTestBase {
+public class SortPartitionITCase extends MultipleProgramsTestBaseJUnit4 {
 
     public SortPartitionITCase(TestExecutionMode mode) {
         super(mode);

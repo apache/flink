@@ -27,14 +27,14 @@ import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.examples.java.graph.ConnectedComponents;
 import org.apache.flink.test.testdata.ConnectedComponentsData;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 
 import java.io.BufferedReader;
 
 import static org.apache.flink.test.util.TestBaseUtils.getResultReader;
 
 /** Delta iteration test implementing the connected components algorithm with a join. */
-public class ConnectedComponentsITCase extends JavaProgramTestBase {
+public class ConnectedComponentsITCase extends JavaProgramTestBaseJUnit4 {
 
     private static final long SEED = 0xBADC0FFEEBEEFL;
 

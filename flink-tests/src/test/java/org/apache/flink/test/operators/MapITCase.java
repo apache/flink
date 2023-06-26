@@ -27,7 +27,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.operators.util.CollectionDataSets;
 import org.apache.flink.test.operators.util.CollectionDataSets.CustomType;
-import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.test.util.MultipleProgramsTestBaseJUnit4;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -43,7 +43,7 @@ import static org.apache.flink.test.util.TestBaseUtils.compareResultAsTuples;
 
 /** Integration tests for {@link MapFunction} and {@link RichMapFunction}. */
 @RunWith(Parameterized.class)
-public class MapITCase extends MultipleProgramsTestBase {
+public class MapITCase extends MultipleProgramsTestBaseJUnit4 {
 
     public MapITCase(TestExecutionMode mode) {
         super(mode);

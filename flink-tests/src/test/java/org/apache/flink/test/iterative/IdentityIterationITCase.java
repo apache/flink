@@ -21,7 +21,7 @@ package org.apache.flink.test.iterative;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
 import org.apache.flink.api.java.operators.IterativeDataSet;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,7 +29,7 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 
 /** Test empty (identity) bulk iteration. */
-public class IdentityIterationITCase extends JavaProgramTestBase {
+public class IdentityIterationITCase extends JavaProgramTestBaseJUnit4 {
 
     private List<Long> result = new ArrayList<Long>();
 

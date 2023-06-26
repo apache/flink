@@ -30,7 +30,7 @@ import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows
 import org.apache.flink.streaming.api.windowing.triggers.{CountTrigger, PurgingTrigger}
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow
 import org.apache.flink.streaming.runtime.partitioner._
-import org.apache.flink.test.util.AbstractTestBase
+import org.apache.flink.test.util.AbstractTestBaseJUnit4
 import org.apache.flink.util.Collector
 
 import org.hamcrest.CoreMatchers.equalTo
@@ -40,7 +40,7 @@ import org.junit.rules.ExpectedException
 
 import java.lang
 
-class DataStreamTest extends AbstractTestBase {
+class DataStreamTest extends AbstractTestBaseJUnit4 {
 
   private val expectedException = ExpectedException.none()
 
