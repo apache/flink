@@ -39,8 +39,7 @@ public interface SupportsStaging {
      *
      * <p>This method will be called at the compile stage.
      *
-     * @param StagingContext Tell DynamicTableSink, the operation type of this StagedTable,
-     *     expandable
+     * @param context Tell DynamicTableSink, the operation type of this StagedTable, expandable
      * @return {@link StagedTable} that can be serialized and provides atomic operations
      */
     StagedTable applyStaging(StagingContext context);
@@ -50,10 +49,23 @@ public interface SupportsStaging {
      * DynamicTableSink can return the corresponding implementation of StagedTable according to the
      * specific operation. More types of operations can be extended in the future.
      */
+    @PublicEvolving
     interface StagingContext {
         StagingPurpose getStagingPurpose();
     }
 
+    /**
+     * The type of StagedTable final visibility that was expects for staging purpose.
+     *
+     * <p>Currently, two modes are supported:
+     *
+     * <ul>
+     *   <li>CREATE_TABLE_AS - in this mode, table must not exist, otherwise it will fail.
+     *   <li>CREATE_TABLE_AS_IF_NOT_EXISTS - in this mode, skip if table exists, create if it
+     *       doesn't.
+     * </ul>
+     */
+    @PublicEvolving
     enum StagingPurpose {
         CREATE_TABLE_AS,
         CREATE_TABLE_AS_IF_NOT_EXISTS
