@@ -77,4 +77,12 @@ public class SqlClientOptions {
                     .defaultValue(SyntaxHighlightStyle.BuiltInStyle.DEFAULT.name())
                     .withDescription(
                             "SQL highlight color schema to be used at SQL client. Possible values: 'default', 'dark', 'light', 'chester', 'vs2010', 'solarized', 'obsidian', 'geshi'");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> DISPLAY_SHOW_LINE_NUMBERS =
+            ConfigOptions.key("sql-client.display.show-line-numbers")
+                    .booleanType()
+                    .defaultValue(Boolean.FALSE)
+                    .withDescription(
+                            "Determines whether there should be shown line numbers in multiline SQL or not.");
 }
