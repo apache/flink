@@ -18,6 +18,8 @@
 
 package org.apache.flink.kubernetes.kubeclient.resources;
 
+import io.fabric8.kubernetes.api.model.Pod;
+
 /** Testing implementation of {@link KubernetesPod}. */
 public class TestingKubernetesPod extends KubernetesPod {
     private final String name;
@@ -30,6 +32,13 @@ public class TestingKubernetesPod extends KubernetesPod {
 
     public TestingKubernetesPod(String name, boolean isScheduled, boolean isTerminated) {
         super(null);
+        this.name = name;
+        this.isScheduled = isScheduled;
+        this.isTerminated = isTerminated;
+    }
+
+    public TestingKubernetesPod(Pod pod, String name, boolean isScheduled, boolean isTerminated) {
+        super(pod);
         this.name = name;
         this.isScheduled = isScheduled;
         this.isTerminated = isTerminated;

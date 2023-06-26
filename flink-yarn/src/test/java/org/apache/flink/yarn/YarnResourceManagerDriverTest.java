@@ -21,6 +21,7 @@ package org.apache.flink.yarn;
 import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.blocklist.BlockedNode;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
@@ -477,6 +478,15 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
                                     .get();
                             assertThat(yarnReceivedBlocklist)
                                     .containsExactlyInAnyOrder("node2", "node3");
+
+                            // Verification of unblock resources
+                            String node3 = "node3";
+                            blockedNodes.remove(node3);
+                            final List<BlockedNode> unblockedNodes = new ArrayList<>();
+                            unblockedNodes.add(new BlockedNode(node3, "cause", 1L));
+                            runInMainThread(() -> getDriver().unblockResources(unblockedNodes))
+                                    .get();
+                            assertThat(yarnReceivedBlocklist).doesNotContain(node3);
                         });
             }
         };

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.resourcemanager.active;
 
+import org.apache.flink.runtime.blocklist.BlockedNode;
 import org.apache.flink.runtime.blocklist.BlockedNodeRetriever;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
@@ -29,6 +30,7 @@ import org.apache.flink.util.function.TriFunctionWithException;
 
 import javax.annotation.Nullable;
 
+import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
@@ -91,6 +93,11 @@ public class TestingResourceManagerDriver implements ResourceManagerDriver<Resou
     public CompletableFuture<ResourceID> requestResource(
             TaskExecutorProcessSpec taskExecutorProcessSpec) {
         return requestResourceFunction.apply(taskExecutorProcessSpec);
+    }
+
+    @Override
+    public void unblockResources(Collection<BlockedNode> unblockedNodes) {
+        // noop
     }
 
     @Override

@@ -36,6 +36,7 @@ import org.apache.flink.kubernetes.kubeclient.resources.KubernetesTooOldResource
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesWatch;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
+import org.apache.flink.runtime.blocklist.BlockedNode;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
@@ -59,6 +60,7 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -246,6 +248,28 @@ public class KubernetesResourceManagerDriver
                         }));
 
         return requestResourceFuture;
+    }
+
+    @Override
+    public void unblockResources(Collection<BlockedNode> unblockedNodes) {
+        List<KubernetesPod> podList =
+                flinkKubeClient.getPodsWithLabels(
+                        KubernetesUtils.getTaskManagerSelectors(clusterId));
+        String key = flinkConfig.getString(KubernetesConfigOptions.KUBERNETES_NODE_NAME_LABEL);
+        List<String> unblockedNodeIDs = new ArrayList<>();
+        for (BlockedNode blockedNode : unblockedNodes) {
+            unblockedNodeIDs.add(blockedNode.getNodeId());
+        }
+
+        for (KubernetesPod pod : podList) {
+            if (!pod.isScheduled()
+                    && KubernetesUtils.isNodeAffinitySet(pod, key, unblockedNodeIDs)) {
+                log.info(
+                        "Stop and reschedule pending pod {} to unblock the resources",
+                        pod.getName());
+                stopPod(pod.getName());
+            }
+        }
     }
 
     @Override

@@ -18,6 +18,7 @@
 
 package org.apache.flink.kubernetes;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
@@ -29,6 +30,7 @@ import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesTooOldResourceVersionException;
 import org.apache.flink.kubernetes.kubeclient.resources.TestingKubernetesPod;
 import org.apache.flink.kubernetes.utils.Constants;
+import org.apache.flink.runtime.blocklist.BlockedNode;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
@@ -37,6 +39,11 @@ import org.apache.flink.runtime.resourcemanager.active.ResourceManagerDriverTest
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
 
+import io.fabric8.kubernetes.api.model.NodeAffinity;
+import io.fabric8.kubernetes.api.model.NodeAffinityBuilder;
+import io.fabric8.kubernetes.api.model.NodeSelectorRequirement;
+import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import org.junit.jupiter.api.Test;
@@ -44,10 +51,13 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -347,6 +357,87 @@ class KubernetesResourceManagerDriverTest
         };
     }
 
+    private NodeAffinity generateNodeAffinity(String labelKey, Set<String> blockedNodes) {
+        NodeSelectorRequirement nodeSelectorRequirement =
+                new NodeSelectorRequirement(labelKey, "NotIn", new ArrayList<>(blockedNodes));
+
+        NodeAffinityBuilder nodeAffinityBuilder = new NodeAffinityBuilder();
+        return nodeAffinityBuilder
+                .withNewRequiredDuringSchedulingIgnoredDuringExecution()
+                .addNewNodeSelectorTerm()
+                .addToMatchExpressions(nodeSelectorRequirement)
+                .endNodeSelectorTerm()
+                .endRequiredDuringSchedulingIgnoredDuringExecution()
+                .build();
+    }
+
+    @Test
+    void testUnblockResources() throws Exception {
+        // workernode1 is unblocked
+        final String unblockedWorkerNode = "workernode1";
+        final List<BlockedNode> unblockedNodes = new ArrayList<>();
+        unblockedNodes.add(new BlockedNode(unblockedWorkerNode, "cause", 1L));
+
+        Set<String> blockedNodeIds = new HashSet<>();
+        blockedNodeIds.add(unblockedWorkerNode);
+
+        // There are two taskmanager pods - tmPod1 is scheduled and tmPod2 is pending
+        final Pod pod =
+                new PodBuilder()
+                        .editOrNewSpec()
+                        .editOrNewAffinity()
+                        .withNodeAffinity(
+                                generateNodeAffinity(
+                                        new Context()
+                                                .getConfiguration()
+                                                .get(
+                                                        KubernetesConfigOptions
+                                                                .KUBERNETES_NODE_NAME_LABEL),
+                                        blockedNodeIds))
+                        .endAffinity()
+                        .endSpec()
+                        .build();
+
+        final KubernetesPod tmPod1 =
+                new TestingKubernetesPod(pod, CLUSTER_ID + "-taskmanager-1-1", true, false);
+        final KubernetesPod tmPod2 =
+                new TestingKubernetesPod(pod, CLUSTER_ID + "-taskmanager-1-2", false, false);
+        List<KubernetesPod> tmPods = new ArrayList<>();
+        tmPods.add(tmPod1);
+        tmPods.add(tmPod2);
+
+        final AtomicBoolean isPendingPodStopped = new AtomicBoolean(false);
+        new Context() {
+            {
+                final CompletableFuture<Void> unblockResourceFuture = new CompletableFuture<>();
+
+                // Unblock Resource will stop the pending pod tmPod2 which has NodeAffinity notin
+                // workernode1
+                flinkKubeClientBuilder
+                        .setGetPodsWithLabelsFunction((ignore) -> tmPods)
+                        .setStopPodFunction(
+                                (podName) -> {
+                                    if (tmPod2.getName().equals(podName)) {
+                                        isPendingPodStopped.set(true);
+                                    }
+                                    return FutureUtils.completedVoidFuture();
+                                });
+
+                runTest(
+                        () -> {
+                            runInMainThread(
+                                    () -> {
+                                        getDriver().unblockResources(unblockedNodes);
+                                        unblockResourceFuture.complete(null);
+                                    });
+                        });
+                unblockResourceFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
+            }
+        };
+
+        assertThat(isPendingPodStopped.get()).isTrue();
+    }
+
     @Override
     protected ResourceManagerDriverTestBase<KubernetesWorkerNode>.Context createContext() {
         return new Context();
@@ -415,6 +506,10 @@ class KubernetesResourceManagerDriverTest
 
         List<TestingFlinkKubeClient.MockKubernetesWatch> getPodsWatches() {
             return podsWatches;
+        }
+
+        Configuration getConfiguration() {
+            return flinkConfig;
         }
 
         CompletableFuture<WatchCallbackHandler<KubernetesPod>>

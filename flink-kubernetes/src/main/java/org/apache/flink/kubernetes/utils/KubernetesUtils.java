@@ -58,6 +58,8 @@ import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.KubernetesResource;
+import io.fabric8.kubernetes.api.model.NodeSelectorRequirement;
+import io.fabric8.kubernetes.api.model.NodeSelectorTerm;
 import io.fabric8.kubernetes.api.model.PodSpecBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
@@ -418,6 +420,30 @@ public class KubernetesUtils {
                                                     + " An example of such path is: local:///opt/flink/examples/streaming/WindowJoin.jar");
                                 }))
                 .collect(Collectors.toList());
+    }
+
+    public static boolean isNodeAffinitySet(KubernetesPod pod, String key, List<String> values) {
+        List<NodeSelectorTerm> nodeSelectorTerms =
+                pod.getInternalResource()
+                        .getSpec()
+                        .getAffinity()
+                        .getNodeAffinity()
+                        .getRequiredDuringSchedulingIgnoredDuringExecution()
+                        .getNodeSelectorTerms();
+
+        if (nodeSelectorTerms.size() > 0) {
+            for (NodeSelectorTerm nodeSelectorTerm : nodeSelectorTerms) {
+                for (NodeSelectorRequirement requirement : nodeSelectorTerm.getMatchExpressions()) {
+                    if (requirement.getOperator().equals("NotIn")
+                            && requirement.getKey().equals(key)) {
+                        if (!Collections.disjoint(values, requirement.getValues())) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     public static FlinkPod loadPodFromTemplateFile(

@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptionsInternal;
+import org.apache.flink.runtime.blocklist.BlockedNode;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
@@ -368,6 +369,11 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
         Set<String> difference = new HashSet<>(setA);
         difference.removeAll(setB);
         return difference;
+    }
+
+    @Override
+    public void unblockResources(Collection<BlockedNode> unblockedNodes) {
+        tryUpdateApplicationBlockList();
     }
 
     @Override

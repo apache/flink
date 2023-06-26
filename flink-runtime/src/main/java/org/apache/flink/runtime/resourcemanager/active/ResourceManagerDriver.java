@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.resourcemanager.active;
 
+import org.apache.flink.runtime.blocklist.BlockedNode;
 import org.apache.flink.runtime.blocklist.BlockedNodeRetriever;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
@@ -26,6 +27,7 @@ import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import javax.annotation.Nullable;
 
+import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -101,4 +103,11 @@ public interface ResourceManagerDriver<WorkerType extends ResourceIDRetrievable>
      * @param worker Worker node to be released, in the deployment specific type.
      */
     void releaseResource(WorkerType worker);
+
+    /**
+     * Unblock resources on the nodes.
+     *
+     * @param unblockedNodes the nodes to unblock resources
+     */
+    void unblockResources(Collection<BlockedNode> unblockedNodes);
 }

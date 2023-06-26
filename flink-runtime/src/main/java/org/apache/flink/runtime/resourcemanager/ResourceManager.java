@@ -207,7 +207,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         this.taskExecutorGatewayFutures = new HashMap<>(8);
         this.blocklistHandler =
                 blocklistHandlerFactory.create(
-                        new ResourceManagerBlocklistContext(),
+                        new ResourceManagerBlocklistContext(this),
                         this::getNodeIdOfTaskManager,
                         getMainThreadExecutor(),
                         log);
@@ -1259,6 +1259,13 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     protected abstract void initialize() throws ResourceManagerException;
 
     /**
+     * Unblock resources on the nodes.
+     *
+     * @param unblockedNodes the nodes to unblock resources
+     */
+    protected void unblockResources(Collection<BlockedNode> unblockedNodes) {}
+
+    /**
      * Terminates the framework specific components.
      *
      * @throws Exception which occurs during termination.
@@ -1505,11 +1512,20 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     }
 
     private class ResourceManagerBlocklistContext implements BlocklistContext {
+
+        private final ResourceManager resourceManager;
+
+        public ResourceManagerBlocklistContext(ResourceManager resourceManager) {
+            this.resourceManager = resourceManager;
+        }
+
         @Override
         public void blockResources(Collection<BlockedNode> blockedNodes) {}
 
         @Override
         public void unblockResources(Collection<BlockedNode> unBlockedNodes) {
+            // Unblock resources on the nodes.
+            resourceManager.unblockResources(unBlockedNodes);
             // when a node is unblocked, we should trigger the resource requirements because the
             // slots on this node become available again.
             slotManager.triggerResourceRequirementsCheck();

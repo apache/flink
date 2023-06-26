@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.blocklist.BlockedNode;
 import org.apache.flink.runtime.blocklist.BlocklistHandler;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
@@ -210,6 +211,11 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
         } catch (Exception e) {
             throw new ResourceManagerException("Cannot terminate resource provider.", e);
         }
+    }
+
+    @Override
+    protected void unblockResources(Collection<BlockedNode> unblockedNodes) {
+        resourceManagerDriver.unblockResources(unblockedNodes);
     }
 
     @Override
