@@ -891,7 +891,7 @@ public class DefaultSchedulerTest extends TestLogger {
         final long checkpointId =
                 checkpointCoordinator.getPendingCheckpoints().keySet().iterator().next();
         OneShotLatch latch = new OneShotLatch();
-        executor.execute(
+        mainThreadExecutor.execute(
                 () -> {
                     try {
                         final AcknowledgeCheckpoint acknowledgeCheckpoint =
