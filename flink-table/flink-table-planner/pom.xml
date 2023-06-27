@@ -320,6 +320,7 @@ under the License.
 						</relocation>-->
 
 						<!-- Calcite's dependencies -->
+						<!-- Keep it in sync with flink-sql-client -->
 						<relocation>
 							<pattern>com.google</pattern>
 							<shadedPattern>org.apache.flink.calcite.shaded.com.google</shadedPattern>
