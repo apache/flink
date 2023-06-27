@@ -23,6 +23,7 @@ import org.apache.flink.annotation.PublicEvolving;
 
 import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.JavaClass;
+import com.tngtech.archunit.junit.ArchTag;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.thirdparty.com.google.common.base.Joiner;
@@ -57,6 +58,8 @@ public class ConnectorRules {
     }
 
     @ArchTest
+    @ArchTag(value = "org.apache.flink.testutils.junit.FailsOnJava11")
+    @ArchTag(value = "org.apache.flink.testutils.junit.FailsOnJava17")
     public static final ArchRule CONNECTOR_CLASSES_ONLY_DEPEND_ON_PUBLIC_API =
             freeze(
                     javaClassesThat(resideInAnyPackage(CONNECTOR_PACKAGES))
