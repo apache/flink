@@ -119,7 +119,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
             final DefaultLeaderRetrievalService resourceManagerLeaderRetrieval =
                     ZooKeeperUtils.createLeaderRetrievalService(
                             curatorFramework.asCuratorFramework(),
-                            ZooKeeperUtils.getLeaderPathForResourceManager(),
+                            ZooKeeperUtils.getLeaderPath(ZooKeeperUtils.getResourceManagerNode()),
                             configuration);
             @SuppressWarnings("unchecked")
             final CompletableFuture<String>[] resourceManagerLeaderFutures =
