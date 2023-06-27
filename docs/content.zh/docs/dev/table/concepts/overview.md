@@ -118,7 +118,7 @@ SELECT * FROM upsert_kakfa;
 
 #### 空闲状态维持时间
 
-*空间状态位置时间*参数 [`table.exec.state.ttl`]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl) 
+*空闲状态维持时间*参数 [`table.exec.state.ttl`]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl) 
 定义了状态的键在被更新后要保持多长时间才被移除。
 在之前的查询例子中，`word` 的数目会在配置的时间内未更新时立刻被移除。
 
@@ -133,7 +133,7 @@ SELECT * FROM upsert_kakfa;
 
 {{< /hint >}}
 
-从 Flink v1.18 开始，Table API & SQL 支持配置细粒度的状态 TTL 来优化状态使用。最小可配置粒度为每个状态算子的入边数。具体而言，`OneInputStreamOperator` 可以配置一个状态的 TTL，而 `TwoInputStreamOperator`（例如双流 join）则可以分别为左状态和右状态配置 TTL。更一般地，对于具有 K 个输入的 `MultipleInputStreamOperator`，可以配置 K 个状态 TTL。
+从 Flink v1.18 开始，Table API & SQL 支持配置细粒度的状态 TTL 来优化状态使用，可配置粒度为每个状态算子的入边数。具体而言，`OneInputStreamOperator` 可以配置一个状态的 TTL，而 `TwoInputStreamOperator`（例如双流 join）则可以分别为左状态和右状态配置 TTL。更一般地，对于具有 K 个输入的 `MultipleInputStreamOperator`，可以配置 K 个状态 TTL。
 
 一些典型的使用场景如下
 - 为 [双流 Join]({{< ref "docs/dev/table/sql/queries/joins" >}}#regular-joins) 的左右流配置不同 TTL。 
@@ -266,7 +266,15 @@ Flink SQL> COMPILE PLAN 'file:///path/to/plan.json' FOR INSERT INTO enriched_ord
     ...
   ]
 ```
-找到您需要修改的状态算子，将 TTL 设置为一个正整数（注意时间单位是毫秒），保存好文件，然后使用 `EXECUTE PLAN` 语句来提交作业。
+找到您需要修改的状态算子，将 TTL 的值设置为一个正整数，注意需要带上时间单位毫秒。举例来说，如果想将当前状态算子的 TTL 设置为 1 小时，您可以按照如下格式修改 JSON：
+```json
+{
+  "index": 0,
+  "ttl": "3600000 ms",
+  "name": "${1st input state name}"
+}
+```
+保存好文件，然后使用 `EXECUTE PLAN` 语句来提交作业。
 
 
 {{< hint info >}}
@@ -377,7 +385,7 @@ Job ID: 79fbe3fa497e4689165dd81b1d225ea8
     FROM Orders a JOIN LineOrders b 
         ON a.line_order_id = b.line_order_id;
     ```
-    生成的 JSON 文件内容如下。
+    生成的 JSON 文件内容如下：
 
     ```json
     {
@@ -463,7 +471,7 @@ Job ID: 79fbe3fa497e4689165dd81b1d225ea8
 
 - 修改和执行 compiled plan
 
-    如下 JSON 格式代表了 Join 算子的状态信息。
+    如下 JSON 格式代表了 Join 算子的状态信息：
     ```json
     "state": [
         {

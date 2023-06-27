@@ -146,11 +146,11 @@ at pipeline level.
 {{< /hint >}}
 
 From Flink v1.18, Table API & SQL supports configuring fine-grained state TTL at operator-level to improve the state usage. 
-The minimum configurable granularity is defined as the number of incoming input edges for each state operator. 
+The configurable granularity is defined as the number of incoming input edges for each state operator. 
 Specifically, `OneInputStreamOperator` can configure the TTL for one state, while `TwoInputStreamOperator` (such as regular join), which has two inputs, can configure the TTL for the left and right states separately. 
 More generally, for `MultipleInputStreamOperator` which has K inputs, K state TTLs can be configured.
 
-Typical use cases are as follows. 
+Typical use cases are as follows: 
 - Set different TTLs for [regular joins]({{< ref "docs/dev/table/sql/queries/joins" >}}#regular-joins). 
 Regular join generates a `TwoInputStreamOperator` with left state to keep left input and right state to keep right input. From Flink v1.18,
 you can set the different state TTL for left state and right state. 
@@ -161,7 +161,7 @@ This table program will generate two `OneInputStreamOperator`s with their own st
 Now you can set different state TTL for deduplicate state and aggregate state.
 
 {{< hint info >}}
-Window-based operations (like [Window Join]({{< ref "docs/dev/table/sql/queries/window-join" >}}), [Window Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}}), [Window Top-N]({{< ref "docs/dev/table/sql/queries/window-topn" >}}) *etc.*) and [Interval Joins]({{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins) do not rely on `table.exec.state.ttl` to control the state retention, and their states cannot be configured at operator-level.
+Window-based operations (like [Window Join]({{< ref "docs/dev/table/sql/queries/window-join" >}}), [Window Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}}), [Window Top-N]({{< ref "docs/dev/table/sql/queries/window-topn" >}}) *etc.*) and [Interval Joins]({{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins) do not rely on `table.exec.state.ttl` to control the state retention, and their state TTLs cannot be configured at operator-level.
 
 {{< /hint >}}
 
@@ -285,8 +285,16 @@ Theoretically, A k-th input stream operator will have k-th state.
     ...
   ]
 ```
-Locate the operator for which you need to set TTL, modify the TTL to a positive integer (note that the time unit is milliseconds), 
-save the file, and then use the `EXECUTE PLAN` statement to submit your job.
+Locate the operator you need to modify, change the value of the TTL to a positive integer, and pay attention to including the time unit "ms". 
+For example, if you want to set 1 hour as TTL for the state, you can modify the JSON like the following:
+```json
+{
+  "index": 0,
+  "ttl": "3600000 ms",
+  "name": "${1st input state name}"
+}
+```
+Save the file, and then use the `EXECUTE PLAN` statement to submit your job.
 
 
 {{< hint info >}}
@@ -398,7 +406,7 @@ It performs a regular inner join with different state TTL for left and right sid
     FROM Orders a JOIN LineOrders b 
         ON a.line_order_id = b.line_order_id;
     ```
-    The generated JSON file has the following contents.
+    The generated JSON file has the following contents:
 
     ```json
     {
@@ -484,7 +492,7 @@ It performs a regular inner join with different state TTL for left and right sid
 
 - Modify the plan content and execute plan
 
-    The JSON representation for join operator's state has the following structure.
+    The JSON representation for join operator's state has the following structure:
     ```json
     "state": [
         {
