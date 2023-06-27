@@ -176,7 +176,7 @@ public class ZooKeeperMultipleComponentLeaderElectionHaServices extends Abstract
         // Maybe use a single service for leader retrieval
         return ZooKeeperUtils.createLeaderRetrievalService(
                 curatorFrameworkWrapper.asCuratorFramework(),
-                ZooKeeperUtils.generateZookeeperPath(ZooKeeperUtils.getLeaderPath(), contenderID),
+                ZooKeeperUtils.getLeaderPath(contenderID),
                 configuration);
     }
 

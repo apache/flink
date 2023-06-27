@@ -241,11 +241,9 @@ public class ZooKeeperMultipleComponentLeaderElectionDriver
     }
 
     private boolean shouldHandleLeaderInformationEvent(String path) {
-        return running.get() && leaderLatch.hasLeadership() && isConnectionInfoNode(path);
-    }
-
-    private boolean isConnectionInfoNode(String path) {
-        return path.endsWith(ZooKeeperUtils.CONNECTION_INFO_NODE);
+        return running.get()
+                && leaderLatch.hasLeadership()
+                && ZooKeeperUtils.isConnectionInfoPath(path);
     }
 
     private LeaderInformation tryReadingLeaderInformation(ChildData childData, String id) {

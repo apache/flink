@@ -74,8 +74,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nonnull;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -103,39 +101,18 @@ public class ZooKeeperUtils {
     /** The prefix of the completed checkpoint file. */
     public static final String HA_STORAGE_COMPLETED_CHECKPOINT = "completedCheckpoint";
 
-    private static final String RESOURCE_MANAGER_LEADER = "resource_manager";
+    private static final String RESOURCE_MANAGER_NODE = "resource_manager";
 
-    private static final String DISPATCHER_LEADER = "dispatcher";
+    private static final String DISPATCHER_NODE = "dispatcher";
 
     private static final String LEADER_NODE = "leader";
 
-    private static final String REST_SERVER_LEADER = "rest_server";
+    private static final String REST_SERVER_NODE = "rest_server";
 
     private static final String LEADER_LATCH_NODE = "latch";
 
-    public static final String CONNECTION_INFO_NODE = "connection_info";
+    private static final String CONNECTION_INFO_NODE = "connection_info";
 
-    public static String getLeaderPathForResourceManager() {
-        return getLeaderPath(RESOURCE_MANAGER_LEADER);
-    }
-
-    public static String getLeaderPathForDispatcher() {
-        return getLeaderPath(DISPATCHER_LEADER);
-    }
-
-    public static String getLeaderPathForRestServer() {
-        return getLeaderPath(REST_SERVER_LEADER);
-    }
-
-    public static String getLeaderPathForJobManager(JobID jobId) {
-        return generateZookeeperPath(getLeaderPathForJob(jobId), LEADER_NODE);
-    }
-
-    public static String getSingleLeaderElectionPathForJobManager(JobID jobID) {
-        return getLeaderPath(jobID.toString());
-    }
-
-    @Nonnull
     public static String getLeaderPathForJob(JobID jobId) {
         return generateZookeeperPath(getJobsPath(), getPathForJob(jobId));
     }
@@ -157,28 +134,31 @@ public class ZooKeeperUtils {
     }
 
     public static String getDispatcherNode() {
-        return DISPATCHER_LEADER;
+        return DISPATCHER_NODE;
     }
 
     public static String getResourceManagerNode() {
-        return RESOURCE_MANAGER_LEADER;
+        return RESOURCE_MANAGER_NODE;
     }
 
     public static String getRestServerNode() {
-        return REST_SERVER_LEADER;
+        return REST_SERVER_NODE;
     }
 
     public static String getLeaderLatchPath() {
         return generateZookeeperPath(LEADER_LATCH_NODE);
     }
 
-    private static String getLeaderPath(String suffix) {
+    public static String getLeaderPath(String suffix) {
         return generateZookeeperPath(LEADER_NODE, suffix);
     }
 
-    @Nonnull
     public static String generateConnectionInformationPath(String path) {
         return generateZookeeperPath(path, CONNECTION_INFO_NODE);
+    }
+
+    public static boolean isConnectionInfoPath(String path) {
+        return path.endsWith(CONNECTION_INFO_NODE);
     }
 
     public static String generateLeaderLatchPath(String path) {
@@ -632,13 +612,10 @@ public class ZooKeeperUtils {
 
     /** Creates a ZooKeeper path of the form "/a/b/.../z". */
     public static String generateZookeeperPath(String... paths) {
-        final String result =
-                Arrays.stream(paths)
-                        .map(ZooKeeperUtils::trimSlashes)
-                        .filter(s -> !s.isEmpty())
-                        .collect(Collectors.joining("/", "/", ""));
-
-        return result;
+        return Arrays.stream(paths)
+                .map(ZooKeeperUtils::trimSlashes)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.joining("/", "/", ""));
     }
 
     /**
