@@ -165,11 +165,8 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
     @Test
     public void testAlterDatabase() throws Exception {
         catalogManager.registerCatalog("cat1", new GenericInMemoryCatalog("default", "default"));
-        catalogManager
-                .getCatalog("cat1")
-                .get()
-                .createDatabase(
-                        "db1", new CatalogDatabaseImpl(new HashMap<>(), "db1_comment"), true);
+        catalogManager.createDatabase(
+                "cat1", "db1", new CatalogDatabaseImpl(new HashMap<>(), "db1_comment"), true);
         final String sql = "alter database cat1.db1 set ('k1'='v1', 'K2'='V2')";
         Operation operation = parse(sql);
         assertThat(operation).isInstanceOf(AlterDatabaseOperation.class);
@@ -2256,7 +2253,8 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         if (!catalogManager.getCatalog("cat1").isPresent()) {
             catalogManager.registerCatalog("cat1", catalog);
         }
-        catalog.createDatabase("db1", new CatalogDatabaseImpl(new HashMap<>(), null), true);
+        catalogManager.createDatabase(
+                "cat1", "db1", new CatalogDatabaseImpl(new HashMap<>(), null), true);
         Schema.Builder builder =
                 Schema.newBuilder()
                         .column("a", DataTypes.INT().notNull())

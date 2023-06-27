@@ -28,6 +28,8 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
+import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
+import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
@@ -1021,5 +1023,70 @@ public final class CatalogManager implements CatalogRegistry {
         }
         final ResolvedSchema resolvedSchema = view.getUnresolvedSchema().resolve(schemaResolver);
         return new ResolvedCatalogView(view, resolvedSchema);
+    }
+
+    /**
+     * Create a database.
+     *
+     * @param catalogName Name of the catalog for database
+     * @param databaseName Name of the database to be created
+     * @param database The database definition
+     * @param ignoreIfExists Flag to specify behavior when a database with the given name already
+     *     exists: if set to false, throw a DatabaseAlreadyExistException, if set to true, do
+     *     nothing.
+     * @throws DatabaseAlreadyExistException if the given database already exists and ignoreIfExists
+     *     is false
+     * @throws CatalogException in case of any runtime exception
+     */
+    public void createDatabase(
+            String catalogName,
+            String databaseName,
+            CatalogDatabase database,
+            boolean ignoreIfExists)
+            throws DatabaseAlreadyExistException, CatalogException {
+        Catalog catalog = getCatalogOrThrowException(catalogName);
+        catalog.createDatabase(databaseName, database, ignoreIfExists);
+    }
+
+    /**
+     * Drop a database.
+     *
+     * @param catalogName Name of the catalog for database.
+     * @param databaseName Name of the database to be dropped.
+     * @param ignoreIfNotExists Flag to specify behavior when the database does not exist: if set to
+     *     false, throw an exception, if set to true, do nothing.
+     * @param cascade Flag to specify behavior when the database contains table or function: if set
+     *     to true, delete all tables and functions in the database and then delete the database, if
+     *     set to false, throw an exception.
+     * @throws DatabaseNotExistException if the given database does not exist
+     * @throws DatabaseNotEmptyException if the given database is not empty and isRestrict is true
+     * @throws CatalogException in case of any runtime exception
+     */
+    public void dropDatabase(
+            String catalogName, String databaseName, boolean ignoreIfNotExists, boolean cascade)
+            throws DatabaseNotExistException, DatabaseNotEmptyException, CatalogException {
+        Catalog catalog = getCatalogOrError(catalogName);
+        catalog.dropDatabase(databaseName, ignoreIfNotExists, cascade);
+    }
+
+    /**
+     * Modify an existing database.
+     *
+     * @param catalogName Name of the catalog for database
+     * @param databaseName Name of the database to be dropped
+     * @param newDatabase The new database definition
+     * @param ignoreIfNotExists Flag to specify behavior when the given database does not exist: if
+     *     set to false, throw an exception, if set to true, do nothing.
+     * @throws DatabaseNotExistException if the given database does not exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    public void alterDatabase(
+            String catalogName,
+            String databaseName,
+            CatalogDatabase newDatabase,
+            boolean ignoreIfNotExists)
+            throws DatabaseNotExistException, CatalogException {
+        Catalog catalog = getCatalogOrError(catalogName);
+        catalog.alterDatabase(databaseName, newDatabase, ignoreIfNotExists);
     }
 }
