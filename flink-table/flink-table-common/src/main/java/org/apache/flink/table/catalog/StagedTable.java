@@ -19,19 +19,19 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.core.execution.JobStatusHook;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.sink.abilities.SupportsStaging;
 
 import java.io.Serializable;
 
 /**
- * A {@link StagedTable} for atomic semantics using a two-phase commit protocol, combined with
- * {@link JobStatusHook} for atomic CTAS. {@link StagedTable} will be a member variable of
- * CtasJobStatusHook and can be serialized;
+ * A {@link StagedTable} for atomic semantics using a two-phase commit protocol. If {@link
+ * DynamicTableSink} implements the {@link SupportsStaging} interface, it can return a {@link
+ * StagedTable} object via the `applyStaging` method.
  *
- * <p>CtasJobStatusHook#onCreated will call the begin method of StagedTable;
- * CtasJobStatusHook#onFinished will call the commit method of StagedTable;
- * CtasJobStatusHook#onFailed and CtasJobStatusHook#onCanceled will call the abort method of
- * StagedTable;
+ * <p>when flink job is CREATED, the begin method of StagedTable will be called; when flink job is
+ * FINISHED, the commit method of StagedTable will be called; when flink job is FAILED or CANCELED,
+ * the abort method of StagedTable will be called;
  */
 @PublicEvolving
 public interface StagedTable extends Serializable {
@@ -55,11 +55,10 @@ public interface StagedTable extends Serializable {
     void commit();
 
     /**
-     * This method will be called when the job is failed or canceled. Similar to what it means to
-     * rollback the transaction in a relational database; In Flink's atomic CTAS scenario, it is
-     * used to do some data cleaning; For example, delete the data in tmp directory, delete the
-     * temporary data in the underlying storage service, or even call the rollback transaction API
-     * of the underlying service, etc.
+     * This method will be called when the job is failed or canceled. In Flink's atomic CTAS
+     * scenario, it is expected to do some cleaning work for a writing; For example, delete the data
+     * in tmp directory, delete the temporary data in the underlying storage service, or even call
+     * the rollback transaction API of the underlying service, etc.
      */
     void abort();
 }

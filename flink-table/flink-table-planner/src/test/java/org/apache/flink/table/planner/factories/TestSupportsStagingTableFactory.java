@@ -38,12 +38,16 @@ import org.apache.flink.util.FileUtils;
 
 import java.io.File;
 import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Set;
 
 /** A factory to create table to support staging for test purpose. */
 public class TestSupportsStagingTableFactory implements DynamicTableSinkFactory {
 
     public static final String IDENTIFIER = "test-staging";
+
+    public static final List<String> jobStatusChangeProcess = new LinkedList<>();
 
     private static final ConfigOption<String> DATA_DIR =
             ConfigOptions.key("data-dir")
@@ -124,7 +128,8 @@ public class TestSupportsStagingTableFactory implements DynamicTableSinkFactory 
 
         @Override
         public StagedTable applyStaging(StagingContext context) {
-            stagedTable = new TestStagedTable();
+            jobStatusChangeProcess.clear();
+            stagedTable = new TestStagedTable(dataDir);
             return stagedTable;
         }
     }
@@ -146,26 +151,41 @@ public class TestSupportsStagingTableFactory implements DynamicTableSinkFactory 
                 parentDir.delete();
             }
             parentDir.mkdirs();
-            new File(dataDir, "data").createNewFile();
+            // write hidden file first
+            new File(dataDir, "_data").createNewFile();
         }
 
         @Override
         public void invoke(RowData value, Context context) throws Exception {
             FileUtils.writeFileUtf8(
-                    new File(dataDir, "data"), value.getInt(0) + "," + value.getString(1));
+                    new File(dataDir, "_data"), value.getInt(0) + "," + value.getString(1));
         }
     }
 
     /** A StagedTable for test. */
     private static class TestStagedTable implements StagedTable {
 
-        @Override
-        public void begin() {}
+        private final String dataDir;
+
+        public TestStagedTable(String dataDir) {
+            this.dataDir = dataDir;
+        }
 
         @Override
-        public void commit() {}
+        public void begin() {
+            jobStatusChangeProcess.add("begin");
+        }
 
         @Override
-        public void abort() {}
+        public void commit() {
+            jobStatusChangeProcess.add("commit");
+            // Change hidden file to official file
+            new File(dataDir, "_data").renameTo(new File(dataDir, "data"));
+        }
+
+        @Override
+        public void abort() {
+            jobStatusChangeProcess.add("abort");
+        }
     }
 }

@@ -63,7 +63,8 @@ public interface Executor {
             @Nullable String defaultJobName);
 
     /**
-     * Translates the given transformations to a {@link Pipeline}.
+     * Translates the given transformations with a list of {@link JobStatusHook}s to a {@link
+     * Pipeline}.
      *
      * @param transformations list of transformations
      * @param tableConfiguration table-specific configuration options

@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.runtime.batch.sql;
+package org.apache.flink.table.planner.runtime.stream.sql;
 
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.planner.factories.TestSupportsStagingTableFactory;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
-import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
+import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.FileUtils;
 
@@ -37,7 +37,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests staged table in a table environment. */
-public class StagedTableITCase extends BatchTestBase {
+public class StagedTableITCase extends StreamingTestBase {
 
     @Rule public final TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -56,10 +56,10 @@ public class StagedTableITCase extends BatchTestBase {
 
     @Test
     public void testStagedTableWithAtomicCtas() throws Exception {
-        tableConfig().set(TableConfigOptions.TABLE_CTAS_ATOMICITY_ENABLED, true);
+        tEnv().getConfig().set(TableConfigOptions.TABLE_CTAS_ATOMICITY_ENABLED, true);
         String dataDir = tempFolder.newFolder().getAbsolutePath();
         tEnv().executeSql(
-                        "create table ctas_batch_table with ('connector' = 'test-staging', 'data-dir' = '"
+                        "create table ctas_stream_table with ('connector' = 'test-staging', 'data-dir' = '"
                                 + dataDir
                                 + "') as select * from t1")
                 .await();
