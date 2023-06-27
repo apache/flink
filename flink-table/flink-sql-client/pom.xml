@@ -266,10 +266,12 @@ under the License.
 									<pattern>org.apache.commons.codec</pattern>
 									<shadedPattern>org.apache.flink.calcite.shaded.org.apache.commons.codec</shadedPattern>
 								</relocation>
+								<!-- Currently Flink-SQL-Client depends on commons-io e.g.
+								org.apache.flink.table.client.SqlClient#readFromURL
 								<relocation>
 									<pattern>org.apache.commons.io</pattern>
 									<shadedPattern>org.apache.flink.calcite.shaded.org.apache.commons.io</shadedPattern>
-								</relocation>
+								</relocation-->
 								<relocation>
 									<pattern>org.checkerframework</pattern>
 									<shadedPattern>org.apache.flink.calcite.shaded.org.checkerframework</shadedPattern>
