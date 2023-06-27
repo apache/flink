@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.checkpoint.filemerging;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -31,7 +32,7 @@ import java.io.Closeable;
  * FileMergingSnapshotManager provides an interface to manage files and meta information for
  * checkpoint files with merging checkpoint files enabled. It manages the files for ONE single task
  * in TM, including all subtasks of this single task that running in this TM. There is one
- * FileMergingSnapshotManager for each task per task manager.
+ * FileMergingSnapshotManager for each job per task manager.
  *
  * <p>TODO (FLINK-32073): create output stream.
  *
@@ -125,7 +126,8 @@ public interface FileMergingSnapshotManager extends Closeable {
                     taskInfo.getNumberOfParallelSubtasks());
         }
 
-        SubtaskKey(String operatorIDString, int subtaskIndex, int parallelism) {
+        @VisibleForTesting
+        public SubtaskKey(String operatorIDString, int subtaskIndex, int parallelism) {
             this.operatorIDString = operatorIDString;
             this.subtaskIndex = subtaskIndex;
             this.parallelism = parallelism;

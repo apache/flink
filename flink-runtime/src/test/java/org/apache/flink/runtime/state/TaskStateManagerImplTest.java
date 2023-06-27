@@ -271,6 +271,7 @@ class TaskStateManagerImplTest {
                         createExecutionAttemptId(),
                         new TestTaskLocalStateStore(),
                         null,
+                        null,
                         new TaskExecutorStateChangelogStoragesManager(),
                         jobManagerTaskRestore,
                         new TestCheckpointResponder());
@@ -284,6 +285,7 @@ class TaskStateManagerImplTest {
                         createExecutionAttemptId(),
                         new TestTaskLocalStateStore(),
                         null,
+                        null,
                         new TaskExecutorStateChangelogStoragesManager(),
                         null,
                         new TestCheckpointResponder());
@@ -294,6 +296,7 @@ class TaskStateManagerImplTest {
                         new JobID(),
                         createExecutionAttemptId(),
                         new TestTaskLocalStateStore(),
+                        null,
                         null,
                         new TaskExecutorStateChangelogStoragesManager(),
                         new JobManagerTaskRestore(2, new TaskStateSnapshot()),
@@ -313,6 +316,7 @@ class TaskStateManagerImplTest {
                 jobID,
                 executionAttemptID,
                 localStateStore,
+                null,
                 stateChangelogStorage,
                 new TaskExecutorStateChangelogStoragesManager(),
                 jobManagerTaskRestore,
