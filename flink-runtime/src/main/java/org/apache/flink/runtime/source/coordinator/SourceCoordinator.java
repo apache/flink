@@ -269,10 +269,10 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
     @Override
     public void close() throws Exception {
         LOG.info("Closing SourceCoordinator for source {}.", operatorName);
-        closeQuietly(context);
         if (started) {
             closeQuietly(enumerator);
         }
+        closeQuietly(context);
         LOG.info("Source coordinator for source {} closed.", operatorName);
     }
 
