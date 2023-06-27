@@ -23,7 +23,6 @@ import org.apache.flink.core.fs.FileSystem;
 
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -42,7 +41,10 @@ public class PartitionCommitPolicyFactory implements Serializable {
     private final List<String> parameters;
 
     public PartitionCommitPolicyFactory(
-            String policyKind, String customClass, String successFileName, List<String> parameters) {
+            String policyKind,
+            String customClass,
+            String successFileName,
+            List<String> parameters) {
         this.policyKind = policyKind;
         this.customClass = customClass;
         this.successFileName = successFileName;
@@ -68,7 +70,9 @@ public class PartitionCommitPolicyFactory implements Serializable {
                                 case PartitionCommitPolicy.CUSTOM:
                                     try {
                                         if (parameters != null && !parameters.isEmpty()) {
-                                            String[] paramStrings = parameters.toArray(new String[parameters.size()]);
+                                            String[] paramStrings =
+                                                    parameters.toArray(
+                                                            new String[parameters.size()]);
                                             Class<?>[] classes = new Class<?>[parameters.size()];
                                             for (int i = 0; i < parameters.size(); i++) {
                                                 classes[i] = String.class;
@@ -78,12 +82,14 @@ public class PartitionCommitPolicyFactory implements Serializable {
                                                             .getConstructor(classes)
                                                             .newInstance(paramStrings);
                                         } else {
-                                                return (PartitionCommitPolicy)
-                                                        cl.loadClass(customClass).newInstance();
+                                            return (PartitionCommitPolicy)
+                                                    cl.loadClass(customClass).newInstance();
                                         }
-                                    } catch (ClassNotFoundException | IllegalAccessException |
-                                             InstantiationException | NoSuchMethodException |
-                                             InvocationTargetException e) {
+                                    } catch (ClassNotFoundException
+                                            | IllegalAccessException
+                                            | InstantiationException
+                                            | NoSuchMethodException
+                                            | InvocationTargetException e) {
                                         throw new RuntimeException(
                                                 "Can not create new instance for custom class from "
                                                         + customClass,
