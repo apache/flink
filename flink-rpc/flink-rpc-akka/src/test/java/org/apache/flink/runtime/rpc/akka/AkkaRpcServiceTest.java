@@ -28,8 +28,8 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
-import akka.actor.ActorSystem;
-import akka.actor.Terminated;
+import org.apache.pekko.actor.ActorSystem;
+import org.apache.pekko.actor.Terminated;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;

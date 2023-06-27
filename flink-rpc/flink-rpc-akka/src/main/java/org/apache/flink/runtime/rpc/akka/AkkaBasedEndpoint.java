@@ -20,7 +20,7 @@ package org.apache.flink.runtime.rpc.akka;
 
 import org.apache.flink.runtime.rpc.RpcGateway;
 
-import akka.actor.ActorRef;
+import org.apache.pekko.actor.ActorRef;
 
 /** Interface for Akka based rpc gateways. */
 interface AkkaBasedEndpoint extends RpcGateway {

@@ -19,10 +19,10 @@ package org.apache.flink.runtime.rpc.akka;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.util.FingerprintTrustManagerFactory;
 
-import akka.actor.ActorSystem;
-import akka.remote.RemoteTransportException;
-import akka.remote.transport.netty.ConfigSSLEngineProvider;
 import com.typesafe.config.Config;
+import org.apache.pekko.actor.ActorSystem;
+import org.apache.pekko.remote.RemoteTransportException;
+import org.apache.pekko.remote.transport.netty.ConfigSSLEngineProvider;
 
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
@@ -42,7 +42,7 @@ public class CustomSSLEngineProvider extends ConfigSSLEngineProvider {
     public CustomSSLEngineProvider(ActorSystem system) {
         super(system);
         final Config securityConfig =
-                system.settings().config().getConfig("akka.remote.classic.netty.ssl.security");
+                system.settings().config().getConfig("pekko.remote.classic.netty.ssl.security");
         sslTrustStore = securityConfig.getString("trust-store");
         sslTrustStorePassword = securityConfig.getString("trust-store-password");
         sslCertFingerprints = securityConfig.getStringList("cert-fingerprints");

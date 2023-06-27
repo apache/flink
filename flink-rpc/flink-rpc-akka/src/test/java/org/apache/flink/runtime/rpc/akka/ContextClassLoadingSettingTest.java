@@ -26,8 +26,8 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import akka.actor.ActorSystem;
-import akka.actor.Terminated;
+import org.apache.pekko.actor.ActorSystem;
+import org.apache.pekko.actor.Terminated;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

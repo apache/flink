@@ -18,10 +18,10 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
-import akka.actor.OneForOneStrategy;
-import akka.actor.SupervisorStrategy;
-import akka.actor.SupervisorStrategyConfigurator;
-import akka.japi.pf.PFBuilder;
+import org.apache.pekko.actor.OneForOneStrategy;
+import org.apache.pekko.actor.SupervisorStrategy;
+import org.apache.pekko.actor.SupervisorStrategyConfigurator;
+import org.apache.pekko.japi.pf.PFBuilder;
 
 /** Escalating supervisor strategy. */
 public class EscalatingSupervisorStrategy implements SupervisorStrategyConfigurator {

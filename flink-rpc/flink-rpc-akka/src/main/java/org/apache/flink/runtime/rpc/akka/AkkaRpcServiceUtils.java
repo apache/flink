@@ -30,9 +30,9 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 import org.apache.flink.util.function.TriFunction;
 
-import akka.actor.ActorSystem;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import org.apache.pekko.actor.ActorSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,16 +54,16 @@ public class AkkaRpcServiceUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(AkkaRpcServiceUtils.class);
 
-    private static final String AKKA_TCP = "akka.tcp";
-    private static final String AKKA_SSL_TCP = "akka.ssl.tcp";
+    private static final String AKKA_TCP = "pekko.tcp";
+    private static final String AKKA_SSL_TCP = "pekko.ssl.tcp";
 
     static final String SUPERVISOR_NAME = "rpc";
 
     private static final String SIMPLE_AKKA_CONFIG_TEMPLATE =
-            "akka {remote.classic {netty.tcp {maximum-frame-size = %s}}}";
+            "pekko {remote.classic {netty.tcp {maximum-frame-size = %s}}}";
 
     private static final String MAXIMUM_FRAME_SIZE_PATH =
-            "akka.remote.classic.netty.tcp.maximum-frame-size";
+            "pekko.remote.classic.netty.tcp.maximum-frame-size";
 
     // ------------------------------------------------------------------------
     //  RPC instantiation
@@ -205,7 +205,7 @@ public class AkkaRpcServiceUtils {
         final String protocolPrefix =
                 remoteAddressInformation
                         .map(rai -> akkaProtocolToString(rai.getAkkaProtocol()))
-                        .orElse("akka");
+                        .orElse("pekko");
         final Optional<String> optionalHostnameAndPort =
                 remoteAddressInformation.map(RemoteAddressInformation::getHostnameAndPort);
 

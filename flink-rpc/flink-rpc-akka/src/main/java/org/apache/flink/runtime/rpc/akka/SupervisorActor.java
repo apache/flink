@@ -24,15 +24,16 @@ import org.apache.flink.runtime.rpc.akka.exceptions.AkkaUnknownMessageException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import akka.AkkaException;
-import akka.actor.AbstractActor;
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.ChildRestartStats;
-import akka.actor.Props;
-import akka.actor.SupervisorStrategy;
-import akka.japi.pf.DeciderBuilder;
-import akka.pattern.Patterns;
+import org.apache.pekko.PekkoException;
+import org.apache.pekko.actor.AbstractActor;
+import org.apache.pekko.actor.ActorRef;
+import org.apache.pekko.actor.ActorSystem;
+import org.apache.pekko.actor.ChildRestartStats;
+import org.apache.pekko.actor.Props;
+import org.apache.pekko.actor.Status;
+import org.apache.pekko.actor.SupervisorStrategy;
+import org.apache.pekko.japi.pf.DeciderBuilder;
+import org.apache.pekko.pattern.Patterns;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -130,7 +131,7 @@ class SupervisorActor extends AbstractActor {
                                             akkaRpcActorRegistration
                                                     .getExternalTerminationFuture())),
                             getSelf());
-        } catch (AkkaException akkaException) {
+        } catch (PekkoException akkaException) {
             getSender().tell(StartAkkaRpcActorResponse.failure(akkaException), getSelf());
         }
     }
@@ -181,7 +182,7 @@ class SupervisorActor extends AbstractActor {
         final AkkaUnknownMessageException cause =
                 new AkkaUnknownMessageException(
                         String.format("Cannot handle unknown message %s.", msg));
-        getSender().tell(new akka.actor.Status.Failure(cause), getSelf());
+        getSender().tell(new Status.Failure(cause), getSelf());
         throw cause;
     }
 
@@ -193,7 +194,7 @@ class SupervisorActor extends AbstractActor {
             ActorSystem actorSystem, Executor terminationFutureExecutor) {
         final Props supervisorProps =
                 Props.create(SupervisorActor.class, terminationFutureExecutor)
-                        .withDispatcher("akka.actor.supervisor-dispatcher");
+                        .withDispatcher("pekko.actor.supervisor-dispatcher");
         return actorSystem.actorOf(supervisorProps, getActorName());
     }
 
@@ -231,13 +232,15 @@ class SupervisorActor extends AbstractActor {
 
         @Override
         public void handleChildTerminated(
-                akka.actor.ActorContext context, ActorRef child, Iterable<ActorRef> children) {
+                org.apache.pekko.actor.ActorContext context,
+                ActorRef child,
+                Iterable<ActorRef> children) {
             akkaRpcActorTerminated(child);
         }
 
         @Override
         public void processFailure(
-                akka.actor.ActorContext context,
+                org.apache.pekko.actor.ActorContext context,
                 boolean restart,
                 ActorRef child,
                 Throwable cause,

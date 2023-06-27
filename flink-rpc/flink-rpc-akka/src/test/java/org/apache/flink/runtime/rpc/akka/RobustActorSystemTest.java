@@ -20,10 +20,10 @@ package org.apache.flink.runtime.rpc.akka;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.util.concurrent.TestingUncaughtExceptionHandler;
 
-import akka.actor.AbstractActor;
-import akka.actor.ActorRef;
-import akka.actor.Props;
-import akka.japi.pf.ReceiveBuilder;
+import org.apache.pekko.actor.AbstractActor;
+import org.apache.pekko.actor.ActorRef;
+import org.apache.pekko.actor.Props;
+import org.apache.pekko.japi.pf.ReceiveBuilder;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

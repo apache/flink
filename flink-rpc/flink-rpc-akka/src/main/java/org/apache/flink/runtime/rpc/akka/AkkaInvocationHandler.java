@@ -37,8 +37,9 @@ import org.apache.flink.runtime.rpc.messages.RunAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
-import akka.actor.ActorRef;
-import akka.pattern.Patterns;
+import org.apache.pekko.actor.ActorRef;
+import org.apache.pekko.pattern.AskTimeoutException;
+import org.apache.pekko.pattern.Patterns;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -379,7 +380,7 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
             @Nullable Throwable callStackCapture,
             String recipient,
             RpcInvocation rpcInvocation) {
-        if (!(exception instanceof akka.pattern.AskTimeoutException)) {
+        if (!(exception instanceof AskTimeoutException)) {
             return exception;
         }
 

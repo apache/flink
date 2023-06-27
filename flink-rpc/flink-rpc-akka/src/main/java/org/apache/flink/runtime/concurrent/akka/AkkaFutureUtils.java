@@ -17,7 +17,7 @@
 
 package org.apache.flink.runtime.concurrent.akka;
 
-import akka.dispatch.OnComplete;
+import org.apache.pekko.dispatch.OnComplete;
 
 import java.util.concurrent.CompletableFuture;
 

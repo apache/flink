@@ -27,12 +27,12 @@ import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TimeUtils;
 import org.apache.flink.util.function.FunctionUtils;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Address;
-import akka.actor.AddressFromURIString;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import org.apache.pekko.actor.ActorRef;
+import org.apache.pekko.actor.ActorSystem;
+import org.apache.pekko.actor.Address;
+import org.apache.pekko.actor.AddressFromURIString;
 import org.jboss.netty.logging.InternalLoggerFactory;
 import org.jboss.netty.logging.Slf4JLoggerFactory;
 import org.slf4j.Logger;
@@ -78,10 +78,10 @@ class AkkaUtils {
         final String supervisorStrategy = EscalatingSupervisorStrategy.class.getCanonicalName();
 
         return new AkkaConfigBuilder()
-                .add("akka {")
+                .add("pekko {")
                 .add("  daemonic = off")
-                .add("  loggers = [\"akka.event.slf4j.Slf4jLogger\"]")
-                .add("  logging-filter = \"akka.event.slf4j.Slf4jLoggingFilter\"")
+                .add("  loggers = [\"org.apache.pekko.event.slf4j.Slf4jLogger\"]")
+                .add("  logging-filter = \"org.apache.pekko.event.slf4j.Slf4jLoggingFilter\"")
                 .add("  log-config-on-start = off")
                 .add("  logger-startup-timeout = 50s")
                 .add("  loglevel = " + getLogLevel())
@@ -137,7 +137,7 @@ class AkkaUtils {
         final int maxNumThreads = configuration.getMaxNumThreads();
 
         return new AkkaConfigBuilder()
-                .add("akka {")
+                .add("pekko {")
                 .add("  actor {")
                 .add("    default-dispatcher {")
                 .add("      type = org.apache.flink.runtime.rpc.akka.PriorityThreadsDispatcher")
@@ -160,7 +160,7 @@ class AkkaUtils {
         final int maxNumThreads = configuration.getMaxParallelism();
 
         return new AkkaConfigBuilder()
-                .add("akka {")
+                .add("pekko {")
                 .add("  actor {")
                 .add("    default-dispatcher {")
                 .add("      executor = fork-join-executor")
@@ -241,9 +241,9 @@ class AkkaUtils {
         final long retryGateClosedFor = configuration.getLong(AkkaOptions.RETRY_GATE_CLOSED_FOR);
 
         akkaConfigBuilder
-                .add("akka {")
+                .add("pekko {")
                 .add("  actor {")
-                .add("    provider = \"akka.remote.RemoteActorRefProvider\"")
+                .add("    provider = \"org.apache.pekko.remote.RemoteActorRefProvider\"")
                 .add("  }")
                 .add("  remote.artery.enabled = false")
                 .add("  remote.startup-timeout = " + startupTimeout)
@@ -256,10 +256,11 @@ class AkkaUtils {
                 .add("      heartbeat-interval = 1000 s")
                 .add("      threshold = 300")
                 .add("    }")
-                .add("    enabled-transports = [\"akka.remote.classic.netty.tcp\"]")
+                .add("    enabled-transports = [\"pekko.remote.classic.netty.tcp\"]")
                 .add("    netty {")
                 .add("      tcp {")
-                .add("        transport-class = \"akka.remote.transport.netty.NettyTransport\"")
+                .add(
+                        "        transport-class = \"org.apache.pekko.remote.transport.netty.NettyTransport\"")
                 .add("        port = " + externalPort)
                 .add("        bind-port = " + port)
                 .add("        connection-timeout = " + akkaTCPTimeout)
@@ -295,7 +296,7 @@ class AkkaUtils {
                         : "";
 
         akkaConfigBuilder
-                .add("akka {")
+                .add("pekko {")
                 .add("  remote.classic {")
                 .add("    netty {")
                 .add("      tcp {")
@@ -361,11 +362,11 @@ class AkkaUtils {
         final String sslEngineProviderName = CustomSSLEngineProvider.class.getCanonicalName();
 
         akkaConfigBuilder
-                .add("akka {")
+                .add("pekko {")
                 .add("  remote.classic {")
-                .add("    enabled-transports = [\"akka.remote.classic.netty.ssl\"]")
+                .add("    enabled-transports = [\"pekko.remote.classic.netty.ssl\"]")
                 .add("    netty {")
-                .add("      ssl = ${akka.remote.classic.netty.tcp}")
+                .add("      ssl = ${pekko.remote.classic.netty.tcp}")
                 .add("      ssl {")
                 .add("        enable-ssl = " + akkaEnableSSL)
                 .add("        ssl-engine-provider = " + sslEngineProviderName)

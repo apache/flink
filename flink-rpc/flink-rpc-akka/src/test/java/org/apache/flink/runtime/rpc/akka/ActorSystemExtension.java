@@ -21,7 +21,7 @@ package org.apache.flink.runtime.rpc.akka;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Preconditions;
 
-import akka.actor.ActorSystem;
+import org.apache.pekko.actor.ActorSystem;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;

@@ -25,8 +25,8 @@ import org.apache.flink.util.NetUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelException;
 
-import akka.actor.ActorSystem;
 import com.typesafe.config.Config;
+import org.apache.pekko.actor.ActorSystem;
 import org.slf4j.Logger;
 
 import java.io.IOException;

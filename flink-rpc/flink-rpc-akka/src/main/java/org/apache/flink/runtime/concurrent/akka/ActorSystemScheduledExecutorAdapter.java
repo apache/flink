@@ -22,8 +22,8 @@ import org.apache.flink.runtime.concurrent.ClassLoadingUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
-import akka.actor.ActorSystem;
-import akka.actor.Cancellable;
+import org.apache.pekko.actor.ActorSystem;
+import org.apache.pekko.actor.Cancellable;
 
 import javax.annotation.Nonnull;
 

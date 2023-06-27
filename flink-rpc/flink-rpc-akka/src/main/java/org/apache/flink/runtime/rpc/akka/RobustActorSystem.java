@@ -20,11 +20,11 @@ package org.apache.flink.runtime.rpc.akka;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.FatalExitExceptionHandler;
 
-import akka.actor.ActorSystemImpl;
-import akka.actor.BootstrapSetup;
-import akka.actor.setup.ActorSystemSetup;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import org.apache.pekko.actor.ActorSystemImpl;
+import org.apache.pekko.actor.BootstrapSetup;
+import org.apache.pekko.actor.setup.ActorSystemSetup;
 
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;

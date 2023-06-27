@@ -154,7 +154,7 @@ class AkkaUtilsTest {
         final Config akkaConfig =
                 AkkaUtils.getAkkaConfig(configuration, new HostAndPort(hostname, port));
 
-        assertThat(akkaConfig.getString("akka.remote.classic.netty.tcp.hostname"))
+        assertThat(akkaConfig.getString("pekko.remote.classic.netty.tcp.hostname"))
                 .isEqualTo(NetUtils.unresolvedHostToNormalizedString(hostname));
     }
 
@@ -163,7 +163,7 @@ class AkkaUtilsTest {
         final Config akkaConfig =
                 AkkaUtils.getAkkaConfig(new Configuration(), new HostAndPort("", 0));
 
-        final String hostname = akkaConfig.getString("akka.remote.classic.netty.tcp.hostname");
+        final String hostname = akkaConfig.getString("pekko.remote.classic.netty.tcp.hostname");
 
         assertThat(InetAddress.getByName(hostname).isLoopbackAddress()).isTrue();
     }
@@ -172,7 +172,7 @@ class AkkaUtilsTest {
     void getAkkaConfigDefaultsToForkJoinExecutor() {
         final Config akkaConfig = AkkaUtils.getAkkaConfig(new Configuration(), null);
 
-        assertThat(akkaConfig.getString("akka.actor.default-dispatcher.executor"))
+        assertThat(akkaConfig.getString("pekko.actor.default-dispatcher.executor"))
                 .isEqualTo("fork-join-executor");
     }
 
@@ -191,17 +191,17 @@ class AkkaUtilsTest {
                                 new RpcSystem.FixedThreadPoolExecutorConfiguration(
                                         minThreads, maxThreads, threadPriority)));
 
-        assertThat(akkaConfig.getString("akka.actor.default-dispatcher.executor"))
+        assertThat(akkaConfig.getString("pekko.actor.default-dispatcher.executor"))
                 .isEqualTo("thread-pool-executor");
-        assertThat(akkaConfig.getInt("akka.actor.default-dispatcher.thread-priority"))
+        assertThat(akkaConfig.getInt("pekko.actor.default-dispatcher.thread-priority"))
                 .isEqualTo(threadPriority);
         assertThat(
                         akkaConfig.getInt(
-                                "akka.actor.default-dispatcher.thread-pool-executor.core-pool-size-min"))
+                                "pekko.actor.default-dispatcher.thread-pool-executor.core-pool-size-min"))
                 .isEqualTo(minThreads);
         assertThat(
                         akkaConfig.getInt(
-                                "akka.actor.default-dispatcher.thread-pool-executor.core-pool-size-max"))
+                                "pekko.actor.default-dispatcher.thread-pool-executor.core-pool-size-max"))
                 .isEqualTo(maxThreads);
     }
 
@@ -212,7 +212,7 @@ class AkkaUtilsTest {
                 AkkaUtils.getAkkaConfig(
                         new Configuration(), new HostAndPort(ipv6AddressString, 1234));
 
-        assertThat(akkaConfig.getString("akka.remote.classic.netty.tcp.hostname"))
+        assertThat(akkaConfig.getString("pekko.remote.classic.netty.tcp.hostname"))
                 .isEqualTo(NetUtils.unresolvedHostToNormalizedString(ipv6AddressString));
     }
 
@@ -224,7 +224,7 @@ class AkkaUtilsTest {
         final Config akkaConfig =
                 AkkaUtils.getAkkaConfig(configuration, new HostAndPort("localhost", 31337));
 
-        assertThat(akkaConfig.getString("akka.remote.startup-timeout")).isEqualTo("1000ms");
+        assertThat(akkaConfig.getString("pekko.remote.startup-timeout")).isEqualTo("1000ms");
     }
 
     @Test
@@ -234,7 +234,7 @@ class AkkaUtilsTest {
 
         final Config akkaConfig =
                 AkkaUtils.getAkkaConfig(configuration, new HostAndPort("localhost", 31337));
-        final Config sslConfig = akkaConfig.getConfig("akka.remote.classic.netty.ssl");
+        final Config sslConfig = akkaConfig.getConfig("pekko.remote.classic.netty.ssl");
 
         assertThat(sslConfig.getString("ssl-engine-provider"))
                 .isEqualTo("org.apache.flink.runtime.rpc.akka.CustomSSLEngineProvider");
@@ -251,7 +251,7 @@ class AkkaUtilsTest {
 
         final Config akkaConfig =
                 AkkaUtils.getAkkaConfig(configuration, new HostAndPort("localhost", 31337));
-        final Config sslConfig = akkaConfig.getConfig("akka.remote.classic.netty.ssl");
+        final Config sslConfig = akkaConfig.getConfig("pekko.remote.classic.netty.ssl");
 
         assertThat(sslConfig.getString("ssl-engine-provider"))
                 .isEqualTo("org.apache.flink.runtime.rpc.akka.CustomSSLEngineProvider");

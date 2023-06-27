@@ -17,10 +17,10 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
-import akka.actor.AbstractExtensionId;
-import akka.actor.Address;
-import akka.actor.ExtendedActorSystem;
-import akka.actor.Extension;
+import org.apache.pekko.actor.AbstractExtensionId;
+import org.apache.pekko.actor.Address;
+import org.apache.pekko.actor.ExtendedActorSystem;
+import org.apache.pekko.actor.Extension;
 
 /**
  * {@link akka.actor.ActorSystem} {@link Extension} used to obtain the {@link Address} on which the

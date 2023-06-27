@@ -21,11 +21,11 @@ package org.apache.flink.runtime.rpc.akka;
 import org.apache.flink.runtime.rpc.exceptions.RecipientUnreachableException;
 import org.apache.flink.runtime.rpc.messages.Message;
 
-import akka.actor.AbstractActor;
-import akka.actor.DeadLetter;
-import akka.actor.Props;
-import akka.actor.Status;
-import akka.japi.pf.ReceiveBuilder;
+import org.apache.pekko.actor.AbstractActor;
+import org.apache.pekko.actor.DeadLetter;
+import org.apache.pekko.actor.Props;
+import org.apache.pekko.actor.Status;
+import org.apache.pekko.japi.pf.ReceiveBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

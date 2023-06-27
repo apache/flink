@@ -17,10 +17,10 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
-import akka.dispatch.DefaultDispatcherPrerequisites;
-import akka.dispatch.DispatcherConfigurator;
-import akka.dispatch.DispatcherPrerequisites;
 import com.typesafe.config.Config;
+import org.apache.pekko.dispatch.DefaultDispatcherPrerequisites;
+import org.apache.pekko.dispatch.DispatcherConfigurator;
+import org.apache.pekko.dispatch.DispatcherPrerequisites;
 
 /**
  * Akka dispatcher threads creates threads with configurable priority.

@@ -26,7 +26,7 @@ import org.apache.flink.runtime.rpc.messages.LocalFencedMessage;
 import org.apache.flink.runtime.rpc.messages.RemoteFencedMessage;
 import org.apache.flink.util.Preconditions;
 
-import akka.actor.ActorRef;
+import org.apache.pekko.actor.ActorRef;
 
 import javax.annotation.Nullable;
 
