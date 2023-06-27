@@ -18,19 +18,6 @@
 
 package org.apache.flink.runtime.dispatcher;
 
-import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
-import org.apache.commons.lang3.ObjectUtils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.operators.ResourceSpec;
@@ -39,6 +26,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.failure.FailureEnricher;
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobServer;
@@ -102,20 +90,23 @@ import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.TestingJobGraphStore;
 import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
-import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
+
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
+
 import org.assertj.core.api.Assertions;
-import org.assertj.core.api.ThrowableAssert;
 import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+
+import javax.annotation.Nonnull;
 
 import java.io.File;
 import java.io.IOException;
@@ -127,6 +118,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -144,7 +136,17 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
-import javax.annotation.Nonnull;
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.core.Is.is;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /** Test for the {@link Dispatcher} component. */
 public class DispatcherTest extends AbstractDispatcherTest {
@@ -243,65 +245,49 @@ public class DispatcherTest extends AbstractDispatcherTest {
                         new TestingJobMasterServiceLeadershipRunnerFactory());
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
+
+        final int numThreads = 5;
+        final CountDownLatch prepareLatch = new CountDownLatch(numThreads);
         final OneShotLatch startLatch = new OneShotLatch();
-        CountDownLatch completedSubmissionCounter = new CountDownLatch(2);
 
-        // give final access to the inner threads
-        final AtomicReference<Throwable> firstCatch = new AtomicReference<>();
-        final AtomicReference<Throwable> secondCatch = new AtomicReference<>();
-
-        Thread tFirstSubmission =
-                new Thread(
-                        () -> {
-                            try {
-                                startLatch.await();
-
-                                CompletableFuture<Acknowledge> firstSubmission =
-                                        dispatcherGateway.submitJob(jobGraph, TIMEOUT);
-                                firstCatch.set(
-                                        ThrowableAssert.catchThrowable(firstSubmission::join));
-                            } catch (Exception e) {
-                                throw new RuntimeException(e);
-                            } finally {
-                                completedSubmissionCounter.countDown();
-                            }
-                        });
-        Thread tSecondSubmission =
-                new Thread(
-                        () -> {
-                            try {
-                                startLatch.await();
-
-                                CompletableFuture<Acknowledge> secondSubmission =
-                                        dispatcherGateway.submitJob(jobGraph, TIMEOUT);
-                                secondCatch.set(
-                                        ThrowableAssert.catchThrowable(secondSubmission::join));
-                            } catch (Exception e) {
-                                throw new RuntimeException(e);
-                            } finally {
-                                completedSubmissionCounter.countDown();
-                            }
-                        });
+        final Collection<Throwable> exceptions = Collections.synchronizedList(new ArrayList<>());
+        final Collection<Thread> threads = new ArrayList<>();
+        for (int x = 0; x < numThreads; x++) {
+            threads.add(
+                    new Thread(
+                            () -> {
+                                try {
+                                    prepareLatch.countDown();
+                                    startLatch.awaitQuietly();
+                                    dispatcherGateway.submitJob(jobGraph, TIMEOUT).join();
+                                } catch (Throwable t) {
+                                    exceptions.add(t);
+                                }
+                            }));
+        }
 
         // start worker threads and trigger job submissions
-        tFirstSubmission.start();
-        tSecondSubmission.start();
+        threads.forEach(Thread::start);
+        prepareLatch.await();
         startLatch.trigger();
 
         // wait for the job submissions to happen
-        completedSubmissionCounter.await();
-
-        // only one throwable should've been thrown
-        Assertions.assertThat(firstCatch.get()).isNotEqualTo(secondCatch.get());
-
-        // we'd want one submission to fail with DuplicateJobSubmissionException
-        if (ObjectUtils.isNotEmpty(firstCatch.get())) {
-            Assertions.assertThat(firstCatch.get())
-                    .hasCauseInstanceOf(DuplicateJobSubmissionException.class);
-        } else { // second submission must've failed
-            Assertions.assertThat(secondCatch.get())
-                    .hasCauseInstanceOf(DuplicateJobSubmissionException.class);
+        for (Thread thread : threads) {
+            thread.join();
         }
+
+        // verify the job was actually submitted
+        FlinkAssertions.assertThatFuture(
+                        dispatcherGateway.requestJobStatus(jobGraph.getJobID(), TIMEOUT))
+                .eventuallySucceeds();
+
+        // verify that all but one submission failed as duplicates
+        Assertions.assertThat(exceptions)
+                .hasSize(numThreads - 1)
+                .allSatisfy(
+                        t ->
+                                Assertions.assertThat(t)
+                                        .hasCauseInstanceOf(DuplicateJobSubmissionException.class));
     }
 
     private void assertDuplicateJobSubmission() throws Exception {
