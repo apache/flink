@@ -94,7 +94,11 @@ import java.io.Serializable;
  * SourceContext#emitWatermark(Watermark)}.
  *
  * @param <T> The type of the elements produced by this source.
+ * @deprecated This interface will be removed in future versions. Use the new {@link
+ *     org.apache.flink.api.connector.source.Source} interface instead. NOTE: All sub-tasks from
+ *     FLINK-28045 must be closed before this API can be completely removed.
  */
+@Deprecated
 @Public
 public interface SourceFunction<T> extends Function, Serializable {
 
