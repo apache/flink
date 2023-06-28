@@ -47,7 +47,7 @@ public class TestSupportsStagingTableFactory implements DynamicTableSinkFactory 
 
     public static final String IDENTIFIER = "test-staging";
 
-    public static final List<String> jobStatusChangeProcess = new LinkedList<>();
+    public static final List<String> JOB_STATUS_CHANGE_PROCESS = new LinkedList<>();
 
     private static final ConfigOption<String> DATA_DIR =
             ConfigOptions.key("data-dir")
@@ -128,7 +128,7 @@ public class TestSupportsStagingTableFactory implements DynamicTableSinkFactory 
 
         @Override
         public StagedTable applyStaging(StagingContext context) {
-            jobStatusChangeProcess.clear();
+            JOB_STATUS_CHANGE_PROCESS.clear();
             stagedTable = new TestStagedTable(dataDir);
             return stagedTable;
         }
@@ -173,19 +173,19 @@ public class TestSupportsStagingTableFactory implements DynamicTableSinkFactory 
 
         @Override
         public void begin() {
-            jobStatusChangeProcess.add("begin");
+            JOB_STATUS_CHANGE_PROCESS.add("begin");
         }
 
         @Override
         public void commit() {
-            jobStatusChangeProcess.add("commit");
+            JOB_STATUS_CHANGE_PROCESS.add("commit");
             // Change hidden file to official file
             new File(dataDir, "_data").renameTo(new File(dataDir, "data"));
         }
 
         @Override
         public void abort() {
-            jobStatusChangeProcess.add("abort");
+            JOB_STATUS_CHANGE_PROCESS.add("abort");
         }
     }
 }

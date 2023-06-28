@@ -67,8 +67,8 @@ public class StagedTableITCase extends BatchTestBase {
         assertThat(file).exists();
         assertThat(file).isFile();
         assertThat(FileUtils.readFileUtf8(file)).isEqualTo("1,ZM");
-        assertThat(TestSupportsStagingTableFactory.jobStatusChangeProcess).hasSize(2);
-        assertThat(TestSupportsStagingTableFactory.jobStatusChangeProcess)
+        assertThat(TestSupportsStagingTableFactory.JOB_STATUS_CHANGE_PROCESS).hasSize(2);
+        assertThat(TestSupportsStagingTableFactory.JOB_STATUS_CHANGE_PROCESS)
                 .contains("begin", "commit");
     }
 }
