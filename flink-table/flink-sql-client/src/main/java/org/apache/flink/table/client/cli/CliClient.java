@@ -32,6 +32,7 @@ import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
 import org.jline.reader.MaskingCallback;
 import org.jline.reader.UserInterruptException;
+import org.jline.reader.impl.LineReaderImpl;
 import org.jline.terminal.Terminal;
 import org.jline.utils.AttributedStringBuilder;
 import org.jline.utils.AttributedStyle;
@@ -63,6 +64,7 @@ public class CliClient implements AutoCloseable {
                     .style(AttributedStyle.DEFAULT)
                     .append("> ")
                     .toAnsi();
+    private static final String SHOW_LINE_NUMBERS_PATTERN = "%N%M> ";
 
     private final Executor executor;
 
@@ -109,9 +111,14 @@ public class CliClient implements AutoCloseable {
 
     /** Opens the interactive CLI shell. */
     public void executeInInteractiveMode() {
+        executeInInteractiveMode(null);
+    }
+
+    @VisibleForTesting
+    void executeInInteractiveMode(LineReader lineReader) {
         try {
             terminal = terminalFactory.get();
-            executeInteractive();
+            executeInteractive(lineReader);
         } finally {
             closeTerminal();
         }
@@ -157,7 +164,7 @@ public class CliClient implements AutoCloseable {
      * Execute statement from the user input and prints status information and/or errors on the
      * terminal.
      */
-    private void executeInteractive() {
+    private void executeInteractive(LineReader inputLineReader) {
         // make space from previous output and test the writer
         terminal.writer().println();
         terminal.writer().flush();
@@ -165,7 +172,10 @@ public class CliClient implements AutoCloseable {
         // print welcome
         terminal.writer().append(CliStrings.MESSAGE_WELCOME);
 
-        LineReader lineReader = createLineReader(terminal, ExecutionMode.INTERACTIVE_EXECUTION);
+        LineReader lineReader =
+                inputLineReader == null
+                        ? createLineReader(terminal, ExecutionMode.INTERACTIVE_EXECUTION)
+                        : inputLineReader;
         getAndExecuteStatements(lineReader, false);
     }
 
@@ -182,6 +192,11 @@ public class CliClient implements AutoCloseable {
             try {
                 // read a statement from terminal and parse it
                 line = lineReader.readLine(NEWLINE_PROMPT, null, inputTransformer, null);
+                lineReader.setVariable(
+                        LineReader.SECONDARY_PROMPT_PATTERN,
+                        (executor.getSessionConfig().get(SqlClientOptions.DISPLAY_SHOW_LINE_NUMBERS)
+                                ? SHOW_LINE_NUMBERS_PATTERN
+                                : LineReaderImpl.DEFAULT_SECONDARY_PROMPT_PATTERN));
                 if (line.trim().isEmpty()) {
                     continue;
                 }
