@@ -25,7 +25,7 @@ import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
+import org.apache.flink.runtime.state.heap.AbstractHeapPriorityQueueElement;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.MathUtils;
 
@@ -343,17 +343,15 @@ public abstract class InternalPriorityQueueTestBase {
     protected abstract boolean testSetSemanticsAgainstDuplicateElements();
 
     /** Payload for usage in the test. */
-    protected static class TestElement
-            implements HeapPriorityQueueElement, Keyed<Long>, PriorityComparable<TestElement> {
+    protected static class TestElement extends AbstractHeapPriorityQueueElement
+            implements Keyed<Long>, PriorityComparable<TestElement> {
 
         private final long key;
         private final long priority;
-        private int internalIndex;
 
         public TestElement(long key, long priority) {
             this.key = key;
             this.priority = priority;
-            this.internalIndex = NOT_CONTAINED;
         }
 
         @Override
@@ -367,16 +365,6 @@ public abstract class InternalPriorityQueueTestBase {
 
         public long getPriority() {
             return priority;
-        }
-
-        @Override
-        public int getInternalIndex() {
-            return internalIndex;
-        }
-
-        @Override
-        public void setInternalIndex(int newIndex) {
-            internalIndex = newIndex;
         }
 
         @Override
