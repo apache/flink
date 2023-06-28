@@ -55,6 +55,11 @@ under the License.
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-guava</artifactId>
+			<version>30.1.1-jre-16.1</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-avro</artifactId>
 			<version>${project.version}</version>
 		</dependency>
