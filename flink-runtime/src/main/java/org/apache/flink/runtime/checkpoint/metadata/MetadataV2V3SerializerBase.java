@@ -709,7 +709,7 @@ public abstract class MetadataV2V3SerializerBase {
     static StreamStateHandle deserializeStreamStateHandle(
             DataInputStream dis, @Nullable DeserializationContext context) throws IOException {
 
-        final int type = dis.read();
+        final byte type = dis.readByte();
         if (NULL_HANDLE == type) {
             return null;
         } else if (FILE_STREAM_STATE_HANDLE == type) {
