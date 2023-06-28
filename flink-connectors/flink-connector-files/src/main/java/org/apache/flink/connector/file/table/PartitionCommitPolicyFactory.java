@@ -73,7 +73,7 @@ public class PartitionCommitPolicyFactory implements Serializable {
                                         if (!CollectionUtil.isNullOrEmpty(parameters)) {
                                             String[] paramStrings =
                                                     parameters.toArray(
-                                                            new String[parameters.size()]);
+                                                            new String[0]);
                                             Class<?>[] classes = new Class<?>[parameters.size()];
                                             for (int i = 0; i < parameters.size(); i++) {
                                                 classes[i] = String.class;
