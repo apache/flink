@@ -38,6 +38,10 @@ import org.apache.flink.runtime.source.event.ReportedWatermarkEvent;
 import org.apache.flink.runtime.source.event.RequestSplitEvent;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
 import org.apache.flink.runtime.source.event.WatermarkAlignmentEvent;
+import org.apache.flink.runtime.state.PriorityComparable;
+import org.apache.flink.runtime.state.PriorityComparator;
+import org.apache.flink.runtime.state.heap.AbstractHeapPriorityQueueElement;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueue;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TemporaryClassLoaderContext;
@@ -46,6 +50,7 @@ import org.apache.flink.util.function.ThrowingRunnable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.ByteArrayInputStream;
@@ -53,7 +58,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -642,9 +646,47 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
         }
     }
 
-    private static class WatermarkAggregator<T> {
-        private final Map<T, Watermark> watermarks = new HashMap<>();
-        private Watermark aggregatedWatermark = new Watermark(Long.MIN_VALUE);
+    /** The watermark element for {@link HeapPriorityQueue}. */
+    public static class WatermarkElement extends AbstractHeapPriorityQueueElement
+            implements PriorityComparable<WatermarkElement> {
+
+        private final Watermark watermark;
+
+        public WatermarkElement(Watermark watermark) {
+            this.watermark = watermark;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o instanceof WatermarkElement) {
+                return watermark.equals(((WatermarkElement) o).watermark);
+            }
+            return false;
+        }
+
+        @Override
+        public int hashCode() {
+            return watermark.hashCode();
+        }
+
+        @Override
+        public int comparePriorityTo(@Nonnull WatermarkElement other) {
+            return Long.compare(watermark.getTimestamp(), other.watermark.getTimestamp());
+        }
+    }
+
+    /** The aggregated watermark is the smallest watermark of all keys. */
+    static class WatermarkAggregator<T> {
+
+        private final Map<T, WatermarkElement> watermarks = new HashMap<>();
+
+        private final HeapPriorityQueue<WatermarkElement> orderedWatermarks =
+                new HeapPriorityQueue<>(PriorityComparator.forPriorityComparableObjects(), 10);
+
+        private static final Watermark DEFAULT_WATERMARK = new Watermark(Long.MIN_VALUE);
 
         /**
          * Update the {@link Watermark} for the given {@code key)}.
@@ -653,17 +695,20 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
          *     Optional.empty()} otherwise.
          */
         public Optional<Watermark> aggregate(T key, Watermark watermark) {
-            watermarks.put(key, watermark);
-            Watermark newMinimum =
-                    watermarks.values().stream()
-                            .min(Comparator.comparingLong(Watermark::getTimestamp))
-                            .orElseThrow(IllegalStateException::new);
-            if (newMinimum.equals(aggregatedWatermark)) {
-                return Optional.empty();
-            } else {
-                aggregatedWatermark = newMinimum;
-                return Optional.of(aggregatedWatermark);
+            Watermark oldAggregatedWatermark = getAggregatedWatermark();
+
+            WatermarkElement watermarkElement = new WatermarkElement(watermark);
+            WatermarkElement oldWatermarkElement = watermarks.put(key, watermarkElement);
+            if (oldWatermarkElement != null) {
+                orderedWatermarks.remove(oldWatermarkElement);
             }
+            orderedWatermarks.add(watermarkElement);
+
+            Watermark newAggregatedWatermark = getAggregatedWatermark();
+            if (newAggregatedWatermark.equals(oldAggregatedWatermark)) {
+                return Optional.empty();
+            }
+            return Optional.of(newAggregatedWatermark);
         }
 
         public Set<T> keySet() {
@@ -671,7 +716,10 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
         }
 
         public Watermark getAggregatedWatermark() {
-            return aggregatedWatermark;
+            WatermarkElement aggregatedWatermarkElement = orderedWatermarks.peek();
+            return aggregatedWatermarkElement == null
+                    ? DEFAULT_WATERMARK
+                    : aggregatedWatermarkElement.watermark;
         }
     }
 }
