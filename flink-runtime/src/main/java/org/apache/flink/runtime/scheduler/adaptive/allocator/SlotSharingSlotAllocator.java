@@ -108,6 +108,14 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
                 vertices, JobInformation.VertexInformation::getParallelism, Math::max);
     }
 
+    private static Map<SlotSharingGroupId, Integer> getParallelismRangeForSlotSharingGroups(
+            Iterable<JobInformation.VertexInformation> vertices) {
+        return getPerSlotSharingGroups(
+                vertices,
+                vertex -> vertex.getParallelism() - vertex.getMinParallelism(),
+                Math::max);
+    }
+
     @Override
     public Optional<VertexParallelism> determineParallelism(
             JobInformation jobInformation, Collection<? extends SlotInfo> freeSlots) {
@@ -184,20 +192,33 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
         int numUnassignedSlotSharingGroups = jobInformation.getSlotSharingGroups().size();
         int numMinSlotsRequiredByRemainingGroups = minRequiredSlots;
 
+        Map<SlotSharingGroupId, Integer> maxParallelismForSlotSharingGroups =
+                getMaxParallelismForSlotSharingGroups(jobInformation.getVertices());
+
         final Map<SlotSharingGroupId, Integer> slotSharingGroupParallelism = new HashMap<>();
 
-        for (Map.Entry<SlotSharingGroupId, Integer> slotSharingGroup :
-                sortSlotSharingGroupsByDesiredParallelism(jobInformation)) {
-            final int minParallelism = minSlotsPerSlotSharingGroup.get(slotSharingGroup.getKey());
+        for (SlotSharingGroupId slotSharingGroup :
+                sortSlotSharingGroupsByHighestParallelismRange(jobInformation)) {
+            final int minParallelism = minSlotsPerSlotSharingGroup.get(slotSharingGroup);
+
+            // if we reached this point we know we have more slots than we need to fulfill the
+            // minimum requirements for each slot sharing group.
+            // this means that a certain number of slots are already implicitly reserved (to fulfill
+            // the minimum requirement of other groups); so we only need to distribute the remaining
+            // "optional" slots while only accounting for the requirements beyond the minimum
+
+            // the number of slots we can use beyond the minimum
+            final int maxOptionalSlots =
+                    maxParallelismForSlotSharingGroups.get(slotSharingGroup) - minParallelism;
+            // the number of slots that are not implicitly reserved for minimum requirements
+            final int freeOptionalSlots = numUnassignedSlots - numMinSlotsRequiredByRemainingGroups;
+            // the number of slots this group is allowed to use beyond the minimum requirements
+            final int optionalSlotShare = freeOptionalSlots / numUnassignedSlotSharingGroups;
 
             final int groupParallelism =
-                    minParallelism
-                            + Math.min(
-                                    slotSharingGroup.getValue() - minParallelism,
-                                    (numUnassignedSlots - numMinSlotsRequiredByRemainingGroups)
-                                            / numUnassignedSlotSharingGroups);
+                    minParallelism + Math.min(maxOptionalSlots, optionalSlotShare);
 
-            slotSharingGroupParallelism.put(slotSharingGroup.getKey(), groupParallelism);
+            slotSharingGroupParallelism.put(slotSharingGroup, groupParallelism);
 
             numMinSlotsRequiredByRemainingGroups -= minParallelism;
             numUnassignedSlots -= groupParallelism;
@@ -207,12 +228,13 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
         return slotSharingGroupParallelism;
     }
 
-    private static List<Map.Entry<SlotSharingGroupId, Integer>>
-            sortSlotSharingGroupsByDesiredParallelism(JobInformation jobInformation) {
+    private static List<SlotSharingGroupId> sortSlotSharingGroupsByHighestParallelismRange(
+            JobInformation jobInformation) {
 
-        return getMaxParallelismForSlotSharingGroups(jobInformation.getVertices()).entrySet()
+        return getParallelismRangeForSlotSharingGroups(jobInformation.getVertices()).entrySet()
                 .stream()
                 .sorted(Comparator.comparingInt(Map.Entry::getValue))
+                .map(Map.Entry::getKey)
                 .collect(Collectors.toList());
     }
 

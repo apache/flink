@@ -188,6 +188,115 @@ public class SlotSharingSlotAllocatorTest extends TestLogger {
     }
 
     @Test
+    public void testDetermineParallelismWithPartiallyEqualLowerUpperBound() {
+        final SlotSharingSlotAllocator slotAllocator =
+                SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
+                        TEST_RESERVE_SLOT_FUNCTION,
+                        TEST_FREE_SLOT_FUNCTION,
+                        TEST_IS_SLOT_FREE_FUNCTION);
+        final JobInformation.VertexInformation vertex1 =
+                new TestVertexInformation(new JobVertexID(), 1, 8, new SlotSharingGroup());
+        final JobInformation.VertexInformation vertex2 =
+                new TestVertexInformation(new JobVertexID(), 10, 10, new SlotSharingGroup());
+
+        final JobInformation jobInformation =
+                new TestJobInformation(Arrays.asList(vertex1, vertex2));
+
+        final Optional<VertexParallelism> vertexParallelism =
+                slotAllocator.determineParallelism(jobInformation, getSlots(13));
+
+        assertThat(vertexParallelism)
+                .hasValueSatisfying(
+                        vertexParallelism1 -> {
+                            assertThat(vertexParallelism1.getParallelism(vertex1.getJobVertexID()))
+                                    .isEqualTo(3);
+                            assertThat(vertexParallelism1.getParallelism(vertex2.getJobVertexID()))
+                                    .isEqualTo(10);
+                        });
+    }
+
+    @Test
+    public void testDetermineParallelismWithLowerBoundsInsufficientSlots() {
+        final SlotSharingSlotAllocator slotAllocator =
+                SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
+                        TEST_RESERVE_SLOT_FUNCTION,
+                        TEST_FREE_SLOT_FUNCTION,
+                        TEST_IS_SLOT_FREE_FUNCTION);
+        final JobInformation.VertexInformation vertex1 =
+                new TestVertexInformation(new JobVertexID(), 4, 4, new SlotSharingGroup());
+        final JobInformation.VertexInformation vertex2 =
+                new TestVertexInformation(new JobVertexID(), 10, 10, new SlotSharingGroup());
+
+        final JobInformation jobInformation =
+                new TestJobInformation(Arrays.asList(vertex1, vertex2));
+
+        final Optional<VertexParallelism> vertexParallelism =
+                slotAllocator.determineParallelism(jobInformation, getSlots(3));
+
+        assertThat(vertexParallelism).isNotPresent();
+    }
+
+    @Test
+    public void testDetermineParallelismWithAllEqualLowerUpperBoundFreSlots() {
+        final SlotSharingSlotAllocator slotAllocator =
+                SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
+                        TEST_RESERVE_SLOT_FUNCTION,
+                        TEST_FREE_SLOT_FUNCTION,
+                        TEST_IS_SLOT_FREE_FUNCTION);
+        final JobInformation.VertexInformation vertex1 =
+                new TestVertexInformation(new JobVertexID(), 4, 10, new SlotSharingGroup());
+        final JobInformation.VertexInformation vertex2 =
+                new TestVertexInformation(new JobVertexID(), 4, 10, new SlotSharingGroup());
+
+        final JobInformation jobInformation =
+                new TestJobInformation(Arrays.asList(vertex1, vertex2));
+
+        final Optional<VertexParallelism> vertexParallelism =
+                slotAllocator.determineParallelism(
+                        jobInformation,
+                        getSlots(vertex1.getMinParallelism() + vertex2.getMinParallelism()));
+
+        assertThat(vertexParallelism)
+                .hasValueSatisfying(
+                        vertexParallelism1 -> {
+                            assertThat(vertexParallelism1.getParallelism(vertex1.getJobVertexID()))
+                                    .isEqualTo(vertex1.getMinParallelism());
+                            assertThat(vertexParallelism1.getParallelism(vertex2.getJobVertexID()))
+                                    .isEqualTo(vertex2.getMinParallelism());
+                        });
+    }
+
+    @Test
+    public void testDetermineParallelismWithAllEqualLowerUpperBoundManySlots() {
+        final SlotSharingSlotAllocator slotAllocator =
+                SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
+                        TEST_RESERVE_SLOT_FUNCTION,
+                        TEST_FREE_SLOT_FUNCTION,
+                        TEST_IS_SLOT_FREE_FUNCTION);
+        final JobInformation.VertexInformation vertex1 =
+                new TestVertexInformation(new JobVertexID(), 4, 4, new SlotSharingGroup());
+        final JobInformation.VertexInformation vertex2 =
+                new TestVertexInformation(new JobVertexID(), 10, 10, new SlotSharingGroup());
+
+        final JobInformation jobInformation =
+                new TestJobInformation(Arrays.asList(vertex1, vertex2));
+
+        final Optional<VertexParallelism> vertexParallelism =
+                slotAllocator.determineParallelism(
+                        jobInformation,
+                        getSlots(vertex1.getMinParallelism() + vertex2.getMinParallelism() + 12));
+
+        assertThat(vertexParallelism)
+                .hasValueSatisfying(
+                        vertexParallelism1 -> {
+                            assertThat(vertexParallelism1.getParallelism(vertex1.getJobVertexID()))
+                                    .isEqualTo(vertex1.getMinParallelism());
+                            assertThat(vertexParallelism1.getParallelism(vertex2.getJobVertexID()))
+                                    .isEqualTo(vertex2.getMinParallelism());
+                        });
+    }
+
+    @Test
     public void testReserveAvailableResources() {
         final SlotSharingSlotAllocator slotAllocator =
                 SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
