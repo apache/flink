@@ -15,9 +15,8 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.concurrent.akka;
+package org.apache.flink.runtime.concurrent;
 
-import org.apache.flink.runtime.concurrent.ClassLoadingUtils;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.function.SupplierWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
