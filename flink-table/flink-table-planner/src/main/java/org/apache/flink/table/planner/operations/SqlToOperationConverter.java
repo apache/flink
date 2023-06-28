@@ -213,6 +213,7 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlUpdate;
 import org.apache.calcite.sql.SqlUtil;
+import org.apache.calcite.sql.dialect.AnsiSqlDialect;
 import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.util.NlsString;
@@ -1565,8 +1566,10 @@ public class SqlToOperationConverter {
 
     private String getQuotedSqlString(SqlNode sqlNode) {
         SqlParser.Config parserConfig = flinkPlanner.config().getParserConfig();
+        // The default implementation of SqlDialect suppresses all table hints since CALCITE-4640,
+        // so we should use AnsiSqlDialect instead to reserve table hints.
         SqlDialect dialect =
-                new CalciteSqlDialect(
+                new AnsiSqlDialect(
                         SqlDialect.EMPTY_CONTEXT
                                 .withQuotedCasing(parserConfig.unquotedCasing())
                                 .withConformance(parserConfig.conformance())
