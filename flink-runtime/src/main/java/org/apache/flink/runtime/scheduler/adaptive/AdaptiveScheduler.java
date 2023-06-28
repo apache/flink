@@ -1160,14 +1160,12 @@ public class AdaptiveScheduler
         final Optional<VertexParallelism> maybeNewParallelism =
                 slotAllocator.determineParallelism(
                         jobInformation, declarativeSlotPool.getAllSlotsInformation());
-        return !maybeNewParallelism.isPresent()
-                || maybeNewParallelism
-                        .filter(
-                                vertexParallelism ->
-                                        rescalingController.shouldRescale(
-                                                getCurrentParallelism(executionGraph),
-                                                vertexParallelism))
-                        .isPresent();
+        return maybeNewParallelism
+                .filter(
+                        vertexParallelism ->
+                                rescalingController.shouldRescale(
+                                        getCurrentParallelism(executionGraph), vertexParallelism))
+                .isPresent();
     }
 
     private static VertexParallelism getCurrentParallelism(ExecutionGraph executionGraph) {

@@ -1141,7 +1141,7 @@ public class AdaptiveSchedulerTest {
     }
 
     @Test
-    void testRequirementLowerBoundIncreaseBeyondCurrentParallelismAttemptsImmediateRescale()
+    void testRequirementLowerBoundIncreaseBeyondCurrentParallelismKeepsJobRunning()
             throws Exception {
         final JobGraph jobGraph = createJobGraph();
 
@@ -1161,13 +1161,17 @@ public class AdaptiveSchedulerTest {
         int scaledUpParallelism = PARALLELISM * 10;
         JobResourceRequirements newJobResourceRequirements =
                 createRequirementsWithEqualLowerAndUpperParallelism(scaledUpParallelism);
-        singleThreadMainThreadExecutor.execute(
-                () -> scheduler.updateJobResourceRequirements(newJobResourceRequirements));
 
-        // the job will fail because not enough slots are available
-        FlinkAssertions.assertThatFuture(scheduler.getJobTerminationFuture())
-                .eventuallySucceeds()
-                .isEqualTo(JobStatus.FAILED);
+        FlinkAssertions.assertThatFuture(
+                        CompletableFuture.runAsync(
+                                () -> {
+                                    final State originalState = scheduler.getState();
+                                    scheduler.updateJobResourceRequirements(
+                                            newJobResourceRequirements);
+                                    assertThat(scheduler.getState()).isSameAs(originalState);
+                                },
+                                singleThreadMainThreadExecutor))
+                .eventuallySucceeds();
     }
 
     @Test
