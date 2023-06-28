@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.memory;
+package org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.disk;
 
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.PartitionFileReader;
@@ -33,42 +33,48 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierProd
 
 import java.util.List;
 
-/** The implementation of {@link TierFactory} for memory tier. */
-public class MemoryTierFactory implements TierFactory {
+/** The implementation of {@link TierFactory} for disk tier. */
+public class DiskTierFactory implements TierFactory {
 
-    private final int segmentSizeBytes;
+    private final int numBytesPerSegment;
 
     private final int bufferSizeBytes;
 
-    public MemoryTierFactory(int segmentSizeBytes, int bufferSizeBytes) {
-        this.segmentSizeBytes = segmentSizeBytes;
+    private final float minReservedDiskSpaceFraction;
+
+    public DiskTierFactory(
+            int numBytesPerSegment, int bufferSizeBytes, float minReservedDiskSpaceFraction) {
+        this.numBytesPerSegment = numBytesPerSegment;
         this.bufferSizeBytes = bufferSizeBytes;
+        this.minReservedDiskSpaceFraction = minReservedDiskSpaceFraction;
     }
 
     @Override
-    public TierMasterAgent createMasterAgent(
-            TieredStorageResourceRegistry tieredStorageResourceRegistry) {
+    public TierMasterAgent createMasterAgent(TieredStorageResourceRegistry resourceRegistry) {
         return NoOpMasterAgent.INSTANCE;
     }
 
     @Override
     public TierProducerAgent createProducerAgent(
             int numSubpartitions,
-            TieredStoragePartitionId partitionID,
+            TieredStoragePartitionId partitionId,
             String dataFileBasePath,
             boolean isBroadcastOnly,
             PartitionFileWriter partitionFileWriter,
             PartitionFileReader partitionFileReader,
-            TieredStorageMemoryManager memoryManager,
+            TieredStorageMemoryManager storageMemoryManager,
             TieredStorageNettyService nettyService,
             TieredStorageResourceRegistry resourceRegistry) {
-        return new MemoryTierProducerAgent(
-                partitionID,
+        return new DiskTierProducerAgent(
+                partitionId,
                 numSubpartitions,
+                numBytesPerSegment,
                 bufferSizeBytes,
-                segmentSizeBytes,
+                dataFileBasePath,
+                minReservedDiskSpaceFraction,
                 isBroadcastOnly,
-                memoryManager,
+                partitionFileWriter,
+                storageMemoryManager,
                 nettyService,
                 resourceRegistry);
     }
@@ -77,6 +83,7 @@ public class MemoryTierFactory implements TierFactory {
     public TierConsumerAgent createConsumerAgent(
             List<TieredStorageConsumerSpec> tieredStorageConsumerSpecs,
             TieredStorageNettyService nettyService) {
-        return new MemoryTierConsumerAgent(tieredStorageConsumerSpecs, nettyService);
+        // TODO, create the disk tier consumer agent.
+        return null;
     }
 }
