@@ -287,7 +287,7 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
 
         // interrupt any outstanding events
         final List<Runnable> outstandingEventHandlingCalls =
-                Preconditions.checkNotNull(leadershipOperationExecutor).shutdownNow();
+                leadershipOperationExecutor.shutdownNow();
         if (!outstandingEventHandlingCalls.isEmpty()) {
             LOG.debug(
                     "The DefaultLeaderElectionService was closed with {} event(s) still not being processed. No further action necessary.",
