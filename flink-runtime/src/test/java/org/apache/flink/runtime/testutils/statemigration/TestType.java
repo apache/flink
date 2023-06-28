@@ -24,7 +24,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.Keyed;
 import org.apache.flink.runtime.state.PriorityComparable;
-import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
+import org.apache.flink.runtime.state.heap.AbstractHeapPriorityQueueElement;
 
 import org.junit.Assert;
 
@@ -38,10 +38,8 @@ import java.util.Objects;
  *
  * <p>This is implemented so that the type can also be used as keyed priority queue state.
  */
-public class TestType
-        implements HeapPriorityQueueElement, PriorityComparable<TestType>, Keyed<String> {
-
-    private int index;
+public class TestType extends AbstractHeapPriorityQueueElement
+        implements PriorityComparable<TestType>, Keyed<String> {
 
     private final int value;
     private final String key;
@@ -63,16 +61,6 @@ public class TestType
     @Override
     public int comparePriorityTo(@Nonnull TestType other) {
         return Integer.compare(value, other.value);
-    }
-
-    @Override
-    public int getInternalIndex() {
-        return index;
-    }
-
-    @Override
-    public void setInternalIndex(int newIndex) {
-        this.index = newIndex;
     }
 
     @Override
