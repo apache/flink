@@ -31,6 +31,7 @@ import static org.junit.Assert.assertTrue;
 public class BloomFilterTest {
 
     private static BloomFilter bloomFilter;
+    private static BloomFilter bloomFilter2;
     private static final int INPUT_SIZE = 1024;
     private static final double FALSE_POSITIVE_PROBABILITY = 0.05;
 
@@ -42,6 +43,10 @@ public class BloomFilterTest {
         MemorySegment memorySegment = MemorySegmentFactory.allocateUnpooledSegment(byteSize);
         bloomFilter = new BloomFilter(INPUT_SIZE, byteSize);
         bloomFilter.setBitsLocation(memorySegment, 0);
+
+        MemorySegment memorySegment2 = MemorySegmentFactory.allocateUnpooledSegment(byteSize);
+        bloomFilter2 = new BloomFilter(INPUT_SIZE, byteSize);
+        bloomFilter2.setBitsLocation(memorySegment2, 0);
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -167,5 +172,107 @@ public class BloomFilterTest {
         assertTrue(bloomFilter.testHash(val3));
         assertTrue(bloomFilter.testHash(val4));
         assertTrue(bloomFilter.testHash(val5));
+    }
+
+    @Test
+    public void testBloomFilterSerDe() {
+        bloomFilter.reset();
+        int val1 = "val1".hashCode();
+        int val2 = "val2".hashCode();
+        int val3 = "val3".hashCode();
+        int val4 = "val4".hashCode();
+        int val5 = "val5".hashCode();
+
+        assertFalse(bloomFilter.testHash(val1));
+        assertFalse(bloomFilter.testHash(val2));
+        assertFalse(bloomFilter.testHash(val3));
+        assertFalse(bloomFilter.testHash(val4));
+        assertFalse(bloomFilter.testHash(val5));
+
+        // add element
+        bloomFilter.addHash(val1);
+        bloomFilter.addHash(val2);
+        bloomFilter.addHash(val3);
+        bloomFilter.addHash(val4);
+        bloomFilter.addHash(val5);
+
+        // test exists before merge
+        assertTrue(bloomFilter.testHash(val1));
+        assertTrue(bloomFilter.testHash(val2));
+        assertTrue(bloomFilter.testHash(val3));
+        assertTrue(bloomFilter.testHash(val4));
+        assertTrue(bloomFilter.testHash(val5));
+
+        // Serialize bloomFilter
+        byte[] serBytes = BloomFilter.toBytes(bloomFilter);
+        // Deserialize bloomFilter
+        BloomFilter deBloomFilter = BloomFilter.fromBytes(serBytes);
+
+        // test exists after serialization and deserialization
+        assertTrue(deBloomFilter.testHash(val1));
+        assertTrue(deBloomFilter.testHash(val2));
+        assertTrue(deBloomFilter.testHash(val3));
+        assertTrue(deBloomFilter.testHash(val4));
+        assertTrue(deBloomFilter.testHash(val5));
+    }
+
+    @Test
+    public void testSerializedBloomFilterMerge() {
+        bloomFilter.reset();
+        bloomFilter2.reset();
+
+        int val1 = "val1".hashCode();
+        int val2 = "val2".hashCode();
+        int val3 = "val3".hashCode();
+        int val4 = "val4".hashCode();
+        int val5 = "val5".hashCode();
+
+        assertFalse(bloomFilter.testHash(val1));
+        assertFalse(bloomFilter.testHash(val2));
+        assertFalse(bloomFilter.testHash(val3));
+        assertFalse(bloomFilter.testHash(val4));
+        assertFalse(bloomFilter.testHash(val5));
+
+        assertFalse(bloomFilter2.testHash(val1));
+        assertFalse(bloomFilter2.testHash(val2));
+        assertFalse(bloomFilter2.testHash(val3));
+        assertFalse(bloomFilter2.testHash(val4));
+        assertFalse(bloomFilter2.testHash(val5));
+
+        // add element
+        bloomFilter.addHash(val1);
+        bloomFilter.addHash(val2);
+
+        bloomFilter2.addHash(val3);
+        bloomFilter2.addHash(val4);
+        bloomFilter2.addHash(val5);
+
+        // test exists and not-exists before serialization and merge
+        assertTrue(bloomFilter.testHash(val1));
+        assertTrue(bloomFilter.testHash(val2));
+        assertFalse(bloomFilter.testHash(val3));
+        assertFalse(bloomFilter.testHash(val4));
+        assertFalse(bloomFilter.testHash(val5));
+
+        assertFalse(bloomFilter2.testHash(val1));
+        assertFalse(bloomFilter2.testHash(val2));
+        assertTrue(bloomFilter2.testHash(val3));
+        assertTrue(bloomFilter2.testHash(val4));
+        assertTrue(bloomFilter2.testHash(val5));
+
+        // serialize bloomFilter and bloomFilter2
+        byte[] bytes = BloomFilter.toBytes(bloomFilter);
+        byte[] bytes2 = BloomFilter.toBytes(bloomFilter2);
+
+        // merge serialized bloomFilter2 to bloomFilter directly
+        byte[] mergedBytes = BloomFilter.mergeSerializedBloomFilters(bytes, bytes2);
+        BloomFilter mergedBloomFilter = BloomFilter.fromBytes(mergedBytes);
+
+        // test all exists in merged bloomFilter
+        assertTrue(mergedBloomFilter.testHash(val1));
+        assertTrue(mergedBloomFilter.testHash(val2));
+        assertTrue(mergedBloomFilter.testHash(val3));
+        assertTrue(mergedBloomFilter.testHash(val4));
+        assertTrue(mergedBloomFilter.testHash(val5));
     }
 }
