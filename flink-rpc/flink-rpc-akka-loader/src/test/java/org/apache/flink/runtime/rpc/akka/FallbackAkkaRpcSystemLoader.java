@@ -19,6 +19,7 @@ package org.apache.flink.runtime.rpc.akka;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.classloading.SubmoduleClassLoader;
+import org.apache.flink.runtime.rpc.CleanupOnCloseRpcSystem;
 import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.rpc.RpcSystemLoader;
 import org.apache.flink.runtime.rpc.exceptions.RpcLoaderException;
