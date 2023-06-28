@@ -47,6 +47,7 @@ public class TestCustomCommitPolicy implements PartitionCommitPolicy {
     @Override
     public void commit(PartitionCommitPolicy.Context context) throws Exception {
         TestCustomCommitPolicy.committedPartitionPaths.add(context.partitionPath().getPath());
+        TestCustomCommitPolicy.committedPartitionPaths.add(param1 + param2);
     }
 
     static Set<String> getCommittedPartitionPathsAndReset() {

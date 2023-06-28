@@ -20,6 +20,7 @@ package org.apache.flink.connector.file.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.util.CollectionUtil;
 
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
@@ -69,7 +70,7 @@ public class PartitionCommitPolicyFactory implements Serializable {
                                             successFileName, fsSupplier.get());
                                 case PartitionCommitPolicy.CUSTOM:
                                     try {
-                                        if (parameters != null && !parameters.isEmpty()) {
+                                        if (!CollectionUtil.isNullOrEmpty(parameters)) {
                                             String[] paramStrings =
                                                     parameters.toArray(
                                                             new String[parameters.size()]);
@@ -80,7 +81,7 @@ public class PartitionCommitPolicyFactory implements Serializable {
                                             return (PartitionCommitPolicy)
                                                     cl.loadClass(customClass)
                                                             .getConstructor(classes)
-                                                            .newInstance(paramStrings);
+                                                            .newInstance((Object[]) paramStrings);
                                         } else {
                                             return (PartitionCommitPolicy)
                                                     cl.loadClass(customClass).newInstance();

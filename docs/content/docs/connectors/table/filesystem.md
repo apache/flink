@@ -476,7 +476,7 @@ The partition commit policy defines what action is taken when partitions are com
         <td>yes</td>
         <td style="word-wrap: break-word;">(none)</td>
         <td>String</td>
-        <td>The custom commit policy class can accept a string argument, which can include multiple arguments separated by semicolons. For example, 'param1;param2'. The string argument will be split into a list (['param1', 'param2']) and passed as constructor parameters to the custom commit policy class.</td>
+        <td>The parameters passed to the constructor of the custom commit policy, with multiple parameters separated by semicolons, such as 'param1;param2'. For example, 'param1;param2'. The configuration value will be split into a list (['param1', 'param2']) and passed to the constructor of the custom commit policy class. This option is optional, if not configured, the default constructor will be used.</td>
     </tr>
     <tr>
         <td><h5>sink.partition-commit.success-file.name</h5></td>

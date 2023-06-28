@@ -18,13 +18,27 @@
 
 package org.apache.flink.connector.file.table;
 
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.util.FiniteTestSource;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.ExplainDetail;
+import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.types.Row;
 
 import org.junit.Test;
+
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.apache.flink.table.planner.utils.TableTestUtil.readFromResource;
@@ -148,5 +162,58 @@ public class FileSystemTableSinkTest {
 
     private static String buildInsertIntoSql(String sinkTable, String sourceTable) {
         return String.format("INSERT INTO %s SELECT * FROM %s", sinkTable, sourceTable);
+    }
+
+    @Test
+    public void testFileSystemTableSinkWithCustomCommitPolicy() throws Exception {
+        final String inputTable = "inputTable";
+        final String outputTable = "outputTable";
+        final String customPartitionCommitPolicyClassName = TestCustomCommitPolicy.class.getName();
+        EnvironmentSettings settings = EnvironmentSettings.newInstance()
+                .inStreamingMode()
+                .build();
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        env.enableCheckpointing(100);
+        StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env, settings);
+
+        String ddl =
+                "CREATE TABLE %s (" +
+                        "  a INT," +
+                        "  b STRING," +
+                        "  c STRING," +
+                        "  d STRING," +
+                        "  e STRING" +
+                        ") PARTITIONED BY (d, e) WITH (" +
+                        "'connector'='filesystem'," +
+                        "'path'='/tmp'," +
+                        "'format'='testcsv'," +
+                        "'sink.partition-commit.delay'='0s'," +
+                        "'sink.partition-commit.policy.kind'='custom'," +
+                        "'sink.partition-commit.policy.class'='%s'," +
+                        "'sink.partition-commit.policy.class.parameters'='test1;test2'" +
+                        ")";
+        ddl = String.format(ddl, outputTable, customPartitionCommitPolicyClassName);
+
+        List<Row> data =
+                Arrays.asList(
+                        Row.of(1, "a", "b", "2020-05-03", "3"),
+                        Row.of(2, "x", "y", "2020-05-03", "4"));
+        DataStream<Row> stream =
+                env.addSource(
+                        new FiniteTestSource<>(data),
+                        new RowTypeInfo(
+                                Types.INT,
+                                Types.STRING,
+                                Types.STRING,
+                                Types.STRING,
+                                Types.STRING));
+        Table t = tableEnv.fromDataStream(stream, Schema.newBuilder().build());
+        tableEnv.createTemporaryView(inputTable, t);
+        tableEnv.executeSql(ddl);
+        tableEnv.sqlQuery("select * from inputTable").executeInsert("outputTable").await();
+        Set<String> committedPaths = TestCustomCommitPolicy.getCommittedPartitionPathsAndReset();
+        Set<String> validationSet = new HashSet<>(Arrays.asList("test1test2", "/tmp/d=2020-05-03/e=3", "/tmp/d=2020-05-03/e=4"));
+        assertEquals(validationSet, committedPaths);
     }
 }

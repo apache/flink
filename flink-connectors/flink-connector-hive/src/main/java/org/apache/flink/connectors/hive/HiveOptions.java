@@ -26,7 +26,6 @@ import org.apache.flink.configuration.description.InlineElement;
 import org.apache.flink.connector.file.table.FileSystemConnectorOptions;
 
 import java.time.Duration;
-import java.util.List;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.TextElement.text;
@@ -134,15 +133,6 @@ public class HiveOptions {
                                     + " Both can be configured at the same time: 'metastore,success-file'."
                                     + " custom: use policy class to create a commit policy."
                                     + " Support to configure multiple policies: 'metastore,success-file'.");
-
-    public static final ConfigOption<String> SINK_PARTITION_COMMIT_POLICY_CLASS =
-            FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_CLASS;
-
-    public static final ConfigOption<List<String>> SINK_PARTITION_COMMIT_POLICY_CLASS_PARAMETERS =
-            FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_CLASS_PARAMETERS;
-
-    public static final ConfigOption<String> SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME =
-            FileSystemConnectorOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME;
 
     public static final ConfigOption<MemorySize> COMPACT_SMALL_FILES_AVG_SIZE =
             key("compaction.small-files.avg-size")

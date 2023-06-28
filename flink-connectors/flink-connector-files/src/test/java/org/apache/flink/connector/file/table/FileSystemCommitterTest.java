@@ -31,14 +31,11 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test for {@link FileSystemCommitter}. */
 public class FileSystemCommitterTest {
@@ -49,7 +46,6 @@ public class FileSystemCommitterTest {
 
     private TableMetaStoreFactory metaStoreFactory;
     private List<PartitionCommitPolicy> policies;
-    private List<PartitionCommitPolicy> customPolicies;
     private ObjectIdentifier identifier;
     @TempDir private java.nio.file.Path outputPath;
     @TempDir private java.nio.file.Path path;
@@ -261,38 +257,6 @@ public class FileSystemCommitterTest {
                         policies);
         committer.commitPartitions();
         assertThat(outputPath.toFile().list()).isEqualTo(new String[0]);
-    }
-
-    @Test
-    void testCustomCommitPolicyWithParameters() {
-        List<String> paramsList = Arrays.asList("param1", "param2");
-        customPolicies =
-                new PartitionCommitPolicyFactory(
-                        "custom", TestCustomCommitPolicy.class.getName(), null, paramsList)
-                        .createPolicyChain(
-                                Thread.currentThread().getContextClassLoader(),
-                                LocalFileSystem::getSharedInstance);
-        PartitionCommitPolicy customPolicy = customPolicies.get(0);
-        assertTrue(customPolicy instanceof TestCustomCommitPolicy);
-        TestCustomCommitPolicy myPolicy = (TestCustomCommitPolicy) customPolicy;
-        assertThat(myPolicy.getParam1()).isEqualTo("param1");
-        assertThat(myPolicy.getParam2()).isEqualTo("param2");
-    }
-
-    @Test
-    void testCustomCommitPolicyWithoutParameters() {
-        List<String> nullParamsList = new ArrayList<>();
-        customPolicies =
-                new PartitionCommitPolicyFactory(
-                        "custom", TestCustomCommitPolicy.class.getName(), null, nullParamsList)
-                        .createPolicyChain(
-                                Thread.currentThread().getContextClassLoader(),
-                                LocalFileSystem::getSharedInstance);
-        PartitionCommitPolicy customPolicy = customPolicies.get(0);
-        assertTrue(customPolicy instanceof TestCustomCommitPolicy);
-        TestCustomCommitPolicy myPolicy = (TestCustomCommitPolicy) customPolicy;
-        assertThat(myPolicy.getParam1()).isEqualTo(null);
-        assertThat(myPolicy.getParam2()).isEqualTo(null);
     }
 
     /** A {@link TableMetaStoreFactory} for test purpose. */
