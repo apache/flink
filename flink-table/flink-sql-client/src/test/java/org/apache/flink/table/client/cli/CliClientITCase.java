@@ -126,7 +126,7 @@ class CliClientITCase {
         final int commonPrefixLength = firstFile.getAbsolutePath().length() - first.length();
         File dir = firstFile.getParentFile();
         final List<String> paths = new ArrayList<>();
-        final FilenameFilter filter = new PatternFilenameFilter("select\\.q$");
+        final FilenameFilter filter = new PatternFilenameFilter(".*\\.q$");
         for (File f : Util.first(dir.listFiles(filter), new File[0])) {
             paths.add(f.getAbsolutePath().substring(commonPrefixLength));
         }
