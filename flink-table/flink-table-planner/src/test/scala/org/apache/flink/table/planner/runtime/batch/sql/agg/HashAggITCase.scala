@@ -23,7 +23,7 @@ import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfi
 import org.apache.flink.table.planner.codegen.agg.batch.HashAggCodeGenerator
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
-import org.apache.flink.table.planner.runtime.utils.TestData.{data2, nullablesOfData2, type2}
+import org.apache.flink.table.planner.runtime.utils.TestData.{data1, nullablesOfData1, type1}
 import org.apache.flink.testutils.junit.extensions.parameterized.{Parameter, ParameterizedTestExtension, Parameters}
 
 import org.junit.jupiter.api.TestTemplate
@@ -42,10 +42,10 @@ class HashAggITCase extends AggregateITCaseBase("HashAggregate") {
   override def prepareAggOp(): Unit = {
     registerCollection(
       "AuxGroupingTable",
-      data2,
-      type2,
-      "a, b, c, d, e",
-      nullablesOfData2,
+      data1,
+      type1,
+      "a, b, c",
+      nullablesOfData1,
       FlinkStatistic.builder().uniqueKeys(Set(Set("a").asJava).asJava).build())
 
     tEnv.getConfig.set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg")
@@ -349,11 +349,12 @@ class HashAggITCase extends AggregateITCaseBase("HashAggregate") {
     checkResult(
       "SELECT a, b, COUNT(c) FROM AuxGroupingTable GROUP BY a, b",
       Seq(
-        row(1, 1, 1),
-        row(2, 3, 2),
-        row(3, 4, 3),
-        row(4, 10, 4),
-        row(5, 11, 5)
+        row(1, "a", 1),
+        row(2, "a", 1),
+        row(3, "b", 1),
+        row(4, "b", 1),
+        row(5, "c", 1),
+        row(6, "c", 1)
       )
     )
   }
