@@ -157,6 +157,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     @Nullable private final String metricServiceQueryAddress;
 
     private final Map<JobID, CompletableFuture<Void>> jobManagerRunnerTerminationFutures;
+    private final Set<JobID> submittedAndWaitingTerminationJobIDs;
 
     protected final CompletableFuture<ApplicationStatus> shutDownFuture;
 
@@ -255,6 +256,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
         this.jobManagerRunnerTerminationFutures =
                 new HashMap<>(INITIAL_JOB_MANAGER_RUNNER_REGISTRY_CAPACITY);
+        this.submittedAndWaitingTerminationJobIDs = new HashSet<>();
 
         this.shutDownFuture = new CompletableFuture<>();
 
@@ -481,14 +483,16 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     }
 
     /**
-     * Checks whether the given job has already been submitted or executed.
+     * Checks whether the given job has already been submitted, executed, or awaiting termination.
      *
      * @param jobId identifying the submitted job
      * @return true if the job has already been submitted (is running) or has been executed
      * @throws FlinkException if the job scheduling status cannot be retrieved
      */
     private boolean isDuplicateJob(JobID jobId) throws FlinkException {
-        return isInGloballyTerminalState(jobId) || jobManagerRunnerRegistry.isRegistered(jobId);
+        return isInGloballyTerminalState(jobId)
+                || jobManagerRunnerRegistry.isRegistered(jobId)
+                || submittedAndWaitingTerminationJobIDs.contains(jobId);
     }
 
     /**
@@ -529,9 +533,17 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     private CompletableFuture<Acknowledge> internalSubmitJob(JobGraph jobGraph) {
         log.info("Submitting job '{}' ({}).", jobGraph.getName(), jobGraph.getJobID());
+
+        // track as an outstanding job
+        submittedAndWaitingTerminationJobIDs.add(jobGraph.getJobID());
+
         return waitForTerminatingJob(jobGraph.getJobID(), jobGraph, this::persistAndRunJob)
                 .handle((ignored, throwable) -> handleTermination(jobGraph.getJobID(), throwable))
-                .thenCompose(Function.identity());
+                .thenCompose(Function.identity())
+                .whenComplete(
+                        (ignored, throwable) ->
+                                // job is done processing, whether failed or finished
+                                submittedAndWaitingTerminationJobIDs.remove(jobGraph.getJobID()));
     }
 
     private CompletableFuture<Acknowledge> handleTermination(
@@ -1282,13 +1294,14 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                                                     throwable));
                                 });
 
-        return jobManagerTerminationFuture.thenAcceptAsync(
+        return FutureUtils.thenAcceptAsyncIfNotDone(
+                jobManagerTerminationFuture,
+                getMainThreadExecutor(),
                 FunctionUtils.uncheckedConsumer(
                         (ignored) -> {
                             jobManagerRunnerTerminationFutures.remove(jobId);
                             action.accept(jobGraph);
-                        }),
-                getMainThreadExecutor());
+                        }));
     }
 
     @VisibleForTesting

@@ -24,6 +24,7 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobServer;
@@ -107,6 +108,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -223,6 +225,60 @@ public class DispatcherTest extends AbstractDispatcherTest {
         haServices.getJobResultStore().markResultAsClean(jobGraph.getJobID());
 
         assertDuplicateJobSubmission();
+    }
+
+    @Test
+    public void testDuplicateJobSubmissionIsDetectedOnSimultaneousSubmission() throws Exception {
+        dispatcher =
+                createAndStartDispatcher(
+                        heartbeatServices,
+                        haServices,
+                        new TestingJobMasterServiceLeadershipRunnerFactory());
+        final DispatcherGateway dispatcherGateway =
+                dispatcher.getSelfGateway(DispatcherGateway.class);
+
+        final int numThreads = 5;
+        final CountDownLatch prepareLatch = new CountDownLatch(numThreads);
+        final OneShotLatch startLatch = new OneShotLatch();
+
+        final Collection<Throwable> exceptions = Collections.synchronizedList(new ArrayList<>());
+        final Collection<Thread> threads = new ArrayList<>();
+        for (int x = 0; x < numThreads; x++) {
+            threads.add(
+                    new Thread(
+                            () -> {
+                                try {
+                                    prepareLatch.countDown();
+                                    startLatch.awaitQuietly();
+                                    dispatcherGateway.submitJob(jobGraph, TIMEOUT).join();
+                                } catch (Throwable t) {
+                                    exceptions.add(t);
+                                }
+                            }));
+        }
+
+        // start worker threads and trigger job submissions
+        threads.forEach(Thread::start);
+        prepareLatch.await();
+        startLatch.trigger();
+
+        // wait for the job submissions to happen
+        for (Thread thread : threads) {
+            thread.join();
+        }
+
+        // verify the job was actually submitted
+        FlinkAssertions.assertThatFuture(
+                        dispatcherGateway.requestJobStatus(jobGraph.getJobID(), TIMEOUT))
+                .eventuallySucceeds();
+
+        // verify that all but one submission failed as duplicates
+        Assertions.assertThat(exceptions)
+                .hasSize(numThreads - 1)
+                .allSatisfy(
+                        t ->
+                                Assertions.assertThat(t)
+                                        .hasCauseInstanceOf(DuplicateJobSubmissionException.class));
     }
 
     private void assertDuplicateJobSubmission() throws Exception {
