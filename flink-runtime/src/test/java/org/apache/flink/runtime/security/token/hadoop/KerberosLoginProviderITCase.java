@@ -50,6 +50,25 @@ import static org.mockito.Mockito.when;
 public class KerberosLoginProviderITCase {
 
     @Test
+    public void isLoginPossibleMustNotDoAccidentalLoginWithKeytab(@TempDir Path tmpDir)
+            throws IOException {
+        Configuration configuration = new Configuration();
+        configuration.setString(KERBEROS_LOGIN_PRINCIPAL, "principal");
+        final Path keyTab = Files.createFile(tmpDir.resolve("test.keytab"));
+        configuration.setString(KERBEROS_LOGIN_KEYTAB, keyTab.toAbsolutePath().toString());
+        KerberosLoginProvider kerberosLoginProvider = new KerberosLoginProvider(configuration);
+
+        try (MockedStatic<UserGroupInformation> ugi = mockStatic(UserGroupInformation.class)) {
+            ugi.when(UserGroupInformation::isSecurityEnabled).thenReturn(true);
+            ugi.when(UserGroupInformation::getCurrentUser)
+                    .thenThrow(
+                            new IllegalStateException(
+                                    "isLoginPossible must not do login with keytab"));
+            kerberosLoginProvider.isLoginPossible(false);
+        }
+    }
+
+    @Test
     public void isLoginPossibleMustReturnFalseByDefault() throws IOException {
         Configuration configuration = new Configuration();
         KerberosLoginProvider kerberosLoginProvider = new KerberosLoginProvider(configuration);
