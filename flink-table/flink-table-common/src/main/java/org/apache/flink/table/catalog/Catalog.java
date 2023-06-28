@@ -515,6 +515,21 @@ public interface Catalog {
     List<String> listFunctions(String dbName) throws DatabaseNotExistException, CatalogException;
 
     /**
+     * List the names of all procedures in the given database. An empty list is returned if no
+     * procedure.
+     *
+     * @param dbName name of the database.
+     * @return a list of the names of the procedures in this database
+     * @throws DatabaseNotExistException if the database does not exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    default List<String> listProcedures(String dbName)
+            throws DatabaseNotExistException, CatalogException {
+        throw new UnsupportedOperationException(
+                String.format("listProcedures is not implemented for %s.", this.getClass()));
+    }
+
+    /**
      * Get the function. Function name should be handled in a case insensitive way.
      *
      * @param functionPath path of the function
