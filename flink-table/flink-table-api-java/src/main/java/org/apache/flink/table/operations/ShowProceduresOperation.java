@@ -91,10 +91,18 @@ public class ShowProceduresOperation implements ExecutableOperation {
                                 .listProcedures(catalogManager.getCurrentDatabase());
             } else {
                 Catalog catalog = catalogManager.getCatalogOrThrowException(catalogName);
-                procedures = catalog.listProcedures(catalogManager.getCurrentDatabase());
+                procedures = catalog.listProcedures(databaseName);
             }
         } catch (DatabaseNotExistException e) {
-            throw new TableException("Fail to show procedures.", e);
+            throw new TableException(
+                    String.format(
+                            "Fail to show procedures because the Database `%s` to show from/in does not exist in Catalog `%s`.",
+                            preposition == null
+                                    ? catalogManager.getCurrentDatabase()
+                                    : databaseName,
+                            preposition == null
+                                    ? catalogManager.getCurrentCatalog()
+                                    : catalogName));
         }
 
         final String[] rows;
@@ -102,10 +110,15 @@ public class ShowProceduresOperation implements ExecutableOperation {
             rows =
                     procedures.stream()
                             .filter(
-                                    row ->
-                                            notLike != isILike
-                                                    ? SqlLikeUtils.iLike(row, sqlLikePattern, "\\")
-                                                    : SqlLikeUtils.like(row, sqlLikePattern, "\\"))
+                                    row -> {
+                                        boolean likeMatch =
+                                                isILike
+                                                        ? SqlLikeUtils.iLike(
+                                                                row, sqlLikePattern, "\\")
+                                                        : SqlLikeUtils.like(
+                                                                row, sqlLikePattern, "\\");
+                                        return notLike != likeMatch;
+                                    })
                             .sorted()
                             .toArray(String[]::new);
         } else {
