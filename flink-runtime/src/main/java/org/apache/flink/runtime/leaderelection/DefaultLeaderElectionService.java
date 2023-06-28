@@ -424,9 +424,9 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
 
     @GuardedBy("lock")
     private void onRevokeLeadershipInternal() {
-        // TODO: FLINK-31814 covers adding this Precondition
-        // Preconditions.checkState(issuedLeaderSessionID != null,"The leadership should have
-        // been revoked while having the leadership acquired.");
+        Preconditions.checkState(
+                issuedLeaderSessionID != null,
+                "The leadership should have been revoked while having the leadership acquired.");
 
         if (!leaderContenderRegistry.isEmpty()) {
             leaderContenderRegistry.forEach(this::notifyLeaderContenderOfLeadershipLoss);
