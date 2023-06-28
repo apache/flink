@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.concurrent.akka;
 
+import org.apache.flink.runtime.concurrent.ClassLoadingUtils;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.function.SupplierWithException;
 import org.apache.flink.util.function.ThrowingRunnable;

@@ -73,9 +73,9 @@ import java.util.function.Function;
 import scala.Option;
 import scala.reflect.ClassTag$;
 
-import static org.apache.flink.runtime.concurrent.akka.ClassLoadingUtils.guardCompletionWithContextClassLoader;
-import static org.apache.flink.runtime.concurrent.akka.ClassLoadingUtils.runWithContextClassLoader;
-import static org.apache.flink.runtime.concurrent.akka.ClassLoadingUtils.withContextClassLoader;
+import static org.apache.flink.runtime.concurrent.ClassLoadingUtils.guardCompletionWithContextClassLoader;
+import static org.apache.flink.runtime.concurrent.ClassLoadingUtils.runWithContextClassLoader;
+import static org.apache.flink.runtime.concurrent.ClassLoadingUtils.withContextClassLoader;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
