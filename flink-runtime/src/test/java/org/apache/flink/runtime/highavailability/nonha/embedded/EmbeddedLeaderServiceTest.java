@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.highavailability.nonha.embedded;
 
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
 
@@ -97,6 +98,47 @@ public class EmbeddedLeaderServiceTest {
 
             // the election service should still be running
             assertThat(embeddedLeaderService.isShutdown()).isFalse();
+        } finally {
+            embeddedLeaderService.shutdown();
+
+            // triggers the revoke event processing after shutdown
+            executorService.triggerAll();
+        }
+    }
+
+    @Test
+    public void testCloseCallRevokesTheContenderImmediately() throws Exception {
+        final ManuallyTriggeredScheduledExecutorService executorService =
+                new ManuallyTriggeredScheduledExecutorService();
+        final EmbeddedLeaderService embeddedLeaderService =
+                new EmbeddedLeaderService(executorService);
+
+        try {
+            final TestingLeaderContender contender = new TestingLeaderContender();
+
+            final LeaderElection leaderElection =
+                    embeddedLeaderService.createLeaderElectionService();
+            leaderElection.startLeaderElection(contender);
+
+            assertThat(contender.getLeaderSessionFuture())
+                    .as("The processing of the grant event should have happened, yet.")
+                    .isNotDone();
+
+            executorService.trigger();
+            FlinkAssertions.assertThatFuture(contender.getLeaderSessionFuture())
+                    .as("The leadership should have been forwarded to the contender.")
+                    .eventuallySucceeds();
+
+            leaderElection.close();
+
+            assertThat(executorService.getAllNonPeriodicScheduledTask())
+                    .as("Closing the LeaderElection should not have queued up.")
+                    .isEmpty();
+
+            assertThat(contender.getLeaderSessionFuture())
+                    .as(
+                            "Closing the LeaderElection should have notified the LeaderContender immediately.")
+                    .isNotDone();
         } finally {
             embeddedLeaderService.shutdown();
 
