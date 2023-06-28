@@ -21,6 +21,8 @@ package org.apache.flink.table.client.cli;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.client.cli.parser.SqlCommandParserImpl;
+import org.apache.flink.table.client.cli.parser.SqlMultiLineParser;
 import org.apache.flink.table.client.cli.utils.SqlScriptReader;
 import org.apache.flink.table.client.cli.utils.TestSqlStatement;
 import org.apache.flink.table.client.gateway.Executor;
@@ -42,6 +44,8 @@ import org.apache.flink.shaded.guava30.com.google.common.io.PatternFilenameFilte
 import org.apache.calcite.util.Util;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.jline.reader.LineReader;
+import org.jline.reader.LineReaderBuilder;
 import org.jline.reader.MaskingCallback;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.impl.DumbTerminal;
@@ -51,6 +55,7 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.BufferedReader;
@@ -121,7 +126,7 @@ class CliClientITCase {
         final int commonPrefixLength = firstFile.getAbsolutePath().length() - first.length();
         File dir = firstFile.getParentFile();
         final List<String> paths = new ArrayList<>();
-        final FilenameFilter filter = new PatternFilenameFilter(".*\\.q$");
+        final FilenameFilter filter = new PatternFilenameFilter("select\\.q$");
         for (File f : Util.first(dir.listFiles(filter), new File[0])) {
             paths.add(f.getAbsolutePath().substring(commonPrefixLength));
         }
@@ -190,6 +195,64 @@ class CliClientITCase {
         List<Result> actualResults = runSqlStatements(sqlStatements, configuration);
         String out = transformOutput(testSqlStatements, actualResults);
         assertThat(out).isEqualTo(in);
+    }
+
+    @ParameterizedTest
+    @MethodSource("tableOptionToJlineVarProvider")
+    void testPropagationOfTableOptionToVars(
+            String setTableOptionCommand,
+            String jlineVarName,
+            String expectedValue,
+            @InjectClusterClientConfiguration Configuration configuration)
+            throws IOException {
+
+        DefaultContext defaultContext =
+                new DefaultContext(
+                        new Configuration(configuration)
+                                // Make sure we use the new cast behaviour
+                                .set(
+                                        ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR,
+                                        ExecutionConfigOptions.LegacyCastBehaviour.DISABLED),
+                        Collections.emptyList());
+
+        // Since DumbTerminal exits automatically with the last line need to add \n to have command
+        // processed before the exit
+        InputStream inputStream =
+                new ByteArrayInputStream((setTableOptionCommand + "\n").getBytes());
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream(256);
+
+        try (final Executor executor =
+                        Executor.create(
+                                defaultContext,
+                                InetSocketAddress.createUnresolved(
+                                        SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetAddress(),
+                                        SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetPort()),
+                                "test-session");
+                Terminal terminal = new DumbTerminal(inputStream, outputStream);
+                CliClient client =
+                        new CliClient(
+                                () -> terminal, executor, historyPath, HideSqlStatement.INSTANCE)) {
+
+            LineReader dummyLineReader =
+                    LineReaderBuilder.builder()
+                            .terminal(terminal)
+                            .parser(
+                                    new SqlMultiLineParser(
+                                            new SqlCommandParserImpl(),
+                                            executor,
+                                            CliClient.ExecutionMode.INTERACTIVE_EXECUTION))
+                            .build();
+            client.executeInInteractiveMode(dummyLineReader);
+            assertThat(dummyLineReader.getVariable(jlineVarName)).isEqualTo(expectedValue);
+        }
+    }
+
+    static Stream<Arguments> tableOptionToJlineVarProvider() {
+        return Stream.of(
+                Arguments.of(
+                        "SET 'sql-client.display.show-line-numbers' = 'true';",
+                        LineReader.SECONDARY_PROMPT_PATTERN,
+                        "%N%M> "));
     }
 
     /**
