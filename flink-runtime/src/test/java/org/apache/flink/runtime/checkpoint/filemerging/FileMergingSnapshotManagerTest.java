@@ -18,6 +18,8 @@
 package org.apache.flink.runtime.checkpoint.filemerging;
 
 import org.apache.flink.api.common.TaskInfoImpl;
+import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalFileSystem;
@@ -25,12 +27,18 @@ import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManage
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
+import org.apache.flink.runtime.state.filesystem.FileMergingCheckpointStateOutputStream;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.Random;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -46,6 +54,8 @@ public class FileMergingSnapshotManagerTest {
 
     private Path checkpointBaseDir;
 
+    private int writeBufferSize;
+
     @BeforeEach
     public void setup(@TempDir java.nio.file.Path tempFolder) {
         // use simplified job ids for the tests
@@ -53,6 +63,7 @@ public class FileMergingSnapshotManagerTest {
         subtaskKey1 = new SubtaskKey(operatorID, new TaskInfoImpl("TestingTask", 128, 0, 128, 3));
         subtaskKey2 = new SubtaskKey(operatorID, new TaskInfoImpl("TestingTask", 128, 1, 128, 3));
         checkpointBaseDir = new Path(tempFolder.toString(), String.valueOf(jobId));
+        writeBufferSize = 4096;
     }
 
     @Test
@@ -249,6 +260,104 @@ public class FileMergingSnapshotManagerTest {
         }
     }
 
+    @Test
+    public void testReusedFileWriting() throws Exception {
+        long checkpointId = 1;
+        int streamNum = 10;
+        int perStreamWriteNum = 128;
+
+        // write random bytes and then read them from the file
+        byte[] bytes = new byte[streamNum * perStreamWriteNum];
+        Random rd = new Random();
+        rd.nextBytes(bytes);
+        int byteIndex = 0;
+
+        SegmentFileStateHandle[] handles = new SegmentFileStateHandle[streamNum];
+        try (FileMergingSnapshotManager fmsm = createFileMergingSnapshotManager(checkpointBaseDir);
+                CloseableRegistry closeableRegistry = new CloseableRegistry()) {
+
+            // repeatedly get-write-close streams
+            for (int i = 0; i < streamNum; i++) {
+                FileMergingCheckpointStateOutputStream stream =
+                        fmsm.createCheckpointStateOutputStream(
+                                subtaskKey1, checkpointId, CheckpointedStateScope.EXCLUSIVE);
+                try {
+                    closeableRegistry.registerCloseable(stream);
+                    for (int j = 0; j < perStreamWriteNum; j++) {
+                        stream.write(bytes[byteIndex++]);
+                    }
+                    handles[i] = stream.closeAndGetHandle();
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+            // assert the streams writes to the same file correctly
+            byteIndex = 0;
+            Path filePath = null;
+            for (SegmentFileStateHandle handle : handles) {
+                // check file path
+                Path thisFilePath = handle.getFilePath();
+                assertThat(filePath == null || filePath.equals(thisFilePath)).isTrue();
+                filePath = thisFilePath;
+                // check file content
+                FSDataInputStream is = handle.openInputStream();
+
+                closeableRegistry.registerCloseable(is);
+                int readValue;
+
+                while ((readValue = is.read()) != -1) {
+                    assertThat((byte) readValue).isEqualTo(bytes[byteIndex++]);
+                }
+            }
+        }
+    }
+
+    @Test
+    public void testConcurrentWriting() throws Exception {
+        long checkpointId = 1;
+        int numThreads = 12;
+        int perStreamWriteNum = 128;
+        Set<Future<SegmentFileStateHandle>> futures = new HashSet<>();
+
+        try (FileMergingSnapshotManager fmsm = createFileMergingSnapshotManager(checkpointBaseDir);
+                CloseableRegistry closeableRegistry = new CloseableRegistry()) {
+            // write data concurrently
+            for (int i = 0; i < numThreads; i++) {
+                futures.add(
+                        CompletableFuture.supplyAsync(
+                                () -> {
+                                    FileMergingCheckpointStateOutputStream stream =
+                                            fmsm.createCheckpointStateOutputStream(
+                                                    subtaskKey1,
+                                                    checkpointId,
+                                                    CheckpointedStateScope.EXCLUSIVE);
+                                    try {
+                                        closeableRegistry.registerCloseable(stream);
+                                        for (int j = 0; j < perStreamWriteNum; j++) {
+                                            stream.write(j);
+                                        }
+                                        return stream.closeAndGetHandle();
+                                    } catch (IOException e) {
+                                        throw new RuntimeException(e);
+                                    }
+                                }));
+            }
+
+            // assert that multiple segments in the same file were not written concurrently
+            for (Future<SegmentFileStateHandle> future : futures) {
+                SegmentFileStateHandle segmentFileStateHandle = future.get();
+                FSDataInputStream is = segmentFileStateHandle.openInputStream();
+                closeableRegistry.registerCloseable(is);
+                int readValue;
+                int expected = 0;
+                while ((readValue = is.read()) != -1) {
+                    assertThat(readValue).isEqualTo(expected++);
+                }
+            }
+        }
+    }
+
     private FileMergingSnapshotManager createFileMergingSnapshotManager(Path checkpointBaseDir)
             throws IOException {
         FileSystem fs = LocalFileSystem.getSharedInstance();
@@ -270,7 +379,8 @@ public class FileMergingSnapshotManagerTest {
                 LocalFileSystem.getSharedInstance(),
                 checkpointBaseDir,
                 sharedStateDir,
-                taskOwnedStateDir);
+                taskOwnedStateDir,
+                writeBufferSize);
         assertThat(fmsm).isNotNull();
         return fmsm;
     }

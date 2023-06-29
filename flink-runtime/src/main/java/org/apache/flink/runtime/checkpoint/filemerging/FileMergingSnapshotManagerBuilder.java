@@ -24,7 +24,7 @@ import java.util.concurrent.Executor;
 /** A builder that builds the {@link FileMergingSnapshotManager}. */
 public class FileMergingSnapshotManagerBuilder {
 
-    /** The id for identify a {@link FileMergingSnapshotManager}. */
+    /** The id for identifying a {@link FileMergingSnapshotManager}. */
     private final String id;
 
     @Nullable private Executor ioExecutor = null;
