@@ -24,7 +24,6 @@ import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
-import org.apache.flink.util.function.FunctionWithException;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
@@ -76,15 +75,11 @@ public class CachedShuffleDescriptors {
     }
 
     public void serializeShuffleDescriptors(
-            FunctionWithException<
-                            ShuffleDescriptorAndIndex[],
-                            MaybeOffloaded<ShuffleDescriptorAndIndex[]>,
-                            IOException>
-                    shuffleDescriptorSerializer)
+            TaskDeploymentDescriptorFactory.ShuffleDescriptorSerializer shuffleDescriptorSerializer)
             throws IOException {
         if (!toBeSerialized.isEmpty()) {
             MaybeOffloaded<ShuffleDescriptorAndIndex[]> serializedShuffleDescriptor =
-                    shuffleDescriptorSerializer.apply(
+                    shuffleDescriptorSerializer.serializeAndTryOffloadShuffleDescriptor(
                             toBeSerialized.toArray(new ShuffleDescriptorAndIndex[0]));
             toBeSerialized.clear();
             serializedShuffleDescriptors.add(serializedShuffleDescriptor);
