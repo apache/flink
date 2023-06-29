@@ -340,6 +340,11 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
         shutdownExecutorForcefully(coordinatorExecutor, Duration.ofNanos(Long.MAX_VALUE));
     }
 
+    @VisibleForTesting
+    boolean isClosed() {
+        return closed;
+    }
+
     // --------- Package private additional methods for the SourceCoordinator ------------
 
     void attemptReady(OperatorCoordinator.SubtaskGateway gateway) {
