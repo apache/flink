@@ -1528,13 +1528,6 @@ class Expression(Generic[T]):
         """
         return _binary_op("arrayConcat")(self, *arrays)
 
-    def array_max(self) -> 'Expression':
-        """
-        Returns the maximum value from the array.
-        if array itself is null, the function returns null.
-        """
-        return _unary_op("arrayMax")(self)
-
     @property
     def map_keys(self) -> 'Expression':
         """
