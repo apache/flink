@@ -63,11 +63,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 
-import static java.util.Arrays.asList;
 import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerdeUtils.readAndVerifyCoordinatorSerdeVersion;
 import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerdeUtils.readBytes;
 import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerdeUtils.writeCoordinatorSerdeVersion;
-import static org.apache.flink.util.IOUtils.closeAll;
+import static org.apache.flink.util.IOUtils.closeQuietly;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -273,8 +272,9 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
     public void close() throws Exception {
         LOG.info("Closing SourceCoordinator for source {}.", operatorName);
         if (started) {
-            closeAll(asList(context, enumerator), Throwable.class);
+            closeQuietly(enumerator);
         }
+        closeQuietly(context);
         LOG.info("Source coordinator for source {} closed.", operatorName);
     }
 
