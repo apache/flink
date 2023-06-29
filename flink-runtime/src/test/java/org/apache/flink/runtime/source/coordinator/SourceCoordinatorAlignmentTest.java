@@ -215,7 +215,7 @@ class SourceCoordinatorAlignmentTest extends SourceCoordinatorTestBase {
             SourceCoordinator<?, ?> sourceCoordinator1, int subtask, long watermark) {
         sourceCoordinator1.handleEventFromOperator(
                 subtask, 0, new ReportedWatermarkEvent(watermark));
-        waitForCoordinatorToProcessActions();
+        waitForCoordinatorToProcessActions(sourceCoordinator1.getContext());
         sourceCoordinator1.announceCombinedWatermark();
     }
 
