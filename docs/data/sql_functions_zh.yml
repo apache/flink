@@ -963,24 +963,6 @@ json:
         )
       )
       ```
-  - sql: JSON_OBJECTAGG([KEY] key VALUE value [ { NULL | ABSENT } ON NULL ])
-    table: jsonObjectAgg(JsonOnNull, keyExpression, valueExpression)
-    description: |
-      通过将 key-value 聚合到单个 JSON 对象中，构建 JSON 对象字符串。
-
-      键表达式必须返回不为空的字符串。值表达式可以是任意的，包括其他 JSON 函数。
-      如果值为 `NULL`，则 `ON NULL` 行为定义了要执行的操作。如果省略，默认情况下假定为 `NULL ON NULL`。
-
-      请注意，键必须是唯一的。如果一个键出现多次，将抛出一个错误。
-
-      目前在 `OVER` windows 中不支持此函数。
-
-      ```sql
-      -- '{"Apple":2,"Banana":17,"Orange":0}'
-      SELECT
-        JSON_OBJECTAGG(KEY product VALUE cnt)
-      FROM orders
-      ```
   - sql: JSON_ARRAY([value]* [ { NULL | ABSENT } ON NULL ])
     table: jsonArray(JsonOnNull, values...)
     description: |
@@ -1005,21 +987,6 @@ json:
 
       -- '[[1]]'
       JSON_ARRAY(JSON_ARRAY(1))
-      ```
-  - sql: JSON_ARRAYAGG(items [ { NULL | ABSENT } ON NULL ])
-    table: jsonArrayAgg(JsonOnNull, itemExpression)
-    description: |
-      通过将字段聚合到数组中构建 JSON 对象字符串。
-
-      项目表达式可以是任意的，包括其他 JSON 函数。如果值为 `NULL`，则 `ON NULL` 行为定义了要执行的操作。如果省略，默认情况下假定为 `ABSENT ON NULL`。
-
-      此函数目前不支持 `OVER` windows、未绑定的 session windows 或 hop windows。
-
-      ```sql
-      -- '["Apple","Banana","Orange"]'
-      SELECT
-        JSON_ARRAYAGG(product)
-      FROM orders
       ```
 
 valueconstruction:
@@ -1166,6 +1133,39 @@ aggregate:
       将窗口分区中的所有数据按照顺序划分为 n 个分组，返回分配给各行数据的分组编号（从 1 开始）。
       如果不能均匀划分为 n 个分组，则从第 1 个分组开始，为每一分组分配一个剩余值。
       比如某个窗口分区有 6 行数据，划分为 4 个分组，则各行的分组编号为：1，1，2，2，3，4。
+  - sql: JSON_OBJECTAGG([KEY] key VALUE value [ { NULL | ABSENT } ON NULL ])
+    table: jsonObjectAgg(JsonOnNull, keyExpression, valueExpression)
+    description: |
+      通过将 key-value 聚合到单个 JSON 对象中，构建 JSON 对象字符串。
+
+      键表达式必须返回不为空的字符串。值表达式可以是任意的，包括其他 JSON 函数。
+      如果值为 `NULL`，则 `ON NULL` 行为定义了要执行的操作。如果省略，默认情况下假定为 `NULL ON NULL`。
+
+      请注意，键必须是唯一的。如果一个键出现多次，将抛出一个错误。
+
+      目前在 `OVER` windows 中不支持此函数。同时，此函数不支持与其他聚合函数一起使用。
+
+      ```sql
+      -- '{"Apple":2,"Banana":17,"Orange":0}'
+      SELECT
+        JSON_OBJECTAGG(KEY product VALUE cnt)
+      FROM orders
+      ```
+  - sql: JSON_ARRAYAGG(items [ { NULL | ABSENT } ON NULL ])
+    table: jsonArrayAgg(JsonOnNull, itemExpression)
+    description: |
+      通过将字段聚合到数组中构建 JSON 对象字符串。
+
+      项目表达式可以是任意的，包括其他 JSON 函数。如果值为 `NULL`，则 `ON NULL` 行为定义了要执行的操作。如果省略，默认情况下假定为 `ABSENT ON NULL`。
+
+      此函数目前不支持 `OVER` windows、未绑定的 session windows 或 hop windows。同时，此函数不支持与其他聚合函数一起使用。
+
+      ```sql
+      -- '["Apple","Banana","Orange"]'
+      SELECT
+        JSON_ARRAYAGG(product)
+      FROM orders
+      ```
 
 catalog:
   - sql: CURRENT_DATABASE()
