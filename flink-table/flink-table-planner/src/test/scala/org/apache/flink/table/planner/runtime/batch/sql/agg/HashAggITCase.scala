@@ -21,13 +21,17 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.planner.codegen.agg.batch.HashAggCodeGenerator
+import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
+import org.apache.flink.table.planner.runtime.utils.TestData.{data1, nullablesOfData1, type1}
 import org.apache.flink.testutils.junit.extensions.parameterized.{Parameter, ParameterizedTestExtension, Parameters}
 
 import org.junit.jupiter.api.TestTemplate
 import org.junit.jupiter.api.extension.ExtendWith
 
 import java.math.BigDecimal
+
+import scala.collection.JavaConverters._
 
 /** AggregateITCase using HashAgg Operator. */
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
@@ -36,6 +40,14 @@ class HashAggITCase extends AggregateITCaseBase("HashAggregate") {
   @Parameter var adaptiveLocalHashAggEnable: Boolean = _
 
   override def prepareAggOp(): Unit = {
+    registerCollection(
+      "AuxGroupingTable",
+      data1,
+      type1,
+      "a, b, c",
+      nullablesOfData1,
+      FlinkStatistic.builder().uniqueKeys(Set(Set("a").asJava).asJava).build())
+
     tEnv.getConfig.set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg")
     if (adaptiveLocalHashAggEnable) {
       tEnv.getConfig
@@ -45,7 +57,7 @@ class HashAggITCase extends AggregateITCaseBase("HashAggregate") {
         Boolean.box(true))
       tEnv.getConfig.set(
         HashAggCodeGenerator.TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_SAMPLING_THRESHOLD,
-        Long.box(5L))
+        Long.box(3L))
     }
   }
 
@@ -328,6 +340,21 @@ class HashAggITCase extends AggregateITCaseBase("HashAggregate") {
           new BigDecimal("11111111111111111111.111111111111111111"),
           new BigDecimal("11111111111111111111.111111111111111111")
         )
+      )
+    )
+  }
+
+  @TestTemplate
+  def testAdaptiveHashAggWithAuxGrouping(): Unit = {
+    checkResult(
+      "SELECT a, b, COUNT(c) FROM AuxGroupingTable GROUP BY a, b",
+      Seq(
+        row(1, "a", 1),
+        row(2, "a", 1),
+        row(3, "b", 1),
+        row(4, "b", 1),
+        row(5, "c", 1),
+        row(6, "c", 1)
       )
     )
   }
