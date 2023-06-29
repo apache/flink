@@ -32,8 +32,8 @@ import org.apache.flink.table.catalog.ObjectPath;
  * <p>The behavior of {@link Procedure} can be defined by implements a custom call method. An call
  * method must be declared publicly, not static, and named <code>call</code>. Call methods can also
  * be overloaded by implementing multiple methods named <code>call</code>. Currently, it doesn't
- * allows users to custom their own procedure, the customer {@link Procedure} can only be provided
- * by {@link Catalog}. To provide {@link Procedure}, {@link Catalog} must implement {@link
+ * allow users to custom their own procedure, the customer {@link Procedure} can only be provided by
+ * {@link Catalog}. To provide {@link Procedure}, {@link Catalog} must implement {@link
  * Catalog#getProcedure(ObjectPath)}.
  *
  * <p>When calling a stored procedure, Flink will always pass the <code>
@@ -47,13 +47,13 @@ import org.apache.flink.table.catalog.ObjectPath;
  * <p>By default, input and output data types are automatically extracted using reflection. The
  * input arguments are derived from one or more {@code call()} methods. If the reflective
  * information is not sufficient, it can be supported and enriched with {@link DataTypeHint} and
- * {@link ProcedureHint}. If it's used to hint input arguments, it should only hint the input
- * arguments that start from the second argument since the first argument is always <code>
- * ProcedureContext</code> which doesn't need to be annotated with data type hint.
+ * {@link ProcedureHint}. If {@link ProcedureHint} is used to hint input arguments, it should only
+ * hint the input arguments that start from the second argument since the first argument is always
+ * <code>ProcedureContext</code> which doesn't need to be annotated with data type hint.
  *
- * <p>Note: The return type of the {@code call()} method should always be T[] where T can be atomic
- * type, Row, Pojo. An atomic type will be implicitly wrapped into a row consisting of one field.
- * Also, the {@link DataTypeHint} for output data type is used to hint T.
+ * <p>Note: The return type of the {@code call()} method should always be T[] where T can be an
+ * atomic type, Row, Pojo. An atomic type will be implicitly wrapped into a row consisting of one
+ * field. Also, the {@link DataTypeHint} for output data type is used to hint T.
  *
  * <p>The following examples with pseudocode show how to write a stored procedure:
  *
@@ -105,7 +105,7 @@ import org.apache.flink.table.catalog.ObjectPath;
  * }
  * }</pre>
  *
- * <p>In the API, a stored procedure can be used as follows:
+ * <p>In term of the API, a stored procedure can be used as follows:
  *
  * <pre>{@code
  * // for SQL users

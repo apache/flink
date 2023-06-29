@@ -508,7 +508,7 @@ public interface Catalog {
             throws FunctionNotExistException, CatalogException;
 
     /**
-     * Get the procedure. Procedure name should be handled in a case insensitive way.
+     * Get the procedure. The procedure name should be handled in a case-insensitive way.
      *
      * @param procedurePath path of the procedure
      * @return the requested procedure

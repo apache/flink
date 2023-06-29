@@ -36,8 +36,8 @@ import java.lang.annotation.Target;
  * for each {@code call()} method for overloading function signatures. All hint parameters are
  * optional. If a parameter is not defined, the default reflection-based extraction is used. Hint
  * parameters defined on top of a {@link Procedure} class are inherited by all {@code call()}
- * methods. The {@link Procedure} should always return T[], so the {@link DataTypeHint} for output
- * data type is used to hint T.
+ * methods. The {@link DataTypeHint} for the output data type of a {@link Procedure} should always
+ * hint the component type of the array returned by {@link Procedure}.
  *
  * <p>The following examples show how to explicitly specify procedure signatures as a whole or in
  * part and let the default extraction do the rest:

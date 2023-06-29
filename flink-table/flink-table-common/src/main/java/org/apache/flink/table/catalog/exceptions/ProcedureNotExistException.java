@@ -24,6 +24,7 @@ import org.apache.flink.table.catalog.ObjectPath;
 /** Exception for trying to operate on a procedure that doesn't exist. */
 @PublicEvolving
 public class ProcedureNotExistException extends Exception {
+
     private static final String MSG = "Procedure %s does not exist in Catalog %s.";
 
     public ProcedureNotExistException(String catalogName, ObjectPath procedurePath) {

@@ -26,10 +26,10 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 public interface ProcedureContext {
 
     /**
-     * Return the StreamExecutionEnvironment where the procedure is called. For every procedure
-     * calling, Flink will create a new StreamExecutionEnvironment based on current configuration
-     * and pass it to the procedure. The procedure can modify the passed StreamExecutionEnvironment
-     * safely inside as it won't be leaked to outside.
+     * Return the {@link StreamExecutionEnvironment} where the procedure is called. Flink will
+     * create a new {@link StreamExecutionEnvironment} based on the current configuration and pass
+     * it to the procedure for every procedure call. The procedure can modify the passed
+     * StreamExecutionEnvironment safely inside as it won't be leaked outside.
      */
     StreamExecutionEnvironment getExecutionEnvironment();
 }
