@@ -45,9 +45,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -67,7 +64,6 @@ abstract class SourceCoordinatorTestBase {
 
     // ---- Mocks for the Source Coordinator Context ----
     protected SourceCoordinatorProvider.CoordinatorExecutorThreadFactory coordinatorThreadFactory;
-    protected ScheduledExecutorService coordinatorExecutor;
     protected SplitAssignmentTracker<MockSourceSplit> splitSplitAssignmentTracker;
     protected SourceCoordinatorContext<MockSourceSplit> context;
 
@@ -88,17 +84,13 @@ abstract class SourceCoordinatorTestBase {
                 new SourceCoordinatorProvider.CoordinatorExecutorThreadFactory(
                         coordinatorThreadName, operatorCoordinatorContext);
 
-        coordinatorExecutor = Executors.newScheduledThreadPool(1, coordinatorThreadFactory);
         sourceCoordinator = getNewSourceCoordinator();
         context = sourceCoordinator.getContext();
     }
 
     @AfterEach
-    void cleanUp() throws InterruptedException, TimeoutException {
-        coordinatorExecutor.shutdown();
-        if (!coordinatorExecutor.awaitTermination(10, TimeUnit.SECONDS)) {
-            throw new TimeoutException("Failed to close the CoordinatorExecutor before timeout.");
-        }
+    void cleanUp() throws Exception {
+        sourceCoordinator.close();
     }
 
     // ------------------------------------------------------------------------
@@ -156,6 +148,10 @@ abstract class SourceCoordinatorTestBase {
     }
 
     protected void waitForCoordinatorToProcessActions() {
+        waitForCoordinatorToProcessActions(context);
+    }
+
+    protected void waitForCoordinatorToProcessActions(SourceCoordinatorContext<?> context) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         context.runInCoordinatorThread(() -> future.complete(null));
 
@@ -215,7 +211,7 @@ abstract class SourceCoordinatorTestBase {
 
     protected SourceCoordinatorContext<MockSourceSplit> getNewSourceCoordinatorContext() {
         return new SourceCoordinatorContext<>(
-                coordinatorExecutor,
+                Executors.newScheduledThreadPool(1, coordinatorThreadFactory),
                 Executors.newScheduledThreadPool(
                         1,
                         new ExecutorThreadFactory(
