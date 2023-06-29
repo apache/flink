@@ -18,8 +18,8 @@
 
 package org.apache.flink.fs.gs.utils;
 
-import org.apache.flink.shaded.guava30.com.google.common.hash.HashFunction;
-import org.apache.flink.shaded.guava30.com.google.common.hash.Hashing;
+import org.apache.flink.shaded.guava31.com.google.common.hash.HashFunction;
+import org.apache.flink.shaded.guava31.com.google.common.hash.Hashing;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;

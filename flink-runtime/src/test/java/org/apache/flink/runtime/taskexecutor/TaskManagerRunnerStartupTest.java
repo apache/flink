@@ -44,7 +44,7 @@ import org.apache.flink.runtime.testutils.WorkingDirectoryExtension;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.IOUtils;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Sets;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.AfterEach;

@@ -21,8 +21,8 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.util.CloseableIterator;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.LinkedListMultimap;
-import org.apache.flink.shaded.guava30.com.google.common.collect.ListMultimap;
+import org.apache.flink.shaded.guava31.com.google.common.collect.LinkedListMultimap;
+import org.apache.flink.shaded.guava31.com.google.common.collect.ListMultimap;
 
 import java.util.Arrays;
 

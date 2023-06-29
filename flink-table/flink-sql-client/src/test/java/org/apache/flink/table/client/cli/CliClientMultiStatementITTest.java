@@ -22,7 +22,7 @@ import org.apache.flink.table.client.cli.utils.SqlScriptReader;
 import org.apache.flink.table.client.cli.utils.TestSqlStatement;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
-import org.apache.flink.shaded.guava30.com.google.common.io.PatternFilenameFilter;
+import org.apache.flink.shaded.guava31.com.google.common.io.PatternFilenameFilter;
 
 import org.apache.calcite.util.Util;
 

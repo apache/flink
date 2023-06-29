@@ -121,7 +121,7 @@ import org.apache.flink.util.function.TriConsumer;
 import org.apache.flink.util.function.TriConsumerWithException;
 
 import org.apache.flink.shaded.curator5.com.google.common.collect.Iterators;
-import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
 
 import org.junit.After;
 import org.junit.Before;

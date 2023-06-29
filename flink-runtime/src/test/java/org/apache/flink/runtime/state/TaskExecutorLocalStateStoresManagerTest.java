@@ -37,7 +37,7 @@ import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Reference;
 import org.apache.flink.util.concurrent.Executors;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Sets;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
