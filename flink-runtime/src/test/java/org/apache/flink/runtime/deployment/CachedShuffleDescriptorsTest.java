@@ -85,7 +85,7 @@ class CachedShuffleDescriptorsTest {
 
         assertThat(cachedShuffleDescriptors.getAllSerializedShuffleDescriptors()).isEmpty();
         cachedShuffleDescriptors.serializeShuffleDescriptors(
-                CachedShuffleDescriptorsTest::nonOffloadedShuffleDescriptor);
+                new TestingShuffleDescriptorSerializer());
         assertThat(cachedShuffleDescriptors.getAllSerializedShuffleDescriptors()).hasSize(1);
         MaybeOffloaded<ShuffleDescriptorAndIndex[]> maybeOffloadedShuffleDescriptor =
                 cachedShuffleDescriptors.getAllSerializedShuffleDescriptors().get(0);
@@ -122,13 +122,13 @@ class CachedShuffleDescriptorsTest {
                 new CachedShuffleDescriptors(
                         consumedPartitionGroup1,
                         createSingleShuffleDescriptorAndIndex(shuffleDescriptor, 0));
-        cachedShuffleDescriptors.serializeShuffleDescriptors(
-                CachedShuffleDescriptorsTest::nonOffloadedShuffleDescriptor);
+        TestingShuffleDescriptorSerializer testingShuffleDescriptorSerializer =
+                new TestingShuffleDescriptorSerializer();
+        cachedShuffleDescriptors.serializeShuffleDescriptors(testingShuffleDescriptorSerializer);
 
         cachedShuffleDescriptors.markPartitionFinished(intermediateResultPartition1);
         cachedShuffleDescriptors.markPartitionFinished(intermediateResultPartition2);
-        cachedShuffleDescriptors.serializeShuffleDescriptors(
-                CachedShuffleDescriptorsTest::nonOffloadedShuffleDescriptor);
+        cachedShuffleDescriptors.serializeShuffleDescriptors(testingShuffleDescriptorSerializer);
         assertThat(cachedShuffleDescriptors.getAllSerializedShuffleDescriptors()).hasSize(2);
 
         MaybeOffloaded<ShuffleDescriptorAndIndex[]> maybeOffloaded =
@@ -147,11 +147,6 @@ class CachedShuffleDescriptorsTest {
                 maybeOffloaded,
                 Arrays.asList(expectedShuffleDescriptor1, expectedShuffleDescriptor2),
                 Arrays.asList(0, 1));
-    }
-
-    private static MaybeOffloaded<ShuffleDescriptorAndIndex[]> nonOffloadedShuffleDescriptor(
-            ShuffleDescriptorAndIndex[] toBeSerialized) throws IOException {
-        return new NonOffloaded<>(CompressedSerializedValue.fromObject(toBeSerialized));
     }
 
     private void assertNonOffloadedShuffleDescriptorAndIndexEquals(
@@ -213,5 +208,15 @@ class CachedShuffleDescriptorsTest {
                         .build();
         scheduler.startScheduling();
         return scheduler.getExecutionGraph();
+    }
+
+    private static class TestingShuffleDescriptorSerializer
+            implements TaskDeploymentDescriptorFactory.ShuffleDescriptorSerializer {
+
+        @Override
+        public MaybeOffloaded<ShuffleDescriptorAndIndex[]> serializeAndTryOffloadShuffleDescriptor(
+                ShuffleDescriptorAndIndex[] shuffleDescriptors) throws IOException {
+            return new NonOffloaded<>(CompressedSerializedValue.fromObject(shuffleDescriptors));
+        }
     }
 }

@@ -58,6 +58,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -68,8 +69,8 @@ public class TaskDeploymentDescriptorFactory {
     private final MaybeOffloaded<JobInformation> serializedJobInformation;
     private final JobID jobID;
     private final PartitionLocationConstraint partitionDeploymentConstraint;
-    private final BlobWriter blobWriter;
     private final boolean nonFinishedHybridPartitionShouldBeUnknown;
+    private final ShuffleDescriptorSerializer shuffleDescriptorSerializer;
 
     public TaskDeploymentDescriptorFactory(
             Either<SerializedValue<JobInformation>, PermanentBlobKey> jobInformationOrBlobKey,
@@ -80,8 +81,9 @@ public class TaskDeploymentDescriptorFactory {
         this.serializedJobInformation = getSerializedJobInformation(jobInformationOrBlobKey);
         this.jobID = jobID;
         this.partitionDeploymentConstraint = partitionDeploymentConstraint;
-        this.blobWriter = blobWriter;
         this.nonFinishedHybridPartitionShouldBeUnknown = nonFinishedHybridPartitionShouldBeUnknown;
+        this.shuffleDescriptorSerializer =
+                new DefaultShuffleDescriptorSerializer(jobID, blobWriter);
     }
 
     public MaybeOffloaded<JobInformation> getSerializedJobInformation() {
@@ -192,8 +194,7 @@ public class TaskDeploymentDescriptorFactory {
                             computeConsumedPartitionShuffleDescriptors(
                                     consumedPartitionGroup, internalExecutionGraphAccessor));
         }
-        cachedShuffleDescriptors.serializeShuffleDescriptors(
-                this::serializeAndTryOffloadShuffleDescriptor);
+        cachedShuffleDescriptors.serializeShuffleDescriptors(shuffleDescriptorSerializer);
 
         return cachedShuffleDescriptors.getAllSerializedShuffleDescriptors();
     }
@@ -218,23 +219,6 @@ public class TaskDeploymentDescriptorFactory {
             i++;
         }
         return shuffleDescriptors;
-    }
-
-    private MaybeOffloaded<ShuffleDescriptorAndIndex[]> serializeAndTryOffloadShuffleDescriptor(
-            ShuffleDescriptorAndIndex[] shuffleDescriptors) throws IOException {
-
-        final CompressedSerializedValue<ShuffleDescriptorAndIndex[]> compressedSerializedValue =
-                CompressedSerializedValue.fromObject(shuffleDescriptors);
-
-        final Either<SerializedValue<ShuffleDescriptorAndIndex[]>, PermanentBlobKey>
-                serializedValueOrBlobKey =
-                        BlobWriter.tryOffload(compressedSerializedValue, jobID, blobWriter);
-
-        if (serializedValueOrBlobKey.isLeft()) {
-            return new TaskDeploymentDescriptor.NonOffloaded<>(serializedValueOrBlobKey.left());
-        } else {
-            return new TaskDeploymentDescriptor.Offloaded<>(serializedValueOrBlobKey.right());
-        }
     }
 
     private static Map<IntermediateDataSetID, ShuffleDescriptorAndIndex[]>
@@ -439,6 +423,40 @@ public class TaskDeploymentDescriptorFactory {
 
         public int getIndex() {
             return index;
+        }
+    }
+
+    /** Serialize shuffle descriptors. */
+    interface ShuffleDescriptorSerializer {
+        MaybeOffloaded<ShuffleDescriptorAndIndex[]> serializeAndTryOffloadShuffleDescriptor(
+                ShuffleDescriptorAndIndex[] shuffleDescriptors) throws IOException;
+    }
+
+    private static class DefaultShuffleDescriptorSerializer implements ShuffleDescriptorSerializer {
+        private final JobID jobID;
+        private final BlobWriter blobWriter;
+
+        public DefaultShuffleDescriptorSerializer(JobID jobID, BlobWriter blobWriter) {
+            this.jobID = checkNotNull(jobID);
+            this.blobWriter = checkNotNull(blobWriter);
+        }
+
+        @Override
+        public MaybeOffloaded<ShuffleDescriptorAndIndex[]> serializeAndTryOffloadShuffleDescriptor(
+                ShuffleDescriptorAndIndex[] shuffleDescriptors) throws IOException {
+
+            final CompressedSerializedValue<ShuffleDescriptorAndIndex[]> compressedSerializedValue =
+                    CompressedSerializedValue.fromObject(shuffleDescriptors);
+
+            final Either<SerializedValue<ShuffleDescriptorAndIndex[]>, PermanentBlobKey>
+                    serializedValueOrBlobKey =
+                            BlobWriter.tryOffload(compressedSerializedValue, jobID, blobWriter);
+
+            if (serializedValueOrBlobKey.isLeft()) {
+                return new TaskDeploymentDescriptor.NonOffloaded<>(serializedValueOrBlobKey.left());
+            } else {
+                return new TaskDeploymentDescriptor.Offloaded<>(serializedValueOrBlobKey.right());
+            }
         }
     }
 }
