@@ -19,25 +19,18 @@
 package org.apache.flink.table.factories;
 
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.catalog.ResolvedCatalogTable;
-import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator;
 import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.module.Module;
-import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 
 import javax.annotation.Nullable;
 
-import java.net.URLClassLoader;
-import java.util.Collections;
 import java.util.Optional;
 
 /** Utility for dealing with {@link TableFactory} using the {@link TableFactoryService}. */
@@ -170,55 +163,5 @@ public class TableFactoryUtil {
                 return false;
             }
         }
-    }
-
-    /**
-     * Create a DynamicTableSink for ResolvedCatalogTable using table factory associated with the
-     * catalog.
-     */
-    public static Optional<DynamicTableSink> getDynamicTableSink(
-            ResolvedCatalogTable resolvedCatalogTable,
-            ObjectIdentifier tableIdentifier,
-            boolean isTemporaryTable,
-            Catalog catalog,
-            ModuleManager moduleManager,
-            TableConfig tableConfig,
-            boolean isStreamingMode,
-            URLClassLoader userClassloader) {
-        if (!TableFactoryUtil.isLegacyConnectorOptions(
-                catalog,
-                tableConfig,
-                isStreamingMode,
-                tableIdentifier,
-                resolvedCatalogTable,
-                isTemporaryTable)) {
-            DynamicTableSinkFactory dynamicTableSinkFactory = null;
-
-            if (catalog != null
-                    && catalog.getFactory().isPresent()
-                    && catalog.getFactory().get() instanceof DynamicTableSinkFactory) {
-                // try get from catalog
-                dynamicTableSinkFactory = (DynamicTableSinkFactory) catalog.getFactory().get();
-            }
-
-            if (dynamicTableSinkFactory == null) {
-                Optional<DynamicTableSinkFactory> factoryFromModule =
-                        moduleManager.getFactory((Module::getTableSinkFactory));
-                // then try get from module
-                dynamicTableSinkFactory = factoryFromModule.orElse(null);
-            }
-            // create table dynamic table sink
-            DynamicTableSink tableSink =
-                    FactoryUtil.createDynamicTableSink(
-                            dynamicTableSinkFactory,
-                            tableIdentifier,
-                            resolvedCatalogTable,
-                            Collections.emptyMap(),
-                            tableConfig,
-                            userClassloader,
-                            isTemporaryTable);
-            return Optional.of(tableSink);
-        }
-        return Optional.empty();
     }
 }

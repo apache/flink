@@ -36,7 +36,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Tests staged table in a table environment. */
+/** Tests staged table in stream mode. */
 public class StagedTableITCase extends StreamingTestBase {
 
     @Rule public final TemporaryFolder tempFolder = new TemporaryFolder();
