@@ -881,25 +881,6 @@ json:
         )
       )
       ```
-  - sql: JSON_OBJECTAGG([KEY] key VALUE value [ { NULL | ABSENT } ON NULL ])
-    table: jsonObjectAgg(JsonOnNull, keyExpression, valueExpression)
-    description: |
-      Builds a JSON object string by aggregating key-value expressions into a single JSON object.
-
-      The key expression must return a non-nullable character string. Value expressions can be
-      arbitrary, including other JSON functions. If a value is `NULL`, the `ON NULL` behavior
-      defines what to do. If omitted, `NULL ON NULL` is assumed by default.
-
-      Note that keys must be unique. If a key occurs multiple times, an error will be thrown.
-
-      This function is currently not supported in `OVER` windows.
-
-      ```sql
-      -- '{"Apple":2,"Banana":17,"Orange":0}'
-      SELECT
-        JSON_OBJECTAGG(KEY product VALUE cnt)
-      FROM orders
-      ```
   - sql: JSON_ARRAY([value]* [ { NULL | ABSENT } ON NULL ])
     table: jsonArray(JsonOnNull, values...)
     description: |
@@ -928,23 +909,6 @@ json:
 
       -- '[[1]]'
       JSON_ARRAY(JSON_ARRAY(1))
-      ```
-  - sql: JSON_ARRAYAGG(items [ { NULL | ABSENT } ON NULL ])
-    table: jsonArrayAgg(JsonOnNull, itemExpression)
-    description: |
-      Builds a JSON object string by aggregating items into an array.
-
-      Item expressions can be arbitrary, including other JSON functions. If a value is `NULL`, the
-      `ON NULL` behavior defines what to do. If omitted, `ABSENT ON NULL` is assumed by default.
-
-      This function is currently not supported in `OVER` windows, unbounded session windows, or hop
-      windows.
-
-      ```sql
-      -- '["Apple","Banana","Orange"]'
-      SELECT
-        JSON_ARRAYAGG(product)
-      FROM orders
       ```
 
 valueconstruction:
@@ -1092,6 +1056,42 @@ aggregate:
       Divides the rows for each window partition into `n` buckets ranging from 1 to at most `n`.
       If the number of rows in the window partition doesn't divide evenly into the number of buckets, then the remainder values are distributed one per bucket, starting with the first bucket.
       For example, with 6 rows and 4 buckets, the bucket values would be as follows: 1 1 2 2 3 4
+  - sql: JSON_OBJECTAGG([KEY] key VALUE value [ { NULL | ABSENT } ON NULL ])
+    table: jsonObjectAgg(JsonOnNull, keyExpression, valueExpression)
+    description: |
+      Builds a JSON object string by aggregating key-value expressions into a single JSON object.
+
+      The key expression must return a non-nullable character string. Value expressions can be
+      arbitrary, including other JSON functions. If a value is `NULL`, the `ON NULL` behavior
+      defines what to do. If omitted, `NULL ON NULL` is assumed by default.
+
+      Note that keys must be unique. If a key occurs multiple times, an error will be thrown.
+
+      This function is currently not supported in `OVER` windows and is not supported for use with other aggregate functions.
+
+      ```sql
+      -- '{"Apple":2,"Banana":17,"Orange":0}'
+      SELECT
+        JSON_OBJECTAGG(KEY product VALUE cnt)
+      FROM orders
+      ```
+  - sql: JSON_ARRAYAGG(items [ { NULL | ABSENT } ON NULL ])
+    table: jsonArrayAgg(JsonOnNull, itemExpression)
+    description: |
+      Builds a JSON object string by aggregating items into an array.
+
+      Item expressions can be arbitrary, including other JSON functions. If a value is `NULL`, the
+      `ON NULL` behavior defines what to do. If omitted, `ABSENT ON NULL` is assumed by default.
+
+      This function is currently not supported in `OVER` windows, unbounded session windows, or hop
+      windows. And it is not supported for use with other aggregate functions.
+
+      ```sql
+      -- '["Apple","Banana","Orange"]'
+      SELECT
+        JSON_ARRAYAGG(product)
+      FROM orders
+      ```
 
 catalog:
   - sql: CURRENT_DATABASE()
