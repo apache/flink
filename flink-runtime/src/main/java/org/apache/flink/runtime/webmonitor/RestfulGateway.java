@@ -24,6 +24,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.TriggerSavepointMode;
@@ -93,6 +94,16 @@ public interface RestfulGateway extends RpcGateway {
      *     {@link FlinkJobNotFoundException}
      */
     CompletableFuture<ExecutionGraphInfo> requestExecutionGraphInfo(
+            JobID jobId, @RpcTimeout Time timeout);
+
+    /**
+     * Requests the {@link CheckpointStatsSnapshot} containing checkpointing information.
+     *
+     * @param jobId identifying the job whose {@link CheckpointStatsSnapshot} is requested
+     * @param timeout for the asynchronous operation
+     * @return Future containing the {@link CheckpointStatsSnapshot} for the given jobId
+     */
+    CompletableFuture<CheckpointStatsSnapshot> requestCheckpointStats(
             JobID jobId, @RpcTimeout Time timeout);
 
     /**

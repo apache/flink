@@ -26,6 +26,7 @@ import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -92,6 +93,15 @@ public interface SchedulerNG extends GlobalFailureHandler, AutoCloseableAsync {
             throws PartitionProducerDisposedException;
 
     ExecutionGraphInfo requestJob();
+
+    /**
+     * Returns the checkpoint statistics for a given job. Although the {@link
+     * CheckpointStatsSnapshot} is included in the {@link ExecutionGraphInfo}, this method is
+     * preferred to {@link SchedulerNG#requestJob()} because it is less expensive.
+     *
+     * @return checkpoint statistics snapshot for job graph
+     */
+    CheckpointStatsSnapshot requestCheckpointStats();
 
     JobStatus requestJobStatus();
 

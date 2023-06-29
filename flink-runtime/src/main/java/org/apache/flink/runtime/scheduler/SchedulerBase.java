@@ -39,6 +39,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
@@ -797,6 +798,12 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         mainThreadExecutor.assertRunningInMainThread();
         return new ExecutionGraphInfo(
                 ArchivedExecutionGraph.createFrom(executionGraph), getExceptionHistory());
+    }
+
+    @Override
+    public CheckpointStatsSnapshot requestCheckpointStats() {
+        mainThreadExecutor.assertRunningInMainThread();
+        return executionGraph.getCheckpointStatsSnapshot();
     }
 
     @Override

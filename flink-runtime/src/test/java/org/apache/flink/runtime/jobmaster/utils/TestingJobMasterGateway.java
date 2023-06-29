@@ -29,6 +29,7 @@ import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.blocklist.BlockedNode;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -130,6 +131,10 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     @Nonnull private final Supplier<CompletableFuture<JobDetails>> requestJobDetailsSupplier;
 
     @Nonnull private final Supplier<CompletableFuture<ExecutionGraphInfo>> requestJobSupplier;
+
+    @Nonnull
+    private final Supplier<CompletableFuture<CheckpointStatsSnapshot>>
+            checkpointStatsSnapshotSupplier;
 
     @Nonnull
     private final TriFunction<String, Boolean, SavepointFormatType, CompletableFuture<String>>
@@ -241,6 +246,9 @@ public class TestingJobMasterGateway implements JobMasterGateway {
             @Nonnull Supplier<CompletableFuture<JobDetails>> requestJobDetailsSupplier,
             @Nonnull Supplier<CompletableFuture<ExecutionGraphInfo>> requestJobSupplier,
             @Nonnull
+                    Supplier<CompletableFuture<CheckpointStatsSnapshot>>
+                            checkpointStatsSnapshotSupplier,
+            @Nonnull
                     TriFunction<String, Boolean, SavepointFormatType, CompletableFuture<String>>
                             triggerSavepointFunction,
             @Nonnull
@@ -320,6 +328,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
         this.resourceManagerHeartbeatFunction = resourceManagerHeartbeatFunction;
         this.requestJobDetailsSupplier = requestJobDetailsSupplier;
         this.requestJobSupplier = requestJobSupplier;
+        this.checkpointStatsSnapshotSupplier = checkpointStatsSnapshotSupplier;
         this.triggerSavepointFunction = triggerSavepointFunction;
         this.triggerCheckpointFunction = triggerCheckpointFunction;
         this.stopWithSavepointFunction = stopWithSavepointFunction;
@@ -415,6 +424,11 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     @Override
     public CompletableFuture<ExecutionGraphInfo> requestJob(Time timeout) {
         return requestJobSupplier.get();
+    }
+
+    @Override
+    public CompletableFuture<CheckpointStatsSnapshot> requestCheckpointStats(Time timeout) {
+        return checkpointStatsSnapshotSupplier.get();
     }
 
     @Override

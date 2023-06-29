@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest.handler.job.checkpoints;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.checkpoint.AbstractCheckpointStats;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsCounts;
@@ -28,8 +29,6 @@ import org.apache.flink.runtime.checkpoint.RestoredCheckpointStats;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
-import org.apache.flink.runtime.rest.handler.job.AbstractAccessExecutionGraphHandler;
-import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
@@ -44,6 +43,7 @@ import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.OnlyExecutionGraphJsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
+import org.apache.flink.shaded.guava31.com.google.common.cache.Cache;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import java.io.IOException;
@@ -52,11 +52,12 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /** Handler which serves the checkpoint statistics. */
 public class CheckpointingStatisticsHandler
-        extends AbstractAccessExecutionGraphHandler<CheckpointingStatistics, JobMessageParameters>
+        extends AbstractCheckpointStatsHandler<CheckpointingStatistics, JobMessageParameters>
         implements OnlyExecutionGraphJsonArchivist {
 
     public CheckpointingStatisticsHandler(
@@ -65,22 +66,23 @@ public class CheckpointingStatisticsHandler
             Map<String, String> responseHeaders,
             MessageHeaders<EmptyRequestBody, CheckpointingStatistics, JobMessageParameters>
                     messageHeaders,
-            ExecutionGraphCache executionGraphCache,
+            Cache<JobID, CompletableFuture<CheckpointStatsSnapshot>> checkpointStatsSnapshotCache,
             Executor executor) {
         super(
                 leaderRetriever,
                 timeout,
                 responseHeaders,
                 messageHeaders,
-                executionGraphCache,
+                checkpointStatsSnapshotCache,
                 executor);
     }
 
     @Override
-    protected CheckpointingStatistics handleRequest(
-            HandlerRequest<EmptyRequestBody> request, AccessExecutionGraph executionGraph)
+    protected CheckpointingStatistics handleCheckpointStatsRequest(
+            HandlerRequest<EmptyRequestBody> request,
+            CheckpointStatsSnapshot checkpointStatsSnapshot)
             throws RestHandlerException {
-        return createCheckpointingStatistics(executionGraph);
+        return createCheckpointingStatistics(checkpointStatsSnapshot);
     }
 
     @Override
@@ -88,7 +90,7 @@ public class CheckpointingStatisticsHandler
             throws IOException {
         ResponseBody json;
         try {
-            json = createCheckpointingStatistics(graph);
+            json = createCheckpointingStatistics(graph.getCheckpointStatsSnapshot());
         } catch (RestHandlerException rhe) {
             json = new ErrorResponseBody(rhe.getMessage());
         }
@@ -100,10 +102,7 @@ public class CheckpointingStatisticsHandler
     }
 
     private static CheckpointingStatistics createCheckpointingStatistics(
-            AccessExecutionGraph executionGraph) throws RestHandlerException {
-        final CheckpointStatsSnapshot checkpointStatsSnapshot =
-                executionGraph.getCheckpointStatsSnapshot();
-
+            CheckpointStatsSnapshot checkpointStatsSnapshot) throws RestHandlerException {
         if (checkpointStatsSnapshot == null) {
             throw new RestHandlerException(
                     "Checkpointing has not been enabled.",

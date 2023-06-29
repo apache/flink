@@ -21,6 +21,18 @@
             <td>The time in ms that the client waits for the leader address, e.g., Dispatcher or WebMonitorEndpoint</td>
         </tr>
         <tr>
+            <td><h5>rest.cache.checkpoint-statistics.size</h5></td>
+            <td style="word-wrap: break-word;">1000</td>
+            <td>Integer</td>
+            <td>Maximum number of entries in the checkpoint statistics cache.</td>
+        </tr>
+        <tr>
+            <td><h5>rest.cache.checkpoint-statistics.timeout</h5></td>
+            <td style="word-wrap: break-word;">3 s</td>
+            <td>Duration</td>
+            <td>Duration from write after which cached checkpoints statistics are cleaned up. For backwards compatibility, if no value is configured, <code class="highlighter-rouge">web.refresh-interval</code> will be used instead.</td>
+        </tr>
+        <tr>
             <td><h5>rest.client.max-content-length</h5></td>
             <td style="word-wrap: break-word;">104857600</td>
             <td>Integer</td>

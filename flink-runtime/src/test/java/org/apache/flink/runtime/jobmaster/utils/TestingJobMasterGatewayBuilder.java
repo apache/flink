@@ -27,6 +27,7 @@ import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.blocklist.BlockedNode;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -120,6 +121,8 @@ public class TestingJobMasterGatewayBuilder {
     private Supplier<CompletableFuture<JobDetails>> requestJobDetailsSupplier =
             () -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
     private Supplier<CompletableFuture<ExecutionGraphInfo>> requestJobSupplier =
+            () -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
+    private Supplier<CompletableFuture<CheckpointStatsSnapshot>> checkpointStatsSnapshotSupplier =
             () -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
     private TriFunction<String, Boolean, SavepointFormatType, CompletableFuture<String>>
             triggerSavepointFunction =
@@ -289,6 +292,12 @@ public class TestingJobMasterGatewayBuilder {
         return this;
     }
 
+    public TestingJobMasterGatewayBuilder setCheckpointStatsSnapshotSupplier(
+            Supplier<CompletableFuture<CheckpointStatsSnapshot>> checkpointStatsSnapshotSupplier) {
+        this.checkpointStatsSnapshotSupplier = checkpointStatsSnapshotSupplier;
+        return this;
+    }
+
     public TestingJobMasterGatewayBuilder setTriggerSavepointFunction(
             TriFunction<String, Boolean, SavepointFormatType, CompletableFuture<String>>
                     triggerSavepointFunction) {
@@ -439,6 +448,7 @@ public class TestingJobMasterGatewayBuilder {
                 resourceManagerHeartbeatFunction,
                 requestJobDetailsSupplier,
                 requestJobSupplier,
+                checkpointStatsSnapshotSupplier,
                 triggerSavepointFunction,
                 triggerCheckpointFunction,
                 stopWithSavepointFunction,
