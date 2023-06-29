@@ -523,24 +523,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     private CheckpointStorageAccess applyFileMergingCheckpoint(
             CheckpointStorageAccess checkpointStorageAccess,
             FileMergingSnapshotManager fileMergingSnapshotManager) {
-        if (fileMergingSnapshotManager == null) {
-            return checkpointStorageAccess;
-        }
-
-        try {
-            CheckpointStorageWorkerView mergingCheckpointStorageAccess =
-                    checkpointStorageAccess.toFileMergingStorage(
-                            fileMergingSnapshotManager, environment);
-            return (CheckpointStorageAccess) mergingCheckpointStorageAccess;
-        } catch (IOException e) {
-            LOG.warn(
-                    "Initiating FsMergingCheckpointStorageAccess failed"
-                            + "with exception: {}, falling back to original checkpoint storage access {}.",
-                    e.getMessage(),
-                    checkpointStorageAccess.getClass(),
-                    e);
-            return checkpointStorageAccess;
-        }
+        // TODO (FLINK-32440): enable FileMergingCheckpoint by configuration
+        return checkpointStorageAccess;
     }
 
     private TimerService createTimerService(String timerThreadName) {
