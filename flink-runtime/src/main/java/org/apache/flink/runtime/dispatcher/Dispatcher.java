@@ -38,6 +38,7 @@ import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
@@ -935,6 +936,13 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         return maybeJob.map(job -> job.requestJob(timeout))
                 .orElse(FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId)))
                 .exceptionally(checkExecutionGraphStoreOnException);
+    }
+
+    @Override
+    public CompletableFuture<CheckpointStatsSnapshot> requestCheckpointStats(
+            JobID jobId, Time timeout) {
+        return performOperationOnJobMasterGateway(
+                jobId, gateway -> gateway.requestCheckpointStats(timeout));
     }
 
     @Override

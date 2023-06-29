@@ -31,6 +31,7 @@ import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
@@ -65,6 +66,7 @@ import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFact
 import org.apache.flink.runtime.jobmaster.factories.JobMasterServiceFactory;
 import org.apache.flink.runtime.jobmaster.factories.JobMasterServiceProcessFactory;
 import org.apache.flink.runtime.jobmaster.factories.TestingJobMasterServiceFactory;
+import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElection;
@@ -653,6 +655,32 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 dispatcher.callAsyncInMainThread(
                         () -> dispatcher.requestExecutionGraphInfo(failedJobId, TIMEOUT));
         assertThat(completableFutureCompletableFuture.get(), is(failedExecutionGraphInfo));
+    }
+
+    @Test
+    public void testRetrieveCheckpointStats() throws Exception {
+        CheckpointStatsSnapshot snapshot = CheckpointStatsSnapshot.empty();
+        TestingJobMasterGateway testingJobMasterGateway =
+                new TestingJobMasterGatewayBuilder()
+                        .setCheckpointStatsSnapshotSupplier(
+                                () -> CompletableFuture.completedFuture(snapshot))
+                        .build();
+
+        dispatcher =
+                createAndStartDispatcher(
+                        heartbeatServices,
+                        haServices,
+                        new TestingJobMasterGatewayJobManagerRunnerFactory(
+                                testingJobMasterGateway));
+        DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+
+        dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
+
+        CompletableFuture<CheckpointStatsSnapshot> resultsFuture =
+                dispatcher.callAsyncInMainThread(
+                        () -> dispatcher.requestCheckpointStats(jobId, TIMEOUT));
+        Assertions.assertThat(resultsFuture).succeedsWithin(Duration.ofSeconds(1));
+        Assertions.assertThat(resultsFuture).isCompletedWithValue(snapshot);
     }
 
     @Test
@@ -1749,6 +1777,45 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 long initializationTimestamp) {
             initializationTimestampQueue.offer(initializationTimestamp);
             return TestingJobManagerRunner.newBuilder().setJobId(jobGraph.getJobID()).build();
+        }
+    }
+
+    private static final class TestingJobMasterGatewayJobManagerRunnerFactory
+            extends TestingJobMasterServiceLeadershipRunnerFactory {
+        private final TestingJobMasterGateway testingJobMasterGateway;
+
+        private TestingJobMasterGatewayJobManagerRunnerFactory(
+                TestingJobMasterGateway testingJobMasterGateway) {
+            this.testingJobMasterGateway = testingJobMasterGateway;
+        }
+
+        @Override
+        public TestingJobManagerRunner createJobManagerRunner(
+                JobGraph jobGraph,
+                Configuration configuration,
+                RpcService rpcService,
+                HighAvailabilityServices highAvailabilityServices,
+                HeartbeatServices heartbeatServices,
+                JobManagerSharedServices jobManagerServices,
+                JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
+                FatalErrorHandler fatalErrorHandler,
+                Collection<FailureEnricher> failureEnrichers,
+                long initializationTimestamp)
+                throws Exception {
+            TestingJobManagerRunner runner =
+                    super.createJobManagerRunner(
+                            jobGraph,
+                            configuration,
+                            rpcService,
+                            highAvailabilityServices,
+                            heartbeatServices,
+                            jobManagerServices,
+                            jobManagerJobMetricGroupFactory,
+                            fatalErrorHandler,
+                            failureEnrichers,
+                            initializationTimestamp);
+            runner.completeJobMasterGatewayFuture(testingJobMasterGateway);
+            return runner;
         }
     }
 

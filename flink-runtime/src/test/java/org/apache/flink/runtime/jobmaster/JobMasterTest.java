@@ -42,6 +42,7 @@ import org.apache.flink.runtime.blocklist.DefaultBlocklistHandler;
 import org.apache.flink.runtime.checkpoint.CheckpointProperties;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory;
@@ -2094,6 +2095,42 @@ class JobMasterTest {
             assertThatFuture(jobMasterGateway.requestJobResourceRequirements())
                     .eventuallySucceeds()
                     .isEqualTo(jobResourceRequirements);
+        }
+    }
+
+    @Test
+    void testRetrievingCheckpointStats() throws Exception {
+        // create savepoint data
+        final long savepointId = 42L;
+        final File savepointFile = createSavepoint(savepointId);
+
+        // set savepoint settings
+        final SavepointRestoreSettings savepointRestoreSettings =
+                SavepointRestoreSettings.forPath(savepointFile.getAbsolutePath(), true);
+        final JobGraph jobGraph = createJobGraphWithCheckpointing(savepointRestoreSettings);
+
+        final StandaloneCompletedCheckpointStore completedCheckpointStore =
+                new StandaloneCompletedCheckpointStore(1);
+        final CheckpointRecoveryFactory testingCheckpointRecoveryFactory =
+                PerJobCheckpointRecoveryFactory.withoutCheckpointStoreRecovery(
+                        maxCheckpoints -> completedCheckpointStore);
+        haServices.setCheckpointRecoveryFactory(testingCheckpointRecoveryFactory);
+
+        try (final JobMaster jobMaster =
+                new JobMasterBuilder(jobGraph, rpcService)
+                        .withHighAvailabilityServices(haServices)
+                        .createJobMaster()) {
+
+            // we need to start and register the required slots to let the adaptive scheduler
+            // restore from the savepoint
+            jobMaster.start();
+
+            CheckpointStatsSnapshot checkpointStatsSnapshot =
+                    jobMaster.getGateway().requestCheckpointStats(testingTimeout).get();
+
+            // assert that the checkpoint snapshot reflects the latest completed checkpoint
+            assertThat(checkpointStatsSnapshot.getLatestRestoredCheckpoint().getCheckpointId())
+                    .isEqualTo(savepointId);
         }
     }
 
