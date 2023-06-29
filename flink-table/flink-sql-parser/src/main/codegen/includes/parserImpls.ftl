@@ -437,12 +437,17 @@ SqlAlterFunction SqlAlterFunction() :
 
 /**
 * Parses a show functions statement.
-* SHOW [USER] FUNCTIONS;
+* SHOW [USER] FUNCTIONS [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] (LIKE | ILIKE) pattern;
 */
 SqlShowFunctions SqlShowFunctions() :
 {
     SqlParserPos pos;
     boolean requireUser = false;
+    String prep = null;
+    SqlIdentifier databaseName = null;
+    String likeType = null;
+    SqlCharStringLiteral likeLiteral = null;
+    boolean notLike = false;
 }
 {
     <SHOW> { pos = getPos();}
@@ -450,8 +455,36 @@ SqlShowFunctions SqlShowFunctions() :
         <USER> { requireUser = true; }
     ]
     <FUNCTIONS>
+    [
+        ( <FROM> { prep = "FROM"; } | <IN> { prep = "IN"; } )
+        { pos = getPos(); }
+        databaseName = CompoundIdentifier()
+    ]
+    [
+        [
+            <NOT>
+            {
+                notLike = true;
+            }
+        ]
+        (
+            <LIKE>  <QUOTED_STRING>
+            {
+                likeType = "LIKE";
+                String likeCondition1 = SqlParserUtil.parseString(token.image);
+                likeLiteral = SqlLiteral.createCharString(likeCondition1, getPos());
+            }
+        |
+            <ILIKE>  <QUOTED_STRING>
+            {
+                likeType = "ILIKE";
+                String likeCondition2 = SqlParserUtil.parseString(token.image);
+                likeLiteral = SqlLiteral.createCharString(likeCondition2, getPos());
+            }
+        )
+    ]
     {
-        return new SqlShowFunctions(pos.plus(getPos()), requireUser);
+        return new SqlShowFunctions(pos, requireUser, prep, databaseName, likeType, likeLiteral, notLike);
     }
 }
 

@@ -213,6 +213,61 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     void testShowFunctions() {
         sql("show functions").ok("SHOW FUNCTIONS");
         sql("show user functions").ok("SHOW USER FUNCTIONS");
+
+        sql("show functions like '%'").ok("SHOW FUNCTIONS LIKE '%'");
+        sql("show functions not like '%'").ok("SHOW FUNCTIONS NOT LIKE '%'");
+        sql("show user functions like '%'").ok("SHOW USER FUNCTIONS LIKE '%'");
+        sql("show user functions not like '%'").ok("SHOW USER FUNCTIONS NOT LIKE '%'");
+
+        sql("show functions from db1").ok("SHOW FUNCTIONS FROM `DB1`");
+        sql("show user functions from db1").ok("SHOW USER FUNCTIONS FROM `DB1`");
+        sql("show functions in db1").ok("SHOW FUNCTIONS IN `DB1`");
+        sql("show user functions in db1").ok("SHOW USER FUNCTIONS IN `DB1`");
+
+        sql("show functions from catalog1.db1").ok("SHOW FUNCTIONS FROM `CATALOG1`.`DB1`");
+        sql("show user functions from catalog1.db1")
+                .ok("SHOW USER FUNCTIONS FROM `CATALOG1`.`DB1`");
+        sql("show functions in catalog1.db1").ok("SHOW FUNCTIONS IN `CATALOG1`.`DB1`");
+        sql("show user functions in catalog1.db1").ok("SHOW USER FUNCTIONS IN `CATALOG1`.`DB1`");
+
+        sql("show functions from db1 like '%'").ok("SHOW FUNCTIONS FROM `DB1` LIKE '%'");
+        sql("show user functions from db1 like '%'").ok("SHOW USER FUNCTIONS FROM `DB1` LIKE '%'");
+        sql("show functions in db1 ilike '%'").ok("SHOW FUNCTIONS IN `DB1` ILIKE '%'");
+        sql("show user functions in db1 ilike '%'").ok("SHOW USER FUNCTIONS IN `DB1` ILIKE '%'");
+
+        sql("show functions from catalog1.db1 ilike '%'")
+                .ok("SHOW FUNCTIONS FROM `CATALOG1`.`DB1` ILIKE '%'");
+        sql("show user functions from catalog1.db1 ilike '%'")
+                .ok("SHOW USER FUNCTIONS FROM `CATALOG1`.`DB1` ILIKE '%'");
+        sql("show functions in catalog1.db1 like '%'")
+                .ok("SHOW FUNCTIONS IN `CATALOG1`.`DB1` LIKE '%'");
+        sql("show user functions in catalog1.db1 like '%'")
+                .ok("SHOW USER FUNCTIONS IN `CATALOG1`.`DB1` LIKE '%'");
+
+        sql("show functions from db1 not like '%'").ok("SHOW FUNCTIONS FROM `DB1` NOT LIKE '%'");
+        sql("show user functions from db1 not like '%'")
+                .ok("SHOW USER FUNCTIONS FROM `DB1` NOT LIKE '%'");
+        sql("show functions in db1 not ilike '%'").ok("SHOW FUNCTIONS IN `DB1` NOT ILIKE '%'");
+        sql("show user functions in db1 not ilike '%'")
+                .ok("SHOW USER FUNCTIONS IN `DB1` NOT ILIKE '%'");
+
+        sql("show functions from catalog1.db1 not like '%'")
+                .ok("SHOW FUNCTIONS FROM `CATALOG1`.`DB1` NOT LIKE '%'");
+        sql("show user functions from catalog1.db1 not like '%'")
+                .ok("SHOW USER FUNCTIONS FROM `CATALOG1`.`DB1` NOT LIKE '%'");
+        sql("show functions in catalog1.db1 not ilike '%'")
+                .ok("SHOW FUNCTIONS IN `CATALOG1`.`DB1` NOT ILIKE '%'");
+        sql("show user functions in catalog1.db1 not ilike '%'")
+                .ok("SHOW USER FUNCTIONS IN `CATALOG1`.`DB1` NOT ILIKE '%'");
+
+        sql("show functions ^likes^")
+                .fails("(?s).*Encountered \"likes\" at line 1, column 16.\n.*");
+        sql("show functions not ^likes^")
+                .fails("(?s).*Encountered \"likes\" at line 1, column 20" + ".\n" + ".*");
+        sql("show functions ^ilikes^")
+                .fails("(?s).*Encountered \"ilikes\" at line 1, column 16.\n.*");
+        sql("show functions not ^ilikes^")
+                .fails("(?s).*Encountered \"ilikes\" at line 1, column 20" + ".\n" + ".*");
     }
 
     @Test

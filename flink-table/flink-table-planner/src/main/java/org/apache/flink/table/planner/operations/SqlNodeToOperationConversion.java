@@ -70,7 +70,6 @@ import org.apache.flink.sql.parser.dql.SqlShowCreateView;
 import org.apache.flink.sql.parser.dql.SqlShowCurrentCatalog;
 import org.apache.flink.sql.parser.dql.SqlShowCurrentDatabase;
 import org.apache.flink.sql.parser.dql.SqlShowDatabases;
-import org.apache.flink.sql.parser.dql.SqlShowFunctions;
 import org.apache.flink.sql.parser.dql.SqlShowJars;
 import org.apache.flink.sql.parser.dql.SqlShowJobs;
 import org.apache.flink.sql.parser.dql.SqlShowModules;
@@ -133,8 +132,6 @@ import org.apache.flink.table.operations.ShowCreateViewOperation;
 import org.apache.flink.table.operations.ShowCurrentCatalogOperation;
 import org.apache.flink.table.operations.ShowCurrentDatabaseOperation;
 import org.apache.flink.table.operations.ShowDatabasesOperation;
-import org.apache.flink.table.operations.ShowFunctionsOperation;
-import org.apache.flink.table.operations.ShowFunctionsOperation.FunctionScope;
 import org.apache.flink.table.operations.ShowModulesOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.ShowViewsOperation;
@@ -340,8 +337,6 @@ public class SqlNodeToOperationConversion {
             return Optional.of(converter.convertShowCreateTable((SqlShowCreateTable) validated));
         } else if (validated instanceof SqlShowCreateView) {
             return Optional.of(converter.convertShowCreateView((SqlShowCreateView) validated));
-        } else if (validated instanceof SqlShowFunctions) {
-            return Optional.of(converter.convertShowFunctions((SqlShowFunctions) validated));
         } else if (validated instanceof SqlRichExplain) {
             return Optional.of(converter.convertRichExplain((SqlRichExplain) validated));
         } else if (validated instanceof SqlRichDescribeTable) {
@@ -968,12 +963,6 @@ public class SqlNodeToOperationConversion {
                 UnresolvedIdentifier.of(sqlShowCreateView.getFullViewName());
         ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
         return new ShowCreateViewOperation(identifier);
-    }
-
-    /** Convert SHOW FUNCTIONS statement. */
-    private Operation convertShowFunctions(SqlShowFunctions sqlShowFunctions) {
-        return new ShowFunctionsOperation(
-                sqlShowFunctions.requireUser() ? FunctionScope.USER : FunctionScope.ALL);
     }
 
     /** Convert DROP VIEW statement. */

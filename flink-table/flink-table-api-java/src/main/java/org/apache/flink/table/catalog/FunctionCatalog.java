@@ -339,6 +339,22 @@ public final class FunctionCatalog {
     }
 
     /**
+     * Get names of all functions, including temp system functions, system functions, temp catalog
+     * functions and catalog functions with specific catalog and database.
+     */
+    public String[] getFunctions(String catalogName, String databaseName) {
+        Set<String> result =
+                getUserDefinedFunctions(catalogName, databaseName).stream()
+                        .map(FunctionIdentifier::getFunctionName)
+                        .collect(Collectors.toSet());
+
+        // add system functions
+        result.addAll(moduleManager.listFunctions());
+
+        return result.toArray(new String[0]);
+    }
+
+    /**
      * Check whether a temporary catalog function is already registered.
      *
      * @param functionIdentifier the object identifier of function

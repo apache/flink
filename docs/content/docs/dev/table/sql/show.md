@@ -759,13 +759,23 @@ Show create view statement for specified view.
 ## SHOW FUNCTIONS
 
 ```sql
-SHOW [USER] FUNCTIONS
+SHOW [USER] FUNCTIONS [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] (LIKE | ILIKE) <sql_like_pattern> ]	
 ```
 
-Show all functions including system functions and user-defined functions in the current catalog and current database.
+Show all functions including system functions and user-defined functions for an optionally specified database. If no database is specified then the functions are returned from the current database. Additionally, the output of this statement may be filtered by an optional matching pattern.
 
 **USER**
-Show only user-defined functions in the current catalog and current database.
+Show only user-defined functions for an optionally specified database. If no database is specified then the functions are returned from the current database. Additionally, the output of this statement may be filtered by an optional matching pattern.
+
+**LIKE**
+Show all tables with given table name and optional `LIKE` clause, whose name is whether similar to the `<sql_like_pattern>`.
+
+The syntax of sql pattern in `LIKE` clause is the same as that of `MySQL` dialect.
+* `%` matches any number of characters, even zero characters, `\%` matches one `%` character.
+* `_` matches exactly one character, `\_` matches one `_` character.
+
+**ILIKE**
+The same behavior as `LIKE` but sql pattern is case-insensitive.
 
 ## SHOW MODULES
 
