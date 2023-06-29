@@ -529,7 +529,8 @@ public class HiveDialectQueryITCase {
      */
     private boolean isDataFile(Path path) {
         String successFileName =
-                tableEnv.getConfig().get(FileSystemConnectorOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME);
+                tableEnv.getConfig()
+                        .get(FileSystemConnectorOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME);
         return !path.toFile().isHidden() && !path.toFile().getName().equals(successFileName);
     }
 

@@ -223,7 +223,8 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                                                     HiveOptions
                                                             .TABLE_EXEC_HIVE_SINK_STATISTIC_AUTO_GATHER_ENABLE
                                                             .key(),
-                                                    FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_CLASS,
+                                                    FileSystemConnectorOptions
+                                                            .SINK_PARTITION_COMMIT_POLICY_CLASS,
                                                     identifier,
                                                     PartitionCommitPolicy.METASTORE)));
         }
@@ -456,8 +457,11 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                 new PartitionCommitPolicyFactory(
                         conf.get(HiveOptions.SINK_PARTITION_COMMIT_POLICY_KIND),
                         conf.get(FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_CLASS),
-                        conf.get(FileSystemConnectorOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME),
-                        conf.get(FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_CLASS_PARAMETERS));
+                        conf.get(
+                                FileSystemConnectorOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME),
+                        conf.get(
+                                FileSystemConnectorOptions
+                                        .SINK_PARTITION_COMMIT_POLICY_CLASS_PARAMETERS));
 
         org.apache.flink.core.fs.Path path = new org.apache.flink.core.fs.Path(sd.getLocation());
         BucketsBuilder<RowData, String, ? extends BucketsBuilder<RowData, ?, ?>> builder =
@@ -611,8 +615,11 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                 new PartitionCommitPolicyFactory(
                         conf.get(HiveOptions.SINK_PARTITION_COMMIT_POLICY_KIND),
                         conf.get(FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_CLASS),
-                        conf.get(FileSystemConnectorOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME),
-                        conf.get(FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_CLASS_PARAMETERS)));
+                        conf.get(
+                                FileSystemConnectorOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME),
+                        conf.get(
+                                FileSystemConnectorOptions
+                                        .SINK_PARTITION_COMMIT_POLICY_CLASS_PARAMETERS)));
         return BatchSink.createBatchNoCompactSink(
                 dataStream, converter, builder.build(), sinkParallelism, sinkParallelismConfigured);
     }

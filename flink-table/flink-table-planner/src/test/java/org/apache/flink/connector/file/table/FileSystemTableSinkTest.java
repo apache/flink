@@ -169,30 +169,28 @@ public class FileSystemTableSinkTest {
         final String inputTable = "inputTable";
         final String outputTable = "outputTable";
         final String customPartitionCommitPolicyClassName = TestCustomCommitPolicy.class.getName();
-        EnvironmentSettings settings = EnvironmentSettings.newInstance()
-                .inStreamingMode()
-                .build();
+        EnvironmentSettings settings = EnvironmentSettings.newInstance().inStreamingMode().build();
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         env.enableCheckpointing(100);
         StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env, settings);
 
         String ddl =
-                "CREATE TABLE %s (" +
-                        "  a INT," +
-                        "  b STRING," +
-                        "  c STRING," +
-                        "  d STRING," +
-                        "  e STRING" +
-                        ") PARTITIONED BY (d, e) WITH (" +
-                        "'connector'='filesystem'," +
-                        "'path'='/tmp'," +
-                        "'format'='testcsv'," +
-                        "'sink.partition-commit.delay'='0s'," +
-                        "'sink.partition-commit.policy.kind'='custom'," +
-                        "'sink.partition-commit.policy.class'='%s'," +
-                        "'sink.partition-commit.policy.class.parameters'='test1;test2'" +
-                        ")";
+                "CREATE TABLE %s ("
+                        + "  a INT,"
+                        + "  b STRING,"
+                        + "  c STRING,"
+                        + "  d STRING,"
+                        + "  e STRING"
+                        + ") PARTITIONED BY (d, e) WITH ("
+                        + "'connector'='filesystem',"
+                        + "'path'='/tmp',"
+                        + "'format'='testcsv',"
+                        + "'sink.partition-commit.delay'='0s',"
+                        + "'sink.partition-commit.policy.kind'='custom',"
+                        + "'sink.partition-commit.policy.class'='%s',"
+                        + "'sink.partition-commit.policy.class.parameters'='test1;test2'"
+                        + ")";
         ddl = String.format(ddl, outputTable, customPartitionCommitPolicyClassName);
 
         List<Row> data =
@@ -203,17 +201,16 @@ public class FileSystemTableSinkTest {
                 env.addSource(
                         new FiniteTestSource<>(data),
                         new RowTypeInfo(
-                                Types.INT,
-                                Types.STRING,
-                                Types.STRING,
-                                Types.STRING,
-                                Types.STRING));
+                                Types.INT, Types.STRING, Types.STRING, Types.STRING, Types.STRING));
         Table t = tableEnv.fromDataStream(stream, Schema.newBuilder().build());
         tableEnv.createTemporaryView(inputTable, t);
         tableEnv.executeSql(ddl);
         tableEnv.sqlQuery("select * from inputTable").executeInsert("outputTable").await();
         Set<String> committedPaths = TestCustomCommitPolicy.getCommittedPartitionPathsAndReset();
-        Set<String> validationSet = new HashSet<>(Arrays.asList("test1test2", "/tmp/d=2020-05-03/e=3", "/tmp/d=2020-05-03/e=4"));
+        Set<String> validationSet =
+                new HashSet<>(
+                        Arrays.asList(
+                                "test1test2", "/tmp/d=2020-05-03/e=3", "/tmp/d=2020-05-03/e=4"));
         assertEquals(validationSet, committedPaths);
     }
 }
