@@ -53,6 +53,8 @@ under the License.
 			<artifactId>flink-connector-kafka</artifactId>
 			<version>3.0.0-1.17</version>
 		</dependency>
+		<!-- Make sure that Shaded Guava matches the one used in the flink-connector-kafka,
+		 or remove when FLINK-32462 is resolved -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-guava</artifactId>
