@@ -116,6 +116,13 @@ public interface DeclarativeSlotPool {
     Collection<SlotInfoWithUtilization> getFreeSlotsInformation();
 
     /**
+     * Returns the free slot tracker.
+     *
+     * @return free slot tracker
+     */
+    FreeSlotInfoTracker getFreeSlotInfoTracker();
+
+    /**
      * Returns the slot information for all slots (free and allocated slots).
      *
      * @return collection of slot information

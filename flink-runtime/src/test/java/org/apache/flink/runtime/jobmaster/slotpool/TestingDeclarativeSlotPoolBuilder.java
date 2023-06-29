@@ -58,6 +58,8 @@ public class TestingDeclarativeSlotPoolBuilder {
             Collections::emptyList;
     private Supplier<Collection<? extends SlotInfo>> getAllSlotsInformationSupplier =
             Collections::emptyList;
+    private Supplier<FreeSlotInfoTracker> getFreeSlotInfoTrackerSupplier =
+            () -> TestingFreeSlotInfoTracker.newBuilder().build();
     private BiFunction<ResourceID, Exception, ResourceCounter> releaseSlotsFunction =
             (ignoredA, ignoredB) -> ResourceCounter.empty();
     private BiFunction<AllocationID, Exception, ResourceCounter> releaseSlotFunction =
@@ -133,6 +135,12 @@ public class TestingDeclarativeSlotPoolBuilder {
         return this;
     }
 
+    public TestingDeclarativeSlotPoolBuilder setGetFreeSlotInfoTrackerSupplier(
+            Supplier<FreeSlotInfoTracker> getFreeSlotInfoTrackerSupplier) {
+        this.getFreeSlotInfoTrackerSupplier = getFreeSlotInfoTrackerSupplier;
+        return this;
+    }
+
     public TestingDeclarativeSlotPoolBuilder setGetAllSlotsInformationSupplier(
             Supplier<Collection<? extends SlotInfo>> getAllSlotsInformationSupplier) {
         this.getAllSlotsInformationSupplier = getAllSlotsInformationSupplier;
@@ -190,6 +198,7 @@ public class TestingDeclarativeSlotPoolBuilder {
                 offerSlotsFunction,
                 registerSlotsFunction,
                 getFreeSlotsInformationSupplier,
+                getFreeSlotInfoTrackerSupplier,
                 getAllSlotsInformationSupplier,
                 releaseSlotsFunction,
                 releaseSlotFunction,

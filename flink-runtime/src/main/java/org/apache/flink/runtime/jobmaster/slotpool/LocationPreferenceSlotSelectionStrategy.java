@@ -18,10 +18,12 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
+import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.CollectionUtil;
 
@@ -41,12 +43,11 @@ public abstract class LocationPreferenceSlotSelectionStrategy implements SlotSel
 
     @Override
     public Optional<SlotInfoAndLocality> selectBestSlotForProfile(
-            @Nonnull Collection<SlotInfoWithUtilization> availableSlots,
-            @Nonnull SlotProfile slotProfile) {
+            @Nonnull FreeSlotInfoTracker freeSlotInfoTracker, @Nonnull SlotProfile slotProfile) {
 
         Collection<TaskManagerLocation> locationPreferences = slotProfile.getPreferredLocations();
 
-        if (availableSlots.isEmpty()) {
+        if (freeSlotInfoTracker.getAvailableSlots().isEmpty()) {
             return Optional.empty();
         }
 
@@ -54,14 +55,14 @@ public abstract class LocationPreferenceSlotSelectionStrategy implements SlotSel
 
         // if we have no location preferences, we can only filter by the additional requirements.
         return locationPreferences.isEmpty()
-                ? selectWithoutLocationPreference(availableSlots, resourceProfile)
+                ? selectWithoutLocationPreference(freeSlotInfoTracker, resourceProfile)
                 : selectWithLocationPreference(
-                        availableSlots, locationPreferences, resourceProfile);
+                        freeSlotInfoTracker, locationPreferences, resourceProfile);
     }
 
     @Nonnull
     private Optional<SlotInfoAndLocality> selectWithLocationPreference(
-            @Nonnull Collection<SlotInfoWithUtilization> availableSlots,
+            @Nonnull FreeSlotInfoTracker freeSlotInfoTracker,
             @Nonnull Collection<TaskManagerLocation> locationPreferences,
             @Nonnull ResourceProfile resourceProfile) {
 
@@ -77,11 +78,12 @@ public abstract class LocationPreferenceSlotSelectionStrategy implements SlotSel
             preferredFQHostNames.merge(locationPreference.getFQDNHostname(), 1, Integer::sum);
         }
 
-        SlotInfoWithUtilization bestCandidate = null;
+        SlotInfo bestCandidate = null;
         Locality bestCandidateLocality = Locality.UNKNOWN;
         double bestCandidateScore = Double.NEGATIVE_INFINITY;
 
-        for (SlotInfoWithUtilization candidate : availableSlots) {
+        for (AllocationID allocationId : freeSlotInfoTracker.getAvailableSlots()) {
+            SlotInfo candidate = freeSlotInfoTracker.getSlotInfo(allocationId);
 
             if (candidate.getResourceProfile().isMatching(resourceProfile)) {
 
@@ -97,7 +99,9 @@ public abstract class LocationPreferenceSlotSelectionStrategy implements SlotSel
 
                 double candidateScore =
                         calculateCandidateScore(
-                                localWeigh, hostLocalWeigh, candidate::getTaskExecutorUtilization);
+                                localWeigh,
+                                hostLocalWeigh,
+                                () -> freeSlotInfoTracker.getTaskExecutorUtilization(candidate));
                 if (candidateScore > bestCandidateScore) {
                     bestCandidateScore = candidateScore;
                     bestCandidate = candidate;
@@ -117,7 +121,7 @@ public abstract class LocationPreferenceSlotSelectionStrategy implements SlotSel
 
     @Nonnull
     protected abstract Optional<SlotInfoAndLocality> selectWithoutLocationPreference(
-            @Nonnull Collection<SlotInfoWithUtilization> availableSlots,
+            @Nonnull FreeSlotInfoTracker freeSlotInfoTracker,
             @Nonnull ResourceProfile resourceProfile);
 
     protected abstract double calculateCandidateScore(
