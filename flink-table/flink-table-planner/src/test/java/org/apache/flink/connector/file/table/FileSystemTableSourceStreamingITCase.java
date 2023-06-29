@@ -39,7 +39,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test of the filesystem source in streaming mode. */
-public class FileSystemTableSinkStreamingITCase extends StreamingTestBase {
+public class FileSystemTableSourceStreamingITCase extends StreamingTestBase {
 
     @Test
     public void testMonitorContinuously() throws Exception {
@@ -87,5 +87,67 @@ public class FileSystemTableSinkStreamingITCase extends StreamingTestBase {
         }
 
         assertThat(actual).containsExactlyInAnyOrder(1, 2, 3, 4, 5, 6);
+    }
+
+    @Test
+    public void testSourceWithRegexPattern() throws Exception {
+        // Create temp dir
+        File testPath0 = TEMPORARY_FOLDER.newFolder("dir0");
+        File testPath1 = TEMPORARY_FOLDER.newFolder("dir1");
+
+        // Write first csv file out
+        Files.write(
+                Paths.get(testPath0.getPath(), "input_0.csv"),
+                Arrays.asList("1", "2", "3"),
+                StandardOpenOption.CREATE);
+        Files.write(
+                Paths.get(testPath1.getPath(), "input_0.csv"),
+                Arrays.asList("4", "5", "6"),
+                StandardOpenOption.CREATE);
+        // Write a text file out, which should be filtered out
+        Files.write(
+                Paths.get(testPath0.getPath(), "input_0.txt"),
+                Arrays.asList("1", "2", "3"),
+                StandardOpenOption.CREATE);
+
+        Duration monitorInterval = Duration.ofSeconds(1);
+
+        tEnv().createTable(
+                        "my_streaming_table",
+                        TableDescriptor.forConnector("filesystem")
+                                .schema(Schema.newBuilder().column("data", DataTypes.INT()).build())
+                                .format("testcsv")
+                                .option(
+                                        FileSystemConnectorOptions.PATH,
+                                        TEMPORARY_FOLDER.getRoot().getPath())
+                                .option(
+                                        FileSystemConnectorOptions.SOURCE_PATH_REGEX_PATTERN,
+                                        "/.*/input_[0-9]+.csv")
+                                .option(
+                                        FileSystemConnectorOptions.SOURCE_MONITOR_INTERVAL,
+                                        monitorInterval)
+                                .build());
+
+        List<Integer> actual = new ArrayList<>();
+        try (CloseableIterator<Row> resultsIterator =
+                tEnv().sqlQuery("SELECT * FROM my_streaming_table").execute().collect()) {
+            // Iterate over the first 6 rows
+            for (int i = 0; i < 6; i++) {
+                actual.add(resultsIterator.next().<Integer>getFieldAs(0));
+            }
+
+            // Write second csv file out
+            Files.write(
+                    Paths.get(testPath0.getPath(), "input_1.csv"),
+                    Arrays.asList("7", "8", "9"),
+                    StandardOpenOption.CREATE);
+
+            // Iterate over the next 3 rows
+            for (int i = 0; i < 3; i++) {
+                actual.add(resultsIterator.next().<Integer>getFieldAs(0));
+            }
+        }
+
+        assertThat(actual).containsExactlyInAnyOrder(1, 2, 3, 4, 5, 6, 7, 8, 9);
     }
 }

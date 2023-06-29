@@ -47,6 +47,8 @@ CREATE TABLE MyUserTable (
   'format' = '...',                     -- 必选：文件系统连接器指定 format
                                         -- 有关更多详情，请参考 Table Formats
   'partition.default-name' = '...',     -- 可选：默认的分区名，动态分区模式下分区字段值是 null 或空字符串
+  'source.path.regex-pattern' = '...',  -- 可选: 指定用于匹配需要读取文件的绝对路径的正则表达式，配置后连接器
+                                        -- 会遍历 path 配置项的目录下的全部文件进行匹配
 
   -- 可选：该属性开启了在 sink 阶段通过动态分区字段来 shuffle 数据，该功能可以大大减少文件系统 sink 的文件数，但是可能会导致数据倾斜，默认值是 false
   'sink.shuffle-by-partition.enable' = '...',
