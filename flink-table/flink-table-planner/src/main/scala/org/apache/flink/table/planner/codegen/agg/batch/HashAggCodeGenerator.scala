@@ -257,6 +257,7 @@ object HashAggCodeGenerator {
           classOf[BinaryRowData],
           inputTerm = inputTerm,
           aggInfos,
+          auxGrouping,
           outRecordTerm = currentValueTerm,
           outRecordWriterTerm = currentValueWriterTerm
         )
