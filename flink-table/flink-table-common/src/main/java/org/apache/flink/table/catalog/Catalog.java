@@ -28,6 +28,7 @@ import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionAlreadyExistsException;
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
+import org.apache.flink.table.catalog.exceptions.ProcedureNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
@@ -39,6 +40,7 @@ import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.factories.TableFactory;
+import org.apache.flink.table.procedures.Procedure;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -504,6 +506,20 @@ public interface Catalog {
      */
     CatalogFunction getFunction(ObjectPath functionPath)
             throws FunctionNotExistException, CatalogException;
+
+    /**
+     * Get the procedure. The procedure name should be handled in a case-insensitive way.
+     *
+     * @param procedurePath path of the procedure
+     * @return the requested procedure
+     * @throws ProcedureNotExistException if the procedure does not exist in the catalog
+     * @throws CatalogException in case of any runtime exception
+     */
+    default Procedure getProcedure(ObjectPath procedurePath)
+            throws ProcedureNotExistException, CatalogException {
+        throw new UnsupportedOperationException(
+                String.format("getProcedure is not implemented for %s.", this.getClass()));
+    }
 
     /**
      * Check whether a function exists or not. Function name should be handled in a case insensitive
