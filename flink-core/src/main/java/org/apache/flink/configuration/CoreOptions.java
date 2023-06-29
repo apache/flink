@@ -308,6 +308,20 @@ public class CoreOptions {
                     .withDescription("The maximum number of old log files to keep.");
 
     /**
+     * This option is here only for documentation generation, it is only evaluated in the shell
+     * scripts.
+     */
+    @SuppressWarnings("unused")
+    public static final ConfigOption<Boolean> FLINK_STD_REDIRECT_TO_FILE =
+            ConfigOptions.key("env.stdout-err.redirect-to-file")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Whether redirect stdout and stderr to files when running foreground. "
+                                    + "If enabled, logs won't append the console too. "
+                                    + "Note that redirected files do not support rolling rotate.");
+
+    /**
      * This options is here only for documentation generation, it is only evaluated in the shell
      * scripts.
      */
