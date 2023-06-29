@@ -86,7 +86,7 @@ public class JobVertexFlameGraphHandlerTest extends TestLogger {
                         Collections.emptyMap(),
                         new DefaultExecutionGraphCache(
                                 restHandlerConfiguration.getTimeout(),
-                                Time.milliseconds(restHandlerConfiguration.getRefreshInterval())),
+                                restHandlerConfiguration.getExecutionGraphCacheExpiry()),
                         Executors.directExecutor(),
                         new TestThreadInfoTracker(taskThreadInfoStatsDefaultSample));
     }

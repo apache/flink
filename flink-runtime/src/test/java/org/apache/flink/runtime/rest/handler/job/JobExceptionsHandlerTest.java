@@ -92,7 +92,8 @@ public class JobExceptionsHandlerTest extends TestLogger {
                     TestingUtils.TIMEOUT,
                     Collections.emptyMap(),
                     JobExceptionsHeaders.getInstance(),
-                    new DefaultExecutionGraphCache(TestingUtils.TIMEOUT, TestingUtils.TIMEOUT),
+                    new DefaultExecutionGraphCache(
+                            TestingUtils.TIMEOUT, TestingUtils.TIMEOUT_DURATION),
                     Executors.directExecutor());
 
     @Test

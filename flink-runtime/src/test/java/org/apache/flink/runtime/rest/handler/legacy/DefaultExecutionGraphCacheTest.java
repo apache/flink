@@ -35,6 +35,7 @@ import org.hamcrest.Matchers;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -67,7 +68,7 @@ public class DefaultExecutionGraphCacheTest extends TestLogger {
     @Test
     public void testExecutionGraphCaching() throws Exception {
         final Time timeout = Time.milliseconds(100L);
-        final Time timeToLive = Time.hours(1L);
+        final Duration timeToLive = Duration.ofHours(1L);
 
         final CountingRestfulGateway restfulGateway =
                 createCountingRestfulGateway(
@@ -94,7 +95,7 @@ public class DefaultExecutionGraphCacheTest extends TestLogger {
     @Test
     public void testExecutionGraphEntryInvalidation() throws Exception {
         final Time timeout = Time.milliseconds(100L);
-        final Time timeToLive = Time.milliseconds(1L);
+        final Duration timeToLive = Duration.ofMillis(1L);
 
         final CountingRestfulGateway restfulGateway =
                 createCountingRestfulGateway(
@@ -110,7 +111,7 @@ public class DefaultExecutionGraphCacheTest extends TestLogger {
             assertEquals(expectedExecutionGraphInfo, executionGraphInfoFuture.get());
 
             // sleep for the TTL
-            Thread.sleep(timeToLive.toMilliseconds() * 5L);
+            Thread.sleep(timeToLive.toMillis() * 5L);
 
             CompletableFuture<ExecutionGraphInfo> executionGraphInfoFuture2 =
                     executionGraphCache.getExecutionGraphInfo(expectedJobId, restfulGateway);
@@ -128,7 +129,7 @@ public class DefaultExecutionGraphCacheTest extends TestLogger {
     @Test
     public void testImmediateCacheInvalidationAfterFailure() throws Exception {
         final Time timeout = Time.milliseconds(100L);
-        final Time timeToLive = Time.hours(1L);
+        final Duration timeToLive = Duration.ofHours(1L);
 
         // let's first answer with a JobNotFoundException and then only with the correct result
         final CountingRestfulGateway restfulGateway =
@@ -165,7 +166,7 @@ public class DefaultExecutionGraphCacheTest extends TestLogger {
     @Test
     public void testCacheEntryCleanup() throws Exception {
         final Time timeout = Time.milliseconds(100L);
-        final Time timeToLive = Time.milliseconds(1L);
+        final Duration timeToLive = Duration.ofMillis(1L);
         final JobID expectedJobId2 = new JobID();
         final ExecutionGraphInfo expectedExecutionGraphInfo2 =
                 new ExecutionGraphInfo(new ArchivedExecutionGraphBuilder().build());
@@ -203,7 +204,7 @@ public class DefaultExecutionGraphCacheTest extends TestLogger {
 
             assertThat(requestJobCalls.get(), Matchers.equalTo(2));
 
-            Thread.sleep(timeToLive.toMilliseconds());
+            Thread.sleep(timeToLive.toMillis());
 
             executionGraphCache.cleanup();
 
@@ -215,7 +216,7 @@ public class DefaultExecutionGraphCacheTest extends TestLogger {
     @Test
     public void testConcurrentAccess() throws Exception {
         final Time timeout = Time.milliseconds(100L);
-        final Time timeToLive = Time.hours(1L);
+        final Duration timeToLive = Duration.ofHours(1L);
 
         final CountingRestfulGateway restfulGateway =
                 createCountingRestfulGateway(

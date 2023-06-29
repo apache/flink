@@ -21,10 +21,12 @@ package org.apache.flink.runtime.rest.handler;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.util.Preconditions;
 
 import java.io.File;
+import java.time.Duration;
 
 /** Configuration object containing values for the rest handler configuration. */
 public class RestHandlerConfiguration {
@@ -32,6 +34,7 @@ public class RestHandlerConfiguration {
     private final long refreshInterval;
 
     private final int maxCheckpointStatisticCacheEntries;
+    private final Duration executionGraphCacheExpiry;
 
     private final Time timeout;
 
@@ -46,6 +49,7 @@ public class RestHandlerConfiguration {
     public RestHandlerConfiguration(
             long refreshInterval,
             int maxCheckpointStatisticCacheEntries,
+            Duration executionGraphCacheExpiry,
             Time timeout,
             File webUiDir,
             boolean webSubmitEnabled,
@@ -56,6 +60,7 @@ public class RestHandlerConfiguration {
         this.refreshInterval = refreshInterval;
 
         this.maxCheckpointStatisticCacheEntries = maxCheckpointStatisticCacheEntries;
+        this.executionGraphCacheExpiry = executionGraphCacheExpiry;
 
         this.timeout = Preconditions.checkNotNull(timeout);
         this.webUiDir = Preconditions.checkNotNull(webUiDir);
@@ -70,6 +75,10 @@ public class RestHandlerConfiguration {
 
     public int getMaxCheckpointStatisticCacheEntries() {
         return maxCheckpointStatisticCacheEntries;
+    }
+
+    public Duration getExecutionGraphCacheExpiry() {
+        return executionGraphCacheExpiry;
     }
 
     public Time getTimeout() {
@@ -97,6 +106,8 @@ public class RestHandlerConfiguration {
 
         final int maxCheckpointStatisticCacheEntries =
                 configuration.getInteger(WebOptions.CHECKPOINTS_HISTORY_SIZE);
+        final Duration executionGraphCacheExpiry =
+                configuration.get(RestOptions.CACHE_EXECUTION_GRAPH_EXPIRY);
 
         final Time timeout = Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT));
 
@@ -114,6 +125,7 @@ public class RestHandlerConfiguration {
         return new RestHandlerConfiguration(
                 refreshInterval,
                 maxCheckpointStatisticCacheEntries,
+                executionGraphCacheExpiry,
                 timeout,
                 webUiDir,
                 webSubmitEnabled,

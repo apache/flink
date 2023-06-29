@@ -58,7 +58,8 @@ public class JobConfigHandlerTest extends TestLogger {
                         TestingUtils.TIMEOUT,
                         Collections.emptyMap(),
                         JobConfigHeaders.getInstance(),
-                        new DefaultExecutionGraphCache(TestingUtils.TIMEOUT, TestingUtils.TIMEOUT),
+                        new DefaultExecutionGraphCache(
+                                TestingUtils.TIMEOUT, TestingUtils.TIMEOUT_DURATION),
                         Executors.directExecutor());
 
         final Map<String, String> globalJobParameters = new HashMap<>();

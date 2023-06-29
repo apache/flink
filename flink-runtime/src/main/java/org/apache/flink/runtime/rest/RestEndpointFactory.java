@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.TransientBlobService;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
@@ -56,7 +55,6 @@ public interface RestEndpointFactory<T extends RestfulGateway> {
     static ExecutionGraphCache createExecutionGraphCache(
             RestHandlerConfiguration restConfiguration) {
         return new DefaultExecutionGraphCache(
-                restConfiguration.getTimeout(),
-                Time.milliseconds(restConfiguration.getRefreshInterval()));
+                restConfiguration.getTimeout(), restConfiguration.getExecutionGraphCacheExpiry());
     }
 }

@@ -1048,7 +1048,8 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
     }
 
     private void startExecutionGraphCacheCleanupTask() {
-        final long cleanupInterval = 2 * restConfiguration.getRefreshInterval();
+        final long cleanupInterval =
+                2 * restConfiguration.getExecutionGraphCacheExpiry().toMillis();
         executionGraphCleanupTask =
                 executor.scheduleWithFixedDelay(
                         executionGraphCache::cleanup,

@@ -193,6 +193,14 @@ public class RestOptions {
                                     + "Lowering the thread priority will give Flink's main components more CPU time whereas "
                                     + "increasing will allocate more time for the REST server's processing.");
 
+    @Documentation.Section(Documentation.Sections.EXPERT_REST)
+    public static final ConfigOption<Duration> CACHE_EXECUTION_GRAPH_EXPIRY =
+            key("rest.cache.execution-graph.expiry")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(3))
+                    .withDescription(
+                            "Expire after write duration for the execution graph cache. It can be specified using notation: \"500 ms\", \"1 s\".");
+
     /** Enables the experimental flame graph feature. */
     @Documentation.Section(Documentation.Sections.EXPERT_REST)
     public static final ConfigOption<Boolean> ENABLE_FLAMEGRAPH =

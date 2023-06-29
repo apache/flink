@@ -140,7 +140,7 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
                         SubtaskExecutionAttemptDetailsHeaders.getInstance(),
                         new DefaultExecutionGraphCache(
                                 restHandlerConfiguration.getTimeout(),
-                                Time.milliseconds(restHandlerConfiguration.getRefreshInterval())),
+                                restHandlerConfiguration.getExecutionGraphCacheExpiry()),
                         Executors.directExecutor(),
                         metricFetcher);
 
