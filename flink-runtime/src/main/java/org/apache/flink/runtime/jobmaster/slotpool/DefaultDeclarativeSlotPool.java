@@ -571,6 +571,11 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
     }
 
     @Override
+    public FreeSlotInfoTracker getFreeSlotInfoTracker() {
+        return slotPool.getFreeSlotInfoTracker();
+    }
+
+    @Override
     public Collection<? extends SlotInfo> getAllSlotsInformation() {
         return slotPool.getAllSlotsInformation();
     }

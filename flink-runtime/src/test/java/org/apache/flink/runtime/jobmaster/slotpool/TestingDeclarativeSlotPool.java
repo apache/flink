@@ -66,6 +66,8 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
 
     private final Supplier<Collection<SlotInfoWithUtilization>> getFreeSlotsInformationSupplier;
 
+    private final Supplier<FreeSlotInfoTracker> getFreeSlotInfoTrackerSupplier;
+
     private final Supplier<Collection<? extends SlotInfo>> getAllSlotsInformationSupplier;
 
     private final BiFunction<ResourceID, Exception, ResourceCounter> releaseSlotsFunction;
@@ -104,6 +106,7 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
                             Collection<SlotOffer>>
                     registerSlotsFunction,
             Supplier<Collection<SlotInfoWithUtilization>> getFreeSlotsInformationSupplier,
+            Supplier<FreeSlotInfoTracker> getFreeSlotInfoTrackerSupplier,
             Supplier<Collection<? extends SlotInfo>> getAllSlotsInformationSupplier,
             BiFunction<ResourceID, Exception, ResourceCounter> releaseSlotsFunction,
             BiFunction<AllocationID, Exception, ResourceCounter> releaseSlotFunction,
@@ -119,6 +122,7 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
         this.offerSlotsFunction = offerSlotsFunction;
         this.registerSlotsFunction = registerSlotsFunction;
         this.getFreeSlotsInformationSupplier = getFreeSlotsInformationSupplier;
+        this.getFreeSlotInfoTrackerSupplier = getFreeSlotInfoTrackerSupplier;
         this.getAllSlotsInformationSupplier = getAllSlotsInformationSupplier;
         this.releaseSlotsFunction = releaseSlotsFunction;
         this.releaseSlotFunction = releaseSlotFunction;
@@ -173,6 +177,11 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
     @Override
     public Collection<SlotInfoWithUtilization> getFreeSlotsInformation() {
         return getFreeSlotsInformationSupplier.get();
+    }
+
+    @Override
+    public FreeSlotInfoTracker getFreeSlotInfoTracker() {
+        return getFreeSlotInfoTrackerSupplier.get();
     }
 
     @Override

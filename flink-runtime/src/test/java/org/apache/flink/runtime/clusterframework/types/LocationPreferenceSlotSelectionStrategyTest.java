@@ -19,8 +19,9 @@
 package org.apache.flink.runtime.clusterframework.types;
 
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
+import org.apache.flink.runtime.jobmaster.SlotInfo;
+import org.apache.flink.runtime.jobmaster.slotpool.FreeSlotInfoTracker;
 import org.apache.flink.runtime.jobmaster.slotpool.LocationPreferenceSlotSelectionStrategy;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotInfoWithUtilization;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotSelectionStrategy;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
@@ -32,7 +33,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Optional;
-import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -166,8 +166,7 @@ class LocationPreferenceSlotSelectionStrategyTest extends SlotSelectionStrategyT
     }
 
     protected static void assertMatchingSlotEqualsToSlotInfo(
-            Optional<SlotSelectionStrategy.SlotInfoAndLocality> matchingSlot,
-            SlotInfoWithUtilization slotInfo) {
+            Optional<SlotSelectionStrategy.SlotInfoAndLocality> matchingSlot, SlotInfo slotInfo) {
         assertThat(matchingSlot)
                 .hasValueSatisfying(
                         slotInfoAndLocality ->
@@ -177,15 +176,15 @@ class LocationPreferenceSlotSelectionStrategyTest extends SlotSelectionStrategyT
     protected static void assertMatchingSlotLocalityAndInCandidates(
             Optional<SlotSelectionStrategy.SlotInfoAndLocality> matchingSlot,
             Locality locality,
-            Set<SlotInfoWithUtilization> candidates) {
+            FreeSlotInfoTracker candidates) {
         assertThat(matchingSlot)
                 .hasValueSatisfying(
                         slotInfoAndLocality -> {
                             assertThat(slotInfoAndLocality.getLocality()).isEqualTo(locality);
-                            assertThat(candidates)
+                            assertThat(candidates.getAvailableSlots())
                                     .anySatisfy(
-                                            slotInfoWithUtilization ->
-                                                    assertThat(slotInfoWithUtilization)
+                                            allocationId ->
+                                                    assertThat(candidates.getSlotInfo(allocationId))
                                                             .isEqualTo(
                                                                     slotInfoAndLocality
                                                                             .getSlotInfo()));

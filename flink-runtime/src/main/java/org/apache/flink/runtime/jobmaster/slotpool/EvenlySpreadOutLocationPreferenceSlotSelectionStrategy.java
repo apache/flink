@@ -18,12 +18,12 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 
 import javax.annotation.Nonnull;
 
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -33,19 +33,22 @@ class EvenlySpreadOutLocationPreferenceSlotSelectionStrategy
     @Nonnull
     @Override
     protected Optional<SlotInfoAndLocality> selectWithoutLocationPreference(
-            @Nonnull Collection<SlotInfoWithUtilization> availableSlots,
+            @Nonnull FreeSlotInfoTracker freeSlotInfoTracker,
             @Nonnull ResourceProfile resourceProfile) {
-        return availableSlots.stream()
-                .filter(
-                        slotInfoWithUtilization ->
-                                slotInfoWithUtilization
-                                        .getResourceProfile()
-                                        .isMatching(resourceProfile))
-                .min(Comparator.comparing(SlotInfoWithUtilization::getTaskExecutorUtilization))
+        return freeSlotInfoTracker.getAvailableSlots().stream()
+                .map(freeSlotInfoTracker::getSlotInfo)
+                .filter(slotInfo -> slotInfo.getResourceProfile().isMatching(resourceProfile))
+                // calculate utilization first to avoid duplicated calculation in min()
                 .map(
-                        slotInfoWithUtilization ->
+                        slot ->
+                                new Tuple2<>(
+                                        slot, freeSlotInfoTracker.getTaskExecutorUtilization(slot)))
+                .min(Comparator.comparingDouble(tuple -> tuple.f1))
+                .map(
+                        slotInfoWithTaskExecutorUtilization ->
                                 SlotInfoAndLocality.of(
-                                        slotInfoWithUtilization, Locality.UNCONSTRAINED));
+                                        slotInfoWithTaskExecutorUtilization.f0,
+                                        Locality.UNCONSTRAINED));
     }
 
     @Override

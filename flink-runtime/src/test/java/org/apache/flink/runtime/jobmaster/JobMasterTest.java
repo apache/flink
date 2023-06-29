@@ -81,6 +81,8 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolFactory;
+import org.apache.flink.runtime.jobmaster.slotpool.FreeSlotInfoTracker;
+import org.apache.flink.runtime.jobmaster.slotpool.FreeSlotInfoTrackerTestUtils;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotInfoWithUtilization;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
@@ -581,6 +583,15 @@ class JobMasterTest {
                             .collect(Collectors.toList());
 
             return Collections.unmodifiableCollection(allSlotInfos);
+        }
+
+        @Override
+        public FreeSlotInfoTracker getFreeSlotInfoTracker() {
+            Map<AllocationID, SlotInfo> freeSlots =
+                    registeredSlots.values().stream()
+                            .flatMap(Collection::stream)
+                            .collect(Collectors.toMap(SlotInfo::getAllocationId, s -> s));
+            return FreeSlotInfoTrackerTestUtils.createDefaultFreeSlotInfoTracker(freeSlots);
         }
 
         @Override

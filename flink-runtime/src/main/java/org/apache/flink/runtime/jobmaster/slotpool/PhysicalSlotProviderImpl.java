@@ -85,17 +85,20 @@ public class PhysicalSlotProviderImpl implements PhysicalSlotProvider {
 
     private Optional<PhysicalSlot> tryAllocateFromAvailable(
             SlotRequestId slotRequestId, SlotProfile slotProfile) {
-        Collection<SlotInfoWithUtilization> slotInfoList = slotPool.getAvailableSlotsInformation();
+        FreeSlotInfoTracker freeSlotInfoTracker = slotPool.getFreeSlotInfoTracker();
 
         Optional<SlotSelectionStrategy.SlotInfoAndLocality> selectedAvailableSlot =
-                slotSelectionStrategy.selectBestSlotForProfile(slotInfoList, slotProfile);
+                slotSelectionStrategy.selectBestSlotForProfile(freeSlotInfoTracker, slotProfile);
 
         return selectedAvailableSlot.flatMap(
-                slotInfoAndLocality ->
-                        slotPool.allocateAvailableSlot(
-                                slotRequestId,
-                                slotInfoAndLocality.getSlotInfo().getAllocationId(),
-                                slotProfile.getPhysicalSlotResourceProfile()));
+                slotInfoAndLocality -> {
+                    freeSlotInfoTracker.reserveSlot(
+                            slotInfoAndLocality.getSlotInfo().getAllocationId());
+                    return slotPool.allocateAvailableSlot(
+                            slotRequestId,
+                            slotInfoAndLocality.getSlotInfo().getAllocationId(),
+                            slotProfile.getPhysicalSlotResourceProfile());
+                });
     }
 
     private CompletableFuture<PhysicalSlot> requestNewSlot(

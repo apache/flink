@@ -205,6 +205,25 @@ public class DefaultAllocatedSlotPool implements AllocatedSlotPool {
         return freeSlotInfos;
     }
 
+    private FreeSlotInfo getFreeSlotInfo(AllocationID allocationId) {
+        final AllocatedSlot allocatedSlot =
+                Preconditions.checkNotNull(registeredSlots.get(allocationId));
+        final Long idleSince =
+                Preconditions.checkNotNull(freeSlots.getFreeSlotsSince().get(allocationId));
+        final SlotInfoWithUtilization slotInfoWithUtilization =
+                SlotInfoWithUtilization.from(allocatedSlot, this::getTaskExecutorUtilization);
+        return DefaultFreeSlotInfo.create(slotInfoWithUtilization, idleSince);
+    }
+
+    @Override
+    public FreeSlotInfoTracker getFreeSlotInfoTracker() {
+        return new DefaultFreeSlotInfoTracker(
+                freeSlots.getFreeSlotsSince().keySet(),
+                registeredSlots::get,
+                this::getFreeSlotInfo,
+                this::getTaskExecutorUtilization);
+    }
+
     public double getTaskExecutorUtilization(ResourceID resourceId) {
         Set<AllocationID> slots = slotsPerTaskExecutor.get(resourceId);
         Preconditions.checkNotNull(slots, "There is no slots on %s", resourceId);
