@@ -15,12 +15,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc.akka;
+package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.classloading.SubmoduleClassLoader;
-import org.apache.flink.runtime.rpc.AddressResolution;
-import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -34,7 +32,7 @@ import java.net.UnknownHostException;
 import java.nio.file.Path;
 
 /** An {@link RpcSystem} wrapper that cleans up resources after the RPC system has been closed. */
-class CleanupOnCloseRpcSystem implements RpcSystem {
+public class CleanupOnCloseRpcSystem implements RpcSystem {
     private static final Logger LOG = LoggerFactory.getLogger(CleanupOnCloseRpcSystem.class);
 
     private final RpcSystem rpcSystem;

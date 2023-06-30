@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.concurrent.akka;
+package org.apache.flink.runtime.concurrent;
 
 import org.apache.flink.util.TemporaryClassLoaderContext;
 import org.apache.flink.util.concurrent.FutureUtils;
