@@ -206,6 +206,10 @@ Users can do some performance tuning by tuning the split's size with the follow 
 - Currently, these configurations for tuning split size only works for the Hive table stored as ORC format.
 {{< /hint >}}
 
+### Read Table Statistics
+
+To obtain hive table statistics faster, When hive table format is `orc` or `parquet`. You can use `table.exec.hive.read-format-statistics.thread-num` to configure the thread number. The default value is the number of available processors in the current system and the configured value should be bigger than 0.
+
 ### Load Partition Splits
 
 Multi-thread is used to split hive's partitions. You can use `table.exec.hive.load-partition-splits.thread-num` to configure the thread number. The default value is 3 and the configured value should be bigger than 0.

@@ -24,6 +24,7 @@ import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.orc.ColumnStatistics;
@@ -73,7 +74,10 @@ public class OrcFormatStatisticsReportUtil {
             Map<String, ColumnStatistics> columnStatisticsMap = new HashMap<>();
             RowType producedRowType = (RowType) producedDataType.getLogicalType();
 
-            ExecutorService executorService = Executors.newFixedThreadPool(statisticsThreadNum);
+            ExecutorService executorService =
+                    Executors.newFixedThreadPool(
+                            statisticsThreadNum,
+                            new ExecutorThreadFactory("orc-get-table-statistic-worker"));
             List<Future<Long>> fileRowCountFutures = new ArrayList<>();
             for (Path file : files) {
                 fileRowCountFutures.add(

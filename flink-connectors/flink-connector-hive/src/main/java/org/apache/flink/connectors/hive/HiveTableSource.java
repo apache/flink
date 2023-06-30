@@ -375,6 +375,10 @@ public class HiveTableSource
         List<Path> files =
                 inputSplits.stream().map(FileSourceSplit::path).collect(Collectors.toList());
         int statisticsThreadNum = flinkConf.get(TABLE_EXEC_HIVE_READ_FORMAT_STATISTICS_THREAD_NUM);
+        Preconditions.checkArgument(
+                statisticsThreadNum >= 1,
+                HiveOptions.TABLE_EXEC_HIVE_READ_FORMAT_STATISTICS_THREAD_NUM.key()
+                        + " cannot be less than 1");
         // Now we only support Parquet, Orc formats.
         if (serializationLib.contains("parquet")) {
             return ParquetFormatStatisticsReportUtil.getTableStatistics(
