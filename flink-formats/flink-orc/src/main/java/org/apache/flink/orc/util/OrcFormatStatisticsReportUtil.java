@@ -59,12 +59,15 @@ public class OrcFormatStatisticsReportUtil {
 
     public static TableStats getTableStatistics(
             List<Path> files, DataType producedDataType, Configuration hadoopConfig) {
-        return getTableStatistics(files, producedDataType, hadoopConfig,
-                Runtime.getRuntime().availableProcessors());
+        return getTableStatistics(
+                files, producedDataType, hadoopConfig, Runtime.getRuntime().availableProcessors());
     }
 
     public static TableStats getTableStatistics(
-            List<Path> files, DataType producedDataType, Configuration hadoopConfig, int statisticsThreadNum) {
+            List<Path> files,
+            DataType producedDataType,
+            Configuration hadoopConfig,
+            int statisticsThreadNum) {
         try {
             long rowCount = 0;
             Map<String, ColumnStatistics> columnStatisticsMap = new HashMap<>();
@@ -73,8 +76,10 @@ public class OrcFormatStatisticsReportUtil {
             ExecutorService executorService = Executors.newFixedThreadPool(statisticsThreadNum);
             List<Future<Long>> fileRowCountFutures = new ArrayList<>();
             for (Path file : files) {
-                fileRowCountFutures.add(executorService.
-                        submit(new OrcFileRowCountCalculator(hadoopConfig, file, columnStatisticsMap, producedRowType)));
+                fileRowCountFutures.add(
+                        executorService.submit(
+                                new OrcFileRowCountCalculator(
+                                        hadoopConfig, file, columnStatisticsMap, producedRowType)));
             }
             for (Future<Long> fileCountFuture : fileRowCountFutures) {
                 rowCount += fileCountFuture.get();
@@ -194,15 +199,16 @@ public class OrcFormatStatisticsReportUtil {
 
     private static class OrcFileRowCountCalculator implements Callable<Long> {
 
-        private final  Configuration hadoopConf;
-        private final  Path file;
-        private final  Map<String, ColumnStatistics> columnStatisticsMap;
-        private final  RowType producedRowType;
+        private final Configuration hadoopConf;
+        private final Path file;
+        private final Map<String, ColumnStatistics> columnStatisticsMap;
+        private final RowType producedRowType;
 
-        public OrcFileRowCountCalculator (Configuration hadoopConf,
-                           Path file,
-                           Map<String, ColumnStatistics> columnStatisticsMap,
-                           RowType producedRowType) {
+        public OrcFileRowCountCalculator(
+                Configuration hadoopConf,
+                Path file,
+                Map<String, ColumnStatistics> columnStatisticsMap,
+                RowType producedRowType) {
             this.hadoopConf = hadoopConf;
             this.file = file;
             this.columnStatisticsMap = columnStatisticsMap;
@@ -242,7 +248,8 @@ public class OrcFormatStatisticsReportUtil {
                 columnStatisticsMap.put(column, statistic);
             } else {
                 if (previousStatistics instanceof ColumnStatisticsImpl) {
-                    ((ColumnStatisticsImpl) previousStatistics).merge((ColumnStatisticsImpl) statistic);
+                    ((ColumnStatisticsImpl) previousStatistics)
+                            .merge((ColumnStatisticsImpl) statistic);
                 }
             }
         }
