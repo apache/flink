@@ -33,7 +33,6 @@ import org.apache.flink.runtime.operators.coordination.MockOperatorCoordinatorCo
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.junit.jupiter.api.AfterEach;
@@ -43,8 +42,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.function.Supplier;
 
@@ -148,20 +145,7 @@ abstract class SourceCoordinatorTestBase {
     }
 
     protected void waitForCoordinatorToProcessActions() {
-        waitForCoordinatorToProcessActions(context);
-    }
-
-    protected void waitForCoordinatorToProcessActions(SourceCoordinatorContext<?> context) {
-        final CompletableFuture<Void> future = new CompletableFuture<>();
-        context.runInCoordinatorThread(() -> future.complete(null));
-
-        try {
-            future.get();
-        } catch (InterruptedException e) {
-            throw new AssertionError("test interrupted");
-        } catch (ExecutionException e) {
-            ExceptionUtils.rethrow(ExceptionUtils.stripExecutionException(e));
-        }
+        CoordinatorTestUtils.waitForCoordinatorToProcessActions(context);
     }
 
     void waitForSentEvents(int expectedEventNumber) throws Exception {
