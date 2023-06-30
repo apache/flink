@@ -197,6 +197,7 @@ public class SourceStreamTask<
                             if (sourceThreadThrowable != null) {
                                 mailboxProcessor.reportThrowable(sourceThreadThrowable);
                             } else {
+                                notifyEndOfData();
                                 mailboxProcessor.suspend();
                             }
                         });

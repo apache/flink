@@ -715,7 +715,8 @@ public class Task
                             metrics,
                             this,
                             externalResourceInfoProvider,
-                            channelStateExecutorFactory);
+                            channelStateExecutorFactory,
+                            taskManagerActions);
 
             // Make sure the user code classloader is accessible thread-locally.
             // We are setting the correct context class loader before instantiating the invokable

@@ -233,6 +233,9 @@ public class TestingSchedulerNG implements SchedulerNG {
     }
 
     @Override
+    public void notifyEndOfData(ExecutionAttemptID executionAttemptID) {}
+
+    @Override
     public void reportCheckpointMetrics(
             JobID jobID,
             ExecutionAttemptID executionAttemptID,

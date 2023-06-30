@@ -56,6 +56,9 @@ public class TestingTaskManagerActions implements TaskManagerActions {
         updateTaskExecutionStateConsumer.accept(taskExecutionState);
     }
 
+    @Override
+    public void notifyEndOfData(ExecutionAttemptID executionAttemptID) {}
+
     public static Builder newBuilder() {
         return new Builder();
     }

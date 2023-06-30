@@ -316,4 +316,11 @@ public interface JobMasterGateway
      */
     CompletableFuture<Acknowledge> updateJobResourceRequirements(
             JobResourceRequirements jobResourceRequirements);
+
+    /**
+     * Notifies that the task has reached the end of data.
+     *
+     * @param executionAttempt The execution attempt id.
+     */
+    void notifyEndOfData(final ExecutionAttemptID executionAttempt);
 }

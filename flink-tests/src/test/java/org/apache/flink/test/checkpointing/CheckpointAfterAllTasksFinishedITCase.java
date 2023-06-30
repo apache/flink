@@ -1,0 +1,232 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.flink.test.checkpointing;
+
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
+import org.apache.flink.runtime.state.StateSnapshotContext;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
+import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.testutils.junit.SharedObjectsExtension;
+import org.apache.flink.testutils.junit.SharedReference;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * Tests an immediate checkpoint should be triggered right after all tasks reached the end of data.
+ */
+public class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBase {
+    private static final int SMALL_SOURCE_NUM_RECORDS = 20;
+    private static final int BIG_SOURCE_NUM_RECORDS = 100;
+
+    private StreamExecutionEnvironment env;
+    private SharedReference<List<Integer>> smallResult;
+    private SharedReference<List<Integer>> bigResult;
+
+    @TempDir private java.nio.file.Path tmpDir;
+
+    @RegisterExtension
+    private final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
+
+    @BeforeEach
+    public void setUp() {
+        env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(4);
+        env.setRestartStrategy(RestartStrategies.noRestart());
+        smallResult = sharedObjects.add(new CopyOnWriteArrayList<>());
+        bigResult = sharedObjects.add(new CopyOnWriteArrayList<>());
+    }
+
+    @Test
+    public void testImmediateCheckpointing() throws Exception {
+        env.enableCheckpointing(Long.MAX_VALUE - 1);
+        StreamGraph streamGraph = getStreamGraph(env);
+        env.execute(streamGraph);
+        assertThat(smallResult.get().size()).isEqualTo(SMALL_SOURCE_NUM_RECORDS);
+        assertThat(bigResult.get().size()).isEqualTo(BIG_SOURCE_NUM_RECORDS);
+    }
+
+    @Test
+    public void testRestoreAfterSomeTasksFinished() throws Exception {
+        final MiniClusterConfiguration cfg =
+                new MiniClusterConfiguration.Builder()
+                        .withRandomPorts()
+                        .setNumTaskManagers(1)
+                        .setNumSlotsPerTaskManager(4)
+                        .build();
+        try (MiniCluster miniCluster = new MiniCluster(cfg)) {
+            miniCluster.start();
+
+            env.enableCheckpointing(100);
+            IntegerStreamSource.latch = new CountDownLatch(1);
+            JobGraph jobGraph = getStreamGraph(env).getJobGraph();
+            miniCluster.submitJob(jobGraph).get();
+
+            CommonTestUtils.waitForSubtasksToFinish(
+                    miniCluster,
+                    jobGraph.getJobID(),
+                    findVertexByName(jobGraph, "passA -> Sink: sinkA").getID(),
+                    false);
+
+            String savepointPath =
+                    miniCluster
+                            .triggerSavepoint(
+                                    jobGraph.getJobID(),
+                                    tmpDir.toFile().getAbsolutePath(),
+                                    true,
+                                    SavepointFormatType.CANONICAL)
+                            .get();
+            bigResult.get().clear();
+
+            env.enableCheckpointing(Long.MAX_VALUE - 1);
+            JobGraph restoredJobGraph = getStreamGraph(env).getJobGraph();
+            restoredJobGraph.setSavepointRestoreSettings(
+                    SavepointRestoreSettings.forPath(savepointPath, false));
+            miniCluster.submitJob(restoredJobGraph).get();
+
+            IntegerStreamSource.latch.countDown();
+
+            miniCluster.requestJobResult(restoredJobGraph.getJobID()).get();
+            assertThat(smallResult.get().size()).isEqualTo(SMALL_SOURCE_NUM_RECORDS);
+            assertThat(bigResult.get().size()).isEqualTo(BIG_SOURCE_NUM_RECORDS);
+        }
+    }
+
+    private StreamGraph getStreamGraph(StreamExecutionEnvironment env) {
+        env.addSource(new IntegerStreamSource(SMALL_SOURCE_NUM_RECORDS, false))
+                .transform("passA", Types.INT, new PassThroughOperator())
+                .addSink(new CollectSink(smallResult))
+                .name("sinkA");
+
+        env.addSource(new IntegerStreamSource(BIG_SOURCE_NUM_RECORDS, true))
+                .transform("passB", Types.INT, new PassThroughOperator())
+                .addSink(new CollectSink(bigResult))
+                .name("sinkB");
+        return env.getStreamGraph();
+    }
+
+    private JobVertex findVertexByName(JobGraph jobGraph, String vertexName) {
+        for (JobVertex vertex : jobGraph.getVerticesAsArray()) {
+            if (vertex.getName().equals(vertexName)) {
+                return vertex;
+            }
+        }
+        return null;
+    }
+
+    private static final class IntegerStreamSource extends RichSourceFunction<Integer> {
+
+        private static final long serialVersionUID = 1L;
+        private static CountDownLatch latch;
+
+        private final int numRecords;
+        private boolean block;
+        private volatile boolean running;
+        private int emittedCount;
+
+        public IntegerStreamSource(int numRecords, boolean block) {
+            this.numRecords = numRecords;
+            this.running = true;
+            this.block = block;
+            this.emittedCount = 0;
+        }
+
+        @Override
+        public void run(SourceContext<Integer> ctx) throws Exception {
+            while (running && emittedCount < numRecords) {
+                synchronized (ctx.getCheckpointLock()) {
+                    ctx.collect(emittedCount);
+                }
+                ++emittedCount;
+            }
+            if (block && latch != null) {
+                latch.await();
+            }
+        }
+
+        @Override
+        public void cancel() {
+            running = false;
+        }
+    }
+
+    private static class PassThroughOperator extends AbstractStreamOperator<Integer>
+            implements OneInputStreamOperator<Integer, Integer> {
+
+        private long checkpointID;
+
+        @Override
+        public void snapshotState(StateSnapshotContext context) throws Exception {
+            super.snapshotState(context);
+            checkpointID = context.getCheckpointId();
+        }
+
+        @Override
+        public void processElement(StreamRecord<Integer> element) throws Exception {
+            output.collect(element);
+        }
+
+        @Override
+        public void close() throws Exception {
+            super.close();
+            assertThat(checkpointID).isGreaterThan(0);
+        }
+    }
+
+    private static class CollectSink extends RichSinkFunction<Integer> {
+        private final SharedReference<List<Integer>> result;
+
+        public CollectSink(SharedReference<List<Integer>> result) {
+            this.result = result;
+        }
+
+        @Override
+        public void open(Configuration parameters) throws Exception {
+            super.open(parameters);
+        }
+
+        @Override
+        public void invoke(Integer value, Context context) throws Exception {
+            result.get().add(value);
+        }
+    }
+}
