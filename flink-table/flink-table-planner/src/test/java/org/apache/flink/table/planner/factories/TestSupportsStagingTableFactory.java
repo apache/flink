@@ -23,7 +23,6 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.table.catalog.StagedTable;
 import org.apache.flink.table.connector.ChangelogMode;
@@ -48,6 +47,8 @@ public class TestSupportsStagingTableFactory implements DynamicTableSinkFactory 
     public static final String IDENTIFIER = "test-staging";
 
     public static final List<String> JOB_STATUS_CHANGE_PROCESS = new LinkedList<>();
+    public static final List<SupportsStaging.StagingPurpose> STAGING_PURPOSE_LIST =
+            new LinkedList<>();
 
     private static final ConfigOption<String> DATA_DIR =
             ConfigOptions.key("data-dir")
@@ -55,12 +56,20 @@ public class TestSupportsStagingTableFactory implements DynamicTableSinkFactory 
                     .noDefaultValue()
                     .withDescription("The data id used to write the rows.");
 
+    private static final ConfigOption<Boolean> SINK_FAIL =
+            ConfigOptions.key("sink-fail")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "If set to true, then sink will throw an exception causing the job to fail, used to verify the TestStagedTable#abort.");
+
     @Override
     public DynamicTableSink createDynamicTableSink(Context context) {
         FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
         helper.validate();
         String dataDir = helper.getOptions().get(DATA_DIR);
-        return new SupportsStagingTableSink(dataDir);
+        boolean sinkFail = helper.getOptions().get(SINK_FAIL);
+        return new SupportsStagingTableSink(dataDir, sinkFail);
     }
 
     @Override
@@ -75,21 +84,24 @@ public class TestSupportsStagingTableFactory implements DynamicTableSinkFactory 
 
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
-        return Collections.emptySet();
+        return Collections.singleton(SINK_FAIL);
     }
 
     /** A sink that supports staging. */
     private static class SupportsStagingTableSink implements DynamicTableSink, SupportsStaging {
 
-        private String dataDir;
+        private final String dataDir;
+        private final boolean sinkFail;
         private TestStagedTable stagedTable;
 
-        public SupportsStagingTableSink(String dataDir) {
-            this(dataDir, null);
+        public SupportsStagingTableSink(String dataDir, boolean sinkFail) {
+            this(dataDir, sinkFail, null);
         }
 
-        public SupportsStagingTableSink(String dataDir, TestStagedTable stagedTable) {
+        public SupportsStagingTableSink(
+                String dataDir, boolean sinkFail, TestStagedTable stagedTable) {
             this.dataDir = dataDir;
+            this.sinkFail = sinkFail;
             this.stagedTable = stagedTable;
         }
 
@@ -104,21 +116,16 @@ public class TestSupportsStagingTableFactory implements DynamicTableSinkFactory 
                 @Override
                 public DataStreamSink<?> consumeDataStream(
                         ProviderContext providerContext, DataStream<RowData> dataStream) {
-                    if (stagedTable != null) {
-                        return dataStream
-                                .addSink(new StagedSinkFunction(dataDir))
-                                .setParallelism(1);
-                    } else {
-                        // otherwise, do nothing
-                        return dataStream.addSink(new DiscardingSink<>());
-                    }
+                    return dataStream
+                            .addSink(new StagedSinkFunction(dataDir, sinkFail))
+                            .setParallelism(1);
                 }
             };
         }
 
         @Override
         public DynamicTableSink copy() {
-            return new SupportsStagingTableSink(dataDir, stagedTable);
+            return new SupportsStagingTableSink(dataDir, sinkFail, stagedTable);
         }
 
         @Override
@@ -129,7 +136,9 @@ public class TestSupportsStagingTableFactory implements DynamicTableSinkFactory 
         @Override
         public StagedTable applyStaging(StagingContext context) {
             JOB_STATUS_CHANGE_PROCESS.clear();
+            STAGING_PURPOSE_LIST.clear();
             stagedTable = new TestStagedTable(dataDir);
+            STAGING_PURPOSE_LIST.add(context.getStagingPurpose());
             return stagedTable;
         }
     }
@@ -137,10 +146,12 @@ public class TestSupportsStagingTableFactory implements DynamicTableSinkFactory 
     /** The sink for delete existing data. */
     private static class StagedSinkFunction extends RichSinkFunction<RowData> {
 
-        private String dataDir;
+        private final String dataDir;
+        private final boolean sinkFail;
 
-        public StagedSinkFunction(String dataDir) {
+        public StagedSinkFunction(String dataDir, boolean sinkFail) {
             this.dataDir = dataDir;
+            this.sinkFail = sinkFail;
         }
 
         @Override
@@ -157,6 +168,9 @@ public class TestSupportsStagingTableFactory implements DynamicTableSinkFactory 
 
         @Override
         public void invoke(RowData value, Context context) throws Exception {
+            if (sinkFail) {
+                throw new RuntimeException("Test StagedTable abort method.");
+            }
             FileUtils.writeFileUtf8(
                     new File(dataDir, "_data"), value.getInt(0) + "," + value.getString(1));
         }

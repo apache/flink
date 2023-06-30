@@ -36,6 +36,7 @@ import org.apache.flink.util.StringUtils;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
 import java.util.List;
 
 /** Default implementation of {@link Executor}. */
@@ -64,6 +65,16 @@ public class DefaultExecutor implements Executor {
             List<Transformation<?>> transformations,
             ReadableConfig tableConfiguration,
             @Nullable String defaultJobName) {
+        return createPipeline(
+                transformations, tableConfiguration, defaultJobName, Collections.emptyList());
+    }
+
+    @Override
+    public Pipeline createPipeline(
+            List<Transformation<?>> transformations,
+            ReadableConfig tableConfiguration,
+            @Nullable String defaultJobName,
+            List<JobStatusHook> jobStatusHookList) {
 
         // reconfigure before a stream graph is generated
         executionEnvironment.configure(tableConfiguration);
@@ -83,21 +94,9 @@ public class DefaultExecutor implements Executor {
 
         final StreamGraph streamGraph = executionEnvironment.generateStreamGraph(transformations);
         setJobName(streamGraph, defaultJobName);
-        return streamGraph;
-    }
-
-    @Override
-    public Pipeline createPipeline(
-            List<Transformation<?>> transformations,
-            ReadableConfig tableConfiguration,
-            @Nullable String defaultJobName,
-            List<JobStatusHook> jobStatusHookList) {
-        StreamGraph streamGraph =
-                (StreamGraph) createPipeline(transformations, tableConfiguration, defaultJobName);
         for (JobStatusHook hook : jobStatusHookList) {
             streamGraph.registerJobStatusHook(hook);
         }
-        jobStatusHookList.clear();
         return streamGraph;
     }
 

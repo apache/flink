@@ -69,7 +69,7 @@ public interface Executor {
      * @param transformations list of transformations
      * @param tableConfiguration table-specific configuration options
      * @param defaultJobName default job name if not specified via {@link PipelineOptions#NAME}
-     * @param jobStatusHookList list of JobStatusHooks
+     * @param jobStatusHookList list of {@link JobStatusHook}s
      * @return The pipeline representing the transformations.
      */
     Pipeline createPipeline(

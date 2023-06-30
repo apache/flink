@@ -24,7 +24,7 @@
             <td><h5>table.ctas.atomicity-enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
-            <td>Specifies if the create table as select operation is executed atomically. By default, the operation is non-atomic. The target table is created in Client side, and it will not be dropped even though the job fails or is cancelled. If set this option to true and DynamicTableSink implements the SupportsStaging interface, the create table as select operation is expected to be executed atomically, the behavior of which depends on the actual DynamicTableSink.</td>
+            <td>Specifies if the CREATE TABLE AS SELECT statement is executed atomically. By default, the statement is non-atomic. The target table is created in client side, and it will not be dropped even though the job fails or is cancelled. If set this option to true and DynamicTableSink implements the SupportsStaging interface, the statement is expected to be executed atomically, the behavior of which depends on the actual DynamicTableSink.</td>
         </tr>
         <tr>
             <td><h5>table.display.max-column-width</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>

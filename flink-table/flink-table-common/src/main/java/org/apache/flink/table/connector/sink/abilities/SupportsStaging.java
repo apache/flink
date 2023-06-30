@@ -24,30 +24,37 @@ import org.apache.flink.table.catalog.StagedTable;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 
 /**
- * Enables different staged operations to ensure atomicity in a {@link DynamicTableSink}.
+ * Interface for {@link DynamicTableSink}s that support CTAS(CREATE TABLE AS SELECT) statement
+ * atomic semantic using a two-phase commit protocol. The table sink is responsible for telling
+ * planner how to implement atomicity semantics via {@link StagedTable}.
  *
- * <p>By default, if this interface is not implemented, indicating that atomic operations are not
- * supported, then a non-atomic implementation is used.
+ * <p>If the user turns on {@link TableConfigOptions#TABLE_CTAS_ATOMICITY_ENABLED}, and {@link
+ * DynamicTableSink} implements {@link SupportsStaging}, the planner will call method {@link
+ * #applyStaging(StagingContext)} to get the {@link StagedTable} returned by sink, then {@link
+ * StagedTable} will be combined with {@link JobStatusHook} to implement a two-stage commit; The
+ * implementation will be determined by {@link StagedTable}.
  */
 @PublicEvolving
 public interface SupportsStaging {
 
     /**
-     * Provides a {@link StagedTable} that provided transaction abstraction. StagedTable will be
-     * combined with {@link JobStatusHook} to achieve atomicity support in the Flink framework. Call
-     * the relevant API of StagedTable when the Job state is switched.
+     * Provides a {@link StagingContext} for the sink modification and return a {@link StagedTable}.
+     * The {@link StagedTable} provides transaction abstraction to support atomicity for CTAS. Flink
+     * will call the relevant API of StagedTable when the Job status switches,
      *
-     * <p>This method will be called at the compile stage.
+     * <p>Note: This method will be called at the compile stage.
      *
-     * @param context Tell DynamicTableSink, the operation type of this StagedTable, expandable
-     * @return {@link StagedTable} that can be serialized and provides atomic operations
+     * @param context The context for the sink modification
+     * @return {@link StagedTable} that will be leveraged by Flink framework to provide atomicity
+     *     semantics.
      */
     StagedTable applyStaging(StagingContext context);
 
     /**
-     * The context is intended to tell DynamicTableSink the type of this operation. In this way,
-     * DynamicTableSink can return the corresponding implementation of StagedTable according to the
-     * specific operation. More types of operations can be extended in the future.
+     * The context is intended to tell DynamicTableSink the type of this operation. Currently, it'll
+     * provide what kind of operation the staging sink is for. In this way, the DynamicTableSink can
+     * return the corresponding implementation of StagedTable according to the specific operation.
+     * More types of operations can be extended in the future.
      */
     @PublicEvolving
     interface StagingContext {
@@ -55,14 +62,14 @@ public interface SupportsStaging {
     }
 
     /**
-     * The type of StagedTable final visibility that was expects for staging purpose.
+     * The type of operation the staging sink is for.
      *
-     * <p>Currently, two modes are supported:
+     * <p>Currently, two types of operation are supported:
      *
      * <ul>
-     *   <li>CREATE_TABLE_AS - in this mode, table must not exist, otherwise it will fail.
-     *   <li>CREATE_TABLE_AS_IF_NOT_EXISTS - in this mode, skip if table exists, create if it
-     *       doesn't.
+     *   <li>CREATE_TABLE_AS - for the operation of CREATE TABLE AS SELECT statement
+     *   <li>CREATE_TABLE_AS_IF_NOT_EXISTS - for the operation of CREATE TABLE AS SELECT IF NOT
+     *       EXISTS statement.
      * </ul>
      */
     @PublicEvolving

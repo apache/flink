@@ -154,7 +154,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     protected final Planner planner;
     private final boolean isStreamingMode;
     private final ExecutableOperation.Context operationCtx;
-    private final List<JobStatusHook> jobStatusHookList = new LinkedList<>();
 
     private static final String UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG =
             "Unsupported SQL query! executeSql() only accepts a single SQL statement of type "
@@ -795,11 +794,12 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     @Override
     public TableResultInternal executeInternal(List<ModifyOperation> operations) {
         List<ModifyOperation> mapOperations = new ArrayList<>();
+        List<JobStatusHook> jobStatusHookList = new LinkedList<>();
         for (ModifyOperation modify : operations) {
             if (modify instanceof CreateTableASOperation) {
                 // execute CREATE TABLE first for CTAS statements
                 CreateTableASOperation ctasOperation = (CreateTableASOperation) modify;
-                executeCreateTableASOperation(ctasOperation, mapOperations);
+                mapOperations.add(getOperation(ctasOperation, jobStatusHookList));
             } else if (modify instanceof ReplaceTableAsOperation) {
                 ReplaceTableAsOperation rtasOperation = (ReplaceTableAsOperation) modify;
                 mapOperations.add(getOperation(rtasOperation));
@@ -830,7 +830,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
         List<Transformation<?>> transformations = translate(mapOperations);
         List<String> sinkIdentifierNames = extractSinkIdentifierNames(mapOperations);
-        return executeInternal(transformations, sinkIdentifierNames);
+        return executeInternal(transformations, sinkIdentifierNames, jobStatusHookList);
     }
 
     private ModifyOperation getOperation(ReplaceTableAsOperation rtasOperation) {
@@ -858,8 +858,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         return rtasOperation.toSinkModifyOperation(catalogManager);
     }
 
-    private void executeCreateTableASOperation(
-            CreateTableASOperation ctasOperation, List<ModifyOperation> mapOperations) {
+    private ModifyOperation getOperation(
+            CreateTableASOperation ctasOperation, List<JobStatusHook> jobStatusHookList) {
         CreateTableOperation createTableOperation = ctasOperation.getCreateTableOperation();
         ObjectIdentifier tableIdentifier = createTableOperation.getTableIdentifier();
         Catalog catalog = catalogManager.getCatalog(tableIdentifier.getCatalogName()).orElse(null);
@@ -894,19 +894,17 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                         ((SupportsStaging) dynamicTableSink)
                                 .applyStaging(new SinkStagingContext(stagingPurpose));
                 CtasJobStatusHook ctasJobStatusHook = new CtasJobStatusHook(stagedTable);
-                mapOperations.add(
-                        ctasOperation.toStagedSinkModifyOperation(
-                                createTableOperation.getTableIdentifier(),
-                                catalogTable,
-                                catalog,
-                                dynamicTableSink));
                 jobStatusHookList.add(ctasJobStatusHook);
-                return;
+                return ctasOperation.toStagedSinkModifyOperation(
+                        createTableOperation.getTableIdentifier(),
+                        catalogTable,
+                        catalog,
+                        dynamicTableSink);
             }
-            // use non-atomic ctas, create table first
-            executeInternal(ctasOperation.getCreateTableOperation());
-            mapOperations.add(ctasOperation.toSinkModifyOperation(catalogManager));
         }
+        // use non-atomic ctas, create table first
+        executeInternal(ctasOperation.getCreateTableOperation());
+        return ctasOperation.toSinkModifyOperation(catalogManager);
     }
 
     private TableResultInternal executeInternal(
@@ -926,6 +924,13 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     private TableResultInternal executeInternal(
             List<Transformation<?>> transformations, List<String> sinkIdentifierNames) {
+        return executeInternal(transformations, sinkIdentifierNames, Collections.emptyList());
+    }
+
+    private TableResultInternal executeInternal(
+            List<Transformation<?>> transformations,
+            List<String> sinkIdentifierNames,
+            List<JobStatusHook> jobStatusHookList) {
         final String defaultJobName = "insert-into_" + String.join(",", sinkIdentifierNames);
 
         resourceManager.addJarConfiguration(tableConfig);

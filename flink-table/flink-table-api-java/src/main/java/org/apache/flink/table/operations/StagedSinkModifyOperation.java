@@ -21,21 +21,22 @@ package org.apache.flink.table.operations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.sink.abilities.SupportsStaging;
 
 import javax.annotation.Nullable;
 
 import java.util.Map;
 
 /**
- * DML operation that tells to write to a sink.
+ * DML operation that tells to write to a sink which implements {@link SupportsStaging}. Currently.
+ * this operation is only for CTAS(CREATE TABLE AS SELECT) statement.
  *
- * <p>The sink is described by {@link #getContextResolvedTable()}, and in general is used for every
- * sink which implementation is defined with {@link DynamicTableSink}.
- *
- * <p>StagedSinkModifyOperation is an extension of SinkModifyOperation to the atomic CTAS scenario.
- * By making DynamicTableSink a member variable, we can avoid the second initialization of
- * DynamicTableSink, and more importantly, DynamicTableSink can determine if it is an atomic CTAS
- * operation based on whether applyStaging has been called.
+ * <p>StagedSinkModifyOperation is an extension of SinkModifyOperation in the atomic CTAS scenario.
+ * Whiling checking whether the corresponding sink support atomic CTAS or not, we will need to get
+ * DynamicTableSink firstly and check whether it implements {@link SupportsStaging} and then call
+ * the method {@link SupportsStaging#applyStaging}. We maintain the DynamicTableSink in this
+ * operation so that we can reuse this DynamicTableSink instead of creating a new DynamicTableSink
+ * again which is error-prone.
  */
 @Internal
 public class StagedSinkModifyOperation extends SinkModifyOperation {

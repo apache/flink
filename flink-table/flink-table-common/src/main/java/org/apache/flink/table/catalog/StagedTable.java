@@ -25,32 +25,34 @@ import org.apache.flink.table.connector.sink.abilities.SupportsStaging;
 import java.io.Serializable;
 
 /**
- * A {@link StagedTable} for atomic semantics using a two-phase commit protocol. If {@link
- * DynamicTableSink} implements the {@link SupportsStaging} interface, it can return a {@link
- * StagedTable} object via the `applyStaging` method.
+ * The {@link StagedTable} is designed to implement atomic semantic using a two-phase commit
+ * protocol. The {@link StagedTable} is supposed to be returned via method {@link
+ * SupportsStaging#applyStaging} by the {@link DynamicTableSink} which implements the {@link
+ * SupportsStaging} interface.
  *
- * <p>when flink job is CREATED, the begin method of StagedTable will be called; when flink job is
- * FINISHED, the commit method of StagedTable will be called; when flink job is FAILED or CANCELED,
- * the abort method of StagedTable will be called;
+ * <p>When the Flink job for writing to a {@link DynamicTableSink} is CREATED, the {@link
+ * StagedTable#begin()} will be called; when the Flink job is FINISHED, the {@link
+ * StagedTable#commit()} will be called; when the Flink job is FAILED or CANCELED, the {@link
+ * StagedTable#abort()} will be called;
+ *
+ * <p>See more in {@link SupportsStaging}.
  */
 @PublicEvolving
 public interface StagedTable extends Serializable {
 
     /**
-     * This method will be called when the job is started. Similar to what it means to open a
-     * transaction in a relational database; In Flink's atomic CTAS scenario, it is used to do some
-     * initialization work; For example, initializing the client of the underlying service, the tmp
-     * path of the underlying storage, or even call the start transaction API of the underlying
-     * service, etc.
+     * This method will be called when the job is started. In Flink's atomic CTAS scenario, it is
+     * expected to do initialization work; For example, initializing the client of the underlying
+     * service, the tmp path of the underlying storage, or even call the start transaction API of
+     * the underlying service, etc.
      */
     void begin();
 
     /**
-     * This method will be called when the job is succeeds. Similar to what it means to commit the
-     * transaction in a relational database; In Flink's atomic CTAS scenario, it is used to do some
-     * data visibility related work; For example, moving the underlying data to the target
-     * directory, writing buffer data to the underlying storage service, or even call the commit
-     * transaction API of the underlying service, etc.
+     * This method will be called when the job is succeeds. In Flink's atomic CTAS scenario, it is
+     * expected to do some commit work. For example, moving the underlying data to the target
+     * directory to make it visible, writing buffer data to the underlying storage service, or even
+     * call the commit transaction API of the underlying service, etc.
      */
     void commit();
 
