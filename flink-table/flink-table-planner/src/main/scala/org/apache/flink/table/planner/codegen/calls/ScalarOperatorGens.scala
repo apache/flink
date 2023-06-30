@@ -906,7 +906,7 @@ object ScalarOperatorGens {
             resultTerm,
             nullTerm,
             operand.code + "\n" + castCode,
-            targetType
+            targetType.copy(nullOnFailure)
           )
         } else {
           val castCode =
