@@ -74,7 +74,11 @@ public class ParquetFormatStatisticsReportUtil {
             DataType producedDataType,
             Configuration hadoopConfig,
             boolean isUtcTimestamp) {
-        return getTableStatistics(files, producedDataType, hadoopConfig, isUtcTimestamp,
+        return getTableStatistics(
+                files,
+                producedDataType,
+                hadoopConfig,
+                isUtcTimestamp,
                 Runtime.getRuntime().availableProcessors());
     }
 
@@ -91,8 +95,10 @@ public class ParquetFormatStatisticsReportUtil {
             long rowCount = 0;
             List<Future<Long>> fileRowCountFutures = new ArrayList<>();
             for (Path file : files) {
-                fileRowCountFutures.add(executorService.
-                        submit(new ParquetFileRowCountCalculator(hadoopConfig, file, columnStatisticsMap)));
+                fileRowCountFutures.add(
+                        executorService.submit(
+                                new ParquetFileRowCountCalculator(
+                                        hadoopConfig, file, columnStatisticsMap)));
             }
             for (Future<Long> fileCountFuture : fileRowCountFutures) {
                 rowCount += fileCountFuture.get();
@@ -290,9 +296,9 @@ public class ParquetFormatStatisticsReportUtil {
     }
 
     private static class ParquetFileRowCountCalculator implements Callable<Long> {
-        private final  Configuration hadoopConfig;
-        private final  Path file;
-        private final  Map<String, Statistics<?>> columnStatisticsMap;
+        private final Configuration hadoopConfig;
+        private final Path file;
+        private final Map<String, Statistics<?>> columnStatisticsMap;
 
         public ParquetFileRowCountCalculator(
                 Configuration hadoopConfig,
