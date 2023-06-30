@@ -70,7 +70,7 @@ public class PartitionCommitPolicyFactory implements Serializable {
                                             successFileName, fsSupplier.get());
                                 case PartitionCommitPolicy.CUSTOM:
                                     try {
-                                        if (!CollectionUtil.isNullOrEmpty(parameters)) {
+                                        if (parameters != null && !parameters.isEmpty()) {
                                             String[] paramStrings =
                                                     parameters.toArray(new String[0]);
                                             Class<?>[] classes = new Class<?>[parameters.size()];
