@@ -36,6 +36,7 @@ import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Unit tests for {@link SourceCoordinatorProvider}. */
 class SourceCoordinatorProviderTest {
@@ -120,5 +121,20 @@ class SourceCoordinatorProviderTest {
                 context::isJobFailed,
                 Duration.ofSeconds(10L),
                 "The job did not fail before timeout.");
+    }
+
+    @Test
+    void testCoordinatorExecutorThreadFactoryNewMultipleThread() {
+        SourceCoordinatorProvider.CoordinatorExecutorThreadFactory
+                coordinatorExecutorThreadFactory =
+                        new SourceCoordinatorProvider.CoordinatorExecutorThreadFactory(
+                                "test_coordinator_thread",
+                                new MockOperatorCoordinatorContext(
+                                        new OperatorID(1234L, 5678L), 3));
+
+        coordinatorExecutorThreadFactory.newThread(() -> {});
+        // coordinatorExecutorThreadFactory cannot create multiple threads.
+        assertThatThrownBy(() -> coordinatorExecutorThreadFactory.newThread(() -> {}))
+                .isInstanceOf(IllegalStateException.class);
     }
 }
