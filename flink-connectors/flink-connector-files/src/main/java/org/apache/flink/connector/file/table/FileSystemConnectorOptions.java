@@ -229,9 +229,8 @@ public class FileSystemConnectorOptions {
                     .withDescription(
                             "The parameters passed to the constructor of the custom commit policy, "
                                     + " with multiple parameters separated by semicolons, such as 'param1;param2'."
-                                    + " For example, 'param1;param2'. The configuration value will be split"
-                                    + " into a list (['param1', 'param2']) and passed to the constructor"
-                                    + " of the custom commit policy class."
+                                    + " The configuration value will be split into a list (['param1', 'param2'])"
+                                    + " and passed to the constructor of the custom commit policy class."
                                     + " This option is optional, if not configured, default constructor will be used.");
 
     public static final ConfigOption<String> SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME =

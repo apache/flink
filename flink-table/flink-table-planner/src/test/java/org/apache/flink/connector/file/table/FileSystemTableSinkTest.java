@@ -166,20 +166,14 @@ public class FileSystemTableSinkTest {
 
     @Test
     public void testFileSystemTableSinkWithCustomCommitPolicy() throws Exception {
-        final String inputTable = "inputTable";
         final String outputTable = "outputTable";
         final String customPartitionCommitPolicyClassName = TestCustomCommitPolicy.class.getName();
-        EnvironmentSettings settings = EnvironmentSettings.newInstance().inStreamingMode().build();
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(1);
-        env.enableCheckpointing(100);
-        StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env, settings);
-
+        final TableEnvironment tEnv =
+                TableEnvironment.create(EnvironmentSettings.inStreamingMode());
         String ddl =
                 "CREATE TABLE %s ("
                         + "  a INT,"
                         + "  b STRING,"
-                        + "  c STRING,"
                         + "  d STRING,"
                         + "  e STRING"
                         + ") PARTITIONED BY (d, e) WITH ("
@@ -192,25 +186,18 @@ public class FileSystemTableSinkTest {
                         + "'sink.partition-commit.policy.class.parameters'='test1;test2'"
                         + ")";
         ddl = String.format(ddl, outputTable, customPartitionCommitPolicyClassName);
-
-        List<Row> data =
-                Arrays.asList(
-                        Row.of(1, "a", "b", "2020-05-03", "3"),
-                        Row.of(2, "x", "y", "2020-05-03", "4"));
-        DataStream<Row> stream =
-                env.addSource(
-                        new FiniteTestSource<>(data),
-                        new RowTypeInfo(
-                                Types.INT, Types.STRING, Types.STRING, Types.STRING, Types.STRING));
-        Table t = tableEnv.fromDataStream(stream, Schema.newBuilder().build());
-        tableEnv.createTemporaryView(inputTable, t);
-        tableEnv.executeSql(ddl);
-        tableEnv.sqlQuery("select * from inputTable").executeInsert("outputTable").await();
-        Set<String> committedPaths = TestCustomCommitPolicy.getCommittedPartitionPathsAndReset();
-        Set<String> validationSet =
+        tEnv.executeSql(ddl);
+        tEnv.executeSql(
+                        "insert into outputTable select *"
+                                + " from (values (1, 'a', '2020-05-03', '3'), "
+                                + "(2, 'x', '2020-05-03', '4'))")
+                .await();
+        Set<String> actualCommittedPaths =
+                TestCustomCommitPolicy.getCommittedPartitionPathsAndReset();
+        Set<String> expectedCommittedPaths =
                 new HashSet<>(
                         Arrays.asList(
                                 "test1test2", "/tmp/d=2020-05-03/e=3", "/tmp/d=2020-05-03/e=4"));
-        assertEquals(validationSet, committedPaths);
+        assertEquals(expectedCommittedPaths, actualCommittedPaths);
     }
 }
