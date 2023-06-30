@@ -108,6 +108,7 @@ import org.apache.flink.runtime.scheduler.adaptive.allocator.ReservedSlots;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotAllocator;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.EnforceMinimalIncreaseRescalingController;
+import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.EnforceParallelismChangeRescalingController;
 import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.RescalingController;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
@@ -204,6 +205,8 @@ public class AdaptiveScheduler
 
     private final RescalingController rescalingController;
 
+    private final RescalingController forceRescalingController;
+
     private final Duration initialResourceAllocationTimeout;
 
     private final Duration resourceStabilizationTimeout;
@@ -293,6 +296,8 @@ public class AdaptiveScheduler
         this.componentMainThreadExecutor = mainThreadExecutor;
 
         this.rescalingController = new EnforceMinimalIncreaseRescalingController(configuration);
+
+        this.forceRescalingController = new EnforceParallelismChangeRescalingController();
 
         this.initialResourceAllocationTimeout = initialResourceAllocationTimeout;
 
@@ -1162,16 +1167,24 @@ public class AdaptiveScheduler
                 LOG);
     }
 
+    /**
+     * In regular mode, rescale the job if added resource meets {@link
+     * JobManagerOptions#MIN_PARALLELISM_INCREASE}. In force mode rescale if the parallelism has
+     * changed.
+     */
     @Override
-    public boolean shouldRescale(ExecutionGraph executionGraph) {
+    public boolean shouldRescale(ExecutionGraph executionGraph, boolean forceRescale) {
         final Optional<VertexParallelism> maybeNewParallelism =
                 slotAllocator.determineParallelism(
                         jobInformation, declarativeSlotPool.getAllSlotsInformation());
         return maybeNewParallelism
                 .filter(
-                        vertexParallelism ->
-                                rescalingController.shouldRescale(
-                                        getCurrentParallelism(executionGraph), vertexParallelism))
+                        vertexParallelism -> {
+                            RescalingController rescalingControllerToUse =
+                                    forceRescale ? forceRescalingController : rescalingController;
+                            return rescalingControllerToUse.shouldRescale(
+                                    getCurrentParallelism(executionGraph), vertexParallelism);
+                        })
                 .isPresent();
     }
 

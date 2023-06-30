@@ -174,6 +174,11 @@ With Reactive Mode enabled, the [`jobmanager.adaptive-scheduler.resource-stabili
 In scenarios where TaskManagers are not connecting at the same time, but slowly one after another, this behavior leads to a job restart whenever a TaskManager connects. Increase this configuration value if you want to wait for the resources to stabilize before scheduling the job.
 Additionally, one can configure [`jobmanager.adaptive-scheduler.min-parallelism-increase`]({{< ref "docs/deployment/config">}}#jobmanager-adaptive-scheduler-min-parallelism-increase): This configuration option specifics the minimum amount of additional, aggregate parallelism increase before triggering a scale-up. For example if you have a job with a source (parallelism=2) and a sink (parallelism=2), the aggregate parallelism is 4. By default, the configuration key is set to 1, so any increase in the aggregate parallelism will trigger a restart.
 
+One can force scaling operations to happen by setting [`jobmanager.adaptive-scheduler.scaling-interval.max`]({{< ref "docs/deployment/config">}}#jobmanager-adaptive-scheduler-scaling-interval-max). It is disabled by default. If set, then when new resources are added to the cluster, a rescale is scheduled after [`jobmanager.adaptive-scheduler.scaling-interval.max`]({{< ref "docs/deployment/config">}}#jobmanager-adaptive-scheduler-scaling-interval-max) even if [`jobmanager.adaptive-scheduler.min-parallelism-increase`]({{< ref "docs/deployment/config">}}#jobmanager-adaptive-scheduler-min-parallelism-increase) is not satisfied.
+
+To avoid too frequent scaling operations, one can configure [`jobmanager.adaptive-scheduler.scaling-interval.min`]({{< ref "docs/deployment/config">}}#jobmanager-adaptive-scheduler-scaling-interval-min) to set the minimum time between 2 scaling operations. The default is 30s.
+
+
 #### Recommendations
 
 - **Configure periodic checkpointing for stateful jobs**: Reactive mode restores from the latest completed checkpoint on a rescale event. If no periodic checkpointing is enabled, your program will lose its state. Checkpointing also configures a **restart strategy**. Reactive Mode will respect the configured restarting strategy: If no restarting strategy is configured, reactive mode will fail your job, instead of scaling it.

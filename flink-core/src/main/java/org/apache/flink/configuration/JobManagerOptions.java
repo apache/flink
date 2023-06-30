@@ -511,6 +511,32 @@ public class JobManagerOptions {
         Documentation.Sections.EXPERT_SCHEDULING,
         Documentation.Sections.ALL_JOB_MANAGER
     })
+    public static final ConfigOption<Duration> SCHEDULER_SCALING_INTERVAL_MIN =
+            key("jobmanager.adaptive-scheduler.scaling-interval.min")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(30))
+                    // rescaling and let the user increase the value for high workloads
+                    .withDescription("Determines the minimum time between scaling operations.");
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Duration> SCHEDULER_SCALING_INTERVAL_MAX =
+            key("jobmanager.adaptive-scheduler.scaling-interval.max")
+                    .durationType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Determines the maximum interval time after which a scaling operation is forced even if the %s aren't met. The scaling operation will be ignored when the resource hasn't changed. This option is disabled by default.",
+                                            code(MIN_PARALLELISM_INCREASE.key()))
+                                    .build());
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
     public static final ConfigOption<Duration> RESOURCE_WAIT_TIMEOUT =
             key("jobmanager.adaptive-scheduler.resource-wait-timeout")
                     .durationType()
