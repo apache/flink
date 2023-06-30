@@ -74,7 +74,7 @@ class DefaultLeaderElection implements LeaderElection {
          * Removes the {@code LeaderContender} from the {@code ParentService} that is associated
          * with the {@code contenderID}.
          */
-        abstract void remove(String contenderID);
+        abstract void remove(String contenderID) throws Exception;
 
         /**
          * Confirms the leadership with the {@code leaderSessionID} and {@code leaderAddress} for

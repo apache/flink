@@ -159,63 +159,155 @@ class DefaultLeaderElectionServiceTest {
 
         final TestingLeaderElectionDriver.Factory driverFactory =
                 new TestingLeaderElectionDriver.Factory(driverBuilder);
-        final DefaultLeaderElectionService testInstance =
+        try (final DefaultLeaderElectionService testInstance =
                 new DefaultLeaderElectionService(
-                        driverFactory, fatalErrorHandlerExtension.getTestingFatalErrorHandler());
-        testInstance.startLeaderElectionBackend();
-        final TestingLeaderElectionDriver driver = driverFactory.assertAndGetOnlyCreatedDriver();
+                        driverFactory, fatalErrorHandlerExtension.getTestingFatalErrorHandler())) {
 
-        final Thread closeThread =
-                new Thread(
-                        () -> {
-                            try {
-                                testInstance.close();
-                            } catch (Exception e) {
-                                throw new RuntimeException(e);
-                            }
-                        },
-                        "CloseThread");
+            // creating the LeaderElection is necessary to instantiate the driver
+            final LeaderElection leaderElection = testInstance.createLeaderElection("contender-id");
+            leaderElection.startLeaderElection(TestingGenericLeaderContender.newBuilder().build());
 
-        // triggers close that acquires the DefaultLeaderElectionService lock
-        closeThread.start();
-        closeReachedLatch.await();
+            final TestingLeaderElectionDriver driver =
+                    driverFactory.assertAndGetOnlyCreatedDriver();
 
-        final Thread grantThread =
-                new Thread(
-                        () -> {
-                            try {
-                                // simulates the grant process being triggered from the HA backend's
-                                // side where the same lock that is acquired during the driver's
-                                // process is also acquired while handling a leadership event
-                                // processing
-                                driver.getLock().lock();
-                                grantReachedLatch.trigger();
-                                grantContinueLatch.awaitQuietly();
+            final Thread closeThread =
+                    new Thread(
+                            () -> {
+                                try {
+                                    leaderElection.close();
+                                } catch (Exception e) {
+                                    throw new RuntimeException(e);
+                                }
+                            },
+                            "CloseThread");
 
-                                // grants leadership
-                                leadershipGranted.set(true);
-                                testInstance.onGrantLeadership(UUID.randomUUID());
-                            } finally {
-                                driver.getLock().unlock();
-                            }
-                        },
-                        "GrantThread");
+            // triggers close that acquires the DefaultLeaderElectionService lock
+            closeThread.start();
+            closeReachedLatch.await();
 
-        // triggers the service acquiring the leadership and, as a consequence, acquiring the
-        // driver's lock
-        grantThread.start();
-        grantReachedLatch.await();
+            final Thread grantThread =
+                    new Thread(
+                            () -> {
+                                try {
+                                    // simulates the grant process being triggered from the HA
+                                    // backend's side where the same lock that is acquired during
+                                    // the driver's process is also acquired while handling a
+                                    // leadership event processing
+                                    driver.getLock().lock();
+                                    grantReachedLatch.trigger();
+                                    grantContinueLatch.awaitQuietly();
 
-        // continue both processes which shouldn't result in a deadlock
-        grantContinueLatch.trigger();
-        closeContinueLatch.trigger();
+                                    // grants leadership
+                                    leadershipGranted.set(true);
+                                    testInstance.onGrantLeadership(UUID.randomUUID());
+                                } finally {
+                                    driver.getLock().unlock();
+                                }
+                            },
+                            "GrantThread");
 
-        closeThread.join();
-        grantThread.join();
+            // triggers the service acquiring the leadership and, as a consequence, acquiring the
+            // driver's lock
+            grantThread.start();
+            grantReachedLatch.await();
 
-        FlinkAssertions.assertThatFuture(driverCloseTriggered).eventuallySucceeds();
+            // continue both processes which shouldn't result in a deadlock
+            grantContinueLatch.trigger();
+            closeContinueLatch.trigger();
+
+            closeThread.join();
+            grantThread.join();
+
+            FlinkAssertions.assertThatFuture(driverCloseTriggered).eventuallySucceeds();
+        }
     }
 
+    @Test
+    void testLazyDriverInstantiation() throws Exception {
+        final AtomicBoolean driverCreated = new AtomicBoolean();
+        try (final DefaultLeaderElectionService testInstance =
+                new DefaultLeaderElectionService(
+                        listener -> {
+                            driverCreated.set(true);
+                            return TestingLeaderElectionDriver.newNoOpBuilder().build(listener);
+                        },
+                        fatalErrorHandlerExtension.getTestingFatalErrorHandler(),
+                        Executors.newDirectExecutorService())) {
+            assertThat(driverCreated)
+                    .as("The driver shouldn't have been created during service creation.")
+                    .isFalse();
+
+            try (final LeaderElection leaderElection =
+                    testInstance.createLeaderElection("contender-id")) {
+                assertThat(driverCreated)
+                        .as(
+                                "The driver shouldn't have been created during LeaderElection creation.")
+                        .isFalse();
+
+                leaderElection.startLeaderElection(
+                        TestingGenericLeaderContender.newBuilder().build());
+                assertThat(driverCreated)
+                        .as(
+                                "The driver should have been created when registering the contender in the LeaderElection.")
+                        .isTrue();
+            }
+        }
+    }
+
+    @Test
+    void testReuseOfServiceIsRestricted() throws Exception {
+        final DefaultLeaderElectionService testInstance =
+                new DefaultLeaderElectionService(
+                        new TestingLeaderElectionDriver.Factory(
+                                TestingLeaderElectionDriver.newNoOpBuilder()));
+
+        // The driver hasn't started, yet, which prevents the service from going into running state.
+        // This results in the close method not having any effect.
+        testInstance.close();
+
+        assertThatThrownBy(() -> testInstance.createLeaderElection("contender-id"))
+                .as(
+                        "Registering a contender on a closed service should have resulted in an IllegalStateException.")
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    /**
+     * The leadership can be granted as soon as the driver is instantiated. We need to make sure
+     * that the event is still handled properly while registering the contender.
+     */
+    @Test
+    void testMultipleDriverCreations() throws Exception {
+        final AtomicInteger closeCount = new AtomicInteger(0);
+        final TestingLeaderElectionDriver.Factory driverFactory =
+                new TestingLeaderElectionDriver.Factory(
+                        TestingLeaderElectionDriver.newNoOpBuilder()
+                                .setCloseConsumer(ignoredLock -> closeCount.incrementAndGet()));
+
+        try (final DefaultLeaderElectionService testInstance =
+                new DefaultLeaderElectionService(driverFactory)) {
+
+            final String contenderID = "contender_id";
+            final int numberOfStartCloseSessions = 2;
+            for (int i = 1; i <= numberOfStartCloseSessions; i++) {
+                assertThat(driverFactory.getCreatedDriverCount()).isEqualTo(i - 1);
+                assertThat(closeCount).hasValue(i - 1);
+
+                try (final LeaderElection leaderElection =
+                        testInstance.createLeaderElection(contenderID)) {
+                    leaderElection.startLeaderElection(
+                            TestingGenericLeaderContender.newBuilder().build());
+                }
+
+                assertThat(driverFactory.getCreatedDriverCount()).isEqualTo(i);
+                assertThat(closeCount).hasValue(i);
+            }
+        }
+    }
+
+    /**
+     * The leadership can be granted as soon as the driver is instantiated. We need to make sure
+     * that the event is still handled properly while registering the contender.
+     */
     @Test
     void testGrantCallWhileInstantiatingDriver() throws Exception {
         final UUID expectedLeaderSessionID = UUID.randomUUID();
@@ -227,7 +319,6 @@ class DefaultLeaderElectionServiceTest {
                         },
                         fatalErrorHandlerExtension.getTestingFatalErrorHandler(),
                         Executors.newDirectExecutorService())) {
-            testInstance.startLeaderElectionBackend();
 
             final LeaderElection leaderElection =
                     testInstance.createLeaderElection(createRandomContenderID());
@@ -243,78 +334,89 @@ class DefaultLeaderElectionServiceTest {
 
     @Test
     void testDelayedGrantCallAfterContenderRegistration() throws Exception {
-        new Context() {
-            {
-                runTestWithManuallyTriggeredEvents(
-                        executorService -> {
-                            // we need to close to deregister the contender that was already
-                            // registered to the service
-                            closeLeaderElectionInBothContexts();
+        final TestingLeaderElectionDriver.Factory driverFactory =
+                new TestingLeaderElectionDriver.Factory(
+                        TestingLeaderElectionDriver.newNoOpBuilder());
+        final ManuallyTriggeredScheduledExecutorService leaderEventOperationExecutor =
+                new ManuallyTriggeredScheduledExecutorService();
+        try (final DefaultLeaderElectionService leaderElectionService =
+                new DefaultLeaderElectionService(
+                        driverFactory,
+                        fatalErrorHandlerExtension.getTestingFatalErrorHandler(),
+                        leaderEventOperationExecutor)) {
 
-                            final UUID expectedSessionID = UUID.randomUUID();
-                            grantLeadership(expectedSessionID);
+            final AtomicBoolean firstContenderReceivedGrant = new AtomicBoolean(false);
+            final LeaderContender firstContender =
+                    TestingGenericLeaderContender.newBuilder()
+                            .setGrantLeadershipConsumer(
+                                    ignoredSessionID -> firstContenderReceivedGrant.set(true))
+                            .build();
 
-                            applyToBothContenderContexts(
-                                    ctx -> {
-                                        try (LeaderElection anotherLeaderElection =
-                                                leaderElectionService.createLeaderElection(
-                                                        ctx.contenderID)) {
-                                            final TestingContender testingContender =
-                                                    new TestingContender(
-                                                            ctx.address, anotherLeaderElection);
-                                            testingContender.startLeaderElection();
+            final AtomicBoolean secondContenderReceivedGrant = new AtomicBoolean(false);
+            final LeaderContender secondContender =
+                    TestingGenericLeaderContender.newBuilder()
+                            .setGrantLeadershipConsumer(
+                                    ignoredSessionID -> secondContenderReceivedGrant.set(true))
+                            .build();
+            try (final LeaderElection firstLeaderElection =
+                    leaderElectionService.createLeaderElection("contender_id_0")) {
+                firstLeaderElection.startLeaderElection(firstContender);
 
-                                            assertThat(testingContender.getLeaderSessionID())
-                                                    .as(
-                                                            "Leadership grant was not forwarded to the contender, yet.")
-                                                    .isNull();
+                assertThat(driverFactory.getCreatedDriverCount())
+                        .as(
+                                "A single driver should have been created when registering the contender.")
+                        .isEqualTo(1);
+                leaderElectionService.onGrantLeadership(UUID.randomUUID());
+                assertThat(firstContenderReceivedGrant).isFalse();
 
-                                            executorService.trigger();
+                try (final LeaderElection secondLeaderElection =
+                        leaderElectionService.createLeaderElection("contender_id_1")) {
+                    secondLeaderElection.startLeaderElection(secondContender);
 
-                                            assertThat(testingContender.getLeaderSessionID())
-                                                    .as(
-                                                            "Leadership grant is actually forwarded to the service.")
-                                                    .isEqualTo(expectedSessionID);
+                    assertThat(secondContenderReceivedGrant).isFalse();
 
-                                            testingContender.waitForLeader();
-                                        }
-                                    });
-                        });
+                    leaderEventOperationExecutor.trigger();
+                    assertThat(firstContenderReceivedGrant).isTrue();
+                    assertThat(secondContenderReceivedGrant).isTrue();
+                }
             }
-        };
+        }
     }
 
     @Test
     void testDelayedGrantCallAfterContenderBeingDeregisteredAgain() throws Exception {
-        new Context() {
-            {
-                runTestWithManuallyTriggeredEvents(
-                        executorService -> {
-                            // we need to close the LeaderElection to deregister the contender that
-                            // was already registered to the service
-                            closeLeaderElectionInBothContexts();
+        final TestingLeaderElectionDriver.Factory driverFactory =
+                new TestingLeaderElectionDriver.Factory(
+                        TestingLeaderElectionDriver.newNoOpBuilder());
+        final ManuallyTriggeredScheduledExecutorService leaderEventOperationExecutor =
+                new ManuallyTriggeredScheduledExecutorService();
+        try (final DefaultLeaderElectionService leaderElectionService =
+                new DefaultLeaderElectionService(
+                        driverFactory,
+                        fatalErrorHandlerExtension.getTestingFatalErrorHandler(),
+                        leaderEventOperationExecutor)) {
 
-                            grantLeadership();
-                            executorService.trigger();
+            final AtomicBoolean leadershipGrantForwardedToContender = new AtomicBoolean(false);
+            final LeaderContender leaderContender =
+                    TestingGenericLeaderContender.newBuilder()
+                            .setGrantLeadershipConsumer(
+                                    ignoredSessionID ->
+                                            leadershipGrantForwardedToContender.set(true))
+                            .build();
+            try (final LeaderElection leaderElection =
+                    leaderElectionService.createLeaderElection("contender_id")) {
+                leaderElection.startLeaderElection(leaderContender);
 
-                            applyToBothContenderContexts(
-                                    ctx -> {
-                                        ctx.leaderElection =
-                                                leaderElectionService.createLeaderElection(
-                                                        ctx.contenderID);
-                                        final TestingContender contender =
-                                                new TestingContender(
-                                                        ctx.address + "-different",
-                                                        ctx.leaderElection);
-                                        contender.startLeaderElection();
-
-                                        ctx.leaderElection.close();
-
-                                        executorService.trigger();
-                                    });
-                        });
+                assertThat(driverFactory.getCreatedDriverCount())
+                        .as(
+                                "A single driver should have been created when registering the contender.")
+                        .isEqualTo(1);
+                leaderElectionService.onGrantLeadership(UUID.randomUUID());
             }
-        };
+
+            leaderEventOperationExecutor.trigger();
+            assertThat(leadershipGrantForwardedToContender).isFalse();
+        }
     }
 
     @Test
@@ -365,25 +467,6 @@ class DefaultLeaderElectionServiceTest {
                         });
             }
         };
-    }
-
-    @Test
-    void testContenderRegistrationWithoutDriverBeingInstantiatedFails() throws Exception {
-        try (final DefaultLeaderElectionService leaderElectionService =
-                new DefaultLeaderElectionService(
-                        TestingLeaderElectionDriver.Factory.createFactoryWithNoOpDriver(),
-                        fatalErrorHandlerExtension.getTestingFatalErrorHandler())) {
-            final LeaderElection leaderElection =
-                    leaderElectionService.createLeaderElection(createRandomContenderID());
-            assertThatThrownBy(
-                            () ->
-                                    new TestingContender("unused-address", leaderElection)
-                                            .startLeaderElection())
-                    .isInstanceOf(IllegalStateException.class);
-
-            // starting the backend because the close method expects it to be initialized
-            leaderElectionService.startLeaderElectionBackend();
-        }
     }
 
     @Test
@@ -1125,7 +1208,6 @@ class DefaultLeaderElectionServiceTest {
         final DefaultLeaderElectionService testInstance =
                 new DefaultLeaderElectionService(
                         driverFactory, fatalErrorHandlerExtension.getTestingFatalErrorHandler());
-        testInstance.startLeaderElectionBackend();
 
         final LeaderElection leaderElection =
                 testInstance.createLeaderElection(createRandomContenderID());
@@ -1225,8 +1307,6 @@ class DefaultLeaderElectionServiceTest {
                                     .getTestingFatalErrorHandler(),
                             leaderEventOperationExecutor)) {
                 leaderElectionService = localLeaderElectionService;
-                leaderElectionService.startLeaderElectionBackend();
-                testingLeaderElectionDriver = driverFactory.assertAndGetOnlyCreatedDriver();
 
                 try (final ContenderContext localContenderContext0 =
                                 ContenderContext.create(0, leaderElectionService);
@@ -1235,6 +1315,7 @@ class DefaultLeaderElectionServiceTest {
                     this.contenderContext0 = localContenderContext0;
                     this.contenderContext1 = localContenderContext1;
 
+                    testingLeaderElectionDriver = driverFactory.assertAndGetOnlyCreatedDriver();
                     testMethod.run();
                 }
             } finally {

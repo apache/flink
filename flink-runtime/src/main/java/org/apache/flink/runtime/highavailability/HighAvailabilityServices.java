@@ -121,13 +121,13 @@ public interface HighAvailabilityServices
     }
 
     /** Gets the {@link LeaderElection} for the cluster's resource manager. */
-    LeaderElection getResourceManagerLeaderElection() throws Exception;
+    LeaderElection getResourceManagerLeaderElection();
 
     /** Gets the {@link LeaderElection} for the cluster's dispatcher. */
-    LeaderElection getDispatcherLeaderElection() throws Exception;
+    LeaderElection getDispatcherLeaderElection();
 
     /** Gets the {@link LeaderElection} for the job with the given {@link JobID}. */
-    LeaderElection getJobManagerLeaderElection(JobID jobID) throws Exception;
+    LeaderElection getJobManagerLeaderElection(JobID jobID);
 
     /**
      * Gets the {@link LeaderElection} for the cluster's rest endpoint.
@@ -176,7 +176,7 @@ public interface HighAvailabilityServices
     BlobStore createBlobStore() throws IOException;
 
     /** Gets the {@link LeaderElection} for the cluster's rest endpoint. */
-    default LeaderElection getClusterRestEndpointLeaderElection() throws Exception {
+    default LeaderElection getClusterRestEndpointLeaderElection() {
         // for backwards compatibility we delegate to getWebMonitorLeaderElectionService
         // all implementations of this interface should override
         // getClusterRestEndpointLeaderElectionService, though

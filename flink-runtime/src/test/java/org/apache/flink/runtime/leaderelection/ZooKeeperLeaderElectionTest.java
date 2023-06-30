@@ -175,11 +175,7 @@ class ZooKeeperLeaderElectionTest {
             for (int i = 0; i < num; i++) {
                 final LeaderElectionDriverFactory driverFactory =
                         new ZooKeeperLeaderElectionDriverFactory(createZooKeeperClient());
-                leaderElectionService[i] =
-                        new DefaultLeaderElectionService(
-                                driverFactory,
-                                testingFatalErrorHandlerResource.getTestingFatalErrorHandler());
-                leaderElectionService[i].startLeaderElectionBackend();
+                leaderElectionService[i] = new DefaultLeaderElectionService(driverFactory);
                 leaderElections[i] = leaderElectionService[i].createLeaderElection(CONTENDER_ID);
                 contenders[i] = new TestingContender(createAddress(i), leaderElections[i]);
 
@@ -279,11 +275,7 @@ class ZooKeeperLeaderElectionTest {
             for (int i = 0; i < num; i++) {
                 final LeaderElectionDriverFactory driverFactory =
                         new ZooKeeperLeaderElectionDriverFactory(createZooKeeperClient());
-                leaderElectionService[i] =
-                        new DefaultLeaderElectionService(
-                                driverFactory,
-                                testingFatalErrorHandlerResource.getTestingFatalErrorHandler());
-                leaderElectionService[i].startLeaderElectionBackend();
+                leaderElectionService[i] = new DefaultLeaderElectionService(driverFactory);
                 leaderElections[i] = leaderElectionService[i].createLeaderElection(CONTENDER_ID);
                 contenders[i] =
                         new TestingContender(LEADER_ADDRESS + "_" + i + "_0", leaderElections[i]);
@@ -317,11 +309,7 @@ class ZooKeeperLeaderElectionTest {
                     // create new leader election service which takes part in the leader election
                     final LeaderElectionDriverFactory driverFactory =
                             new ZooKeeperLeaderElectionDriverFactory(createZooKeeperClient());
-                    leaderElectionService[index] =
-                            new DefaultLeaderElectionService(
-                                    driverFactory,
-                                    testingFatalErrorHandlerResource.getTestingFatalErrorHandler());
-                    leaderElectionService[index].startLeaderElectionBackend();
+                    leaderElectionService[index] = new DefaultLeaderElectionService(driverFactory);
                     leaderElections[index] =
                             leaderElectionService[index].createLeaderElection(CONTENDER_ID);
 
