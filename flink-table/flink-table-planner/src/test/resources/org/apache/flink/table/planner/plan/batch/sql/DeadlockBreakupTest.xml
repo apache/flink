@@ -31,13 +31,14 @@ LogicalIntersect(all=[false])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-HashAggregate(isMerge=[false], groupBy=[a, b, c], select=[a, b, c])
-+- Exchange(distribution=[keep_input_as_is[hash[a, b, c]]])
-   +- HashJoin(joinType=[LeftSemiJoin], where=[(((a = a0) OR (a IS NULL AND a0 IS NULL)) AND ((b = b0) OR (b IS NULL AND b0 IS NULL)) AND ((c = c0) OR (c IS NULL AND c0 IS NULL)))], select=[a, b, c], build=[left])
-      :- Exchange(distribution=[hash[a, b, c]])
-      :  +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
-      +- Exchange(distribution=[hash[a, b, c]], shuffle_mode=[BATCH])
-         +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
+HashAggregate(isMerge=[true], groupBy=[a, b, c], select=[a, b, c])
++- Exchange(distribution=[hash[a, b, c]])
+   +- LocalHashAggregate(groupBy=[a, b, c], select=[a, b, c])
+      +- HashJoin(joinType=[LeftSemiJoin], where=[(((a = a0) OR (a IS NULL AND a0 IS NULL)) AND ((b = b0) OR (b IS NULL AND b0 IS NULL)) AND ((c = c0) OR (c IS NULL AND c0 IS NULL)))], select=[a, b, c], build=[left])
+         :- Exchange(distribution=[hash[a, b, c]])
+         :  +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
+         +- Exchange(distribution=[hash[a, b, c]], shuffle_mode=[BATCH])
+            +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

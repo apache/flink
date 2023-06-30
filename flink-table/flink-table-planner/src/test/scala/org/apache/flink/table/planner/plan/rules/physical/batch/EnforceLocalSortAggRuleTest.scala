@@ -90,7 +90,8 @@ class BatchExecSortAggRuleForOnePhase extends BatchPhysicalSortAggRule {
   override protected def isOnePhaseAggWorkable(
       agg: Aggregate,
       aggFunctions: Array[UserDefinedFunction],
-      tableConfig: ReadableConfig): Boolean = true
+      tableConfig: ReadableConfig,
+      supportAdaptiveLocalHashAgg: Boolean): Boolean = true
 }
 
 object BatchExecSortAggRuleForOnePhase {

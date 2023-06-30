@@ -126,7 +126,8 @@ trait BatchPhysicalAggRuleBase {
   protected def isOnePhaseAggWorkable(
       agg: Aggregate,
       aggFunctions: Array[UserDefinedFunction],
-      tableConfig: ReadableConfig): Boolean = {
+      tableConfig: ReadableConfig,
+      supportAdaptiveLocalHashAgg: Boolean): Boolean = {
     getAggPhaseStrategy(tableConfig) match {
       case AggregatePhaseStrategy.ONE_PHASE => true
       case AggregatePhaseStrategy.TWO_PHASE => !doAllSupportMerge(aggFunctions)
@@ -134,11 +135,17 @@ trait BatchPhysicalAggRuleBase {
         if (!doAllSupportMerge(aggFunctions)) {
           true
         } else {
-          // if ndv of group key in aggregate is Unknown and all aggFunctions are splittable,
-          // use two-phase agg.
-          // else whether choose one-phase agg or two-phase agg depends on CBO.
-          val mq = agg.getCluster.getMetadataQuery
-          mq.getDistinctRowCount(agg.getInput, agg.getGroupSet, null) != null
+          // if all aggFunctions are splittable and support adaptive local HashAgg, we use two-phase agg
+          // directly instead of CBO to avoid the ndv cannot be accurately estimated
+          if (supportAdaptiveLocalHashAgg) {
+            false
+          } else {
+            // if ndv of group key in aggregate is Unknown and all aggFunctions are splittable,
+            // use two-phase agg.
+            // else whether choose one-phase agg or two-phase agg depends on CBO.
+            val mq = agg.getCluster.getMetadataQuery
+            mq.getDistinctRowCount(agg.getInput, agg.getGroupSet, null) != null
+          }
         }
     }
   }

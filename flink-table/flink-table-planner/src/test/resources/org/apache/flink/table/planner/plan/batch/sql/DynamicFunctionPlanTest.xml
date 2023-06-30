@@ -34,10 +34,11 @@ LogicalAggregate(group=[{0, 1}], EXPR$2=[SUM($2)], EXPR$3=[COUNT()])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-HashAggregate(isMerge=[false], groupBy=[cat], auxGrouping=[gmt_date], select=[cat, gmt_date, SUM(cnt) AS EXPR$2, COUNT(*) AS EXPR$3])
+HashAggregate(isMerge=[true], groupBy=[cat], auxGrouping=[gmt_date], select=[cat, gmt_date, Final_SUM(sum$0) AS EXPR$2, Final_COUNT(count1$1) AS EXPR$3])
 +- Exchange(distribution=[hash[cat]])
-   +- Calc(select=[cat, gmt_date, cnt], where=[(gmt_date = CURRENT_DATE())])
-      +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[], project=[cat, gmt_date, cnt], metadata=[]]], fields=[cat, gmt_date, cnt])
+   +- LocalHashAggregate(groupBy=[cat], auxGrouping=[gmt_date], select=[cat, gmt_date, Partial_SUM(cnt) AS sum$0, Partial_COUNT(*) AS count1$1])
+      +- Calc(select=[cat, gmt_date, cnt], where=[(gmt_date = CURRENT_DATE())])
+         +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[], project=[cat, gmt_date, cnt], metadata=[]]], fields=[cat, gmt_date, cnt])
 ]]>
     </Resource>
   </TestCase>
@@ -83,10 +84,11 @@ LogicalAggregate(group=[{0, 1}], EXPR$2=[SUM($2)], EXPR$3=[COUNT()])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-HashAggregate(isMerge=[false], groupBy=[cat, hh], select=[cat, hh, SUM(cnt) AS EXPR$2, COUNT(*) AS EXPR$3])
+HashAggregate(isMerge=[true], groupBy=[cat, hh], select=[cat, hh, Final_SUM(sum$0) AS EXPR$2, Final_COUNT(count1$1) AS EXPR$3])
 +- Exchange(distribution=[hash[cat, hh]])
-   +- Calc(select=[cat, SUBSTR(CAST(LOCALTIME() AS VARCHAR(2147483647)), 1, 2) AS hh, cnt], where=[(SUBSTR(CAST(ts AS VARCHAR(2147483647)), 1, 2) = SUBSTR(CAST(LOCALTIME() AS VARCHAR(2147483647)), 1, 2))])
-      +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[], project=[cat, cnt, ts], metadata=[]]], fields=[cat, cnt, ts])
+   +- LocalHashAggregate(groupBy=[cat, hh], select=[cat, hh, Partial_SUM(cnt) AS sum$0, Partial_COUNT(*) AS count1$1])
+      +- Calc(select=[cat, SUBSTR(CAST(LOCALTIME() AS VARCHAR(2147483647)), 1, 2) AS hh, cnt], where=[(SUBSTR(CAST(ts AS VARCHAR(2147483647)), 1, 2) = SUBSTR(CAST(LOCALTIME() AS VARCHAR(2147483647)), 1, 2))])
+         +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[], project=[cat, cnt, ts], metadata=[]]], fields=[cat, cnt, ts])
 ]]>
     </Resource>
   </TestCase>

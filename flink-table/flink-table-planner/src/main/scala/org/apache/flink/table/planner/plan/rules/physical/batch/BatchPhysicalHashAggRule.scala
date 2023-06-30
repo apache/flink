@@ -156,7 +156,7 @@ class BatchPhysicalHashAggRule
     }
 
     // create one-phase agg if possible
-    if (isOnePhaseAggWorkable(agg, aggFunctions, tableConfig)) {
+    if (isOnePhaseAggWorkable(agg, aggFunctions, tableConfig, supportAdaptiveLocalHashAgg)) {
       val requiredDistributions = if (agg.getGroupCount != 0) {
         val distributionFields = groupSet.map(Integer.valueOf).toList
         Seq(

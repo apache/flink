@@ -97,8 +97,9 @@ class BatchPhysicalLocalHashAggregate(
   }
 
   override def satisfyTraits(requiredTraitSet: RelTraitSet): Option[RelNode] = {
-    // Does not to try to satisfy requirement by localAgg's input if enforce to use two-stage agg.
-    if (isEnforceTwoStageAgg) {
+    // Does not to try to satisfy requirement by localAgg's input if enforce to use two-stage agg
+    // or if all agg functions support adaptive local HashAgg.
+    if (isEnforceTwoStageAgg || supportAdaptiveLocalHashAgg) {
       return None
     }
 
