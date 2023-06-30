@@ -65,7 +65,7 @@ abstract class SourceCoordinatorTestBase {
     protected MockOperatorCoordinatorContext operatorCoordinatorContext;
 
     // ---- Mocks for the Source Coordinator Context ----
-    protected SourceCoordinatorProvider.CoordinatorExecutorThreadFactory coordinatorThreadFactory;
+    protected String coordinatorThreadName;
     protected SplitAssignmentTracker<MockSourceSplit> splitSplitAssignmentTracker;
     protected SourceCoordinatorContext<MockSourceSplit> context;
 
@@ -82,10 +82,7 @@ abstract class SourceCoordinatorTestBase {
         operatorCoordinatorContext =
                 new MockOperatorCoordinatorContext(TEST_OPERATOR_ID, NUM_SUBTASKS);
         splitSplitAssignmentTracker = new SplitAssignmentTracker<>();
-        String coordinatorThreadName = TEST_OPERATOR_ID.toHexString();
-        coordinatorThreadFactory =
-                new SourceCoordinatorProvider.CoordinatorExecutorThreadFactory(
-                        coordinatorThreadName, operatorCoordinatorContext);
+        coordinatorThreadName = TEST_OPERATOR_ID.toHexString();
 
         sourceCoordinator = getNewSourceCoordinator();
         context = sourceCoordinator.getContext();
@@ -215,14 +212,14 @@ abstract class SourceCoordinatorTestBase {
 
     protected SourceCoordinatorContext<MockSourceSplit> getNewSourceCoordinatorContext()
             throws Exception {
+        SourceCoordinatorProvider.CoordinatorExecutorThreadFactory coordinatorThreadFactory =
+                new SourceCoordinatorProvider.CoordinatorExecutorThreadFactory(
+                        coordinatorThreadName, operatorCoordinatorContext);
         SourceCoordinatorContext<MockSourceSplit> coordinatorContext =
                 new SourceCoordinatorContext<>(
                         Executors.newScheduledThreadPool(1, coordinatorThreadFactory),
                         Executors.newScheduledThreadPool(
-                                1,
-                                new ExecutorThreadFactory(
-                                        coordinatorThreadFactory.getCoordinatorThreadName()
-                                                + "-worker")),
+                                1, new ExecutorThreadFactory(coordinatorThreadName + "-worker")),
                         coordinatorThreadFactory,
                         operatorCoordinatorContext,
                         new MockSourceSplitSerializer(),
