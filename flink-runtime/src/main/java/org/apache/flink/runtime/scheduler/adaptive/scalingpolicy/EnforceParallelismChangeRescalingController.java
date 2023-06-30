@@ -17,24 +17,14 @@
 
 package org.apache.flink.runtime.scheduler.adaptive.scalingpolicy;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 
-import static org.apache.flink.configuration.JobManagerOptions.MIN_PARALLELISM_INCREASE;
-
 /**
- * Simple scaling policy. The user can configure a minimum cumulative parallelism increase to allow
- * a scale up.
+ * Simple scaling policy. It just checks that the new parallelism is different (either increase or
+ * decrease) from the current parallelism.
  */
-public class EnforceMinimalIncreaseRescalingController implements RescalingController {
-
-    private final int minParallelismIncrease;
-
-    public EnforceMinimalIncreaseRescalingController(Configuration configuration) {
-        minParallelismIncrease = configuration.get(MIN_PARALLELISM_INCREASE);
-    }
-
+public class EnforceParallelismChangeRescalingController implements RescalingController {
     @Override
     public boolean shouldRescale(
             VertexParallelism currentParallelism, VertexParallelism newParallelism) {
@@ -42,7 +32,7 @@ public class EnforceMinimalIncreaseRescalingController implements RescalingContr
             int parallelismChange =
                     newParallelism.getParallelism(vertex)
                             - currentParallelism.getParallelism(vertex);
-            if (parallelismChange < 0 || parallelismChange >= minParallelismIncrease) {
+            if (parallelismChange != 0) {
                 return true;
             }
         }
