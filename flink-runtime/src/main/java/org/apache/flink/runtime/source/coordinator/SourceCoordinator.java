@@ -181,9 +181,11 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
 
         Set<Integer> subTaskIds = combinedWatermark.keySet();
         LOG.info(
-                "Distributing maxAllowedWatermark={} to subTaskIds={}",
+                "Distributing maxAllowedWatermark={} of group={} to subTaskIds={} for source {}.",
                 maxAllowedWatermark,
-                subTaskIds);
+                watermarkAlignmentParams.getWatermarkGroup(),
+                subTaskIds,
+                operatorName);
 
         // Subtask maybe during deploying or restarting, so we only send WatermarkAlignmentEvent
         // to ready task to avoid period task fail (Java-ThreadPoolExecutor will not schedule
@@ -611,7 +613,11 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
                             + "scenario (e.g. if speculative execution is enabled)");
         }
 
-        LOG.debug("New reported watermark={} from subTaskId={}", watermark, subtask);
+        LOG.debug(
+                "New reported watermark={} from subTaskId={} of source {}.",
+                watermark,
+                subtask,
+                operatorName);
 
         checkState(watermarkAlignmentParams.isEnabled());
 
