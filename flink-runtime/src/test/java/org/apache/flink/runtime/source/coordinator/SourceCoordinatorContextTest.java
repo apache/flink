@@ -165,7 +165,8 @@ class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
                 new SourceCoordinatorContext<>(
                         coordinatorExecutorWithExceptionHandler,
                         manualWorkerExecutor,
-                        coordinatorThreadFactory,
+                        new SourceCoordinatorProvider.CoordinatorExecutorThreadFactory(
+                                coordinatorThreadName, operatorCoordinatorContext),
                         operatorCoordinatorContext,
                         new MockSourceSplitSerializer(),
                         splitSplitAssignmentTracker,
