@@ -2483,6 +2483,11 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 TaskExecutor.this.updateTaskExecutionState(jobMasterGateway, taskExecutionState);
             }
         }
+
+        @Override
+        public void notifyEndOfData(final ExecutionAttemptID executionAttemptID) {
+            runAsync(() -> jobMasterGateway.notifyEndOfData(executionAttemptID));
+        }
     }
 
     private class SlotActionsImpl implements SlotActions {

@@ -101,6 +101,8 @@ public class RuntimeEnvironment implements Environment {
 
     private final Task containingTask;
 
+    private final TaskManagerActions taskManagerActions;
+
     @Nullable private MailboxExecutor mainMailboxExecutor;
 
     @Nullable private ExecutorService asyncOperationsThreadPool;
@@ -139,7 +141,8 @@ public class RuntimeEnvironment implements Environment {
             TaskMetricGroup metrics,
             Task containingTask,
             ExternalResourceInfoProvider externalResourceInfoProvider,
-            ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory) {
+            ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory,
+            TaskManagerActions taskManagerActions) {
 
         this.jobId = checkNotNull(jobId);
         this.jobVertexId = checkNotNull(jobVertexId);
@@ -169,6 +172,7 @@ public class RuntimeEnvironment implements Environment {
         this.metrics = metrics;
         this.externalResourceInfoProvider = checkNotNull(externalResourceInfoProvider);
         this.channelStateExecutorFactory = checkNotNull(channelStateExecutorFactory);
+        this.taskManagerActions = checkNotNull(taskManagerActions);
     }
 
     // ------------------------------------------------------------------------
@@ -301,6 +305,11 @@ public class RuntimeEnvironment implements Environment {
     @Override
     public ExternalResourceInfoProvider getExternalResourceInfoProvider() {
         return externalResourceInfoProvider;
+    }
+
+    @Override
+    public TaskManagerActions getTaskManagerActions() {
+        return taskManagerActions;
     }
 
     @Override

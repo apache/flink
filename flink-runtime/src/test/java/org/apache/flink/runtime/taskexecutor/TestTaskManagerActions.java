@@ -85,6 +85,9 @@ public class TestTaskManagerActions implements TaskManagerActions {
         }
     }
 
+    @Override
+    public void notifyEndOfData(ExecutionAttemptID executionAttemptID) {}
+
     private static class TaskManagerActionListeners {
         private final Map<ExecutionAttemptID, List<Tuple2<ExecutionState, CompletableFuture<Void>>>>
                 expectExecutionStateAndFutures;

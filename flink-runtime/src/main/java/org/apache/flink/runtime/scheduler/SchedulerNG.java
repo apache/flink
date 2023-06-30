@@ -189,6 +189,13 @@ public interface SchedulerNG extends GlobalFailureHandler, AutoCloseableAsync {
             OperatorID operator, CoordinationRequest request) throws FlinkException;
 
     /**
+     * Notifies that the task has reached the end of data.
+     *
+     * @param executionAttemptID The execution attempt id.
+     */
+    void notifyEndOfData(ExecutionAttemptID executionAttemptID);
+
+    /**
      * Read current {@link JobResourceRequirements job resource requirements}.
      *
      * @return Current resource requirements.

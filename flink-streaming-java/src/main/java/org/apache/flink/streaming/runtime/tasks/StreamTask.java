@@ -575,6 +575,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 return;
             case END_OF_DATA:
                 endData(StopMode.DRAIN);
+                notifyEndOfData();
                 return;
             case END_OF_INPUT:
                 // Suspend the mailbox processor, it would be resumed in afterInvoke and finished
@@ -623,6 +624,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         }
 
         this.endOfDataReceived = true;
+    }
+
+    protected void notifyEndOfData() {
+        environment.getTaskManagerActions().notifyEndOfData(environment.getExecutionId());
     }
 
     protected void setSynchronousSavepoint(long checkpointId) {

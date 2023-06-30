@@ -503,6 +503,11 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     }
 
     @Override
+    public void notifyEndOfData(final ExecutionAttemptID executionAttempt) {
+        schedulerNG.notifyEndOfData(executionAttempt);
+    }
+
+    @Override
     public CompletableFuture<SerializedInputSplit> requestNextInputSplit(
             final JobVertexID vertexID, final ExecutionAttemptID executionAttempt) {
 

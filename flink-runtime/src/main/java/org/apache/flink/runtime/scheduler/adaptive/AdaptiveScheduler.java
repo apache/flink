@@ -717,6 +717,15 @@ public class AdaptiveScheduler
     }
 
     @Override
+    public void notifyEndOfData(ExecutionAttemptID executionAttemptID) {
+        state.tryRun(
+                StateWithExecutionGraph.class,
+                stateWithExecutionGraph ->
+                        stateWithExecutionGraph.notifyEndOfData(executionAttemptID),
+                "notifyEndOfData");
+    }
+
+    @Override
     public void reportCheckpointMetrics(
             JobID jobID,
             ExecutionAttemptID executionAttemptID,
