@@ -33,8 +33,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.concurrent.GuardedBy;
-
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
@@ -70,12 +68,7 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
 
     private final JobResultStore jobResultStore;
 
-    private final LeaderElectionDriverFactory driverFactory;
-
-    private final Object lock = new Object();
-
-    @GuardedBy("lock")
-    private DefaultLeaderElectionService leaderElectionService;
+    private final DefaultLeaderElectionService leaderElectionService;
 
     protected AbstractHaServices(
             Configuration config,
@@ -89,7 +82,7 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
         this.blobStoreService = checkNotNull(blobStoreService);
         this.jobResultStore = checkNotNull(jobResultStore);
 
-        this.driverFactory = driverFactory;
+        this.leaderElectionService = new DefaultLeaderElectionService(driverFactory);
     }
 
     @Override
@@ -119,23 +112,23 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
     }
 
     @Override
-    public LeaderElection getResourceManagerLeaderElection() throws Exception {
-        return createLeaderElection(getLeaderPathForResourceManager());
+    public LeaderElection getResourceManagerLeaderElection() {
+        return leaderElectionService.createLeaderElection(getLeaderPathForResourceManager());
     }
 
     @Override
-    public LeaderElection getDispatcherLeaderElection() throws Exception {
-        return createLeaderElection(getLeaderPathForDispatcher());
+    public LeaderElection getDispatcherLeaderElection() {
+        return leaderElectionService.createLeaderElection(getLeaderPathForDispatcher());
     }
 
     @Override
-    public LeaderElection getJobManagerLeaderElection(JobID jobID) throws Exception {
-        return createLeaderElection(getLeaderPathForJobManager(jobID));
+    public LeaderElection getJobManagerLeaderElection(JobID jobID) {
+        return leaderElectionService.createLeaderElection(getLeaderPathForJobManager(jobID));
     }
 
     @Override
-    public LeaderElection getClusterRestEndpointLeaderElection() throws Exception {
-        return createLeaderElection(getLeaderPathForRestServer());
+    public LeaderElection getClusterRestEndpointLeaderElection() {
+        return leaderElectionService.createLeaderElection(getLeaderPathForRestServer());
     }
 
     @Override
@@ -169,10 +162,8 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
         }
 
         try {
-            synchronized (lock) {
-                if (leaderElectionService != null) {
-                    leaderElectionService.close();
-                }
+            if (leaderElectionService != null) {
+                leaderElectionService.close();
             }
         } catch (Throwable t) {
             exception = ExceptionUtils.firstOrSuppressed(t, exception);
@@ -206,10 +197,8 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
         }
 
         try {
-            synchronized (lock) {
-                if (leaderElectionService != null) {
-                    leaderElectionService.close();
-                }
+            if (leaderElectionService != null) {
+                leaderElectionService.close();
             }
         } catch (Throwable t) {
             exception = ExceptionUtils.firstOrSuppressed(t, exception);
@@ -255,17 +244,6 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
                             "Finished cleaning up the high availability data for job {}.", jobID);
                 },
                 executor);
-    }
-
-    private LeaderElection createLeaderElection(String leaderName) throws Exception {
-        synchronized (lock) {
-            if (leaderElectionService == null) {
-                leaderElectionService = new DefaultLeaderElectionService(driverFactory);
-                leaderElectionService.startLeaderElectionBackend();
-            }
-
-            return leaderElectionService.createLeaderElection(leaderName);
-        }
     }
 
     /**

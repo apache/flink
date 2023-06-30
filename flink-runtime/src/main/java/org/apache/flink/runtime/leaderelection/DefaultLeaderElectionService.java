@@ -90,17 +90,13 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
     private boolean running;
 
     /**
-     * {@code leaderElectionDriver} being {@code null} indicates that the connection to the
-     * LeaderElection backend isn't established, yet. See {@link #startLeaderElectionBackend()} and
-     * {@link #close()} for lifecycle management. The lifecycle of the driver should have been
-     * established before registering a {@link LeaderContender} and stopped after the contender has
-     * been removed.
-     *
-     * <p>{@code @Nullable} isn't used here to avoid having multiple warnings spread over this class
-     * in a supporting IDE.
-     *
-     * <p>The driver is guarded by this instance's {@link #running} state.
+     * The driver's lifecycle is bound to the {@link #leaderContenderRegistry}: {@code
+     * leaderElectionDriver} is {@code null} if no contender is registered: A new driver is created
+     * as soon as the first contender is added to the empty {@code leaderContenderRegistry}. Only
+     * then, a connection to the {@code DefaultLeaderElectionService} backend is established. The
+     * service resets and closes the driver with the removal of the last contender.
      */
+    @GuardedBy("lock")
     private LeaderElectionDriver leaderElectionDriver;
 
     /**
@@ -151,12 +147,15 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
 
         this.leadershipOperationExecutor = Preconditions.checkNotNull(leadershipOperationExecutor);
 
-        this.running = false;
+        this.running = true;
     }
 
     @Override
     public LeaderElection createLeaderElection(String contenderID) {
         synchronized (lock) {
+            Preconditions.checkState(
+                    !leadershipOperationExecutor.isShutdown(),
+                    "The service was already closed and cannot be reused.");
             Preconditions.checkState(
                     !leaderContenderRegistry.containsKey(contenderID),
                     "There is no contender already registered under the passed contender ID '%s'.",
@@ -165,28 +164,20 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
         }
     }
 
-    /**
-     * Starts the leader election process. This method has to be called before registering a {@link
-     * LeaderContender}. This method could be moved into the {@code DefaultLeaderElectionService}'s
-     * constructor with FLINK-31837.
-     */
-    public void startLeaderElectionBackend() throws Exception {
-        synchronized (lock) {
-            Preconditions.checkState(
-                    leaderContenderRegistry.isEmpty(),
-                    "No LeaderContender should have been registered, yet.");
-            Preconditions.checkState(
-                    leaderElectionDriver == null,
-                    "This DefaultLeaderElectionService cannot be reused. Calling startLeaderElectionBackend can only be called once to establish the connection to the HA backend.");
+    @GuardedBy("lock")
+    private void createLeaderElectionDriver() throws Exception {
+        Preconditions.checkState(
+                leaderContenderRegistry.isEmpty(),
+                "No LeaderContender should have been registered, yet.");
+        Preconditions.checkState(
+                leaderElectionDriver == null,
+                "This DefaultLeaderElectionService cannot be reused. Calling startLeaderElectionBackend can only be called once to establish the connection to the HA backend.");
 
-            running = true;
+        leaderElectionDriver = leaderElectionDriverFactory.create(this);
 
-            leaderElectionDriver = leaderElectionDriverFactory.create(this);
-
-            LOG.info(
-                    "A connection to the HA backend was established through LeaderElectionDriver {}.",
-                    leaderElectionDriver);
-        }
+        LOG.info(
+                "A connection to the HA backend was established through LeaderElectionDriver {}.",
+                leaderElectionDriver);
     }
 
     @Override
@@ -198,6 +189,10 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
             Preconditions.checkState(
                     running,
                     "The DefaultLeaderElectionService should have established a connection to the backend before it's started.");
+
+            if (leaderElectionDriver == null) {
+                createLeaderElectionDriver();
+            }
 
             Preconditions.checkState(
                     leaderContenderRegistry.put(contenderID, contender) == null,
@@ -221,7 +216,8 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
     }
 
     @Override
-    protected final void remove(String contenderID) {
+    protected final void remove(String contenderID) throws Exception {
+        AutoCloseable driverToClose = null;
         synchronized (lock) {
             if (!leaderContenderRegistry.containsKey(contenderID)) {
                 LOG.debug(
@@ -229,6 +225,9 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
                         contenderID);
                 return;
             }
+            Preconditions.checkState(
+                    leaderElectionDriver != null,
+                    "The LeaderElectionDriver should be instantiated.");
 
             LOG.info(
                     "Deregistering contender with ID '{}' from the DefaultLeaderElectionService.",
@@ -260,29 +259,53 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
                         "Contender registered under contenderID '{}' is deregistered while the service doesn't have the leadership acquired. No cleanup necessary.",
                         contenderID);
             }
+
+            if (leaderContenderRegistry.isEmpty()) {
+                driverToClose = deregisterDriver();
+            }
         }
+
+        if (driverToClose != null) {
+            driverToClose.close();
+        }
+    }
+
+    /**
+     * Returns the driver as an {@link AutoCloseable} for the sake of closing the driver outside of
+     * the lock.
+     */
+    @GuardedBy("lock")
+    private AutoCloseable deregisterDriver() {
+        Preconditions.checkState(
+                leaderContenderRegistry.isEmpty(),
+                "No contender should be registered when deregistering the driver.");
+        Preconditions.checkState(
+                leaderElectionDriver != null,
+                "There should be a driver instantiated that's ready to be closed.");
+
+        issuedLeaderSessionID = null;
+        final AutoCloseable driverToClose = leaderElectionDriver;
+        leaderElectionDriver = null;
+
+        return driverToClose;
     }
 
     @Override
     public void close() throws Exception {
         synchronized (lock) {
             Preconditions.checkState(
-                    leaderElectionDriver != null, "The HA backend wasn't initialized.");
-
-            Preconditions.checkState(
                     leaderContenderRegistry.isEmpty(),
                     "The DefaultLeaderElectionService should have been stopped before closing the instance.");
-
-            issuedLeaderSessionID = null;
+            Preconditions.checkState(
+                    leaderElectionDriver == null, "The driver should have been closed.");
 
             if (running) {
                 running = false;
             } else {
                 LOG.debug("The HA backend connection isn't established. No actions taken.");
+                return;
             }
         }
-
-        leaderElectionDriver.close();
 
         // interrupt any outstanding events
         final List<Runnable> outstandingEventHandlingCalls =
@@ -308,6 +331,9 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
 
         synchronized (lock) {
             if (hasLeadership(contenderID, leaderSessionID)) {
+                Preconditions.checkState(
+                        leaderElectionDriver != null,
+                        "The leadership check should only return true if a driver is instantiated.");
                 Preconditions.checkState(
                         !confirmedLeaderInformation.hasLeaderInformation(contenderID),
                         "No confirmation should have happened, yet.");
@@ -468,6 +494,12 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
             String contenderID,
             LeaderInformation externallyChangedLeaderInformation,
             LeaderInformation confirmedLeaderInformation) {
+        if (leaderElectionDriver == null) {
+            LOG.debug(
+                    "The LeaderElectionDriver was disconnected. Any incoming events will be ignored.");
+            return;
+        }
+
         if (confirmedLeaderInformation.equals(externallyChangedLeaderInformation)) {
             LOG.trace(
                     "LeaderInformation change event received but changed LeaderInformation actually matches the locally confirmed one: {}",
@@ -505,15 +537,21 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
                         CompletableFuture.runAsync(
                                 () -> {
                                     synchronized (lock) {
-                                        if (running) {
+                                        if (!running) {
+                                            LOG.debug(
+                                                    "Processing '{}' event omitted due to the service not being in running state, anymore.",
+                                                    leaderElectionEventName);
+                                        } else if (leaderElectionDriver == null) {
+                                            Preconditions.checkState(
+                                                    leaderContenderRegistry.isEmpty(),
+                                                    "All contenders should be deregistered when the driver is removed.");
+                                            LOG.debug(
+                                                    "All contenders have been deregistered and the driver was shut down. Any incoming leadership event will be ignored.");
+                                        } else {
                                             LOG.debug(
                                                     "Processing '{}' event.",
                                                     leaderElectionEventName);
                                             callback.run();
-                                        } else {
-                                            LOG.debug(
-                                                    "Processing '{}' event omitted due to the service not being in running state, anymore.",
-                                                    leaderElectionEventName);
                                         }
                                     }
                                 },

@@ -692,7 +692,6 @@ class JobMasterServiceLeadershipRunnerTest {
         // in connection with the DefaultLeaderElectionService generates the nested locking
         final DefaultLeaderElectionService defaultLeaderElectionService =
                 new DefaultLeaderElectionService(driverFactory, fatalErrorHandler);
-        defaultLeaderElectionService.startLeaderElectionBackend();
 
         final TestingLeaderElectionDriver currentLeaderDriver =
                 driverFactory.assertAndGetOnlyCreatedDriver();

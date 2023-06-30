@@ -216,6 +216,10 @@ public class TestingLeaderElectionDriver implements LeaderElectionDriver {
 
             return driver;
         }
+
+        public int getCreatedDriverCount() {
+            return createdDrivers.size();
+        }
     }
 
     /** {@link Builder} for creating {@link TestingLeaderElectionDriver} instances. */
