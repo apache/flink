@@ -88,6 +88,13 @@ under the License.
 			<!-- managed version -->
 		</dependency>
 
+		<!-- standard utilities -->
+		<dependency>
+			<groupId>commons-io</groupId>
+			<artifactId>commons-io</artifactId>
+			<!-- managed version -->
+		</dependency>
+
 		<!-- for the fallback generic serializer -->
 		<dependency>
 			<groupId>com.esotericsoftware.kryo</groupId>

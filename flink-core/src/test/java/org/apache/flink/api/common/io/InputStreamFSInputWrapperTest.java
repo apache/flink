@@ -20,11 +20,14 @@ package org.apache.flink.api.common.io;
 
 import org.junit.Test;
 
+import java.io.ByteArrayInputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class InputStreamFSInputWrapperTest {
 
@@ -47,5 +50,24 @@ public class InputStreamFSInputWrapperTest {
         InputStreamFSInputWrapper wrapper = new InputStreamFSInputWrapper(mockedInputStream);
         wrapper.close();
         assertThat(closeCalled).isTrue();
+    }
+
+    @Test
+    public void testSeek() throws IOException {
+        byte[] bytes = "flink".getBytes();
+        try (InputStream inputStream = new ByteArrayInputStream(bytes)) {
+            InputStreamFSInputWrapper wrapper = new InputStreamFSInputWrapper(inputStream);
+            wrapper.seek(2);
+            assertThat(wrapper.getPos()).isEqualTo(2);
+        }
+        try (InputStream inputStream = new ByteArrayInputStream(bytes)) {
+            InputStreamFSInputWrapper wrapper = new InputStreamFSInputWrapper(inputStream);
+            wrapper.seek(5);
+            assertThat(wrapper.getPos()).isEqualTo(5);
+        }
+        try (InputStream inputStream = new ByteArrayInputStream(bytes)) {
+            InputStreamFSInputWrapper wrapper = new InputStreamFSInputWrapper(inputStream);
+            assertThatThrownBy(() -> wrapper.seek(6)).isInstanceOf(EOFException.class);
+        }
     }
 }
