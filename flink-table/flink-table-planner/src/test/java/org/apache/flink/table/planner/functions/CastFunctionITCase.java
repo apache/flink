@@ -1212,6 +1212,18 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                 CastTestSpecBuilder.testCastTo(ARRAY(BIGINT().notNull()))
                         .fromCase(ARRAY(INT().notNull()), new Integer[] {1, 2}, new long[] {1L, 2L})
                         .build(),
+                CastTestSpecBuilder.testCastTo(ARRAY(ROW(INT(), STRING()).notNull()))
+                        .fromCase(
+                                ARRAY(ROW(INT(), VARCHAR(4)).notNull()),
+                                new Row[] {Row.of(1, "two"), Row.of(3, "four")},
+                                new Row[] {Row.of(1, "two"), Row.of(3, "four")})
+                        .build(),
+                CastTestSpecBuilder.testCastTo(MAP(ROW(INT()), STRING()))
+                        .fromCase(
+                                MAP(ROW(INT()), VARCHAR(4)),
+                                map(entry(Row.of(1), "two"), entry(Row.of(3), "four")),
+                                map(entry(Row.of(1), "two"), entry(Row.of(3), "four")))
+                        .build(),
                 CastTestSpecBuilder.testCastTo(ROW(BIGINT(), BIGINT(), STRING(), ARRAY(STRING())))
                         .fromCase(
                                 ROW(INT(), INT(), TIME(), ARRAY(CHAR(1))),
