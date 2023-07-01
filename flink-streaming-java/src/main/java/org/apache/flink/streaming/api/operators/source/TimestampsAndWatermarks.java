@@ -26,7 +26,6 @@ import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
-import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
 import java.time.Duration;
 
@@ -46,11 +45,14 @@ public interface TimestampsAndWatermarks<T> {
     /** Lets the owner/creator of the output know about latest emitted watermark. */
     @Internal
     interface WatermarkUpdateListener {
+
+        /** It should be called once the idle is changed. */
+        void updateIdle(boolean isIdle);
+
         /**
-         * Effective watermark covers the {@link WatermarkStatus}. If an output becomes idle, this
-         * method should be called with {@link Long#MAX_VALUE}, but what is more important, once it
-         * becomes active again it should call this method with the last emitted value of the
-         * watermark.
+         * Update the effective watermark. If an output becomes idle, please call {@link
+         * this#updateIdle} instead of update the watermark to {@link Long#MAX_VALUE}. Because the
+         * output needs to distinguish between idle and real watermark.
          */
         void updateCurrentEffectiveWatermark(long watermark);
 
