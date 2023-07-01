@@ -46,6 +46,9 @@ public final class WatermarkToDataOutput implements WatermarkOutput {
                 output,
                 new TimestampsAndWatermarks.WatermarkUpdateListener() {
                     @Override
+                    public void updateIdle(boolean isIdle) {}
+
+                    @Override
                     public void updateCurrentEffectiveWatermark(long watermark) {}
 
                     @Override
@@ -92,7 +95,7 @@ public final class WatermarkToDataOutput implements WatermarkOutput {
 
         try {
             output.emitWatermarkStatus(WatermarkStatus.IDLE);
-            watermarkEmitted.updateCurrentEffectiveWatermark(Long.MAX_VALUE);
+            watermarkEmitted.updateIdle(true);
             isIdle = true;
         } catch (ExceptionInChainedOperatorException e) {
             throw e;
@@ -118,7 +121,7 @@ public final class WatermarkToDataOutput implements WatermarkOutput {
         }
 
         output.emitWatermarkStatus(WatermarkStatus.ACTIVE);
-        watermarkEmitted.updateCurrentEffectiveWatermark(maxWatermarkSoFar);
+        watermarkEmitted.updateIdle(false);
         isIdle = false;
         return false;
     }
