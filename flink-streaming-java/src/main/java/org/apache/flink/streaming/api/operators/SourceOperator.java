@@ -87,7 +87,9 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 @Internal
 public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStreamOperator<OUT>
-        implements OperatorEventHandler, PushingAsyncDataInput<OUT> {
+        implements OperatorEventHandler,
+                PushingAsyncDataInput<OUT>,
+                TimestampsAndWatermarks.WatermarkUpdateListener {
     private static final long serialVersionUID = 1405537676017904695L;
 
     // Package private for unit test.
@@ -136,7 +138,9 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     private DataOutput<OUT> lastInvokedOutput;
 
-    private long lastEmittedWatermark = Watermark.UNINITIALIZED.getTimestamp();
+    private long latestWatermark = Watermark.UNINITIALIZED.getTimestamp();
+
+    private boolean idle = false;
 
     /** The state that holds the currently assigned splits. */
     private ListState<SplitT> readerState;
@@ -423,7 +427,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     }
 
     private void initializeMainOutput(DataOutput<OUT> output) {
-        currentMainOutput = eventTimeLogic.createMainOutput(output, this::onWatermarkEmitted);
+        currentMainOutput = eventTimeLogic.createMainOutput(output, this);
         initializeLatencyMarkerEmitter(output);
         lastInvokedOutput = output;
         // Create per-split output for pending splits added before main output is initialized
@@ -469,11 +473,12 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     private void emitLatestWatermark(long time) {
         checkState(currentMainOutput != null);
-        if (lastEmittedWatermark == Watermark.UNINITIALIZED.getTimestamp()) {
+        if (latestWatermark == Watermark.UNINITIALIZED.getTimestamp()) {
             return;
         }
         operatorEventGateway.sendEventToCoordinator(
-                new ReportedWatermarkEvent(lastEmittedWatermark));
+                new ReportedWatermarkEvent(
+                        idle ? Watermark.MAX_WATERMARK.getTimestamp() : latestWatermark));
     }
 
     @Override
@@ -565,8 +570,14 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         sourceMetricGroup.updateMaxDesiredWatermark(currentMaxDesiredWatermark);
     }
 
-    private void onWatermarkEmitted(long emittedWatermark) {
-        lastEmittedWatermark = emittedWatermark;
+    @Override
+    public void updateIdle(boolean isIdle) {
+        this.idle = isIdle;
+    }
+
+    @Override
+    public void updateCurrentEffectiveWatermark(long watermark) {
+        latestWatermark = watermark;
         checkWatermarkAlignment();
     }
 
@@ -587,7 +598,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     }
 
     private boolean shouldWaitForAlignment() {
-        return currentMaxDesiredWatermark < lastEmittedWatermark;
+        return currentMaxDesiredWatermark < latestWatermark;
     }
 
     private void registerReader() {
