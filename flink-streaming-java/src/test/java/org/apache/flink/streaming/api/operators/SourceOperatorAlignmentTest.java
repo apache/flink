@@ -36,6 +36,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import javax.annotation.Nullable;
 
@@ -124,8 +126,9 @@ class SourceOperatorAlignmentTest {
         assertThat(operator.isAvailable()).isFalse();
     }
 
-    @Test
-    void testWatermarkAlignmentWithIdleness() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testWatermarkAlignmentWithIdleness(boolean allSubtasksIdle) throws Exception {
         // we use a separate context, because we need to enable idleness
         try (SourceOperatorTestContext context =
                 new SourceOperatorTestContext(
@@ -165,9 +168,16 @@ class SourceOperatorAlignmentTest {
                     .isEqualTo(DataInputStatus.NOTHING_AVAILABLE);
             context.getTimeService().advance(1);
             assertLatestReportedWatermarkEvent(context, Long.MAX_VALUE);
-            // If all source subtasks of the watermark group are idle,
-            // then the coordinator will report Long.MAX_VALUE
-            operator.handleOperatorEvent(new WatermarkAlignmentEvent(Long.MAX_VALUE));
+
+            if (allSubtasksIdle) {
+                // If all source subtasks of the watermark group are idle,
+                // then the coordinator will report Long.MAX_VALUE
+                operator.handleOperatorEvent(
+                        new WatermarkAlignmentEvent(Watermark.MAX_WATERMARK.getTimestamp()));
+            } else {
+                // Other subtasks are not idle, so the watermark is increasing.
+                operator.handleOperatorEvent(new WatermarkAlignmentEvent(record1 + 150));
+            }
 
             // it is easier to create a new split than add records the old one. The old one is
             // serialized, when sending the AddSplitEvent, so it is not as easy as
