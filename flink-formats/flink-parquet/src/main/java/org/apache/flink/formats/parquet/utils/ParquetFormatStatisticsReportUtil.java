@@ -97,22 +97,46 @@ public class ParquetFormatStatisticsReportUtil {
                             statisticsThreadNum,
                             new ExecutorThreadFactory("parquet-get-table-statistic-worker"));
             long rowCount = 0;
-            List<Future<Long>> fileRowCountFutures = new ArrayList<>();
+            List<Future<FileParquetStatistics>> fileRowCountFutures = new ArrayList<>();
             for (Path file : files) {
                 fileRowCountFutures.add(
                         executorService.submit(
                                 new ParquetFileRowCountCalculator(
                                         hadoopConfig, file, columnStatisticsMap)));
             }
-            for (Future<Long> fileCountFuture : fileRowCountFutures) {
-                rowCount += fileCountFuture.get();
+            for (Future<FileParquetStatistics> fileCountFuture : fileRowCountFutures) {
+                FileParquetStatistics fileStatistics = fileCountFuture.get();
+                List<String> columns = fileStatistics.getColumns();
+                List<BlockMetaData> blocks = fileStatistics.blocks;
+                for (BlockMetaData block : blocks) {
+                    rowCount += block.getRowCount();
+                    for (int i = 0; i < columns.size(); ++i) {
+                        updateStatistics(
+                                block.getColumns().get(i).getStatistics(),
+                                columns.get(i),
+                                columnStatisticsMap);
+                    }
+                }
             }
+            executorService.shutdownNow();
             Map<String, ColumnStats> columnStatsMap =
                     convertToColumnStats(columnStatisticsMap, producedRowType, isUtcTimestamp);
             return new TableStats(rowCount, columnStatsMap);
         } catch (Exception e) {
             LOG.warn("Reporting statistics failed for Parquet format: {}", e.getMessage());
             return TableStats.UNKNOWN;
+        }
+    }
+
+    private static void updateStatistics(
+            Statistics<?> statistics,
+            String column,
+            Map<String, Statistics<?>> columnStatisticsMap) {
+        Statistics<?> previousStatistics = columnStatisticsMap.get(column);
+        if (previousStatistics == null) {
+            columnStatisticsMap.put(column, statistics);
+        } else {
+            previousStatistics.mergeStatistics(statistics);
         }
     }
 
@@ -299,10 +323,29 @@ public class ParquetFormatStatisticsReportUtil {
         return timestampData.toTimestamp();
     }
 
-    private static class ParquetFileRowCountCalculator implements Callable<Long> {
+    private static class FileParquetStatistics {
+
+        private final List<String> columns;
+
+        private final List<BlockMetaData> blocks;
+
+        public FileParquetStatistics(List<String> columns, List<BlockMetaData> blocks) {
+            this.columns = columns;
+            this.blocks = blocks;
+        }
+
+        public List<String> getColumns() {
+            return columns;
+        }
+
+        public List<BlockMetaData> getBlocks() {
+            return blocks;
+        }
+    }
+
+    private static class ParquetFileRowCountCalculator implements Callable<FileParquetStatistics> {
         private final Configuration hadoopConfig;
         private final Path file;
-        private final Map<String, Statistics<?>> columnStatisticsMap;
 
         public ParquetFileRowCountCalculator(
                 Configuration hadoopConfig,
@@ -310,11 +353,10 @@ public class ParquetFormatStatisticsReportUtil {
                 Map<String, Statistics<?>> columnStatisticsMap) {
             this.hadoopConfig = hadoopConfig;
             this.file = file;
-            this.columnStatisticsMap = columnStatisticsMap;
         }
 
         @Override
-        public Long call() throws Exception {
+        public FileParquetStatistics call() throws Exception {
             org.apache.hadoop.fs.Path hadoopPath = new org.apache.hadoop.fs.Path(file.toUri());
             ParquetMetadata metadata = ParquetFileReader.readFooter(hadoopConfig, hadoopPath);
             MessageType schema = metadata.getFileMetaData().getSchema();
@@ -323,29 +365,7 @@ public class ParquetFormatStatisticsReportUtil {
                             .map(Type::getName)
                             .collect(Collectors.toList());
             List<BlockMetaData> blocks = metadata.getBlocks();
-            long rowCount = 0;
-            for (BlockMetaData block : blocks) {
-                rowCount += block.getRowCount();
-                for (int i = 0; i < columns.size(); ++i) {
-                    updateStatistics(
-                            block.getColumns().get(i).getStatistics(),
-                            columns.get(i),
-                            columnStatisticsMap);
-                }
-            }
-            return rowCount;
-        }
-
-        private static void updateStatistics(
-                Statistics<?> statistics,
-                String column,
-                Map<String, Statistics<?>> columnStatisticsMap) {
-            Statistics<?> previousStatistics = columnStatisticsMap.get(column);
-            if (previousStatistics == null) {
-                columnStatisticsMap.put(column, statistics);
-            } else {
-                previousStatistics.mergeStatistics(statistics);
-            }
+            return new FileParquetStatistics(columns, blocks);
         }
     }
 }

@@ -78,16 +78,24 @@ public class OrcFormatStatisticsReportUtil {
                     Executors.newFixedThreadPool(
                             statisticsThreadNum,
                             new ExecutorThreadFactory("orc-get-table-statistic-worker"));
-            List<Future<Long>> fileRowCountFutures = new ArrayList<>();
+            List<Future<FileOrcStatistics>> fileRowCountFutures = new ArrayList<>();
             for (Path file : files) {
                 fileRowCountFutures.add(
-                        executorService.submit(
-                                new OrcFileRowCountCalculator(
-                                        hadoopConfig, file, columnStatisticsMap, producedRowType)));
+                        executorService.submit(new OrcFileRowCountCalculator(hadoopConfig, file)));
             }
-            for (Future<Long> fileCountFuture : fileRowCountFutures) {
-                rowCount += fileCountFuture.get();
+            for (Future<FileOrcStatistics> fileCountFuture : fileRowCountFutures) {
+                FileOrcStatistics fileOrcStatistics = fileCountFuture.get();
+                rowCount += fileOrcStatistics.getRowCount();
+                for (String column : producedRowType.getFieldNames()) {
+                    int fieldIdx = fileOrcStatistics.getFieldNames().indexOf(column);
+                    if (fieldIdx >= 0) {
+                        int colId = fileOrcStatistics.getColumnTypes().get(fieldIdx).getId();
+                        ColumnStatistics statistic = fileOrcStatistics.getStatistics()[colId];
+                        updateStatistics(statistic, column, columnStatisticsMap);
+                    }
+                }
             }
+            executorService.shutdownNow();
             Map<String, ColumnStats> columnStatsMap =
                     convertToColumnStats(rowCount, columnStatisticsMap, producedRowType);
 
@@ -95,6 +103,20 @@ public class OrcFormatStatisticsReportUtil {
         } catch (Exception e) {
             LOG.warn("Reporting statistics failed for Orc format: {}", e.getMessage());
             return TableStats.UNKNOWN;
+        }
+    }
+
+    private static void updateStatistics(
+            ColumnStatistics statistic,
+            String column,
+            Map<String, ColumnStatistics> columnStatisticsMap) {
+        ColumnStatistics previousStatistics = columnStatisticsMap.get(column);
+        if (previousStatistics == null) {
+            columnStatisticsMap.put(column, statistic);
+        } else {
+            if (previousStatistics instanceof ColumnStatisticsImpl) {
+                ((ColumnStatisticsImpl) previousStatistics).merge((ColumnStatisticsImpl) statistic);
+            }
         }
     }
 
@@ -201,26 +223,55 @@ public class OrcFormatStatisticsReportUtil {
         return builder.build();
     }
 
-    private static class OrcFileRowCountCalculator implements Callable<Long> {
+    private static class FileOrcStatistics {
+        private final Long rowCount;
+
+        private final List<String> fieldNames;
+
+        private final ColumnStatistics[] statistics;
+
+        private final List<TypeDescription> columnTypes;
+
+        public FileOrcStatistics(
+                Long rowCount,
+                List<String> fieldNames,
+                ColumnStatistics[] statistics,
+                List<TypeDescription> columnTypes) {
+            this.rowCount = rowCount;
+            this.fieldNames = fieldNames;
+            this.statistics = statistics;
+            this.columnTypes = columnTypes;
+        }
+
+        public Long getRowCount() {
+            return rowCount;
+        }
+
+        public List<String> getFieldNames() {
+            return fieldNames;
+        }
+
+        public ColumnStatistics[] getStatistics() {
+            return statistics;
+        }
+
+        public List<TypeDescription> getColumnTypes() {
+            return columnTypes;
+        }
+    }
+
+    private static class OrcFileRowCountCalculator implements Callable<FileOrcStatistics> {
 
         private final Configuration hadoopConf;
         private final Path file;
-        private final Map<String, ColumnStatistics> columnStatisticsMap;
-        private final RowType producedRowType;
 
-        public OrcFileRowCountCalculator(
-                Configuration hadoopConf,
-                Path file,
-                Map<String, ColumnStatistics> columnStatisticsMap,
-                RowType producedRowType) {
+        public OrcFileRowCountCalculator(Configuration hadoopConf, Path file) {
             this.hadoopConf = hadoopConf;
             this.file = file;
-            this.columnStatisticsMap = columnStatisticsMap;
-            this.producedRowType = producedRowType;
         }
 
         @Override
-        public Long call() throws IOException {
+        public FileOrcStatistics call() throws IOException {
             org.apache.hadoop.fs.Path path = new org.apache.hadoop.fs.Path(file.toUri());
             Reader reader =
                     OrcFile.createReader(
@@ -231,31 +282,9 @@ public class OrcFormatStatisticsReportUtil {
             TypeDescription schema = reader.getSchema();
             List<String> fieldNames = schema.getFieldNames();
             List<TypeDescription> columnTypes = schema.getChildren();
-            for (String column : producedRowType.getFieldNames()) {
-                int fieldIdx = fieldNames.indexOf(column);
-                if (fieldIdx >= 0) {
-                    int colId = columnTypes.get(fieldIdx).getId();
-                    ColumnStatistics statistic = statistics[colId];
-                    updateStatistics(statistic, column, columnStatisticsMap);
-                }
-            }
 
-            return reader.getNumberOfRows();
-        }
-
-        private void updateStatistics(
-                ColumnStatistics statistic,
-                String column,
-                Map<String, ColumnStatistics> columnStatisticsMap) {
-            ColumnStatistics previousStatistics = columnStatisticsMap.get(column);
-            if (previousStatistics == null) {
-                columnStatisticsMap.put(column, statistic);
-            } else {
-                if (previousStatistics instanceof ColumnStatisticsImpl) {
-                    ((ColumnStatisticsImpl) previousStatistics)
-                            .merge((ColumnStatisticsImpl) statistic);
-                }
-            }
+            return new FileOrcStatistics(
+                    reader.getNumberOfRows(), fieldNames, statistics, columnTypes);
         }
     }
 }
