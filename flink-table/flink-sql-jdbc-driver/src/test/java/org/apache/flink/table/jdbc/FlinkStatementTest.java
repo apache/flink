@@ -60,7 +60,7 @@ public class FlinkStatementTest extends FlinkJdbcDriverTestBase {
                 assertFalse(
                         statement.execute(
                                 String.format(
-                                        "CREATE TABLE test_table(id bigint, val int, str string) "
+                                        "CREATE TABLE test_table(id bigint, val int, str string, timestamp1 timestamp(0), timestamp2 timestamp_ltz(3), time_data time, date_data date) "
                                                 + "with ("
                                                 + "'connector'='filesystem',\n"
                                                 + "'format'='csv',\n"
@@ -72,10 +72,10 @@ public class FlinkStatementTest extends FlinkJdbcDriverTestBase {
                 assertTrue(
                         statement.execute(
                                 "INSERT INTO test_table VALUES "
-                                        + "(1, 11, '111'), "
-                                        + "(3, 33, '333'), "
-                                        + "(2, 22, '222'), "
-                                        + "(4, 44, '444')"));
+                                        + "(1, 11, '111', TIMESTAMP '2021-04-15 23:18:36', TO_TIMESTAMP_LTZ(400000000000, 3), TIME '12:32:00', DATE '2023-11-02'), "
+                                        + "(3, 33, '333', TIMESTAMP '2021-04-16 23:18:36', TO_TIMESTAMP_LTZ(500000000000, 3), TIME '13:32:00', DATE '2023-12-02'), "
+                                        + "(2, 22, '222', TIMESTAMP '2021-04-17 23:18:36', TO_TIMESTAMP_LTZ(600000000000, 3), TIME '14:32:00', DATE '2023-01-02'), "
+                                        + "(4, 44, '444', TIMESTAMP '2021-04-18 23:18:36', TO_TIMESTAMP_LTZ(700000000000, 3), TIME '15:32:00', DATE '2023-02-02')"));
                 assertThatThrownBy(statement::getUpdateCount)
                         .isInstanceOf(SQLFeatureNotSupportedException.class)
                         .hasMessage("FlinkStatement#getUpdateCount is not supported for query");
@@ -106,23 +106,55 @@ public class FlinkStatementTest extends FlinkJdbcDriverTestBase {
                 }
 
                 // SELECT all data from test_table
+                statement.execute("SET 'table.local-time-zone' = 'UTC'");
                 try (ResultSet resultSet = statement.executeQuery("SELECT * FROM test_table")) {
-                    assertEquals(3, resultSet.getMetaData().getColumnCount());
+                    assertEquals(7, resultSet.getMetaData().getColumnCount());
                     List<String> resultList = new ArrayList<>();
                     while (resultSet.next()) {
                         assertEquals(resultSet.getLong("id"), resultSet.getLong(1));
                         assertEquals(resultSet.getInt("val"), resultSet.getInt(2));
                         assertEquals(resultSet.getString("str"), resultSet.getString(3));
+                        assertEquals(resultSet.getTimestamp("timestamp1"), resultSet.getObject(4));
+                        assertEquals(resultSet.getObject("timestamp2"), resultSet.getTimestamp(5));
+                        assertEquals(resultSet.getObject("time_data"), resultSet.getTime(6));
+                        assertEquals(resultSet.getObject("date_data"), resultSet.getDate(7));
                         resultList.add(
                                 String.format(
-                                        "%s,%s,%s",
+                                        "%s,%s,%s,%s,%s,%s,%s",
                                         resultSet.getLong("id"),
                                         resultSet.getInt("val"),
-                                        resultSet.getString("str")));
+                                        resultSet.getString("str"),
+                                        resultSet.getTimestamp("timestamp1"),
+                                        resultSet.getTimestamp("timestamp2"),
+                                        resultSet.getTime("time_data"),
+                                        resultSet.getDate("date_data")));
                     }
                     assertThat(resultList)
                             .containsExactlyInAnyOrder(
-                                    "1,11,111", "2,22,222", "3,33,333", "4,44,444");
+                                    "1,11,111,2021-04-15 23:18:36.0,1982-09-04 15:06:40.0,12:32:00,2023-11-02",
+                                    "3,33,333,2021-04-16 23:18:36.0,1985-11-05 00:53:20.0,13:32:00,2023-12-02",
+                                    "2,22,222,2021-04-17 23:18:36.0,1989-01-05 10:40:00.0,14:32:00,2023-01-02",
+                                    "4,44,444,2021-04-18 23:18:36.0,1992-03-07 20:26:40.0,15:32:00,2023-02-02");
+                }
+
+                // SELECT all data from test_table with local time zone
+                statement.execute("SET 'table.local-time-zone' = 'Asia/Shanghai'");
+                try (ResultSet resultSet = statement.executeQuery("SELECT * FROM test_table")) {
+                    assertEquals(7, resultSet.getMetaData().getColumnCount());
+                    List<String> resultList = new ArrayList<>();
+                    while (resultSet.next()) {
+                        resultList.add(
+                                String.format(
+                                        "%s,%s",
+                                        resultSet.getTimestamp("timestamp1"),
+                                        resultSet.getTimestamp("timestamp2")));
+                    }
+                    assertThat(resultList)
+                            .containsExactlyInAnyOrder(
+                                    "2021-04-15 23:18:36.0,1982-09-04 23:06:40.0",
+                                    "2021-04-16 23:18:36.0,1985-11-05 08:53:20.0",
+                                    "2021-04-17 23:18:36.0,1989-01-05 18:40:00.0",
+                                    "2021-04-18 23:18:36.0,1992-03-08 04:26:40.0");
                 }
 
                 assertTrue(statement.execute("SHOW JOBS"));
@@ -133,7 +165,7 @@ public class FlinkStatementTest extends FlinkJdbcDriverTestBase {
                         assertEquals("FINISHED", resultSet.getString(3));
                         count++;
                     }
-                    assertEquals(2, count);
+                    assertEquals(3, count);
                 }
             }
         }
