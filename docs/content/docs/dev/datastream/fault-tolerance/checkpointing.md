@@ -277,10 +277,10 @@ task with the number of new subtasks equal to the number of running tasks.
 
 ### Waiting for the final checkpoint before task exit
 
-To ensure all the records could be committed for operators using the two-phase commit,
-the tasks would wait for the final checkpoint completed successfully after all the operators finished.
+To ensure all the records could be committed for operators using the two-phase commit, 
+the tasks would wait for the final checkpoint completed successfully after all the operators finished. 
 The final checkpoint would be triggered immediately after all operators have reached end of data, 
-without waiting for periodic triggering.
-
+without waiting for periodic triggering, but the job will need to wait for this final checkpoint 
+to be completed.
 
 {{< top >}}
