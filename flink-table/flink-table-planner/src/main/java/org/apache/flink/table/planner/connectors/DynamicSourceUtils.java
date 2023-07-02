@@ -487,7 +487,7 @@ public final class DynamicSourceUtils {
         final boolean hasUpdateBefore =
                 hasChangelogMode && changelogMode.contains(RowKind.UPDATE_BEFORE);
         final boolean hasUpdateAfter =
-                hasUpdateBefore && changelogMode.contains(RowKind.UPDATE_AFTER);
+                hasChangelogMode && changelogMode.contains(RowKind.UPDATE_AFTER);
         if (!hasUpdateBefore && hasUpdateAfter) {
             // only UPDATE_AFTER
             if (!schema.getPrimaryKey().isPresent()) {
@@ -506,7 +506,7 @@ public final class DynamicSourceUtils {
                             tableDebugName,
                             ScanTableSource.class.getSimpleName(),
                             scanSource.getClass().getName()));
-        } else if (hasUpdateBefore && !changelogMode.containsOnly(RowKind.INSERT)) {
+        } else if (hasChangelogMode && !changelogMode.containsOnly(RowKind.INSERT)) {
             // CDC mode (non-upsert mode and non-insert-only mode)
             final boolean changeEventsDuplicate =
                     config.get(ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE);
