@@ -38,6 +38,7 @@ Flink SQL supports the following SHOW statements for now:
 - SHOW TABLES
 - SHOW CREATE TABLE
 - SHOW COLUMNS
+- SHOW PARTITIONS
 - SHOW VIEWS
 - SHOW CREATE VIEW
 - SHOW FUNCTIONS
@@ -738,6 +739,65 @@ show columns from orders not like '%_r';
 |   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |     | AS PROCTIME() |                            |
 +---------+-----------------------------+-------+-----+---------------+----------------------------+
 4 rows in set
+```
+
+## SHOW PARTITIONS
+
+```sql
+SHOW PARTITIONS [[catalog_name.]database.]<table_name> [ PARTITION <partition_spec>]
+
+<partition_spec>:
+  (key1=val1, key2=val2, ...)
+```
+
+Show all partitions of the partitioned table with given table name and optional partition clause.
+
+**PARTITION**
+Show all partitions of the partitioned table with given table name and optional `PARTITION` clause, which are under the provided <partition_spec>.
+
+### SHOW PARTITIONS EXAMPLES
+
+Assumes that the partitioned table `table1` in the `database1` database which is located in the `catalog1` catalog has the following partitions:
+
+```sql
++---------+-----------------------------+
+|      id |                        date |
++---------+-----------------------------+
+|    1001 |                  2020-01-01 |
+|    1002 |                  2020-01-01 |
+|    1002 |                  2020-01-02 |
++---------+-----------------------------+
+```
+
+- Shows all partitions of the given table.
+
+```sql
+show partitions table1;
+-- show partitions database1.table1;
+-- show partitions catalog1.database1.table1;
++---------+-----------------------------+
+|      id |                        date |
++---------+-----------------------------+
+|    1001 |                  2020-01-01 |
+|    1002 |                  2020-01-01 |
+|    1002 |                  2020-01-02 |
++---------+-----------------------------+
+3 rows in set
+```
+
+- Shows all columns of the given table with the given partition spec.
+
+```sql
+show partitions table1 partition (id=1002);
+-- show partitions database1.table1 partition (id=1002);
+-- show partitions catalog1.database1.table1 partition (id=1002);
++---------+-----------------------------+
+|      id |                        date |
++---------+-----------------------------+
+|    1002 |                  2020-01-01 |
+|    1002 |                  2020-01-02 |
++---------+-----------------------------+
+2 rows in set
 ```
 
 ## SHOW VIEWS
