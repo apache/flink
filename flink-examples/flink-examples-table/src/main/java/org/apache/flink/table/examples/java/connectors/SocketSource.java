@@ -35,6 +35,7 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.examples.java.connectors.SocketSource.DummyCheckpoint;
 import org.apache.flink.table.examples.java.connectors.SocketSource.DummySplit;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.UserCodeClassLoader;
 
 import java.io.ByteArrayOutputStream;
@@ -114,6 +115,9 @@ public final class SocketSource
     @Override
     public SourceReader<RowData, DummySplit> createReader(SourceReaderContext readerContext)
             throws Exception {
+        Preconditions.checkState(
+                readerContext.currentParallelism() == 1,
+                "SocketSource can only work with a parallelism of 1.");
         deserializer.open(
                 new DeserializationSchema.InitializationContext() {
                     @Override
