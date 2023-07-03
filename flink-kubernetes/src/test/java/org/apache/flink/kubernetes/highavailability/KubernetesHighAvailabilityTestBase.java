@@ -31,7 +31,6 @@ import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalDriver;
 import org.apache.flink.runtime.leaderretrieval.TestingLeaderRetrievalEventHandler;
-import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.function.RunnableWithException;
@@ -83,8 +82,6 @@ class KubernetesHighAvailabilityTestBase {
         final LeaderElectionDriver leaderElectionDriver;
         final TestingLeaderElectionListener electionEventHandler;
 
-        final TestingFatalErrorHandler fatalErrorHandler;
-
         final LeaderRetrievalDriver leaderRetrievalDriver;
         final TestingLeaderRetrievalEventHandler retrievalEventHandler;
 
@@ -108,7 +105,6 @@ class KubernetesHighAvailabilityTestBase {
             deleteConfigMapByLabelsFuture =
                     kubernetesTestFixture.getDeleteConfigMapByLabelsFuture();
             electionEventHandler = new TestingLeaderElectionListener();
-            fatalErrorHandler = new TestingFatalErrorHandler();
             leaderElectionDriver = createLeaderElectionDriver();
 
             retrievalEventHandler = new TestingLeaderRetrievalEventHandler();
@@ -123,7 +119,7 @@ class KubernetesHighAvailabilityTestBase {
                 leaderRetrievalDriver.close();
                 kubernetesTestFixture.close();
 
-                fatalErrorHandler.rethrowError();
+                electionEventHandler.failIfErrorEventHappened();
             }
         }
 
@@ -197,7 +193,7 @@ class KubernetesHighAvailabilityTestBase {
                             leaderConfig,
                             kubernetesTestFixture.getConfigMapSharedWatcher(),
                             watchCallbackExecutorService);
-            return factory.create(electionEventHandler, fatalErrorHandler);
+            return factory.create(electionEventHandler);
         }
 
         private LeaderRetrievalDriver createLeaderRetrievalDriver() {

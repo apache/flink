@@ -182,11 +182,10 @@ class AbstractHaServicesTest {
                 BlobStoreService blobStoreService,
                 Queue<? super CloseOperations> closeOperations,
                 RunnableWithException internalCleanupRunnable,
-                ThrowingConsumer<JobID, Exception> internalJobCleanupConsumer)
-                throws Exception {
+                ThrowingConsumer<JobID, Exception> internalJobCleanupConsumer) {
             super(
                     config,
-                    (listener, fatalErrorHandler) -> null,
+                    listener -> null,
                     ioExecutor,
                     blobStoreService,
                     TestingJobResultStore.builder()

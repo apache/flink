@@ -140,6 +140,7 @@ class ZooKeeperLeaderRetrievalTest {
                             AddressResolution.NO_ADDRESS_RESOLUTION,
                             config);
 
+            final TestingLeaderElectionListener listener = new TestingLeaderElectionListener();
             try {
                 InetSocketAddress correctInetSocketAddress =
                         new InetSocketAddress(localHost, serverSocket.getLocalPort());
@@ -161,8 +162,7 @@ class ZooKeeperLeaderRetrievalTest {
                                                 testingFatalErrorHandlerResource
                                                         .getTestingFatalErrorHandler()),
                                         ZooKeeperUtils.generateLeaderLatchPath("")),
-                                new TestingLeaderElectionListener(),
-                                testingFatalErrorHandlerResource.getTestingFatalErrorHandler());
+                                listener);
                 externalProcessDriver.isLeader();
 
                 externalProcessDriver.publishLeaderInformation(
@@ -209,6 +209,7 @@ class ZooKeeperLeaderRetrievalTest {
                 if (leaderElection != null) {
                     leaderElection.close();
                 }
+                listener.failIfErrorEventHappened();
             }
         } catch (IOException e) {
             // may happen in certain test setups, skip test.

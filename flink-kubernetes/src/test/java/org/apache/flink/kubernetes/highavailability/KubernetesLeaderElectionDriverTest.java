@@ -89,11 +89,13 @@ class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabilityTestB
 
                             final String expectedErrorMessage =
                                     "ConfigMap " + LEADER_CONFIGMAP_NAME + " does not exist.";
-                            assertThat(fatalErrorHandler.getException())
+
+                            final LeaderElectionEvent.ErrorEvent errorEvent =
+                                    electionEventHandler.await(
+                                            LeaderElectionEvent.ErrorEvent.class);
+                            assertThat(errorEvent.getError())
                                     .isInstanceOf(KubernetesException.class)
                                     .hasMessageContaining(expectedErrorMessage);
-
-                            fatalErrorHandler.clearError();
                         });
             }
         };
@@ -129,12 +131,13 @@ class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabilityTestB
 
                             final String expectedErrorMessage =
                                     "ConfigMap " + LEADER_CONFIGMAP_NAME + " does not exist.";
-                            assertThat(fatalErrorHandler.getException())
+                            final LeaderElectionEvent.ErrorEvent errorEvent =
+                                    electionEventHandler.assertNextEvent(
+                                            LeaderElectionEvent.ErrorEvent.class);
+                            assertThat(errorEvent.getError())
                                     .cause()
                                     .isInstanceOf(KubernetesException.class)
                                     .hasMessage(expectedErrorMessage);
-
-                            fatalErrorHandler.clearError();
                         });
             }
         };
@@ -210,11 +213,12 @@ class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabilityTestB
                                     "ConfigMap "
                                             + LEADER_CONFIGMAP_NAME
                                             + " has been deleted externally.";
-                            assertThat(fatalErrorHandler.getException())
+                            final LeaderElectionEvent.ErrorEvent errorEvent =
+                                    electionEventHandler.await(
+                                            LeaderElectionEvent.ErrorEvent.class);
+                            assertThat(errorEvent.getError())
                                     .isInstanceOf(LeaderElectionException.class)
                                     .hasMessage(expectedErrorMessage);
-
-                            fatalErrorHandler.clearError();
                         });
             }
         };
@@ -237,11 +241,14 @@ class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabilityTestB
                                     "Error while watching the ConfigMap "
                                             + LEADER_CONFIGMAP_NAME
                                             + ".";
-                            assertThat(fatalErrorHandler.getException())
+
+                            final LeaderElectionEvent.ErrorEvent errorEvent =
+                                    electionEventHandler.await(
+                                            LeaderElectionEvent.ErrorEvent.class);
+
+                            assertThat(errorEvent.getError())
                                     .isInstanceOf(LeaderElectionException.class)
                                     .hasMessage(expectedErrorMessage);
-
-                            fatalErrorHandler.clearError();
                         });
             }
         };

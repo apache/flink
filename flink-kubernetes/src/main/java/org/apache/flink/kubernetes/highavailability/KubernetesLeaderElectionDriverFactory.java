@@ -23,7 +23,6 @@ import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.KubernetesConfigMapSharedWatcher;
 import org.apache.flink.runtime.leaderelection.LeaderElectionDriver;
 import org.apache.flink.runtime.leaderelection.LeaderElectionDriverFactory;
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.util.Preconditions;
 
 import java.util.concurrent.Executor;
@@ -52,15 +51,12 @@ public class KubernetesLeaderElectionDriverFactory implements LeaderElectionDriv
 
     @Override
     public KubernetesLeaderElectionDriver create(
-            LeaderElectionDriver.Listener leaderElectionListener,
-            FatalErrorHandler fatalErrorHandler)
-            throws Exception {
+            LeaderElectionDriver.Listener leaderElectionListener) throws Exception {
         return new KubernetesLeaderElectionDriver(
                 kubernetesLeaderElectionConfiguration,
                 kubeClient,
                 leaderElectionListener,
                 configMapSharedWatcher,
-                watchExecutor,
-                fatalErrorHandler);
+                watchExecutor);
     }
 }
