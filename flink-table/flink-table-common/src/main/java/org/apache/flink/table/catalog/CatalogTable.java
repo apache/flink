@@ -27,6 +27,7 @@ import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Represents the unresolved metadata of a table in a {@link Catalog}.
@@ -64,6 +65,24 @@ public interface CatalogTable extends CatalogBaseTable {
             List<String> partitionKeys,
             Map<String, String> options) {
         return new DefaultCatalogTable(schema, comment, partitionKeys, options);
+    }
+
+    /**
+     * Creates an instance of {@link CatalogTable} with a specific snapshot.
+     *
+     * @param schema unresolved schema
+     * @param comment optional comment
+     * @param partitionKeys list of partition keys or an empty list if not partitioned
+     * @param options options to configure the connector
+     * @param snapshot table snapshot of the table
+     */
+    static CatalogTable of(
+            Schema schema,
+            @Nullable String comment,
+            List<String> partitionKeys,
+            Map<String, String> options,
+            @Nullable Long snapshot) {
+        return new DefaultCatalogTable(schema, comment, partitionKeys, options, snapshot);
     }
 
     /**
@@ -119,5 +138,10 @@ public interface CatalogTable extends CatalogBaseTable {
     @Deprecated
     default Map<String, String> toProperties() {
         return Collections.emptyMap();
+    }
+
+    /** Return the snapshot specified for the table. Return Optional.empty() if not specified. */
+    default Optional<Long> getSnapshot() {
+        return Optional.empty();
     }
 }

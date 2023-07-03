@@ -121,6 +121,11 @@ public final class ResolvedCatalogTable
     }
 
     @Override
+    public Optional<Long> getSnapshot() {
+        return origin.getSnapshot();
+    }
+
+    @Override
     public ResolvedCatalogTable copy(Map<String, String> options) {
         return new ResolvedCatalogTable(origin.copy(options), resolvedSchema);
     }
