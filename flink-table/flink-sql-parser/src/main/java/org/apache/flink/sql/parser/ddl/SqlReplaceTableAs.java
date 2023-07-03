@@ -44,11 +44,43 @@ import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
-/** Replace table as statement. */
+/**
+ * {@link SqlNode} to describe the [CREATE OR] REPLACE TABLE AS (RTAS) syntax. The RTAS would create
+ * a pipeline to compute the result of the given query and create or replace the derived table.
+ *
+ * <p>Notes: REPLACE TABLE AS: the derived table must be existed. CREATE OR REPLACE TABLE AS: create
+ * the derived table if it does not exist, otherwise replace it.
+ *
+ * <p>Example:
+ *
+ * <pre>{@code
+ * CREATE TABLE base_table (
+ *     id BIGINT,
+ *     name STRING,
+ *     time TIMESTAMP,
+ *     PRIMARY KEY(id)
+ * ) WITH (
+ *     ‘connector’ = ‘kafka’,
+ *     ‘connector.starting-offset’: ‘12345’,
+ *     ‘format’ =  ‘json’
+ * )
+ *
+ * CREATE OR REPLACE TABLE derived_table
+ * WITH (
+ *   'connector' = 'jdbc',
+ *   'url' = 'http://localhost:10000',
+ *   'table-name' = 'syncedTable'
+ * )
+ * AS SELECT * FROM base_table;
+ * }</pre>
+ */
 public class SqlReplaceTableAs extends SqlCreate implements ExtendedSqlNode {
 
-    public static final SqlSpecialOperator OPERATOR =
+    public static final SqlSpecialOperator REPLACE_OPERATOR =
             new SqlSpecialOperator("REPLACE TABLE AS", SqlKind.OTHER_DDL);
+
+    public static final SqlSpecialOperator CREATE_OR_REPLACE_OPERATOR =
+            new SqlSpecialOperator("CREATE OR REPLACE TABLE AS", SqlKind.OTHER_DDL);
 
     private final SqlIdentifier tableName;
 
@@ -83,37 +115,11 @@ public class SqlReplaceTableAs extends SqlCreate implements ExtendedSqlNode {
             boolean isTemporary,
             boolean ifNotExists,
             boolean isCreateOrReplace) {
-        this(
-                OPERATOR,
+        super(
+                isCreateOrReplace ? CREATE_OR_REPLACE_OPERATOR : REPLACE_OPERATOR,
                 pos,
-                tableName,
-                columnList,
-                tableConstraints,
-                propertyList,
-                partitionKeyList,
-                watermark,
-                comment,
-                asQuery,
-                isTemporary,
-                ifNotExists,
-                isCreateOrReplace);
-    }
-
-    public SqlReplaceTableAs(
-            SqlSpecialOperator operator,
-            SqlParserPos pos,
-            SqlIdentifier tableName,
-            SqlNodeList columnList,
-            List<SqlTableConstraint> tableConstraints,
-            SqlNodeList propertyList,
-            SqlNodeList partitionKeyList,
-            @Nullable SqlWatermark watermark,
-            @Nullable SqlCharStringLiteral comment,
-            SqlNode asQuery,
-            boolean isTemporary,
-            boolean ifNotExists,
-            boolean isCreateOrReplace) {
-        super(operator, pos, true, ifNotExists);
+                true,
+                ifNotExists);
 
         this.tableName = requireNonNull(tableName, "tableName should not be null");
         this.columnList = requireNonNull(columnList, "columnList should not be null");
@@ -132,7 +138,7 @@ public class SqlReplaceTableAs extends SqlCreate implements ExtendedSqlNode {
 
     @Override
     public @Nonnull SqlOperator getOperator() {
-        return OPERATOR;
+        return isCreateOrReplace ? CREATE_OR_REPLACE_OPERATOR : REPLACE_OPERATOR;
     }
 
     @Override
@@ -165,7 +171,7 @@ public class SqlReplaceTableAs extends SqlCreate implements ExtendedSqlNode {
         if (isTemporary()) {
             throw new SqlValidateException(
                     getParserPosition(),
-                    errorMsg + " syntax does not support to create temporary table yet.");
+                    errorMsg + " syntax does not support temporary table yet.");
         }
 
         if (getColumnList().size() > 0) {
@@ -243,14 +249,9 @@ public class SqlReplaceTableAs extends SqlCreate implements ExtendedSqlNode {
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         if (isCreateOrReplace) {
-            writer.keyword("CREATE");
-            writer.keyword("OR");
+            writer.keyword("CREATE OR");
         }
-        writer.keyword("REPLACE");
-        if (isTemporary()) {
-            writer.keyword("TEMPORARY");
-        }
-        writer.keyword("TABLE");
+        writer.keyword("REPLACE TABLE");
         tableName.unparse(writer, leftPrec, rightPrec);
 
         if (comment != null) {

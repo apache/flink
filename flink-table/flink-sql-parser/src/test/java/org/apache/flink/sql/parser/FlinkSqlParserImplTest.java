@@ -2470,45 +2470,36 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    void testReplaceTableAsSelectWithoutOptions() {
+    void testReplaceTableAsSelect() {
+        // test replace table as select without options
         sql("REPLACE TABLE t AS SELECT * FROM b").ok("REPLACE TABLE `T`\nAS\nSELECT *\nFROM `B`");
-    }
 
-    @Test
-    void testReplaceTableAsSelectWithOptions() {
+        // test replace table as select with options
         sql("REPLACE TABLE t WITH ('test' = 'zm') AS SELECT * FROM b")
                 .ok("REPLACE TABLE `T` WITH (\n  'test' = 'zm'\n)\nAS\nSELECT *\nFROM `B`");
-    }
 
-    @Test
-    void testReplaceTableAsSelectWithTmpTable() {
+        // test replace table as select with tmp table
         sql("REPLACE TEMPORARY TABLE t (col1 string) WITH ('test' = 'zm') AS SELECT col1 FROM b")
                 .node(
                         new ValidationMatcher()
                                 .fails(
-                                        "REPLACE TABLE AS SELECT syntax does not support to create temporary table yet."));
-    }
+                                        "REPLACE TABLE AS SELECT syntax does not support temporary table yet."));
 
-    @Test
-    void testReplaceTableAsSelectWithExplicitColumns() {
+        // test replace table as select with explicit columns
         sql("REPLACE TABLE t (col1 string) WITH ('test' = 'zm') AS SELECT col1 FROM b")
                 .node(
                         new ValidationMatcher()
                                 .fails(
                                         "REPLACE TABLE AS SELECT syntax does not support to specify explicit columns yet."));
-    }
 
-    @Test
-    void testReplaceTableAsSelectWithWatermark() {
+        // test replace table as select with watermark
         sql("REPLACE TABLE t (watermark FOR ts AS ts - interval '3' second) WITH ('test' = 'zm') AS SELECT col1 FROM b")
                 .node(
                         new ValidationMatcher()
                                 .fails(
                                         "REPLACE TABLE AS SELECT syntax does not support to specify explicit watermark yet."));
-    }
 
-    @Test
-    void testReplaceTableAsSelectWithConstraints() {
+        // test replace table as select with constraints
         sql("REPLACE TABLE t (PRIMARY KEY (col1)) WITH ('test' = 'zm') AS SELECT col1 FROM b")
                 .node(
                         new ValidationMatcher()
@@ -2522,10 +2513,8 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
         sql("REPLACE TABLE t (UNIQUE (col1)) WITH ('test' = 'zm') AS SELECT col1 FROM b")
                 .node(new ValidationMatcher().fails("UNIQUE constraint is not supported yet"));
-    }
 
-    @Test
-    void testReplaceTableAsSelectWithPartitionKey() {
+        // test replace table as select with partition key
         sql("REPLACE TABLE t PARTITIONED BY(col1) WITH ('test' = 'zm') AS SELECT col1 FROM b")
                 .node(
                         new ValidationMatcher()
@@ -2534,53 +2523,41 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    void testCreateOrReplaceTableAsSelectWithoutOptions() {
+    void testCreateOrReplaceTableAsSelect() {
+        // test create or replace table as select without options
         sql("CREATE OR REPLACE TABLE t AS SELECT * FROM b")
                 .ok("CREATE OR REPLACE TABLE `T`\nAS\nSELECT *\nFROM `B`");
-    }
 
-    @Test
-    void testCreateOrReplaceTableAsSelectWithOptions() {
+        // test create or replace table as select with options
         sql("CREATE OR REPLACE TABLE t WITH ('test' = 'zm') AS SELECT * FROM b")
                 .ok(
                         "CREATE OR REPLACE TABLE `T` WITH (\n  'test' = 'zm'\n)\nAS\nSELECT *\nFROM `B`");
-    }
 
-    @Test
-    void testCreateOrReplaceTableAsSelectWithCreateTableLike() {
+        // test create or replace table as select with create table like
         sql("CREATE OR REPLACE TABLE t (col1 string) WITH ('test' = 'zm') like b ^AS^ SELECT col1 FROM b")
                 .fails("(?s).*Encountered \"AS\" at line 1, column 69.*");
-    }
 
-    @Test
-    void testCreateOrReplaceTableAsSelectWithTmpTable() {
+        // test create or replace table as select with tmp table
         sql("CREATE OR REPLACE TEMPORARY TABLE t (col1 string) WITH ('test' = 'zm') AS SELECT col1 FROM b")
                 .node(
                         new ValidationMatcher()
                                 .fails(
-                                        "CREATE OR REPLACE TABLE AS SELECT syntax does not support to create temporary table yet."));
-    }
+                                        "CREATE OR REPLACE TABLE AS SELECT syntax does not support temporary table yet."));
 
-    @Test
-    void testCreateOrReplaceTableAsSelectWithExplicitColumns() {
+        // test create or replace table as select with explicit columns
         sql("CREATE OR REPLACE TABLE t (col1 string) WITH ('test' = 'zm') AS SELECT col1 FROM b")
                 .node(
                         new ValidationMatcher()
                                 .fails(
                                         "CREATE OR REPLACE TABLE AS SELECT syntax does not support to specify explicit columns yet."));
-    }
 
-    @Test
-    void testCreateOrReplaceTableAsSelectWithWatermark() {
+        // test create or replace table as select with watermark
         sql("CREATE OR REPLACE TABLE t (watermark FOR ts AS ts - interval '3' second) WITH ('test' = 'zm') AS SELECT col1 FROM b")
                 .node(
                         new ValidationMatcher()
                                 .fails(
                                         "CREATE OR REPLACE TABLE AS SELECT syntax does not support to specify explicit watermark yet."));
-    }
-
-    @Test
-    void testCreateOrReplaceTableAsSelectWithConstraints() {
+        // test create or replace table as select with constraints
         sql("CREATE OR REPLACE TABLE t (PRIMARY KEY (col1)) WITH ('test' = 'zm') AS SELECT col1 FROM b")
                 .node(
                         new ValidationMatcher()
@@ -2594,10 +2571,8 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
         sql("CREATE OR REPLACE TABLE t (UNIQUE (col1)) WITH ('test' = 'zm') AS SELECT col1 FROM b")
                 .node(new ValidationMatcher().fails("UNIQUE constraint is not supported yet"));
-    }
 
-    @Test
-    void testCreateOrReplaceTableAsSelectWithPartitionKey() {
+        // test create or replace table as select with partition key
         sql("CREATE OR REPLACE TABLE t PARTITIONED BY(col1) WITH ('test' = 'zm') AS SELECT col1 FROM b")
                 .node(
                         new ValidationMatcher()
