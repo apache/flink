@@ -762,10 +762,10 @@ Show create view statement for specified view.
 SHOW [USER] FUNCTIONS [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] (LIKE | ILIKE) <sql_like_pattern> ]	
 ```
 
-Show all functions including system functions and user-defined functions for an optionally specified database. If no database is specified then the functions are returned from the current database. Additionally, a `sql_like_pattern` can be used to filter the functions.
+Show all functions including system functions and user-defined functions for an optionally specified database. If no database is specified then the functions are returned from the current database. Additionally, a `<sql_like_pattern>` can be used to filter the functions.
 
 **USER**
-Show only user-defined functions for an optionally specified database. If no database is specified then the functions are returned from the current database. Additionally, a `sql_like_pattern` can be used to filter the functions.
+Show only user-defined functions for an optionally specified database. If no database is specified then the functions are returned from the current database. Additionally, a `<sql_like_pattern>` can be used to filter the functions.
 
 **LIKE**
 Show all functions with a `LIKE` clause, whose name is similar to the `<sql_like_pattern>`.
