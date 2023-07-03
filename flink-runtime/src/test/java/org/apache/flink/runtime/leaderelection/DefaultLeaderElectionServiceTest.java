@@ -221,10 +221,9 @@ class DefaultLeaderElectionServiceTest {
         final UUID expectedLeaderSessionID = UUID.randomUUID();
         try (final DefaultLeaderElectionService testInstance =
                 new DefaultLeaderElectionService(
-                        (listener, errorHandler) -> {
+                        listener -> {
                             listener.onGrantLeadership(expectedLeaderSessionID);
-                            return TestingLeaderElectionDriver.newNoOpBuilder()
-                                    .build(listener, errorHandler);
+                            return TestingLeaderElectionDriver.newNoOpBuilder().build(listener);
                         },
                         fatalErrorHandlerExtension.getTestingFatalErrorHandler(),
                         Executors.newDirectExecutorService())) {
@@ -983,7 +982,7 @@ class DefaultLeaderElectionServiceTest {
                         () -> {
                             final Exception testException = new Exception("test leader exception");
 
-                            testingLeaderElectionDriver.triggerFatalError(testException);
+                            leaderElectionService.onError(testException);
 
                             applyToBothContenderContexts(
                                     contenderContext -> {
@@ -1008,7 +1007,7 @@ class DefaultLeaderElectionServiceTest {
 
                             final Exception testException = new Exception("test leader exception");
 
-                            testingLeaderElectionDriver.triggerFatalError(testException);
+                            leaderElectionService.onError(testException);
 
                             applyToBothContenderContexts(
                                     ctx ->

@@ -340,12 +340,11 @@ class ZooKeeperLeaderElectionDriverTest {
     private static ElectionDriver createLeaderElectionDriver(
             CuratorFramework curatorFramework, FatalErrorHandler fatalErrorHandler) {
         final SimpleLeaderElectionListener leaderElectionListener =
-                new SimpleLeaderElectionListener();
+                new SimpleLeaderElectionListener(fatalErrorHandler);
 
         try {
             final ZooKeeperLeaderElectionDriver leaderElectionDriver =
-                    createLeaderElectionDriver(
-                            leaderElectionListener, curatorFramework, fatalErrorHandler);
+                    new ZooKeeperLeaderElectionDriver(curatorFramework, leaderElectionListener);
             return new ElectionDriver(leaderElectionDriver, leaderElectionListener);
         } catch (Exception e) {
             ExceptionUtils.rethrow(e);
@@ -386,6 +385,11 @@ class ZooKeeperLeaderElectionDriverTest {
             implements LeaderElectionDriver.Listener {
 
         private final CompletableFuture<Void> leadershipFuture = new CompletableFuture<>();
+        private final FatalErrorHandler fatalErrorHandler;
+
+        public SimpleLeaderElectionListener(FatalErrorHandler fatalErrorHandler) {
+            this.fatalErrorHandler = fatalErrorHandler;
+        }
 
         CompletableFuture<Void> getLeadershipFuture() {
             return leadershipFuture;
@@ -406,15 +410,11 @@ class ZooKeeperLeaderElectionDriverTest {
         @Override
         public void onLeaderInformationChange(
                 LeaderInformationRegister leaderInformationRegister) {}
-    }
 
-    private static ZooKeeperLeaderElectionDriver createLeaderElectionDriver(
-            LeaderElectionDriver.Listener leaderElectionListener,
-            CuratorFramework curatorFramework,
-            FatalErrorHandler fatalErrorHandler)
-            throws Exception {
-        return new ZooKeeperLeaderElectionDriver(
-                curatorFramework, leaderElectionListener, fatalErrorHandler);
+        @Override
+        public void onError(Throwable t) {
+            fatalErrorHandler.onFatalError(t);
+        }
     }
 
     private CuratorFrameworkWithUnhandledErrorListener startCuratorFramework() {
@@ -433,10 +433,8 @@ class ZooKeeperLeaderElectionDriverTest {
             this.leaderElectionListener = new TestingLeaderElectionListener();
             this.curatorFramework = startCuratorFramework();
             this.leaderElectionDriver =
-                    createLeaderElectionDriver(
-                            leaderElectionListener,
-                            curatorFramework.asCuratorFramework(),
-                            testingFatalErrorHandlerResource.getTestingFatalErrorHandler());
+                    new ZooKeeperLeaderElectionDriver(
+                            curatorFramework.asCuratorFramework(), leaderElectionListener);
         }
 
         protected final void runTest(RunnableWithException test) throws Exception {
@@ -444,6 +442,8 @@ class ZooKeeperLeaderElectionDriverTest {
                 test.run();
             } finally {
                 close();
+
+                leaderElectionListener.failIfErrorEventHappened();
             }
         }
 

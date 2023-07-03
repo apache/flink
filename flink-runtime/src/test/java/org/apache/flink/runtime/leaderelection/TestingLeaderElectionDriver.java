@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.leaderelection;
 
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.ThrowingConsumer;
 import org.apache.flink.util.function.TriConsumer;
@@ -46,16 +45,11 @@ public class TestingLeaderElectionDriver implements LeaderElectionDriver {
 
     private final ReentrantLock lock = new ReentrantLock();
 
-    private final FatalErrorHandler fatalErrorHandler;
-
     public TestingLeaderElectionDriver(
-            FatalErrorHandler fatalErrorHandler,
             Function<ReentrantLock, Boolean> hasLeadershipFunction,
             TriConsumer<ReentrantLock, String, LeaderInformation> publishLeaderInformationConsumer,
             BiConsumer<ReentrantLock, String> deleteLeaderInformationConsumer,
             ThrowingConsumer<ReentrantLock, Exception> closeConsumer) {
-        this.fatalErrorHandler = fatalErrorHandler;
-
         this.hasLeadershipFunction = hasLeadershipFunction;
         this.publishLeaderInformationConsumer = publishLeaderInformationConsumer;
         this.deleteLeaderInformationConsumer = deleteLeaderInformationConsumer;
@@ -80,10 +74,6 @@ public class TestingLeaderElectionDriver implements LeaderElectionDriver {
     @Override
     public void close() throws Exception {
         closeConsumer.accept(lock);
-    }
-
-    public void triggerFatalError(Throwable t) {
-        fatalErrorHandler.onFatalError(t);
     }
 
     public static Builder newNoOpBuilder() {
@@ -201,11 +191,8 @@ public class TestingLeaderElectionDriver implements LeaderElectionDriver {
         }
 
         @Override
-        public LeaderElectionDriver create(
-                Listener leaderElectionListener, FatalErrorHandler fatalErrorHandler)
-                throws Exception {
-            final TestingLeaderElectionDriver driver =
-                    driverBuilder.build(leaderElectionListener, fatalErrorHandler);
+        public LeaderElectionDriver create(Listener leaderElectionListener) throws Exception {
+            final TestingLeaderElectionDriver driver = driverBuilder.build(leaderElectionListener);
             createdDrivers.add(driver);
 
             return driver;
@@ -269,10 +256,8 @@ public class TestingLeaderElectionDriver implements LeaderElectionDriver {
             return this;
         }
 
-        public TestingLeaderElectionDriver build(
-                Listener ignoredListener, FatalErrorHandler fatalErrorHandler) {
+        public TestingLeaderElectionDriver build(Listener ignoredListener) {
             return new TestingLeaderElectionDriver(
-                    fatalErrorHandler,
                     hasLeadershipFunction,
                     publishLeaderInformationConsumer,
                     deleteLeaderInformationConsumer,

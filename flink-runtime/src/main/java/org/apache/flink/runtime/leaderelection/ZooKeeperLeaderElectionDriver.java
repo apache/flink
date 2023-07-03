@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.leaderelection;
 
 import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperLeaderElectionHaServices;
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
@@ -49,8 +48,6 @@ public class ZooKeeperLeaderElectionDriver implements LeaderElectionDriver, Lead
 
     private final LeaderElectionDriver.Listener leaderElectionListener;
 
-    private final FatalErrorHandler fatalErrorHandler;
-
     private final LeaderLatch leaderLatch;
 
     private final TreeCache treeCache;
@@ -61,13 +58,10 @@ public class ZooKeeperLeaderElectionDriver implements LeaderElectionDriver, Lead
     private AtomicBoolean running = new AtomicBoolean(true);
 
     public ZooKeeperLeaderElectionDriver(
-            CuratorFramework curatorFramework,
-            LeaderElectionDriver.Listener leaderElectionListener,
-            FatalErrorHandler fatalErrorHandler)
+            CuratorFramework curatorFramework, LeaderElectionDriver.Listener leaderElectionListener)
             throws Exception {
         this.curatorFramework = Preconditions.checkNotNull(curatorFramework);
         this.leaderElectionListener = Preconditions.checkNotNull(leaderElectionListener);
-        this.fatalErrorHandler = Preconditions.checkNotNull(fatalErrorHandler);
 
         this.leaderLatch = new LeaderLatch(curatorFramework, ZooKeeperUtils.getLeaderLatchPath());
         this.treeCache =
@@ -158,7 +152,7 @@ public class ZooKeeperLeaderElectionDriver implements LeaderElectionDriver, Lead
                     leaderLatch::hasLeadership,
                     connectionInformationPath);
         } catch (Exception e) {
-            fatalErrorHandler.onFatalError(e);
+            leaderElectionListener.onError(e);
         }
     }
 
@@ -168,7 +162,7 @@ public class ZooKeeperLeaderElectionDriver implements LeaderElectionDriver, Lead
             ZooKeeperUtils.deleteZNode(
                     curatorFramework, ZooKeeperUtils.generateZookeeperPath(contenderID));
         } catch (Exception e) {
-            fatalErrorHandler.onFatalError(e);
+            leaderElectionListener.onError(e);
         }
     }
 

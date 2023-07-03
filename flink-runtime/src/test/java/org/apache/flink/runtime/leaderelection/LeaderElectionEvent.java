@@ -38,6 +38,10 @@ public abstract class LeaderElectionEvent {
         return false;
     }
 
+    public boolean isErrorEvent() {
+        return false;
+    }
+
     public IsLeaderEvent asIsLeaderEvent() {
         return as(IsLeaderEvent.class);
     }
@@ -112,6 +116,28 @@ public abstract class LeaderElectionEvent {
 
         public LeaderInformationRegister getLeaderInformationRegister() {
             return leaderInformationRegister;
+        }
+    }
+
+    /**
+     * A {@code LeaderElectionEvent} that's triggered by {@link
+     * LeaderElectionDriver.Listener#onError(Throwable)}.
+     */
+    public static class ErrorEvent extends LeaderElectionEvent {
+
+        private final Throwable error;
+
+        ErrorEvent(Throwable error) {
+            this.error = error;
+        }
+
+        public Throwable getError() {
+            return error;
+        }
+
+        @Override
+        public boolean isErrorEvent() {
+            return true;
         }
     }
 }

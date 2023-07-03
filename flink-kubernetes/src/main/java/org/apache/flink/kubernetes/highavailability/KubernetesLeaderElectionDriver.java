@@ -30,7 +30,6 @@ import org.apache.flink.runtime.leaderelection.LeaderElectionDriver;
 import org.apache.flink.runtime.leaderelection.LeaderElectionException;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderelection.LeaderInformationRegister;
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -67,8 +66,6 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
     // Labels will be used to clean up the ha related ConfigMaps.
     private final Map<String, String> configMapLabels;
 
-    private final FatalErrorHandler fatalErrorHandler;
-
     private final KubernetesSharedWatcher.Watch kubernetesWatch;
 
     private final AtomicBoolean running = new AtomicBoolean(true);
@@ -78,12 +75,10 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
             FlinkKubeClient kubeClient,
             Listener leaderElectionListener,
             KubernetesConfigMapSharedWatcher configMapSharedWatcher,
-            Executor watchExecutor,
-            FatalErrorHandler fatalErrorHandler) {
+            Executor watchExecutor) {
         Preconditions.checkNotNull(leaderElectionConfiguration);
         this.kubeClient = Preconditions.checkNotNull(kubeClient);
         this.leaderElectionListener = Preconditions.checkNotNull(leaderElectionListener);
-        this.fatalErrorHandler = Preconditions.checkNotNull(fatalErrorHandler);
         Preconditions.checkNotNull(configMapSharedWatcher);
         Preconditions.checkNotNull(watchExecutor);
 
@@ -127,7 +122,7 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
         if (optionalConfigMap.isPresent()) {
             return KubernetesLeaderElector.hasLeadership(optionalConfigMap.get(), lockIdentity);
         } else {
-            fatalErrorHandler.onFatalError(
+            leaderElectionListener.onError(
                     new KubernetesException(
                             String.format(
                                     "ConfigMap %s does not exist. This indicates that somebody has interfered with Flink's operation.",
@@ -147,7 +142,7 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
                             updateConfigMapWithLeaderInformation(contenderID, leaderInformation))
                     .get();
         } catch (InterruptedException | ExecutionException e) {
-            fatalErrorHandler.onFatalError(e);
+            leaderElectionListener.onError(e);
         }
 
         LOG.debug(
@@ -241,7 +236,7 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
         public void onDeleted(List<KubernetesConfigMap> configMaps) {
             final KubernetesConfigMap configMap = getOnlyConfigMap(configMaps, configMapName);
             if (KubernetesLeaderElector.hasLeadership(configMap, lockIdentity)) {
-                fatalErrorHandler.onFatalError(
+                leaderElectionListener.onError(
                         new LeaderElectionException(
                                 String.format(
                                         "ConfigMap %s has been deleted externally.",
@@ -253,7 +248,7 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
         public void onError(List<KubernetesConfigMap> configMaps) {
             final KubernetesConfigMap configMap = getOnlyConfigMap(configMaps, configMapName);
             if (KubernetesLeaderElector.hasLeadership(configMap, lockIdentity)) {
-                fatalErrorHandler.onFatalError(
+                leaderElectionListener.onError(
                         new LeaderElectionException(
                                 String.format(
                                         "Error while watching the ConfigMap %s.", configMapName)));
@@ -262,7 +257,7 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
 
         @Override
         public void handleError(Throwable throwable) {
-            fatalErrorHandler.onFatalError(
+            leaderElectionListener.onError(
                     new LeaderElectionException(
                             String.format("Error while watching the ConfigMap %s.", configMapName),
                             throwable));

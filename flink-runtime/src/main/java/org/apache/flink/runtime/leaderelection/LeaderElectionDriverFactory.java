@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.leaderelection;
 
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
-
 /** Factory for {@link LeaderElectionDriver}. */
 public interface LeaderElectionDriverFactory {
 
@@ -28,12 +26,9 @@ public interface LeaderElectionDriverFactory {
      * it registers the given leader election listener with the service.
      *
      * @param leaderElectionListener listener for the callbacks of the {@link LeaderElectionDriver}
-     * @param fatalErrorHandler component for handling fatal errors.
      * @return created {@link LeaderElectionDriver} instance
      * @throws Exception if the creation fails
      */
-    LeaderElectionDriver create(
-            LeaderElectionDriver.Listener leaderElectionListener,
-            FatalErrorHandler fatalErrorHandler)
+    LeaderElectionDriver create(LeaderElectionDriver.Listener leaderElectionListener)
             throws Exception;
 }
