@@ -245,8 +245,8 @@ public interface Catalog {
     CatalogBaseTable getTable(ObjectPath tablePath) throws TableNotExistException, CatalogException;
 
     /**
-     * Returns a {@link CatalogTable} or {@link CatalogView} identified by the given {@link
-     * ObjectPath} and Timestamp. The framework will resolve the metadata objects when necessary.
+     * Returns a {@link CatalogTable} or {@link CatalogView} at a specific time identified by the
+     * given {@link ObjectPath}. The framework will resolve the metadata objects when necessary.
      *
      * @param tablePath Path of the table or view
      * @param timestamp Timestamp of the table snapshot, which is milliseconds since 1970-01-01
@@ -259,7 +259,7 @@ public interface Catalog {
             throws TableNotExistException, CatalogException {
         throw new UnsupportedOperationException(
                 String.format(
-                        "getTable with snapshot is not implemented for %s.", this.getClass()));
+                        "getTable(ObjectPath, long) is not implemented for %s.", this.getClass()));
     }
 
     /**
