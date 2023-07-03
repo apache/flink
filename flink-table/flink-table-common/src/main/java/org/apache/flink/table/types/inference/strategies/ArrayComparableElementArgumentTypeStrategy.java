@@ -22,10 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.inference.ArgumentCount;
+import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.CallContext;
-import org.apache.flink.table.types.inference.ConstantArgumentCount;
-import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.Signature;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -34,13 +32,12 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.StructuredType.StructuredComparison;
 import org.apache.flink.util.Preconditions;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
 /**
- * An {@link InputTypeStrategy} that checks if the input argument is an ARRAY type and check whether
- * its' elements are comparable.
+ * An {@link ArgumentTypeStrategy} that checks if the input argument is an ARRAY type and check
+ * whether its' elements are comparable.
  *
  * <p>It requires one argument.
  *
@@ -48,28 +45,22 @@ import java.util.Optional;
  * #areComparable(LogicalType, LogicalType)}.
  */
 @Internal
-public final class ArrayComparableElementTypeStrategy implements InputTypeStrategy {
-    private final StructuredComparison requiredComparison;
-    private final ConstantArgumentCount argumentCount;
+public final class ArrayComparableElementArgumentTypeStrategy implements ArgumentTypeStrategy {
 
-    public ArrayComparableElementTypeStrategy(StructuredComparison requiredComparison) {
+    private final StructuredComparison requiredComparison;
+
+    public ArrayComparableElementArgumentTypeStrategy(StructuredComparison requiredComparison) {
         Preconditions.checkArgument(requiredComparison != StructuredComparison.NONE);
         this.requiredComparison = requiredComparison;
-        this.argumentCount = ConstantArgumentCount.of(1);
     }
 
     @Override
-    public ArgumentCount getArgumentCount() {
-        return argumentCount;
-    }
-
-    @Override
-    public Optional<List<DataType>> inferInputTypes(
-            CallContext callContext, boolean throwOnFailure) {
+    public Optional<DataType> inferArgumentType(
+            CallContext callContext, int argumentPos, boolean throwOnFailure) {
         final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
-        final DataType argumentType = argumentDataTypes.get(0);
+        final DataType argumentType = argumentDataTypes.get(argumentPos);
         if (!argumentType.getLogicalType().is(LogicalTypeRoot.ARRAY)) {
-            return callContext.fail(throwOnFailure, "All arguments requires to be an ARRAY type");
+            return callContext.fail(throwOnFailure, "The argument requires to be an ARRAY type");
         }
         final DataType elementDataType = ((CollectionDataType) argumentType).getElementDataType();
         final LogicalType elementLogicalDataType = elementDataType.getLogicalType();
@@ -80,7 +71,7 @@ public final class ArrayComparableElementTypeStrategy implements InputTypeStrate
                     elementLogicalDataType,
                     comparisonToString());
         }
-        return Optional.of(argumentDataTypes);
+        return Optional.of(argumentType);
     }
 
     private String comparisonToString() {
@@ -131,8 +122,8 @@ public final class ArrayComparableElementTypeStrategy implements InputTypeStrate
     }
 
     @Override
-    public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
-        return Collections.singletonList(
-                Signature.of(Signature.Argument.ofGroup("ARRAY<COMPARABLE>")));
+    public Signature.Argument getExpectedArgument(
+            FunctionDefinition functionDefinition, int argumentPos) {
+        return Signature.Argument.ofGroup("ARRAY<COMPARABLE>");
     }
 }
