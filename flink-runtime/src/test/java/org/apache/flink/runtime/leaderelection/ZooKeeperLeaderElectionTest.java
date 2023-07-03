@@ -121,9 +121,7 @@ class ZooKeeperLeaderElectionTest {
                 new TestingLeaderRetrievalEventHandler();
         try (LeaderElectionDriver leaderElectionDriver =
                         createAndInitLeaderElectionDriver(
-                                createZooKeeperClient(),
-                                electionEventHandler,
-                                testingFatalErrorHandlerResource.getTestingFatalErrorHandler());
+                                createZooKeeperClient(), electionEventHandler);
                 LeaderRetrievalDriver leaderRetrievalDriver =
                         ZooKeeperUtils.createLeaderRetrievalDriverFactory(
                                         createZooKeeperClient(), CONTENDER_ID)
@@ -141,6 +139,8 @@ class ZooKeeperLeaderElectionTest {
 
             assertThat(retrievalEventHandler.getLeaderSessionID()).isEqualTo(leaderSessionID);
             assertThat(retrievalEventHandler.getAddress()).isEqualTo(LEADER_ADDRESS);
+        } finally {
+            electionEventHandler.failIfErrorEventHappened();
         }
     }
 
@@ -362,10 +362,7 @@ class ZooKeeperLeaderElectionTest {
                 new TestingLeaderElectionListener();
 
         try (ZooKeeperLeaderElectionDriver leaderElectionDriver =
-                createAndInitLeaderElectionDriver(
-                        createZooKeeperClient(),
-                        electionEventHandler,
-                        testingFatalErrorHandlerResource.getTestingFatalErrorHandler())) {
+                createAndInitLeaderElectionDriver(createZooKeeperClient(), electionEventHandler)) {
 
             electionEventHandler.await(LeaderElectionEvent.IsLeaderEvent.class);
 
@@ -382,6 +379,8 @@ class ZooKeeperLeaderElectionTest {
                                     Duration.ofMillis(5)))
                     .as("Another leader information update is not expected.")
                     .isEmpty();
+        } finally {
+            electionEventHandler.failIfErrorEventHappened();
         }
     }
 
@@ -409,20 +408,19 @@ class ZooKeeperLeaderElectionTest {
 
             final TestingLeaderElectionListener electionEventHandler =
                     new TestingLeaderElectionListener();
-            final TestingFatalErrorHandler fatalErrorHandler =
-                    testingFatalErrorHandlerResource.getTestingFatalErrorHandler();
             try (ZooKeeperLeaderElectionDriver leaderElectionDriver =
-                    createAndInitLeaderElectionDriver(
-                            client, electionEventHandler, fatalErrorHandler)) {
+                    createAndInitLeaderElectionDriver(client, electionEventHandler)) {
 
                 electionEventHandler.await(LeaderElectionEvent.IsLeaderEvent.class);
 
                 leaderElectionDriver.publishLeaderInformation(
                         CONTENDER_ID, LeaderInformation.known(UUID.randomUUID(), "some-address"));
 
-                assertThat(fatalErrorHandler.getErrorFuture()).isCompletedWithValue(testException);
+                final LeaderElectionEvent.ErrorEvent errorEvent =
+                        electionEventHandler.await(LeaderElectionEvent.ErrorEvent.class);
+                assertThat(errorEvent.getError()).isEqualTo(testException);
             } finally {
-                fatalErrorHandler.clearError();
+                electionEventHandler.failIfErrorEventHappened();
             }
         }
     }
@@ -457,9 +455,7 @@ class ZooKeeperLeaderElectionTest {
 
             leaderElectionDriver =
                     createAndInitLeaderElectionDriver(
-                            curatorFrameworkWrapper.asCuratorFramework(),
-                            electionEventHandler,
-                            testingFatalErrorHandlerResource.getTestingFatalErrorHandler());
+                            curatorFrameworkWrapper.asCuratorFramework(), electionEventHandler);
             leaderRetrievalDriver =
                     ZooKeeperUtils.createLeaderRetrievalDriverFactory(
                                     curatorFrameworkWrapper2.asCuratorFramework(), CONTENDER_ID)
@@ -516,6 +512,8 @@ class ZooKeeperLeaderElectionTest {
             if (curatorFrameworkWrapper2 != null) {
                 curatorFrameworkWrapper2.close();
             }
+
+            electionEventHandler.failIfErrorEventHappened();
         }
     }
 
@@ -526,10 +524,7 @@ class ZooKeeperLeaderElectionTest {
         final TestingLeaderRetrievalEventHandler retrievalEventHandler =
                 new TestingLeaderRetrievalEventHandler();
         try (ZooKeeperLeaderElectionDriver leaderElectionDriver =
-                createAndInitLeaderElectionDriver(
-                        createZooKeeperClient(),
-                        electionEventHandler,
-                        testingFatalErrorHandlerResource.getTestingFatalErrorHandler())) {
+                createAndInitLeaderElectionDriver(createZooKeeperClient(), electionEventHandler)) {
 
             // this call shouldn't block
             electionEventHandler.await(LeaderElectionEvent.IsLeaderEvent.class);
@@ -554,6 +549,8 @@ class ZooKeeperLeaderElectionTest {
                 assertThat(retrievalEventHandler.getLeaderSessionID()).isEqualTo(leaderSessionID);
                 assertThat(retrievalEventHandler.getAddress()).isEqualTo(LEADER_ADDRESS);
             }
+        } finally {
+            electionEventHandler.failIfErrorEventHappened();
         }
     }
 
@@ -594,13 +591,14 @@ class ZooKeeperLeaderElectionTest {
             CuratorFramework clientWithErrorHandler = curatorFrameworkWrapper.asCuratorFramework();
             assertThat(fatalErrorHandler.getErrorFuture()).isNotDone();
             leaderElectionDriver =
-                    createAndInitLeaderElectionDriver(
-                            clientWithErrorHandler, electionEventHandler, fatalErrorHandler);
+                    createAndInitLeaderElectionDriver(clientWithErrorHandler, electionEventHandler);
             assertThat(fatalErrorHandler.getErrorFuture().get()).isEqualTo(testException);
         } finally {
             if (leaderElectionDriver != null) {
                 leaderElectionDriver.close();
             }
+
+            electionEventHandler.failIfErrorEventHappened();
         }
     }
 
@@ -682,12 +680,9 @@ class ZooKeeperLeaderElectionTest {
     }
 
     private ZooKeeperLeaderElectionDriver createAndInitLeaderElectionDriver(
-            CuratorFramework client,
-            TestingLeaderElectionListener electionEventHandler,
-            FatalErrorHandler fatalErrorHandler)
+            CuratorFramework client, TestingLeaderElectionListener electionEventHandler)
             throws Exception {
 
-        return new ZooKeeperLeaderElectionDriverFactory(client)
-                .create(electionEventHandler, fatalErrorHandler);
+        return new ZooKeeperLeaderElectionDriverFactory(client).create(electionEventHandler);
     }
 }

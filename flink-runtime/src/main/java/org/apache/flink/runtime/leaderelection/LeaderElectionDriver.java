@@ -66,5 +66,8 @@ public interface LeaderElectionDriver extends AutoCloseable {
 
         /** Notifies the listener about all currently known leader information. */
         void onLeaderInformationChange(LeaderInformationRegister leaderInformationRegister);
+
+        /** Notifies the listener if an error occurred. */
+        void onError(Throwable t);
     }
 }

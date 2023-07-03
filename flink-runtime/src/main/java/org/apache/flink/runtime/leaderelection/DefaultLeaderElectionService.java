@@ -181,8 +181,7 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
 
             running = true;
 
-            leaderElectionDriver =
-                    leaderElectionDriverFactory.create(this, new LeaderElectionFatalErrorHandler());
+            leaderElectionDriver = leaderElectionDriverFactory.create(this);
 
             LOG.info(
                     "A connection to the HA backend was established through LeaderElectionDriver {}.",
@@ -590,11 +589,8 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
         }
     }
 
-    private class LeaderElectionFatalErrorHandler implements FatalErrorHandler {
-
-        @Override
-        public void onFatalError(Throwable throwable) {
-            forwardErrorToLeaderContender(throwable);
-        }
+    @Override
+    public void onError(Throwable t) {
+        forwardErrorToLeaderContender(t);
     }
 }

@@ -94,8 +94,6 @@ class KubernetesLeaderElectionAndRetrievalITCase {
 
         final TestingLeaderElectionListener electionEventHandler =
                 new TestingLeaderElectionListener();
-        final TestingFatalErrorHandler fatalErrorHandler = new TestingFatalErrorHandler();
-
         try {
             final KubernetesLeaderElectionDriver leaderElectionDriver =
                     new KubernetesLeaderElectionDriver(
@@ -104,8 +102,7 @@ class KubernetesLeaderElectionAndRetrievalITCase {
                             flinkKubeClient,
                             electionEventHandler,
                             configMapSharedWatcher,
-                            EXECUTOR_EXTENSION.getExecutor(),
-                            fatalErrorHandler);
+                            EXECUTOR_EXTENSION.getExecutor());
             closeables.add(leaderElectionDriver);
 
             final KubernetesLeaderRetrievalDriverFactory driverFactory =
@@ -115,6 +112,7 @@ class KubernetesLeaderElectionAndRetrievalITCase {
                             configMapName,
                             contenderID);
 
+            final TestingFatalErrorHandler fatalErrorHandler = new TestingFatalErrorHandler();
             final TestingLeaderRetrievalEventHandler firstLeaderRetrievalEventHandler =
                     new TestingLeaderRetrievalEventHandler();
             closeables.add(
@@ -144,6 +142,8 @@ class KubernetesLeaderElectionAndRetrievalITCase {
             }
 
             flinkKubeClient.deleteConfigMap(configMapName).get();
+
+            electionEventHandler.failIfErrorEventHappened();
         }
     }
 
