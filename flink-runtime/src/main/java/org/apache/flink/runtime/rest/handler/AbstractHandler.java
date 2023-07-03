@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.handler;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.dispatcher.UnavailableDispatcherOperationException;
 import org.apache.flink.runtime.entrypoint.ClusterEntryPointExceptionUtils;
 import org.apache.flink.runtime.rest.FileUploadHandler;
 import org.apache.flink.runtime.rest.FlinkHttpObjectAggregator;
@@ -55,7 +54,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
@@ -268,12 +266,7 @@ public abstract class AbstractHandler<
                     HttpResponseStatus.SERVICE_UNAVAILABLE,
                     responseHeaders);
         } else {
-            if (throwable instanceof UnavailableDispatcherOperationException
-                    || throwable instanceof FileNotFoundException) {
-                log.debug("Job is not initialized or is finished: {}", throwable.getMessage());
-            } else {
-                log.error("Unhandled exception.", throwable);
-            }
+            log.error("Unhandled exception.", throwable);
             String stackTrace =
                     String.format(
                             "<Exception on server side:%n%s%nEnd of exception on server side>",
