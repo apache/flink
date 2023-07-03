@@ -64,7 +64,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
 
 import org.hamcrest.Matchers;
 import org.junit.Assert;

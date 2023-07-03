@@ -68,7 +68,7 @@ public class DataGenTableSource implements ScanTableSource, SupportsLimitPushDow
     @VisibleForTesting
     public DataGeneratorSource<RowData> createSource() {
         return new DataGeneratorSource<>(
-                new RowDataGenerator(fieldGenerators, DataType.getFieldNames(rowDataType)),
+                new RowDataGenerator(fieldGenerators, DataType.getFieldNames(rowDataType), 0),
                 rowsPerSecond,
                 numberOfRows);
     }

@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.highavailability.nonha.embedded;
 
-import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
@@ -50,13 +50,12 @@ public class EmbeddedLeaderServiceTest extends TestLogger {
                 new EmbeddedLeaderService(EXECUTOR_RESOURCE.getExecutor());
 
         try {
-            final LeaderElectionService leaderElectionService =
-                    embeddedLeaderService.createLeaderElectionService();
-
             final TestingLeaderContender contender = new TestingLeaderContender();
 
-            leaderElectionService.start(contender);
-            leaderElectionService.stop();
+            final LeaderElection leaderElection =
+                    embeddedLeaderService.createLeaderElectionService();
+            leaderElection.startLeaderElection(contender);
+            leaderElection.close();
 
             try {
                 // check that no exception occurred
@@ -82,19 +81,18 @@ public class EmbeddedLeaderServiceTest extends TestLogger {
                 new EmbeddedLeaderService(EXECUTOR_RESOURCE.getExecutor());
 
         try {
-            final LeaderElectionService leaderElectionService =
-                    embeddedLeaderService.createLeaderElectionService();
-
             final TestingLeaderContender contender = new TestingLeaderContender();
 
-            leaderElectionService.start(contender);
+            final LeaderElection leaderElection =
+                    embeddedLeaderService.createLeaderElectionService();
+            leaderElection.startLeaderElection(contender);
 
             // wait for the leadership
             contender.getLeaderSessionFuture().get();
 
             final CompletableFuture<Void> revokeLeadershipFuture =
                     embeddedLeaderService.revokeLeadership();
-            leaderElectionService.stop();
+            leaderElection.close();
 
             try {
                 // check that no exception occurred

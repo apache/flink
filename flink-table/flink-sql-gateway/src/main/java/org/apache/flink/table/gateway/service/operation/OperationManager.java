@@ -34,7 +34,7 @@ import org.apache.flink.table.gateway.service.utils.SqlCancelException;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.util.IOUtils;
 
-import org.apache.flink.shaded.guava30.com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.flink.shaded.guava31.com.google.common.util.concurrent.Uninterruptibles;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

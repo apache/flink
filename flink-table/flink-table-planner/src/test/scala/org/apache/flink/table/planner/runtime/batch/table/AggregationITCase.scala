@@ -20,15 +20,17 @@ package org.apache.flink.table.planner.runtime.batch.table
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.{ObjectArrayTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala._
+import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.table.api._
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{CountDistinctWithMergeAndReset, WeightedAvgWithMergeAndReset}
 import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase, CollectionBatchExecTable}
 import org.apache.flink.table.planner.utils.{CountAggFunction, NonMergableCount}
-import org.apache.flink.table.utils.LegacyRowResource
+import org.apache.flink.table.utils.{LegacyRowExtension, LegacyRowResource}
 import org.apache.flink.test.util.TestBaseUtils
 
-import org.junit._
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.RegisterExtension
 
 import java.lang.{Float => JFloat, Integer => JInt}
 import java.math.BigDecimal
@@ -38,8 +40,8 @@ import scala.collection.mutable
 
 class AggregationITCase extends BatchTestBase {
 
-  @Rule
-  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
+  @RegisterExtension private val _: EachCallbackWrapper[LegacyRowExtension] =
+    new EachCallbackWrapper[LegacyRowExtension](new LegacyRowExtension)
 
   @Test
   def testAggregationWithCaseClass(): Unit = {

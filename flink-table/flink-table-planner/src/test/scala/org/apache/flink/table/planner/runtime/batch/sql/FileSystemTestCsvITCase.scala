@@ -19,11 +19,14 @@ package org.apache.flink.table.planner.runtime.batch.sql
 
 import org.apache.flink.core.fs.Path
 import org.apache.flink.testutils.TestFileSystem
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension
 
-import org.junit.After
-import org.junit.Assert.assertEquals
+import org.assertj.core.api.Assertions
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.extension.ExtendWith
 
 /** Test for file system table factory with testcsv format. */
+@ExtendWith(Array(classOf[NoOpTestExtension]))
 class FileSystemTestCsvITCase extends BatchFileSystemITCaseBase {
 
   override def formatProperties(): Array[String] = {
@@ -32,12 +35,11 @@ class FileSystemTestCsvITCase extends BatchFileSystemITCaseBase {
 
   override def getScheme: String = "test"
 
-  @After
+  @AfterEach
   def close(): Unit = {
     val path = new Path(resultPath)
-    assertEquals(
-      s"File $resultPath is not closed",
-      0,
-      TestFileSystem.getNumberOfUnclosedOutputStream(path))
+    if (TestFileSystem.getNumberOfUnclosedOutputStream(path) != 0) {
+      Assertions.fail(s"File $resultPath is not closed");
+    }
   }
 }

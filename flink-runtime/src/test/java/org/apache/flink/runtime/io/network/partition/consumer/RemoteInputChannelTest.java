@@ -62,7 +62,7 @@ import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.ExceptionUtils;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
 
 import org.junit.Assert;
 import org.junit.ClassRule;
@@ -100,6 +100,7 @@ import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtil
 import static org.apache.flink.runtime.io.network.util.TestBufferFactory.createBuffer;
 import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasProperty;
@@ -1938,6 +1939,16 @@ public class RemoteInputChannelTest {
         // already empty.
         remoteInputChannel.getNextBuffer();
         assertEquals(3, remoteInputChannel.getBuffersInUseCount());
+    }
+
+    @Test
+    public void testReleasedChannelNotifyRequiredSegmentId() throws Exception {
+        SingleInputGate inputGate = createSingleInputGate(1);
+        RemoteInputChannel remoteChannel = createRemoteInputChannel(inputGate);
+
+        remoteChannel.releaseAllResources();
+        assertThatThrownBy(() -> remoteChannel.notifyRequiredSegmentId(0))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     /**

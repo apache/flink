@@ -26,7 +26,7 @@ import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
 
 import java.util.Collection;
 

@@ -74,7 +74,7 @@ public class DeleteTableITCase extends BatchTestBase {
                                 dataId));
         // it only contains equal expression, should be pushed down
         List<Row> rows = toRows(tEnv().executeSql("DELETE FROM t where a = 1"));
-        assertThat(rows.toString()).isEqualTo("[+I[1], +I[OK]]");
+        assertThat(rows.toString()).isEqualTo("[+I[1]]");
         rows = toRows(tEnv().executeSql("SELECT * FROM t"));
         assertThat(rows.toString())
                 .isEqualTo("[+I[0, b_0, 0.0], +I[2, b_2, 4.0], +I[3, b_3, 6.0], +I[4, b_4, 8.0]]");
@@ -95,7 +95,8 @@ public class DeleteTableITCase extends BatchTestBase {
         String dataId = registerData();
         tEnv().executeSql(
                         String.format(
-                                "CREATE TABLE t (a int, b string, c double) WITH"
+                                "CREATE TABLE t (a int PRIMARY KEY NOT ENFORCED,"
+                                        + " b string, c double) WITH"
                                         + " ('connector' = 'test-update-delete',"
                                         + " 'data-id' = '%s',"
                                         + " 'delete-mode' = '%s',"
@@ -112,12 +113,54 @@ public class DeleteTableITCase extends BatchTestBase {
     }
 
     @Test
+    public void testRowLevelDeleteWithPartitionColumn() throws Exception {
+        String dataId = registerData();
+        tEnv().executeSql(
+                        String.format(
+                                "CREATE TABLE t"
+                                        + " (a int PRIMARY KEY NOT ENFORCED,"
+                                        + " b string not null,"
+                                        + " c double not null) WITH"
+                                        + " ('connector' = 'test-update-delete',"
+                                        + " 'data-id' = '%s',"
+                                        + " 'delete-mode' = '%s',"
+                                        + " 'required-columns-for-delete' = 'a;c',"
+                                        + " 'support-delete-push-down' = 'false'"
+                                        + ")",
+                                dataId, deleteMode));
+        tEnv().executeSql("DELETE FROM t WHERE a > 1").await();
+        List<Row> rows = toRows(tEnv().executeSql("SELECT * FROM t"));
+        assertThat(rows.toString()).isEqualTo("[+I[0, b_0, 0.0], +I[1, b_1, 2.0]]");
+
+        // test delete with requiring partial primary keys
+        dataId = registerData();
+        tEnv().executeSql(
+                        String.format(
+                                "CREATE TABLE t1"
+                                        + " (a int,"
+                                        + " b string not null,"
+                                        + " c double not null,"
+                                        + " PRIMARY KEY (a, c) NOT ENFORCED) WITH"
+                                        + " ('connector' = 'test-update-delete',"
+                                        + " 'data-id' = '%s',"
+                                        + " 'delete-mode' = '%s',"
+                                        + " 'required-columns-for-delete' = 'a;b',"
+                                        + " 'support-delete-push-down' = 'false'"
+                                        + ")",
+                                dataId, deleteMode));
+        tEnv().executeSql("DELETE FROM t1 WHERE a > 1").await();
+        rows = toRows(tEnv().executeSql("SELECT * FROM t1"));
+        assertThat(rows.toString()).isEqualTo("[+I[0, b_0, 0.0], +I[1, b_1, 2.0]]");
+    }
+
+    @Test
     public void testMixDelete() throws Exception {
         // test mix delete push down and row-level delete
         String dataId = registerData();
         tEnv().executeSql(
                         String.format(
-                                "CREATE TABLE t (a int, b string, c double) WITH"
+                                "CREATE TABLE t (a int PRIMARY KEY NOT ENFORCED,"
+                                        + " b string, c double) WITH"
                                         + " ('connector' = 'test-update-delete',"
                                         + " 'data-id' = '%s',"
                                         + " 'mix-delete' = 'true')",
@@ -130,7 +173,7 @@ public class DeleteTableITCase extends BatchTestBase {
 
         // should fall back to delete push down
         rows = toRows(tEnv().executeSql("DELETE FROM t"));
-        assertThat(rows.toString()).isEqualTo("[+I[3], +I[OK]]");
+        assertThat(rows.toString()).isEqualTo("[+I[3]]");
         rows = toRows(tEnv().executeSql("SELECT * FROM t"));
         assertThat(rows).isEmpty();
     }

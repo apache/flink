@@ -22,10 +22,11 @@ import org.apache.flink.kubernetes.KubernetesExtension;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.KubernetesConfigMapSharedWatcher;
 import org.apache.flink.kubernetes.kubeclient.KubernetesSharedWatcher.Watch;
+import org.apache.flink.kubernetes.kubeclient.TestingWatchCallbackHandler;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
+import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableMap;
 
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import org.junit.jupiter.api.AfterEach;
@@ -58,6 +59,8 @@ class KubernetesSharedInformerITCase {
 
     private FlinkKubeClient client;
     private ExecutorService watchCallbackExecutorService;
+
+    private static volatile Long blockVal = 0L;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -121,18 +124,38 @@ class KubernetesSharedInformerITCase {
             final String configMapName = getConfigMapName(System.currentTimeMillis());
             final long block = 500;
             final long maxUpdateVal = 30;
-            final TestingBlockCallbackHandler handler =
-                    new TestingBlockCallbackHandler(block, maxUpdateVal);
+
+            final CompletableFuture<Void> expectedFuture = new CompletableFuture<>();
+            final CompletableFuture<Void> assertFuture = new CompletableFuture<>();
+            final TestingWatchCallbackHandler handler =
+                    TestingWatchCallbackHandler.<KubernetesConfigMap>builder()
+                            .setOnAddedConsumer(
+                                    (resources) ->
+                                            onAddedOrModified(
+                                                    resources,
+                                                    maxUpdateVal,
+                                                    block,
+                                                    expectedFuture,
+                                                    assertFuture))
+                            .setOnModifiedConsumer(
+                                    (resources) ->
+                                            onAddedOrModified(
+                                                    resources,
+                                                    maxUpdateVal,
+                                                    block,
+                                                    expectedFuture,
+                                                    assertFuture))
+                            .build();
             final Watch watch = watcher.watch(configMapName, handler, watchCallbackExecutorService);
             createConfigMap(configMapName);
             for (int i = 1; i <= maxUpdateVal; i++) {
                 updateConfigMap(configMapName, ImmutableMap.of("val", String.valueOf(i)));
             }
-            assertThatCode(() -> handler.expectedFuture.get(120, TimeUnit.SECONDS))
-                    .as("expected value: " + maxUpdateVal + ", actual: " + handler.val)
+            assertThatCode(() -> expectedFuture.get(120, TimeUnit.SECONDS))
+                    .as("expected value: " + maxUpdateVal + ", actual: " + blockVal)
                     .doesNotThrowAnyException();
             try {
-                handler.assertFuture.get(2 * block, TimeUnit.MILLISECONDS);
+                assertFuture.get(2 * block, TimeUnit.MILLISECONDS);
             } catch (TimeoutException e) {
                 // expected
             }
@@ -187,7 +210,7 @@ class KubernetesSharedInformerITCase {
             final String name = getConfigMapName(i % 10);
             final TestingCallbackHandler handler = new TestingCallbackHandler(name);
             callbackHandlers.add(handler);
-            final Watch watch = watcher.watch(name, handler, watchCallbackExecutorService);
+            final Watch watch = watcher.watch(name, handler.build(), watchCallbackExecutorService);
             watchers.add(watch);
         }
     }
@@ -196,8 +219,7 @@ class KubernetesSharedInformerITCase {
         return "shared-informer-test-cluster-" + id;
     }
 
-    private static final class TestingCallbackHandler
-            extends NoOpWatchCallbackHandler<KubernetesConfigMap> {
+    private static final class TestingCallbackHandler {
 
         private final CompletableFuture<Void> addFuture = new CompletableFuture<>();
         private final CompletableFuture<Void> addOrUpdateFuture = new CompletableFuture<>();
@@ -210,96 +232,84 @@ class KubernetesSharedInformerITCase {
             this.resourceName = resourceName;
         }
 
-        @Override
-        public void onAdded(List<KubernetesConfigMap> resources) {
-            final KubernetesConfigMap kubernetesConfigMap = resources.get(0);
-            check(
-                    assertFuture,
-                    () -> {
-                        assertThat(kubernetesConfigMap.getName()).isEqualTo(resourceName);
-                        assertThat(addFuture).isNotDone();
-                        assertThat(addOrUpdateFuture).isNotDone();
-                    });
-            addFuture.complete(null);
-            final String foo = kubernetesConfigMap.getData().get("foo");
-            if (foo != null) {
-                check(assertFuture, () -> assertThat(foo).isEqualTo("bar"));
-                addOrUpdateFuture.complete(null);
-            }
-        }
-
-        @Override
-        public void onModified(List<KubernetesConfigMap> resources) {
-            final KubernetesConfigMap kubernetesConfigMap = resources.get(0);
-            final String foo = kubernetesConfigMap.getData().get("foo");
-            check(
-                    assertFuture,
-                    () -> {
-                        assertThat(kubernetesConfigMap.getName()).isEqualTo(resourceName);
-                        assertThat(foo).isEqualTo("bar");
-                        assertThat(addFuture).isDone();
-                    });
-            if (addOrUpdateFuture.isDone()) {
-                check(assertFuture, () -> assertThat(isDeleting(kubernetesConfigMap)).isTrue());
-            } else {
-                addOrUpdateFuture.complete(null);
-            }
-        }
-
-        @Override
-        public void onDeleted(List<KubernetesConfigMap> resources) {
-            check(assertFuture, () -> assertThat(deleteFuture).isNotDone());
-            deleteFuture.complete(null);
+        private TestingWatchCallbackHandler build() {
+            return TestingWatchCallbackHandler.<KubernetesConfigMap>builder()
+                    .setOnAddedConsumer(
+                            resources -> {
+                                final KubernetesConfigMap kubernetesConfigMap = resources.get(0);
+                                check(
+                                        assertFuture,
+                                        () -> {
+                                            assertThat(kubernetesConfigMap.getName())
+                                                    .isEqualTo(resourceName);
+                                            assertThat(addFuture).isNotDone();
+                                            assertThat(addOrUpdateFuture).isNotDone();
+                                        });
+                                addFuture.complete(null);
+                                final String foo = kubernetesConfigMap.getData().get("foo");
+                                if (foo != null) {
+                                    check(assertFuture, () -> assertThat(foo).isEqualTo("bar"));
+                                    addOrUpdateFuture.complete(null);
+                                }
+                            })
+                    .setOnModifiedConsumer(
+                            (resources) -> {
+                                final KubernetesConfigMap kubernetesConfigMap = resources.get(0);
+                                final String foo = kubernetesConfigMap.getData().get("foo");
+                                check(
+                                        assertFuture,
+                                        () -> {
+                                            assertThat(kubernetesConfigMap.getName())
+                                                    .isEqualTo(resourceName);
+                                            assertThat(foo).isEqualTo("bar");
+                                            assertThat(addFuture).isDone();
+                                        });
+                                if (addOrUpdateFuture.isDone()) {
+                                    check(
+                                            assertFuture,
+                                            () ->
+                                                    assertThat(isDeleting(kubernetesConfigMap))
+                                                            .isTrue());
+                                } else {
+                                    addOrUpdateFuture.complete(null);
+                                }
+                            })
+                    .setOnDeletedConsumer(
+                            resources -> {
+                                check(assertFuture, () -> assertThat(deleteFuture).isNotDone());
+                                deleteFuture.complete(null);
+                            })
+                    .build();
         }
     }
 
-    private static final class TestingBlockCallbackHandler
-            extends NoOpWatchCallbackHandler<KubernetesConfigMap> {
-        private final CompletableFuture<Void> expectedFuture = new CompletableFuture<>();
-        private final CompletableFuture<Void> assertFuture = new CompletableFuture<>();
-        private final long block;
-        private final long expected;
-
-        private volatile long val = 0;
-
-        public TestingBlockCallbackHandler(long block, long expected) {
-            this.block = block;
-            this.expected = expected;
+    private static void onAddedOrModified(
+            List<KubernetesConfigMap> resources,
+            Long expected,
+            Long block,
+            CompletableFuture expectedFuture,
+            CompletableFuture assertFuture) {
+        final KubernetesConfigMap kubernetesConfigMap = resources.get(0);
+        final String valData = kubernetesConfigMap.getData().get("val");
+        if (valData == null) {
+            return;
         }
-
-        @Override
-        public void onAdded(List<KubernetesConfigMap> resources) {
-            onAddedOrModified(resources);
+        final long newVal = Long.parseLong(valData);
+        check(
+                assertFuture,
+                () -> assertThat(newVal > blockVal || isDeleting(kubernetesConfigMap)).isTrue());
+        blockVal = newVal;
+        block(block);
+        if (expected == blockVal) {
+            expectedFuture.complete(null);
         }
+    }
 
-        @Override
-        public void onModified(List<KubernetesConfigMap> resources) {
-            onAddedOrModified(resources);
-        }
-
-        private void onAddedOrModified(List<KubernetesConfigMap> resources) {
-            final KubernetesConfigMap kubernetesConfigMap = resources.get(0);
-            final String valData = kubernetesConfigMap.getData().get("val");
-            if (valData == null) {
-                return;
-            }
-            final long newVal = Long.parseLong(valData);
-            check(
-                    assertFuture,
-                    () -> assertThat(newVal > val || isDeleting(kubernetesConfigMap)).isTrue());
-            val = newVal;
-            block();
-            if (expected == val) {
-                expectedFuture.complete(null);
-            }
-        }
-
-        private void block() {
-            try {
-                Thread.sleep(block);
-            } catch (InterruptedException e) {
-                // ignore
-            }
+    private static void block(Long block) {
+        try {
+            Thread.sleep(block);
+        } catch (InterruptedException e) {
+            // ignore
         }
     }
 

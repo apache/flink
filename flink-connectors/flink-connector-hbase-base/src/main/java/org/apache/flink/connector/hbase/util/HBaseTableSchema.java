@@ -29,7 +29,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Streams;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Streams;
 
 import java.io.Serializable;
 import java.nio.charset.Charset;

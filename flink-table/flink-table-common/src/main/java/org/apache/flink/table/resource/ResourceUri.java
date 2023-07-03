@@ -22,7 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 
 import java.util.Objects;
 
-/** Description of function resource information. */
+/** Description of resource information. */
 @PublicEvolving
 public class ResourceUri {
 

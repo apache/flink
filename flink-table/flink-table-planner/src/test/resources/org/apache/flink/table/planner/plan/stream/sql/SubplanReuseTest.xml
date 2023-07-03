@@ -504,15 +504,17 @@ SELECT a, b * 2 AS b FROM r
       <![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(a=[$0], b=[$1])
-:  +- LogicalFilter(condition=[AND(>($1, 1), <($4, 2))])
-:     +- LogicalJoin(condition=[OR(=(ABS($0), ABS($3)), =($2, $5))], joinType=[full])
-:        :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
-:        +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+:  +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+:     +- LogicalFilter(condition=[AND(>($1, 1), <($4, 2))])
+:        +- LogicalJoin(condition=[OR(=(ABS($0), ABS($3)), =($2, $5))], joinType=[full])
+:           :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+:           +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
 +- LogicalProject(a=[$0], b=[*($1, 2)])
-   +- LogicalFilter(condition=[AND(>($1, 1), <($4, 2))])
-      +- LogicalJoin(condition=[OR(=(ABS($0), ABS($3)), =($2, $5))], joinType=[full])
-         :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
-         +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+      +- LogicalFilter(condition=[AND(>($1, 1), <($4, 2))])
+         +- LogicalJoin(condition=[OR(=(ABS($0), ABS($3)), =($2, $5))], joinType=[full])
+            :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -546,15 +548,17 @@ SELECT a, b * 2 AS b FROM r
       <![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(a=[$0], b=[$1])
-:  +- LogicalFilter(condition=[AND(>($1, 1), <($4, 2))])
-:     +- LogicalJoin(condition=[OR(=(random_udf($0), random_udf($3)), =($2, $5))], joinType=[full])
-:        :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
-:        +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+:  +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+:     +- LogicalFilter(condition=[AND(>($1, 1), <($4, 2))])
+:        +- LogicalJoin(condition=[OR(=(random_udf($0), random_udf($3)), =($2, $5))], joinType=[full])
+:           :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+:           +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
 +- LogicalProject(a=[$0], b=[*($1, 2)])
-   +- LogicalFilter(condition=[AND(>($1, 1), <($4, 2))])
-      +- LogicalJoin(condition=[OR(=(random_udf($0), random_udf($3)), =($2, $5))], joinType=[full])
-         :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
-         +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+      +- LogicalFilter(condition=[AND(>($1, 1), <($4, 2))])
+         +- LogicalJoin(condition=[OR(=(random_udf($0), random_udf($3)), =($2, $5))], joinType=[full])
+            :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">

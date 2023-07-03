@@ -36,6 +36,7 @@ import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 
@@ -162,7 +163,8 @@ public class Checkpoints {
 
         // (2) validate it (parallelism, etc)
         HashMap<OperatorID, OperatorState> operatorStates =
-                new HashMap<>(checkpointMetadata.getOperatorStates().size());
+                CollectionUtil.newHashMapWithExpectedSize(
+                        checkpointMetadata.getOperatorStates().size());
         for (OperatorState operatorState : checkpointMetadata.getOperatorStates()) {
 
             ExecutionJobVertex executionJobVertex =

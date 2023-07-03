@@ -54,7 +54,7 @@ public class ZooKeeperTestUtils {
         final InstanceSpec instanceSpec = InstanceSpec.newInstanceSpec();
 
         final Map<String, Object> properties = new HashMap<>();
-        properties.put("maxSessionTimeout", 60_000);
+        properties.put("maxSessionTimeout", "60000");
 
         final boolean deleteDataDirectoryOnClose = true;
 

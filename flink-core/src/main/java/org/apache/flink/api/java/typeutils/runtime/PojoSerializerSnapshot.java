@@ -28,13 +28,13 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.LinkedOptionalMap;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -256,7 +256,7 @@ public class PojoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
     private static <K> LinkedHashMap<K, TypeSerializer<?>> restoreSerializers(
             LinkedHashMap<K, TypeSerializerSnapshot<?>> snapshotsMap) {
         final LinkedHashMap<K, TypeSerializer<?>> restoredSerializersMap =
-                new LinkedHashMap<>(snapshotsMap.size());
+                CollectionUtil.newLinkedHashMapWithExpectedSize(snapshotsMap.size());
         snapshotsMap.forEach(
                 (key, snapshot) -> restoredSerializersMap.put(key, snapshot.restoreSerializer()));
         return restoredSerializersMap;
@@ -274,7 +274,7 @@ public class PojoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
                     LinkedHashMap<Class<?>, TypeSerializer<?>> subclassSerializerRegistry) {
 
         final LinkedHashMap<Class<?>, Integer> subclassIds =
-                new LinkedHashMap<>(subclassSerializerRegistry.size());
+                CollectionUtil.newLinkedHashMapWithExpectedSize(subclassSerializerRegistry.size());
         final TypeSerializer[] subclassSerializers =
                 new TypeSerializer[subclassSerializerRegistry.size()];
 
@@ -340,7 +340,8 @@ public class PojoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
         checkState(newFields.length == newFieldSerializers.length);
 
         int numFields = newFields.length;
-        final Map<Field, TypeSerializer<?>> index = new HashMap<>(numFields);
+        final Map<Field, TypeSerializer<?>> index =
+                CollectionUtil.newHashMapWithExpectedSize(numFields);
         for (int i = 0; i < numFields; i++) {
             index.put(newFields[i], newFieldSerializers[i]);
         }

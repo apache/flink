@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.calcite
 
 import org.apache.flink.sql.parser.ExtendedSqlNode
 import org.apache.flink.sql.parser.ddl.{SqlCompilePlan, SqlReset, SqlSet, SqlUseModules}
-import org.apache.flink.sql.parser.dml.{RichSqlInsert, SqlBeginStatementSet, SqlCompileAndExecutePlan, SqlEndStatementSet, SqlExecute, SqlExecutePlan, SqlStatementSet}
+import org.apache.flink.sql.parser.dml.{RichSqlInsert, SqlBeginStatementSet, SqlCompileAndExecutePlan, SqlEndStatementSet, SqlExecute, SqlExecutePlan, SqlStatementSet, SqlTruncateTable}
 import org.apache.flink.sql.parser.dql._
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.planner.hint.JoinStrategy
@@ -65,7 +65,8 @@ class FlinkPlannerImpl(
   val operatorTable: SqlOperatorTable = config.getOperatorTable
   val parser: CalciteParser = new CalciteParser(config.getParserConfig)
   val convertletTable: SqlRexConvertletTable = config.getConvertletTable
-  val sqlToRelConverterConfig: SqlToRelConverter.Config = config.getSqlToRelConverterConfig
+  val sqlToRelConverterConfig: SqlToRelConverter.Config =
+    config.getSqlToRelConverterConfig.withAddJsonTypeOperatorEnabled(false)
 
   var validator: FlinkCalciteSqlValidator = _
 
@@ -75,7 +76,7 @@ class FlinkPlannerImpl(
       catalogReaderSupplier.apply(true), // ignore cases for lenient completion
       typeFactory,
       SqlValidator.Config.DEFAULT
-        .withSqlConformance(config.getParserConfig.conformance()))
+        .withConformance(config.getParserConfig.conformance()))
   }
 
   /**
@@ -149,6 +150,7 @@ class FlinkPlannerImpl(
         || sqlNode.isInstanceOf[SqlSet]
         || sqlNode.isInstanceOf[SqlReset]
         || sqlNode.isInstanceOf[SqlExecutePlan]
+        || sqlNode.isInstanceOf[SqlTruncateTable]
       ) {
         return sqlNode
       }

@@ -36,7 +36,9 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
-class ChainingOutput<T> implements WatermarkGaugeExposingOutput<StreamRecord<T>> {
+class ChainingOutput<T>
+        implements WatermarkGaugeExposingOutput<StreamRecord<T>>,
+                OutputWithChainingCheck<StreamRecord<T>> {
     private static final Logger LOG = LoggerFactory.getLogger(ChainingOutput.class);
 
     protected final Input<T> input;
@@ -80,6 +82,18 @@ class ChainingOutput<T> implements WatermarkGaugeExposingOutput<StreamRecord<T>>
         if (OutputTag.isResponsibleFor(this.outputTag, outputTag)) {
             pushToOperator(record);
         }
+    }
+
+    @Override
+    public boolean collectAndCheckIfChained(StreamRecord<T> record) {
+        collect(record);
+        return false;
+    }
+
+    @Override
+    public <X> boolean collectAndCheckIfChained(OutputTag<X> outputTag, StreamRecord<X> record) {
+        collect(outputTag, record);
+        return false;
     }
 
     protected <X> void pushToOperator(StreamRecord<X> record) {

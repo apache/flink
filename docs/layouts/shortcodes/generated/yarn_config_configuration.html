@@ -36,7 +36,7 @@
             <td><h5>yarn.application-attempts</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>Number of ApplicationMaster restarts. By default, the value will be set to 1. If high availability is enabled, then the default value will be 2. The restart number is also limited by YARN (configured via <a href="https://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-common/yarn-default.xml">yarn.resourcemanager.am.max-attempts</a>). Note that that the entire Flink cluster will restart and the YARN Client will lose the connection.</td>
+            <td>Number of ApplicationMaster restarts. By default, the value will be set to 1. If high availability is enabled, then the default value will be 2. The restart number is also limited by YARN (configured via <a href="https://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-common/yarn-default.xml">yarn.resourcemanager.am.max-attempts</a>). Note that the entire Flink cluster will restart and the YARN Client will lose the connection.</td>
         </tr>
         <tr>
             <td><h5>yarn.application-master.port</h5></td>
@@ -123,6 +123,12 @@
             <td>Time between heartbeats with the ResourceManager in seconds.</td>
         </tr>
         <tr>
+            <td><h5>yarn.modify.acls</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Users and groups to give MODIFY access. The ACLs are of for comma-separated-users&amp;lt;space&amp;gt;comma-separated-groups. Wildcard ACL is also supported. The only valid wildcard ACL is *, which grants permission to all users and groups.</td>
+        </tr>
+        <tr>
             <td><h5>yarn.properties-file.location</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
@@ -181,6 +187,12 @@
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>Specify YARN node label for the Flink TaskManagers, it will override the yarn.application.node-label for TaskManagers if both are set.</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.view.acls</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Users and groups to give VIEW access. The ACLs are of for comma-separated-users&amp;lt;space&amp;gt;comma-separated-groups. Wildcard ACL is also supported. The only valid wildcard ACL is *, which grants permission to all users and groups.</td>
         </tr>
     </tbody>
 </table>

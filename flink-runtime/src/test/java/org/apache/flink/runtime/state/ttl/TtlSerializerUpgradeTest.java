@@ -39,17 +39,16 @@ import static org.hamcrest.Matchers.is;
 class TtlSerializerUpgradeTest
         extends TypeSerializerUpgradeTestBase<TtlValue<String>, TtlValue<String>> {
 
-    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications(FlinkVersion flinkVersion)
+            throws Exception {
 
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "ttl-serializer",
-                            flinkVersion,
-                            TtlSerializerSetup.class,
-                            TtlSerializerVerifier.class));
-        }
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "ttl-serializer",
+                        flinkVersion,
+                        TtlSerializerSetup.class,
+                        TtlSerializerVerifier.class));
 
         return testSpecifications;
     }

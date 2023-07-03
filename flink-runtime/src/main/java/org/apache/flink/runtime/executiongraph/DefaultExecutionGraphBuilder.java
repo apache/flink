@@ -118,35 +118,47 @@ public class DefaultExecutionGraphBuilder {
                 PartitionGroupReleaseStrategyFactoryLoader.loadPartitionGroupReleaseStrategyFactory(
                         jobManagerConfig);
 
-        // create a new execution graph, if none exists so far
-        final DefaultExecutionGraph executionGraph;
+        final int offloadShuffleDescriptorsThreshold =
+                jobManagerConfig.get(
+                        TaskDeploymentDescriptorFactory.OFFLOAD_SHUFFLE_DESCRIPTORS_THRESHOLD);
+
+        final TaskDeploymentDescriptorFactory taskDeploymentDescriptorFactory;
         try {
-            executionGraph =
-                    new DefaultExecutionGraph(
-                            jobInformation,
-                            futureExecutor,
-                            ioExecutor,
-                            rpcTimeout,
-                            executionHistorySizeLimit,
-                            classLoader,
-                            blobWriter,
-                            partitionGroupReleaseStrategyFactory,
-                            shuffleMaster,
-                            partitionTracker,
+            taskDeploymentDescriptorFactory =
+                    new TaskDeploymentDescriptorFactory(
+                            BlobWriter.serializeAndTryOffload(jobInformation, jobId, blobWriter),
+                            jobId,
                             partitionLocationConstraint,
-                            executionDeploymentListener,
-                            executionStateUpdateListener,
-                            initializationTimestamp,
-                            vertexAttemptNumberStore,
-                            vertexParallelismStore,
-                            isDynamicGraph,
-                            executionJobVertexFactory,
-                            jobGraph.getJobStatusHooks(),
-                            markPartitionFinishedStrategy,
-                            nonFinishedHybridPartitionShouldBeUnknown);
+                            blobWriter,
+                            nonFinishedHybridPartitionShouldBeUnknown,
+                            offloadShuffleDescriptorsThreshold);
         } catch (IOException e) {
-            throw new JobException("Could not create the ExecutionGraph.", e);
+            throw new JobException("Could not create the TaskDeploymentDescriptorFactory.", e);
         }
+
+        // create a new execution graph, if none exists so far
+        final DefaultExecutionGraph executionGraph =
+                new DefaultExecutionGraph(
+                        jobInformation,
+                        futureExecutor,
+                        ioExecutor,
+                        rpcTimeout,
+                        executionHistorySizeLimit,
+                        classLoader,
+                        blobWriter,
+                        partitionGroupReleaseStrategyFactory,
+                        shuffleMaster,
+                        partitionTracker,
+                        executionDeploymentListener,
+                        executionStateUpdateListener,
+                        initializationTimestamp,
+                        vertexAttemptNumberStore,
+                        vertexParallelismStore,
+                        isDynamicGraph,
+                        executionJobVertexFactory,
+                        jobGraph.getJobStatusHooks(),
+                        markPartitionFinishedStrategy,
+                        taskDeploymentDescriptorFactory);
 
         // set the basic properties
 

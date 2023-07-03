@@ -33,7 +33,7 @@ import org.apache.flink.runtime.rest.messages.JobVertexFlameGraphParameters;
 import org.apache.flink.runtime.rest.messages.SubtaskIndexQueryParameter;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
-import org.apache.flink.runtime.webmonitor.stats.JobVertexStatsTracker;
+import org.apache.flink.runtime.webmonitor.stats.VertexStatsTracker;
 import org.apache.flink.runtime.webmonitor.threadinfo.VertexFlameGraph;
 import org.apache.flink.runtime.webmonitor.threadinfo.VertexFlameGraphFactory;
 import org.apache.flink.runtime.webmonitor.threadinfo.VertexThreadInfoStats;
@@ -48,14 +48,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 /** Request handler for the job vertex Flame Graph. */
 public class JobVertexFlameGraphHandler
         extends AbstractJobVertexHandler<VertexFlameGraph, JobVertexFlameGraphParameters> {
 
-    private final JobVertexStatsTracker<VertexThreadInfoStats> threadInfoOperatorTracker;
+    private final VertexStatsTracker<VertexThreadInfoStats> threadInfoOperatorTracker;
 
     public JobVertexFlameGraphHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
@@ -63,7 +61,7 @@ public class JobVertexFlameGraphHandler
             Map<String, String> responseHeaders,
             ExecutionGraphCache executionGraphCache,
             Executor executor,
-            JobVertexStatsTracker<VertexThreadInfoStats> threadInfoOperatorTracker) {
+            VertexStatsTracker<VertexThreadInfoStats> threadInfoOperatorTracker) {
         super(
                 leaderRetriever,
                 timeout,
@@ -84,13 +82,17 @@ public class JobVertexFlameGraphHandler
             return VertexFlameGraph.terminated();
         }
 
-        Optional<VertexThreadInfoStats> threadInfoSample =
-                threadInfoOperatorTracker.getVertexStats(
-                        request.getPathParameter(JobIDPathParameter.class), jobVertex);
-
-        if (subtaskIndex != null) {
+        final Optional<VertexThreadInfoStats> threadInfoSample;
+        if (subtaskIndex == null) {
             threadInfoSample =
-                    threadInfoSample.map(generateThreadInfoStatsForSubtask(subtaskIndex));
+                    threadInfoOperatorTracker.getJobVertexStats(
+                            request.getPathParameter(JobIDPathParameter.class), jobVertex);
+        } else {
+            threadInfoSample =
+                    threadInfoOperatorTracker.getExecutionVertexStats(
+                            request.getPathParameter(JobIDPathParameter.class),
+                            jobVertex,
+                            subtaskIndex);
         }
 
         final FlameGraphTypeQueryParameter.Type flameGraphType = getFlameGraphType(request);
@@ -117,18 +119,6 @@ public class JobVertexFlameGraphHandler
         }
 
         return operatorFlameGraph.orElse(VertexFlameGraph.waiting());
-    }
-
-    private Function<VertexThreadInfoStats, VertexThreadInfoStats>
-            generateThreadInfoStatsForSubtask(Integer subtaskIndex) {
-        return stats ->
-                new VertexThreadInfoStats(
-                        stats.getRequestId(),
-                        stats.getStartTime(),
-                        stats.getEndTime(),
-                        stats.getSamplesBySubtask().entrySet().stream()
-                                .filter(entry -> entry.getKey().getSubtaskIndex() == subtaskIndex)
-                                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
     }
 
     private boolean isTerminated(

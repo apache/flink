@@ -172,6 +172,7 @@ KEY_TASKM_COMPUTE_NUMA="taskmanager.compute.numa"
 KEY_ENV_PID_DIR="env.pid.dir"
 KEY_ENV_LOG_DIR="env.log.dir"
 KEY_ENV_LOG_MAX="env.log.max"
+KEY_ENV_STD_REDIRECT_TO_FILE="env.stdout-err.redirect-to-file"
 KEY_ENV_YARN_CONF_DIR="env.yarn.conf.dir"
 KEY_ENV_HADOOP_CONF_DIR="env.hadoop.conf.dir"
 KEY_ENV_HBASE_CONF_DIR="env.hbase.conf.dir"
@@ -291,6 +292,10 @@ if [ -z "${MAX_LOG_FILE_NUMBER}" ]; then
     export MAX_LOG_FILE_NUMBER
 fi
 
+if [ -z "${STD_REDIRECT_TO_FILE}" ]; then
+    STD_REDIRECT_TO_FILE=$(readFromConfig ${KEY_ENV_STD_REDIRECT_TO_FILE} "false" "${YAML_CONF}")
+fi
+
 if [ -z "${FLINK_LOG_DIR}" ]; then
     FLINK_LOG_DIR=$(readFromConfig ${KEY_ENV_LOG_DIR} "${DEFAULT_FLINK_LOG_DIR}" "${YAML_CONF}")
 fi
@@ -319,7 +324,7 @@ if [ -z "${FLINK_ENV_JAVA_OPTS}" ]; then
     fi
 
     # Remove leading and ending double quotes (if present) of value
-    FLINK_ENV_JAVA_OPTS="$( echo "${FLINK_ENV_JAVA_OPTS}" | sed -e 's/^"//'  -e 's/"$//' )"
+    FLINK_ENV_JAVA_OPTS="-XX:+IgnoreUnrecognizedVMOptions $( echo "${FLINK_ENV_JAVA_OPTS}" | sed -e 's/^"//'  -e 's/"$//' )"
 fi
 
 if [ -z "${FLINK_ENV_JAVA_OPTS_JM}" ]; then

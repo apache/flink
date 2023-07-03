@@ -26,7 +26,6 @@ STAGE_CONNECTORS_2="connect_2"
 STAGE_TESTS="tests"
 STAGE_MISC="misc"
 STAGE_CLEANUP="cleanup"
-STAGE_FINEGRAINED_RESOURCE_MANAGEMENT="finegrained_resource_management"
 
 MODULES_CORE="\
 flink-annotations,\
@@ -134,16 +133,9 @@ flink-metrics/flink-metrics-slf4j,\
 
 MODULES_CONNECTORS_2="\
 flink-connectors/flink-connector-base,\
-flink-connectors/flink-connector-kafka,\
-flink-connectors/flink-sql-connector-kafka,\
 "
 
 MODULES_TESTS="\
-flink-tests,\
-"
-
-MODULES_FINEGRAINED_RESOURCE_MANAGEMENT="\
-flink-runtime,\
 flink-tests,\
 "
 
@@ -175,9 +167,6 @@ function get_compile_modules_for_stage() {
             # compile everything for PyFlink.
             echo ""
         ;;
-        (${STAGE_FINEGRAINED_RESOURCE_MANAGEMENT})
-            echo "-pl $MODULES_FINEGRAINED_RESOURCE_MANAGEMENT -am"
-        ;;
     esac
 }
 
@@ -195,7 +184,6 @@ function get_test_modules_for_stage() {
     local negated_connectors_1=\!${MODULES_CONNECTORS_1//,/,\!}
     local negated_tests=\!${MODULES_TESTS//,/,\!}
     local modules_misc="$negated_core,$negated_table,$negated_connectors_1,$negated_connectors_2,$negated_tests"
-    local modules_finegrained_resource_management=$MODULES_FINEGRAINED_RESOURCE_MANAGEMENT
 
     case ${stage} in
         (${STAGE_CORE})
@@ -215,9 +203,6 @@ function get_test_modules_for_stage() {
         ;;
         (${STAGE_MISC})
             echo "-pl $modules_misc"
-        ;;
-        (${STAGE_FINEGRAINED_RESOURCE_MANAGEMENT})
-            echo "-pl $modules_finegrained_resource_management"
         ;;
     esac
 }

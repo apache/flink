@@ -27,6 +27,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import scala.Option;
 import scala.concurrent.ExecutionContext;
@@ -65,13 +66,13 @@ public abstract class RobustActorSystem extends ActorSystemImpl {
                                 Optional.empty(),
                                 Optional.of(applicationConfig),
                                 Optional.empty())),
-                Option.apply(uncaughtExceptionHandler));
+                uncaughtExceptionHandler);
     }
 
     private static RobustActorSystem create(
             String name,
             ActorSystemSetup setup,
-            Option<Thread.UncaughtExceptionHandler> uncaughtExceptionHandler) {
+            Thread.UncaughtExceptionHandler uncaughtExceptionHandler) {
         final Optional<BootstrapSetup> bootstrapSettings = setup.get(BootstrapSetup.class);
         final ClassLoader classLoader = RobustActorSystem.class.getClassLoader();
         final Config appConfig =
@@ -85,15 +86,50 @@ public abstract class RobustActorSystem extends ActorSystemImpl {
                                 .map(BootstrapSetup::defaultExecutionContext)
                                 .flatMap(RobustActorSystem::toJavaOptional));
 
+        final PostShutdownClassLoadingErrorFilter postShutdownClassLoadingErrorFilter =
+                new PostShutdownClassLoadingErrorFilter(uncaughtExceptionHandler);
+
         final RobustActorSystem robustActorSystem =
                 new RobustActorSystem(name, appConfig, classLoader, defaultEC, setup) {
                     @Override
                     public Thread.UncaughtExceptionHandler uncaughtExceptionHandler() {
-                        return uncaughtExceptionHandler.getOrElse(super::uncaughtExceptionHandler);
+                        return postShutdownClassLoadingErrorFilter;
                     }
                 };
+        robustActorSystem.registerOnTermination(
+                postShutdownClassLoadingErrorFilter::notifyShutdownComplete);
+
         robustActorSystem.start();
         return robustActorSystem;
+    }
+
+    private static class PostShutdownClassLoadingErrorFilter
+            implements Thread.UncaughtExceptionHandler {
+
+        private final AtomicBoolean shutdownComplete = new AtomicBoolean();
+        private final Thread.UncaughtExceptionHandler uncaughtExceptionHandler;
+
+        public PostShutdownClassLoadingErrorFilter(
+                Thread.UncaughtExceptionHandler uncaughtExceptionHandler) {
+            this.uncaughtExceptionHandler = uncaughtExceptionHandler;
+        }
+
+        public void notifyShutdownComplete() {
+            shutdownComplete.set(true);
+        }
+
+        @Override
+        public void uncaughtException(Thread t, Throwable e) {
+            if (shutdownComplete.get()
+                    && (e instanceof NoClassDefFoundError || e instanceof ClassNotFoundException)) {
+                // ignore classloading errors after the actor system terminated
+                // some parts of the akka shutdown procedure are not tied to the actor
+                // system termination future, and can occasionally fail if the rpc
+                // classloader has been closed.
+                return;
+            }
+            uncaughtExceptionHandler.uncaughtException(t, e);
+        }
     }
 
     private static <T> Optional<T> toJavaOptional(Option<T> option) {

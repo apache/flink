@@ -34,7 +34,7 @@ import org.apache.flink.streaming.api.operators.StreamGroupedReduceOperator;
 import org.apache.flink.streaming.util.MockContext;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableList;
 
 import org.junit.Test;
 

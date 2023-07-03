@@ -35,6 +35,15 @@ under the License.
 
 	<properties>
 		<arrow.version>5.0.0</arrow.version>
+		<kafka.version>3.2.3</kafka.version>
+		<surefire.module.config><!--
+			CommonTestUtils#setEnv
+			-->--add-opens=java.base/java.util=ALL-UNNAMED <!--
+			Kryo AtomicBoolean
+			-->--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED <!--
+			Arrow MemoryUtil
+			-->--add-opens=java.base/java.nio=ALL-UNNAMED
+		</surefire.module.config>
 	</properties>
 
 	<dependencies>
@@ -95,6 +104,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.beam</groupId>
 			<artifactId>beam-runners-java-fn-execution</artifactId>
+			<optional>${flink.markBundledAsOptional}</optional>
 			<exclusions>
 				<exclusion>
 					<groupId>org.apache.beam</groupId>
@@ -110,6 +120,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.beam</groupId>
 			<artifactId>beam-runners-core-java</artifactId>
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
 		<!-- PemJa dependencies -->
@@ -117,6 +128,7 @@ under the License.
 			<groupId>com.alibaba</groupId>
 			<artifactId>pemja</artifactId>
 			<version>0.3.0</version>
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
 		<!-- Protobuf dependencies -->
@@ -124,6 +136,7 @@ under the License.
 		<dependency>
 			<groupId>com.google.protobuf</groupId>
 			<artifactId>protobuf-java</artifactId>
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
 		<!-- Python API dependencies -->
@@ -131,11 +144,13 @@ under the License.
 		<dependency>
 			<groupId>net.sf.py4j</groupId>
 			<artifactId>py4j</artifactId>
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 		<dependency>
 			<groupId>net.razorvine</groupId>
 			<artifactId>pyrolite</artifactId>
 			<version>4.13</version>
+			<optional>${flink.markBundledAsOptional}</optional>
 			<exclusions>
 				<exclusion>
 					<groupId>net.razorvine</groupId>
@@ -150,6 +165,7 @@ under the License.
 			<groupId>org.apache.arrow</groupId>
 			<artifactId>arrow-vector</artifactId>
 			<version>${arrow.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
 			<exclusions>
 				<exclusion>
 					<groupId>commons-codec</groupId>
@@ -161,6 +177,7 @@ under the License.
 			<groupId>org.apache.arrow</groupId>
 			<artifactId>arrow-memory-netty</artifactId>
 			<version>${arrow.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
 		<!-- test dependencies -->
@@ -274,7 +291,7 @@ under the License.
 			<!-- Indirectly accessed in pyflink_gateway_server -->
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-sql-connector-kafka</artifactId>
-			<version>${project.version}</version>
+			<version>3.0.0-1.17</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -290,7 +307,7 @@ under the License.
 			<!-- Indirectly accessed in pyflink_gateway_server -->
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-sql-connector-pulsar</artifactId>
-			<version>3.0.0-1.16</version>
+			<version>4.0.0-1.17</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -322,7 +339,7 @@ under the License.
 			<!-- Indirectly accessed in pyflink_gateway_server -->
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-jdbc</artifactId>
-			<version>3.0.0-1.16</version>
+			<version>3.1.1-1.17</version>
 			<scope>test</scope>
 		</dependency>
 

@@ -177,7 +177,7 @@ env.set_state_backend(HashMapStateBackend())
 ```yaml
 # 用于存储 operator state 快照的 State Backend
 
-state.backend: filesystem
+state.backend: hashmap
 
 
 # 存储快照的目录

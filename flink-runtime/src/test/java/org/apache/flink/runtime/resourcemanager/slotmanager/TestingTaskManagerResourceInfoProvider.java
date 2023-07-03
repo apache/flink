@@ -18,16 +18,13 @@
 
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Map;
 import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -35,8 +32,6 @@ import java.util.function.Supplier;
 
 /** Implementation of {@link TaskManagerResourceInfoProvider} for testing purpose. */
 public class TestingTaskManagerResourceInfoProvider implements TaskManagerResourceInfoProvider {
-    private final Function<PendingTaskManagerId, Map<JobID, ResourceCounter>>
-            getPendingAllocationsOfPendingTaskManagerFunction;
     private final Supplier<Collection<? extends TaskManagerInfo>> registeredTaskManagersSupplier;
     private final Function<InstanceID, Optional<TaskManagerInfo>> getRegisteredTaskManagerFunction;
     private final Supplier<Collection<PendingTaskManager>> pendingTaskManagersSupplier;
@@ -46,8 +41,6 @@ public class TestingTaskManagerResourceInfoProvider implements TaskManagerResour
             getPendingTaskManagersByTotalAndDefaultSlotResourceProfileFunction;
 
     private TestingTaskManagerResourceInfoProvider(
-            Function<PendingTaskManagerId, Map<JobID, ResourceCounter>>
-                    getPendingAllocationsOfPendingTaskManagerFunction,
             Supplier<Collection<? extends TaskManagerInfo>> registeredTaskManagersSupplier,
             Function<InstanceID, Optional<TaskManagerInfo>> getRegisteredTaskManagerFunction,
             Supplier<Collection<PendingTaskManager>> pendingTaskManagersSupplier,
@@ -55,8 +48,6 @@ public class TestingTaskManagerResourceInfoProvider implements TaskManagerResour
                     getAllocatedOrPendingSlotFunction,
             BiFunction<ResourceProfile, ResourceProfile, Collection<PendingTaskManager>>
                     getPendingTaskManagersByTotalAndDefaultSlotResourceProfileFunction) {
-        this.getPendingAllocationsOfPendingTaskManagerFunction =
-                Preconditions.checkNotNull(getPendingAllocationsOfPendingTaskManagerFunction);
         this.registeredTaskManagersSupplier =
                 Preconditions.checkNotNull(registeredTaskManagersSupplier);
         this.getRegisteredTaskManagerFunction =
@@ -67,12 +58,6 @@ public class TestingTaskManagerResourceInfoProvider implements TaskManagerResour
         this.getPendingTaskManagersByTotalAndDefaultSlotResourceProfileFunction =
                 Preconditions.checkNotNull(
                         getPendingTaskManagersByTotalAndDefaultSlotResourceProfileFunction);
-    }
-
-    @Override
-    public Map<JobID, ResourceCounter> getPendingAllocationsOfPendingTaskManager(
-            PendingTaskManagerId pendingTaskManagerId) {
-        return getPendingAllocationsOfPendingTaskManagerFunction.apply(pendingTaskManagerId);
     }
 
     @Override
@@ -110,9 +95,6 @@ public class TestingTaskManagerResourceInfoProvider implements TaskManagerResour
     }
 
     public static class Builder {
-        private Function<PendingTaskManagerId, Map<JobID, ResourceCounter>>
-                getPendingAllocationsOfPendingTaskManagerFunction =
-                        ignore -> Collections.emptyMap();
         private Supplier<Collection<? extends TaskManagerInfo>> registeredTaskManagersSupplier =
                 Collections::emptyList;
         private Function<InstanceID, Optional<TaskManagerInfo>> getRegisteredTaskManagerFunction =
@@ -129,14 +111,6 @@ public class TestingTaskManagerResourceInfoProvider implements TaskManagerResour
                 Function<AllocationID, Optional<TaskManagerSlotInformation>>
                         getAllocatedOrPendingSlotFunction) {
             this.getAllocatedOrPendingSlotFunction = getAllocatedOrPendingSlotFunction;
-            return this;
-        }
-
-        public Builder setGetPendingAllocationsOfPendingTaskManagerFunction(
-                Function<PendingTaskManagerId, Map<JobID, ResourceCounter>>
-                        getPendingAllocationsOfPendingTaskManagerFunction) {
-            this.getPendingAllocationsOfPendingTaskManagerFunction =
-                    getPendingAllocationsOfPendingTaskManagerFunction;
             return this;
         }
 
@@ -168,7 +142,6 @@ public class TestingTaskManagerResourceInfoProvider implements TaskManagerResour
 
         public TestingTaskManagerResourceInfoProvider build() {
             return new TestingTaskManagerResourceInfoProvider(
-                    getPendingAllocationsOfPendingTaskManagerFunction,
                     registeredTaskManagersSupplier,
                     getRegisteredTaskManagerFunction,
                     pendingTaskManagersSupplier,

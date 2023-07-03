@@ -20,10 +20,14 @@ package org.apache.flink.streaming.examples.iteration;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.connector.datagen.source.DataGeneratorSource;
+import org.apache.flink.connector.datagen.source.GeneratorFunction;
 import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.connector.file.src.FileSource;
 import org.apache.flink.connector.file.src.reader.TextLineInputFormat;
@@ -34,7 +38,6 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
@@ -96,7 +99,21 @@ public class IterateExample {
         } else {
             System.out.println("Executing Iterate example with default input data set.");
             System.out.println("Use --input to specify file input.");
-            inputStream = env.addSource(new RandomFibonacciSource());
+
+            GeneratorFunction<Long, Tuple2<Integer, Integer>> dataGenerator =
+                    new RandomFibonacciGenerator();
+            DataGeneratorSource<Tuple2<Integer, Integer>> generatorSource =
+                    new DataGeneratorSource<>(
+                            dataGenerator,
+                            BOUND,
+                            RateLimiterStrategy.perSecond(20),
+                            Types.TUPLE(Types.INT, Types.INT));
+
+            inputStream =
+                    env.fromSource(
+                            generatorSource,
+                            WatermarkStrategy.noWatermarks(),
+                            "Generated tuples Source");
         }
 
         // create an iterative data stream from the input with 5 second timeout
@@ -141,30 +158,17 @@ public class IterateExample {
     // *************************************************************************
 
     /** Generate BOUND number of random integer pairs from the range from 1 to BOUND/2. */
-    private static class RandomFibonacciSource implements SourceFunction<Tuple2<Integer, Integer>> {
+    private static class RandomFibonacciGenerator
+            implements GeneratorFunction<Long, Tuple2<Integer, Integer>> {
         private static final long serialVersionUID = 1L;
 
-        private Random rnd = new Random();
-
-        private volatile boolean isRunning = true;
-        private int counter = 0;
+        private final Random rnd = new Random();
 
         @Override
-        public void run(SourceContext<Tuple2<Integer, Integer>> ctx) throws Exception {
-
-            while (isRunning && counter < BOUND) {
-                int first = rnd.nextInt(BOUND / 2 - 1) + 1;
-                int second = rnd.nextInt(BOUND / 2 - 1) + 1;
-
-                ctx.collect(new Tuple2<>(first, second));
-                counter++;
-                Thread.sleep(50L);
-            }
-        }
-
-        @Override
-        public void cancel() {
-            isRunning = false;
+        public Tuple2<Integer, Integer> map(Long ignoredIndex) throws Exception {
+            int first = rnd.nextInt(BOUND / 2 - 1) + 1;
+            int second = rnd.nextInt(BOUND / 2 - 1) + 1;
+            return new Tuple2<>(first, second);
         }
     }
 

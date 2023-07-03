@@ -21,23 +21,38 @@ package org.apache.flink.streaming.api.functions.source.datagen;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.util.CollectionUtil;
 
 import org.apache.commons.math3.random.RandomDataGenerator;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Supplier;
 
 /** Random generator. */
 @Experimental
 public abstract class RandomGenerator<T> implements DataGenerator<T> {
 
     protected transient RandomDataGenerator random;
+    protected float nullRate;
 
     @Override
     public void open(
             String name, FunctionInitializationContext context, RuntimeContext runtimeContext)
             throws Exception {
         this.random = new RandomDataGenerator();
+    }
+
+    public RandomGenerator<T> withNullRate(float nullRate) {
+        this.nullRate = nullRate;
+        return this;
+    }
+
+    protected T nextWithNullRate(Supplier<T> supplier) {
+        if (nullRate == 0f || nullRate < ThreadLocalRandom.current().nextFloat()) {
+            return supplier.get();
+        }
+        return null;
     }
 
     @Override
@@ -49,7 +64,7 @@ public abstract class RandomGenerator<T> implements DataGenerator<T> {
         return new RandomGenerator<Long>() {
             @Override
             public Long next() {
-                return random.nextLong(min, max);
+                return nextWithNullRate(() -> random.nextLong(min, max));
             }
         };
     }
@@ -58,7 +73,7 @@ public abstract class RandomGenerator<T> implements DataGenerator<T> {
         return new RandomGenerator<Integer>() {
             @Override
             public Integer next() {
-                return random.nextInt(min, max);
+                return nextWithNullRate(() -> random.nextInt(min, max));
             }
         };
     }
@@ -67,7 +82,7 @@ public abstract class RandomGenerator<T> implements DataGenerator<T> {
         return new RandomGenerator<Short>() {
             @Override
             public Short next() {
-                return (short) random.nextInt(min, max);
+                return nextWithNullRate(() -> (short) random.nextInt(min, max));
             }
         };
     }
@@ -76,7 +91,7 @@ public abstract class RandomGenerator<T> implements DataGenerator<T> {
         return new RandomGenerator<Byte>() {
             @Override
             public Byte next() {
-                return (byte) random.nextInt(min, max);
+                return nextWithNullRate(() -> (byte) random.nextInt(min, max));
             }
         };
     }
@@ -85,7 +100,7 @@ public abstract class RandomGenerator<T> implements DataGenerator<T> {
         return new RandomGenerator<Float>() {
             @Override
             public Float next() {
-                return (float) random.nextUniform(min, max);
+                return nextWithNullRate(() -> (float) random.nextUniform(min, max));
             }
         };
     }
@@ -94,7 +109,7 @@ public abstract class RandomGenerator<T> implements DataGenerator<T> {
         return new RandomGenerator<Double>() {
             @Override
             public Double next() {
-                return random.nextUniform(min, max);
+                return nextWithNullRate(() -> random.nextUniform(min, max));
             }
         };
     }
@@ -103,7 +118,7 @@ public abstract class RandomGenerator<T> implements DataGenerator<T> {
         return new RandomGenerator<String>() {
             @Override
             public String next() {
-                return random.nextHexString(len);
+                return nextWithNullRate(() -> random.nextHexString(len));
             }
         };
     }
@@ -112,7 +127,7 @@ public abstract class RandomGenerator<T> implements DataGenerator<T> {
         return new RandomGenerator<Boolean>() {
             @Override
             public Boolean next() {
-                return random.nextInt(0, 1) == 0;
+                return nextWithNullRate(() -> random.nextInt(0, 1) == 0);
             }
         };
     }
@@ -159,7 +174,7 @@ public abstract class RandomGenerator<T> implements DataGenerator<T> {
 
             @Override
             public Map<K, V> next() {
-                Map<K, V> map = new HashMap<>(size);
+                Map<K, V> map = CollectionUtil.newHashMapWithExpectedSize(size);
                 for (int i = 0; i < size; i++) {
                     map.put(key.next(), value.next());
                 }

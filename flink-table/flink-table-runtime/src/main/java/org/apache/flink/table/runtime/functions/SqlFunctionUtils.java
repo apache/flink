@@ -24,6 +24,7 @@ import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.data.binary.BinaryStringDataUtil;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.table.utils.ThreadLocalCache;
+import org.apache.flink.util.CollectionUtil;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -812,7 +813,7 @@ public class SqlFunctionUtils {
         }
 
         String[] keyValuePairs = text.split(listDelimiter);
-        Map<String, String> ret = new HashMap<>(keyValuePairs.length);
+        Map<String, String> ret = CollectionUtil.newHashMapWithExpectedSize(keyValuePairs.length);
         for (String keyValuePair : keyValuePairs) {
             String[] keyValue = keyValuePair.split(keyValueDelimiter, 2);
             if (keyValue.length < 2) {

@@ -22,7 +22,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
-import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
+import org.apache.flink.runtime.leaderelection.TestingLeaderElection;
 import org.apache.flink.runtime.resourcemanager.DefaultJobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
@@ -39,7 +39,6 @@ public class MockResourceManagerRuntimeServices {
     public final TestingHighAvailabilityServices highAvailabilityServices;
     public final HeartbeatServices heartbeatServices;
     public final DelegationTokenManager delegationTokenManager;
-    public final TestingLeaderElectionService rmLeaderElectionService;
     public final JobLeaderIdService jobLeaderIdService;
     public final SlotManager slotManager;
 
@@ -47,8 +46,7 @@ public class MockResourceManagerRuntimeServices {
         this.rpcService = checkNotNull(rpcService);
         this.slotManager = slotManager;
         highAvailabilityServices = new TestingHighAvailabilityServices();
-        rmLeaderElectionService = new TestingLeaderElectionService();
-        highAvailabilityServices.setResourceManagerLeaderElectionService(rmLeaderElectionService);
+        highAvailabilityServices.setResourceManagerLeaderElection(new TestingLeaderElection());
         heartbeatServices = new TestingHeartbeatServices();
         delegationTokenManager = new NoOpDelegationTokenManager();
         jobLeaderIdService =

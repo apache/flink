@@ -33,6 +33,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.entry;
 
 /** Tests for the {@link FineGrainedTaskManagerTracker}. */
 class FineGrainedTaskManagerTrackerTest {
@@ -107,10 +108,6 @@ class FineGrainedTaskManagerTrackerTest {
                 taskManagerTracker.removePendingTaskManager(
                         pendingTaskManager.getPendingTaskManagerId());
         assertThat(taskManagerTracker.getPendingTaskManagers()).isEmpty();
-        assertThat(
-                        taskManagerTracker.getPendingAllocationsOfPendingTaskManager(
-                                pendingTaskManager.getPendingTaskManagerId()))
-                .isEmpty();
         assertThat(
                         taskManagerTracker
                                 .getPendingTaskManagersByTotalAndDefaultSlotResourceProfile(
@@ -285,21 +282,32 @@ class FineGrainedTaskManagerTrackerTest {
                 Collections.singletonMap(
                         pendingTaskManager2.getPendingTaskManagerId(),
                         Collections.singletonMap(jobId, resourceCounter)));
-        assertThat(
-                        taskManagerTracker.getPendingAllocationsOfPendingTaskManager(
-                                pendingTaskManager1.getPendingTaskManagerId()))
-                .isEmpty();
-        assertThat(
-                        taskManagerTracker.getPendingAllocationsOfPendingTaskManager(
-                                pendingTaskManager2.getPendingTaskManagerId()))
-                .containsKey(jobId);
-        assertThat(
-                        taskManagerTracker
-                                .getPendingAllocationsOfPendingTaskManager(
-                                        pendingTaskManager2.getPendingTaskManagerId())
-                                .get(jobId)
-                                .getResourceCount(ResourceProfile.ANY))
-                .isEqualTo(1);
+        assertThat(pendingTaskManager1.getPendingSlotAllocationRecords()).isEmpty();
+        assertThat(pendingTaskManager2.getPendingSlotAllocationRecords())
+                .contains(entry(jobId, ResourceCounter.withResource(ResourceProfile.ANY, 1)));
+    }
+
+    @Test
+    void testPendingTaskManagerUnusedResources() {
+        final FineGrainedTaskManagerTracker taskManagerTracker =
+                new FineGrainedTaskManagerTracker();
+        final ResourceProfile totalResource = ResourceProfile.fromResources(10, 1000);
+        final ResourceProfile defaultSlotResource = ResourceProfile.fromResources(1, 100);
+        final PendingTaskManager pendingTaskManager = new PendingTaskManager(totalResource, 10);
+        final JobID jobId = new JobID();
+        final ResourceCounter resourceCounter =
+                ResourceCounter.withResource(defaultSlotResource, 1);
+
+        assertThat(pendingTaskManager.getUnusedResource()).isEqualTo(totalResource);
+
+        taskManagerTracker.addPendingTaskManager(pendingTaskManager);
+        taskManagerTracker.replaceAllPendingAllocations(
+                Collections.singletonMap(
+                        pendingTaskManager.getPendingTaskManagerId(),
+                        Collections.singletonMap(jobId, resourceCounter)));
+
+        assertThat(pendingTaskManager.getUnusedResource())
+                .isEqualTo(totalResource.subtract(defaultSlotResource));
     }
 
     @Test

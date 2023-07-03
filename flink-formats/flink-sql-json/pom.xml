@@ -42,6 +42,7 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-json</artifactId>
 			<version>${project.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 	</dependencies>
 

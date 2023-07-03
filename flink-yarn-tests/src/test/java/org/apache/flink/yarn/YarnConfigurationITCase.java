@@ -47,7 +47,6 @@ import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
 
 import java.io.File;
 import java.net.URI;
@@ -65,7 +64,6 @@ class YarnConfigurationITCase extends YarnTestBase {
     private static final Time TIMEOUT = Time.seconds(10L);
 
     /** Tests that the Flink components are started with the correct memory settings. */
-    @Timeout(value = 60)
     @Test
     void testFlinkContainerMemory() throws Exception {
         runTest(

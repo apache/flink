@@ -33,7 +33,7 @@ import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.JarUtils;
 import org.apache.flink.util.MutableURLClassLoader;
 
-import org.apache.flink.shaded.guava30.com.google.common.io.Files;
+import org.apache.flink.shaded.guava31.com.google.common.io.Files;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -52,6 +52,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /** A manager for dealing with all user defined resource. */
@@ -89,52 +90,43 @@ public class ResourceManager implements Closeable {
      * register them into the {@link ResourceManager}.
      */
     public void registerJarResources(List<ResourceUri> resourceUris) throws IOException {
-        // check jar resource before register
-        checkJarResources(resourceUris);
+        registerResources(
+                prepareStagingResources(
+                        resourceUris,
+                        ResourceType.JAR,
+                        true,
+                        url -> {
+                            try {
+                                JarUtils.checkJarFile(url);
+                            } catch (IOException e) {
+                                throw new ValidationException(
+                                        String.format("Failed to register jar resource [%s]", url),
+                                        e);
+                            }
+                        }),
+                true);
+    }
 
-        Map<ResourceUri, URL> stagingResourceLocalURLs = new HashMap<>();
-        for (ResourceUri resourceUri : resourceUris) {
-            // check whether the resource has been registered
-            if (resourceInfos.containsKey(resourceUri) && resourceInfos.get(resourceUri) != null) {
-                LOG.info(
-                        "Resource [{}] has been registered, overwriting of registered resource is not supported "
-                                + "in the current version, skipping.",
-                        resourceUri.getUri());
-                continue;
-            }
-
-            // here can check whether the resource path is valid
-            Path path = new Path(resourceUri.getUri());
-            URL localUrl;
-            // check resource scheme
-            String scheme = StringUtils.lowerCase(path.toUri().getScheme());
-            // download resource to local path firstly if in remote
-            if (scheme != null && !FILE_SCHEME.equals(scheme)) {
-                localUrl = downloadResource(path);
-            } else {
-                localUrl = getURLFromPath(path);
-                // if the local jar resource is a relative path, here convert it to absolute path
-                // before register
-                resourceUri = new ResourceUri(ResourceType.JAR, localUrl.getPath());
-            }
-
-            // check the local jar file
-            JarUtils.checkJarFile(localUrl);
-
-            // add it to staging map
-            stagingResourceLocalURLs.put(resourceUri, localUrl);
-        }
-
-        // register resource in batch
-        stagingResourceLocalURLs.forEach(
-                (resourceUri, url) -> {
-                    // jar resource need add to classloader
-                    userClassLoader.addURL(url);
-                    LOG.info("Added jar resource [{}] to class path.", url);
-
-                    resourceInfos.put(resourceUri, url);
-                    LOG.info("Register resource [{}] successfully.", resourceUri.getUri());
-                });
+    /**
+     * Register a file resource into {@link ResourceManager} and return the absolute local file path
+     * without the scheme.
+     *
+     * <p>If the file is remote, it will be copied to a local file, with file name suffixed with a
+     * UUID.
+     *
+     * @param resourceUri resource with type as {@link ResourceType#FILE}, the resource uri might or
+     *     might not contain the uri scheme, or it could be a relative path.
+     * @return the absolute local file path.
+     */
+    public String registerFileResource(ResourceUri resourceUri) throws IOException {
+        Map<ResourceUri, URL> stagingResources =
+                prepareStagingResources(
+                        Collections.singletonList(resourceUri),
+                        ResourceType.FILE,
+                        false,
+                        url -> {});
+        registerResources(stagingResources, false);
+        return resourceInfos.get(new ArrayList<>(stagingResources.keySet()).get(0)).getPath();
     }
 
     public URLClassLoader getUserClassLoader() {
@@ -203,54 +195,80 @@ public class ResourceManager implements Closeable {
         }
     }
 
-    private void checkJarResources(List<ResourceUri> resourceUris) throws IOException {
-        // only support register jar resource
-        if (resourceUris.stream()
-                .anyMatch(resourceUri -> !ResourceType.JAR.equals(resourceUri.getResourceType()))) {
-            throw new ValidationException(
-                    String.format(
-                            "Only support to register jar resource, resource info:\n %s.",
-                            resourceUris.stream()
-                                    .map(ResourceUri::getUri)
-                                    .collect(Collectors.joining(",\n"))));
-        }
+    /** Check whether the {@link Path} exists. */
+    public boolean exists(Path filePath) throws IOException {
+        return filePath.getFileSystem().exists(filePath);
+    }
 
-        for (ResourceUri resourceUri : resourceUris) {
-            checkJarPath(new Path(resourceUri.getUri()));
+    /**
+     * Generate a local file resource by the given resource generator and then synchronize to the
+     * path identified by the given {@link ResourceUri}. The path passed to resource generator
+     * should be a local path retrieved from the given {@link ResourceUri}.
+     *
+     * <p>NOTE: if the given {@link ResourceUri} represents a remote file path like
+     * "hdfs://path/to/file.json", then the retrieved local path will be
+     * "/localResourceDir/file-${uuid}.json"
+     *
+     * @param resourceUri the file resource uri to synchronize to
+     * @param resourceGenerator a consumer that generates a local copy of the file resource
+     */
+    public void syncFileResource(ResourceUri resourceUri, Consumer<String> resourceGenerator)
+            throws IOException {
+        Path targetPath = new Path(resourceUri.getUri());
+        String localPath;
+        boolean remote = isRemotePath(targetPath);
+        if (remote) {
+            localPath = getResourceLocalPath(targetPath).getPath();
+        } else {
+            localPath = getURLFromPath(targetPath).getPath();
+        }
+        resourceGenerator.accept(localPath);
+        if (remote) {
+            if (exists(targetPath)) {
+                // FileUtils#copy will not do copy if targetPath already exists
+                targetPath.getFileSystem().delete(targetPath, false);
+            }
+            FileUtils.copy(new Path(localPath), targetPath, false);
         }
     }
 
-    protected void checkJarPath(Path path) throws IOException {
-        // file name should end with .jar suffix
-        String fileExtension = Files.getFileExtension(path.getName());
-        if (!fileExtension.toLowerCase().endsWith(JAR_SUFFIX)) {
-            throw new ValidationException(
-                    String.format(
-                            "The registering or unregistering jar resource [%s] must ends with '.jar' suffix.",
-                            path));
-        }
+    // ------------------------------------------------------------------------
 
+    protected void checkPath(Path path, ResourceType expectedType) throws IOException {
         FileSystem fs = FileSystem.getUnguardedFileSystem(path.toUri());
         // check resource exists firstly
         if (!fs.exists(path)) {
-            throw new FileNotFoundException(String.format("Jar resource [%s] not found.", path));
+            throw new FileNotFoundException(
+                    String.format(
+                            "%s resource [%s] not found.",
+                            expectedType.name().toLowerCase(), path));
         }
-
         // register directory is not allowed for resource
         if (fs.getFileStatus(path).isDir()) {
             throw new ValidationException(
                     String.format(
-                            "The registering or unregistering jar resource [%s] is a directory that is not allowed.",
-                            path));
+                            "The registering or unregistering %s resource [%s] is a directory that is not allowed.",
+                            expectedType.name().toLowerCase(), path));
+        }
+
+        if (expectedType == ResourceType.JAR) {
+            // file name should end with .jar suffix
+            String fileExtension = Files.getFileExtension(path.getName());
+            if (!fileExtension.toLowerCase().endsWith(JAR_SUFFIX)) {
+                throw new ValidationException(
+                        String.format(
+                                "The registering or unregistering jar resource [%s] must ends with '.jar' suffix.",
+                                path));
+            }
         }
     }
 
     @VisibleForTesting
-    URL downloadResource(Path remotePath) throws IOException {
-        // get local resource path
+    URL downloadResource(Path remotePath, boolean executable) throws IOException {
+        // get a local resource path
         Path localPath = getResourceLocalPath(remotePath);
         try {
-            FileUtils.copy(remotePath, localPath, true);
+            FileUtils.copy(remotePath, localPath, executable);
             LOG.info(
                     "Download resource [{}] to local path [{}] successfully.",
                     remotePath,
@@ -279,6 +297,18 @@ public class ResourceManager implements Closeable {
         return localResourceDir;
     }
 
+    @VisibleForTesting
+    boolean isRemotePath(Path path) {
+        String scheme = path.toUri().getScheme();
+        if (scheme == null) {
+            // whether the default fs is configured as remote mode,
+            // see FileSystem#getDefaultFsUri()
+            return !FILE_SCHEME.equalsIgnoreCase(FileSystem.getDefaultFsUri().getScheme());
+        } else {
+            return !FILE_SCHEME.equalsIgnoreCase(scheme);
+        }
+    }
+
     private Path getResourceLocalPath(Path remotePath) {
         String fileName = remotePath.getName();
         String fileExtension = Files.getFileExtension(fileName);
@@ -295,5 +325,98 @@ public class ResourceManager implements Closeable {
                             fileExtension);
         }
         return new Path(localResourceDir, fileNameWithUUID);
+    }
+
+    private void checkResources(List<ResourceUri> resourceUris, ResourceType expectedType)
+            throws IOException {
+        // check the resource type
+        if (resourceUris.stream()
+                .anyMatch(resourceUri -> expectedType != resourceUri.getResourceType())) {
+            throw new ValidationException(
+                    String.format(
+                            "Expect the resource type to be %s, but encounter a resource %s.",
+                            expectedType.name().toLowerCase(),
+                            resourceUris.stream()
+                                    .filter(
+                                            resourceUri ->
+                                                    expectedType != resourceUri.getResourceType())
+                                    .findFirst()
+                                    .map(
+                                            resourceUri ->
+                                                    String.format(
+                                                            "[%s] with type %s",
+                                                            resourceUri.getUri(),
+                                                            resourceUri
+                                                                    .getResourceType()
+                                                                    .name()
+                                                                    .toLowerCase()))
+                                    .get()));
+        }
+
+        // check the resource path
+        for (ResourceUri resourceUri : resourceUris) {
+            checkPath(new Path(resourceUri.getUri()), expectedType);
+        }
+    }
+
+    private Map<ResourceUri, URL> prepareStagingResources(
+            List<ResourceUri> resourceUris,
+            ResourceType expectedType,
+            boolean executable,
+            Consumer<URL> resourceChecker)
+            throws IOException {
+        checkResources(resourceUris, expectedType);
+
+        Map<ResourceUri, URL> stagingResourceLocalURLs = new HashMap<>();
+        boolean supportOverwrite = !executable;
+        for (ResourceUri resourceUri : resourceUris) {
+            // check whether the resource has been registered
+            if (resourceInfos.containsKey(resourceUri) && resourceInfos.get(resourceUri) != null) {
+                if (!supportOverwrite) {
+                    LOG.info(
+                            "Resource [{}] has been registered, overwriting of registered resource is not supported "
+                                    + "in the current version, skipping.",
+                            resourceUri.getUri());
+                    continue;
+                }
+            }
+
+            // here can check whether the resource path is valid
+            Path path = new Path(resourceUri.getUri());
+            URL localUrl;
+            // download resource to a local path firstly if in remote
+            if (isRemotePath(path)) {
+                localUrl = downloadResource(path, executable);
+            } else {
+                localUrl = getURLFromPath(path);
+                // if the local resource is a relative path, here convert it to an absolute path
+                // before register
+                resourceUri = new ResourceUri(expectedType, localUrl.getPath());
+            }
+
+            // check the local file
+            resourceChecker.accept(localUrl);
+
+            // add it to a staging map
+            stagingResourceLocalURLs.put(resourceUri, localUrl);
+        }
+        return stagingResourceLocalURLs;
+    }
+
+    private void registerResources(
+            Map<ResourceUri, URL> stagingResources, boolean addToClassLoader) {
+        // register resource in batch
+        stagingResources.forEach(
+                (resourceUri, url) -> {
+                    if (addToClassLoader) {
+                        userClassLoader.addURL(url);
+                        LOG.info(
+                                "Added {} resource [{}] to class path.",
+                                resourceUri.getResourceType().name(),
+                                url);
+                    }
+                    resourceInfos.put(resourceUri, url);
+                    LOG.info("Register resource [{}] successfully.", resourceUri.getUri());
+                });
     }
 }

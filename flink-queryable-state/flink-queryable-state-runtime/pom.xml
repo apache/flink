@@ -33,6 +33,13 @@ under the License.
 	<name>Flink : Queryable state : Runtime</name>
 	<packaging>jar</packaging>
 
+	<properties>
+		<surefire.module.config><!--
+			chill ArraysAsListSerializer
+			-->--add-opens=java.base/java.util=ALL-UNNAMED
+		</surefire.module.config>
+	</properties>
+
 	<dependencies>
 
 		<!-- core dependencies -->
@@ -124,6 +131,12 @@ under the License.
 						<goals>
 							<goal>test-jar</goal>
 						</goals>
+						<configuration>
+							<excludes>
+								<!-- test-jar is still used by JUnit4 modules -->
+								<exclude>META-INF/services/org.junit.jupiter.api.extension.Extension</exclude>
+							</excludes>
+						</configuration>
 					</execution>
 				</executions>
 			</plugin>

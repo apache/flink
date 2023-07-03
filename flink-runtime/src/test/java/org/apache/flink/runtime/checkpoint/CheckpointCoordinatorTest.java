@@ -58,6 +58,7 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.SharedStateRegistryImpl;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TestingStreamStateHandle;
@@ -81,7 +82,7 @@ import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.util.function.TriFunctionWithException;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -123,6 +124,7 @@ import static java.util.Collections.singletonMap;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_ASYNC_EXCEPTION;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_DECLINED;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_EXPIRED;
+import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.FINALIZE_CHECKPOINT_FAILURE;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.IO_EXCEPTION;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.PERIODIC_SCHEDULER_SHUTDOWN;
 import static org.apache.flink.runtime.checkpoint.CheckpointStoreUtil.INVALID_CHECKPOINT_ID;
@@ -3165,6 +3167,95 @@ class CheckpointCoordinatorTest extends TestLogger {
 
         // then: The PendingCheckpoint shouldn't be created.
         assertThat(statsTracker.getPendingCheckpointStats(1)).isNull();
+    }
+
+    /**
+     * This test checks that an exception that occurs while trying to store a {@link
+     * CompletedCheckpoint} in the {@link CompletedCheckpointStore} is properly reported to the
+     * {@link CheckpointFailureManager}, see FLINK-32347.
+     */
+    @Test
+    void testExceptionInStoringCompletedCheckpointIsReportedToFailureManager() throws Exception {
+        JobVertexID jobVertexID = new JobVertexID();
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID)
+                        .setTransitToRunning(false)
+                        .build(EXECUTOR_RESOURCE.getExecutor());
+
+        ExecutionVertex task = graph.getJobVertex(jobVertexID).getTaskVertices()[0];
+        task.getCurrentExecutionAttempt().transitionState(ExecutionState.RUNNING);
+
+        CheckpointIDCounterWithOwner testingCounter = new CheckpointIDCounterWithOwner();
+        TestFailJobCallback failureCallback = new TestFailJobCallback();
+
+        CheckpointStatsTracker statsTracker =
+                new CheckpointStatsTracker(Integer.MAX_VALUE, new UnregisteredMetricsGroup());
+
+        final String exceptionMsg = "Test store exception.";
+        try (SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl()) {
+            // Prepare a store that fails when the coordinator stores a checkpoint.
+            TestingCompletedCheckpointStore testingCompletedCheckpointStore =
+                    TestingCompletedCheckpointStore.builder()
+                            .withGetSharedStateRegistrySupplier(() -> sharedStateRegistry)
+                            .withAddCheckpointAndSubsumeOldestOneFunction(
+                                    (cp, cleaner, runnable) -> {
+                                        throw new RuntimeException(exceptionMsg);
+                                    })
+                            .build();
+
+            CheckpointCoordinator checkpointCoordinator =
+                    new CheckpointCoordinatorBuilder()
+                            .setCheckpointIDCounter(testingCounter)
+                            .setFailureManager(new CheckpointFailureManager(0, failureCallback))
+                            .setTimer(manuallyTriggeredScheduledExecutor)
+                            .setCheckpointStatsTracker(statsTracker)
+                            .setCompletedCheckpointStore(testingCompletedCheckpointStore)
+                            .build(graph);
+            testingCounter.setOwner(checkpointCoordinator);
+
+            checkpointCoordinator.triggerCheckpoint(false);
+            manuallyTriggeredScheduledExecutor.triggerAll();
+
+            PendingCheckpoint pendingCheckpoint =
+                    checkpointCoordinator
+                            .getPendingCheckpoints()
+                            .entrySet()
+                            .iterator()
+                            .next()
+                            .getValue();
+
+            try {
+                checkpointCoordinator.receiveAcknowledgeMessage(
+                        new AcknowledgeCheckpoint(
+                                pendingCheckpoint.getJobId(),
+                                task.getCurrentExecutionAttempt().getAttemptId(),
+                                pendingCheckpoint.getCheckpointID(),
+                                new CheckpointMetrics(),
+                                new TaskStateSnapshot()),
+                        "localhost");
+
+                fail("Exception is expected here");
+            } catch (CheckpointException cpex) {
+                assertThat(cpex.getCheckpointFailureReason())
+                        .isEqualTo(FINALIZE_CHECKPOINT_FAILURE);
+                assertThat(cpex.getCause().getMessage()).isEqualTo(exceptionMsg);
+            }
+
+            // then: Failure manager should fail the job.
+            assertThat(failureCallback.getInvokeCounter()).isOne();
+
+            // then: The NumberOfFailedCheckpoints and TotalNumberOfCheckpoints should be 1.
+            CheckpointStatsCounts counts = statsTracker.createSnapshot().getCounts();
+            assertThat(counts.getNumberOfRestoredCheckpoints()).isZero();
+            assertThat(counts.getTotalNumberOfCheckpoints()).isOne();
+            assertThat(counts.getNumberOfInProgressCheckpoints()).isZero();
+            assertThat(counts.getNumberOfCompletedCheckpoints()).isZero();
+            assertThat(counts.getNumberOfFailedCheckpoints()).isOne();
+
+            // then: The PendingCheckpoint should already exist.
+            assertThat(statsTracker.getPendingCheckpointStats(1)).isNotNull();
+        }
     }
 
     private void testTriggerCheckpoint(

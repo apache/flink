@@ -30,8 +30,9 @@ import org.apache.flink.metrics.reporter.MetricReporterFactory;
 import org.apache.flink.runtime.metrics.filter.DefaultMetricFilter;
 import org.apache.flink.runtime.metrics.filter.MetricFilter;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
+import org.apache.flink.util.CollectionUtil;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Iterators;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Iterators;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,7 +42,6 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -264,7 +264,8 @@ public final class ReporterSetup {
 
     private static Map<String, MetricReporterFactory> loadAvailableReporterFactories(
             @Nullable PluginManager pluginManager) {
-        final Map<String, MetricReporterFactory> reporterFactories = new HashMap<>(2);
+        final Map<String, MetricReporterFactory> reporterFactories =
+                CollectionUtil.newHashMapWithExpectedSize(2);
         final Iterator<MetricReporterFactory> factoryIterator =
                 getAllReporterFactories(pluginManager);
         // do not use streams or for-each loops here because they do not allow catching individual

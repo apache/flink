@@ -65,17 +65,16 @@ under the License.
 		<module>flink-metrics-availability-test</module>
 		<module>flink-metrics-reporter-prometheus-test</module>
 		<module>flink-heavy-deployment-stress-test</module>
-		<module>flink-streaming-kafka-test-base</module>
-		<module>flink-streaming-kafka-test</module>
 		<module>flink-plugins-test</module>
 		<module>flink-tpch-test</module>
-		<module>flink-end-to-end-tests-common-kafka</module>
 		<module>flink-tpcds-test</module>
 		<module>flink-netty-shuffle-memory-control-test</module>
 		<module>flink-python-test</module>
 		<module>flink-end-to-end-tests-hbase</module>
 		<module>flink-end-to-end-tests-scala</module>
 		<module>flink-end-to-end-tests-sql</module>
+		<module>flink-end-to-end-tests-jdbc-driver</module>
+		<module>flink-end-to-end-tests-hive</module>
     </modules>
 
 	<dependencies>
@@ -133,6 +132,15 @@ under the License.
 			</activation>
 			<properties>
 				<excludeE2E>org.apache.flink.testutils.junit.FailsOnJava11</excludeE2E>
+			</properties>
+		</profile>
+		<profile>
+			<id>java17</id>
+			<activation>
+				<jdk>[17,)</jdk>
+			</activation>
+			<properties>
+				<excludeE2E>org.apache.flink.testutils.junit.FailsOnJava17</excludeE2E>
 			</properties>
 		</profile>
 	</profiles>

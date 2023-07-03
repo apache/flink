@@ -167,36 +167,34 @@ function create_ha_config() {
     echo "localhost:8081" > ${FLINK_DIR}/conf/masters
 
     # then move on to create the flink-conf.yaml
-    sed 's/^    //g' > ${FLINK_DIR}/conf/flink-conf.yaml << EOL
     #==============================================================================
     # Common
     #==============================================================================
 
-    jobmanager.rpc.address: localhost
-    jobmanager.rpc.port: 6123
-    jobmanager.memory.process.size: 1024m
-    taskmanager.memory.process.size: 1024m
-    taskmanager.numberOfTaskSlots: ${TASK_SLOTS_PER_TM_HA}
+    set_config_key "jobmanager.rpc.address" "localhost"
+    set_config_key "jobmanager.rpc.port" "6123"
+    set_config_key "jobmanager.memory.process.size" "1024m"
+    set_config_key "taskmanager.memory.process.size" "1024m"
+    set_config_key "taskmanager.numberOfTaskSlots" "${TASK_SLOTS_PER_TM_HA}"
 
     #==============================================================================
     # High Availability
     #==============================================================================
 
-    high-availability.type: zookeeper
-    high-availability.zookeeper.storageDir: file://${TEST_DATA_DIR}/recovery/
-    high-availability.zookeeper.quorum: localhost:2181
-    high-availability.zookeeper.path.root: /flink
-    high-availability.cluster-id: /test_cluster_one
+    set_config_key "high-availability.type" "zookeeper"
+    set_config_key "high-availability.zookeeper.storageDir" "file://${TEST_DATA_DIR}/recovery/"
+    set_config_key "high-availability.zookeeper.quorum" "localhost:2181"
+    set_config_key "high-availability.zookeeper.path.root" "/flink"
+    set_config_key "high-availability.cluster-id" "/test_cluster_one"
 
     #==============================================================================
     # Web Frontend
     #==============================================================================
 
-    rest.port: 8081
+    set_config_key "rest.port" "8081"
 
-    queryable-state.server.ports: 9000-9009
-    queryable-state.proxy.ports: 9010-9019
-EOL
+    set_config_key "queryable-state.server.ports" "9000-9009"
+    set_config_key "queryable-state.proxy.ports" "9010-9019"
 }
 
 function get_node_ip {
@@ -299,6 +297,20 @@ function start_cluster {
   relocate_rocksdb_logs
   "$FLINK_DIR"/bin/start-cluster.sh
   wait_dispatcher_running
+}
+
+function wait_sql_gateway_running {
+  local query_url="${REST_PROTOCOL}://${NODENAME}:8083/info"
+  wait_rest_endpoint_up "${query_url}" "SqlGateway" "Apache Flink"
+}
+
+function start_sql_gateway() {
+  "$FLINK_DIR"/bin/sql-gateway.sh start
+  wait_sql_gateway_running
+}
+
+function stop_sql_gateway() {
+  "$FLINK_DIR"/bin/sql-gateway.sh stop
 }
 
 function start_taskmanagers {

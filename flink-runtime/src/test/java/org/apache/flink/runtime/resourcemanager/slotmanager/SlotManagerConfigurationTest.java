@@ -20,25 +20,25 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import java.math.BigDecimal;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link SlotManagerConfiguration}. */
-public class SlotManagerConfigurationTest extends TestLogger {
+class SlotManagerConfigurationTest {
 
     /**
      * Tests that {@link SlotManagerConfiguration#getSlotRequestTimeout()} returns the value
      * configured under key {@link JobManagerOptions#SLOT_REQUEST_TIMEOUT}.
      */
     @Test
-    public void testSetSlotRequestTimeout() throws Exception {
+    void testSetSlotRequestTimeout() throws Exception {
         final long slotIdleTimeout = 42;
 
         final Configuration configuration = new Configuration();
@@ -46,9 +46,8 @@ public class SlotManagerConfigurationTest extends TestLogger {
         final SlotManagerConfiguration slotManagerConfiguration =
                 SlotManagerConfiguration.fromConfiguration(configuration, WorkerResourceSpec.ZERO);
 
-        assertThat(
-                slotManagerConfiguration.getSlotRequestTimeout().toMilliseconds(),
-                is(equalTo(slotIdleTimeout)));
+        assertThat(slotIdleTimeout)
+                .isEqualTo(slotManagerConfiguration.getSlotRequestTimeout().toMilliseconds());
     }
 
     /**
@@ -56,7 +55,7 @@ public class SlotManagerConfigurationTest extends TestLogger {
      * JobManagerOptions#SLOT_REQUEST_TIMEOUT} if set.
      */
     @Test
-    public void testPreferLegacySlotRequestTimeout() throws Exception {
+    void testPreferLegacySlotRequestTimeout() throws Exception {
         final long legacySlotIdleTimeout = 42;
 
         final Configuration configuration = new Configuration();
@@ -65,8 +64,48 @@ public class SlotManagerConfigurationTest extends TestLogger {
         final SlotManagerConfiguration slotManagerConfiguration =
                 SlotManagerConfiguration.fromConfiguration(configuration, WorkerResourceSpec.ZERO);
 
-        assertThat(
-                slotManagerConfiguration.getSlotRequestTimeout().toMilliseconds(),
-                is(equalTo(legacySlotIdleTimeout)));
+        assertThat(legacySlotIdleTimeout)
+                .isEqualTo(slotManagerConfiguration.getSlotRequestTimeout().toMilliseconds());
+    }
+
+    @Test
+    void testComputeMaxTotalCpu() throws Exception {
+        final Configuration configuration = new Configuration();
+        final int maxSlotNum = 9;
+        final int numSlots = 3;
+        final double cpuCores = 10;
+        configuration.set(ResourceManagerOptions.MAX_SLOT_NUM, maxSlotNum);
+        final SlotManagerConfiguration slotManagerConfiguration =
+                SlotManagerConfiguration.fromConfiguration(
+                        configuration,
+                        new WorkerResourceSpec.Builder()
+                                .setNumSlots(numSlots)
+                                .setCpuCores(cpuCores)
+                                .build());
+        assertThat(slotManagerConfiguration.getMaxTotalCpu().getValue().doubleValue())
+                .isEqualTo(cpuCores * maxSlotNum / numSlots);
+    }
+
+    @Test
+    void testComputeMaxTotalMemory() throws Exception {
+        final Configuration configuration = new Configuration();
+        final int maxSlotNum = 1_000_000;
+        final int numSlots = 10;
+        final int totalTaskManagerMB =
+                MemorySize.parse("1", MemorySize.MemoryUnit.TERA_BYTES).getMebiBytes();
+        configuration.set(ResourceManagerOptions.MAX_SLOT_NUM, maxSlotNum);
+        final SlotManagerConfiguration slotManagerConfiguration =
+                SlotManagerConfiguration.fromConfiguration(
+                        configuration,
+                        new WorkerResourceSpec.Builder()
+                                .setNumSlots(numSlots)
+                                .setTaskHeapMemoryMB(totalTaskManagerMB)
+                                .build());
+        assertThat(slotManagerConfiguration.getMaxTotalMem().getBytes())
+                .isEqualTo(
+                        BigDecimal.valueOf(MemorySize.ofMebiBytes(totalTaskManagerMB).getBytes())
+                                .multiply(BigDecimal.valueOf(maxSlotNum))
+                                .divide(BigDecimal.valueOf(numSlots))
+                                .longValue());
     }
 }

@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.jobmaster.utils;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.runtime.blocklist.BlocklistHandler;
 import org.apache.flink.runtime.blocklist.NoOpBlocklistHandler;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
@@ -49,6 +50,8 @@ import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
 /** A builder for the {@link JobMaster}. */
@@ -83,6 +86,8 @@ public class JobMasterBuilder {
     private ResourceID jmResourceId = ResourceID.generate();
 
     private FatalErrorHandler fatalErrorHandler = error -> {};
+
+    private Collection<FailureEnricher> failureEnrichers = Collections.emptySet();
 
     private ExecutionDeploymentTracker executionDeploymentTracker =
             new DefaultExecutionDeploymentTracker();
@@ -211,6 +216,7 @@ public class JobMasterBuilder {
                 executionDeploymentTracker,
                 executionDeploymentReconcilerFactory,
                 blocklistHandlerFactory,
+                failureEnrichers,
                 System.currentTimeMillis());
     }
 

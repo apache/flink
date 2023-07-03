@@ -33,6 +33,24 @@ under the License.
 
 	<packaging>jar</packaging>
 
+	<properties>
+		<surefire.module.config> <!--
+			required by JmxServer
+			-->--add-exports=java.rmi/sun.rmi.registry=ALL-UNNAMED <!--
+			PluginConfigTest (CommonTestUtils#setEnv)
+			-->--add-opens=java.base/java.util=ALL-UNNAMED <!--
+			ExceptionUtilsTest
+			-->--add-opens=java.base/java.lang=ALL-UNNAMED <!--
+			StateDescriptorTest (Kryo serialization of File)
+			-->--add-opens=java.base/java.io=ALL-UNNAMED <!--
+			SerializersTest (Kryo serialization of Nested1->Path->URI)
+			-->--add-opens=java.base/java.net=ALL-UNNAMED <!--
+			InitOutputPathTest
+			-->--add-opens=java.base/java.util.concurrent.locks=ALL-UNNAMED <!--
+			-->--add-opens=java.base/java.lang.reflect=ALL-UNNAMED
+		</surefire.module.config>
+	</properties>
+
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -133,6 +151,24 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>fink-migration-test-utils</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.powermock</groupId>
+			<artifactId>powermock-module-junit4</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.powermock</groupId>
+			<artifactId>powermock-api-mockito2</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -162,4 +198,47 @@ under the License.
 
 	</build>
 
+	<profiles>
+		<profile>
+			<id>generate-migration-test-data</id>
+			<build>
+				<plugins>
+					<plugin>
+						<artifactId>maven-antrun-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>generate-migration-test-data</id>
+								<phase>package</phase>
+								<goals>
+									<goal>run</goal>
+								</goals>
+								<configuration>
+									<target>
+										<condition property="optional.classes" value="--classes '${generate.classes}'"
+												   else="">
+											<isset property="generate.classes"/>
+										</condition>
+										<condition property="optional.prefixes"
+												   value="--prefixes '${generate.prefixes}'" else="">
+											<isset property="generate.prefixes"/>
+										</condition>
+										<java classname="org.apache.flink.test.migration.MigrationTestsSnapshotGenerator"
+											  fork="true" failonerror="true" dir="${project.basedir}">
+											<classpath refid="maven.test.classpath"/>
+											<arg value="--dir"/>
+											<arg line="${project.basedir}"/>
+											<arg value="--version"/>
+											<arg value="${generate.version}"/>
+											<arg line="${optional.classes}"/>
+											<arg line="${optional.prefixes}"/>
+										</java>
+									</target>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 </project>

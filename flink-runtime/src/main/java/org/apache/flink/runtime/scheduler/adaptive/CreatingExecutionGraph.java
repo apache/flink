@@ -43,6 +43,7 @@ import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
@@ -171,7 +172,8 @@ public class CreatingExecutionGraph implements State {
     }
 
     @Override
-    public void handleGlobalFailure(Throwable cause) {
+    public void handleGlobalFailure(
+            Throwable cause, CompletableFuture<Map<String, String>> failureLabels) {
         context.goToFinished(context.getArchivedExecutionGraph(JobStatus.FAILED, cause));
     }
 

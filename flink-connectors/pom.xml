@@ -40,7 +40,6 @@ under the License.
 		<module>flink-connector-hbase-1.4</module>
 		<module>flink-connector-hbase-2.2</module>
 		<module>flink-connector-hive</module>
-		<module>flink-connector-kafka</module>
 		<module>flink-connector-base</module>
 		<module>flink-file-sink-common</module>
 		<module>flink-connector-files</module>
@@ -85,7 +84,6 @@ under the License.
 				<module>flink-sql-connector-hbase-2.2</module>
 				<module>flink-sql-connector-hive-2.3.9</module>
 				<module>flink-sql-connector-hive-3.1.3</module>
-				<module>flink-sql-connector-kafka</module>
 			</modules>
 		</profile>
 	</profiles>

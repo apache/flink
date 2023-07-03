@@ -135,7 +135,8 @@ public class SessionContext {
     public void set(String key, String value) {
         try {
             // Test whether the key value will influence the creation of the Executor.
-            createOperationExecutor(Configuration.fromMap(Collections.singletonMap(key, value)));
+            createOperationExecutor(Configuration.fromMap(Collections.singletonMap(key, value)))
+                    .getTableEnvironment();
         } catch (Exception e) {
             // get error and reset the key with old value
             throw new SqlExecutionException(

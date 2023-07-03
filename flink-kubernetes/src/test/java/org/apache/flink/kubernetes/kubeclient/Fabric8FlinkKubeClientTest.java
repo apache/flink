@@ -47,6 +47,7 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.client.Watcher.Action;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -55,6 +56,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -65,6 +67,7 @@ import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatChainOfCauses;
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOG4J_NAME;
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOGBACK_NAME;
+import static org.apache.flink.kubernetes.utils.Constants.KUBERNETES_ZERO_RESOURCE_VERSION;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
@@ -278,6 +281,25 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
     }
 
     @Test
+    void testGetPodsWithLabels() {
+        final String podName = "pod-with-labels";
+        final Pod pod =
+                new PodBuilder()
+                        .editOrNewMetadata()
+                        .withName(podName)
+                        .withLabels(TESTING_LABELS)
+                        .endMetadata()
+                        .editOrNewSpec()
+                        .endSpec()
+                        .build();
+        this.kubeClient.pods().inNamespace(NAMESPACE).create(pod);
+        List<KubernetesPod> kubernetesPods = this.flinkKubeClient.getPodsWithLabels(TESTING_LABELS);
+        assertThat(kubernetesPods)
+                .satisfiesExactly(
+                        kubernetesPod -> assertThat(kubernetesPod.getName()).isEqualTo(podName));
+    }
+
+    @Test
     void testServiceLoadBalancerWithNoIP() {
         final String hostName = "test-host-name";
         mockExpectedServiceFromServerSide(buildExternalServiceWithLoadBalancer(hostName, ""));
@@ -409,6 +431,27 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
         this.flinkKubeClient.stopAndCleanupCluster(CLUSTER_ID);
         assertThat(this.kubeClient.apps().deployments().inNamespace(NAMESPACE).list().getItems())
                 .isEmpty();
+    }
+
+    @Test
+    void testWatchPodsAndDoCallback() throws Exception {
+        mockPodEventWithLabels(
+                NAMESPACE, TASKMANAGER_POD_NAME, KUBERNETES_ZERO_RESOURCE_VERSION, TESTING_LABELS);
+        // the count latch for events.
+        CompletableFuture<Action> podAddedAction = new CompletableFuture();
+        CompletableFuture<Action> podDeletedAction = new CompletableFuture();
+        CompletableFuture<Action> podModifiedAction = new CompletableFuture();
+        TestingWatchCallbackHandler<KubernetesPod> watchCallbackHandler =
+                TestingWatchCallbackHandler.<KubernetesPod>builder()
+                        .setOnAddedConsumer((ignore) -> podAddedAction.complete(Action.ADDED))
+                        .setOnDeletedConsumer((ignore) -> podDeletedAction.complete(Action.DELETED))
+                        .setOnModifiedConsumer(
+                                (ignore) -> podModifiedAction.complete(Action.MODIFIED))
+                        .build();
+        this.flinkKubeClient.watchPodsAndDoCallback(TESTING_LABELS, watchCallbackHandler);
+        assertThat(podAddedAction.get()).isEqualTo(Action.ADDED);
+        assertThat(podDeletedAction.get()).isEqualTo(Action.DELETED);
+        assertThat(podModifiedAction.get()).isEqualTo(Action.MODIFIED);
     }
 
     @Test
@@ -548,6 +591,7 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
                         KubernetesConfigOptions.KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES);
         final KubernetesConfigMap configMap = buildTestingConfigMap();
         this.flinkKubeClient.createConfigMap(configMap).get();
+        kubeClient.getConfiguration().setRequestRetryBackoffLimit(0);
 
         mockGetConfigMapFailed(configMap.getInternalResource());
 

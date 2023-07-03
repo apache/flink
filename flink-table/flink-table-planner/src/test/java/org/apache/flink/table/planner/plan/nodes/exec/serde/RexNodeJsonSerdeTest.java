@@ -205,8 +205,8 @@ public class RexNodeJsonSerdeTest {
                                 TableException.class,
                                 "Could not lookup system function '" + FUNCTION_NAME + "'."));
 
-        // Registered temporary function
-        registerTemporaryFunction(serdeContext);
+        // Registered temporary system function
+        registerTemporarySystemFunction(serdeContext);
         callable.call();
     }
 
@@ -756,6 +756,13 @@ public class RexNodeJsonSerdeTest {
                 .getFunctionCatalog()
                 .registerTemporaryCatalogFunction(
                         UNRESOLVED_FUNCTION_CAT_ID, NON_SER_FUNCTION_DEF_IMPL, false);
+    }
+
+    private static void registerTemporarySystemFunction(SerdeContext serdeContext) {
+        serdeContext
+                .getFlinkContext()
+                .getFunctionCatalog()
+                .registerTemporarySystemFunction(FUNCTION_NAME, NON_SER_FUNCTION_DEF_IMPL, false);
     }
 
     private JsonNode serializePermanentFunction(SerdeContext serdeContext) throws Exception {

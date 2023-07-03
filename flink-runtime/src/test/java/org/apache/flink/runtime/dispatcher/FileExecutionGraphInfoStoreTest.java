@@ -38,8 +38,8 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
-import org.apache.flink.shaded.guava30.com.google.common.base.Ticker;
-import org.apache.flink.shaded.guava30.com.google.common.cache.LoadingCache;
+import org.apache.flink.shaded.guava31.com.google.common.base.Ticker;
+import org.apache.flink.shaded.guava31.com.google.common.cache.LoadingCache;
 
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;

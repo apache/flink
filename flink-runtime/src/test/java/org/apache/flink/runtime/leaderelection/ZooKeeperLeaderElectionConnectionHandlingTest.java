@@ -41,11 +41,10 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Test behaviors of {@link ZooKeeperLeaderElectionDriver} when losing the connection to ZooKeeper.
+ * Test behaviors of {@link ZooKeeperMultipleComponentLeaderElectionDriver} when losing the
+ * connection to ZooKeeper.
  */
 class ZooKeeperLeaderElectionConnectionHandlingTest {
-
-    private static final String PATH = "/path";
 
     @RegisterExtension
     private static final EachCallbackWrapper<ZooKeeperExtension> zooKeeperResource =
@@ -135,18 +134,22 @@ class ZooKeeperLeaderElectionConnectionHandlingTest {
                         configuration,
                         testingFatalErrorHandlerResource.getTestingFatalErrorHandler());
         CuratorFramework client = curatorFrameworkWrapper.asCuratorFramework();
-        LeaderElectionDriverFactory leaderElectionDriverFactory =
-                new ZooKeeperLeaderElectionDriverFactory(client, PATH);
+        MultipleComponentLeaderElectionDriverFactory leaderElectionDriverFactory =
+                new ZooKeeperMultipleComponentLeaderElectionDriverFactory(client);
         DefaultLeaderElectionService leaderElectionService =
-                new DefaultLeaderElectionService(leaderElectionDriverFactory);
+                new DefaultLeaderElectionService(
+                        leaderElectionDriverFactory,
+                        testingFatalErrorHandlerResource.getTestingFatalErrorHandler());
+        leaderElectionService.startLeaderElectionBackend();
 
-        try {
-            final TestingConnectionStateListener connectionStateListener =
-                    new TestingConnectionStateListener();
-            client.getConnectionStateListenable().addListener(connectionStateListener);
+        final TestingConnectionStateListener connectionStateListener =
+                new TestingConnectionStateListener();
+        client.getConnectionStateListenable().addListener(connectionStateListener);
 
-            final TestingContender contender = new TestingContender();
-            leaderElectionService.start(contender);
+        final TestingContender contender = new TestingContender();
+        try (LeaderElection leaderElection =
+                leaderElectionService.createLeaderElection("random-contender-id")) {
+            leaderElection.startLeaderElection(contender);
 
             contender.awaitGrantLeadership();
 
@@ -164,7 +167,7 @@ class ZooKeeperLeaderElectionConnectionHandlingTest {
 
             validationLogic.accept(connectionStateListener, contender);
         } finally {
-            leaderElectionService.stop();
+            leaderElectionService.close();
             curatorFrameworkWrapper.close();
 
             if (problem == Problem.LOST_CONNECTION) {

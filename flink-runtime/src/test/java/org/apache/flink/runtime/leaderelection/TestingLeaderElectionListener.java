@@ -22,8 +22,8 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.util.ExceptionUtils;
 
 import java.time.Duration;
-import java.util.Collection;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -38,8 +38,8 @@ public final class TestingLeaderElectionListener
             new ArrayBlockingQueue<>(10);
 
     @Override
-    public void isLeader() {
-        put(new LeaderElectionEvent.IsLeaderEvent());
+    public void isLeader(UUID leaderSessionID) {
+        put(new LeaderElectionEvent.IsLeaderEvent(leaderSessionID));
     }
 
     @Override
@@ -55,10 +55,8 @@ public final class TestingLeaderElectionListener
 
     @Override
     public void notifyAllKnownLeaderInformation(
-            Collection<LeaderInformationWithComponentId> leaderInformationWithComponentIds) {
-        put(
-                new LeaderElectionEvent.AllKnownLeaderInformationEvent(
-                        leaderInformationWithComponentIds));
+            LeaderInformationRegister leaderInformationRegister) {
+        put(new LeaderElectionEvent.AllKnownLeaderInformationEvent(leaderInformationRegister));
     }
 
     private void put(LeaderElectionEvent leaderElectionEvent) {

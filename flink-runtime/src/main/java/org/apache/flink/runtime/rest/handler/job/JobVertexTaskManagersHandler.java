@@ -48,6 +48,7 @@ import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.OnlyExecutionGraphJsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -258,7 +259,7 @@ public class JobVertexTaskManagersHandler
                             counts.getAccumulateBusyTime());
 
             Map<ExecutionState, Integer> statusCounts =
-                    new HashMap<>(ExecutionState.values().length);
+                    CollectionUtil.newHashMapWithExpectedSize(ExecutionState.values().length);
             for (ExecutionState state : ExecutionState.values()) {
                 statusCounts.put(state, executionsPerState[state.ordinal()]);
             }

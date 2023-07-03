@@ -51,7 +51,7 @@ import java.util.function.Supplier;
 import static java.util.Objects.requireNonNull;
 import static org.apache.flink.runtime.rest.handler.util.HandlerRequestUtils.fromRequestBodyOrQueryParameter;
 import static org.apache.flink.runtime.rest.handler.util.HandlerRequestUtils.getQueryParameter;
-import static org.apache.flink.shaded.guava30.com.google.common.base.Strings.emptyToNull;
+import static org.apache.flink.shaded.guava31.com.google.common.base.Strings.emptyToNull;
 
 /** Handler to submit jobs uploaded via the Web UI. */
 public class JarRunHandler
@@ -142,7 +142,7 @@ public class JarRunHandler
                         log);
         final String savepointPath =
                 fromRequestBodyOrQueryParameter(
-                        requestBody.getSavepointPath(),
+                        emptyToNull(requestBody.getSavepointPath()),
                         () ->
                                 emptyToNull(
                                         getQueryParameter(

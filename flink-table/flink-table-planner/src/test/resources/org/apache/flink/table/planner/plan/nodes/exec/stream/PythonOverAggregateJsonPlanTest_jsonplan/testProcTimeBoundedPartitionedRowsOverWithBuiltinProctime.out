@@ -244,7 +244,7 @@
       } ],
       "constants" : [ {
         "kind" : "LITERAL",
-        "value" : "4",
+        "value" : 4,
         "type" : "INT NOT NULL"
       } ],
       "originalInputFields" : 4
@@ -305,7 +305,7 @@
     "description" : "Calc(select=[$2 AS $0, w0$o0 AS $1])"
   }, {
     "id" : 7,
-    "type" : "stream-exec-sink_1",
+    "type" : "stream-exec-sink_2",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",

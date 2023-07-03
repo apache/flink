@@ -33,15 +33,12 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AGG_DE
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AGG_DECIMAL_PLUS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CAST;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COALESCE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CONCAT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DIVIDE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EQUALS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.GREATER_THAN;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.HIVE_AGG_DECIMAL_PLUS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IF;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NULL;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_TRUE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LESS_THAN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MINUS;
@@ -51,7 +48,6 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.OR;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PLUS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REINTERPRET_CAST;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TIMES;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRY_CAST;
 
 /** Builder for {@link Expression}s. */
 public class ExpressionBuilder {
@@ -99,14 +95,6 @@ public class ExpressionBuilder {
         return call(IS_NULL, input);
     }
 
-    public static UnresolvedCallExpression isTrue(Expression input) {
-        return call(IS_TRUE, input);
-    }
-
-    public static UnresolvedCallExpression coalesce(Expression... args) {
-        return call(COALESCE, args);
-    }
-
     public static UnresolvedCallExpression ifThenElse(
             Expression condition, Expression ifTrue, Expression ifFalse) {
         return call(IF, condition, ifTrue, ifFalse);
@@ -124,17 +112,6 @@ public class ExpressionBuilder {
     @Internal
     public static UnresolvedCallExpression aggDecimalPlus(Expression input1, Expression input2) {
         return call(AGG_DECIMAL_PLUS, input1, input2);
-    }
-
-    /**
-     * Used only for implementing native hive SUM/AVG aggregations on a Decimal type to avoid
-     * overriding decimal precision/scale calculation for sum/avg with the rules applied for the
-     * normal plus.
-     */
-    @Internal
-    public static UnresolvedCallExpression hiveAggDecimalPlus(
-            Expression input1, Expression input2) {
-        return call(HIVE_AGG_DECIMAL_PLUS, input1, input2);
     }
 
     public static UnresolvedCallExpression minus(Expression input1, Expression input2) {
@@ -181,10 +158,6 @@ public class ExpressionBuilder {
 
     public static UnresolvedCallExpression cast(Expression child, Expression type) {
         return call(CAST, child, type);
-    }
-
-    public static UnresolvedCallExpression tryCast(Expression child, Expression type) {
-        return call(TRY_CAST, child, type);
     }
 
     public static UnresolvedCallExpression reinterpretCast(

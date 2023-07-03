@@ -50,6 +50,7 @@ import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAcce
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.filesystem.RelativeFileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.BiFunctionWithException;
@@ -68,7 +69,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -616,7 +616,8 @@ public abstract class MetadataV2V3SerializerBase {
             return null;
         } else if (PARTITIONABLE_OPERATOR_STATE_HANDLE == type) {
             int mapSize = dis.readInt();
-            Map<String, OperatorStateHandle.StateMetaInfo> offsetsMap = new HashMap<>(mapSize);
+            Map<String, OperatorStateHandle.StateMetaInfo> offsetsMap =
+                    CollectionUtil.newHashMapWithExpectedSize(mapSize);
             for (int i = 0; i < mapSize; ++i) {
                 String key = dis.readUTF();
 
@@ -823,7 +824,8 @@ public abstract class MetadataV2V3SerializerBase {
             DataInputStream dis, @Nullable DeserializationContext context) throws IOException {
 
         final int size = dis.readInt();
-        Map<StateHandleID, StreamStateHandle> result = new HashMap<>(size);
+        Map<StateHandleID, StreamStateHandle> result =
+                CollectionUtil.newHashMapWithExpectedSize(size);
 
         for (int i = 0; i < size; ++i) {
             StateHandleID stateHandleID = new StateHandleID(dis.readUTF());

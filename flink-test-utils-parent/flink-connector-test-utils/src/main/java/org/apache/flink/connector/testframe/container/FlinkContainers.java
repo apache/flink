@@ -34,7 +34,7 @@ import org.apache.flink.test.util.JobSubmission;
 import org.apache.flink.test.util.SQLJobSubmission;
 import org.apache.flink.util.function.RunnableWithException;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
 
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;

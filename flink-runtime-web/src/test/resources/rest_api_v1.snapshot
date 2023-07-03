@@ -1209,7 +1209,7 @@
                 },
                 "checkpoint_type" : {
                   "type" : "string",
-                  "enum" : [ "CHECKPOINT", "SAVEPOINT", "SYNC_SAVEPOINT" ]
+                  "enum" : [ "CHECKPOINT", "UNALIGNED_CHECKPOINT", "SAVEPOINT", "SYNC_SAVEPOINT" ]
                 },
                 "tasks" : {
                   "type" : "object",
@@ -1315,7 +1315,7 @@
                 },
                 "checkpoint_type" : {
                   "type" : "string",
-                  "enum" : [ "CHECKPOINT", "SAVEPOINT", "SYNC_SAVEPOINT" ]
+                  "enum" : [ "CHECKPOINT", "UNALIGNED_CHECKPOINT", "SAVEPOINT", "SYNC_SAVEPOINT" ]
                 },
                 "tasks" : {
                   "type" : "object",
@@ -1403,7 +1403,7 @@
               },
               "checkpoint_type" : {
                 "type" : "string",
-                "enum" : [ "CHECKPOINT", "SAVEPOINT", "SYNC_SAVEPOINT" ]
+                "enum" : [ "CHECKPOINT", "UNALIGNED_CHECKPOINT", "SAVEPOINT", "SYNC_SAVEPOINT" ]
               },
               "tasks" : {
                 "type" : "object",
@@ -1597,7 +1597,7 @@
         },
         "checkpoint_type" : {
           "type" : "string",
-          "enum" : [ "CHECKPOINT", "SAVEPOINT", "SYNC_SAVEPOINT" ]
+          "enum" : [ "CHECKPOINT", "UNALIGNED_CHECKPOINT", "SAVEPOINT", "SYNC_SAVEPOINT" ]
         },
         "tasks" : {
           "type" : "object",
@@ -1937,6 +1937,9 @@
       "queryParameters" : [ {
         "key" : "maxExceptions",
         "mandatory" : false
+      }, {
+        "key" : "failureLabelFilter",
+        "mandatory" : false
       } ]
     },
     "request" : {
@@ -1999,6 +2002,12 @@
                   "timestamp" : {
                     "type" : "integer"
                   },
+                  "failureLabels" : {
+                    "type" : "object",
+                    "additionalProperties" : {
+                      "type" : "string"
+                    }
+                  },
                   "taskName" : {
                     "type" : "string"
                   },
@@ -2022,6 +2031,12 @@
                         },
                         "timestamp" : {
                           "type" : "integer"
+                        },
+                        "failureLabels" : {
+                          "type" : "object",
+                          "additionalProperties" : {
+                            "type" : "string"
+                          }
                         },
                         "taskName" : {
                           "type" : "string"

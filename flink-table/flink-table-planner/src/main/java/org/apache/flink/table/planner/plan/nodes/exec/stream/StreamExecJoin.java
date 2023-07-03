@@ -32,6 +32,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
+import org.apache.flink.table.planner.plan.nodes.exec.StateMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.JoinUtil;
@@ -46,10 +47,12 @@ import org.apache.flink.table.runtime.operators.join.stream.state.JoinInputSideS
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
+import javax.annotation.Nullable;
 
 import java.util.List;
 
@@ -68,10 +71,20 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
         producedTransformations = StreamExecJoin.JOIN_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
+@ExecNodeMetadata(
+        name = "stream-exec-join",
+        version = 2,
+        producedTransformations = StreamExecJoin.JOIN_TRANSFORMATION,
+        minPlanVersion = FlinkVersion.v1_18,
+        minStateVersion = FlinkVersion.v1_15)
 public class StreamExecJoin extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
     public static final String JOIN_TRANSFORMATION = "join";
+
+    public static final String LEFT_STATE_NAME = "leftState";
+
+    public static final String RIGHT_STATE_NAME = "rightState";
 
     public static final String FIELD_NAME_JOIN_SPEC = "joinSpec";
     public static final String FIELD_NAME_LEFT_UPSERT_KEYS = "leftUpsertKeys";
@@ -87,6 +100,11 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
     @JsonProperty(FIELD_NAME_RIGHT_UPSERT_KEYS)
     @JsonInclude(JsonInclude.Include.NON_DEFAULT)
     private final List<int[]> rightUpsertKeys;
+
+    @Nullable
+    @JsonProperty(FIELD_NAME_STATE)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final List<StateMetadata> stateMetadataList;
 
     public StreamExecJoin(
             ReadableConfig tableConfig,
@@ -104,6 +122,8 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
                 joinSpec,
                 leftUpsertKeys,
                 rightUpsertKeys,
+                StateMetadata.getMultiInputOperatorDefaultMeta(
+                        tableConfig, LEFT_STATE_NAME, RIGHT_STATE_NAME),
                 Lists.newArrayList(leftInputProperty, rightInputProperty),
                 outputType,
                 description);
@@ -117,6 +137,7 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
             @JsonProperty(FIELD_NAME_JOIN_SPEC) JoinSpec joinSpec,
             @JsonProperty(FIELD_NAME_LEFT_UPSERT_KEYS) List<int[]> leftUpsertKeys,
             @JsonProperty(FIELD_NAME_RIGHT_UPSERT_KEYS) List<int[]> rightUpsertKeys,
+            @Nullable @JsonProperty(FIELD_NAME_STATE) List<StateMetadata> stateMetadataList,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
@@ -125,6 +146,7 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
         this.joinSpec = checkNotNull(joinSpec);
         this.leftUpsertKeys = leftUpsertKeys;
         this.rightUpsertKeys = rightUpsertKeys;
+        this.stateMetadataList = stateMetadataList;
     }
 
     @Override
@@ -170,7 +192,10 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
                         leftType,
                         rightType);
 
-        long minRetentionTime = config.getStateRetentionTime();
+        List<Long> leftAndRightStateRetentionTime =
+                StateMetadata.getStateTtlForMultiInputOperator(config, 2, stateMetadataList);
+        long leftStateRetentionTime = leftAndRightStateRetentionTime.get(0);
+        long rightStateRetentionTime = leftAndRightStateRetentionTime.get(1);
 
         AbstractStreamingJoinOperator operator;
         FlinkJoinType joinType = joinSpec.getJoinType();
@@ -184,7 +209,8 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
                             leftInputSpec,
                             rightInputSpec,
                             joinSpec.getFilterNulls(),
-                            minRetentionTime);
+                            leftStateRetentionTime,
+                            rightStateRetentionTime);
         } else {
             boolean leftIsOuter = joinType == FlinkJoinType.LEFT || joinType == FlinkJoinType.FULL;
             boolean rightIsOuter =
@@ -199,7 +225,8 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
                             leftIsOuter,
                             rightIsOuter,
                             joinSpec.getFilterNulls(),
-                            minRetentionTime);
+                            leftStateRetentionTime,
+                            rightStateRetentionTime);
         }
 
         final RowType returnType = (RowType) getOutputType();

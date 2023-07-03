@@ -76,6 +76,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 import static org.apache.flink.configuration.description.TextElement.text;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.RESTORE_OVERLAP_FRACTION_THRESHOLD;
@@ -473,7 +474,9 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
         }
         final RocksDBResourceContainer resourceContainer =
                 createOptionsAndResourceContainer(
-                        sharedResources, nativeMetricOptions.isStatisticsEnabled());
+                        sharedResources,
+                        instanceBasePath,
+                        nativeMetricOptions.isStatisticsEnabled());
 
         ExecutionConfig executionConfig = env.getExecutionConfig();
         StreamCompressionDecorator keyGroupCompressionDecorator =
@@ -875,13 +878,14 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
     }
 
     @VisibleForTesting
-    RocksDBResourceContainer createOptionsAndResourceContainer() {
-        return createOptionsAndResourceContainer(null, false);
+    RocksDBResourceContainer createOptionsAndResourceContainer(@Nullable File instanceBasePath) {
+        return createOptionsAndResourceContainer(null, instanceBasePath, false);
     }
 
     @VisibleForTesting
     private RocksDBResourceContainer createOptionsAndResourceContainer(
             @Nullable OpaqueMemoryResource<RocksDBSharedResources> sharedResources,
+            @Nullable File instanceBasePath,
             boolean enableStatistics) {
 
         return new RocksDBResourceContainer(
@@ -889,6 +893,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
                 predefinedOptions != null ? predefinedOptions : PredefinedOptions.DEFAULT,
                 rocksDbOptionsFactory,
                 sharedResources,
+                instanceBasePath,
                 enableStatistics);
     }
 
@@ -912,6 +917,13 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
 
     @VisibleForTesting
     static void ensureRocksDBIsLoaded(String tempDirectory) throws IOException {
+        ensureRocksDBIsLoaded(tempDirectory, NativeLibraryLoader::getInstance);
+    }
+
+    @VisibleForTesting
+    static void ensureRocksDBIsLoaded(
+            String tempDirectory, Supplier<NativeLibraryLoader> nativeLibraryLoaderSupplier)
+            throws IOException {
         synchronized (EmbeddedRocksDBStateBackend.class) {
             if (!rocksDbInitialized) {
 
@@ -947,7 +959,8 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
                         rocksLibFolder.mkdirs();
 
                         // explicitly load the JNI dependency if it has not been loaded before
-                        NativeLibraryLoader.getInstance()
+                        nativeLibraryLoaderSupplier
+                                .get()
                                 .loadLibrary(rocksLibFolder.getAbsolutePath());
 
                         // this initialization here should validate that the loading succeeded

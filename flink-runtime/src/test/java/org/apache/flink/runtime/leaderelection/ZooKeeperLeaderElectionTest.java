@@ -22,7 +22,6 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.testutils.EachCallbackWrapper;
-import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
 import org.apache.flink.runtime.leaderretrieval.DefaultLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalDriver;
@@ -46,7 +45,6 @@ import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cac
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cache.CuratorCacheListener;
 import org.apache.flink.shaded.curator5.org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.CreateMode;
-import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.KeeperException;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.data.ACL;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -57,22 +55,16 @@ import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayOutputStream;
-import java.io.ObjectOutputStream;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyString;
@@ -82,26 +74,29 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 /**
- * Tests for the {@link ZooKeeperLeaderElectionDriver} and the {@link
+ * Tests for the {@link ZooKeeperMultipleComponentLeaderElectionDriver} and the {@link
  * org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalDriver}. To directly test the
- * {@link ZooKeeperLeaderElectionDriver} and {@link
+ * {@link ZooKeeperMultipleComponentLeaderElectionDriver} and {@link
  * org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalDriver}, some simple tests will
- * use {@link TestingLeaderElectionEventHandler} which will not write the leader information to
+ * use {@link TestingLeaderElectionListener} which will not write the leader information to
  * ZooKeeper. For the complicated tests(e.g. multiple leaders), we will use {@link
  * DefaultLeaderElectionService} with {@link TestingContender}.
  */
 class ZooKeeperLeaderElectionTest {
 
-    @RegisterExtension
-    private static final EachCallbackWrapper<ZooKeeperExtension> zooKeeperResource =
-            new EachCallbackWrapper<>(new ZooKeeperExtension());
+    private final ZooKeeperExtension zooKeeperExtension = new ZooKeeperExtension();
 
     @RegisterExtension
-    private final TestingFatalErrorHandlerExtension testingFatalErrorHandlerResource =
+    final EachCallbackWrapper<ZooKeeperExtension> zooKeeperResource =
+            new EachCallbackWrapper<>(zooKeeperExtension);
+
+    @RegisterExtension
+    final TestingFatalErrorHandlerExtension testingFatalErrorHandlerResource =
             new TestingFatalErrorHandlerExtension();
 
     private Configuration configuration;
 
+    private static final String CONTENDER_ID = "contender-id";
     private static final String LEADER_ADDRESS = "akka//user/jobmanager";
     private static final long timeout = 200L * 1000L;
 
@@ -120,42 +115,32 @@ class ZooKeeperLeaderElectionTest {
     /** Tests that the ZooKeeperLeaderElection/RetrievalService return both the correct URL. */
     @Test
     void testZooKeeperLeaderElectionRetrieval() throws Exception {
-
-        final TestingLeaderElectionEventHandler electionEventHandler =
-                new TestingLeaderElectionEventHandler(LEADER_ADDRESS);
+        final TestingLeaderElectionListener electionEventHandler =
+                new TestingLeaderElectionListener();
         final TestingLeaderRetrievalEventHandler retrievalEventHandler =
                 new TestingLeaderRetrievalEventHandler();
-        LeaderElectionDriver leaderElectionDriver = null;
-        LeaderRetrievalDriver leaderRetrievalDriver = null;
-        try {
+        try (MultipleComponentLeaderElectionDriver leaderElectionDriver =
+                        createAndInitLeaderElectionDriver(
+                                createZooKeeperClient(),
+                                electionEventHandler,
+                                testingFatalErrorHandlerResource.getTestingFatalErrorHandler());
+                LeaderRetrievalDriver leaderRetrievalDriver =
+                        ZooKeeperUtils.createLeaderRetrievalDriverFactory(
+                                        createZooKeeperClient(), CONTENDER_ID)
+                                .createLeaderRetrievalDriver(
+                                        retrievalEventHandler,
+                                        retrievalEventHandler::handleError)) {
 
-            leaderElectionDriver =
-                    createAndInitLeaderElectionDriver(
-                            createZooKeeperClient(), electionEventHandler);
-            leaderRetrievalDriver =
-                    ZooKeeperUtils.createLeaderRetrievalDriverFactory(createZooKeeperClient())
-                            .createLeaderRetrievalDriver(
-                                    retrievalEventHandler, retrievalEventHandler::handleError);
+            electionEventHandler.await(LeaderElectionEvent.IsLeaderEvent.class);
 
-            electionEventHandler.waitForLeader();
-            final LeaderInformation confirmedLeaderInformation =
-                    electionEventHandler.getConfirmedLeaderInformation();
-            assertThat(confirmedLeaderInformation.getLeaderAddress()).isEqualTo(LEADER_ADDRESS);
+            final UUID leaderSessionID = UUID.randomUUID();
+            leaderElectionDriver.publishLeaderInformation(
+                    CONTENDER_ID, LeaderInformation.known(leaderSessionID, LEADER_ADDRESS));
 
             retrievalEventHandler.waitForNewLeader();
 
-            assertThat(retrievalEventHandler.getLeaderSessionID())
-                    .isEqualTo(confirmedLeaderInformation.getLeaderSessionID());
-            assertThat(retrievalEventHandler.getAddress())
-                    .isEqualTo(confirmedLeaderInformation.getLeaderAddress());
-        } finally {
-            electionEventHandler.close();
-            if (leaderElectionDriver != null) {
-                leaderElectionDriver.close();
-            }
-            if (leaderRetrievalDriver != null) {
-                leaderRetrievalDriver.close();
-            }
+            assertThat(retrievalEventHandler.getLeaderSessionID()).isEqualTo(leaderSessionID);
+            assertThat(retrievalEventHandler.getAddress()).isEqualTo(LEADER_ADDRESS);
         }
     }
 
@@ -172,6 +157,7 @@ class ZooKeeperLeaderElectionTest {
 
         DefaultLeaderElectionService[] leaderElectionService =
                 new DefaultLeaderElectionService[num];
+        LeaderElection[] leaderElections = new LeaderElection[num];
         TestingContender[] contenders = new TestingContender[num];
         DefaultLeaderRetrievalService leaderRetrievalService = null;
 
@@ -179,20 +165,25 @@ class ZooKeeperLeaderElectionTest {
 
         try {
             leaderRetrievalService =
-                    ZooKeeperUtils.createLeaderRetrievalService(createZooKeeperClient());
+                    ZooKeeperUtils.createLeaderRetrievalService(
+                            createZooKeeperClient(), CONTENDER_ID, new Configuration());
 
             LOG.debug("Start leader retrieval service for the TestingListener.");
 
             leaderRetrievalService.start(listener);
 
             for (int i = 0; i < num; i++) {
-                leaderElectionService[i] =
-                        ZooKeeperUtils.createLeaderElectionService(createZooKeeperClient());
-                contenders[i] = new TestingContender(createAddress(i), leaderElectionService[i]);
+                final MultipleComponentLeaderElectionDriverFactory driverFactory =
+                        new ZooKeeperMultipleComponentLeaderElectionDriverFactory(
+                                createZooKeeperClient());
+                leaderElectionService[i] = new DefaultLeaderElectionService(driverFactory);
+                leaderElectionService[i].startLeaderElectionBackend();
+                leaderElections[i] = leaderElectionService[i].createLeaderElection(CONTENDER_ID);
+                contenders[i] = new TestingContender(createAddress(i), leaderElections[i]);
 
                 LOG.debug("Start leader election service for contender #{}.", i);
 
-                leaderElectionService[i].start(contenders[i]);
+                contenders[i].startLeaderElection();
             }
 
             String pattern = LEADER_ADDRESS + "_" + "(\\d+)";
@@ -219,7 +210,9 @@ class ZooKeeperLeaderElectionTest {
                         LOG.debug(
                                 "Stop leader election service of contender #{}.",
                                 numberSeenLeaders);
-                        leaderElectionService[index].stop();
+                        leaderElections[index].close();
+                        leaderElections[index] = null;
+                        leaderElectionService[index].close();
                         leaderElectionService[index] = null;
 
                         numberSeenLeaders++;
@@ -238,9 +231,15 @@ class ZooKeeperLeaderElectionTest {
                 leaderRetrievalService.stop();
             }
 
+            for (LeaderElection leaderElection : leaderElections) {
+                if (leaderElection != null) {
+                    leaderElection.close();
+                }
+            }
+
             for (DefaultLeaderElectionService electionService : leaderElectionService) {
                 if (electionService != null) {
-                    electionService.stop();
+                    electionService.close();
                 }
             }
         }
@@ -262,6 +261,7 @@ class ZooKeeperLeaderElectionTest {
 
         DefaultLeaderElectionService[] leaderElectionService =
                 new DefaultLeaderElectionService[num];
+        LeaderElection[] leaderElections = new LeaderElection[num];
         TestingContender[] contenders = new TestingContender[num];
         DefaultLeaderRetrievalService leaderRetrievalService = null;
 
@@ -269,18 +269,22 @@ class ZooKeeperLeaderElectionTest {
 
         try {
             leaderRetrievalService =
-                    ZooKeeperUtils.createLeaderRetrievalService(createZooKeeperClient());
+                    ZooKeeperUtils.createLeaderRetrievalService(
+                            createZooKeeperClient(), CONTENDER_ID, new Configuration());
 
             leaderRetrievalService.start(listener);
 
             for (int i = 0; i < num; i++) {
-                leaderElectionService[i] =
-                        ZooKeeperUtils.createLeaderElectionService(createZooKeeperClient());
+                final MultipleComponentLeaderElectionDriverFactory driverFactory =
+                        new ZooKeeperMultipleComponentLeaderElectionDriverFactory(
+                                createZooKeeperClient());
+                leaderElectionService[i] = new DefaultLeaderElectionService(driverFactory);
+                leaderElectionService[i].startLeaderElectionBackend();
+                leaderElections[i] = leaderElectionService[i].createLeaderElection(CONTENDER_ID);
                 contenders[i] =
-                        new TestingContender(
-                                LEADER_ADDRESS + "_" + i + "_0", leaderElectionService[i]);
+                        new TestingContender(LEADER_ADDRESS + "_" + i + "_0", leaderElections[i]);
 
-                leaderElectionService[i].start(contenders[i]);
+                contenders[i].startLeaderElection();
             }
 
             String pattern = LEADER_ADDRESS + "_" + "(\\d+)" + "_" + "(\\d+)";
@@ -301,16 +305,26 @@ class ZooKeeperLeaderElectionTest {
                             .isEqualTo(contenders[index].getLeaderSessionID());
 
                     // stop leader election service = revoke leadership
-                    leaderElectionService[index].stop();
+                    leaderElections[index].close();
+                    leaderElections[index] = null;
+                    leaderElectionService[index].close();
+                    leaderElections[index] = null;
+
                     // create new leader election service which takes part in the leader election
-                    leaderElectionService[index] =
-                            ZooKeeperUtils.createLeaderElectionService(createZooKeeperClient());
+                    final MultipleComponentLeaderElectionDriverFactory driverFactory =
+                            new ZooKeeperMultipleComponentLeaderElectionDriverFactory(
+                                    createZooKeeperClient());
+                    leaderElectionService[index] = new DefaultLeaderElectionService(driverFactory);
+                    leaderElectionService[index].startLeaderElectionBackend();
+                    leaderElections[index] =
+                            leaderElectionService[index].createLeaderElection(CONTENDER_ID);
+
                     contenders[index] =
                             new TestingContender(
                                     LEADER_ADDRESS + "_" + index + "_" + (lastTry + 1),
-                                    leaderElectionService[index]);
+                                    leaderElections[index]);
 
-                    leaderElectionService[index].start(contenders[index]);
+                    contenders[index].startLeaderElection();
                 } else {
                     throw new Exception("Did not find the leader's index.");
                 }
@@ -321,9 +335,15 @@ class ZooKeeperLeaderElectionTest {
                 leaderRetrievalService.stop();
             }
 
+            for (LeaderElection leaderElection : leaderElections) {
+                if (leaderElection != null) {
+                    leaderElection.close();
+                }
+            }
+
             for (DefaultLeaderElectionService electionService : leaderElectionService) {
                 if (electionService != null) {
-                    electionService.stop();
+                    electionService.close();
                 }
             }
         }
@@ -332,131 +352,30 @@ class ZooKeeperLeaderElectionTest {
     /** Tests that the leader update information will not be notified repeatedly. */
     @Test
     void testLeaderChangeWriteLeaderInformationOnlyOnce() throws Exception {
-        final LeaderInformationConsumer leaderInformationConsumer = new LeaderInformationConsumer();
-        final TestingLeaderElectionEventHandler electionEventHandler =
-                new TestingLeaderElectionEventHandler(LEADER_ADDRESS, leaderInformationConsumer);
+        final TestingLeaderElectionListener electionEventHandler =
+                new TestingLeaderElectionListener();
 
-        @SuppressWarnings("deprecation")
-        ZooKeeperLeaderElectionDriver leaderElectionDriver = null;
-        try {
-            leaderElectionDriver =
-                    createAndInitLeaderElectionDriver(
-                            createZooKeeperClient(), electionEventHandler);
+        try (ZooKeeperMultipleComponentLeaderElectionDriver leaderElectionDriver =
+                createAndInitLeaderElectionDriver(
+                        createZooKeeperClient(),
+                        electionEventHandler,
+                        testingFatalErrorHandlerResource.getTestingFatalErrorHandler())) {
 
-            electionEventHandler.waitForLeader();
-            final LeaderInformation confirmedLeaderInformation =
-                    electionEventHandler.getConfirmedLeaderInformation();
-            assertThat(confirmedLeaderInformation.getLeaderAddress()).isEqualTo(LEADER_ADDRESS);
+            electionEventHandler.await(LeaderElectionEvent.IsLeaderEvent.class);
+
+            leaderElectionDriver.publishLeaderInformation(
+                    CONTENDER_ID, LeaderInformation.known(UUID.randomUUID(), LEADER_ADDRESS));
 
             // First update will successfully complete.
-            assertThatFuture(leaderInformationConsumer.getFirstUpdateFuture()).eventuallySucceeds();
+            electionEventHandler.await(LeaderElectionEvent.LeaderInformationChangeEvent.class);
+
             // Wait for a while to make sure other updates don't appear.
-            assertThatThrownBy(
-                            () ->
-                                    leaderInformationConsumer
-                                            .getAnotherUpdateFuture()
-                                            .get(5, TimeUnit.MILLISECONDS),
-                            "Another leader information update is not expected.")
-                    .isInstanceOf(TimeoutException.class);
-        } finally {
-            electionEventHandler.close();
-            if (leaderElectionDriver != null) {
-                leaderElectionDriver.close();
-            }
-        }
-    }
-
-    /**
-     * Tests that the current leader is notified when his leader connection information in ZooKeeper
-     * are overwritten. The leader must re-establish the correct leader connection information in
-     * ZooKeeper.
-     */
-    @Test
-    void testLeaderShouldBeCorrectedWhenOverwritten() throws Exception {
-        final String faultyContenderUrl = "faultyContender";
-
-        final TestingLeaderElectionEventHandler electionEventHandler =
-                new TestingLeaderElectionEventHandler(LEADER_ADDRESS);
-        final TestingLeaderRetrievalEventHandler retrievalEventHandler =
-                new TestingLeaderRetrievalEventHandler();
-
-        ZooKeeperLeaderElectionDriver leaderElectionDriver = null;
-        LeaderRetrievalDriver leaderRetrievalDriver = null;
-
-        CuratorFrameworkWithUnhandledErrorListener anotherCuratorFrameworkWrapper = null;
-
-        try {
-
-            leaderElectionDriver =
-                    createAndInitLeaderElectionDriver(
-                            createZooKeeperClient(), electionEventHandler);
-
-            electionEventHandler.waitForLeader();
-            final LeaderInformation confirmedLeaderInformation =
-                    electionEventHandler.getConfirmedLeaderInformation();
-            assertThat(confirmedLeaderInformation.getLeaderAddress()).isEqualTo(LEADER_ADDRESS);
-
-            anotherCuratorFrameworkWrapper =
-                    ZooKeeperUtils.startCuratorFramework(
-                            configuration, NoOpFatalErrorHandler.INSTANCE);
-
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            ObjectOutputStream oos = new ObjectOutputStream(baos);
-
-            oos.writeUTF(faultyContenderUrl);
-            oos.writeObject(UUID.randomUUID());
-
-            oos.close();
-
-            // overwrite the current leader address, the leader should notice that
-            boolean dataWritten = false;
-
-            final String connectionInformationPath =
-                    leaderElectionDriver.getConnectionInformationPath();
-
-            while (!dataWritten) {
-                anotherCuratorFrameworkWrapper
-                        .asCuratorFramework()
-                        .delete()
-                        .forPath(connectionInformationPath);
-
-                try {
-                    anotherCuratorFrameworkWrapper
-                            .asCuratorFramework()
-                            .create()
-                            .forPath(connectionInformationPath, baos.toByteArray());
-
-                    dataWritten = true;
-                } catch (KeeperException.NodeExistsException e) {
-                    // this can happen if the leader election service was faster
-                }
-            }
-
-            // The faulty leader should be corrected on ZooKeeper
-            leaderRetrievalDriver =
-                    ZooKeeperUtils.createLeaderRetrievalDriverFactory(createZooKeeperClient())
-                            .createLeaderRetrievalDriver(
-                                    retrievalEventHandler, retrievalEventHandler::handleError);
-
-            if (retrievalEventHandler.waitForNewLeader().equals(faultyContenderUrl)) {
-                retrievalEventHandler.waitForNewLeader();
-            }
-
-            assertThat(retrievalEventHandler.getLeaderSessionID())
-                    .isEqualTo(confirmedLeaderInformation.getLeaderSessionID());
-            assertThat(retrievalEventHandler.getAddress())
-                    .isEqualTo(confirmedLeaderInformation.getLeaderAddress());
-        } finally {
-            electionEventHandler.close();
-            if (leaderElectionDriver != null) {
-                leaderElectionDriver.close();
-            }
-            if (leaderRetrievalDriver != null) {
-                leaderRetrievalDriver.close();
-            }
-            if (anotherCuratorFrameworkWrapper != null) {
-                anotherCuratorFrameworkWrapper.close();
-            }
+            assertThat(
+                            electionEventHandler.await(
+                                    LeaderElectionEvent.LeaderInformationChangeEvent.class,
+                                    Duration.ofMillis(5)))
+                    .as("Another leader information update is not expected.")
+                    .isEmpty();
         }
     }
 
@@ -468,8 +387,7 @@ class ZooKeeperLeaderElectionTest {
     void testExceptionForwarding() throws Exception {
         final CreateBuilder mockCreateBuilder =
                 mock(CreateBuilder.class, Mockito.RETURNS_DEEP_STUBS);
-        final String exMsg = "Test exception";
-        final Exception testException = new Exception(exMsg);
+        final Exception testException = new Exception("Test exception");
         try (final CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper =
                 ZooKeeperUtils.startCuratorFramework(
                         configuration, NoOpFatalErrorHandler.INSTANCE)) {
@@ -483,26 +401,22 @@ class ZooKeeperLeaderElectionTest {
                             .forPath(anyString(), any(byte[].class)))
                     .thenThrow(testException);
 
-            TestingLeaderElectionEventHandler electionEventHandler = null;
-            LeaderElectionDriver leaderElectionDriver = null;
-            try {
-                electionEventHandler = new TestingLeaderElectionEventHandler(LEADER_ADDRESS);
-                leaderElectionDriver =
-                        createAndInitLeaderElectionDriver(client, electionEventHandler);
+            final TestingLeaderElectionListener electionEventHandler =
+                    new TestingLeaderElectionListener();
+            final TestingFatalErrorHandler fatalErrorHandler =
+                    testingFatalErrorHandlerResource.getTestingFatalErrorHandler();
+            try (ZooKeeperMultipleComponentLeaderElectionDriver leaderElectionDriver =
+                    createAndInitLeaderElectionDriver(
+                            client, electionEventHandler, fatalErrorHandler)) {
 
-                electionEventHandler.waitForError();
+                electionEventHandler.await(LeaderElectionEvent.IsLeaderEvent.class);
 
-                assertThat(electionEventHandler.getError())
-                        .isNotNull()
-                        .satisfies(FlinkAssertions.anyCauseMatches(exMsg));
+                leaderElectionDriver.publishLeaderInformation(
+                        CONTENDER_ID, LeaderInformation.known(UUID.randomUUID(), "some-address"));
+
+                assertThat(fatalErrorHandler.getErrorFuture()).isCompletedWithValue(testException);
             } finally {
-                if (leaderElectionDriver != null) {
-                    leaderElectionDriver.close();
-                }
-
-                if (electionEventHandler != null) {
-                    electionEventHandler.close();
-                }
+                fatalErrorHandler.clearError();
             }
         }
     }
@@ -514,10 +428,10 @@ class ZooKeeperLeaderElectionTest {
      */
     @Test
     void testEphemeralZooKeeperNodes() throws Exception {
-        ZooKeeperLeaderElectionDriver leaderElectionDriver;
+        ZooKeeperMultipleComponentLeaderElectionDriver leaderElectionDriver;
         LeaderRetrievalDriver leaderRetrievalDriver = null;
-        final TestingLeaderElectionEventHandler electionEventHandler =
-                new TestingLeaderElectionEventHandler(LEADER_ADDRESS);
+        final TestingLeaderElectionListener electionEventHandler =
+                new TestingLeaderElectionListener();
         final TestingLeaderRetrievalEventHandler retrievalEventHandler =
                 new TestingLeaderRetrievalEventHandler();
 
@@ -537,25 +451,30 @@ class ZooKeeperLeaderElectionTest {
 
             leaderElectionDriver =
                     createAndInitLeaderElectionDriver(
-                            curatorFrameworkWrapper.asCuratorFramework(), electionEventHandler);
+                            curatorFrameworkWrapper.asCuratorFramework(),
+                            electionEventHandler,
+                            testingFatalErrorHandlerResource.getTestingFatalErrorHandler());
             leaderRetrievalDriver =
                     ZooKeeperUtils.createLeaderRetrievalDriverFactory(
-                                    curatorFrameworkWrapper2.asCuratorFramework())
+                                    curatorFrameworkWrapper2.asCuratorFramework(), CONTENDER_ID)
                             .createLeaderRetrievalDriver(
                                     retrievalEventHandler, retrievalEventHandler::handleError);
 
             cache =
                     CuratorCache.build(
                             curatorFrameworkWrapper2.asCuratorFramework(),
-                            leaderElectionDriver.getConnectionInformationPath());
+                            ZooKeeperUtils.generateConnectionInformationPath(CONTENDER_ID));
 
             final ExistsCacheListener existsListener =
                     ExistsCacheListener.createWithNodeIsMissingValidation(
-                            cache, leaderElectionDriver.getConnectionInformationPath());
+                            cache, ZooKeeperUtils.generateConnectionInformationPath(CONTENDER_ID));
             cache.listenable().addListener(existsListener);
             cache.start();
 
-            electionEventHandler.waitForLeader();
+            electionEventHandler.await(LeaderElectionEvent.IsLeaderEvent.class);
+
+            leaderElectionDriver.publishLeaderInformation(
+                    CONTENDER_ID, LeaderInformation.known(UUID.randomUUID(), LEADER_ADDRESS));
 
             retrievalEventHandler.waitForNewLeader();
 
@@ -565,7 +484,7 @@ class ZooKeeperLeaderElectionTest {
 
             final DeletedCacheListener deletedCacheListener =
                     DeletedCacheListener.createWithNodeExistValidation(
-                            cache, leaderElectionDriver.getConnectionInformationPath());
+                            cache, ZooKeeperUtils.generateConnectionInformationPath(CONTENDER_ID));
             cache.listenable().addListener(deletedCacheListener);
 
             leaderElectionDriver.close();
@@ -580,7 +499,6 @@ class ZooKeeperLeaderElectionTest {
 
             retrievalEventHandler.waitForEmptyLeaderInformation();
         } finally {
-            electionEventHandler.close();
             if (leaderRetrievalDriver != null) {
                 leaderRetrievalDriver.close();
             }
@@ -597,48 +515,38 @@ class ZooKeeperLeaderElectionTest {
 
     @Test
     void testNotLeaderShouldNotCleanUpTheLeaderInformation() throws Exception {
-
-        final TestingLeaderElectionEventHandler electionEventHandler =
-                new TestingLeaderElectionEventHandler(LEADER_ADDRESS);
+        final TestingLeaderElectionListener electionEventHandler =
+                new TestingLeaderElectionListener();
         final TestingLeaderRetrievalEventHandler retrievalEventHandler =
                 new TestingLeaderRetrievalEventHandler();
-        ZooKeeperLeaderElectionDriver leaderElectionDriver = null;
-        ZooKeeperLeaderRetrievalDriver leaderRetrievalDriver = null;
+        try (ZooKeeperMultipleComponentLeaderElectionDriver leaderElectionDriver =
+                createAndInitLeaderElectionDriver(
+                        createZooKeeperClient(),
+                        electionEventHandler,
+                        testingFatalErrorHandlerResource.getTestingFatalErrorHandler())) {
 
-        try {
-            leaderElectionDriver =
-                    createAndInitLeaderElectionDriver(
-                            createZooKeeperClient(), electionEventHandler);
+            // this call shouldn't block
+            electionEventHandler.await(LeaderElectionEvent.IsLeaderEvent.class);
 
-            electionEventHandler.waitForLeader();
-            final LeaderInformation confirmedLeaderInformation =
-                    electionEventHandler.getConfirmedLeaderInformation();
-            assertThat(confirmedLeaderInformation.getLeaderAddress()).isEqualTo(LEADER_ADDRESS);
+            final UUID leaderSessionID = UUID.randomUUID();
+            leaderElectionDriver.publishLeaderInformation(
+                    CONTENDER_ID, LeaderInformation.known(leaderSessionID, LEADER_ADDRESS));
 
             // Leader is revoked
             leaderElectionDriver.notLeader();
-            electionEventHandler.waitForRevokeLeader();
-            assertThat(electionEventHandler.getConfirmedLeaderInformation())
-                    .isEqualTo(LeaderInformation.empty());
+            electionEventHandler.await(LeaderElectionEvent.NotLeaderEvent.class);
+
             // The data on ZooKeeper has not been cleared
-            leaderRetrievalDriver =
-                    ZooKeeperUtils.createLeaderRetrievalDriverFactory(createZooKeeperClient())
+            try (ZooKeeperLeaderRetrievalDriver leaderRetrievalDriver =
+                    ZooKeeperUtils.createLeaderRetrievalDriverFactory(
+                                    createZooKeeperClient(), CONTENDER_ID)
                             .createLeaderRetrievalDriver(
-                                    retrievalEventHandler, retrievalEventHandler::handleError);
+                                    retrievalEventHandler, retrievalEventHandler::handleError)) {
 
-            retrievalEventHandler.waitForNewLeader();
+                retrievalEventHandler.waitForNewLeader();
 
-            assertThat(retrievalEventHandler.getLeaderSessionID())
-                    .isEqualTo(confirmedLeaderInformation.getLeaderSessionID());
-            assertThat(retrievalEventHandler.getAddress())
-                    .isEqualTo(confirmedLeaderInformation.getLeaderAddress());
-        } finally {
-            electionEventHandler.close();
-            if (leaderElectionDriver != null) {
-                leaderElectionDriver.close();
-            }
-            if (leaderRetrievalDriver != null) {
-                leaderRetrievalDriver.close();
+                assertThat(retrievalEventHandler.getLeaderSessionID()).isEqualTo(leaderSessionID);
+                assertThat(retrievalEventHandler.getAddress()).isEqualTo(LEADER_ADDRESS);
             }
         }
     }
@@ -649,9 +557,9 @@ class ZooKeeperLeaderElectionTest {
      */
     @Test
     public void testUnExpectedErrorForwarding() throws Exception {
-        LeaderElectionDriver leaderElectionDriver = null;
-        final TestingLeaderElectionEventHandler electionEventHandler =
-                new TestingLeaderElectionEventHandler(LEADER_ADDRESS);
+        MultipleComponentLeaderElectionDriver leaderElectionDriver = null;
+        final TestingLeaderElectionListener electionEventHandler =
+                new TestingLeaderElectionListener();
 
         final TestingFatalErrorHandler fatalErrorHandler = new TestingFatalErrorHandler();
         final FlinkRuntimeException testException =
@@ -680,11 +588,10 @@ class ZooKeeperLeaderElectionTest {
             CuratorFramework clientWithErrorHandler = curatorFrameworkWrapper.asCuratorFramework();
             assertThat(fatalErrorHandler.getErrorFuture()).isNotDone();
             leaderElectionDriver =
-                    createAndInitLeaderElectionDriver(clientWithErrorHandler, electionEventHandler);
+                    createAndInitLeaderElectionDriver(
+                            clientWithErrorHandler, electionEventHandler, fatalErrorHandler);
             assertThat(fatalErrorHandler.getErrorFuture().get()).isEqualTo(testException);
         } finally {
-            electionEventHandler.close();
-
             if (leaderElectionDriver != null) {
                 leaderElectionDriver.close();
             }
@@ -768,39 +675,13 @@ class ZooKeeperLeaderElectionTest {
         }
     }
 
-    private ZooKeeperLeaderElectionDriver createAndInitLeaderElectionDriver(
-            CuratorFramework client, TestingLeaderElectionEventHandler electionEventHandler)
+    private ZooKeeperMultipleComponentLeaderElectionDriver createAndInitLeaderElectionDriver(
+            CuratorFramework client,
+            TestingLeaderElectionListener electionEventHandler,
+            FatalErrorHandler fatalErrorHandler)
             throws Exception {
 
-        final ZooKeeperLeaderElectionDriver leaderElectionDriver =
-                ZooKeeperUtils.createLeaderElectionDriverFactory(client)
-                        .createLeaderElectionDriver(
-                                electionEventHandler, electionEventHandler::handleError);
-        electionEventHandler.init(leaderElectionDriver);
-        return leaderElectionDriver;
-    }
-
-    private static class LeaderInformationConsumer implements Consumer<LeaderInformation> {
-
-        final CompletableFuture<Void> firstUpdateFuture = new CompletableFuture<>();
-
-        final CompletableFuture<Void> anotherUpdateFuture = new CompletableFuture<>();
-
-        @Override
-        public void accept(LeaderInformation leaderInformation) {
-            if (!firstUpdateFuture.isDone()) {
-                firstUpdateFuture.complete(null);
-            } else {
-                anotherUpdateFuture.complete(null);
-            }
-        }
-
-        public CompletableFuture<Void> getFirstUpdateFuture() {
-            return firstUpdateFuture;
-        }
-
-        public CompletableFuture<Void> getAnotherUpdateFuture() {
-            return anotherUpdateFuture;
-        }
+        return new ZooKeeperMultipleComponentLeaderElectionDriverFactory(client)
+                .create(electionEventHandler, fatalErrorHandler);
     }
 }

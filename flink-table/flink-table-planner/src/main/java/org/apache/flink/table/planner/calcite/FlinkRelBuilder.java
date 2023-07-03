@@ -37,7 +37,7 @@ import org.apache.flink.table.runtime.operators.rank.RankType;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableList;
 
 import org.apache.calcite.plan.Context;
 import org.apache.calcite.plan.Contexts;

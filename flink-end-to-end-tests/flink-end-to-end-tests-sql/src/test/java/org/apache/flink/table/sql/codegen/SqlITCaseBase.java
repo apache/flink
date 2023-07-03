@@ -45,6 +45,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -73,9 +74,9 @@ public abstract class SqlITCaseBase extends TestLogger {
 
     @Rule public final TemporaryFolder tmp = new TemporaryFolder();
 
-    private final String executionMode;
+    protected final String executionMode;
 
-    private Path result;
+    protected Path result;
 
     protected static final Path SQL_TOOL_BOX_JAR =
             ResourceTestUtils.getResource(".*SqlToolbox.jar");
@@ -98,17 +99,22 @@ public abstract class SqlITCaseBase extends TestLogger {
         this.result = tmpPath.resolve(String.format("result-%s", UUID.randomUUID()));
     }
 
-    public void runAndCheckSQL(
-            String sqlPath, Map<String, String> varsMap, int resultSize, List<String> resultItems)
+    public void runAndCheckSQL(String sqlPath, List<String> resultItems) throws Exception {
+        runAndCheckSQL(sqlPath, Collections.singletonMap(result, resultItems));
+    }
+
+    public void runAndCheckSQL(String sqlPath, Map<Path, List<String>> resultItems)
             throws Exception {
         try (ClusterController clusterController = flink.startCluster(1)) {
-            List<String> sqlLines = initializeSqlLines(sqlPath, varsMap);
+            List<String> sqlLines = initializeSqlLines(sqlPath);
 
             executeSqlStatements(clusterController, sqlLines);
 
             // Wait until all the results flushed to the json file.
-            LOG.info("Verify the json result.");
-            checkJsonResultFile(resultSize, resultItems);
+            LOG.info("Verify the result.");
+            for (Map.Entry<Path, List<String>> entry : resultItems.entrySet()) {
+                checkResultFile(entry.getKey(), entry.getValue());
+            }
             LOG.info("The SQL client test run successfully.");
         }
     }
@@ -123,13 +129,12 @@ public abstract class SqlITCaseBase extends TestLogger {
     protected abstract void executeSqlStatements(
             ClusterController clusterController, List<String> sqlLines) throws Exception;
 
-    private List<String> initializeSqlLines(String sqlPath, Map<String, String> vars)
-            throws IOException {
+    private List<String> initializeSqlLines(String sqlPath) throws IOException {
         URL url = SqlITCaseBase.class.getClassLoader().getResource(sqlPath);
         if (url == null) {
             throw new FileNotFoundException(sqlPath);
         }
-
+        Map<String, String> vars = generateReplaceVars();
         List<String> lines = Files.readAllLines(new File(url.getFile()).toPath());
         List<String> result = new ArrayList<>();
         for (String line : lines) {
@@ -142,26 +147,28 @@ public abstract class SqlITCaseBase extends TestLogger {
         return result;
     }
 
-    private void checkJsonResultFile(int resultSize, List<String> items) throws Exception {
+    private static void checkResultFile(Path resultPath, List<String> expectedItems)
+            throws Exception {
         boolean success = false;
         final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(20));
         List<String> lines = null;
+        int resultSize = expectedItems.size();
         while (deadline.hasTimeLeft()) {
-            if (Files.exists(result)) {
-                lines = readJsonResultFiles(result);
+            if (Files.exists(resultPath)) {
+                lines = readResultFiles(resultPath);
                 if (lines.size() == resultSize) {
                     success = true;
-                    assertThat(lines).hasSameElementsAs(items);
+                    assertThat(lines).hasSameElementsAs(expectedItems);
                     break;
                 } else {
                     LOG.info(
-                            "The target Json {} does not contain enough records, current {} records, left time: {}s",
-                            result,
+                            "The target result {} does not contain enough records, current {} records, left time: {}s",
+                            resultPath,
                             lines.size(),
                             deadline.timeLeft().getSeconds());
                 }
             } else {
-                LOG.info("The target Json {} does not exist now", result);
+                LOG.info("The target result {} does not exist now", resultPath);
             }
             Thread.sleep(500);
         }
@@ -171,13 +178,13 @@ public abstract class SqlITCaseBase extends TestLogger {
                         "Did not get expected results before timeout, actual result: %s.", lines));
     }
 
-    private static List<String> readJsonResultFiles(Path path) throws IOException {
+    private static List<String> readResultFiles(Path path) throws IOException {
         File filePath = path.toFile();
         // list all the non-hidden files
-        File[] csvFiles = filePath.listFiles((dir, name) -> !name.startsWith("."));
+        File[] files = filePath.listFiles((dir, name) -> !name.startsWith("."));
         List<String> result = new ArrayList<>();
-        if (csvFiles != null) {
-            for (File file : csvFiles) {
+        if (files != null) {
+            for (File file : files) {
                 result.addAll(Files.readAllLines(file.toPath()));
             }
         }

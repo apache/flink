@@ -38,7 +38,7 @@ import org.apache.flink.runtime.io.network.partition.NoOpResourceManagerPartitio
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
-import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
+import org.apache.flink.runtime.leaderelection.StandaloneLeaderElection;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -134,8 +134,8 @@ class ResourceManagerTest {
     @BeforeEach
     void setup() throws Exception {
         highAvailabilityServices = new TestingHighAvailabilityServices();
-        highAvailabilityServices.setResourceManagerLeaderElectionService(
-                new TestingLeaderElectionService());
+        highAvailabilityServices.setResourceManagerLeaderElection(
+                new StandaloneLeaderElection(UUID.randomUUID()));
         testingFatalErrorHandler = new TestingFatalErrorHandler();
         resourceManagerResourceId = ResourceID.generate();
     }

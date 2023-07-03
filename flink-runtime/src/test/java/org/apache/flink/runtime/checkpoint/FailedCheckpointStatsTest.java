@@ -21,13 +21,13 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.NotSerializableException;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class FailedCheckpointStatsTest {
 
@@ -35,7 +35,7 @@ public class FailedCheckpointStatsTest {
      * Tests that the end to end duration of a failed checkpoint is the duration until the failure.
      */
     @Test
-    public void testEndToEndDuration() throws Exception {
+    void testEndToEndDuration() {
         long duration = 123912931293L;
         long triggerTimestamp = 10123;
         long failureTimestamp = triggerTimestamp + duration;
@@ -57,15 +57,16 @@ public class FailedCheckpointStatsTest {
                         0,
                         0,
                         0,
+                        false,
                         failureTimestamp,
                         null,
                         null);
 
-        assertEquals(duration, failed.getEndToEndDuration());
+        assertThat(failed.getEndToEndDuration()).isEqualTo(duration);
     }
 
     @Test
-    public void testIsJavaSerializable() throws Exception {
+    void testIsJavaSerializable() throws Exception {
         long duration = 123912931293L;
         long triggerTimestamp = 10123;
         long failureTimestamp = triggerTimestamp + duration;
@@ -87,26 +88,27 @@ public class FailedCheckpointStatsTest {
                         190890123,
                         4242,
                         4444,
+                        true,
                         failureTimestamp,
                         null,
                         new NotSerializableException("message"));
 
         FailedCheckpointStats copy = CommonTestUtils.createCopySerializable(failed);
 
-        assertEquals(failed.getCheckpointId(), copy.getCheckpointId());
-        assertEquals(failed.getTriggerTimestamp(), copy.getTriggerTimestamp());
-        assertEquals(failed.getProperties(), copy.getProperties());
-        assertEquals(failed.getNumberOfSubtasks(), copy.getNumberOfSubtasks());
-        assertEquals(
-                failed.getNumberOfAcknowledgedSubtasks(), copy.getNumberOfAcknowledgedSubtasks());
-        assertEquals(failed.getEndToEndDuration(), copy.getEndToEndDuration());
-        assertEquals(failed.getStateSize(), copy.getStateSize());
-        assertEquals(failed.getProcessedData(), copy.getProcessedData());
-        assertEquals(failed.getPersistedData(), copy.getPersistedData());
-        assertEquals(
-                failed.getLatestAcknowledgedSubtaskStats(),
-                copy.getLatestAcknowledgedSubtaskStats());
-        assertEquals(failed.getStatus(), copy.getStatus());
-        assertEquals(failed.getFailureMessage(), copy.getFailureMessage());
+        assertThat(copy.getCheckpointId()).isEqualTo(failed.getCheckpointId());
+        assertThat(copy.getTriggerTimestamp()).isEqualTo(failed.getTriggerTimestamp());
+        assertThat(copy.getProperties()).isEqualTo(failed.getProperties());
+        assertThat(copy.getNumberOfSubtasks()).isEqualTo(failed.getNumberOfSubtasks());
+        assertThat(copy.getNumberOfAcknowledgedSubtasks())
+                .isEqualTo(failed.getNumberOfAcknowledgedSubtasks());
+        assertThat(copy.getEndToEndDuration()).isEqualTo(failed.getEndToEndDuration());
+        assertThat(copy.getStateSize()).isEqualTo(failed.getStateSize());
+        assertThat(copy.getProcessedData()).isEqualTo(failed.getProcessedData());
+        assertThat(copy.getPersistedData()).isEqualTo(failed.getPersistedData());
+        assertThat(copy.isUnalignedCheckpoint()).isEqualTo(failed.isUnalignedCheckpoint());
+        assertThat(copy.getLatestAcknowledgedSubtaskStats())
+                .isEqualTo(failed.getLatestAcknowledgedSubtaskStats());
+        assertThat(copy.getStatus()).isEqualTo(failed.getStatus());
+        assertThat(copy.getFailureMessage()).isEqualTo(failed.getFailureMessage());
     }
 }

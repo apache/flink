@@ -18,8 +18,10 @@
 
 package org.apache.flink.runtime.deployment;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
@@ -27,9 +29,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.MaybeOffloaded;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.executiongraph.ExecutionVertexInputInfo;
 import org.apache.flink.runtime.executiongraph.IndexRange;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
@@ -59,8 +59,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Function;
 
+import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -69,68 +69,72 @@ import static org.apache.flink.util.Preconditions.checkState;
  * org.apache.flink.runtime.taskmanager.Task} from {@link Execution}.
  */
 public class TaskDeploymentDescriptorFactory {
-    private final ExecutionAttemptID executionId;
+    /**
+     * This is an expert option, that we do not want to expose in the documentation. The default
+     * value is good enough for almost all cases
+     */
+    @Experimental
+    public static final ConfigOption<Integer> OFFLOAD_SHUFFLE_DESCRIPTORS_THRESHOLD =
+            key("jobmanager.task-deployment.offload-shuffle-descriptors-to-blob-server.threshold-num")
+                    .intType()
+                    .defaultValue(2048 * 2048)
+                    .withDescription(
+                            "Threshold for offloading shuffle descriptors to blob server. Once the number of shuffle descriptors"
+                                    + " exceeds this value, we will offload the shuffle descriptors to blob server."
+                                    + " This default value means JobManager need to serialize and transport"
+                                    + " 2048 shuffle descriptors (almost 32KB) to 2048 consumers (64MB in total)");
+
     private final MaybeOffloaded<JobInformation> serializedJobInformation;
-    private final MaybeOffloaded<TaskInformation> taskInfo;
     private final JobID jobID;
     private final PartitionLocationConstraint partitionDeploymentConstraint;
-    private final List<ConsumedPartitionGroup> consumedPartitionGroups;
-    private final Function<IntermediateResultPartitionID, IntermediateResultPartition>
-            resultPartitionRetriever;
-    private final BlobWriter blobWriter;
-    private final Map<IntermediateDataSetID, ShuffleDescriptorAndIndex[]>
-            consumedClusterPartitionShuffleDescriptors;
-    private final Function<IntermediateDataSetID, ExecutionVertexInputInfo>
-            executionVertexInputInfoRetriever;
     private final boolean nonFinishedHybridPartitionShouldBeUnknown;
+    private final ShuffleDescriptorSerializer shuffleDescriptorSerializer;
 
-    private TaskDeploymentDescriptorFactory(
-            ExecutionAttemptID executionId,
-            MaybeOffloaded<JobInformation> serializedJobInformation,
-            MaybeOffloaded<TaskInformation> taskInfo,
+    public TaskDeploymentDescriptorFactory(
+            Either<SerializedValue<JobInformation>, PermanentBlobKey> jobInformationOrBlobKey,
             JobID jobID,
             PartitionLocationConstraint partitionDeploymentConstraint,
-            List<ConsumedPartitionGroup> consumedPartitionGroups,
-            Function<IntermediateResultPartitionID, IntermediateResultPartition>
-                    resultPartitionRetriever,
             BlobWriter blobWriter,
             boolean nonFinishedHybridPartitionShouldBeUnknown,
-            Map<IntermediateDataSetID, ShuffleDescriptorAndIndex[]>
-                    consumedClusterPartitionShuffleDescriptors,
-            Function<IntermediateDataSetID, ExecutionVertexInputInfo>
-                    executionVertexInputInfoRetriever) {
-        this.executionId = executionId;
-        this.serializedJobInformation = serializedJobInformation;
-        this.taskInfo = taskInfo;
+            int offloadShuffleDescriptorsThreshold) {
+        this.serializedJobInformation = getSerializedJobInformation(jobInformationOrBlobKey);
         this.jobID = jobID;
         this.partitionDeploymentConstraint = partitionDeploymentConstraint;
-        this.consumedPartitionGroups = consumedPartitionGroups;
-        this.resultPartitionRetriever = resultPartitionRetriever;
-        this.blobWriter = blobWriter;
         this.nonFinishedHybridPartitionShouldBeUnknown = nonFinishedHybridPartitionShouldBeUnknown;
-        this.consumedClusterPartitionShuffleDescriptors =
-                consumedClusterPartitionShuffleDescriptors;
-        this.executionVertexInputInfoRetriever = checkNotNull(executionVertexInputInfoRetriever);
+        this.shuffleDescriptorSerializer =
+                new DefaultShuffleDescriptorSerializer(
+                        jobID, blobWriter, offloadShuffleDescriptorsThreshold);
+    }
+
+    public MaybeOffloaded<JobInformation> getSerializedJobInformation() {
+        return serializedJobInformation;
     }
 
     public TaskDeploymentDescriptor createDeploymentDescriptor(
+            Execution execution,
             AllocationID allocationID,
             @Nullable JobManagerTaskRestore taskRestore,
             Collection<ResultPartitionDeploymentDescriptor> producedPartitions)
-            throws IOException {
+            throws IOException, ClusterDatasetCorruptedException {
+        final ExecutionVertex executionVertex = execution.getVertex();
+
         return new TaskDeploymentDescriptor(
                 jobID,
                 serializedJobInformation,
-                taskInfo,
-                executionId,
+                getSerializedTaskInformation(
+                        executionVertex.getJobVertex().getTaskInformationOrBlobKey()),
+                execution.getAttemptId(),
                 allocationID,
                 taskRestore,
                 new ArrayList<>(producedPartitions),
-                createInputGateDeploymentDescriptors());
+                createInputGateDeploymentDescriptors(executionVertex));
     }
 
-    private List<InputGateDeploymentDescriptor> createInputGateDeploymentDescriptors()
-            throws IOException {
+    private List<InputGateDeploymentDescriptor> createInputGateDeploymentDescriptors(
+            ExecutionVertex executionVertex) throws IOException, ClusterDatasetCorruptedException {
+
+        List<ConsumedPartitionGroup> consumedPartitionGroups =
+                executionVertex.getAllConsumedPartitionGroups();
         List<InputGateDeploymentDescriptor> inputGates =
                 new ArrayList<>(consumedPartitionGroups.size());
 
@@ -140,14 +144,17 @@ public class TaskDeploymentDescriptorFactory {
             // TODO Refactor after removing the consumers from the intermediate result partitions
 
             IntermediateResult consumedIntermediateResult =
-                    resultPartitionRetriever
-                            .apply(consumedPartitionGroup.getFirst())
+                    executionVertex
+                            .getExecutionGraphAccessor()
+                            .getResultPartitionOrThrow(consumedPartitionGroup.getFirst())
                             .getIntermediateResult();
 
             IntermediateDataSetID resultId = consumedIntermediateResult.getId();
             ResultPartitionType partitionType = consumedIntermediateResult.getResultType();
             IndexRange subpartitionRange =
-                    executionVertexInputInfoRetriever.apply(resultId).getSubpartitionIndexRange();
+                    executionVertex
+                            .getExecutionVertexInputInfo(resultId)
+                            .getSubpartitionIndexRange();
 
             inputGates.add(
                     new InputGateDeploymentDescriptor(
@@ -156,7 +163,23 @@ public class TaskDeploymentDescriptorFactory {
                             subpartitionRange,
                             consumedPartitionGroup.size(),
                             getConsumedPartitionShuffleDescriptors(
-                                    consumedIntermediateResult, consumedPartitionGroup)));
+                                    consumedIntermediateResult,
+                                    consumedPartitionGroup,
+                                    executionVertex.getExecutionGraphAccessor())));
+        }
+
+        final Map<IntermediateDataSetID, ShuffleDescriptorAndIndex[]>
+                consumedClusterPartitionShuffleDescriptors;
+        try {
+            consumedClusterPartitionShuffleDescriptors =
+                    getClusterPartitionShuffleDescriptors(executionVertex);
+        } catch (Throwable e) {
+            throw new ClusterDatasetCorruptedException(
+                    e,
+                    executionVertex
+                            .getJobVertex()
+                            .getJobVertex()
+                            .getIntermediateDataSetIdsToConsume());
         }
 
         for (Map.Entry<IntermediateDataSetID, ShuffleDescriptorAndIndex[]> entry :
@@ -178,7 +201,8 @@ public class TaskDeploymentDescriptorFactory {
     private List<MaybeOffloaded<ShuffleDescriptorAndIndex[]>>
             getConsumedPartitionShuffleDescriptors(
                     IntermediateResult intermediateResult,
-                    ConsumedPartitionGroup consumedPartitionGroup)
+                    ConsumedPartitionGroup consumedPartitionGroup,
+                    InternalExecutionGraphAccessor internalExecutionGraphAccessor)
                     throws IOException {
         CachedShuffleDescriptors cachedShuffleDescriptors =
                 intermediateResult.getCachedShuffleDescriptors(consumedPartitionGroup);
@@ -187,16 +211,17 @@ public class TaskDeploymentDescriptorFactory {
                     intermediateResult.cacheShuffleDescriptors(
                             consumedPartitionGroup,
                             // compute all shuffle descriptors if it is not cached before.
-                            computeConsumedPartitionShuffleDescriptors(consumedPartitionGroup));
+                            computeConsumedPartitionShuffleDescriptors(
+                                    consumedPartitionGroup, internalExecutionGraphAccessor));
         }
-        cachedShuffleDescriptors.serializeShuffleDescriptors(
-                this::serializeAndTryOffloadShuffleDescriptor);
+        cachedShuffleDescriptors.serializeShuffleDescriptors(shuffleDescriptorSerializer);
 
         return cachedShuffleDescriptors.getAllSerializedShuffleDescriptors();
     }
 
     private ShuffleDescriptorAndIndex[] computeConsumedPartitionShuffleDescriptors(
-            ConsumedPartitionGroup consumedPartitionGroup) {
+            ConsumedPartitionGroup consumedPartitionGroup,
+            InternalExecutionGraphAccessor internalExecutionGraphAccessor) {
 
         ShuffleDescriptorAndIndex[] shuffleDescriptors =
                 new ShuffleDescriptorAndIndex[consumedPartitionGroup.size()];
@@ -206,63 +231,14 @@ public class TaskDeploymentDescriptorFactory {
             shuffleDescriptors[i] =
                     new ShuffleDescriptorAndIndex(
                             getConsumedPartitionShuffleDescriptor(
-                                    resultPartitionRetriever.apply(partitionId),
+                                    internalExecutionGraphAccessor.getResultPartitionOrThrow(
+                                            partitionId),
                                     partitionDeploymentConstraint,
                                     nonFinishedHybridPartitionShouldBeUnknown),
                             i);
             i++;
         }
         return shuffleDescriptors;
-    }
-
-    private MaybeOffloaded<ShuffleDescriptorAndIndex[]> serializeAndTryOffloadShuffleDescriptor(
-            ShuffleDescriptorAndIndex[] shuffleDescriptors) throws IOException {
-
-        final CompressedSerializedValue<ShuffleDescriptorAndIndex[]> compressedSerializedValue =
-                CompressedSerializedValue.fromObject(shuffleDescriptors);
-
-        final Either<SerializedValue<ShuffleDescriptorAndIndex[]>, PermanentBlobKey>
-                serializedValueOrBlobKey =
-                        BlobWriter.tryOffload(compressedSerializedValue, jobID, blobWriter);
-
-        if (serializedValueOrBlobKey.isLeft()) {
-            return new TaskDeploymentDescriptor.NonOffloaded<>(serializedValueOrBlobKey.left());
-        } else {
-            return new TaskDeploymentDescriptor.Offloaded<>(serializedValueOrBlobKey.right());
-        }
-    }
-
-    public static TaskDeploymentDescriptorFactory fromExecution(Execution execution)
-            throws IOException, ClusterDatasetCorruptedException {
-        final ExecutionVertex executionVertex = execution.getVertex();
-        final InternalExecutionGraphAccessor internalExecutionGraphAccessor =
-                executionVertex.getExecutionGraphAccessor();
-        Map<IntermediateDataSetID, ShuffleDescriptorAndIndex[]> clusterPartitionShuffleDescriptors;
-        try {
-            clusterPartitionShuffleDescriptors =
-                    getClusterPartitionShuffleDescriptors(executionVertex);
-        } catch (Throwable e) {
-            throw new ClusterDatasetCorruptedException(
-                    e,
-                    executionVertex
-                            .getJobVertex()
-                            .getJobVertex()
-                            .getIntermediateDataSetIdsToConsume());
-        }
-
-        return new TaskDeploymentDescriptorFactory(
-                execution.getAttemptId(),
-                getSerializedJobInformation(internalExecutionGraphAccessor),
-                getSerializedTaskInformation(
-                        executionVertex.getJobVertex().getTaskInformationOrBlobKey()),
-                internalExecutionGraphAccessor.getJobID(),
-                internalExecutionGraphAccessor.getPartitionLocationConstraint(),
-                executionVertex.getAllConsumedPartitionGroups(),
-                internalExecutionGraphAccessor::getResultPartitionOrThrow,
-                internalExecutionGraphAccessor.getBlobWriter(),
-                internalExecutionGraphAccessor.isNonFinishedHybridPartitionShouldBeUnknown(),
-                clusterPartitionShuffleDescriptors,
-                executionVertex::getExecutionVertexInputInfo);
     }
 
     private static Map<IntermediateDataSetID, ShuffleDescriptorAndIndex[]>
@@ -304,9 +280,7 @@ public class TaskDeploymentDescriptorFactory {
     }
 
     private static MaybeOffloaded<JobInformation> getSerializedJobInformation(
-            InternalExecutionGraphAccessor internalExecutionGraphAccessor) {
-        Either<SerializedValue<JobInformation>, PermanentBlobKey> jobInformationOrBlobKey =
-                internalExecutionGraphAccessor.getJobInformationOrBlobKey();
+            Either<SerializedValue<JobInformation>, PermanentBlobKey> jobInformationOrBlobKey) {
         if (jobInformationOrBlobKey.isLeft()) {
             return new TaskDeploymentDescriptor.NonOffloaded<>(jobInformationOrBlobKey.left());
         } else {
@@ -469,6 +443,68 @@ public class TaskDeploymentDescriptorFactory {
 
         public int getIndex() {
             return index;
+        }
+    }
+
+    /** Serialize shuffle descriptors. */
+    interface ShuffleDescriptorSerializer {
+        /**
+         * Serialize and try offload shuffle descriptors.
+         *
+         * @param shuffleDescriptors to serialize
+         * @param numConsumer consumers number of these shuffle descriptors, it means how many times
+         *     serialized shuffle descriptor should be sent
+         * @return offloaded or non-offloaded serialized shuffle descriptors
+         */
+        MaybeOffloaded<ShuffleDescriptorAndIndex[]> serializeAndTryOffloadShuffleDescriptor(
+                ShuffleDescriptorAndIndex[] shuffleDescriptors, int numConsumer) throws IOException;
+    }
+
+    private static class DefaultShuffleDescriptorSerializer implements ShuffleDescriptorSerializer {
+        private final JobID jobID;
+        private final BlobWriter blobWriter;
+        private final int offloadShuffleDescriptorsThreshold;
+
+        public DefaultShuffleDescriptorSerializer(
+                JobID jobID, BlobWriter blobWriter, int offloadShuffleDescriptorsThreshold) {
+            this.jobID = checkNotNull(jobID);
+            this.blobWriter = checkNotNull(blobWriter);
+            this.offloadShuffleDescriptorsThreshold = offloadShuffleDescriptorsThreshold;
+        }
+
+        @Override
+        public MaybeOffloaded<ShuffleDescriptorAndIndex[]> serializeAndTryOffloadShuffleDescriptor(
+                ShuffleDescriptorAndIndex[] shuffleDescriptors, int numConsumer)
+                throws IOException {
+
+            final CompressedSerializedValue<ShuffleDescriptorAndIndex[]> compressedSerializedValue =
+                    CompressedSerializedValue.fromObject(shuffleDescriptors);
+
+            final Either<SerializedValue<ShuffleDescriptorAndIndex[]>, PermanentBlobKey>
+                    serializedValueOrBlobKey =
+                            shouldOffload(shuffleDescriptors, numConsumer)
+                                    ? BlobWriter.offloadWithException(
+                                            compressedSerializedValue, jobID, blobWriter)
+                                    : Either.Left(compressedSerializedValue);
+
+            if (serializedValueOrBlobKey.isLeft()) {
+                return new TaskDeploymentDescriptor.NonOffloaded<>(serializedValueOrBlobKey.left());
+            } else {
+                return new TaskDeploymentDescriptor.Offloaded<>(serializedValueOrBlobKey.right());
+            }
+        }
+
+        /**
+         * Determine whether shuffle descriptors should be offloaded to blob server.
+         *
+         * @param shuffleDescriptorsToSerialize shuffle descriptors to serialize
+         * @param numConsumers how many consumers this serialized shuffle descriptor should be sent
+         * @return whether shuffle descriptors should be offloaded to blob server
+         */
+        private boolean shouldOffload(
+                ShuffleDescriptorAndIndex[] shuffleDescriptorsToSerialize, int numConsumers) {
+            return shuffleDescriptorsToSerialize.length * numConsumers
+                    >= offloadShuffleDescriptorsThreshold;
         }
     }
 }

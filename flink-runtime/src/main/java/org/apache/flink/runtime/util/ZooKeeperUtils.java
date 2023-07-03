@@ -40,11 +40,7 @@ import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.jobmanager.ZooKeeperJobGraphStoreUtil;
 import org.apache.flink.runtime.jobmanager.ZooKeeperJobGraphStoreWatcher;
-import org.apache.flink.runtime.leaderelection.DefaultLeaderElectionService;
-import org.apache.flink.runtime.leaderelection.LeaderElectionDriverFactory;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
-import org.apache.flink.runtime.leaderelection.ZooKeeperLeaderElectionDriver;
-import org.apache.flink.runtime.leaderelection.ZooKeeperLeaderElectionDriverFactory;
 import org.apache.flink.runtime.leaderretrieval.DefaultLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalDriverFactory;
 import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalDriver;
@@ -256,6 +252,9 @@ public class ZooKeeperUtils {
 
         LOG.info("Using '{}' as Zookeeper namespace.", rootWithNamespace);
 
+        boolean ensembleTracking =
+                configuration.getBoolean(HighAvailabilityOptions.ZOOKEEPER_ENSEMBLE_TRACKING);
+
         final CuratorFrameworkFactory.Builder curatorFrameworkBuilder =
                 CuratorFrameworkFactory.builder()
                         .connectString(zkQuorum)
@@ -265,6 +264,7 @@ public class ZooKeeperUtils {
                         // Curator prepends a '/' manually and throws an Exception if the
                         // namespace starts with a '/'.
                         .namespace(trimStartingSlash(rootWithNamespace))
+                        .ensembleTracker(ensembleTracking)
                         .aclProvider(aclProvider);
 
         if (configuration.get(HighAvailabilityOptions.ZOOKEEPER_TOLERATE_SUSPENDED_CONNECTIONS)) {
@@ -362,7 +362,19 @@ public class ZooKeeperUtils {
      */
     public static ZooKeeperLeaderRetrievalDriverFactory createLeaderRetrievalDriverFactory(
             final CuratorFramework client) {
-        return createLeaderRetrievalDriverFactory(client, "", new Configuration());
+        return createLeaderRetrievalDriverFactory(client, "");
+    }
+
+    /**
+     * Creates a {@link LeaderRetrievalDriverFactory} implemented by ZooKeeper.
+     *
+     * @param client The {@link CuratorFramework} ZooKeeper client to use
+     * @param path The parent path that shall be used by the client.
+     * @return {@link LeaderRetrievalDriverFactory} instance.
+     */
+    public static ZooKeeperLeaderRetrievalDriverFactory createLeaderRetrievalDriverFactory(
+            final CuratorFramework client, String path) {
+        return createLeaderRetrievalDriverFactory(client, path, new Configuration());
     }
 
     /**
@@ -390,55 +402,6 @@ public class ZooKeeperUtils {
 
         return new ZooKeeperLeaderRetrievalDriverFactory(
                 client, path, leaderInformationClearancePolicy);
-    }
-
-    /**
-     * Creates a {@link DefaultLeaderElectionService} instance with {@link
-     * ZooKeeperLeaderElectionDriver}.
-     *
-     * @param client The {@link CuratorFramework} ZooKeeper client to use
-     * @return {@link DefaultLeaderElectionService} instance.
-     */
-    public static DefaultLeaderElectionService createLeaderElectionService(
-            CuratorFramework client) {
-
-        return createLeaderElectionService(client, "");
-    }
-
-    /**
-     * Creates a {@link DefaultLeaderElectionService} instance with {@link
-     * ZooKeeperLeaderElectionDriver}.
-     *
-     * @param client The {@link CuratorFramework} ZooKeeper client to use
-     * @param path The path for the leader election
-     * @return {@link DefaultLeaderElectionService} instance.
-     */
-    public static DefaultLeaderElectionService createLeaderElectionService(
-            final CuratorFramework client, final String path) {
-        return new DefaultLeaderElectionService(createLeaderElectionDriverFactory(client, path));
-    }
-
-    /**
-     * Creates a {@link LeaderElectionDriverFactory} implemented by ZooKeeper.
-     *
-     * @param client The {@link CuratorFramework} ZooKeeper client to use
-     * @return {@link LeaderElectionDriverFactory} instance.
-     */
-    public static ZooKeeperLeaderElectionDriverFactory createLeaderElectionDriverFactory(
-            final CuratorFramework client) {
-        return createLeaderElectionDriverFactory(client, "");
-    }
-
-    /**
-     * Creates a {@link LeaderElectionDriverFactory} implemented by ZooKeeper.
-     *
-     * @param client The {@link CuratorFramework} ZooKeeper client to use
-     * @param path The path suffix which we want to append
-     * @return {@link LeaderElectionDriverFactory} instance.
-     */
-    public static ZooKeeperLeaderElectionDriverFactory createLeaderElectionDriverFactory(
-            final CuratorFramework client, final String path) {
-        return new ZooKeeperLeaderElectionDriverFactory(client, path);
     }
 
     public static void writeLeaderInformationToZooKeeper(
@@ -749,16 +712,26 @@ public class ZooKeeperUtils {
             final String pathToNode,
             final RunnableWithException nodeChangeCallback) {
         final TreeCache cache =
-                TreeCache.newBuilder(client, pathToNode)
-                        .setCacheData(true)
-                        .setCreateParentNodes(false)
-                        .setSelector(ZooKeeperUtils.treeCacheSelectorForPath(pathToNode))
-                        .setExecutor(Executors.newDirectExecutorService())
-                        .build();
+                createTreeCache(
+                        client, pathToNode, ZooKeeperUtils.treeCacheSelectorForPath(pathToNode));
 
         cache.getListenable().addListener(createTreeCacheListener(nodeChangeCallback));
 
         return cache;
+    }
+
+    public static TreeCache createTreeCache(
+            final CuratorFramework client,
+            final String pathToNode,
+            final TreeCacheSelector selector) {
+        return TreeCache.newBuilder(client, pathToNode)
+                .setCacheData(true)
+                .setCreateParentNodes(false)
+                .setSelector(selector)
+                // see FLINK-32204 for further details on why the task rejection shouldn't
+                // be enforced here
+                .setExecutor(Executors.newDirectExecutorServiceWithNoOpShutdown())
+                .build();
     }
 
     @VisibleForTesting

@@ -3390,7 +3390,7 @@ table = t_env.from_data_stream(stream, col('my_long'))
 {{< tabs "27c312af-7427-401c-a1b1-de9fe39f7b59" >}}
 {{< tab "Java" >}}
 Flink provides its own tuple classes for Java.
-DataStreams of the the Java tuple classes can be converted into tables.
+DataStreams of the Java tuple classes can be converted into tables.
 Fields can be renamed by providing names for all fields (mapping based on position).
 If no field names are specified, the default field names are used.
 If the original field names (`f0`, `f1`, ... for Flink Tuples) are referenced, the API assumes that the mapping is name-based instead of position-based.

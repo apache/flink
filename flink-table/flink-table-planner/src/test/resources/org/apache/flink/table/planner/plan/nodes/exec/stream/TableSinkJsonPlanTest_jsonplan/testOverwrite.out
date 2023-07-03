@@ -33,7 +33,7 @@
     "inputProperties" : [ ]
   }, {
     "id" : 2,
-    "type" : "stream-exec-sink_1",
+    "type" : "stream-exec-sink_2",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",

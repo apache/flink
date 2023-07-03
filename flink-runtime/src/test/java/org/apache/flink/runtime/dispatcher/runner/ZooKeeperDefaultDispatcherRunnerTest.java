@@ -21,6 +21,7 @@ package org.apache.flink.runtime.dispatcher.runner;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.core.testutils.AllCallbackWrapper;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
@@ -38,67 +39,70 @@ import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServicesBuilder;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
+import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.jobmanager.JobPersistenceComponentFactory;
 import org.apache.flink.runtime.jobmaster.JobResult;
-import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
+import org.apache.flink.runtime.leaderelection.LeaderElection;
+import org.apache.flink.runtime.leaderelection.TestingLeaderElection;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.rpc.TestingRpcService;
-import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
+import org.apache.flink.runtime.rpc.TestingRpcServiceExtension;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
-import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
+import org.apache.flink.runtime.zookeeper.ZooKeeperExtension;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ScheduledExecutorService;
 
-import static org.hamcrest.Matchers.emptyArray;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the interaction between the {@link DefaultDispatcherRunner} and ZooKeeper. */
-public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
+class ZooKeeperDefaultDispatcherRunnerTest {
 
     private static final Logger LOG =
             LoggerFactory.getLogger(ZooKeeperDefaultDispatcherRunnerTest.class);
 
     private static final Time TESTING_TIMEOUT = Time.seconds(10L);
 
-    @ClassRule public static ZooKeeperResource zooKeeperResource = new ZooKeeperResource();
+    @RegisterExtension
+    public static AllCallbackWrapper<ZooKeeperExtension> zooKeeperExtensionWrapper =
+            new AllCallbackWrapper<>(new ZooKeeperExtension());
 
-    @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir public static Path temporaryFolder;
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+    @RegisterExtension
+    public static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
+            TestingUtils.defaultExecutorExtension();
 
-    @ClassRule
-    public static TestingRpcServiceResource testingRpcServiceResource =
-            new TestingRpcServiceResource();
+    @RegisterExtension
+    public static AllCallbackWrapper<TestingRpcServiceExtension> testingRpcServiceExtensionWrapper =
+            new AllCallbackWrapper<>(new TestingRpcServiceExtension());
 
     private BlobServer blobServer;
 
@@ -108,16 +112,17 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
 
     private Configuration configuration;
 
-    @Before
-    public void setup() throws IOException {
+    @BeforeEach
+    void setup() throws IOException {
         fatalErrorHandler = new TestingFatalErrorHandler();
         configuration = new Configuration();
         configuration.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
         configuration.setString(
-                HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
+                HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM,
+                zooKeeperExtensionWrapper.getCustomExtension().getConnectString());
         configuration.setString(
                 HighAvailabilityOptions.HA_STORAGE_PATH,
-                temporaryFolder.newFolder().getAbsolutePath());
+                TempDirUtils.newFolder(temporaryFolder).getAbsolutePath());
 
         clusterHaStorageDir =
                 new File(
@@ -127,12 +132,12 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
         blobServer =
                 new BlobServer(
                         configuration,
-                        temporaryFolder.newFolder(),
+                        TempDirUtils.newFolder(temporaryFolder),
                         BlobUtils.createBlobStoreFromConfig(configuration));
     }
 
-    @After
-    public void teardown() throws Exception {
+    @AfterEach
+    void teardown() throws Exception {
         if (blobServer != null) {
             blobServer.close();
         }
@@ -144,20 +149,22 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
 
     /** See FLINK-11665. */
     @Test
-    public void testResourceCleanupUnderLeadershipChange() throws Exception {
-        final TestingRpcService rpcService = testingRpcServiceResource.getTestingRpcService();
-        final TestingLeaderElectionService dispatcherLeaderElectionService =
-                new TestingLeaderElectionService();
+    void testResourceCleanupUnderLeadershipChange() throws Exception {
+        final TestingRpcService rpcService =
+                testingRpcServiceExtensionWrapper.getCustomExtension().getTestingRpcService();
+        final TestingLeaderElection dispatcherLeaderElection = new TestingLeaderElection();
 
-        final CuratorFramework client =
-                ZooKeeperUtils.startCuratorFramework(configuration, fatalErrorHandler)
-                        .asCuratorFramework();
-        try (final TestingHighAvailabilityServices highAvailabilityServices =
-                new TestingHighAvailabilityServicesBuilder()
-                        .setDispatcherLeaderElectionService(dispatcherLeaderElectionService)
-                        .setJobMasterLeaderRetrieverFunction(
-                                jobId -> ZooKeeperUtils.createLeaderRetrievalService(client))
-                        .build()) {
+        try (final CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper =
+                        ZooKeeperUtils.startCuratorFramework(configuration, fatalErrorHandler);
+                final TestingHighAvailabilityServices highAvailabilityServices =
+                        new TestingHighAvailabilityServicesBuilder()
+                                .setDispatcherLeaderElection(dispatcherLeaderElection)
+                                .setJobMasterLeaderRetrieverFunction(
+                                        jobId ->
+                                                ZooKeeperUtils.createLeaderRetrievalService(
+                                                        curatorFrameworkWrapper
+                                                                .asCuratorFramework()))
+                                .build()) {
 
             final PartialDispatcherServices partialDispatcherServices =
                     new PartialDispatcherServices(
@@ -172,7 +179,8 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
                             VoidHistoryServerArchivist.INSTANCE,
                             null,
                             ForkJoinPool.commonPool(),
-                            new DispatcherOperationCaches());
+                            new DispatcherOperationCaches(),
+                            Collections.emptySet());
 
             final DefaultDispatcherRunnerFactory defaultDispatcherRunnerFactory =
                     DefaultDispatcherRunnerFactory.createSessionRunner(
@@ -181,11 +189,12 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
             try (final DispatcherRunner dispatcherRunner =
                     createDispatcherRunner(
                             rpcService,
-                            dispatcherLeaderElectionService,
+                            dispatcherLeaderElection,
                             new JobPersistenceComponentFactory() {
                                 @Override
                                 public JobGraphStore createJobGraphStore() {
-                                    return createZooKeeperJobGraphStore(client);
+                                    return createZooKeeperJobGraphStore(
+                                            curatorFrameworkWrapper.asCuratorFramework());
                                 }
 
                                 @Override
@@ -197,18 +206,17 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
                             defaultDispatcherRunnerFactory)) {
 
                 // initial run
-                DispatcherGateway dispatcherGateway =
-                        grantLeadership(dispatcherLeaderElectionService);
+                DispatcherGateway dispatcherGateway = grantLeadership(dispatcherLeaderElection);
 
                 final JobGraph jobGraph = createJobGraphWithBlobs();
                 LOG.info("Initial job submission {}.", jobGraph.getJobID());
                 dispatcherGateway.submitJob(jobGraph, TESTING_TIMEOUT).get();
 
-                dispatcherLeaderElectionService.notLeader();
+                dispatcherLeaderElection.notLeader();
 
                 // recovering submitted jobs
                 LOG.info("Re-grant leadership first time.");
-                dispatcherGateway = grantLeadership(dispatcherLeaderElectionService);
+                dispatcherGateway = grantLeadership(dispatcherLeaderElection);
 
                 LOG.info("Cancel recovered job {}.", jobGraph.getJobID());
                 // cancellation of the job should remove everything
@@ -219,12 +227,13 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
                 // a successful cancellation should eventually remove all job information
                 final JobResult jobResult = jobResultFuture.get();
 
-                assertThat(jobResult.getApplicationStatus(), is(ApplicationStatus.CANCELED));
+                assertThat(jobResult.getApplicationStatus()).isEqualTo(ApplicationStatus.CANCELED);
 
-                dispatcherLeaderElectionService.notLeader();
+                dispatcherLeaderElection.notLeader();
 
                 // check that the job has been removed from ZooKeeper
-                final JobGraphStore submittedJobGraphStore = createZooKeeperJobGraphStore(client);
+                final JobGraphStore submittedJobGraphStore =
+                        createZooKeeperJobGraphStore(curatorFrameworkWrapper.asCuratorFramework());
 
                 CommonTestUtils.waitUntilCondition(
                         () -> submittedJobGraphStore.getJobIds().isEmpty(), 20L);
@@ -232,21 +241,21 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
         }
 
         // check resource clean up
-        assertThat(clusterHaStorageDir.listFiles(), is(emptyArray()));
+        assertThat(clusterHaStorageDir).isEmptyDirectory();
     }
 
     private DispatcherRunner createDispatcherRunner(
             TestingRpcService rpcService,
-            TestingLeaderElectionService dispatcherLeaderElectionService,
+            LeaderElection dispatcherLeaderElection,
             JobPersistenceComponentFactory jobPersistenceComponentFactory,
             PartialDispatcherServices partialDispatcherServices,
             DispatcherRunnerFactory dispatcherRunnerFactory)
             throws Exception {
         return dispatcherRunnerFactory.createDispatcherRunner(
-                dispatcherLeaderElectionService,
+                dispatcherLeaderElection,
                 fatalErrorHandler,
                 jobPersistenceComponentFactory,
-                EXECUTOR_RESOURCE.getExecutor(),
+                EXECUTOR_EXTENSION.getExecutor(),
                 rpcService,
                 partialDispatcherServices);
     }
@@ -260,20 +269,20 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
         }
     }
 
-    private DispatcherGateway grantLeadership(
-            TestingLeaderElectionService dispatcherLeaderElectionService)
+    private DispatcherGateway grantLeadership(TestingLeaderElection dispatcherLeaderElection)
             throws InterruptedException, java.util.concurrent.ExecutionException {
-        final UUID leaderSessionId = UUID.randomUUID();
-        dispatcherLeaderElectionService.isLeader(leaderSessionId);
-        final LeaderConnectionInfo leaderConnectionInfo =
-                dispatcherLeaderElectionService.getConfirmationFuture().get();
-
-        return testingRpcServiceResource
-                .getTestingRpcService()
-                .connect(
-                        leaderConnectionInfo.getAddress(),
-                        DispatcherId.fromUuid(leaderSessionId),
-                        DispatcherGateway.class)
+        return dispatcherLeaderElection
+                .isLeader(UUID.randomUUID())
+                .thenCompose(
+                        leaderInformation ->
+                                testingRpcServiceExtensionWrapper
+                                        .getCustomExtension()
+                                        .getTestingRpcService()
+                                        .connect(
+                                                leaderInformation.getLeaderAddress(),
+                                                DispatcherId.fromUuid(
+                                                        leaderInformation.getLeaderSessionID()),
+                                                DispatcherGateway.class))
                 .get();
     }
 

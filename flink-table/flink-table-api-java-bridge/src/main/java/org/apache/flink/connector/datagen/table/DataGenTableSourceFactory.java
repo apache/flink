@@ -68,6 +68,7 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
         options.add(DataGenConnectorOptions.FIELD_LENGTH);
         options.add(DataGenConnectorOptions.FIELD_START);
         options.add(DataGenConnectorOptions.FIELD_END);
+        options.add(DataGenConnectorOptions.FIELD_NULL_RATE);
 
         return options;
     }

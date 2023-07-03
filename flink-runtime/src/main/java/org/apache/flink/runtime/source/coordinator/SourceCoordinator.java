@@ -63,11 +63,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 
-import static java.util.Arrays.asList;
 import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerdeUtils.readAndVerifyCoordinatorSerdeVersion;
 import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerdeUtils.readBytes;
 import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerdeUtils.writeCoordinatorSerdeVersion;
-import static org.apache.flink.util.IOUtils.closeAll;
+import static org.apache.flink.util.IOUtils.closeQuietly;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -146,21 +145,11 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
         this.watermarkAlignmentParams = watermarkAlignmentParams;
         this.coordinatorListeningID = coordinatorListeningID;
 
-        if (watermarkAlignmentParams.isEnabled()) {
-            if (context.isConcurrentExecutionAttemptsSupported()) {
-                throw new IllegalArgumentException(
-                        "Watermark alignment is not supported in concurrent execution attempts "
-                                + "scenario (e.g. if speculative execution is enabled)");
-            }
-
-            coordinatorStore.putIfAbsent(
-                    watermarkAlignmentParams.getWatermarkGroup(), new WatermarkAggregator<>());
-            context.getCoordinatorExecutor()
-                    .scheduleAtFixedRate(
-                            this::announceCombinedWatermark,
-                            watermarkAlignmentParams.getUpdateInterval(),
-                            watermarkAlignmentParams.getUpdateInterval(),
-                            TimeUnit.MILLISECONDS);
+        if (watermarkAlignmentParams.isEnabled()
+                && context.isConcurrentExecutionAttemptsSupported()) {
+            throw new IllegalArgumentException(
+                    "Watermark alignment is not supported in concurrent execution attempts "
+                            + "scenario (e.g. if speculative execution is enabled)");
         }
     }
 
@@ -265,14 +254,27 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
                         }
                     });
         }
+
+        if (watermarkAlignmentParams.isEnabled()) {
+            LOG.info("Starting schedule the period announceCombinedWatermark task");
+            coordinatorStore.putIfAbsent(
+                    watermarkAlignmentParams.getWatermarkGroup(), new WatermarkAggregator<>());
+            context.getCoordinatorExecutor()
+                    .scheduleAtFixedRate(
+                            this::announceCombinedWatermark,
+                            watermarkAlignmentParams.getUpdateInterval(),
+                            watermarkAlignmentParams.getUpdateInterval(),
+                            TimeUnit.MILLISECONDS);
+        }
     }
 
     @Override
     public void close() throws Exception {
         LOG.info("Closing SourceCoordinator for source {}.", operatorName);
         if (started) {
-            closeAll(asList(context, enumerator), Throwable.class);
+            closeQuietly(enumerator);
         }
+        closeQuietly(context);
         LOG.info("Source coordinator for source {} closed.", operatorName);
     }
 

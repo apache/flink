@@ -24,6 +24,7 @@ import org.apache.flink.client.deployment.application.ApplicationConfiguration;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.configuration.BlobServerOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -32,9 +33,13 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesDeploymentTarget;
+import org.apache.flink.kubernetes.kubeclient.Fabric8FlinkKubeClient;
+import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
+import org.apache.flink.kubernetes.kubeclient.FlinkKubeClientFactory;
 import org.apache.flink.kubernetes.kubeclient.decorators.InternalServiceDecorator;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.util.concurrent.Executors;
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.EnvVar;
@@ -69,7 +74,19 @@ class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
     protected void onSetup() throws Exception {
         super.onSetup();
 
-        descriptor = new KubernetesClusterDescriptor(flinkConfig, flinkKubeClient);
+        descriptor =
+                new KubernetesClusterDescriptor(
+                        flinkConfig,
+                        new FlinkKubeClientFactory() {
+                            @Override
+                            public FlinkKubeClient fromConfiguration(
+                                    Configuration flinkConfig, String useCase) {
+                                return new Fabric8FlinkKubeClient(
+                                        flinkConfig,
+                                        server.createClient().inNamespace(NAMESPACE),
+                                        Executors.newDirectExecutorService());
+                            }
+                        });
     }
 
     @Test

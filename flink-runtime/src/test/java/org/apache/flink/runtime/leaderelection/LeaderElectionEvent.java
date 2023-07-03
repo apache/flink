@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.leaderelection;
 
-import java.util.Collection;
+import java.util.UUID;
 
 /** Leader election event. */
 public abstract class LeaderElectionEvent {
@@ -51,6 +51,17 @@ public abstract class LeaderElectionEvent {
     }
 
     public static class IsLeaderEvent extends LeaderElectionEvent {
+
+        private final UUID leaderSessionID;
+
+        public IsLeaderEvent(UUID leaderSessionID) {
+            this.leaderSessionID = leaderSessionID;
+        }
+
+        public UUID getLeaderSessionID() {
+            return leaderSessionID;
+        }
+
         @Override
         public boolean isIsLeaderEvent() {
             return true;
@@ -88,12 +99,10 @@ public abstract class LeaderElectionEvent {
     }
 
     public static class AllKnownLeaderInformationEvent extends LeaderElectionEvent {
-        private final Collection<LeaderInformationWithComponentId>
-                leaderInformationWithComponentIds;
+        private final LeaderInformationRegister leaderInformationRegister;
 
-        AllKnownLeaderInformationEvent(
-                Collection<LeaderInformationWithComponentId> leaderInformationWithComponentIds) {
-            this.leaderInformationWithComponentIds = leaderInformationWithComponentIds;
+        AllKnownLeaderInformationEvent(LeaderInformationRegister leaderInformationRegister) {
+            this.leaderInformationRegister = leaderInformationRegister;
         }
 
         @Override
@@ -101,8 +110,8 @@ public abstract class LeaderElectionEvent {
             return true;
         }
 
-        public Collection<LeaderInformationWithComponentId> getLeaderInformationWithComponentIds() {
-            return leaderInformationWithComponentIds;
+        public LeaderInformationRegister getLeaderInformationRegister() {
+            return leaderInformationRegister;
         }
     }
 }

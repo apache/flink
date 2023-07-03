@@ -54,10 +54,11 @@ SELECT SUM(b) FROM r GROUP BY a
 LogicalProject(EXPR$0=[$1])
 +- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
    +- LogicalProject(a=[$0], b=[$1])
-      +- LogicalFilter(condition=[AND(=($0, $3), LIKE($2, _UTF-16LE'He%'))])
-         +- LogicalJoin(condition=[true], joinType=[inner])
-            :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
-            +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+         +- LogicalFilter(condition=[AND(=($0, $3), LIKE($2, _UTF-16LE'He%'))])
+            +- LogicalJoin(condition=[true], joinType=[inner])
+               :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+               +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -89,9 +90,10 @@ SELECT a, SUM(b) FROM (
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
 +- LogicalProject(a=[$0], b=[$1])
-   +- LogicalFilter(condition=[<=($3, 10)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], rk=[RANK() OVER (PARTITION BY $0, $2 ORDER BY $1 NULLS FIRST)])
-         +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], rk=[$3])
+      +- LogicalFilter(condition=[<=($3, 10)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], rk=[RANK() OVER (PARTITION BY $0, $2 ORDER BY $1 NULLS FIRST)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">

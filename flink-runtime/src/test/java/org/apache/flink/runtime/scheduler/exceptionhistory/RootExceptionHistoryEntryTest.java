@@ -34,7 +34,7 @@ import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
 
 import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.hamcrest.collection.IsIterableContainingInOrder;
@@ -43,6 +43,9 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.Collections;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -72,10 +75,13 @@ public class RootExceptionHistoryEntryTest extends TestLogger {
     }
 
     @Test
-    public void testFromFailureHandlingResultSnapshot() {
+    public void testFromFailureHandlingResultSnapshot()
+            throws ExecutionException, InterruptedException {
         final Throwable rootException = new RuntimeException("Expected root failure");
         final ExecutionVertex rootExecutionVertex = extractExecutionVertex(0);
         final long rootTimestamp = triggerFailure(rootExecutionVertex, rootException);
+        final CompletableFuture<Map<String, String>> rootFailureLabels =
+                CompletableFuture.completedFuture(Collections.singletonMap("key", "value"));
 
         final Throwable concurrentException = new IllegalStateException("Expected other failure");
         final ExecutionVertex concurrentlyFailedExecutionVertex = extractExecutionVertex(1);
@@ -87,6 +93,7 @@ public class RootExceptionHistoryEntryTest extends TestLogger {
                         rootExecutionVertex.getCurrentExecutionAttempt(),
                         rootException,
                         rootTimestamp,
+                        rootFailureLabels,
                         Collections.singleton(
                                 concurrentlyFailedExecutionVertex.getCurrentExecutionAttempt()));
         final RootExceptionHistoryEntry actualEntry =
@@ -97,6 +104,7 @@ public class RootExceptionHistoryEntryTest extends TestLogger {
                 ExceptionHistoryEntryMatcher.matchesFailure(
                         rootException,
                         rootTimestamp,
+                        rootFailureLabels.get(),
                         rootExecutionVertex.getTaskNameWithSubtaskIndex(),
                         rootExecutionVertex.getCurrentAssignedResourceLocation()));
         assertThat(
@@ -111,7 +119,7 @@ public class RootExceptionHistoryEntryTest extends TestLogger {
     }
 
     @Test
-    public void testFromGlobalFailure() {
+    public void testFromGlobalFailure() throws ExecutionException, InterruptedException {
         final Throwable concurrentException0 =
                 new RuntimeException("Expected concurrent failure #0");
         final ExecutionVertex concurrentlyFailedExecutionVertex0 = extractExecutionVertex(0);
@@ -126,10 +134,13 @@ public class RootExceptionHistoryEntryTest extends TestLogger {
 
         final Throwable rootCause = new Exception("Expected root failure");
         final long rootTimestamp = System.currentTimeMillis();
+        final CompletableFuture<Map<String, String>> rootFailureLabels =
+                CompletableFuture.completedFuture(Collections.singletonMap("key", "value"));
         final RootExceptionHistoryEntry actualEntry =
                 RootExceptionHistoryEntry.fromGlobalFailure(
                         rootCause,
                         rootTimestamp,
+                        rootFailureLabels,
                         StreamSupport.stream(
                                         executionGraph.getAllExecutionVertices().spliterator(),
                                         false)
@@ -138,7 +149,8 @@ public class RootExceptionHistoryEntryTest extends TestLogger {
 
         assertThat(
                 actualEntry,
-                ExceptionHistoryEntryMatcher.matchesGlobalFailure(rootCause, rootTimestamp));
+                ExceptionHistoryEntryMatcher.matchesGlobalFailure(
+                        rootCause, rootTimestamp, rootFailureLabels.get()));
         assertThat(
                 actualEntry.getConcurrentExceptions(),
                 IsIterableContainingInAnyOrder.containsInAnyOrder(

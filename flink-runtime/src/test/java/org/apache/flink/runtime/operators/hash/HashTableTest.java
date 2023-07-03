@@ -40,7 +40,6 @@ import org.apache.flink.util.MutableObjectIterator;
 
 import org.junit.Assert;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 import java.io.File;
 import java.io.IOException;
@@ -173,9 +172,8 @@ public class HashTableTest {
         final TypeComparator<ByteValue> probeComparator =
                 new ValueComparator<>(true, ByteValue.class);
 
-        @SuppressWarnings("unchecked")
         final TypePairComparator<ByteValue, ByteValue> pairComparator =
-                Mockito.mock(TypePairComparator.class);
+                new GenericPairComparator<>(buildComparator, probeComparator);
 
         try (final IOManager ioMan = new IOManagerAsync()) {
             final int pageSize = 32 * 1024;

@@ -20,11 +20,16 @@ package org.apache.flink.runtime.scheduler.exceptionhistory;
 
 import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
+import org.apache.flink.runtime.failure.FailureEnricherUtils;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
+
+import java.util.Collections;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.scheduler.exceptionhistory.ArchivedTaskManagerLocationMatcher.isArchivedTaskManagerLocation;
 import static org.hamcrest.CoreMatchers.is;
@@ -45,8 +50,11 @@ public class ExceptionHistoryEntryTest extends TestLogger {
                         .withTaskManagerLocation(taskManagerLocation)
                         .build();
         final String taskName = "task name";
+        final Map<String, String> failureLabels = Collections.singletonMap("key", "value");
 
-        final ExceptionHistoryEntry entry = ExceptionHistoryEntry.create(execution, taskName);
+        final ExceptionHistoryEntry entry =
+                ExceptionHistoryEntry.create(
+                        execution, taskName, CompletableFuture.completedFuture(failureLabels));
 
         assertThat(
                 entry.getException().deserializeError(ClassLoader.getSystemClassLoader()),
@@ -56,6 +64,7 @@ public class ExceptionHistoryEntryTest extends TestLogger {
         assertThat(
                 entry.getTaskManagerLocation(), isArchivedTaskManagerLocation(taskManagerLocation));
         assertThat(entry.isGlobal(), is(false));
+        assertThat(entry.getFailureLabels(), is(failureLabels));
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -64,12 +73,13 @@ public class ExceptionHistoryEntryTest extends TestLogger {
                 TestingAccessExecution.newBuilder()
                         .withTaskManagerLocation(new LocalTaskManagerLocation())
                         .build(),
-                "task name");
+                "task name",
+                FailureEnricherUtils.EMPTY_FAILURE_LABELS);
     }
 
     @Test(expected = NullPointerException.class)
     public void testNullExecution() {
-        ExceptionHistoryEntry.create(null, "task name");
+        ExceptionHistoryEntry.create(null, "task name", FailureEnricherUtils.EMPTY_FAILURE_LABELS);
     }
 
     @Test(expected = NullPointerException.class)
@@ -82,7 +92,8 @@ public class ExceptionHistoryEntryTest extends TestLogger {
                                         System.currentTimeMillis()))
                         .withTaskManagerLocation(new LocalTaskManagerLocation())
                         .build(),
-                null);
+                null,
+                FailureEnricherUtils.EMPTY_FAILURE_LABELS);
     }
 
     @Test
@@ -97,7 +108,8 @@ public class ExceptionHistoryEntryTest extends TestLogger {
                                 .withTaskManagerLocation(null)
                                 .withErrorInfo(new ErrorInfo(failure, timestamp))
                                 .build(),
-                        taskName);
+                        taskName,
+                        FailureEnricherUtils.EMPTY_FAILURE_LABELS);
 
         assertThat(
                 entry.getException().deserializeError(ClassLoader.getSystemClassLoader()),

@@ -36,16 +36,17 @@ trigger:
 
 resources:
   containers:
-  # Container with Maven 3.2.5, SSL to have the same environment everywhere.
-  # see https://github.com/flink-ci/flink-ci-docker
+  # Container with Maven 3.8.6, SSL to have the same environment everywhere.
+  # see https://github.com/apache/flink-connector-shared-utils/tree/ci_utils
   - container: flink-build-container
-    image: chesnay/flink-ci:java_8_11_17
+    image: chesnay/flink-ci:java_8_11_17_maven_386_v2
 
 variables:
   MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
   E2E_CACHE_FOLDER: $(Pipeline.Workspace)/e2e_cache
   E2E_TARBALL_CACHE: $(Pipeline.Workspace)/e2e_artifact_cache
   MAVEN_ARGS: '-Dmaven.repo.local=$(MAVEN_CACHE_FOLDER)'
+  PIPELINE_START_YEAR: $[format('{0:yyyy}', pipeline.startTime)]
   CACHE_KEY: maven | $(Agent.OS) | **/pom.xml, !**/target/**
   CACHE_FALLBACK_KEY: maven | $(Agent.OS)
   DOCKER_IMAGES_CACHE_KEY: docker-images-cache | $(Agent.OS) | **/cache_docker_images.sh | flink-test-utils-parent/**/DockerImageVersions.java
@@ -138,6 +139,17 @@ stages:
           run_end_to_end: true
           container: flink-build-container
           jdk: 11
+      - template: jobs-template.yml
+        parameters:
+          stage_name: cron_jdk17
+          test_pool_definition:
+            name: Default
+          e2e_pool_definition:
+            vmImage: 'ubuntu-20.04'
+          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Dscala-2.12 -Djdk11 -Djdk17"
+          run_end_to_end: true
+          container: flink-build-container
+          jdk: 17
       - template: jobs-template.yml
         parameters:
           stage_name: cron_adaptive_scheduler

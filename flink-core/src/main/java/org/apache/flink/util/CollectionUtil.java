@@ -19,6 +19,7 @@
 package org.apache.flink.util;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 
 import javax.annotation.Nullable;
 
@@ -27,7 +28,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -44,6 +48,9 @@ public final class CollectionUtil {
 
     /** A safe maximum size for arrays in the JVM. */
     public static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
+
+    /** The default load factor for hash maps create with this util class. */
+    static final float HASH_MAP_DEFAULT_LOAD_FACTOR = 0.75f;
 
     private CollectionUtil() {
         throw new AssertionError();
@@ -70,7 +77,7 @@ public final class CollectionUtil {
 
     /** Partition a collection into approximately n buckets. */
     public static <T> Collection<List<T>> partition(Collection<T> elements, int numBuckets) {
-        Map<Integer, List<T>> buckets = new HashMap<>(numBuckets);
+        Map<Integer, List<T>> buckets = newHashMapWithExpectedSize(numBuckets);
 
         int initialCapacity = elements.size() / numBuckets;
 
@@ -132,5 +139,79 @@ public final class CollectionUtil {
             map.put(entry.getKey(), entry.getValue());
         }
         return Collections.unmodifiableMap(map);
+    }
+
+    /**
+     * Creates a new {@link HashMap} of the expected size, i.e. a hash map that will not rehash if
+     * expectedSize many keys are inserted, considering the load factor.
+     *
+     * @param expectedSize the expected size of the created hash map.
+     * @return a new hash map instance with enough capacity for the expected size.
+     * @param <K> the type of keys maintained by this map.
+     * @param <V> the type of mapped values.
+     */
+    public static <K, V> HashMap<K, V> newHashMapWithExpectedSize(int expectedSize) {
+        return new HashMap<>(
+                computeRequiredCapacity(expectedSize, HASH_MAP_DEFAULT_LOAD_FACTOR),
+                HASH_MAP_DEFAULT_LOAD_FACTOR);
+    }
+
+    /**
+     * Creates a new {@link LinkedHashMap} of the expected size, i.e. a hash map that will not
+     * rehash if expectedSize many keys are inserted, considering the load factor.
+     *
+     * @param expectedSize the expected size of the created hash map.
+     * @return a new hash map instance with enough capacity for the expected size.
+     * @param <K> the type of keys maintained by this map.
+     * @param <V> the type of mapped values.
+     */
+    public static <K, V> LinkedHashMap<K, V> newLinkedHashMapWithExpectedSize(int expectedSize) {
+        return new LinkedHashMap<>(
+                computeRequiredCapacity(expectedSize, HASH_MAP_DEFAULT_LOAD_FACTOR),
+                HASH_MAP_DEFAULT_LOAD_FACTOR);
+    }
+
+    /**
+     * Creates a new {@link HashSet} of the expected size, i.e. a hash set that will not rehash if
+     * expectedSize many unique elements are inserted, considering the load factor.
+     *
+     * @param expectedSize the expected size of the created hash map.
+     * @return a new hash map instance with enough capacity for the expected size.
+     * @param <E> the type of elements stored by this set.
+     */
+    public static <E> HashSet<E> newHashSetWithExpectedSize(int expectedSize) {
+        return new HashSet<>(
+                computeRequiredCapacity(expectedSize, HASH_MAP_DEFAULT_LOAD_FACTOR),
+                HASH_MAP_DEFAULT_LOAD_FACTOR);
+    }
+
+    /**
+     * Creates a new {@link LinkedHashSet} of the expected size, i.e. a hash set that will not
+     * rehash if expectedSize many unique elements are inserted, considering the load factor.
+     *
+     * @param expectedSize the expected size of the created hash map.
+     * @return a new hash map instance with enough capacity for the expected size.
+     * @param <E> the type of elements stored by this set.
+     */
+    public static <E> LinkedHashSet<E> newLinkedHashSetWithExpectedSize(int expectedSize) {
+        return new LinkedHashSet<>(
+                computeRequiredCapacity(expectedSize, HASH_MAP_DEFAULT_LOAD_FACTOR),
+                HASH_MAP_DEFAULT_LOAD_FACTOR);
+    }
+
+    /**
+     * Helper method to compute the right capacity for a hash map with load factor
+     * HASH_MAP_DEFAULT_LOAD_FACTOR.
+     */
+    @VisibleForTesting
+    static int computeRequiredCapacity(int expectedSize, float loadFactor) {
+        Preconditions.checkArgument(expectedSize >= 0);
+        Preconditions.checkArgument(loadFactor > 0f);
+        if (expectedSize <= 2) {
+            return expectedSize + 1;
+        }
+        return expectedSize < (Integer.MAX_VALUE / 2 + 1)
+                ? (int) Math.ceil(expectedSize / loadFactor)
+                : Integer.MAX_VALUE;
     }
 }

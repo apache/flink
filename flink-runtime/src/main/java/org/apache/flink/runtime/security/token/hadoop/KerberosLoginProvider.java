@@ -67,13 +67,11 @@ public class KerberosLoginProvider {
             return false;
         }
 
-        UserGroupInformation currentUser = UserGroupInformation.getCurrentUser();
-
         if (principal != null) {
             LOG.debug("Login from keytab is possible");
             return true;
-        } else if (!HadoopUserUtils.isProxyUser(currentUser)) {
-            if (useTicketCache && currentUser.hasKerberosCredentials()) {
+        } else if (!HadoopUserUtils.isProxyUser(UserGroupInformation.getCurrentUser())) {
+            if (useTicketCache && UserGroupInformation.getCurrentUser().hasKerberosCredentials()) {
                 LOG.debug("Login from ticket cache is possible");
                 return true;
             }

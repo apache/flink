@@ -701,6 +701,45 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    public void testAddPartition() {
+        sql("alter table c1.d1.tbl add partition (p1=1,p2='a')")
+                .ok("ALTER TABLE `C1`.`D1`.`TBL`\n" + "ADD\n" + "PARTITION (`P1` = 1, `P2` = 'a')");
+
+        sql("alter table tbl add partition (p1=1,p2='a') with ('k1'='v1')")
+                .ok(
+                        "ALTER TABLE `TBL`\n"
+                                + "ADD\n"
+                                + "PARTITION (`P1` = 1, `P2` = 'a') WITH ('k1' = 'v1')");
+
+        sql("alter table tbl add if not exists partition (p=1) partition (p=2) with ('k1' = 'v1')")
+                .ok(
+                        "ALTER TABLE `TBL`\n"
+                                + "ADD IF NOT EXISTS\n"
+                                + "PARTITION (`P` = 1)\n"
+                                + "PARTITION (`P` = 2) WITH ('k1' = 'v1')");
+    }
+
+    @Test
+    public void testDropPartition() {
+        sql("alter table c1.d1.tbl drop if exists partition (p=1)")
+                .ok("ALTER TABLE `C1`.`D1`.`TBL`\n" + "DROP IF EXISTS\n" + "PARTITION (`P` = 1)");
+        sql("alter table tbl drop partition (p1='a',p2=1), partition(p1='b',p2=2)")
+                .ok(
+                        "ALTER TABLE `TBL`\n"
+                                + "DROP\n"
+                                + "PARTITION (`P1` = 'a', `P2` = 1),\n"
+                                + "PARTITION (`P1` = 'b', `P2` = 2)");
+        sql("alter table tbl drop partition (p1='a',p2=1), "
+                        + "partition(p1='b',p2=2), partition(p1='c',p2=3)")
+                .ok(
+                        "ALTER TABLE `TBL`\n"
+                                + "DROP\n"
+                                + "PARTITION (`P1` = 'a', `P2` = 1),\n"
+                                + "PARTITION (`P1` = 'b', `P2` = 2),\n"
+                                + "PARTITION (`P1` = 'c', `P2` = 3)");
+    }
+
+    @Test
     void testCreateTable() {
         final String sql =
                 "CREATE TABLE tbl1 (\n"
@@ -1839,6 +1878,12 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         sql("show views").ok("SHOW VIEWS");
     }
 
+    @Test
+    void testShowPartitions() {
+        sql("show partitions c1.d1.tbl").ok("SHOW PARTITIONS `C1`.`D1`.`TBL`");
+        sql("show partitions tbl partition (p=1)").ok("SHOW PARTITIONS `TBL` PARTITION (`P` = 1)");
+    }
+
     // Override the test because our ROW field type default is nullable,
     // which is different with Calcite.
     @Test
@@ -2169,6 +2214,8 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         sql("execute plan './test.json'").ok("EXECUTE PLAN './test.json'");
         sql("execute plan '/some/absolute/dir/plan.json'")
                 .ok("EXECUTE PLAN '/some/absolute/dir/plan.json'");
+        sql("execute plan 'file:///foo/bar/test.json'")
+                .ok("EXECUTE PLAN 'file:///foo/bar/test.json'");
     }
 
     @Test
@@ -2181,6 +2228,11 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         sql("compile plan './test.json' if not exists for insert into t1 select * from t2")
                 .ok(
                         "COMPILE PLAN './test.json' IF NOT EXISTS FOR INSERT INTO `T1`\n"
+                                + "(SELECT *\n"
+                                + "FROM `T2`)");
+        sql("compile plan 'file:///foo/bar/test.json' if not exists for insert into t1 select * from t2")
+                .ok(
+                        "COMPILE PLAN 'file:///foo/bar/test.json' IF NOT EXISTS FOR INSERT INTO `T1`\n"
                                 + "(SELECT *\n"
                                 + "FROM `T2`)");
 
@@ -2201,6 +2253,20 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         + "begin insert into t1 select * from t2; insert into t2 select * from t3; end")
                 .ok(
                         "COMPILE PLAN './test.json' IF NOT EXISTS FOR STATEMENT SET BEGIN\n"
+                                + "INSERT INTO `T1`\n"
+                                + "(SELECT *\n"
+                                + "FROM `T2`)\n"
+                                + ";\n"
+                                + "INSERT INTO `T2`\n"
+                                + "(SELECT *\n"
+                                + "FROM `T3`)\n"
+                                + ";\n"
+                                + "END");
+
+        sql("compile plan 'file:///foo/bar/test.json' if not exists for statement set "
+                        + "begin insert into t1 select * from t2; insert into t2 select * from t3; end")
+                .ok(
+                        "COMPILE PLAN 'file:///foo/bar/test.json' IF NOT EXISTS FOR STATEMENT SET BEGIN\n"
                                 + "INSERT INTO `T1`\n"
                                 + "(SELECT *\n"
                                 + "FROM `T2`)\n"
@@ -2233,6 +2299,11 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                                 + "FROM `T3`)\n"
                                 + ";\n"
                                 + "END");
+        sql("compile and execute plan 'file:///foo/bar/test.json' for insert into t1 select * from t2")
+                .ok(
+                        "COMPILE AND EXECUTE PLAN 'file:///foo/bar/test.json' FOR INSERT INTO `T1`\n"
+                                + "(SELECT *\n"
+                                + "FROM `T2`)");
     }
 
     @Test
@@ -2413,6 +2484,11 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 .fails("WITH DRAIN could only be used after WITH SAVEPOINT.");
         sql("STOP JOB 'myjob' ^WITH DRAIN^ WITH SAVEPOINT")
                 .fails("WITH DRAIN could only be used after WITH SAVEPOINT.");
+    }
+
+    @Test
+    void testTruncateTable() {
+        sql("truncate table t1").ok("TRUNCATE TABLE `T1`");
     }
 
     public static BaseMatcher<SqlNode> validated(String validatedSql) {

@@ -19,6 +19,7 @@
 package org.apache.flink.kubernetes;
 
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesResourceManagerDriverConfiguration;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
@@ -37,6 +38,7 @@ import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -44,6 +46,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -219,6 +222,28 @@ class KubernetesResourceManagerDriverTest
                             assertThat(onErrorFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS))
                                     .isEqualTo(testingError);
                         });
+            }
+        };
+    }
+
+    @Test
+    void testKubernetesExceptionHandling() throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () ->
+                                FlinkAssertions.assertThatFuture(
+                                                runInMainThread(
+                                                        () -> {
+                                                            getDriver()
+                                                                    .requestResource(
+                                                                            TASK_EXECUTOR_PROCESS_SPEC)
+                                                                    .completeExceptionally(
+                                                                            new CompletionException(
+                                                                                    new KubernetesClientException(
+                                                                                            "test")));
+                                                        }))
+                                        .eventuallySucceeds());
             }
         };
     }

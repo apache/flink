@@ -34,7 +34,8 @@ KEY_ENV_YARN_CONF_DIR = "env.yarn.conf.dir"
 KEY_ENV_HADOOP_CONF_DIR = "env.hadoop.conf.dir"
 KEY_ENV_HBASE_CONF_DIR = "env.hbase.conf.dir"
 KEY_ENV_JAVA_HOME = "env.java.home"
-KEY_ENV_JAVA_OPTS = "env.java.opts"
+KEY_ENV_JAVA_OPTS = "env.java.opts.all"
+KEY_ENV_JAVA_OPTS_DEPRECATED = "env.java.opts"
 
 
 def on_windows():
@@ -156,7 +157,11 @@ def construct_log_settings(env):
 def get_jvm_opts(env):
     flink_conf_file = os.path.join(env['FLINK_CONF_DIR'], "flink-conf.yaml")
     jvm_opts = env.get(
-        'FLINK_ENV_JAVA_OPTS', read_from_config(KEY_ENV_JAVA_OPTS, "", flink_conf_file))
+        'FLINK_ENV_JAVA_OPTS',
+        read_from_config(
+            KEY_ENV_JAVA_OPTS,
+            read_from_config(KEY_ENV_JAVA_OPTS_DEPRECATED, "", flink_conf_file),
+            flink_conf_file))
 
     # Remove leading and ending double quotes (if present) of value
     jvm_opts = jvm_opts.strip("\"")
@@ -249,7 +254,9 @@ def launch_gateway_server_process(env, args):
             [construct_flink_classpath(env), construct_hadoop_classpath(env)])
         if "FLINK_TESTING" in env:
             classpath = os.pathsep.join([classpath, construct_test_classpath()])
-        command = [java_executable, jvm_args] + jvm_opts + log_settings \
+        command = [java_executable, jvm_args, "-XX:+IgnoreUnrecognizedVMOptions",
+                   "--add-opens=jdk.proxy2/jdk.proxy2=ALL-UNNAMED"] \
+            + jvm_opts + log_settings \
             + ["-cp", classpath, program_args.main_class] + program_args.other_args
     else:
         command = [os.path.join(env["FLINK_BIN_DIR"], "flink"), "run"] + program_args.other_args \

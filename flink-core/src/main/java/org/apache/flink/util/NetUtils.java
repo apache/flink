@@ -21,7 +21,7 @@ package org.apache.flink.util;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.IllegalConfigurationException;
 
-import org.apache.flink.shaded.guava30.com.google.common.net.InetAddresses;
+import org.apache.flink.shaded.guava31.com.google.common.net.InetAddresses;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -118,6 +118,18 @@ public class NetUtils {
             throw new IllegalArgumentException(
                     "The given host:port ('" + hostPort + "') is invalid", e);
         }
+    }
+
+    /**
+     * Converts an InetSocketAddress to a URL. This method assigns the "http://" schema to the URL
+     * by default.
+     *
+     * @param socketAddress the InetSocketAddress to be converted
+     * @return a URL object representing the provided socket address with "http://" schema
+     */
+    public static URL socketToUrl(InetSocketAddress socketAddress) {
+        String hostPort = socketAddress.getHostString() + ":" + socketAddress.getPort();
+        return validateHostPortString(hostPort);
     }
 
     /**

@@ -22,7 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.leaderelection.DefaultMultipleComponentLeaderElectionService;
-import org.apache.flink.runtime.leaderelection.LeaderElectionDriverFactory;
+import org.apache.flink.runtime.leaderelection.MultipleComponentLeaderElectionDriverFactory;
 import org.apache.flink.runtime.leaderelection.MultipleComponentLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.ZooKeeperMultipleComponentLeaderElectionDriverFactory;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -87,7 +87,8 @@ public class ZooKeeperMultipleComponentLeaderElectionHaServices
     }
 
     @Override
-    protected LeaderElectionDriverFactory createLeaderElectionDriverFactory(String leaderName) {
+    protected MultipleComponentLeaderElectionDriverFactory createLeaderElectionDriverFactory(
+            String leaderName) {
         return getOrInitializeSingleLeaderElectionService().createDriverFactory(leaderName);
     }
 

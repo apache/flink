@@ -20,76 +20,26 @@ SET 'sql-client.execution.result-mode' = 'tableau';
 [INFO] Execute statement succeed.
 !info
 
-SET 'table.sql-dialect' = 'hive';
+SET 'table.dml-sync' = 'true';
 [INFO] Execute statement succeed.
 !info
 
-create catalog hivecatalog with (
- 'type' = 'hive-test',
- 'hive-version' = '2.3.4'
-);
-[INFO] Execute statement succeed.
-!info
-
-use catalog hivecatalog;
-[INFO] Execute statement succeed.
-!info
-
-# test SET command
-set table.sql-dialect;
-+------------------------+
-|              variables |
-+------------------------+
-| table.sql-dialect=hive |
-+------------------------+
-1 row in set
-!ok
-
-set k1=v1;
-[INFO] Execute statement succeed.
-!info
-
-set k1;
-+-----------+
-| variables |
-+-----------+
-|     k1=v1 |
-+-----------+
-1 row in set
-!ok
-
-# test create a hive table to verify the configuration works
-CREATE TABLE hive_table (
-  product_id STRING,
-  product_name STRING,
-  unit_price DECIMAL(10, 4),
-  pv_count BIGINT,
-  like_count BIGINT,
-  comment_count BIGINT,
-  update_time TIMESTAMP,
-  update_user STRING
-) PARTITIONED BY (pt_year STRING, pt_month STRING, pt_day STRING) TBLPROPERTIES (
-  'streaming-source.enable' = 'true'
-);
-[INFO] Execute statement succeed.
-!info
-
-SET table.dml-sync = true;
-[INFO] Execute statement succeed.
-!info
-
-# test "ctas" in Hive Dialect
-CREATE TABLE foo as select 1;
+# test "ctas"
+CREATE TABLE foo with(
+  'connector' = 'filesystem',
+  'path' = '$VAR_STREAMING_PATH',
+  'format' = 'csv'
+) as select id FROM (VALUES (1)) T(id);
 [INFO] Complete execution of the SQL update statement.
 !info
 
-RESET table.dml-sync;
+RESET 'table.dml-sync';
 [INFO] Execute statement succeed.
 !info
 
 SELECT * from foo;
 +----+-------------+
-| op |      _o__c0 |
+| op |          id |
 +----+-------------+
 | +I |           1 |
 +----+-------------+
@@ -97,7 +47,7 @@ Received a total of 1 row
 !ok
 
 # test add jar
-ADD JAR $VAR_UDF_JAR_PATH;
+ADD JAR '$VAR_UDF_JAR_PATH';
 [INFO] Execute statement succeed.
 !info
 
@@ -110,19 +60,6 @@ SHOW JARS;
 1 row in set
 !ok
 
-CREATE FUNCTION hive_add_one as 'HiveAddOneFunc';
-[INFO] Execute statement succeed.
-!info
-
-SELECT hive_add_one(1);
-+----+-------------+
-| op |      _o__c0 |
-+----+-------------+
-| +I |           2 |
-+----+-------------+
-Received a total of 1 row
-!ok
-
 REMOVE JAR '$VAR_UDF_JAR_PATH';
 [INFO] Execute statement succeed.
 !info
@@ -131,7 +68,7 @@ SHOW JARS;
 Empty set
 !ok
 
-reset table.resources.download-dir;
+reset 'table.resources.download-dir';
 [INFO] Execute statement succeed.
 !info
 
@@ -146,15 +83,13 @@ set;
 |        execution.shutdown-on-attached-exit |     false |
 |                           execution.target |    remote |
 |                     jobmanager.rpc.address | $VAR_JOBMANAGER_RPC_ADDRESS |
-|                                         k1 |        v1 |
 |                        pipeline.classpaths |           |
 |                              pipeline.jars |           |
 |                                  rest.port |     $VAR_REST_PORT |
 |           sql-client.execution.result-mode |   tableau |
 |           table.exec.legacy-cast-behaviour |  DISABLED |
-|                          table.sql-dialect |      hive |
 +--------------------------------------------+-----------+
-13 rows in set
+11 rows in set
 !ok
 
 # reset the configuration

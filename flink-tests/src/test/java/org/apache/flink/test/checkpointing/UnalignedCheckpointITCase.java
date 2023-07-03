@@ -52,7 +52,7 @@ import java.util.Arrays;
 import java.util.stream.Stream;
 
 import static org.apache.flink.api.common.eventtime.WatermarkStrategy.noWatermarks;
-import static org.apache.flink.shaded.guava30.com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.flink.shaded.guava31.com.google.common.collect.Iterables.getOnlyElement;
 import static org.apache.flink.test.checkpointing.UnalignedCheckpointTestBase.ChannelType.LOCAL;
 import static org.apache.flink.test.checkpointing.UnalignedCheckpointTestBase.ChannelType.MIXED;
 import static org.apache.flink.test.checkpointing.UnalignedCheckpointTestBase.ChannelType.REMOTE;
@@ -113,7 +113,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                     StreamExecutionEnvironment env,
                     int minCheckpoints,
                     boolean slotSharing,
-                    int expectedRestarts) {
+                    int expectedRestarts,
+                    long sourceSleepMs) {
                 final int parallelism = env.getParallelism();
                 final SingleOutputStreamOperator<Long> stream =
                         env.fromSource(
@@ -121,7 +122,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                                                 minCheckpoints,
                                                 parallelism,
                                                 expectedRestarts,
-                                                env.getCheckpointInterval()),
+                                                env.getCheckpointInterval(),
+                                                sourceSleepMs),
                                         noWatermarks(),
                                         "source")
                                 .slotSharingGroup(slotSharing ? "default" : "source")
@@ -144,7 +146,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                     StreamExecutionEnvironment env,
                     int minCheckpoints,
                     boolean slotSharing,
-                    int expectedRestarts) {
+                    int expectedRestarts,
+                    long sourceSleepMs) {
                 final int parallelism = env.getParallelism();
                 DataStream<Long> combinedSource = null;
                 for (int inputIndex = 0; inputIndex < NUM_SOURCES; inputIndex++) {
@@ -154,7 +157,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                                                     minCheckpoints,
                                                     parallelism,
                                                     expectedRestarts,
-                                                    env.getCheckpointInterval()),
+                                                    env.getCheckpointInterval(),
+                                                    sourceSleepMs),
                                             noWatermarks(),
                                             "source" + inputIndex)
                                     .slotSharingGroup(
@@ -182,7 +186,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                     StreamExecutionEnvironment env,
                     int minCheckpoints,
                     boolean slotSharing,
-                    int expectedRestarts) {
+                    int expectedRestarts,
+                    long sourceSleepMs) {
                 final int parallelism = env.getParallelism();
                 DataStream<Tuple2<Integer, Long>> combinedSource = null;
                 for (int inputIndex = 0; inputIndex < NUM_SOURCES; inputIndex++) {
@@ -193,7 +198,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                                                     minCheckpoints,
                                                     parallelism,
                                                     expectedRestarts,
-                                                    env.getCheckpointInterval()),
+                                                    env.getCheckpointInterval(),
+                                                    sourceSleepMs),
                                             noWatermarks(),
                                             "source" + inputIndex)
                                     .slotSharingGroup(

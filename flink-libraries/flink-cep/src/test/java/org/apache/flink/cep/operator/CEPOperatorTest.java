@@ -53,7 +53,7 @@ import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -491,8 +491,7 @@ public class CEPOperatorTest extends TestLogger {
             harness.open();
 
             final ValueState nfaOperatorState =
-                    (ValueState)
-                            Whitebox.<ValueState>getInternalState(operator, "computationStates");
+                    Whitebox.getInternalState(operator, "computationStates");
             final ValueState nfaOperatorStateSpy = Mockito.spy(nfaOperatorState);
             Whitebox.setInternalState(operator, "computationStates", nfaOperatorStateSpy);
 
@@ -537,8 +536,7 @@ public class CEPOperatorTest extends TestLogger {
             harness.open();
 
             final ValueState nfaOperatorState =
-                    (ValueState)
-                            Whitebox.<ValueState>getInternalState(operator, "computationStates");
+                    Whitebox.getInternalState(operator, "computationStates");
             final ValueState nfaOperatorStateSpy = Mockito.spy(nfaOperatorState);
             Whitebox.setInternalState(operator, "computationStates", nfaOperatorStateSpy);
 

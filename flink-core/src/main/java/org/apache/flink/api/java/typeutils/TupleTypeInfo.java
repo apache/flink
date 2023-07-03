@@ -31,11 +31,11 @@ import org.apache.flink.api.java.typeutils.runtime.Tuple0Serializer;
 import org.apache.flink.api.java.typeutils.runtime.TupleComparator;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.types.Value;
+import org.apache.flink.util.CollectionUtil;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -164,7 +164,7 @@ public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
 
     @Override
     public Map<String, TypeInformation<?>> getGenericParameters() {
-        Map<String, TypeInformation<?>> m = new HashMap<>(types.length);
+        Map<String, TypeInformation<?>> m = CollectionUtil.newHashMapWithExpectedSize(types.length);
         for (int i = 0; i < types.length; i++) {
             m.put("T" + i, types[i]);
         }

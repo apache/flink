@@ -1330,6 +1330,7 @@ public class CheckpointCoordinator {
     }
 
     private void reportCompletedCheckpoint(CompletedCheckpoint completedCheckpoint) {
+        failureManager.handleCheckpointSuccess(completedCheckpoint.getCheckpointID());
         CompletedCheckpointStats completedCheckpointStats = completedCheckpoint.getStatistic();
         if (completedCheckpointStats != null) {
             LOG.trace(
@@ -1403,7 +1404,6 @@ public class CheckpointCoordinator {
                     pendingCheckpoint.finalizeCheckpoint(
                             checkpointsCleaner, this::scheduleTriggerRequest, executor);
 
-            failureManager.handleCheckpointSuccess(pendingCheckpoint.getCheckpointID());
             return completedCheckpoint;
         } catch (Exception e1) {
             // abort the current pending checkpoint if we fails to finalize the pending
@@ -1467,23 +1467,28 @@ public class CheckpointCoordinator {
                 checkpointsCleaner.cleanCheckpointOnFailedStoring(completedCheckpoint, executor);
             }
 
-            reportFailedCheckpoint(checkpointId, exception);
+            final CheckpointException checkpointException =
+                    new CheckpointException(
+                            "Could not complete the pending checkpoint " + checkpointId + '.',
+                            CheckpointFailureReason.FINALIZE_CHECKPOINT_FAILURE,
+                            exception);
+            reportFailedCheckpoint(pendingCheckpoint, checkpointException);
             sendAbortedMessages(tasksToAbort, checkpointId, completedCheckpoint.getTimestamp());
-            throw new CheckpointException(
-                    "Could not complete the pending checkpoint " + checkpointId + '.',
-                    CheckpointFailureReason.FINALIZE_CHECKPOINT_FAILURE,
-                    exception);
+            throw checkpointException;
         }
     }
 
-    private void reportFailedCheckpoint(long checkpointId, Exception exception) {
-        PendingCheckpointStats pendingCheckpointStats =
-                statsTracker.getPendingCheckpointStats(checkpointId);
-        if (pendingCheckpointStats != null) {
-            statsTracker.reportFailedCheckpoint(
-                    pendingCheckpointStats.toFailedCheckpoint(
-                            System.currentTimeMillis(), exception));
-        }
+    private void reportFailedCheckpoint(
+            PendingCheckpoint pendingCheckpoint, CheckpointException exception) {
+
+        failureManager.handleCheckpointException(
+                pendingCheckpoint,
+                pendingCheckpoint.getProps(),
+                exception,
+                null,
+                job,
+                getStatsCallback(pendingCheckpoint),
+                statsTracker);
     }
 
     void scheduleTriggerRequest() {

@@ -20,11 +20,14 @@ package org.apache.flink.api.scala.migration
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils._
+import org.apache.flink.testutils.junit.FailsOnJava17
 
 import org.junit.{Assert, Test}
+import org.junit.experimental.categories.Category
 
 import scala.util.Try
 
+@Category(Array(classOf[FailsOnJava17]))
 class ScalaSerializersMigrationTest {
 
   /**

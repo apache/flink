@@ -26,6 +26,8 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.commons.lang3.ClassUtils;
+
 import javax.annotation.Nullable;
 
 import java.lang.reflect.Array;
@@ -118,9 +120,27 @@ public final class CollectionDataType extends DataType {
         // arrays are a special case because their default conversion class depends on the
         // conversion class of the element type
         if (logicalType.getTypeRoot() == LogicalTypeRoot.ARRAY && clazz == null) {
-            return Array.newInstance(elementDataType.getConversionClass(), 0).getClass();
+            Class<?> conversionClass =
+                    wrapOrUnWrap(
+                            elementDataType.getConversionClass(),
+                            elementDataType.getLogicalType().isNullable());
+
+            return Array.newInstance(conversionClass, 0).getClass();
         }
-        return clazz;
+        return wrapOrUnWrap(clazz, elementDataType.getLogicalType().isNullable());
+    }
+
+    private static Class<?> wrapOrUnWrap(@Nullable Class<?> source, boolean nullable) {
+        if (source == null) {
+            return null;
+        }
+        if (nullable) {
+            return source.isPrimitive() ? ClassUtils.primitiveToWrapper(source) : source;
+        } else {
+            return ClassUtils.isPrimitiveWrapper(source)
+                    ? ClassUtils.wrapperToPrimitive(source)
+                    : source;
+        }
     }
 
     private DataType updateInnerDataType(DataType elementDataType) {

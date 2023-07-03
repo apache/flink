@@ -27,6 +27,7 @@ import org.apache.flink.tests.util.flink.FlinkResource;
 import org.apache.flink.tests.util.flink.FlinkResourceSetup;
 import org.apache.flink.tests.util.flink.LocalStandaloneFlinkResourceFactory;
 import org.apache.flink.testutils.junit.FailsOnJava11;
+import org.apache.flink.testutils.junit.FailsOnJava17;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -66,7 +67,7 @@ import static org.junit.Assert.assertThat;
 
 /** End-to-end test for the HBase connectors. */
 @RunWith(Parameterized.class)
-@Category(value = {FailsOnJava11.class})
+@Category(value = {FailsOnJava11.class, FailsOnJava17.class})
 @Ignore("FLINK-21519")
 public class SQLClientHBaseITCase extends TestLogger {
 

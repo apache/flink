@@ -181,6 +181,15 @@ class OptionsHintTest(param: Param) extends TableTestBase {
         "cannot be enriched with new options. Hints can only be applied to tables.")
       .isInstanceOf[ValidationException]
   }
+
+  @Test
+  def testOptionsHintInsideView(): Unit = {
+    util.tableEnv.executeSql(
+      "create view v1 as select * from t1 /*+ OPTIONS(k1='#v111', k4='#v444')*/")
+    util.verifyExecPlan(s"""
+                           |select * from t2 join v1 on v1.a = t2.d
+                           |""".stripMargin)
+  }
 }
 
 object OptionsHintTest {

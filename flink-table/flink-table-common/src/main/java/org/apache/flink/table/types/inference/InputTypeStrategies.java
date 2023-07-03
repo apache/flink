@@ -23,7 +23,9 @@ import org.apache.flink.table.expressions.TableSymbol;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.strategies.AndArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.AnyArgumentTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.ArrayComparableElementTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.CommonArgumentTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.CommonArrayInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.CommonInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ComparableTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.CompositeArgumentTypeStrategy;
@@ -345,6 +347,26 @@ public final class InputTypeStrategies {
      */
     public static InputTypeStrategy commonType(int count) {
         return new CommonInputTypeStrategy(ConstantArgumentCount.of(count));
+    }
+
+    /**
+     * An {@link InputTypeStrategy} that expects {@code count} arguments that have a common array
+     * type.
+     */
+    public static InputTypeStrategy commonArrayType(int count) {
+        return new CommonArrayInputTypeStrategy(ConstantArgumentCount.of(count));
+    }
+
+    /**
+     * An {@link InputTypeStrategy} that expects {@code minCount} arguments that have a common array
+     * type.
+     */
+    public static InputTypeStrategy commonMultipleArrayType(int minCount) {
+        return new CommonArrayInputTypeStrategy(ConstantArgumentCount.from(minCount));
+    }
+
+    public static InputTypeStrategy arrayFullyComparableElementType() {
+        return new ArrayComparableElementTypeStrategy(StructuredComparison.FULL);
     }
 
     // --------------------------------------------------------------------------------------------

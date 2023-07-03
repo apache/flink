@@ -128,12 +128,13 @@ public class CollectResultFetcher<T> {
                 try {
                     response = sendRequest(buffer.getVersion(), requestOffset);
                 } catch (Exception e) {
-                    if (ExceptionUtils.findThrowable(
-                                    e, UnavailableDispatcherOperationException.class)
+                    if (ExceptionUtils.findThrowableWithMessage(
+                                    e, UnavailableDispatcherOperationException.class.getName())
                             .isPresent()) {
                         LOG.debug(
                                 "The job execution has not started yet; cannot fetch results.", e);
-                    } else if (ExceptionUtils.findThrowable(e, FlinkJobNotFoundException.class)
+                    } else if (ExceptionUtils.findThrowableWithMessage(
+                                    e, FlinkJobNotFoundException.class.getName())
                             .isPresent()) {
                         LOG.debug(
                                 "The job cannot be found. It is very likely that the job is not in a RUNNING state.",

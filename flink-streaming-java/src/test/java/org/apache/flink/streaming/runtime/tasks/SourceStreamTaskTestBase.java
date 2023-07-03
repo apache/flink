@@ -30,7 +30,7 @@ import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.util.function.FunctionWithException;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
 
 import org.assertj.core.api.AbstractDoubleAssert;
 

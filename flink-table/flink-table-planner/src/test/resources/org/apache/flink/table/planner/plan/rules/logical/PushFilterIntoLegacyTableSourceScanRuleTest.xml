@@ -101,7 +101,7 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
     <Resource name="ast">
       <![CDATA[
 LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
-+- LogicalFilter(condition=[>($3, 10.1)])
++- LogicalFilter(condition=[>($3, CAST(10.1:DECIMAL(3, 1)):INTEGER NOT NULL)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filterPushedDown=[false], filter=[]]]])
 ]]>
     </Resource>
@@ -159,7 +159,7 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
     <Resource name="ast">
       <![CDATA[
 LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
-+- LogicalFilter(condition=[>($2, 1.1)])
++- LogicalFilter(condition=[>($2, CAST(1.1:DECIMAL(2, 1)):INTEGER NOT NULL)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filterPushedDown=[false], filter=[]]]])
 ]]>
     </Resource>

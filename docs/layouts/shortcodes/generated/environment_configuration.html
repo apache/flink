@@ -75,6 +75,12 @@
             <td>Additional command line options passed to SSH clients when starting or stopping JobManager, TaskManager, and Zookeeper services (start-cluster.sh, stop-cluster.sh, start-zookeeper-quorum.sh, stop-zookeeper-quorum.sh).</td>
         </tr>
         <tr>
+            <td><h5>env.stdout-err.redirect-to-file</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether redirect stdout and stderr to files when running foreground. If enabled, logs won't append the console too. Note that redirected files do not support rolling rotate.</td>
+        </tr>
+        <tr>
             <td><h5>env.yarn.conf.dir</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>

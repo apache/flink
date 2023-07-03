@@ -41,6 +41,7 @@ import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.util.StringInterner;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
+import org.apache.hadoop.yarn.api.records.ApplicationAccessType;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
@@ -80,6 +81,9 @@ public final class Utils {
 
     /** Yarn site xml file name populated in YARN container for secure IT run. */
     public static final String YARN_SITE_FILE_NAME = "yarn-site.xml";
+
+    /** Constant representing a wildcard access control list. */
+    private static final String WILDCARD_ACL = "*";
 
     /** The prefixes that Flink adds to the YARN config. */
     private static final String[] FLINK_CONFIG_PREFIXES = {"flink.yarn."};
@@ -425,6 +429,8 @@ public final class Utils {
 
         ctx.setEnvironment(containerEnv);
 
+        setAclsFor(ctx, flinkConfig);
+
         // For TaskManager YARN container context, read the tokens from the jobmanager yarn
         // container local file.
         // NOTE: must read the tokens from the local file, not from the UGI context, because if UGI
@@ -619,5 +625,46 @@ public final class Utils {
         }
 
         return yarnConfig;
+    }
+
+    /**
+     * Sets the application ACLs for the given ContainerLaunchContext based on the values specified
+     * in the given Flink configuration. Only ApplicationAccessType.VIEW_APP and
+     * ApplicationAccessType.MODIFY_APP ACLs are set, and only if they are configured in the Flink
+     * configuration. If the viewAcls or modifyAcls string contains the WILDCARD_ACL constant, it
+     * will replace the entire string with the WILDCARD_ACL. The resulting map is then set as the
+     * application acls for the given container launch context.
+     *
+     * @param amContainer the ContainerLaunchContext to set the ACLs for.
+     * @param flinkConfig the Flink configuration to read the ACL values from.
+     */
+    public static void setAclsFor(
+            ContainerLaunchContext amContainer,
+            org.apache.flink.configuration.Configuration flinkConfig) {
+        Map<ApplicationAccessType, String> acls = new HashMap<>();
+        final String viewAcls = flinkConfig.getString(YarnConfigOptions.APPLICATION_VIEW_ACLS);
+        final String modifyAcls = flinkConfig.getString(YarnConfigOptions.APPLICATION_MODIFY_ACLS);
+        validateAclString(viewAcls);
+        validateAclString(modifyAcls);
+
+        if (viewAcls != null && !viewAcls.isEmpty()) {
+            acls.put(ApplicationAccessType.VIEW_APP, viewAcls);
+        }
+        if (modifyAcls != null && !modifyAcls.isEmpty()) {
+            acls.put(ApplicationAccessType.MODIFY_APP, modifyAcls);
+        }
+        if (!acls.isEmpty()) {
+            amContainer.setApplicationACLs(acls);
+        }
+    }
+
+    /* Validates the ACL string to ensure that it is either null or the wildcard ACL. */
+    private static void validateAclString(String acl) {
+        if (acl != null && acl.contains("*") && !acl.equals("*")) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "Invalid wildcard ACL %s. The ACL wildcard does not support regex. The only valid wildcard ACL is '*'.",
+                            acl));
+        }
     }
 }

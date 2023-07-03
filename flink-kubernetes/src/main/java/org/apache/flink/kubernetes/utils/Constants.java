@@ -115,4 +115,9 @@ public class Constants {
     public static final String KUBERNETES_TASK_MANAGER_SCRIPT_PATH = "kubernetes-taskmanager.sh";
 
     public static final String ENV_TM_JVM_MEM_OPTS = "FLINK_TM_JVM_MEM_OPTS";
+
+    // "resourceVersion="0" is any resource version.It saves time to access etcd and improves
+    // performance.
+    // https://kubernetes.io/docs/reference/using-api/api-concepts/#the-resourceversion-parameter
+    public static final String KUBERNETES_ZERO_RESOURCE_VERSION = "0";
 }

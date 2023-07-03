@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.arrow.sources;
 
-import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.testutils.MultiShotLatch;
@@ -28,6 +27,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.arrow.ArrowUtils;
 import org.apache.flink.table.runtime.arrow.ArrowWriter;
@@ -35,13 +35,12 @@ import org.apache.flink.testutils.CustomEqualityMatcher;
 import org.apache.flink.testutils.DeeplyEqualsChecker;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
 
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.ipc.ArrowStreamWriter;
 import org.assertj.core.api.HamcrestCondition;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -299,7 +298,7 @@ abstract class ArrowSourceFunctionTestBase {
                 createArrowSourceFunction(
                         ArrowUtils.readArrowBatches(
                                 Channels.newChannel(new ByteArrayInputStream(baos.toByteArray()))));
-        arrowSourceFunction.setRuntimeContext(Mockito.mock(RuntimeContext.class));
+        arrowSourceFunction.setRuntimeContext(new MockStreamingRuntimeContext(false, 0, 0));
         return arrowSourceFunction;
     }
 

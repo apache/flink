@@ -36,6 +36,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.StateMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
@@ -80,6 +81,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
                 StreamExecGlobalGroupAggregate.GLOBAL_GROUP_AGGREGATE_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
+@ExecNodeMetadata(
+        name = "stream-exec-global-group-aggregate",
+        version = 2,
+        consumedOptions = {"table.exec.mini-batch.enabled", "table.exec.mini-batch.size"},
+        producedTransformations =
+                StreamExecGlobalGroupAggregate.GLOBAL_GROUP_AGGREGATE_TRANSFORMATION,
+        minPlanVersion = FlinkVersion.v1_18,
+        minStateVersion = FlinkVersion.v1_15)
 public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
 
     private static final Logger LOG = LoggerFactory.getLogger(StreamExecGlobalGroupAggregate.class);
@@ -88,6 +97,8 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
 
     public static final String FIELD_NAME_LOCAL_AGG_INPUT_ROW_TYPE = "localAggInputRowType";
     public static final String FIELD_NAME_INDEX_OF_COUNT_STAR = "indexOfCountStar";
+
+    public static final String STATE_NAME = "globalGroupAggregateState";
 
     @JsonProperty(FIELD_NAME_GROUPING)
     private final int[] grouping;
@@ -116,6 +127,11 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     protected final Integer indexOfCountStar;
 
+    @Nullable
+    @JsonProperty(FIELD_NAME_STATE)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final List<StateMetadata> stateMetadataList;
+
     public StreamExecGlobalGroupAggregate(
             ReadableConfig tableConfig,
             int[] grouping,
@@ -140,6 +156,7 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
                 generateUpdateBefore,
                 needRetraction,
                 indexOfCountStar,
+                StateMetadata.getOneInputOperatorDefaultMeta(tableConfig, STATE_NAME),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -157,6 +174,7 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
             @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE) boolean generateUpdateBefore,
             @JsonProperty(FIELD_NAME_NEED_RETRACTION) boolean needRetraction,
             @JsonProperty(FIELD_NAME_INDEX_OF_COUNT_STAR) @Nullable Integer indexOfCountStar,
+            @Nullable @JsonProperty(FIELD_NAME_STATE) List<StateMetadata> stateMetadataList,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
@@ -170,6 +188,7 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
         this.needRetraction = needRetraction;
         checkArgument(indexOfCountStar == null || indexOfCountStar >= 0 && needRetraction);
         this.indexOfCountStar = indexOfCountStar;
+        this.stateMetadataList = stateMetadataList;
     }
 
     @SuppressWarnings("unchecked")
@@ -177,7 +196,9 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
     protected Transformation<RowData> translateToPlanInternal(
             PlannerBase planner, ExecNodeConfig config) {
 
-        if (grouping.length > 0 && config.getStateRetentionTime() < 0) {
+        long stateRetentionTime =
+                StateMetadata.getStateTtlForOneInputOperator(config, stateMetadataList);
+        if (grouping.length > 0 && stateRetentionTime < 0) {
             LOG.warn(
                     "No state retention interval configured for a query which accumulates state. "
                             + "Please provide a query configuration with valid retention interval to prevent excessive "
@@ -256,7 +277,7 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
                             globalAccTypes,
                             indexOfCountStar,
                             generateUpdateBefore,
-                            config.getStateRetentionTime());
+                            stateRetentionTime);
 
             operator =
                     new KeyedMapBundleOperator<>(

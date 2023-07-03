@@ -44,9 +44,8 @@ import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.utils.DateTimeUtils.toLocalDateTime
 import org.apache.flink.types.Row
 
-import org.junit._
-import org.junit.Assert.assertEquals
-import org.junit.rules.ExpectedException
+import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
+import org.junit.jupiter.api.{BeforeEach, Disabled, Test}
 
 import java.nio.charset.StandardCharsets
 import java.sql.{Date, Time, Timestamp}
@@ -55,12 +54,7 @@ import java.util
 
 class CalcITCase extends BatchTestBase {
 
-  var _expectedEx: ExpectedException = ExpectedException.none
-
-  @Rule
-  def expectedEx: ExpectedException = _expectedEx
-
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
@@ -398,9 +392,10 @@ class CalcITCase extends BatchTestBase {
     checkResult("SELECT `1-_./Ü`, b, c FROM (SELECT a as `1-_./Ü`, b, c FROM Table3)", data3)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidFields(): Unit = {
-    checkResult("SELECT a, foo FROM Table3", data3)
+    assertThatThrownBy(() => checkResult("SELECT a, foo FROM Table3", data3))
+      .isInstanceOf(classOf[ValidationException])
   }
 
   @Test
@@ -1032,12 +1027,11 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testMapTypeGroupBy(): Unit = {
-    _expectedEx.expectMessage(
-      "Type(MAP<INT NOT NULL, VARCHAR(5) NOT NULL> NOT NULL) is not an orderable data type, it is not supported as a ORDER_BY/GROUP_BY/JOIN_EQUAL field.")
-    checkResult(
-      "SELECT COUNT(*) FROM SmallTable3 GROUP BY MAP[1, 'Hello', 2, 'Hi']",
-      Seq()
-    )
+    assertThatThrownBy(
+      () =>
+        checkResult("SELECT COUNT(*) FROM SmallTable3 GROUP BY MAP[1, 'Hello', 2, 'Hi']", Seq()))
+      .hasMessage(
+        "Type(MAP<INT NOT NULL, VARCHAR(5) NOT NULL> NOT NULL) is not an orderable data type, it is not supported as a ORDER_BY/GROUP_BY/JOIN_EQUAL field.")
   }
 
   @Test
@@ -1058,16 +1052,17 @@ class CalcITCase extends BatchTestBase {
     val result = executeQuery(table)
 
     val nestedRow = result.head.getField(0).asInstanceOf[Row]
-    assertEquals(data.head.getField(0), nestedRow.getField(0))
-    assertEquals(data.head.getField(1), nestedRow.getField(1))
-    assertEquals(data.head.getField(2), nestedRow.getField(2))
+    assertThat(data.head.getField(0)).isEqualTo(nestedRow.getField(0))
+    assertThat(data.head.getField(1)).isEqualTo(nestedRow.getField(1))
+    assertThat(data.head.getField(2)).isEqualTo(nestedRow.getField(2))
 
     val arr = result.head.getField(1).asInstanceOf[Array[Integer]]
-    assertEquals(12, arr(0))
-    assertEquals(data.head.getField(1), arr(1))
+    assertThat(12).isEqualTo(arr(0))
+    assertThat(data.head.getField(1)).isEqualTo(arr(1))
 
     val hashMap = result.head.getField(2).asInstanceOf[util.HashMap[String, Timestamp]]
-    assertEquals(data.head.getField(2), hashMap.get(data.head.getField(0).asInstanceOf[String]))
+    assertThat(data.head.getField(2))
+      .isEqualTo(hashMap.get(data.head.getField(0).asInstanceOf[String]))
   }
 
   @Test
@@ -1144,7 +1139,7 @@ class CalcITCase extends BatchTestBase {
     )
   }
 
-  @Ignore // TODO support Unicode
+  @Disabled // TODO support Unicode
   @Test
   def testFunctionWithUnicodeParameters(): Unit = {
     val data = List(
@@ -1326,7 +1321,7 @@ class CalcITCase extends BatchTestBase {
     val d1 =
       LocalDateConverter.INSTANCE.toInternal(result.toList.head.getField(0).asInstanceOf[LocalDate])
 
-    Assert.assertTrue(d0 <= d1 && d1 - d0 <= 1)
+    assertThat(d0 <= d1 && d1 - d0 <= 1).isTrue
   }
 
   @Test
@@ -1346,7 +1341,7 @@ class CalcITCase extends BatchTestBase {
 
     val ts2 = System.currentTimeMillis()
 
-    Assert.assertTrue(ts0 <= ts1 && ts1 <= ts2)
+    assertThat(ts0 <= ts1 && ts1 <= ts2).isTrue
   }
 
   @Test
@@ -1534,7 +1529,7 @@ class CalcITCase extends BatchTestBase {
     )
   }
 
-  @Test(expected = classOf[UnsupportedOperationException])
+  @Test
   def testOrderByBinary(): Unit = {
     registerCollection(
       "BinaryT",
@@ -1550,18 +1545,21 @@ class CalcITCase extends BatchTestBase {
     )
     tableConfig.set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(1))
     tableConfig.set(BatchPhysicalSortRule.TABLE_EXEC_RANGE_SORT_ENABLED, Boolean.box(true))
-    checkResult(
-      "select * from BinaryT order by c",
-      nullData3
-        .sortBy((x: Row) => x.getField(2).asInstanceOf[String])
-        .map(
-          r =>
-            row(
-              r.getField(0),
-              r.getField(1),
-              r.getField(2).toString.getBytes(StandardCharsets.UTF_8))),
-      isSorted = true
-    )
+
+    assertThatThrownBy(
+      () =>
+        checkResult(
+          "select * from BinaryT order by c",
+          nullData3
+            .sortBy((x: Row) => x.getField(2).asInstanceOf[String])
+            .map(
+              r =>
+                row(
+                  r.getField(0),
+                  r.getField(1),
+                  r.getField(2).toString.getBytes(StandardCharsets.UTF_8))),
+          isSorted = true
+        )).isInstanceOf(classOf[UnsupportedOperationException])
   }
 
   @Test
@@ -2284,5 +2282,20 @@ class CalcITCase extends BatchTestBase {
         | SELECT * FROM MyTable WHERE b LIKE '%"%'
         |""".stripMargin,
       Seq(row(2, "cbc\"ddd")))
+  }
+
+  @Test
+  def testNonMergeableRandCall(): Unit = {
+    // reported in FLINK-20887
+    checkResult(
+      s"""
+         |SELECT b - a FROM (
+         |  SELECT r + 5 AS a, r + 7 AS b FROM (
+         |    SELECT RAND() AS r FROM SmallTable3
+         |  ) t1
+         |) t2
+         |""".stripMargin,
+      Seq(row(2.0), row(2.0), row(2.0))
+    )
   }
 }

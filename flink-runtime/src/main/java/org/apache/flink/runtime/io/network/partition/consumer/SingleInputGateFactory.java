@@ -34,6 +34,13 @@ import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageConfiguration;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageIdMappingUtils;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyServiceImpl;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageConsumerClient;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageConsumerSpec;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.NettyShuffleUtils;
@@ -52,8 +59,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import static org.apache.flink.runtime.io.network.partition.consumer.InputGateSpecUtils.createGateBuffersSpec;
@@ -91,13 +101,18 @@ public class SingleInputGateFactory {
 
     private final BufferDebloatConfiguration debloatConfiguration;
 
+    @Nullable
+    private final TieredStorageConfiguration
+            tieredStorageConfiguration; // is null if tiered storage shuffle is disabled.
+
     public SingleInputGateFactory(
             @Nonnull ResourceID taskExecutorResourceId,
             @Nonnull NettyShuffleEnvironmentConfiguration networkConfig,
             @Nonnull ConnectionManager connectionManager,
             @Nonnull ResultPartitionManager partitionManager,
             @Nonnull TaskEventPublisher taskEventPublisher,
-            @Nonnull NetworkBufferPool networkBufferPool) {
+            @Nonnull NetworkBufferPool networkBufferPool,
+            @Nullable TieredStorageConfiguration tieredStorageConfiguration) {
         this.taskExecutorResourceId = taskExecutorResourceId;
         this.partitionRequestInitialBackoff = networkConfig.partitionRequestInitialBackoff();
         this.partitionRequestMaxBackoff = networkConfig.partitionRequestMaxBackoff();
@@ -114,6 +129,7 @@ public class SingleInputGateFactory {
         this.taskEventPublisher = taskEventPublisher;
         this.networkBufferPool = networkBufferPool;
         this.debloatConfiguration = networkConfig.getDebloatConfiguration();
+        this.tieredStorageConfiguration = tieredStorageConfiguration;
     }
 
     /** Creates an input gate and all of its input channels. */
@@ -122,7 +138,8 @@ public class SingleInputGateFactory {
             int gateIndex,
             @Nonnull InputGateDeploymentDescriptor igdd,
             @Nonnull PartitionProducerStateProvider partitionProducerStateProvider,
-            @Nonnull InputChannelMetrics metrics) {
+            @Nonnull InputChannelMetrics metrics,
+            @Nullable TieredStorageNettyServiceImpl nettyService) {
         GateBuffersSpec gateBuffersSpec =
                 createGateBuffersSpec(
                         maxRequiredBuffersPerGate,
@@ -148,6 +165,30 @@ public class SingleInputGateFactory {
         final MetricGroup networkInputGroup = owner.getInputGroup();
 
         IndexRange subpartitionIndexRange = igdd.getConsumedSubpartitionIndexRange();
+        TieredStorageConsumerClient tieredStorageConsumerClient = null;
+        List<TieredStorageConsumerSpec> tieredStorageConsumerSpecs = null;
+        if (tieredStorageConfiguration != null) {
+            ShuffleDescriptor[] shuffleDescriptors = igdd.getShuffleDescriptors();
+            tieredStorageConsumerSpecs = new ArrayList<>();
+            for (ShuffleDescriptor shuffleDescriptor : shuffleDescriptors) {
+                TieredStoragePartitionId partitionId =
+                        TieredStorageIdMappingUtils.convertId(
+                                shuffleDescriptor.getResultPartitionID());
+                for (int index = subpartitionIndexRange.getStartIndex();
+                        index <= subpartitionIndexRange.getEndIndex();
+                        ++index) {
+                    TieredStorageSubpartitionId subpartitionId =
+                            new TieredStorageSubpartitionId(index);
+                    tieredStorageConsumerSpecs.add(
+                            new TieredStorageConsumerSpec(partitionId, subpartitionId));
+                }
+            }
+            tieredStorageConsumerClient =
+                    new TieredStorageConsumerClient(
+                            tieredStorageConfiguration.getTierFactories(),
+                            tieredStorageConsumerSpecs,
+                            nettyService);
+        }
         SingleInputGate inputGate =
                 new SingleInputGate(
                         owningTaskName,
@@ -164,7 +205,10 @@ public class SingleInputGateFactory {
                         networkBufferSize,
                         new ThroughputCalculator(SystemClock.getInstance()),
                         maybeCreateBufferDebloater(
-                                owningTaskName, gateIndex, networkInputGroup.addGroup(gateIndex)));
+                                owningTaskName, gateIndex, networkInputGroup.addGroup(gateIndex)),
+                        tieredStorageConsumerClient,
+                        nettyService,
+                        tieredStorageConsumerSpecs);
 
         createInputChannels(
                 owningTaskName, igdd, inputGate, subpartitionIndexRange, gateBuffersSpec, metrics);

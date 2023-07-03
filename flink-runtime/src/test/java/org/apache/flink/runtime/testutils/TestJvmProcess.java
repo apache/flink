@@ -140,6 +140,7 @@ public abstract class TestJvmProcess {
                     "-Xmx" + jvmMemoryInMb + "m",
                     "-classpath",
                     getCurrentClasspath(),
+                    "-XX:+IgnoreUnrecognizedVMOptions",
                     getEntryPointClassName()
                 };
 
@@ -147,6 +148,11 @@ public abstract class TestJvmProcess {
 
         if (jvmArgs != null && jvmArgs.length > 0) {
             cmd = ArrayUtils.addAll(cmd, jvmArgs);
+        }
+
+        final String moduleConfig = System.getProperty("surefire.module.config");
+        if (moduleConfig != null) {
+            cmd = ArrayUtils.addAll(cmd, moduleConfig.split(" "));
         }
 
         synchronized (createDestroyLock) {

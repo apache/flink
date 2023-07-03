@@ -21,7 +21,7 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
+import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableMap;
 
 import org.junit.jupiter.api.Test;
 

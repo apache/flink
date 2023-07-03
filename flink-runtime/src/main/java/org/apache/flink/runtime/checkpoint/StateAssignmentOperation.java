@@ -39,6 +39,7 @@ import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.StateObject;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -91,7 +92,7 @@ public class StateAssignmentOperation {
         this.tasks = Preconditions.checkNotNull(tasks);
         this.operatorStates = Preconditions.checkNotNull(operatorStates);
         this.allowNonRestoredState = allowNonRestoredState;
-        this.vertexAssignments = new HashMap<>(tasks.size());
+        this.vertexAssignments = CollectionUtil.newHashMapWithExpectedSize(tasks.size());
     }
 
     public void assignStates() {
@@ -103,7 +104,8 @@ public class StateAssignmentOperation {
         // information in first pass
         for (ExecutionJobVertex executionJobVertex : tasks) {
             List<OperatorIDPair> operatorIDPairs = executionJobVertex.getOperatorIDs();
-            Map<OperatorID, OperatorState> operatorStates = new HashMap<>(operatorIDPairs.size());
+            Map<OperatorID, OperatorState> operatorStates =
+                    CollectionUtil.newHashMapWithExpectedSize(operatorIDPairs.size());
             for (OperatorIDPair operatorIDPair : operatorIDPairs) {
                 OperatorID operatorID =
                         operatorIDPair
@@ -136,19 +138,24 @@ public class StateAssignmentOperation {
 
         // repartition state
         for (TaskStateAssignment stateAssignment : vertexAssignments.values()) {
-            if (stateAssignment.hasNonFinishedState) {
+            if (stateAssignment.hasNonFinishedState
+                    // FLINK-31963: We need to run repartitioning for stateless operators that have
+                    // upstream output or downstream input states.
+                    || stateAssignment.hasUpstreamOutputStates()
+                    || stateAssignment.hasDownstreamInputStates()) {
                 assignAttemptState(stateAssignment);
             }
         }
 
         // actually assign the state
         for (TaskStateAssignment stateAssignment : vertexAssignments.values()) {
-            // If upstream has output states, even the empty task state should be assigned for the
-            // current task in order to notify this task that the old states will send to it which
-            // likely should be filtered.
+            // If upstream has output states or downstream has input states, even the empty task
+            // state should be assigned for the current task in order to notify this task that the
+            // old states will send to it which likely should be filtered.
             if (stateAssignment.hasNonFinishedState
                     || stateAssignment.isFullyFinished
-                    || stateAssignment.hasUpstreamOutputStates()) {
+                    || stateAssignment.hasUpstreamOutputStates()
+                    || stateAssignment.hasDownstreamInputStates()) {
                 assignTaskStateToExecutionJobVertices(stateAssignment);
             }
         }
@@ -345,9 +352,10 @@ public class StateAssignmentOperation {
                                         newParallelism)));
     }
 
-    public <I, T extends AbstractChannelStateHandle<I>> void reDistributeResultSubpartitionStates(
-            TaskStateAssignment assignment) {
-        if (!assignment.hasOutputState) {
+    public void reDistributeResultSubpartitionStates(TaskStateAssignment assignment) {
+        // FLINK-31963: We can skip this phase if there is no output state AND downstream has no
+        // input states
+        if (!assignment.hasOutputState && !assignment.hasDownstreamInputStates()) {
             return;
         }
 
@@ -394,7 +402,9 @@ public class StateAssignmentOperation {
     }
 
     public void reDistributeInputChannelStates(TaskStateAssignment stateAssignment) {
-        if (!stateAssignment.hasInputState) {
+        // FLINK-31963: We can skip this phase only if there is no input state AND upstream has no
+        // output states
+        if (!stateAssignment.hasInputState && !stateAssignment.hasUpstreamOutputStates()) {
             return;
         }
 
@@ -424,7 +434,7 @@ public class StateAssignmentOperation {
         // old assignment: 0 -> [0;43); 1 -> [43;87); 2 -> [87;128)
         // new assignment: 0 -> [0;64]; 1 -> [64;128)
         // subtask 0 recovers data from old subtask 0 + 1 and subtask 1 recovers data from old
-        // subtask 0 + 2
+        // subtask 1 + 2
         for (int gateIndex = 0; gateIndex < inputs.size(); gateIndex++) {
             final RescaleMappings mapping =
                     stateAssignment.getInputMapping(gateIndex).getRescaleMappings();
@@ -435,7 +445,7 @@ public class StateAssignmentOperation {
                             : getPartitionState(
                                     inputOperatorState, InputChannelInfo::getGateIdx, gateIndex);
             final MappingBasedRepartitioner<InputChannelStateHandle> repartitioner =
-                    new MappingBasedRepartitioner(mapping);
+                    new MappingBasedRepartitioner<>(mapping);
             final Map<OperatorInstanceID, List<InputChannelStateHandle>> repartitioned =
                     applyRepartitioner(
                             stateAssignment.inputOperatorID,
@@ -755,7 +765,8 @@ public class StateAssignmentOperation {
 
     private static <T> Map<OperatorInstanceID, List<T>> toInstanceMap(
             OperatorID operatorID, List<List<T>> states) {
-        Map<OperatorInstanceID, List<T>> result = new HashMap<>(states.size());
+        Map<OperatorInstanceID, List<T>> result =
+                CollectionUtil.newHashMapWithExpectedSize(states.size());
 
         for (int subtaskIndex = 0; subtaskIndex < states.size(); subtaskIndex++) {
             checkNotNull(states.get(subtaskIndex) != null, "states.get(subtaskIndex) is null");

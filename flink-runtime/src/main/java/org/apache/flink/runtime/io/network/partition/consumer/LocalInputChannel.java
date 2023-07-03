@@ -194,7 +194,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
     }
 
     @Override
-    Optional<BufferAndAvailability> getNextBuffer() throws IOException {
+    public Optional<BufferAndAvailability> getNextBuffer() throws IOException {
         checkError();
 
         ResultSubpartitionView subpartitionView = this.subpartitionView;
@@ -369,6 +369,13 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
         }
 
         return 0;
+    }
+
+    @Override
+    public void notifyRequiredSegmentId(int segmentId) {
+        if (subpartitionView != null) {
+            checkNotNull(subpartitionView).notifyRequiredSegmentId(segmentId);
+        }
     }
 
     @Override

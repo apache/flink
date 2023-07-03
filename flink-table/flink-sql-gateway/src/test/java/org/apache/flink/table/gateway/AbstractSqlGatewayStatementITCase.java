@@ -65,6 +65,7 @@ import java.util.jar.JarFile;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.configuration.RestOptions.PORT;
 import static org.apache.flink.table.gateway.utils.SqlScriptReader.HINT_START_OF_OUTPUT;
 import static org.apache.flink.table.planner.utils.TableTestUtil.replaceNodeIdInOperator;
 import static org.apache.flink.table.planner.utils.TableTestUtil.replaceStreamNodeId;
@@ -116,11 +117,28 @@ public abstract class AbstractSqlGatewayStatementITCase extends AbstractTestBase
                 "$VAR_STREAMING_PATH2",
                 Files.createDirectory(temporaryFolder.resolve("streaming2")).toFile().getPath());
         replaceVars.put(
+                "$VAR_STREAMING_PATH3",
+                Files.createDirectory(temporaryFolder.resolve("streaming3")).toFile().getPath());
+        replaceVars.put(
                 "$VAR_BATCH_PATH",
                 Files.createDirectory(temporaryFolder.resolve("batch")).toFile().getPath());
         replaceVars.put(
                 "$VAR_BATCH_CTAS_PATH",
                 Files.createDirectory(temporaryFolder.resolve("batch_ctas")).toFile().getPath());
+        replaceVars.put(
+                "$VAR_REST_PORT", MINI_CLUSTER.getClientConfiguration().get(PORT).toString());
+        replaceVars.put(
+                "$VAR_STREAMING_PLAN_PATH",
+                Files.createDirectory(temporaryFolder.resolve("streaming_compiled_plan"))
+                        .toFile()
+                        .getPath());
+        replaceVars.put(
+                "$VAR_STREAMING_PLAN_RELATIVE_PATH",
+                new File(".")
+                        .getCanonicalFile()
+                        .toPath()
+                        .relativize(Paths.get(replaceVars.get("$VAR_STREAMING_PLAN_PATH")))
+                        .toString());
     }
 
     @TestTemplate

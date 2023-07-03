@@ -20,11 +20,11 @@ package org.apache.flink.table.planner.runtime.batch.table
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData}
 
-import org.junit._
+import org.junit.jupiter.api.BeforeEach
 
 class LimitITCase extends LegacyLimitITCase {
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     BatchTestBase.configForMiniCluster(tableConfig)
 

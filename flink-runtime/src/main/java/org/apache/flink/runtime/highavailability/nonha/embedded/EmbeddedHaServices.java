@@ -21,7 +21,7 @@ package org.apache.flink.runtime.highavailability.nonha.embedded;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.nonha.AbstractNonHaServices;
-import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.util.Preconditions;
 
@@ -76,12 +76,12 @@ public class EmbeddedHaServices extends AbstractNonHaServices {
     }
 
     @Override
-    public LeaderElectionService getResourceManagerLeaderElectionService() {
+    public LeaderElection getResourceManagerLeaderElection() {
         return resourceManagerLeaderService.createLeaderElectionService();
     }
 
     @Override
-    public LeaderElectionService getDispatcherLeaderElectionService() {
+    public LeaderElection getDispatcherLeaderElection() {
         return dispatcherLeaderService.createLeaderElectionService();
     }
 
@@ -108,7 +108,7 @@ public class EmbeddedHaServices extends AbstractNonHaServices {
     }
 
     @Override
-    public LeaderElectionService getJobManagerLeaderElectionService(JobID jobID) {
+    public LeaderElection getJobManagerLeaderElection(JobID jobID) {
         checkNotNull(jobID);
 
         synchronized (lock) {
@@ -119,7 +119,7 @@ public class EmbeddedHaServices extends AbstractNonHaServices {
     }
 
     @Override
-    public LeaderElectionService getClusterRestEndpointLeaderElectionService() {
+    public LeaderElection getClusterRestEndpointLeaderElection() {
         return clusterRestEndpointLeaderService.createLeaderElectionService();
     }
 

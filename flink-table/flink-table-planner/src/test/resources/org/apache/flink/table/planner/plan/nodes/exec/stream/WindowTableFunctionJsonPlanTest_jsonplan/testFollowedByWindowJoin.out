@@ -261,7 +261,7 @@
         "type" : "BIGINT"
       }, {
         "kind" : "LITERAL",
-        "value" : "10",
+        "value" : 10,
         "type" : "INT NOT NULL"
       } ],
       "type" : "BOOLEAN"
@@ -549,7 +549,7 @@
         "type" : "BIGINT"
       }, {
         "kind" : "LITERAL",
-        "value" : "10",
+        "value" : 10,
         "type" : "INT NOT NULL"
       } ],
       "type" : "BOOLEAN"
@@ -682,7 +682,7 @@
     "description" : "Calc(select=[window_start, window_end, a, b, c, a0, b0, c0])"
   }, {
     "id" : 15,
-    "type" : "stream-exec-sink_1",
+    "type" : "stream-exec-sink_2",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",

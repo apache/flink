@@ -143,6 +143,9 @@ import static org.apache.flink.yarn.YarnConfigKeys.LOCAL_RESOURCE_DESCRIPTOR_SEP
 public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
     private static final Logger LOG = LoggerFactory.getLogger(YarnClusterDescriptor.class);
 
+    @VisibleForTesting
+    static final String IGNORE_UNRECOGNIZED_VM_OPTIONS = "-XX:+IgnoreUnrecognizedVMOptions";
+
     private final YarnConfiguration yarnConfiguration;
 
     private final YarnClient yarnClient;
@@ -831,7 +834,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                         getFileReplication());
 
         // The files need to be shipped and added to classpath.
-        Set<File> systemShipFiles = new HashSet<>(shipFiles.size());
+        Set<File> systemShipFiles = CollectionUtil.newHashSetWithExpectedSize(shipFiles.size());
         for (File file : shipFiles) {
             systemShipFiles.add(file.getAbsoluteFile());
         }
@@ -1165,6 +1168,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
         amContainer.setLocalResources(fileUploader.getRegisteredLocalResources());
         fileUploader.close();
+
+        Utils.setAclsFor(amContainer, flinkConfiguration);
 
         // Setup CLASSPATH and environment variables for ApplicationMaster
         final Map<String, String> appMasterEnv =
@@ -1807,6 +1812,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         if (flinkConfiguration.getString(CoreOptions.FLINK_JM_JVM_OPTIONS).length() > 0) {
             javaOpts += " " + flinkConfiguration.getString(CoreOptions.FLINK_JM_JVM_OPTIONS);
         }
+
+        javaOpts += " " + IGNORE_UNRECOGNIZED_VM_OPTIONS;
 
         // krb5.conf file will be available as local resource in JM/TM container
         if (hasKrb5) {

@@ -368,7 +368,8 @@ public class TaskManagerServices {
                                 taskManagerServicesConfiguration
                                         .getAlwaysParentFirstLoaderPatterns(),
                                 failOnJvmMetaspaceOomError ? fatalErrorHandler : null,
-                                checkClassLoaderLeak));
+                                checkClassLoaderLeak),
+                        false);
 
         final SlotAllocationSnapshotPersistenceService slotAllocationSnapshotPersistenceService;
 

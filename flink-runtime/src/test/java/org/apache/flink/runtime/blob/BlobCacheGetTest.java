@@ -72,7 +72,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
-import static org.mockito.Mockito.mock;
 
 /**
  * Tests for GET-specific parts of the {@link BlobCacheService}.
@@ -547,8 +546,8 @@ public class BlobCacheGetTest extends TestLogger {
             final JobID jobId, final BlobKey.BlobType blobType, final boolean cacheAccessesHAStore)
             throws IOException, InterruptedException, ExecutionException {
         final Configuration config = new Configuration();
-        final BlobStore blobStoreServer = mock(BlobStore.class);
-        final BlobStore blobStoreCache = mock(BlobStore.class);
+        final BlobStore blobStoreServer = new VoidBlobStore();
+        final BlobStore blobStoreCache = new VoidBlobStore();
 
         final int numberConcurrentGetOperations = 3;
         final List<CompletableFuture<File>> getOperations =

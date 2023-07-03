@@ -108,7 +108,7 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveParserSemanticAna
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserStorageFormat;
 import org.apache.flink.table.planner.delegation.hive.operations.HiveExecutableOperation;
 import org.apache.flink.table.planner.delegation.hive.operations.HiveShowCreateTableOperation;
-import org.apache.flink.table.planner.utils.OperationConverterUtils;
+import org.apache.flink.table.planner.utils.TableSchemaUtils;
 import org.apache.flink.table.resource.ResourceType;
 import org.apache.flink.table.resource.ResourceUri;
 
@@ -1949,25 +1949,30 @@ public class HiveParserDDLSemanticAnalyzer {
                         newName,
                         HiveTypeUtil.toFlinkType(TypeInfoUtils.getTypeInfoFromTypeString(newType)));
         ResolvedSchema newSchema =
-                OperationConverterUtils.changeColumn(
-                        oldSchema, oldName, newTableColumn, first, flagCol);
+                TableSchemaUtils.changeColumn(oldSchema, oldName, newTableColumn, first, flagCol);
         Map<String, String> props = new HashMap<>(oldTable.getOptions());
         props.put(ALTER_TABLE_OP, ALTER_COLUMNS.name());
         if (isCascade) {
             props.put(ALTER_COL_CASCADE, "true");
         }
 
+        Column oldColumn =
+                oldSchema
+                        .getColumn(oldName)
+                        .orElseThrow(
+                                () ->
+                                        new ValidationException(
+                                                "Can not find the old column: " + oldColName));
+        if (newComment != null) {
+            newTableColumn = newTableColumn.withComment(newComment);
+        } else {
+            newTableColumn = newTableColumn.withComment(oldColumn.getComment().orElse(null));
+        }
+
         List<TableChange> tableChanges =
-                OperationConverterUtils.buildModifyColumnChange(
-                        oldTable.getResolvedSchema()
-                                .getColumn(oldName)
-                                .orElseThrow(
-                                        () ->
-                                                new ValidationException(
-                                                        "Can not find the old column: "
-                                                                + oldColName)),
-                        Column.physical(newTableColumn.getName(), newTableColumn.getDataType())
-                                .withComment(newComment),
+                TableSchemaUtils.buildModifyColumnChange(
+                        oldColumn,
+                        newTableColumn,
                         first
                                 ? TableChange.ColumnPosition.first()
                                 : (flagCol == null

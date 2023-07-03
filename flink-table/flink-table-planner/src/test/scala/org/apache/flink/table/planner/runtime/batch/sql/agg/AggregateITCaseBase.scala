@@ -32,14 +32,15 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.types.Row
 
-import org.junit.{Before, Test}
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 /** Aggregate IT case base class. */
 abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
 
   def prepareAggOp(): Unit
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     registerCollection("SmallTable3", smallData3, type3, "a, b, c", nullablesOfSmallData3)
@@ -370,13 +371,16 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     )
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testCountCannotByMultiFields(): Unit = {
-    checkQuery(
-      Seq((1, 1), (1, 2), (2, 1), (2, 2), (3, 1), (3, 2)),
-      "select count(distinct f0, f1) from TableName",
-      Seq()
-    )
+    assertThatThrownBy(
+      () => {
+        checkQuery(
+          Seq((1, 1), (1, 2), (2, 1), (2, 2), (3, 1), (3, 2)),
+          "select count(distinct f0, f1) from TableName",
+          Seq()
+        )
+      }).hasCauseInstanceOf(classOf[TableException])
   }
 
   @Test
@@ -718,36 +722,44 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     )
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testMultipleColumnDistinctCount(): Unit = {
+
     val testData = Seq(
       ("a", "b", "c"),
       ("a", "b", "c"),
       ("a", "b", "d"),
       ("x", "y", "z"),
       ("x", "q", null: String))
-
-    checkQuery(
-      testData,
-      "select count(distinct f0, f1) from TableName",
-      Seq(Tuple1(3L))
-    )
+    assertThatThrownBy(
+      () => {
+        checkQuery(
+          testData,
+          "select count(distinct f0, f1) from TableName",
+          Seq(Tuple1(3L))
+        )
+      }).hasCauseInstanceOf(classOf[TableException])
 
     // Note: count distinct on multiple columns
     //       what if, in a row, some columns are null, some are not-null
     //       should the row be counted?
     //       Calcite doc says yes. Spark/MySQL says no.
-
-    checkQuery(
-      testData,
-      "select count(distinct f0, f1, f2) from TableName",
-      Seq(Tuple1(4L)) // NOTE: Spark and MySQL returns 3
-    )
-    checkQuery(
-      testData,
-      "select f0, count(distinct f1, f2) from TableName group by f0",
-      Seq(("a", 2L), ("x", 2L)) // NOTE: Spark and MySQL returns 2
-    )
+    assertThatThrownBy(
+      () => {
+        checkQuery(
+          testData,
+          "select count(distinct f0, f1, f2) from TableName",
+          Seq(Tuple1(4L)) // NOTE: Spark and MySQL returns 3
+        )
+      }).hasCauseInstanceOf(classOf[TableException])
+    assertThatThrownBy(
+      () => {
+        checkQuery(
+          testData,
+          "select f0, count(distinct f1, f2) from TableName group by f0",
+          Seq(("a", 2L), ("x", 2L)) // NOTE: Spark and MySQL returns 2
+        )
+      }).hasCauseInstanceOf(classOf[TableException])
   }
 
   @Test
@@ -1182,6 +1194,34 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
                        |)
                        |""".stripMargin)
     checkResult("select count(*) from src", Seq(row(3)))
+  }
+
+  @Test
+  def testLeadAggFunction(): Unit = {
+    val data =
+      List(rowOf(2L, 15, "Hello"), rowOf(8L, 11, "Hello world"), rowOf(9L, 12, "Hello world!"))
+    val dataId = TestValuesTableFactory.registerData(data)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE src(
+                       |  `id` BIGINT,
+                       |  `len` INT NOT NULL,
+                       |  `content` STRING,
+                       |  `proctime` AS PROCTIME()
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'bounded' = 'true',
+                       |  'data-id' = '$dataId'
+                       |)
+                       |""".stripMargin)
+    val sql =
+      s"""
+         |select
+         |  LEAD(len) OVER w AS prev_quantity,
+         |  LEAD(len, 1, cast(null as int)) OVER w AS prev_quantity
+         |from src
+         |WINDOW w AS (ORDER BY proctime)
+         |""".stripMargin
+    checkResult(sql, Seq(row("11, 11"), row("12, 12"), row("null, null")))
   }
 
   // TODO support csv

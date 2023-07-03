@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.apache.flink.runtime.io.network.util.TestBufferFactory.createBuffer;
@@ -65,8 +66,18 @@ public class TestInputChannel extends InputChannel {
 
     private int currentBufferSize;
 
+    private CompletableFuture<Integer> requiredSegmentIdFuture = new CompletableFuture<>();
+
     public TestInputChannel(SingleInputGate inputGate, int channelIndex) {
         this(inputGate, channelIndex, true, false);
+    }
+
+    public TestInputChannel(
+            SingleInputGate inputGate,
+            int channelIndex,
+            CompletableFuture<Integer> requiredSegmentIdFuture) {
+        this(inputGate, channelIndex, true, false);
+        this.requiredSegmentIdFuture = requiredSegmentIdFuture;
     }
 
     public TestInputChannel(
@@ -170,7 +181,8 @@ public class TestInputChannel extends InputChannel {
     void requestSubpartition() throws IOException, InterruptedException {}
 
     @Override
-    Optional<BufferAndAvailability> getNextBuffer() throws IOException, InterruptedException {
+    public Optional<BufferAndAvailability> getNextBuffer()
+            throws IOException, InterruptedException {
         checkState(!isReleased);
 
         BufferAndAvailabilityProvider provider = buffers.poll();
@@ -234,6 +246,11 @@ public class TestInputChannel extends InputChannel {
     @Override
     protected void notifyChannelNonEmpty() {
         inputGate.notifyChannelNonEmpty(this);
+    }
+
+    @Override
+    public void notifyRequiredSegmentId(int segmentId) {
+        requiredSegmentIdFuture.complete(segmentId);
     }
 
     public void assertReturnedEventsAreRecycled() {

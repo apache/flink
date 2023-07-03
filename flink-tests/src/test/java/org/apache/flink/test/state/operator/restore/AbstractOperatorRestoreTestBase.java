@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.state.operator.restore;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Deadline;
@@ -32,6 +33,7 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
+import org.apache.flink.test.util.MigrationTest;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorResource;
@@ -45,10 +47,17 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runners.Parameterized;
 
 import java.io.File;
+import java.net.URI;
 import java.net.URL;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -68,10 +77,17 @@ import static org.junit.Assert.assertNotNull;
  * Modify the job topology, and restore from the savepoint created in step 1.
  *
  * <p>The savepoint _metadata file for the current branch is stored in the savepointPath in {@link
- * AbstractOperatorRestoreTestBase#migrateJob}, please create the corresponding test resource
- * directory and copy the _metadata file by hand.
+ * AbstractOperatorRestoreTestBase#migrateJob}.
  */
-public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
+public abstract class AbstractOperatorRestoreTestBase extends TestLogger implements MigrationTest {
+
+    private final FlinkVersion flinkVersion;
+
+    @Parameterized.Parameters(name = "Migrate Savepoint: {0}")
+    public static Collection<FlinkVersion> parameters() {
+        return FlinkVersion.rangeOf(
+                FlinkVersion.v1_8, MigrationTest.getMostRecentlyPublishedVersion());
+    }
 
     @ClassRule
     public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
@@ -104,16 +120,33 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
                             .setNumberSlotsPerTaskManager(NUM_SLOTS_PER_TM)
                             .build());
 
-    private final boolean allowNonRestoredState;
     private final ScheduledExecutor scheduledExecutor =
             new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor());
 
-    protected AbstractOperatorRestoreTestBase() {
-        this(true);
+    protected AbstractOperatorRestoreTestBase(FlinkVersion flinkVersion) {
+        this.flinkVersion = flinkVersion;
     }
 
-    protected AbstractOperatorRestoreTestBase(boolean allowNonRestoredState) {
-        this.allowNonRestoredState = allowNonRestoredState;
+    protected void internalGenerateSnapshots(FlinkVersion targetVersion) throws Exception {
+        ClusterClient<?> clusterClient = cluster.getClusterClient();
+        final Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
+
+        // Submit job with old version savepoint and create a migrated savepoint in the new version.
+        // Any old version is ok, and we choose 1.8 directly.
+        String savepointPath = migrateJob(FlinkVersion.v1_8, clusterClient, deadline);
+
+        Path targetPath = getSavepointPath(targetVersion);
+        Files.createDirectories(targetPath);
+
+        // copy the savepoint to the given directory
+        try (DirectoryStream<Path> childrenFiles =
+                Files.newDirectoryStream(Paths.get(new URI(savepointPath)))) {
+            for (Path filePath : childrenFiles) {
+                Files.copy(
+                        filePath,
+                        Paths.get(targetPath.toString(), filePath.getFileName().toString()));
+            }
+        }
     }
 
     @Test
@@ -122,17 +155,20 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
         final Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
 
         // submit job with old version savepoint and create a migrated savepoint in the new version
-        String savepointPath = migrateJob(clusterClient, deadline);
+        String savepointPath = migrateJob(flinkVersion, clusterClient, deadline);
+
         // restore from migrated new version savepoint
         restoreJob(clusterClient, deadline, savepointPath);
     }
 
-    private String migrateJob(ClusterClient<?> clusterClient, Deadline deadline) throws Throwable {
+    private String migrateJob(
+            FlinkVersion flinkVersion, ClusterClient<?> clusterClient, Deadline deadline)
+            throws Exception {
 
         URL savepointResource =
                 AbstractOperatorRestoreTestBase.class
                         .getClassLoader()
-                        .getResource("operatorstate/" + getMigrationSavepointName());
+                        .getResource("operatorstate/" + getMigrationSavepointName(flinkVersion));
         if (savepointResource == null) {
             throw new IllegalArgumentException("Savepoint file does not exist.");
         }
@@ -201,7 +237,7 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
             throws Exception {
         JobGraph jobToRestore = createJobGraph(ExecutionMode.RESTORE);
         jobToRestore.setSavepointRestoreSettings(
-                SavepointRestoreSettings.forPath(savepointPath, allowNonRestoredState));
+                SavepointRestoreSettings.forPath(savepointPath, true));
 
         assertNotNull("Job doesn't have a JobID.", jobToRestore.getJobID());
 
@@ -237,6 +273,12 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
         return StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
     }
 
+    private Path getSavepointPath(FlinkVersion version) {
+        return Paths.get(
+                System.getProperty("user.dir"),
+                "src/test/resources/operatorstate/" + getMigrationSavepointName(version));
+    }
+
     /**
      * Recreates the job used to create the new version savepoint.
      *
@@ -256,7 +298,7 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
      *
      * @return savepoint directory to use
      */
-    protected abstract String getMigrationSavepointName();
+    protected abstract String getMigrationSavepointName(FlinkVersion version);
 
     private static String escapeRegexCharacters(String string) {
         return string.replaceAll("\\(", "\\\\(").replaceAll("\\)", "\\\\)");

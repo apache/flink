@@ -34,6 +34,8 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /** Test reading and writing primitive types to {@link MemorySegment}. */
 public class MemorySegmentSimpleTest {
@@ -573,5 +575,23 @@ public class MemorySegmentSimpleTest {
             e.printStackTrace();
             Assert.fail(e.getMessage());
         }
+    }
+
+    @Test
+    public void testGetOffHeapBuffer() {
+        MemorySegment seg = MemorySegmentFactory.allocateUnpooledSegment(1024);
+        assertThrows(
+                IllegalStateException.class,
+                seg::getOffHeapBuffer,
+                "Memory segment does not represent off-heap buffer");
+        seg.free();
+
+        seg = MemorySegmentFactory.allocateUnpooledOffHeapMemory(1024);
+        assertNotNull(seg.getOffHeapBuffer());
+        seg.free();
+
+        seg = MemorySegmentFactory.allocateOffHeapUnsafeMemory(1024);
+        assertNotNull(seg.getOffHeapBuffer());
+        seg.free();
     }
 }

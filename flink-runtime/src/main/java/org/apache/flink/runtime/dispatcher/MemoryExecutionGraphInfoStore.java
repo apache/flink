@@ -28,9 +28,9 @@ import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.util.ShutdownHookUtil;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
-import org.apache.flink.shaded.guava30.com.google.common.base.Ticker;
-import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;
-import org.apache.flink.shaded.guava30.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava31.com.google.common.base.Ticker;
+import org.apache.flink.shaded.guava31.com.google.common.cache.Cache;
+import org.apache.flink.shaded.guava31.com.google.common.cache.CacheBuilder;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

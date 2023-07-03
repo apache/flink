@@ -34,6 +34,7 @@ import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.runtime.rpc.messages.HandshakeSuccessMessage;
 import org.apache.flink.runtime.rpc.messages.RemoteHandshakeMessage;
 import org.apache.flink.util.AutoCloseableAsync;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -59,7 +60,6 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -73,9 +73,9 @@ import java.util.function.Function;
 import scala.Option;
 import scala.reflect.ClassTag$;
 
-import static org.apache.flink.runtime.concurrent.akka.ClassLoadingUtils.guardCompletionWithContextClassLoader;
-import static org.apache.flink.runtime.concurrent.akka.ClassLoadingUtils.runWithContextClassLoader;
-import static org.apache.flink.runtime.concurrent.akka.ClassLoadingUtils.withContextClassLoader;
+import static org.apache.flink.runtime.concurrent.ClassLoadingUtils.guardCompletionWithContextClassLoader;
+import static org.apache.flink.runtime.concurrent.ClassLoadingUtils.runWithContextClassLoader;
+import static org.apache.flink.runtime.concurrent.ClassLoadingUtils.withContextClassLoader;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -98,7 +98,7 @@ public class AkkaRpcService implements RpcService {
     private final ClassLoader flinkClassLoader;
 
     @GuardedBy("lock")
-    private final Map<ActorRef, RpcEndpoint> actors = new HashMap<>(4);
+    private final Map<ActorRef, RpcEndpoint> actors = CollectionUtil.newHashMapWithExpectedSize(4);
 
     private final String address;
     private final int port;

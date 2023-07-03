@@ -21,7 +21,6 @@ package org.apache.flink.connector.file.table.stream;
 import org.apache.flink.annotation.Internal;
 
 import java.io.Serializable;
-import java.util.List;
 
 /**
  * The message sent by upstream.
@@ -37,12 +36,12 @@ public class PartitionCommitInfo implements Serializable {
     private long checkpointId;
     private int taskId;
     private int numberOfTasks;
-    private List<String> partitions;
+    private String[] partitions;
 
     public PartitionCommitInfo() {}
 
     public PartitionCommitInfo(
-            long checkpointId, int taskId, int numberOfTasks, List<String> partitions) {
+            long checkpointId, int taskId, int numberOfTasks, String[] partitions) {
         this.checkpointId = checkpointId;
         this.taskId = taskId;
         this.numberOfTasks = numberOfTasks;
@@ -73,11 +72,11 @@ public class PartitionCommitInfo implements Serializable {
         this.numberOfTasks = numberOfTasks;
     }
 
-    public List<String> getPartitions() {
+    public String[] getPartitions() {
         return partitions;
     }
 
-    public void setPartitions(List<String> partitions) {
+    public void setPartitions(String[] partitions) {
         this.partitions = partitions;
     }
 }

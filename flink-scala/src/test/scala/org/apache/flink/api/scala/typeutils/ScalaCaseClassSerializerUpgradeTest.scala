@@ -34,17 +34,16 @@ import java.util
 class ScalaCaseClassSerializerUpgradeTest
   extends TypeSerializerUpgradeTestBase[CustomCaseClass, CustomCaseClass] {
 
-  override def createTestSpecifications(): util.Collection[TestSpecification[_, _]] = {
+  override def createTestSpecifications(
+      migrationVersion: FlinkVersion): util.Collection[TestSpecification[_, _]] = {
     val testSpecifications =
       new util.ArrayList[TypeSerializerUpgradeTestBase.TestSpecification[_, _]]
-    TypeSerializerUpgradeTestBase.MIGRATION_VERSIONS.forEach(
-      migrationVersion =>
-        testSpecifications.add(
-          new TypeSerializerUpgradeTestBase.TestSpecification[CustomCaseClass, CustomCaseClass](
-            "scala-case-class-serializer",
-            migrationVersion,
-            classOf[ScalaCaseClassSerializerSetup],
-            classOf[ScalaCaseClassSerializerVerifier])))
+    testSpecifications.add(
+      new TypeSerializerUpgradeTestBase.TestSpecification[CustomCaseClass, CustomCaseClass](
+        "scala-case-class-serializer",
+        migrationVersion,
+        classOf[ScalaCaseClassSerializerSetup],
+        classOf[ScalaCaseClassSerializerVerifier]))
 
     testSpecifications
   }

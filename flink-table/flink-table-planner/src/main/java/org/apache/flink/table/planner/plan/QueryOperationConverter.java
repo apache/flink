@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.calcite.bridge.PlannerExternalQueryOperation;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.ContextResolvedFunction;
@@ -443,6 +444,8 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
         public RelNode visit(QueryOperation other) {
             if (other instanceof PlannerQueryOperation) {
                 return ((PlannerQueryOperation) other).getCalciteTree();
+            } else if (other instanceof PlannerExternalQueryOperation) {
+                return ((PlannerExternalQueryOperation) other).getCalciteTree();
             } else if (other instanceof InternalDataStreamQueryOperation) {
                 return convertToDataStreamScan((InternalDataStreamQueryOperation<?>) other);
             } else if (other instanceof ExternalQueryOperation) {

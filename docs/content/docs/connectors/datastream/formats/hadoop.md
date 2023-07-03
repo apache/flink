@@ -77,10 +77,10 @@ The following example shows how to use Hadoop's `TextInputFormat`.
 
 ```java
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+KeyValueTextInputFormat textInputFormat = new KeyValueTextInputFormat();
 
-DataStream<Tuple2<LongWritable, Text>> input =
-    env.createInput(HadoopInputs.readHadoopFile(new TextInputFormat(),
-                        LongWritable.class, Text.class, textPath));
+DataStream<Tuple2<Text, Text>> input = env.createInput(HadoopInputs.readHadoopFile(
+  textInputFormat, Text.class, Text.class, textPath));
 
 // Do something with the data.
 [...]
@@ -91,66 +91,13 @@ DataStream<Tuple2<LongWritable, Text>> input =
 
 ```scala
 val env = StreamExecutionEnvironment.getExecutionEnvironment
-
-val input: DataStream[(LongWritable, Text)] =
+val textInputFormat = new KeyValueTextInputFormat
+val input: DataStream[(Text, Text)] =
   env.createInput(HadoopInputs.readHadoopFile(
-                    new TextInputFormat, classOf[LongWritable], classOf[Text], textPath))
+    textInputFormat, classOf[Text], classOf[Text], textPath))
 
 // Do something with the data.
 [...]
-```
-
-{{< /tab >}}
-{{< /tabs >}}
-
-## Using Hadoop OutputFormats
-
-Flink provides a compatibility wrapper for Hadoop `OutputFormats`. Any class
-that implements `org.apache.hadoop.mapred.OutputFormat` or extends
-`org.apache.hadoop.mapreduce.OutputFormat` is supported.
-The OutputFormat wrapper expects its input data to be a DataSet containing
-2-tuples of key and value. These are to be processed by the Hadoop OutputFormat.
-
-The following example shows how to use Hadoop's `TextOutputFormat`.
-
-{{< tabs "d4af1c52-0e4c-490c-8c35-e3d60b1b52ee" >}}
-{{< tab "Java" >}}
-
-```java
-// Obtain the result we want to emit
-DataStream<Tuple2<Text, IntWritable>> hadoopResult = [...]
-
-// Set up the Hadoop TextOutputFormat.
-HadoopOutputFormat<Text, IntWritable> hadoopOF =
-  // create the Flink wrapper.
-  new HadoopOutputFormat<Text, IntWritable>(
-    // set the Hadoop OutputFormat and specify the job.
-    new TextOutputFormat<Text, IntWritable>(), job
-  );
-hadoopOF.getConfiguration().set("mapreduce.output.textoutputformat.separator", " ");
-TextOutputFormat.setOutputPath(job, new Path(outputPath));
-
-// Emit data using the Hadoop TextOutputFormat.
-hadoopResult.output(hadoopOF);
-```
-
-{{< /tab >}}
-{{< tab "Scala" >}}
-
-```scala
-// Obtain your result to emit.
-val hadoopResult: DataStream[(Text, IntWritable)] = [...]
-
-val hadoopOF = new HadoopOutputFormat[Text,IntWritable](
-  new TextOutputFormat[Text, IntWritable],
-  new JobConf)
-
-hadoopOF.getJobConf.set("mapred.textoutputformat.separator", " ")
-FileOutputFormat.setOutputPath(hadoopOF.getJobConf, new Path(resultPath))
-
-hadoopResult.output(hadoopOF)
-
-
 ```
 
 {{< /tab >}}

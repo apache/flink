@@ -37,6 +37,11 @@ public class ChainBreakTest extends AbstractNonKeyedOperatorRestoreTestBase {
         super(flinkVersion);
     }
 
+    @SnapshotsGenerator
+    public void generateSnapshots(FlinkVersion targetVersion) throws Exception {
+        internalGenerateSnapshots(targetVersion);
+    }
+
     @Override
     public void createRestoredJob(StreamExecutionEnvironment env) {
         /**

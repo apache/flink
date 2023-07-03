@@ -32,7 +32,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmaster.utils.JobMasterBuilder;
-import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
+import org.apache.flink.runtime.leaderelection.TestingLeaderElection;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
@@ -78,8 +78,6 @@ public class JobMasterExecutionDeploymentReconciliationTest extends TestLogger {
             new TestingHighAvailabilityServices();
     private final SettableLeaderRetrievalService resourceManagerLeaderRetriever =
             new SettableLeaderRetrievalService();
-    private final TestingLeaderElectionService resourceManagerLeaderElectionService =
-            new TestingLeaderElectionService();
 
     @ClassRule
     public static final TestingRpcServiceResource RPC_SERVICE_RESOURCE =
@@ -92,7 +90,7 @@ public class JobMasterExecutionDeploymentReconciliationTest extends TestLogger {
     @Before
     public void setup() {
         haServices.setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever);
-        haServices.setResourceManagerLeaderElectionService(resourceManagerLeaderElectionService);
+        haServices.setResourceManagerLeaderElection(new TestingLeaderElection());
         haServices.setCheckpointRecoveryFactory(new StandaloneCheckpointRecoveryFactory());
     }
 

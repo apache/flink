@@ -25,7 +25,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
+import org.apache.flink.runtime.leaderelection.TestingLeaderElection;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
@@ -55,7 +55,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -72,7 +71,7 @@ import static org.junit.Assert.fail;
 /** Tests for the {@link ResourceManager} and {@link TaskExecutor} interaction. */
 public class ResourceManagerTaskExecutorTest extends TestLogger {
 
-    private static final Time TIMEOUT = Time.seconds(10L);
+    private static final Time TIMEOUT = TestingUtils.infiniteTime();
 
     private static final ResourceProfile DEFAULT_SLOT_PROFILE =
             ResourceProfile.fromResources(1.0, 1234);
@@ -119,7 +118,7 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
                                 rmGateway.getAddress(),
                                 ResourceManagerId.generate(),
                                 ResourceManagerGateway.class)
-                        .get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+                        .get();
     }
 
     private void createAndRegisterTaskExecutorGateway() {
@@ -129,30 +128,23 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
     }
 
     private void createAndStartResourceManager() throws Exception {
-        final TestingLeaderElectionService leaderElectionService =
-                new TestingLeaderElectionService();
+        final TestingLeaderElection leaderElection = new TestingLeaderElection();
         rmService =
                 TestingResourceManagerService.newBuilder()
                         .setRpcService(rpcService)
-                        .setRmLeaderElectionService(leaderElectionService)
+                        .setRmLeaderElection(leaderElection)
                         .build();
 
         rmService.start();
-        rmService.isLeader(UUID.randomUUID());
+        rmService.isLeader(UUID.randomUUID()).join();
 
-        leaderElectionService
-                .getConfirmationFuture()
-                .thenRun(
-                        () -> {
-                            rmGateway =
-                                    rmService
-                                            .getResourceManagerGateway()
-                                            .orElseThrow(
-                                                    () ->
-                                                            new AssertionError(
-                                                                    "RM not available after confirming leadership."));
-                        })
-                .get(TIMEOUT.getSize(), TIMEOUT.getUnit());
+        rmGateway =
+                rmService
+                        .getResourceManagerGateway()
+                        .orElseThrow(
+                                () ->
+                                        new AssertionError(
+                                                "RM not available after confirming leadership."));
     }
 
     @After
@@ -180,8 +172,7 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
         CompletableFuture<RegistrationResponse> successfulFuture =
                 registerTaskExecutor(rmGateway, taskExecutorGateway.getAddress());
 
-        RegistrationResponse response =
-                successfulFuture.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+        RegistrationResponse response = successfulFuture.get();
         assertTrue(response instanceof TaskExecutorRegistrationSuccess);
         final TaskManagerInfoWithSlots taskManagerInfoWithSlots =
                 rmGateway.requestTaskManagerDetailsInfo(taskExecutorResourceID, TIMEOUT).get();
@@ -352,7 +343,7 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
                 registerTaskExecutor(wronglyFencedGateway, taskExecutorGateway.getAddress());
 
         try {
-            unMatchedLeaderFuture.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+            unMatchedLeaderFuture.get();
             fail(
                     "Should have failed because we are using a wrongly fenced ResourceManagerGateway.");
         } catch (ExecutionException e) {
@@ -369,9 +360,7 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 
         CompletableFuture<RegistrationResponse> invalidAddressFuture =
                 registerTaskExecutor(rmGateway, invalidAddress);
-        assertTrue(
-                invalidAddressFuture.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS)
-                        instanceof RegistrationResponse.Failure);
+        assertTrue(invalidAddressFuture.get() instanceof RegistrationResponse.Failure);
     }
 
     private CompletableFuture<RegistrationResponse> registerTaskExecutor(

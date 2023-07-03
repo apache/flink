@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rpc.akka;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.core.classloading.SubmoduleClassLoader;
+import org.apache.flink.runtime.rpc.CleanupOnCloseRpcSystem;
 import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.rpc.RpcSystemLoader;
 import org.apache.flink.runtime.rpc.exceptions.RpcLoaderException;
@@ -44,11 +45,18 @@ import java.util.UUID;
  */
 public class AkkaRpcSystemLoader implements RpcSystemLoader {
 
+    static final int LOAD_PRIORITY = 0;
+
     /** The name of the akka dependency jar, bundled with flink-rpc-akka-loader module artifact. */
     private static final String FLINK_RPC_AKKA_FAT_JAR = "flink-rpc-akka.jar";
 
     static final String HINT_USAGE =
             "mvn clean package -pl flink-rpc/flink-rpc-akka,flink-rpc/flink-rpc-akka-loader -DskipTests";
+
+    @Override
+    public int getLoadPriority() {
+        return LOAD_PRIORITY;
+    }
 
     @Override
     public RpcSystem loadRpcSystem(Configuration config) {

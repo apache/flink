@@ -24,6 +24,7 @@ import org.apache.flink.kubernetes.highavailability.KubernetesStateHandleStore.S
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
+import org.apache.flink.runtime.leaderelection.LeaderElectionEvent;
 import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
 import org.apache.flink.runtime.persistence.StateHandleStore;
 import org.apache.flink.runtime.persistence.StringResourceVersion;
@@ -511,7 +512,8 @@ class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTestBase 
                             store.addAndLock(key, state);
                             // Lost leadership
                             getLeaderCallback().notLeader();
-                            electionEventHandler.waitForRevokeLeader();
+                            electionEventHandler.await(LeaderElectionEvent.NotLeaderEvent.class);
+
                             getLeaderConfigMap()
                                     .getAnnotations()
                                     .remove(KubernetesLeaderElector.LEADER_ANNOTATION_KEY);
@@ -560,9 +562,9 @@ class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTestBase 
                             final FlinkKubeClient anotherFlinkKubeClient =
                                     createFlinkKubeClientBuilder()
                                             .setCheckAndUpdateConfigMapFunction(
-                                                    (configMapName, function) -> {
-                                                        throw updateException;
-                                                    })
+                                                    (configMapName, function) ->
+                                                            FutureUtils.completedExceptionally(
+                                                                    updateException))
                                             .build();
                             final KubernetesStateHandleStore<
                                             TestingLongStateHandleHelper.LongStateHandle>
@@ -921,7 +923,8 @@ class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTestBase 
                             store.addAndLock(key, state);
                             // Lost leadership
                             getLeaderCallback().notLeader();
-                            electionEventHandler.waitForRevokeLeader();
+                            electionEventHandler.await(LeaderElectionEvent.NotLeaderEvent.class);
+
                             getLeaderConfigMap()
                                     .getAnnotations()
                                     .remove(KubernetesLeaderElector.LEADER_ANNOTATION_KEY);

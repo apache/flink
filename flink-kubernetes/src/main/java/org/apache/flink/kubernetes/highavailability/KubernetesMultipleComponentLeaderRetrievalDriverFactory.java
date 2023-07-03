@@ -18,7 +18,6 @@
 
 package org.apache.flink.kubernetes.highavailability;
 
-import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.KubernetesConfigMapSharedWatcher;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
@@ -39,8 +38,6 @@ import java.util.concurrent.Executor;
 public class KubernetesMultipleComponentLeaderRetrievalDriverFactory
         implements LeaderRetrievalDriverFactory {
 
-    private final FlinkKubeClient kubeClient;
-
     private final KubernetesConfigMapSharedWatcher configMapSharedWatcher;
 
     private final Executor watchExecutor;
@@ -50,12 +47,10 @@ public class KubernetesMultipleComponentLeaderRetrievalDriverFactory
     private final String componentId;
 
     public KubernetesMultipleComponentLeaderRetrievalDriverFactory(
-            FlinkKubeClient kubeClient,
             KubernetesConfigMapSharedWatcher configMapSharedWatcher,
             Executor watchExecutor,
             String configMapName,
             String componentId) {
-        this.kubeClient = Preconditions.checkNotNull(kubeClient);
         this.configMapSharedWatcher = Preconditions.checkNotNull(configMapSharedWatcher);
         this.watchExecutor = Preconditions.checkNotNull(watchExecutor);
         this.configMapName = Preconditions.checkNotNull(configMapName);
@@ -66,7 +61,6 @@ public class KubernetesMultipleComponentLeaderRetrievalDriverFactory
     public LeaderRetrievalDriver createLeaderRetrievalDriver(
             LeaderRetrievalEventHandler leaderEventHandler, FatalErrorHandler fatalErrorHandler) {
         return new KubernetesLeaderRetrievalDriver(
-                kubeClient,
                 configMapSharedWatcher,
                 watchExecutor,
                 configMapName,

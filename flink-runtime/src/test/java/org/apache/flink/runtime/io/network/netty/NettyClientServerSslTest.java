@@ -42,6 +42,7 @@ import org.junit.runners.Parameterized;
 import javax.net.ssl.SSLSessionContext;
 
 import java.net.InetAddress;
+import java.time.Duration;
 import java.util.List;
 
 import static org.apache.flink.configuration.SecurityOptions.SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT;
@@ -75,9 +76,13 @@ public class NettyClientServerSslTest extends TestLogger {
     public void testValidSslConnectionAdvanced() throws Exception {
         Configuration sslConfig = createSslConfig();
         sslConfig.setInteger(SSL_INTERNAL_SESSION_CACHE_SIZE, 1);
-        sslConfig.setInteger(SSL_INTERNAL_SESSION_TIMEOUT, 1_000);
-        sslConfig.setInteger(SSL_INTERNAL_HANDSHAKE_TIMEOUT, 1_000);
-        sslConfig.setInteger(SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT, 1_000);
+
+        // using different timeouts for each of the configuration parameters ensures that the right
+        // config value is used in the right place
+        final int timeoutInMillisBase = (int) Duration.ofHours(1).toMillis();
+        sslConfig.setInteger(SSL_INTERNAL_SESSION_TIMEOUT, timeoutInMillisBase + 1);
+        sslConfig.setInteger(SSL_INTERNAL_HANDSHAKE_TIMEOUT, timeoutInMillisBase + 2);
+        sslConfig.setInteger(SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT, timeoutInMillisBase + 3);
 
         testValidSslConnection(sslConfig);
     }

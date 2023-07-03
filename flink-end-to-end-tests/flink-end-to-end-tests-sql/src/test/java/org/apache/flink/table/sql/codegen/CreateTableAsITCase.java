@@ -27,7 +27,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
-/** End to End tests for create table as select syntax. */
+/** End-to-End tests for create table as select syntax. */
 public class CreateTableAsITCase extends SqlITCaseBase {
 
     public CreateTableAsITCase(String executionMode) {
@@ -38,8 +38,6 @@ public class CreateTableAsITCase extends SqlITCaseBase {
     public void testCreateTableAs() throws Exception {
         runAndCheckSQL(
                 "create_table_as_e2e.sql",
-                generateReplaceVars(),
-                2,
                 Arrays.asList(
                         "{\"before\":null,\"after\":{\"user_name\":\"Alice\",\"order_cnt\":1},\"op\":\"c\"}",
                         "{\"before\":null,\"after\":{\"user_name\":\"Bob\",\"order_cnt\":2},\"op\":\"c\"}"));
@@ -49,8 +47,6 @@ public class CreateTableAsITCase extends SqlITCaseBase {
     public void testCreateTableAsInStatementSet() throws Exception {
         runAndCheckSQL(
                 "create_table_as_statementset_e2e.sql",
-                generateReplaceVars(),
-                2,
                 Arrays.asList(
                         "{\"before\":null,\"after\":{\"user_name\":\"Alice\",\"order_cnt\":1},\"op\":\"c\"}",
                         "{\"before\":null,\"after\":{\"user_name\":\"Bob\",\"order_cnt\":2},\"op\":\"c\"}"));

@@ -105,7 +105,7 @@
         "name" : "order_time",
         "fieldType" : "TIMESTAMP(3)"
       }, {
-        "name" : "$4",
+        "name" : "proctime",
         "fieldType" : {
           "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
@@ -114,7 +114,7 @@
         }
       } ]
     },
-    "description" : "Calc(select=[order_id, user, product, order_time, PROCTIME() AS $4])"
+    "description" : "Calc(select=[order_id, user, product, order_time, PROCTIME() AS proctime])"
   }, {
     "id" : 3,
     "type" : "stream-exec-exchange_1",
@@ -141,7 +141,7 @@
         "name" : "order_time",
         "fieldType" : "TIMESTAMP(3)"
       }, {
-        "name" : "$4",
+        "name" : "proctime",
         "fieldType" : {
           "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
@@ -153,7 +153,7 @@
     "description" : "Exchange(distribution=[hash[product]])"
   }, {
     "id" : 4,
-    "type" : "stream-exec-deduplicate_1",
+    "type" : "stream-exec-deduplicate_2",
     "configuration" : {
       "table.exec.deduplicate.insert-update-after-sensitive-enabled" : "true",
       "table.exec.deduplicate.mini-batch.compact-changes-enabled" : "false",
@@ -164,6 +164,11 @@
     "isRowtime" : false,
     "keepLastRow" : false,
     "generateUpdateBefore" : false,
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "deduplicateState"
+    } ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -186,7 +191,7 @@
         "name" : "order_time",
         "fieldType" : "TIMESTAMP(3)"
       }, {
-        "name" : "$4",
+        "name" : "proctime",
         "fieldType" : {
           "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
@@ -228,7 +233,7 @@
     "description" : "Calc(select=[order_id, user, product, order_time])"
   }, {
     "id" : 6,
-    "type" : "stream-exec-sink_1",
+    "type" : "stream-exec-sink_2",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",
@@ -264,6 +269,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
+    "inputUpsertKey" : [ 2 ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -272,7 +278,6 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`order_id` BIGINT, `user` VARCHAR(2147483647), `product` VARCHAR(2147483647), `order_time` TIMESTAMP(3)>",
-    "inputUpsertKey" : [ 2 ],
     "description" : "Sink(table=[default_catalog.default_database.sink], fields=[order_id, user, product, order_time])"
   } ],
   "edges" : [ {

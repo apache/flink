@@ -24,6 +24,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.partition.BoundedBlockingSubpartitionType;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageConfiguration;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
 import org.apache.flink.runtime.throughput.BufferDebloatConfiguration;
@@ -94,6 +95,8 @@ public class NettyShuffleEnvironmentBuilder {
     private long hybridShuffleNumRetainedInMemoryRegionsMax = Long.MAX_VALUE;
 
     private int hybridShuffleSpilledIndexSegmentSize = 256;
+
+    private TieredStorageConfiguration tieredStorageConfiguration = null;
 
     public NettyShuffleEnvironmentBuilder setTaskManagerLocation(ResourceID taskManagerLocation) {
         this.taskManagerLocation = taskManagerLocation;
@@ -230,6 +233,12 @@ public class NettyShuffleEnvironmentBuilder {
         return this;
     }
 
+    public NettyShuffleEnvironmentBuilder setTieredStorageConfiguration(
+            TieredStorageConfiguration tieredStorageConfiguration) {
+        this.tieredStorageConfiguration = tieredStorageConfiguration;
+        return this;
+    }
+
     public NettyShuffleEnvironment build() {
         return NettyShuffleServiceFactory.createNettyShuffleEnvironment(
                 new NettyShuffleEnvironmentConfiguration(
@@ -256,7 +265,8 @@ public class NettyShuffleEnvironmentBuilder {
                         connectionReuseEnabled,
                         maxOverdraftBuffersPerGate,
                         hybridShuffleSpilledIndexSegmentSize,
-                        hybridShuffleNumRetainedInMemoryRegionsMax),
+                        hybridShuffleNumRetainedInMemoryRegionsMax,
+                        tieredStorageConfiguration),
                 taskManagerLocation,
                 new TaskEventDispatcher(),
                 resultPartitionManager,

@@ -60,7 +60,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import scala.concurrent.duration.FiniteDuration;
 import scala.concurrent.impl.Promise;
 
-import static org.apache.flink.runtime.concurrent.akka.ClassLoadingUtils.runWithContextClassLoader;
+import static org.apache.flink.runtime.concurrent.ClassLoadingUtils.runWithContextClassLoader;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 

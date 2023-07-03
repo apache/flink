@@ -17,11 +17,13 @@
  */
 package org.apache.flink.table.planner.utils
 
+import org.apache.flink.FlinkVersion
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.configuration.BatchExecutionOptions
 import org.apache.flink.core.testutils.FlinkMatchers.containsMessage
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParseException
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode
 import org.apache.flink.streaming.api.{environment, TimeCharacteristic}
 import org.apache.flink.streaming.api.datastream.DataStream
@@ -804,7 +806,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
 
   final val PLAN_TEST_FORCE_OVERWRITE = "PLAN_TEST_FORCE_OVERWRITE"
 
-  /** Verify the json plan for the given insert statement. */
+  /** Verify the serialized JSON of [[CompiledPlan]] for the given insert statement. */
   def verifyJsonPlan(insert: String): Unit = {
     ExecNodeContext.resetIdCounter()
     val jsonPlan = getTableEnv.asInstanceOf[TableEnvironmentInternal].compilePlanSql(insert)
@@ -828,8 +830,20 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     } else {
       val expected = String.join("\n", Files.readAllLines(path))
       assertEquals(
-        TableTestUtil.replaceExecNodeId(TableTestUtil.getFormattedJson(expected)),
-        TableTestUtil.replaceExecNodeId(TableTestUtil.getFormattedJson(jsonPlanWithoutFlinkVersion))
+        TableTestUtil.replaceExecNodeId(TableTestUtil.getPrettyJson(expected)),
+        TableTestUtil.replaceExecNodeId(TableTestUtil.getPrettyJson(jsonPlanWithoutFlinkVersion))
+      )
+      // check json serde round trip as well
+      val expectedWithFlinkVersion = JsonTestUtils.writeToString(
+        JsonTestUtils
+          .setFlinkVersion(JsonTestUtils.readFromString(expected), FlinkVersion.current()))
+      assertEquals(
+        TableTestUtil.replaceExecNodeId(TableTestUtil.getFormattedJson(expectedWithFlinkVersion)),
+        TableTestUtil.replaceExecNodeId(
+          TableTestUtil.getFormattedJson(
+            getPlanner
+              .loadPlan(PlanReference.fromJsonString(expectedWithFlinkVersion))
+              .asJsonString()))
       )
     }
   }
@@ -1764,6 +1778,19 @@ object TableTestUtil {
     val parser = objectMapper.getFactory.createParser(json)
     val jsonNode: JsonNode = parser.readValueAsTree[JsonNode]
     jsonNode.toPrettyString
+  }
+
+  @throws[IOException]
+  def isValidJson(json: String): Boolean = {
+    try {
+      val parser = objectMapper.getFactory.createParser(json)
+      while (parser.nextToken() != null) {
+        // Do nothing, just parse the JSON string
+      }
+      true
+    } catch {
+      case _: JsonParseException => false
+    }
   }
 
   /**

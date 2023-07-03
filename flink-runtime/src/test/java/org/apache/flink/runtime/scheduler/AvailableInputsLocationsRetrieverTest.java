@@ -21,7 +21,7 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
 
 import org.junit.jupiter.api.Test;
 

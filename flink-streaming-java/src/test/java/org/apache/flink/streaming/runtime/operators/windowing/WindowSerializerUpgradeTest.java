@@ -39,23 +39,22 @@ import static org.hamcrest.Matchers.is;
  */
 class WindowSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Object> {
 
-    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications(FlinkVersion flinkVersion)
+            throws Exception {
 
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "time-window-serializer",
-                            flinkVersion,
-                            TimeWindowSerializerSetup.class,
-                            TimeWindowSerializerVerifier.class));
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "global-window-serializer",
-                            flinkVersion,
-                            GlobalWindowSerializerSetup.class,
-                            GlobalWindowSerializerVerifier.class));
-        }
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "time-window-serializer",
+                        flinkVersion,
+                        TimeWindowSerializerSetup.class,
+                        TimeWindowSerializerVerifier.class));
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "global-window-serializer",
+                        flinkVersion,
+                        GlobalWindowSerializerSetup.class,
+                        GlobalWindowSerializerVerifier.class));
         return testSpecifications;
     }
 

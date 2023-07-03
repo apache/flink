@@ -23,7 +23,7 @@ import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.dispatcher.cleanup.GloballyCleanableResource;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
-import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -120,36 +120,22 @@ public interface HighAvailabilityServices
                         + "implemented by your HighAvailabilityServices implementation.");
     }
 
-    /**
-     * Gets the leader election service for the cluster's resource manager.
-     *
-     * @return Leader election service for the resource manager leader election
-     */
-    LeaderElectionService getResourceManagerLeaderElectionService();
+    /** Gets the {@link LeaderElection} for the cluster's resource manager. */
+    LeaderElection getResourceManagerLeaderElection() throws Exception;
+
+    /** Gets the {@link LeaderElection} for the cluster's dispatcher. */
+    LeaderElection getDispatcherLeaderElection() throws Exception;
+
+    /** Gets the {@link LeaderElection} for the job with the given {@link JobID}. */
+    LeaderElection getJobManagerLeaderElection(JobID jobID) throws Exception;
 
     /**
-     * Gets the leader election service for the cluster's dispatcher.
+     * Gets the {@link LeaderElection} for the cluster's rest endpoint.
      *
-     * @return Leader election service for the dispatcher leader election
-     */
-    LeaderElectionService getDispatcherLeaderElectionService();
-
-    /**
-     * Gets the leader election service for the given job.
-     *
-     * @param jobID The identifier of the job running the election.
-     * @return Leader election service for the job manager leader election
-     */
-    LeaderElectionService getJobManagerLeaderElectionService(JobID jobID);
-
-    /**
-     * Gets the leader election service for the cluster's rest endpoint.
-     *
-     * @return the leader election service used by the cluster's rest endpoint
-     * @deprecated Use {@link #getClusterRestEndpointLeaderElectionService()} instead.
+     * @deprecated Use {@link #getClusterRestEndpointLeaderElection()} instead.
      */
     @Deprecated
-    default LeaderElectionService getWebMonitorLeaderElectionService() {
+    default LeaderElection getWebMonitorLeaderElection() {
         throw new UnsupportedOperationException(
                 "getWebMonitorLeaderElectionService should no longer be used. Instead use "
                         + "#getClusterRestEndpointLeaderElectionService to instantiate the cluster "
@@ -189,16 +175,12 @@ public interface HighAvailabilityServices
      */
     BlobStore createBlobStore() throws IOException;
 
-    /**
-     * Gets the leader election service for the cluster's rest endpoint.
-     *
-     * @return the leader election service used by the cluster's rest endpoint
-     */
-    default LeaderElectionService getClusterRestEndpointLeaderElectionService() {
+    /** Gets the {@link LeaderElection} for the cluster's rest endpoint. */
+    default LeaderElection getClusterRestEndpointLeaderElection() throws Exception {
         // for backwards compatibility we delegate to getWebMonitorLeaderElectionService
         // all implementations of this interface should override
         // getClusterRestEndpointLeaderElectionService, though
-        return getWebMonitorLeaderElectionService();
+        return getWebMonitorLeaderElection();
     }
 
     @Override

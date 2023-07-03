@@ -34,6 +34,15 @@
 
     <packaging>jar</packaging>
 
+	<properties>
+		<surefire.module.config><!--
+			SqlGatewayTest/CommonTestUtils.setEnv
+			-->--add-opens=java.base/java.util=ALL-UNNAMED <!--
+			OperationManager#getThreadInFuture
+			-->--add-opens=java.base/java.util.concurrent=ALL-UNNAMED
+		</surefire.module.config>
+	</properties>
+
     <dependencies>
         <!-- Flink client to submit jobs -->
         <dependency>
@@ -47,6 +56,7 @@
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-sql-gateway-api</artifactId>
             <version>${project.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>

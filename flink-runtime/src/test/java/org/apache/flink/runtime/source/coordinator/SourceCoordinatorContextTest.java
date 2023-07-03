@@ -96,7 +96,9 @@ class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
         // Assign splits to the readers.
         SplitsAssignment<MockSourceSplit> splitsAssignment = getSplitsAssignment(2, 0);
         if (fromCoordinatorExecutor) {
-            coordinatorExecutor.submit(() -> context.assignSplits(splitsAssignment)).get();
+            context.getCoordinatorExecutor()
+                    .submit(() -> context.assignSplits(splitsAssignment))
+                    .get();
         } else {
             context.assignSplits(splitsAssignment);
         }
@@ -141,7 +143,7 @@ class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
         verifyException(
                 () -> {
                     if (fromCoordinatorExecutor) {
-                        coordinatorExecutor
+                        context.getCoordinatorExecutor()
                                 .submit(() -> context.assignSplits(splitsAssignment))
                                 .get();
                     } else {
@@ -163,7 +165,8 @@ class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
                 new SourceCoordinatorContext<>(
                         coordinatorExecutorWithExceptionHandler,
                         manualWorkerExecutor,
-                        coordinatorThreadFactory,
+                        new SourceCoordinatorProvider.CoordinatorExecutorThreadFactory(
+                                coordinatorThreadName, operatorCoordinatorContext),
                         operatorCoordinatorContext,
                         new MockSourceSplitSerializer(),
                         splitSplitAssignmentTracker,

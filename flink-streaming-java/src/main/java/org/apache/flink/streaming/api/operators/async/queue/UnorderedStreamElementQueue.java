@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -33,7 +34,6 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Deque;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Queue;
@@ -214,7 +214,7 @@ public final class UnorderedStreamElementQueue<OUT> implements StreamElementQueu
         private final Queue<StreamElementQueueEntry<OUT>> completedElements;
 
         Segment(int initialCapacity) {
-            incompleteElements = new HashSet<>(initialCapacity);
+            incompleteElements = CollectionUtil.newHashSetWithExpectedSize(initialCapacity);
             completedElements = new ArrayDeque<>(initialCapacity);
         }
 

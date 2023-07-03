@@ -86,16 +86,15 @@ import java.util.Queue;
 import java.util.concurrent.RunnableFuture;
 
 import static junit.framework.TestCase.assertNotNull;
-import static org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackendBuilder.DB_INSTANCE_DIR_STRING;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.internal.verification.VerificationModeFactory.times;
-import static org.powermock.api.mockito.PowerMockito.spy;
 
 /** Tests for the partitioned state part of {@link EmbeddedRocksDBStateBackend}. */
 @RunWith(Parameterized.class)
@@ -148,7 +147,9 @@ public class EmbeddedRocksDBStateBackendTest
     private final RocksDBResourceContainer optionsContainer = new RocksDBResourceContainer();
 
     public void prepareRocksDB() throws Exception {
-        String dbPath = new File(TEMP_FOLDER.newFolder(), DB_INSTANCE_DIR_STRING).getAbsolutePath();
+        String dbPath =
+                RocksDBKeyedStateBackendBuilder.getInstanceRocksDBPath(TEMP_FOLDER.newFolder())
+                        .getAbsolutePath();
         ColumnFamilyOptions columnOptions = optionsContainer.getColumnOptions();
 
         ArrayList<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>(1);

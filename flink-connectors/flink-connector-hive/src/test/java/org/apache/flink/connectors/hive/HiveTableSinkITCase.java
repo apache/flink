@@ -43,7 +43,7 @@ import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.TestLoggerExtension;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.jupiter.api.AfterAll;
@@ -469,7 +469,7 @@ class HiveTableSinkITCase {
 
         // insert overwrite partition
         tEnv.executeSql(
-                        "INSERT OVERWRITE target_table partition (dt='2022-07-28') SELECT name FROM src_table where dt = '2022-07-28'")
+                        "INSERT OVERWRITE TABLE target_table partition (dt='2022-07-28') SELECT name FROM src_table where dt = '2022-07-28'")
                 .await();
         partitions =
                 CollectionUtil.iteratorToList(
@@ -494,7 +494,7 @@ class HiveTableSinkITCase {
 
         // insert overwrite a partition with data
         tEnv.executeSql(
-                        "INSERT OVERWRITE target_table partition (dt='2022-07-29') SELECT name FROM src_table where dt = '2022-07-29'")
+                        "INSERT OVERWRITE TABLE target_table partition (dt='2022-07-29') SELECT name FROM src_table where dt = '2022-07-29'")
                 .await();
         partitions =
                 CollectionUtil.iteratorToList(

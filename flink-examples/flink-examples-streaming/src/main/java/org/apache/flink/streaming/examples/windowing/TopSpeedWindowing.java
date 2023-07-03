@@ -20,12 +20,17 @@ package org.apache.flink.streaming.examples.windowing;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
+import org.apache.flink.api.common.typeinfo.TypeHint;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.source.util.ratelimit.GuavaRateLimiter;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.connector.datagen.source.DataGeneratorSource;
 import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.connector.file.src.FileSource;
 import org.apache.flink.connector.file.src.reader.TextLineInputFormat;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
 import org.apache.flink.streaming.api.functions.windowing.delta.DeltaFunction;
@@ -33,7 +38,7 @@ import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.evictors.TimeEvictor;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.DeltaTrigger;
-import org.apache.flink.streaming.examples.windowing.util.CarSource;
+import org.apache.flink.streaming.examples.windowing.util.CarGeneratorFunction;
 import org.apache.flink.streaming.examples.wordcount.util.CLI;
 
 import java.time.Duration;
@@ -41,9 +46,9 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * An example of grouped stream windowing where different eviction and trigger policies can be used.
- * A source fetches events from cars every 100 msec containing their id, their current speed (kmh),
- * overall elapsed distance (m) and a timestamp. The streaming example triggers the top speed of
- * each car every x meters elapsed for the last y seconds.
+ * A source fetches events from cars containing their id, their current speed (kmh), overall elapsed
+ * distance (m) and a timestamp. The streaming example triggers the top speed of each car every x
+ * meters elapsed for the last y seconds.
  */
 public class TopSpeedWindowing {
 
@@ -82,7 +87,7 @@ public class TopSpeedWindowing {
         // available in the Flink UI.
         env.getConfig().setGlobalJobParameters(params);
 
-        DataStream<Tuple4<Integer, Integer, Double, Long>> carData;
+        SingleOutputStreamOperator<Tuple4<Integer, Integer, Double, Long>> carData;
         if (params.getInputs().isPresent()) {
             // Create a new file source that will read files from a given set of directories.
             // Each file will be processed as plain text and split based on newlines.
@@ -99,7 +104,20 @@ public class TopSpeedWindowing {
                             .map(new ParseCarData())
                             .name("parse-input");
         } else {
-            carData = env.addSource(CarSource.create(2)).name("in-memory-source");
+            CarGeneratorFunction carGenerator = new CarGeneratorFunction(2);
+            DataGeneratorSource<Tuple4<Integer, Integer, Double, Long>> carGeneratorSource =
+                    new DataGeneratorSource<>(
+                            carGenerator,
+                            Long.MAX_VALUE,
+                            parallelismIgnored -> new GuavaRateLimiter(10),
+                            TypeInformation.of(
+                                    new TypeHint<Tuple4<Integer, Integer, Double, Long>>() {}));
+            carData =
+                    env.fromSource(
+                            carGeneratorSource,
+                            WatermarkStrategy.noWatermarks(),
+                            "Car data generator source");
+            carData.setParallelism(1);
         }
 
         int evictionSec = 10;

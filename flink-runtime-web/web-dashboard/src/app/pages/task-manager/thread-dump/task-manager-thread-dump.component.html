@@ -21,6 +21,7 @@
   [nzLoading]="loading"
   [ngModel]="dump"
   [nzEditorOption]="editorOptions"
+  (nzEditorInitialized)="nzEditorInitialized($event)"
 ></nz-code-editor>
 <flink-addon-compact
   [downloadHref]="downloadUrl"

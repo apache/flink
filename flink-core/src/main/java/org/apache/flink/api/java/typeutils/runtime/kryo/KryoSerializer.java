@@ -31,6 +31,7 @@ import org.apache.flink.api.java.typeutils.runtime.KryoUtils;
 import org.apache.flink.api.java.typeutils.runtime.NoFetchingInput;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.InstantiationUtil;
 
 import com.esotericsoftware.kryo.Kryo;
@@ -195,8 +196,10 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 
         this.type = checkNotNull(toCopy.type, "Type class cannot be null.");
         this.defaultSerializerClasses = toCopy.defaultSerializerClasses;
-        this.defaultSerializers = new LinkedHashMap<>(toCopy.defaultSerializers.size());
-        this.kryoRegistrations = new LinkedHashMap<>(toCopy.kryoRegistrations.size());
+        this.defaultSerializers =
+                CollectionUtil.newLinkedHashMapWithExpectedSize(toCopy.defaultSerializers.size());
+        this.kryoRegistrations =
+                CollectionUtil.newLinkedHashMapWithExpectedSize(toCopy.kryoRegistrations.size());
 
         // deep copy the serializer instances in defaultSerializers
         for (Map.Entry<Class<?>, ExecutionConfig.SerializableSerializer<?>> entry :

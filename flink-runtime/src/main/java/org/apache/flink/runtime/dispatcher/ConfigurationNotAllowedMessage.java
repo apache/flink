@@ -21,7 +21,7 @@ package org.apache.flink.runtime.dispatcher;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.DeploymentOptions;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.MapDifference.ValueDifference;
+import org.apache.flink.shaded.guava31.com.google.common.collect.MapDifference.ValueDifference;
 
 /**
  * If {@link DeploymentOptions#PROGRAM_CONFIG_ENABLED} is disabled, this error denotes the not

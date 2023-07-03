@@ -47,11 +47,9 @@ class RankTest extends TableTestBase {
         |SELECT *
         |FROM (
         |  SELECT a, b,
-        |  ROW_NUMBER() OVER (PARTITION BY b ORDER BY key) AS row_num
-        |  FROM (
-        |  SELECT *, '2023-03-29' AS key
+        |  ROW_NUMBER() OVER (PARTITION BY b ORDER BY '2023-03-29') AS row_num
         |  FROM MyTable
-        |  ) tmp)
+        |)
         |WHERE row_num <= 10
       """.stripMargin
 

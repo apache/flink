@@ -92,6 +92,12 @@ public class ClosureCleaner {
             return;
         }
 
+        if (canBeSerialized(func)) {
+            return;
+        }
+
+        // serialization failed; try cleaning closure as a fallback
+
         // First find the field name of the "this$0" field, this can
         // be "this$x" depending on the nesting
         boolean closureAccessed = false;
@@ -169,7 +175,17 @@ public class ClosureCleaner {
     private static boolean needsRecursion(Field f, Object fo) {
         return (fo != null
                 && !Modifier.isStatic(f.getModifiers())
-                && !Modifier.isTransient(f.getModifiers()));
+                && !Modifier.isTransient(f.getModifiers())
+                && !canBeSerialized(fo));
+    }
+
+    private static boolean canBeSerialized(Object o) {
+        try {
+            InstantiationUtil.serializeObject(o);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private static boolean usesCustomSerialization(Class<?> cls) {

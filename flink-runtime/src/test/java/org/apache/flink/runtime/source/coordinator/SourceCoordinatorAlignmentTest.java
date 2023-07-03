@@ -19,7 +19,10 @@
 package org.apache.flink.runtime.source.coordinator;
 
 import org.apache.flink.api.common.eventtime.WatermarkAlignmentParams;
+import org.apache.flink.api.connector.source.Source;
+import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.core.fs.AutoCloseableRegistry;
+import org.apache.flink.runtime.operators.coordination.CoordinatorStoreImpl;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.source.event.ReportedWatermarkEvent;
 import org.apache.flink.runtime.source.event.WatermarkAlignmentEvent;
@@ -27,6 +30,9 @@ import org.apache.flink.runtime.source.event.WatermarkAlignmentEvent;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -131,6 +137,67 @@ class SourceCoordinatorAlignmentTest extends SourceCoordinatorTestBase {
         }
     }
 
+    /**
+     * When JobManager failover and auto recover job, SourceCoordinator will reset twice: 1. Create
+     * JobMaster --> Create Scheduler --> Create DefaultExecutionGraph --> Init
+     * SourceCoordinator(but will not start it) 2. JobMaster call
+     * restoreLatestCheckpointedStateInternal, which will call {@link
+     * org.apache.flink.runtime.operators.coordination.RecreateOnResetOperatorCoordinator#resetToCheckpoint(long,byte[])}
+     * and reset SourceCoordinator. Because the first SourceCoordinator is not be started, so the
+     * period task can't be stopped.
+     */
+    @Test
+    void testAnnounceCombinedWatermarkWithoutStart() throws Exception {
+        long maxDrift = 1000L;
+        WatermarkAlignmentParams params =
+                new WatermarkAlignmentParams(maxDrift, "group1", maxDrift);
+
+        final Source<Integer, MockSourceSplit, Set<MockSourceSplit>> mockSource =
+                createMockSource();
+
+        // First to init a SourceCoordinator to simulate JobMaster init SourceCoordinator
+        AtomicInteger counter1 = new AtomicInteger(0);
+        sourceCoordinator =
+                new SourceCoordinator<MockSourceSplit, Set<MockSourceSplit>>(
+                        OPERATOR_NAME,
+                        mockSource,
+                        getNewSourceCoordinatorContext(),
+                        new CoordinatorStoreImpl(),
+                        params,
+                        null) {
+                    @Override
+                    void announceCombinedWatermark() {
+                        counter1.incrementAndGet();
+                    }
+                };
+
+        // Second we call SourceCoordinator::close and re-init SourceCoordinator to simulate
+        // RecreateOnResetOperatorCoordinator::resetToCheckpoint
+        sourceCoordinator.close();
+        CountDownLatch latch = new CountDownLatch(2);
+        sourceCoordinator =
+                new SourceCoordinator<MockSourceSplit, Set<MockSourceSplit>>(
+                        OPERATOR_NAME,
+                        mockSource,
+                        getNewSourceCoordinatorContext(),
+                        new CoordinatorStoreImpl(),
+                        params,
+                        null) {
+                    @Override
+                    void announceCombinedWatermark() {
+                        latch.countDown();
+                    }
+                };
+
+        sourceCoordinator.start();
+        setReaderTaskReady(sourceCoordinator, 0, 0);
+
+        latch.await();
+        assertThat(counter1.get()).isZero();
+
+        sourceCoordinator.close();
+    }
+
     private SourceCoordinator<?, ?> getAndStartNewSourceCoordinator(
             WatermarkAlignmentParams watermarkAlignmentParams,
             AutoCloseableRegistry closeableRegistry)
@@ -148,7 +215,7 @@ class SourceCoordinatorAlignmentTest extends SourceCoordinatorTestBase {
             SourceCoordinator<?, ?> sourceCoordinator1, int subtask, long watermark) {
         sourceCoordinator1.handleEventFromOperator(
                 subtask, 0, new ReportedWatermarkEvent(watermark));
-        waitForCoordinatorToProcessActions();
+        waitForCoordinatorToProcessActions(sourceCoordinator1.getContext());
         sourceCoordinator1.announceCombinedWatermark();
     }
 

@@ -111,6 +111,24 @@
             <td>The number of Netty client threads.</td>
         </tr>
         <tr>
+            <td><h5>taskmanager.network.netty.client.tcp.keepCount</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Integer</td>
+            <td>The maximum number of keepalive probes TCP should send before Netty client dropping the connection. Note: This will not take effect when using netty transport type of nio with an older version of JDK 8, refer to https://bugs.openjdk.org/browse/JDK-8194298.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.netty.client.tcp.keepIdleSec</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Integer</td>
+            <td>The time (in seconds) the connection needs to remain idle before TCP starts sending keepalive probes. Note: This will not take effect when using netty transport type of nio with an older version of JDK 8, refer to https://bugs.openjdk.org/browse/JDK-8194298.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.netty.client.tcp.keepIntervalSec</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Integer</td>
+            <td>The time (in seconds) between individual keepalive probes. Note: This will not take effect when using netty transport type of nio with an older version of JDK 8, refer to https://bugs.openjdk.org/browse/JDK-8194298.</td>
+        </tr>
+        <tr>
             <td><h5>taskmanager.network.netty.num-arenas</h5></td>
             <td style="word-wrap: break-word;">-1</td>
             <td>Integer</td>

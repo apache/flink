@@ -71,7 +71,7 @@ import org.apache.flink.runtime.shuffle.UnknownShuffleDescriptor;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.util.CompressedSerializedValue;
 
-import org.apache.flink.shaded.guava30.com.google.common.io.Closer;
+import org.apache.flink.shaded.guava31.com.google.common.io.Closer;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -1337,14 +1337,16 @@ public class SingleInputGateTest extends InputGateTestBase {
                                 ? resultPartitionManager
                                 : netEnv.getResultPartitionManager(),
                         new TaskEventDispatcher(),
-                        netEnv.getNetworkBufferPool())
+                        netEnv.getNetworkBufferPool(),
+                        null)
                 .create(
                         netEnv.createShuffleIOOwnerContext(
                                 "TestTask", taskMetricGroup.executionId(), taskMetricGroup),
                         0,
                         gateDesc,
                         SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER,
-                        newUnregisteredInputChannelMetrics());
+                        newUnregisteredInputChannelMetrics(),
+                        null);
     }
 
     private static Map<InputGateID, SingleInputGate> createInputGateWithLocalChannels(

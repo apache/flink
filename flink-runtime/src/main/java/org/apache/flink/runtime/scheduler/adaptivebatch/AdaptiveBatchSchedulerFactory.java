@@ -27,6 +27,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint;
+import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blocklist.BlocklistOperations;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
@@ -77,6 +78,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
@@ -113,6 +115,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
             ComponentMainThreadExecutor mainThreadExecutor,
             FatalErrorHandler fatalErrorHandler,
             JobStatusListener jobStatusListener,
+            Collection<FailureEnricher> failureEnrichers,
             BlocklistOperations blocklistOperations)
             throws Exception {
 
@@ -206,6 +209,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                     initializationTimestamp,
                     mainThreadExecutor,
                     jobStatusListener,
+                    failureEnrichers,
                     executionGraphFactory,
                     shuffleMaster,
                     rpcTimeout,
@@ -237,6 +241,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                     initializationTimestamp,
                     mainThreadExecutor,
                     jobStatusListener,
+                    failureEnrichers,
                     executionGraphFactory,
                     shuffleMaster,
                     rpcTimeout,

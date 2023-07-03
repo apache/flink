@@ -33,12 +33,20 @@ under the License.
 
 	<packaging>jar</packaging>
 
+	<properties>
+		<surefire.module.config><!--
+			chill ArraysAsListSerializer
+			-->--add-opens=java.base/java.util=ALL-UNNAMED
+		</surefire.module.config>
+	</properties>
+
 	<dependencies>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-format-common</artifactId>
 			<version>${project.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
 		<!-- core dependencies -->

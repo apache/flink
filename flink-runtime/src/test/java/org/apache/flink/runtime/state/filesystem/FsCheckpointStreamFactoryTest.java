@@ -30,6 +30,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Objects;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
@@ -95,8 +96,9 @@ public class FsCheckpointStreamFactoryTest {
 
     @Test
     public void testEntropyMakesExclusiveStateAbsolutePaths() throws IOException {
-        final FsCheckpointStreamFactory factory =
-                createFactory(new FsStateBackendEntropyTest.TestEntropyAwareFs(), 0);
+        final FsStateBackendEntropyTest.TestEntropyAwareFs fs =
+                new FsStateBackendEntropyTest.TestEntropyAwareFs();
+        final FsCheckpointStreamFactory factory = createFactory(fs, 0);
 
         final FsCheckpointStreamFactory.FsCheckpointStateOutputStream stream =
                 factory.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE);
@@ -105,7 +107,9 @@ public class FsCheckpointStreamFactoryTest {
 
         assertThat(handle, instanceOf(FileStateHandle.class));
         assertThat(handle, not(instanceOf(RelativeFileStateHandle.class)));
-        assertPathsEqual(exclusiveStateDir, ((FileStateHandle) handle).getFilePath().getParent());
+        assertPathsEqual(
+                exclusiveStateDir.resolve(fs.generateEntropy()),
+                ((FileStateHandle) handle).getFilePath().getParent());
     }
 
     @Test
@@ -156,6 +160,18 @@ public class FsCheckpointStreamFactoryTest {
 
     private FsCheckpointStreamFactory createFactory(FileSystem fs, int fileSizeThreshold) {
         return createFactory(fs, fileSizeThreshold, 4096);
+    }
+
+    private FsCheckpointStreamFactory createFactory(
+            FsStateBackendEntropyTest.TestEntropyAwareFs fs, int fileSizeThreshold) {
+        final Path exclusiveStateDirWithEntropy =
+                exclusiveStateDir.resolve(Objects.requireNonNull(fs.getEntropyInjectionKey()));
+        return new FsCheckpointStreamFactory(
+                fs,
+                new org.apache.flink.core.fs.Path(exclusiveStateDirWithEntropy.toUri()),
+                new org.apache.flink.core.fs.Path(sharedStateDir.toUri()),
+                fileSizeThreshold,
+                4096);
     }
 
     private FsCheckpointStreamFactory createFactory(

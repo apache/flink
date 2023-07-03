@@ -25,7 +25,7 @@ import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
 import org.apache.flink.runtime.leaderelection.LeaderElectionEvent;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
-import org.apache.flink.runtime.leaderelection.LeaderInformationWithComponentId;
+import org.apache.flink.runtime.leaderelection.LeaderInformationRegister;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionListener;
 import org.apache.flink.runtime.leaderelection.TestingListener;
 import org.apache.flink.runtime.leaderretrieval.DefaultLeaderRetrievalService;
@@ -101,7 +101,6 @@ class KubernetesMultipleComponentLeaderElectionDriverTest {
                             final DefaultLeaderRetrievalService leaderRetrievalService =
                                     new DefaultLeaderRetrievalService(
                                             new KubernetesMultipleComponentLeaderRetrievalDriverFactory(
-                                                    getFlinkKubeClient(),
                                                     getConfigMapSharedWatcher(),
                                                     testExecutorExtension.getExecutor(),
                                                     LEADER_CONFIGMAP_NAME,
@@ -149,14 +148,15 @@ class KubernetesMultipleComponentLeaderElectionDriverTest {
                                                     LeaderElectionEvent
                                                             .AllKnownLeaderInformationEvent.class);
 
-                            assertThat(
-                                            allKnownLeaderInformationEvent
-                                                    .getLeaderInformationWithComponentIds())
-                                    .containsExactlyInAnyOrder(
-                                            LeaderInformationWithComponentId.create(
-                                                    componentA, leaderInformationA),
-                                            LeaderInformationWithComponentId.create(
-                                                    componentB, leaderInformationB));
+                            final LeaderInformationRegister actualLeaderInformationRegister =
+                                    allKnownLeaderInformationEvent.getLeaderInformationRegister();
+
+                            assertThat(actualLeaderInformationRegister.getRegisteredContenderIDs())
+                                    .containsExactlyInAnyOrder(componentA, componentB);
+                            assertThat(actualLeaderInformationRegister.forContenderID(componentA))
+                                    .hasValue(leaderInformationA);
+                            assertThat(actualLeaderInformationRegister.forContenderID(componentB))
+                                    .hasValue(leaderInformationB);
                         });
             }
         };

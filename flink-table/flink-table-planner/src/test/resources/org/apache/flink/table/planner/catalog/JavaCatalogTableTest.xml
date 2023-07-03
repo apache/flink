@@ -92,7 +92,9 @@ GroupWindowAggregate(window=[TumblingGroupWindow('w, proctime, 600000)], select=
 LogicalProject(EXPR$0=[$1])
 +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()])
    +- LogicalProject($f0=[$TUMBLE($1, 600000:INTERVAL MINUTE)])
-      +- LogicalTableScan(table=[[testCatalog, default, testTable]])
+      +- LogicalProject(count=[$0], rowtime=[$1], proctime=[$2])
+         +- LogicalProject(count=[$0], rowtime=[$1], proctime=[PROCTIME()])
+            +- LogicalTableScan(table=[[testCatalog, default, testTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -113,9 +115,10 @@ HashWindowAggregate(window=[TumblingGroupWindow('w$, rowtime, 600000)], select=[
 LogicalProject(EXPR$0=[$1])
 +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()])
    +- LogicalProject($f0=[$TUMBLE($1, 600000:INTERVAL MINUTE)])
-      +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($1, 5000:INTERVAL SECOND)])
-         +- LogicalProject(count=[$0], rowtime=[$1], proctime=[PROCTIME()])
-            +- LogicalTableScan(table=[[testCatalog, default, testTable]])
+      +- LogicalProject(count=[$0], rowtime=[$1], proctime=[$2])
+         +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($1, 5000:INTERVAL SECOND)])
+            +- LogicalProject(count=[$0], rowtime=[$1], proctime=[PROCTIME()])
+               +- LogicalTableScan(table=[[testCatalog, default, testTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">

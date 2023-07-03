@@ -18,10 +18,10 @@
 
 package org.apache.flink.runtime.leaderelection;
 
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.concurrent.Executors;
 
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cache.ChildData;
@@ -36,6 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /** ZooKeeper based {@link MultipleComponentLeaderElectionDriver} implementation. */
@@ -49,6 +50,8 @@ public class ZooKeeperMultipleComponentLeaderElectionDriver
 
     private final MultipleComponentLeaderElectionDriver.Listener leaderElectionListener;
 
+    private final FatalErrorHandler fatalErrorHandler;
+
     private final LeaderLatch leaderLatch;
 
     private final TreeCache treeCache;
@@ -60,21 +63,21 @@ public class ZooKeeperMultipleComponentLeaderElectionDriver
 
     public ZooKeeperMultipleComponentLeaderElectionDriver(
             CuratorFramework curatorFramework,
-            MultipleComponentLeaderElectionDriver.Listener leaderElectionListener)
+            MultipleComponentLeaderElectionDriver.Listener leaderElectionListener,
+            FatalErrorHandler fatalErrorHandler)
             throws Exception {
         this.curatorFramework = Preconditions.checkNotNull(curatorFramework);
         this.leaderElectionListener = Preconditions.checkNotNull(leaderElectionListener);
+        this.fatalErrorHandler = Preconditions.checkNotNull(fatalErrorHandler);
 
         this.leaderLatch = new LeaderLatch(curatorFramework, ZooKeeperUtils.getLeaderLatchPath());
         this.treeCache =
-                TreeCache.newBuilder(curatorFramework, "/")
-                        .setCacheData(true)
-                        .setCreateParentNodes(false)
-                        .setSelector(
-                                new ZooKeeperMultipleComponentLeaderElectionDriver
-                                        .ConnectionInfoNodeSelector())
-                        .setExecutor(Executors.newDirectExecutorService())
-                        .build();
+                ZooKeeperUtils.createTreeCache(
+                        curatorFramework,
+                        "/",
+                        new ZooKeeperMultipleComponentLeaderElectionDriver
+                                .ConnectionInfoNodeSelector());
+
         treeCache
                 .getListenable()
                 .addListener(
@@ -133,13 +136,8 @@ public class ZooKeeperMultipleComponentLeaderElectionDriver
     }
 
     @Override
-    public void publishLeaderInformation(String componentId, LeaderInformation leaderInformation)
-            throws Exception {
+    public void publishLeaderInformation(String componentId, LeaderInformation leaderInformation) {
         Preconditions.checkState(running.get());
-
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Write leader information {} for {}.", leaderInformation, componentId);
-        }
 
         if (!leaderLatch.hasLeadership()) {
             return;
@@ -148,17 +146,32 @@ public class ZooKeeperMultipleComponentLeaderElectionDriver
         final String connectionInformationPath =
                 ZooKeeperUtils.generateConnectionInformationPath(componentId);
 
-        ZooKeeperUtils.writeLeaderInformationToZooKeeper(
+        LOG.debug(
+                "Write leader information {} for {} to {}.",
                 leaderInformation,
-                curatorFramework,
-                leaderLatch::hasLeadership,
-                connectionInformationPath);
+                componentId,
+                ZooKeeperUtils.generateZookeeperPath(
+                        curatorFramework.getNamespace(), connectionInformationPath));
+
+        try {
+            ZooKeeperUtils.writeLeaderInformationToZooKeeper(
+                    leaderInformation,
+                    curatorFramework,
+                    leaderLatch::hasLeadership,
+                    connectionInformationPath);
+        } catch (Exception e) {
+            fatalErrorHandler.onFatalError(e);
+        }
     }
 
     @Override
-    public void deleteLeaderInformation(String leaderName) throws Exception {
-        ZooKeeperUtils.deleteZNode(
-                curatorFramework, ZooKeeperUtils.generateZookeeperPath(leaderName));
+    public void deleteLeaderInformation(String leaderName) {
+        try {
+            ZooKeeperUtils.deleteZNode(
+                    curatorFramework, ZooKeeperUtils.generateZookeeperPath(leaderName));
+        } catch (Exception e) {
+            fatalErrorHandler.onFatalError(e);
+        }
     }
 
     private void handleStateChange(ConnectionState newState) {
@@ -183,8 +196,9 @@ public class ZooKeeperMultipleComponentLeaderElectionDriver
 
     @Override
     public void isLeader() {
-        LOG.debug("{} obtained the leadership.", this);
-        leaderElectionListener.isLeader();
+        final UUID leaderSessionID = UUID.randomUUID();
+        LOG.debug("{} obtained the leadership with session ID {}.", this, leaderSessionID);
+        leaderElectionListener.isLeader(leaderSessionID);
     }
 
     @Override

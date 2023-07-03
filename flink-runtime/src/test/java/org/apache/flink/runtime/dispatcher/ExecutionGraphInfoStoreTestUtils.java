@@ -45,7 +45,7 @@ import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
-import org.apache.flink.shaded.guava30.com.google.common.base.Ticker;
+import org.apache.flink.shaded.guava31.com.google.common.base.Ticker;
 
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
@@ -245,6 +245,7 @@ public class ExecutionGraphInfoStoreTestUtils {
                             metricRegistry,
                             executionGraphInfoStore,
                             metricQueryServiceRetriever,
+                            Collections.emptySet(),
                             fatalErrorHandler));
         }
     }

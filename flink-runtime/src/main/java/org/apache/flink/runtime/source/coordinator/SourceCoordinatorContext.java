@@ -40,7 +40,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.ThrowableCatchingRunnable;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -338,6 +338,11 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
         // Close quietly so the closing sequence will be executed completely.
         shutdownExecutorForcefully(workerExecutor, Duration.ofNanos(Long.MAX_VALUE));
         shutdownExecutorForcefully(coordinatorExecutor, Duration.ofNanos(Long.MAX_VALUE));
+    }
+
+    @VisibleForTesting
+    boolean isClosed() {
+        return closed;
     }
 
     // --------- Package private additional methods for the SourceCoordinator ------------

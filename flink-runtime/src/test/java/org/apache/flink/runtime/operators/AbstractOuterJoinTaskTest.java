@@ -36,7 +36,7 @@ import org.apache.flink.runtime.operators.testutils.InfiniteIntTupleIterator;
 import org.apache.flink.runtime.operators.testutils.UniformIntTupleGenerator;
 import org.apache.flink.util.Collector;
 
-import org.apache.flink.shaded.guava30.com.google.common.base.Throwables;
+import org.apache.flink.shaded.guava31.com.google.common.base.Throwables;
 
 import org.junit.Assert;
 import org.junit.Test;

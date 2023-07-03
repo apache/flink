@@ -37,8 +37,6 @@ under the License.
 
 还需要准备 **Maven 3** 和 **JDK** (Java开发套件)。Flink 依赖 **Java 8 (deprecated) 或 Java 11** 来进行构建。
 
-*注意：Maven 3.3.x 可以构建 Flink，但是不能正确地屏蔽掉指定的依赖。Maven 3.2.5 可以正确地构建库文件。
-
 输入以下命令从 Git 克隆代码
 
 ```bash
@@ -116,29 +114,6 @@ python -m pip install apache-flink-libraries/dist/*.tar.gz
 ```bash
 python -m pip install dist/*.whl
 ```
-
-## 依赖屏蔽
-
-Flink [屏蔽](https://maven.apache.org/plugins/maven-shade-plugin/)了一些它使用的包，这样做是为了避免与程序员自己引入的包的存在的可能的版本冲突。屏蔽掉的包包括 *Google Guava*,*Asm*,*Apache Curator*,*Apache HTTP Components*,*Netty* 等。
-
-这种依赖屏蔽机制最近在 Maven 中有所改变。需要用户根据 Maven 的的不同版本来执行不同的命令。
-
-**对于Maven 3.1.x and 3.2.x**
-直接在 Flink 源码根目录执行命令 `mvn clean install -DskipTests` 就足够了。
-
-**Maven 3.3.x**
-如下的构建需要两步走：第一步需要在基础目录下执行编译构建；第二步需要在编译后的 flink-dist 目录下执行：
-
-```bash
-mvn clean install -DskipTests
-cd flink-dist
-mvn clean install
-```
-
-*注意:* 运行 `mvn --version` 以查看Maven的版本。
-
-{{< top >}}
-
 
 ## Scala 版本
 
