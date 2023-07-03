@@ -1531,6 +1531,22 @@ class Expression(Generic[T]):
         else:
             return _ternary_op("array_slice")(self, start_offset, end_offset)
 
+    def array_sort(self, ascending_order=None, null_first=None) -> 'Expression':
+        """
+        Returns the array in sorted order.
+        The function sorts an array, defaulting to ascending order with NULLs at the start when
+        only the array is input. Specifying ascending_order as true orders the array in ascending
+        with NULLs first, and setting it to false orders it in descending with NULLs last.
+        Independently, null_first as true moves NULLs to the beginning, and as false to the end,
+        irrespective of the sorting order. The function returns null if any input is null.
+        """
+        if ascending_order and null_first is None:
+            return _unary_op("array_sort")(self)
+        elif null_first is None:
+            return _binary_op("array_sort")(self, ascending_order)
+        else:
+            return _ternary_op("array_sort")(self, ascending_order, null_first)
+
     def array_union(self, array) -> 'Expression':
         """
         Returns an array of the elements in the union of array1 and array2, without duplicates.
