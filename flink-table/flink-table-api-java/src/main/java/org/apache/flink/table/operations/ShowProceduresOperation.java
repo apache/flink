@@ -33,7 +33,7 @@ import static org.apache.flink.table.api.internal.TableResultUtils.buildStringAr
 
 /**
  * Operation to describe a SHOW PROCEDURES [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT]
- * (LIKE | ILIKE) <sql_like_pattern> ] statement.
+ * (LIKE | ILIKE) &lt;sql_like_pattern&gt; ] statement.
  */
 public class ShowProceduresOperation implements ExecutableOperation {
 
