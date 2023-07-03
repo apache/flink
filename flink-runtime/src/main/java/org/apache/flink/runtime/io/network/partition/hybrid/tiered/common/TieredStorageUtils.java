@@ -28,8 +28,6 @@ import java.util.List;
 /** Utils for reading or writing from tiered storage. */
 public class TieredStorageUtils {
 
-    public static final String DATA_FILE_SUFFIX = ".tier-storage.data";
-
     public static ByteBuffer[] generateBufferWithHeaders(
             List<Tuple2<Buffer, Integer>> bufferWithIndexes) {
         ByteBuffer[] bufferWithHeaders = new ByteBuffer[2 * bufferWithIndexes.size()];
