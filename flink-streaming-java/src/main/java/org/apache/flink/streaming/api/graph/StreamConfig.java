@@ -189,13 +189,16 @@ public class StreamConfig implements Serializable {
      * the StreamConfig internally or test.
      */
     public void serializeAllConfigs() {
+        String errorMsg =
+                "Could not serialize object for key %s. "
+                        + "If the job involves non-static member class, try to clean the class "
+                        + "closure using StreamExecutionEnvironment#clean.";
         toBeSerializedConfigObjects.forEach(
                 (key, object) -> {
                     try {
                         InstantiationUtil.writeObjectToConfig(object, this.config, key);
                     } catch (IOException e) {
-                        throw new StreamTaskException(
-                                String.format("Could not serialize object for key %s.", key), e);
+                        throw new StreamTaskException(String.format(errorMsg, key), e);
                     }
                 });
     }
