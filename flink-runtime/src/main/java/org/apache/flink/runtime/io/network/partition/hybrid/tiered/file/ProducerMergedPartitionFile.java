@@ -26,6 +26,8 @@ import java.nio.file.Path;
  */
 public class ProducerMergedPartitionFile {
 
+    public static final String DATA_FILE_SUFFIX = ".tier-storage.data";
+
     public static ProducerMergedPartitionFileWriter createPartitionFileWriter(
             Path dataFilePath, ProducerMergedPartitionFileIndex partitionFileIndex) {
         return new ProducerMergedPartitionFileWriter(dataFilePath, partitionFileIndex);
