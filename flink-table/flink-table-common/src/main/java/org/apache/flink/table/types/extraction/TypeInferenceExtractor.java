@@ -145,6 +145,7 @@ public final class TypeInferenceExtractor {
         return extractTypeInference(mappingExtractor);
     }
 
+    /** Extracts a type in inference from a {@link Procedure}. */
     public static TypeInference forProcedure(
             DataTypeFactory typeFactory, Class<? extends Procedure> procedure) {
         final ProcedureMappingExtractor mappingExtractor =
@@ -155,15 +156,7 @@ public final class TypeInferenceExtractor {
                         ProcedureMappingExtractor.createParameterSignatureExtraction(1),
                         ProcedureMappingExtractor.createReturnTypeResultExtraction(),
                         ProcedureMappingExtractor.createParameterAndReturnTypeVerification());
-        try {
-            return extractTypeInferenceOrError(mappingExtractor);
-        } catch (Throwable t) {
-            throw extractionError(
-                    t,
-                    "Could not extract a valid type inference for procedure class '%s'. "
-                            + "Please check for implementation mistakes and/or provide a corresponding hint.",
-                    mappingExtractor.getFunctionClass().getName());
-        }
+        return extractTypeInference(mappingExtractor);
     }
 
     private static TypeInference extractTypeInference(FunctionMappingExtractor mappingExtractor) {
@@ -175,6 +168,18 @@ public final class TypeInferenceExtractor {
                     "Could not extract a valid type inference for function class '%s'. "
                             + "Please check for implementation mistakes and/or provide a corresponding hint.",
                     mappingExtractor.getFunction().getName());
+        }
+    }
+
+    private static TypeInference extractTypeInference(ProcedureMappingExtractor mappingExtractor) {
+        try {
+            return extractTypeInferenceOrError(mappingExtractor);
+        } catch (Throwable t) {
+            throw extractionError(
+                    t,
+                    "Could not extract a valid type inference for procedure class '%s'. "
+                            + "Please check for implementation mistakes and/or provide a corresponding hint.",
+                    mappingExtractor.getFunctionClass().getName());
         }
     }
 

@@ -32,7 +32,7 @@ import org.apache.flink.table.types.inference.TypeInference;
 @Internal
 public class ProcedureDefinition implements FunctionDefinition {
 
-    // the name for the methods to be involved in the procedure
+    /** the name for the methods to be involved in the procedure. */
     public static final String PROCEDURE_CALL = "call";
 
     private final Procedure procedure;
