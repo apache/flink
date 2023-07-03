@@ -761,7 +761,10 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                             jobInformation.getJobConfiguration());
 
             final FileMergingSnapshotManager fileMergingSnapshotManager =
-                    fileMergingManager.fileMergingSnapshotManagerForJob(jobId);
+                    fileMergingManager.fileMergingSnapshotManagerForJob(
+                            jobId,
+                            taskManagerConfiguration.getConfiguration(),
+                            jobInformation.getJobConfiguration());
 
             // TODO: Pass config value from user program and do overriding here.
             final StateChangelogStorage<?> changelogStorage;
