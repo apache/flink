@@ -762,15 +762,18 @@ SHOW CREATE VIEW [catalog_name.][db_name.]view_name
 SHOW [USER] FUNCTIONS [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] (LIKE | ILIKE) <sql_like_pattern> ]
 ```
 
-展示当前 catalog 和当前 database 中所有的 function，包括：系统 function 和用户定义的 function, 另外返回的结果能被一个可选的匹配字符串过滤。
+展示当前 catalog 和当前 database 中所有的 function，包括：系统 function 和用户定义的 function, 另外可以用 sql_like_pattern 来过滤要返回的 function。
 
 **USER**
-展示当前 catalog 和当前 database 中仅用户定义的 function, 另外返回的结果能被一个可选的匹配字符串过滤。
+仅展示用户定义的 function, 另外可以用 sql_like_pattern 来过滤要返回的 function。
+
+**FROM(IN)**
+展示指定的 catalog 和 database 中所有的 function，包括：系统 function 和用户定义的 function, 另外可以用 sql_like_pattern 来过滤要返回的 function。
 
 **LIKE**
-根据可选的 `LIKE` 语句与 `<sql_like_pattern>` 是否模糊相似的所有 function。
+根据可选的 `LIKE` 语句与 `<sql_like_pattern>` 是否模糊匹配的所有 function。
 
-`LIKE` 子句中 sql 正则式的语法与 `MySQL` 方言中的语法相同。
+`LIKE` 子句中 SQL 正则式的语法与 `MySQL` 方言中的语法相同。
 * `%` 匹配任意数量的字符, 也包括0数量字符, `\%` 匹配一个 `%` 字符.
 * `_` 只匹配一个字符, `\_` 匹配一个 `_` 字符.
 

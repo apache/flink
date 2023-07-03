@@ -16,16 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.operations.utils;
+package org.apache.flink.table.operations;
 
-/** Like types utils. */
-public enum OperationLikeType {
-    /** sql like pattern, case sensitive. */
+/** Like types enums. */
+public enum LikeType {
+    /** case-sensitive to match a pattern. */
     LIKE,
-    /** sql like pattern, case insensitive. */
+    /** case-insensitive to match a pattern. */
     ILIKE;
 
-    public static OperationLikeType of(String type) {
-        return OperationLikeType.valueOf(type.toUpperCase());
+    public static LikeType of(String type) {
+        return LikeType.valueOf(type.toUpperCase());
     }
 }

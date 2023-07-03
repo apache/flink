@@ -468,20 +468,21 @@ SqlShowFunctions SqlShowFunctions() :
             }
         ]
         (
-            <LIKE>  <QUOTED_STRING>
+            <LIKE>
             {
                 likeType = "LIKE";
-                String likeCondition1 = SqlParserUtil.parseString(token.image);
-                likeLiteral = SqlLiteral.createCharString(likeCondition1, getPos());
             }
         |
-            <ILIKE>  <QUOTED_STRING>
+            <ILIKE>
             {
                 likeType = "ILIKE";
-                String likeCondition2 = SqlParserUtil.parseString(token.image);
-                likeLiteral = SqlLiteral.createCharString(likeCondition2, getPos());
             }
         )
+        <QUOTED_STRING>
+        {
+            String likeCondition = SqlParserUtil.parseString(token.image);
+            likeLiteral = SqlLiteral.createCharString(likeCondition, getPos());
+        }
     ]
     {
         return new SqlShowFunctions(pos, requireUser, prep, databaseName, likeType, likeLiteral, notLike);

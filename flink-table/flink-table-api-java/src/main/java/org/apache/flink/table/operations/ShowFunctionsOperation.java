@@ -21,7 +21,6 @@ package org.apache.flink.table.operations;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.SqlLikeUtils;
-import org.apache.flink.table.operations.utils.OperationLikeType;
 
 import java.util.Arrays;
 
@@ -52,7 +51,7 @@ public class ShowFunctionsOperation implements ShowOperation {
     private final String catalogName;
     private final String databaseName;
     // different like type such as like, ilike
-    private final OperationLikeType likeType;
+    private final LikeType likeType;
     private final String likePattern;
     private final boolean notLike;
 
@@ -74,7 +73,7 @@ public class ShowFunctionsOperation implements ShowOperation {
         this.catalogName = null;
         this.databaseName = null;
         if (likeType != null) {
-            this.likeType = OperationLikeType.of(likeType);
+            this.likeType = LikeType.of(likeType);
             this.likePattern = requireNonNull(likePattern, "Like pattern must not be null");
             this.notLike = notLike;
         } else {
@@ -97,7 +96,7 @@ public class ShowFunctionsOperation implements ShowOperation {
         this.catalogName = catalogName;
         this.databaseName = databaseName;
         if (likeType != null) {
-            this.likeType = OperationLikeType.of(likeType);
+            this.likeType = LikeType.of(likeType);
             this.likePattern = requireNonNull(likePattern, "Like pattern must not be null");
             this.notLike = notLike;
         } else {
@@ -133,7 +132,7 @@ public class ShowFunctionsOperation implements ShowOperation {
     }
 
     public boolean isLike() {
-        return likeType == OperationLikeType.LIKE;
+        return likeType == LikeType.LIKE;
     }
 
     public boolean isWithLike() {
@@ -189,7 +188,7 @@ public class ShowFunctionsOperation implements ShowOperation {
                     Arrays.stream(functionNames)
                             .filter(
                                     row -> {
-                                        if (likeType == OperationLikeType.ILIKE) {
+                                        if (likeType == LikeType.ILIKE) {
                                             return isNotLike()
                                                     != SqlLikeUtils.ilike(row, likePattern, "\\");
                                         } else {

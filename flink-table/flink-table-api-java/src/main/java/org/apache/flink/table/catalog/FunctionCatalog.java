@@ -324,18 +324,8 @@ public final class FunctionCatalog {
      * functions and catalog functions in the current catalog and current database.
      */
     public String[] getFunctions() {
-        Set<String> result =
-                getUserDefinedFunctions(
-                                catalogManager.getCurrentCatalog(),
-                                catalogManager.getCurrentDatabase())
-                        .stream()
-                        .map(FunctionIdentifier::getFunctionName)
-                        .collect(Collectors.toSet());
-
-        // add system functions
-        result.addAll(moduleManager.listFunctions());
-
-        return result.toArray(new String[0]);
+        return getFunctions(
+                catalogManager.getCurrentCatalog(), catalogManager.getCurrentDatabase());
     }
 
     /**
