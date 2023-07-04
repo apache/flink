@@ -18,9 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.file;
 
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.partition.BufferReaderWriterUtil;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageIdMappingUtils;
@@ -32,11 +29,11 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageTestUtils.generateBuffersToWrite;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ProducerMergedPartitionFileWriter}. */
@@ -93,28 +90,5 @@ class ProducerMergedPartitionFileWriterTest {
                         new File(tempFolder.toFile(), "testFile1").toPath(), partitionFileIndex);
         partitionFileWriter.release();
         assertThat(isReleased).isTrue();
-    }
-
-    private static List<PartitionFileWriter.SubpartitionBufferContext> generateBuffersToWrite(
-            int numSubpartitions, int numSegments, int numBuffersPerSegment, int bufferSizeBytes) {
-        List<PartitionFileWriter.SubpartitionBufferContext> subpartitionBuffers = new ArrayList<>();
-        for (int i = 0; i < numSubpartitions; i++) {
-            List<PartitionFileWriter.SegmentBufferContext> segmentBufferContexts =
-                    new ArrayList<>();
-            for (int j = 0; j < numSegments; j++) {
-                List<Tuple2<Buffer, Integer>> bufferAndIndexes = new ArrayList<>();
-                for (int k = 0; k < numBuffersPerSegment; k++) {
-                    bufferAndIndexes.add(
-                            new Tuple2<>(
-                                    BufferBuilderTestUtils.buildSomeBuffer(bufferSizeBytes), k));
-                }
-                segmentBufferContexts.add(
-                        new PartitionFileWriter.SegmentBufferContext(j, bufferAndIndexes, false));
-            }
-
-            subpartitionBuffers.add(
-                    new PartitionFileWriter.SubpartitionBufferContext(i, segmentBufferContexts));
-        }
-        return subpartitionBuffers;
     }
 }
