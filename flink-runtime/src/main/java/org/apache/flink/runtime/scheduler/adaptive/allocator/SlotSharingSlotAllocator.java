@@ -207,7 +207,7 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
             // the minimum requirement of other groups); so we only need to distribute the remaining
             // "optional" slots while only accounting for the requirements beyond the minimum
 
-            // the number of slots we can use beyond the minimum
+            // the number of slots this group can use beyond the minimum
             final int maxOptionalSlots =
                     maxParallelismForSlotSharingGroups.get(slotSharingGroup) - minParallelism;
             // the number of slots that are not implicitly reserved for minimum requirements
