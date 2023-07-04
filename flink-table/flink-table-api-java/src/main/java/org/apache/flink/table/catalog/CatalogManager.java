@@ -422,6 +422,27 @@ public final class CatalogManager implements CatalogRegistry {
     }
 
     /**
+     * Retrieves a fully qualified table with a specific time. If the path is not yet fully
+     * qualified use {@link #qualifyIdentifier(UnresolvedIdentifier)} first.
+     *
+     * @param objectIdentifier full path of the table to retrieve
+     * @param timestamp Timestamp of the table snapshot, which is milliseconds since 1970-01-01
+     *     00:00:00 UTC
+     * @return table at a specific time that the path points to.
+     */
+    public Optional<ContextResolvedTable> getTable(
+            ObjectIdentifier objectIdentifier, long timestamp) {
+        CatalogBaseTable temporaryTable = temporaryTables.get(objectIdentifier);
+        if (temporaryTable != null) {
+            final ResolvedCatalogBaseTable<?> resolvedTable =
+                    resolveCatalogBaseTable(temporaryTable);
+            return Optional.of(ContextResolvedTable.temporary(objectIdentifier, resolvedTable));
+        } else {
+            return getPermanentTable(objectIdentifier, timestamp);
+        }
+    }
+
+    /**
      * Retrieves a fully qualified table. If the path is not yet fully qualified use {@link
      * #qualifyIdentifier(UnresolvedIdentifier)} first.
      *
@@ -489,6 +510,24 @@ public final class CatalogManager implements CatalogRegistry {
         if (currentCatalog != null) {
             try {
                 final CatalogBaseTable table = currentCatalog.getTable(objectPath);
+                final ResolvedCatalogBaseTable<?> resolvedTable = resolveCatalogBaseTable(table);
+                return Optional.of(
+                        ContextResolvedTable.permanent(
+                                objectIdentifier, currentCatalog, resolvedTable));
+            } catch (TableNotExistException e) {
+                // Ignore.
+            }
+        }
+        return Optional.empty();
+    }
+
+    private Optional<ContextResolvedTable> getPermanentTable(
+            ObjectIdentifier objectIdentifier, long timestamp) {
+        Catalog currentCatalog = catalogs.get(objectIdentifier.getCatalogName());
+        ObjectPath objectPath = objectIdentifier.toObjectPath();
+        if (currentCatalog != null) {
+            try {
+                final CatalogBaseTable table = currentCatalog.getTable(objectPath, timestamp);
                 final ResolvedCatalogBaseTable<?> resolvedTable = resolveCatalogBaseTable(table);
                 return Optional.of(
                         ContextResolvedTable.permanent(
