@@ -1559,6 +1559,18 @@ class Expression(Generic[T]):
         return _unary_op("mapKeys")(self)
 
     @property
+    def map_union(self, map2) -> 'Expression':
+        """
+        Returns a map created by merging two maps, 'map1' and 'map2'.
+        These two maps should have same data structure. If there are overlapping keys,
+        the value from 'map2' will overwrite the value from 'map1'.
+        If any of maps is null, return null.
+
+        .. seealso:: :py:attr:`~Expression.map_union`
+        """
+        return _binary_op("mapUnion")(self, map2)
+
+    @property
     def map_values(self) -> 'Expression':
         """
         Returns the values of the map as an array. No order guaranteed.

@@ -27,6 +27,7 @@ import org.apache.flink.table.types.inference.strategies.ArrayComparableElementT
 import org.apache.flink.table.types.inference.strategies.CommonArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.CommonArrayInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.CommonInputTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.CommonMapInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ComparableTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.CompositeArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ConstraintArgumentTypeStrategy;
@@ -367,6 +368,14 @@ public final class InputTypeStrategies {
 
     public static InputTypeStrategy arrayFullyComparableElementType() {
         return new ArrayComparableElementTypeStrategy(StructuredComparison.FULL);
+    }
+
+    /**
+     * An {@link InputTypeStrategy} that expects {@code count} arguments that have a common map
+     * type.
+     */
+    public static InputTypeStrategy commonMapType(int count) {
+        return new CommonMapInputTypeStrategy(ConstantArgumentCount.of(count));
     }
 
     // --------------------------------------------------------------------------------------------

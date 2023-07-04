@@ -236,6 +236,7 @@ advanced type helper functions
     Expression.array_union
     Expression.map_entries
     Expression.map_keys
+    Expression.map_union
     Expression.map_values
 
 
