@@ -356,6 +356,18 @@ class Catalog(object):
         """
         return list(self._j_catalog.listFunctions(database_name))
 
+    def list_procedures(self, database_name: str) -> List[str]:
+        """
+        List the names of all procedures in the given database. An empty list is returned if none is
+        registered.
+
+        :param database_name: Name of the database.
+        :return: A list of the names of the procedures in this database.
+        :raise: CatalogException in case of any runtime exception.
+                DatabaseNotExistException if the database does not exist.
+        """
+        return list(self._j_catalog.listProcedures(database_name))
+
     def get_function(self, function_path: 'ObjectPath') -> 'CatalogFunction':
         """
         Get the function.
