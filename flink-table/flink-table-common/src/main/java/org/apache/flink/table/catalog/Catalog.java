@@ -245,6 +245,24 @@ public interface Catalog {
     CatalogBaseTable getTable(ObjectPath tablePath) throws TableNotExistException, CatalogException;
 
     /**
+     * Returns a {@link CatalogTable} or {@link CatalogView} at a specific time identified by the
+     * given {@link ObjectPath}. The framework will resolve the metadata objects when necessary.
+     *
+     * @param tablePath Path of the table or view
+     * @param timestamp Timestamp of the table snapshot, which is milliseconds since 1970-01-01
+     *     00:00:00 UTC
+     * @return The requested table or view
+     * @throws TableNotExistException if the target does not exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    default CatalogBaseTable getTable(ObjectPath tablePath, long timestamp)
+            throws TableNotExistException, CatalogException {
+        throw new UnsupportedOperationException(
+                String.format(
+                        "getTable(ObjectPath, long) is not implemented for %s.", this.getClass()));
+    }
+
+    /**
      * Check if a table or view exists in this catalog.
      *
      * @param tablePath Path of the table or view
