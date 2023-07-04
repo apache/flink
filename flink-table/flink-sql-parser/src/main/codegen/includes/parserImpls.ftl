@@ -1423,7 +1423,7 @@ SqlDrop SqlDropTable(Span s, boolean replace, boolean isTemporary) :
 }
 
 /**
-* Parsers a REPLACE TABLE AS statement
+* Parser a REPLACE TABLE AS statement
 */
 SqlNode SqlReplaceTable() :
 {
