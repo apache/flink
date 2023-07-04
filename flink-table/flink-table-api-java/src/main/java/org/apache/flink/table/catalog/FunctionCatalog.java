@@ -47,8 +47,13 @@ import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
+import javax.annotation.Nullable;
+
+import java.io.IOException;
+import java.net.URLClassLoader;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -135,8 +140,15 @@ public final class FunctionCatalog {
                             "Could not drop temporary system function. A function named '%s' doesn't exist.",
                             name));
         }
+        unregisterFunctionJarResources(function);
 
         return function != null;
+    }
+
+    private void unregisterFunctionJarResources(@Nullable CatalogFunction function) {
+        if (function != null && function.getFunctionLanguage() == FunctionLanguage.JAVA) {
+            resourceManager.unregisterFunctionResources(function.getFunctionResources());
+        }
     }
 
     /** Registers a temporary catalog function. */
@@ -523,6 +535,7 @@ public final class FunctionCatalog {
                     .getTemporaryOperationListener(normalizedName)
                     .ifPresent(l -> l.onDropTemporaryFunction(normalizedName.toObjectPath()));
             tempCatalogFunctions.remove(normalizedName);
+            unregisterFunctionJarResources(fd);
         } else if (!ignoreIfNotExist) {
             throw new ValidationException(
                     String.format("Temporary catalog function %s doesn't exist", identifier));
@@ -614,6 +627,8 @@ public final class FunctionCatalog {
         CatalogFunction potentialResult = tempCatalogFunctions.get(normalizedIdentifier);
 
         if (potentialResult != null) {
+            registerFunctionJarResources(
+                    oi.asSummaryString(), potentialResult.getFunctionResources());
             return Optional.of(
                     ContextResolvedFunction.temporary(
                             FunctionIdentifier.of(oi),
@@ -664,11 +679,12 @@ public final class FunctionCatalog {
 
         String normalizedName = FunctionIdentifier.normalizeName(funcName);
         if (tempSystemFunctions.containsKey(normalizedName)) {
+            CatalogFunction function = tempSystemFunctions.get(normalizedName);
+            registerFunctionJarResources(funcName, function.getFunctionResources());
             return Optional.of(
                     ContextResolvedFunction.temporary(
                             FunctionIdentifier.of(funcName),
-                            getFunctionDefinition(
-                                    normalizedName, tempSystemFunctions.get(normalizedName))));
+                            getFunctionDefinition(normalizedName, function)));
         }
 
         Optional<FunctionDefinition> candidate =
@@ -685,7 +701,7 @@ public final class FunctionCatalog {
 
     @SuppressWarnings("unchecked")
     private void validateAndPrepareFunction(String name, CatalogFunction function)
-            throws ClassNotFoundException {
+            throws ClassNotFoundException, IOException {
         // If the input is instance of UserDefinedFunction, it means it uses the new type inference.
         // In this situation the UDF have not been validated and cleaned, so we need to validate it
         // and clean its closure here.
@@ -701,13 +717,30 @@ public final class FunctionCatalog {
         } else if (function.getFunctionLanguage() == FunctionLanguage.JAVA) {
             // If the jar resource of UDF used is not empty, register it to classloader before
             // validate.
-            registerFunctionJarResources(name, function.getFunctionResources());
+            List<ResourceUri> resourceUris = function.getFunctionResources();
+            try {
+                if (!resourceUris.isEmpty()) {
+                    resourceManager.declareFunctionResources(
+                            new HashSet<>(function.getFunctionResources()));
+                }
+            } catch (Exception e) {
+                throw new TableException(
+                        String.format(
+                                "Failed to register function jar resource '%s' of function '%s'.",
+                                resourceUris, name),
+                        e);
+            }
 
-            UserDefinedFunctionHelper.validateClass(
-                    (Class<? extends UserDefinedFunction>)
-                            resourceManager
-                                    .getUserClassLoader()
-                                    .loadClass(function.getClassName()));
+            URLClassLoader classLoader = resourceManager.createUserClassLoader(resourceUris);
+            try {
+                UserDefinedFunctionHelper.validateClass(
+                        (Class<? extends UserDefinedFunction>)
+                                classLoader.loadClass(function.getClassName()));
+            } finally {
+                if (!resourceUris.isEmpty()) {
+                    classLoader.close();
+                }
+            }
         }
     }
 
