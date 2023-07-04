@@ -255,14 +255,6 @@ under the License.
 		<dependencies>
 			<dependency>
 				<!-- dependency convergence -->
-				<groupId>commons-beanutils</groupId>
-				<artifactId>commons-beanutils</artifactId>
-				<!-- Beanutils 1.9.+ doesn't work with Hadoop 2 -->
-				<version>1.8.3</version>
-				<scope>test</scope>
-			</dependency>
-			<dependency>
-				<!-- dependency convergence -->
 				<groupId>org.codehaus.woodstox</groupId>
 				<artifactId>stax2-api</artifactId>
 				<version>4.2.1</version>
