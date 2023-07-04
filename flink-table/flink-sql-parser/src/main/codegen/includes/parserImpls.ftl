@@ -1336,17 +1336,32 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
         <AS>
         asQuery = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
         {
-            return new SqlCreateTableAs(startPos.plus(getPos()),
-                tableName,
-                columnList,
-                constraints,
-                propertyList,
-                partitionColumns,
-                watermark,
-                comment,
-                asQuery,
-                isTemporary,
-                ifNotExists);
+            if (replace) {
+                return new SqlReplaceTableAs(startPos.plus(getPos()),
+                    tableName,
+                    columnList,
+                    constraints,
+                    propertyList,
+                    partitionColumns,
+                    watermark,
+                    comment,
+                    asQuery,
+                    isTemporary,
+                    ifNotExists,
+                    true);
+            } else {
+                return new SqlCreateTableAs(startPos.plus(getPos()),
+                    tableName,
+                    columnList,
+                    constraints,
+                    propertyList,
+                    partitionColumns,
+                    watermark,
+                    comment,
+                    asQuery,
+                    isTemporary,
+                    ifNotExists);
+            }
         }
     ]
     {
@@ -1438,6 +1453,77 @@ SqlDrop SqlDropTable(Span s, boolean replace, boolean isTemporary) :
 
     {
          return new SqlDropTable(s.pos(), tableName, ifExists, isTemporary);
+    }
+}
+
+/**
+* Parser a REPLACE TABLE AS statement
+*/
+SqlNode SqlReplaceTable() :
+{
+    SqlIdentifier tableName;
+    SqlCharStringLiteral comment = null;
+    SqlNode asQuery = null;
+    SqlNodeList propertyList = SqlNodeList.EMPTY;
+    SqlParserPos pos;
+    boolean isTemporary = false;
+    List<SqlTableConstraint> constraints = new ArrayList<SqlTableConstraint>();
+    SqlWatermark watermark = null;
+    SqlNodeList columnList = SqlNodeList.EMPTY;
+    SqlNodeList partitionColumns = SqlNodeList.EMPTY;
+    boolean ifNotExists = false;
+}
+{
+    <REPLACE>
+    [
+        <TEMPORARY> { isTemporary = true; }
+    ]
+    <TABLE>
+
+    ifNotExists = IfNotExistsOpt()
+
+    tableName = CompoundIdentifier()
+    [
+        <LPAREN> { pos = getPos(); TableCreationContext ctx = new TableCreationContext();}
+        TableColumn(ctx)
+        (
+            <COMMA> TableColumn(ctx)
+        )*
+        {
+            pos = getPos();
+            columnList = new SqlNodeList(ctx.columnList, pos);
+            constraints = ctx.constraints;
+            watermark = ctx.watermark;
+        }
+        <RPAREN>
+    ]
+    [ <COMMENT> <QUOTED_STRING> {
+        String p = SqlParserUtil.parseString(token.image);
+        comment = SqlLiteral.createCharString(p, getPos());
+    }]
+    [
+        <PARTITIONED> <BY>
+        partitionColumns = ParenthesizedSimpleIdentifierList()
+    ]
+    [
+        <WITH>
+        propertyList = TableProperties()
+    ]
+    <AS>
+    asQuery = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
+    {
+        return new SqlReplaceTableAs(getPos(),
+            tableName,
+            columnList,
+            constraints,
+            propertyList,
+            partitionColumns,
+            watermark,
+            comment,
+            asQuery,
+            isTemporary,
+            ifNotExists,
+            false);
     }
 }
 

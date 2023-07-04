@@ -2525,6 +2525,117 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testReplaceTableAsSelect() {
+        // test replace table as select without options
+        sql("REPLACE TABLE t AS SELECT * FROM b").ok("REPLACE TABLE `T`\nAS\nSELECT *\nFROM `B`");
+
+        // test replace table as select with options
+        sql("REPLACE TABLE t WITH ('test' = 'zm') AS SELECT * FROM b")
+                .ok("REPLACE TABLE `T` WITH (\n  'test' = 'zm'\n)\nAS\nSELECT *\nFROM `B`");
+
+        // test replace table as select with tmp table
+        sql("REPLACE TEMPORARY TABLE t (col1 string) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(
+                        new ValidationMatcher()
+                                .fails(
+                                        "REPLACE TABLE AS SELECT syntax does not support temporary table yet."));
+
+        // test replace table as select with explicit columns
+        sql("REPLACE TABLE t (col1 string) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(
+                        new ValidationMatcher()
+                                .fails(
+                                        "REPLACE TABLE AS SELECT syntax does not support to specify explicit columns yet."));
+
+        // test replace table as select with watermark
+        sql("REPLACE TABLE t (watermark FOR ts AS ts - interval '3' second) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(
+                        new ValidationMatcher()
+                                .fails(
+                                        "REPLACE TABLE AS SELECT syntax does not support to specify explicit watermark yet."));
+
+        // test replace table as select with constraints
+        sql("REPLACE TABLE t (PRIMARY KEY (col1)) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(
+                        new ValidationMatcher()
+                                .fails(
+                                        "Flink doesn't support ENFORCED mode for PRIMARY KEY constraint. ENFORCED/NOT ENFORCED controls "
+                                                + "if the constraint checks are performed on the incoming/outgoing data. "
+                                                + "Flink does not own the data therefore the only supported mode is the NOT ENFORCED mode"));
+
+        sql("REPLACE TABLE t (PRIMARY KEY (col1), PRIMARY KEY (col2) NOT ENFORCED) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(new ValidationMatcher().fails("Duplicate primary key definition"));
+
+        sql("REPLACE TABLE t (UNIQUE (col1)) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(new ValidationMatcher().fails("UNIQUE constraint is not supported yet"));
+
+        // test replace table as select with partition key
+        sql("REPLACE TABLE t PARTITIONED BY(col1) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(
+                        new ValidationMatcher()
+                                .fails(
+                                        "REPLACE TABLE AS SELECT syntax does not support to create partitioned table yet."));
+    }
+
+    @Test
+    void testCreateOrReplaceTableAsSelect() {
+        // test create or replace table as select without options
+        sql("CREATE OR REPLACE TABLE t AS SELECT * FROM b")
+                .ok("CREATE OR REPLACE TABLE `T`\nAS\nSELECT *\nFROM `B`");
+
+        // test create or replace table as select with options
+        sql("CREATE OR REPLACE TABLE t WITH ('test' = 'zm') AS SELECT * FROM b")
+                .ok(
+                        "CREATE OR REPLACE TABLE `T` WITH (\n  'test' = 'zm'\n)\nAS\nSELECT *\nFROM `B`");
+
+        // test create or replace table as select with create table like
+        sql("CREATE OR REPLACE TABLE t (col1 string) WITH ('test' = 'zm') like b ^AS^ SELECT col1 FROM b")
+                .fails("(?s).*Encountered \"AS\" at line 1, column 69.*");
+
+        // test create or replace table as select with tmp table
+        sql("CREATE OR REPLACE TEMPORARY TABLE t (col1 string) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(
+                        new ValidationMatcher()
+                                .fails(
+                                        "CREATE OR REPLACE TABLE AS SELECT syntax does not support temporary table yet."));
+
+        // test create or replace table as select with explicit columns
+        sql("CREATE OR REPLACE TABLE t (col1 string) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(
+                        new ValidationMatcher()
+                                .fails(
+                                        "CREATE OR REPLACE TABLE AS SELECT syntax does not support to specify explicit columns yet."));
+
+        // test create or replace table as select with watermark
+        sql("CREATE OR REPLACE TABLE t (watermark FOR ts AS ts - interval '3' second) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(
+                        new ValidationMatcher()
+                                .fails(
+                                        "CREATE OR REPLACE TABLE AS SELECT syntax does not support to specify explicit watermark yet."));
+        // test create or replace table as select with constraints
+        sql("CREATE OR REPLACE TABLE t (PRIMARY KEY (col1)) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(
+                        new ValidationMatcher()
+                                .fails(
+                                        "Flink doesn't support ENFORCED mode for PRIMARY KEY constraint. ENFORCED/NOT ENFORCED controls "
+                                                + "if the constraint checks are performed on the incoming/outgoing data. "
+                                                + "Flink does not own the data therefore the only supported mode is the NOT ENFORCED mode"));
+
+        sql("CREATE OR REPLACE TABLE t (PRIMARY KEY (col1), PRIMARY KEY (col2) NOT ENFORCED) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(new ValidationMatcher().fails("Duplicate primary key definition"));
+
+        sql("CREATE OR REPLACE TABLE t (UNIQUE (col1)) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(new ValidationMatcher().fails("UNIQUE constraint is not supported yet"));
+
+        // test create or replace table as select with partition key
+        sql("CREATE OR REPLACE TABLE t PARTITIONED BY(col1) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(
+                        new ValidationMatcher()
+                                .fails(
+                                        "CREATE OR REPLACE TABLE AS SELECT syntax does not support to create partitioned table yet."));
+    }
+
+    @Test
     void testShowJobs() {
         sql("show jobs").ok("SHOW JOBS");
     }
