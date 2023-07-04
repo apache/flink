@@ -604,7 +604,7 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
                             sourceInputConfig,
                             userCodeClassloader,
                             getFinishedOnRestoreInputOrDefault(operatorInputs.get(inputId)),
-                            multipleInputOperator.getMetricGroup(),
+                            multipleInputOperator,
                             outputTag);
 
             SourceOperator<?, ?> sourceOperator =
@@ -671,21 +671,38 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
             StreamConfig sourceInputConfig,
             ClassLoader userCodeClassloader,
             Input input,
-            OperatorMetricGroup metricGroup,
+            MultipleInputStreamOperator<?> multipleInputStreamOperator,
             OutputTag outputTag) {
 
         Counter recordsOutCounter = getOperatorRecordsOutCounter(containingTask, sourceInputConfig);
+        StreamOperatorFactory<?> operatorFactory =
+                sourceInputConfig.getStreamOperatorFactory(userCodeClassloader);
 
         WatermarkGaugeExposingOutput<StreamRecord> chainedSourceOutput;
+        final OperatorMetricGroup metricGroup = multipleInputStreamOperator.getMetricGroup();
         if (containingTask.getExecutionConfig().isObjectReuseEnabled()) {
             chainedSourceOutput =
                     new ChainingOutput(input, recordsOutCounter, metricGroup, outputTag);
         } else {
-            TypeSerializer<?> inSerializer =
-                    sourceInputConfig.getTypeSerializerOut(userCodeClassloader);
-            chainedSourceOutput =
-                    new CopyingChainingOutput(
-                            input, inSerializer, recordsOutCounter, metricGroup, outputTag);
+            if (operatorFactory != null
+                    && operatorFactory.getOperatorAttributes().isOutputStreamRecordValueStored()) {
+                TypeSerializer<?> inSerializer =
+                        sourceInputConfig.getTypeSerializerOut(userCodeClassloader);
+                chainedSourceOutput =
+                        new CopyingChainingOutput<>(
+                                input, inSerializer, recordsOutCounter, metricGroup, outputTag);
+            } else {
+                if (multipleInputStreamOperator
+                        .getOperatorAttributes()
+                        .isInputStreamRecordStored()) {
+                    chainedSourceOutput =
+                            new ShallowCopyingChainingOutput<>(
+                                    input, recordsOutCounter, metricGroup, outputTag);
+                } else {
+                    chainedSourceOutput =
+                            new ChainingOutput<>(input, recordsOutCounter, metricGroup, outputTag);
+                }
+            }
         }
         /**
          * Chained sources are closed when {@link
@@ -741,7 +758,8 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
         }
 
         WatermarkGaugeExposingOutput<StreamRecord<T>> result;
-
+        final StreamOperatorFactory<?> operatorFactory =
+                operatorConfig.getStreamOperatorFactory(containingTask.getUserCodeClassLoader());
         if (allOutputs.size() == 1) {
             result = allOutputs.get(0);
             // only if this is a single RecordWriterOutput, reuse its numRecordOut for task.
@@ -763,7 +781,11 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
             // If the chaining output does not copy we need to copy in the broadcast output,
             // otherwise multi-chaining would not work correctly.
             Counter numRecordsOutForTask = createNumRecordsOutCounter(containingTask);
-            if (containingTask.getExecutionConfig().isObjectReuseEnabled()) {
+            if (containingTask.getExecutionConfig().isObjectReuseEnabled()
+                    || (operatorFactory != null
+                            && !operatorFactory
+                                    .getOperatorAttributes()
+                                    .isOutputStreamRecordValueStored())) {
                 result =
                         closer.register(
                                 new CopyingBroadcastingOutputCollector<>(
@@ -896,21 +918,44 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
             recordsOutCounter = getOperatorRecordsOutCounter(containingTask, prevOperatorConfig);
         }
 
+        final StreamOperatorFactory<?> prevOperatorFactory =
+                prevOperatorConfig.getStreamOperatorFactory(
+                        containingTask.getUserCodeClassLoader());
+
         WatermarkGaugeExposingOutput<StreamRecord<IN>> currentOperatorOutput;
         if (containingTask.getExecutionConfig().isObjectReuseEnabled()) {
             currentOperatorOutput =
                     new ChainingOutput<>(
                             operator, recordsOutCounter, operator.getMetricGroup(), outputTag);
         } else {
-            TypeSerializer<IN> inSerializer =
-                    operatorConfig.getTypeSerializerIn1(userCodeClassloader);
-            currentOperatorOutput =
-                    new CopyingChainingOutput<>(
-                            operator,
-                            inSerializer,
-                            recordsOutCounter,
-                            operator.getMetricGroup(),
-                            outputTag);
+            if (prevOperatorFactory != null
+                    && prevOperatorFactory
+                            .getOperatorAttributes()
+                            .isOutputStreamRecordValueStored()) {
+                currentOperatorOutput =
+                        new CopyingChainingOutput<>(
+                                operator,
+                                operatorConfig.getTypeSerializerIn1(userCodeClassloader),
+                                recordsOutCounter,
+                                operator.getMetricGroup(),
+                                outputTag);
+            } else {
+                if (operator.getOperatorAttributes().isInputStreamRecordStored()) {
+                    currentOperatorOutput =
+                            new ShallowCopyingChainingOutput<>(
+                                    operator,
+                                    recordsOutCounter,
+                                    operator.getMetricGroup(),
+                                    outputTag);
+                } else {
+                    currentOperatorOutput =
+                            new ChainingOutput<>(
+                                    operator,
+                                    recordsOutCounter,
+                                    operator.getMetricGroup(),
+                                    outputTag);
+                }
+            }
         }
 
         // wrap watermark gauges since registered metrics must be unique

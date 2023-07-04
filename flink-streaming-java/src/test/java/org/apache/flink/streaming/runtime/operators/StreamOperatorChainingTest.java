@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriterDelegate;
@@ -32,8 +33,14 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.OperatorAttributes;
+import org.apache.flink.streaming.api.operators.OperatorAttributesBuilder;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
@@ -50,8 +57,14 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 
@@ -118,7 +131,7 @@ public class StreamOperatorChainingTest {
         // be build our own StreamTask and OperatorChain
         JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
-        Assert.assertTrue(jobGraph.getVerticesSortedTopologicallyFromSources().size() == 2);
+        Assert.assertEquals(2, jobGraph.getVerticesSortedTopologicallyFromSources().size());
 
         JobVertex chainedVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
 
@@ -129,7 +142,8 @@ public class StreamOperatorChainingTest {
         StreamMap<Integer, Integer> headOperator =
                 streamConfig.getStreamOperator(Thread.currentThread().getContextClassLoader());
 
-        try (MockEnvironment environment = createMockEnvironment(chainedVertex.getName())) {
+        try (MockEnvironment environment =
+                createMockEnvironment(chainedVertex.getName(), env.getConfig())) {
             StreamTask<Integer, StreamMap<Integer, Integer>> mockTask =
                     createMockTask(streamConfig, environment);
             OperatorChain<Integer, StreamMap<Integer, Integer>> operatorChain =
@@ -148,9 +162,11 @@ public class StreamOperatorChainingTest {
         }
     }
 
-    private MockEnvironment createMockEnvironment(String taskName) {
+    private MockEnvironment createMockEnvironment(
+            String taskName, ExecutionConfig executionConfig) {
         return new MockEnvironmentBuilder()
                 .setTaskName(taskName)
+                .setExecutionConfig(executionConfig)
                 .setManagedMemorySize(3 * 1024 * 1024)
                 .setInputSplitProvider(new MockInputSplitProvider())
                 .setBufferSize(1024)
@@ -244,7 +260,7 @@ public class StreamOperatorChainingTest {
         // be build our own StreamTask and OperatorChain
         JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
-        Assert.assertTrue(jobGraph.getVerticesSortedTopologicallyFromSources().size() == 2);
+        Assert.assertEquals(2, jobGraph.getVerticesSortedTopologicallyFromSources().size());
 
         JobVertex chainedVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
 
@@ -255,7 +271,8 @@ public class StreamOperatorChainingTest {
         StreamMap<Integer, Integer> headOperator =
                 streamConfig.getStreamOperator(Thread.currentThread().getContextClassLoader());
 
-        try (MockEnvironment environment = createMockEnvironment(chainedVertex.getName())) {
+        try (MockEnvironment environment =
+                createMockEnvironment(chainedVertex.getName(), env.getConfig())) {
             StreamTask<Integer, StreamMap<Integer, Integer>> mockTask =
                     createMockTask(streamConfig, environment);
             OperatorChain<Integer, StreamMap<Integer, Integer>> operatorChain =
@@ -287,7 +304,7 @@ public class StreamOperatorChainingTest {
         //noinspection unchecked
         return new MockStreamTaskBuilder(environment)
                 .setConfig(streamConfig)
-                .setExecutionConfig(new ExecutionConfig().enableObjectReuse())
+                .setExecutionConfig(environment.getExecutionConfig())
                 .build();
     }
 
@@ -307,6 +324,192 @@ public class StreamOperatorChainingTest {
                 StreamOperator<?> operator = operatorWrapper.getStreamOperator();
                 operator.open();
             }
+        }
+    }
+
+    @Test
+    public void testChainOperatorObjectReuseCompliant() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+        // set parallelism to 2 to avoid chaining with source in case when available processors is
+        // 1.
+        env.setParallelism(2);
+
+        // the actual elements will not be used
+        DataStream<Record> input = env.fromElements(Record.of("a"));
+
+        // op1 -object-reuse-> op2 -deep-copy-> op3
+        final TestOperator op1 = new TestOperator("op1", false);
+        input = input.transform("op1", Types.POJO(Record.class), op1);
+        final TestOperator op2 = new TestOperator("op2", true);
+        input = input.transform("op2", Types.POJO(Record.class), op2);
+        final TestOperator op3 = new TestOperator("op3", false);
+        input = input.transform("op3", Types.POJO(Record.class), op3);
+
+        input.addSink(new DiscardingSink<>());
+
+        List<Record> inputs = Arrays.asList(Record.of("a"), Record.of("b"));
+        runJob(env, inputs);
+
+        assertThat(op1.getInputs().stream().map(r -> r.value).collect(Collectors.toList()))
+                .containsExactly("a", "b");
+        assertThat(op1.getOutputs()).containsExactlyElementsOf(op2.getInputs());
+        assertThat(op2.getInputs().stream().map(r -> r.value).collect(Collectors.toList()))
+                .containsExactly("a-op1", "b-op1");
+        assertThat(op2.getOutputs()).doesNotContainAnyElementsOf(op3.getInputs());
+        assertThat(op3.getInputs().stream().map(r -> r.value).collect(Collectors.toList()))
+                .containsExactly("a-op1-op2", "b-op1-op2");
+    }
+
+    @Test
+    public void testMultiChainOperatorObjectReuseCompliant() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+        // set parallelism to 2 to avoid chaining with source in case when available processors is
+        // 1.
+        env.setParallelism(2);
+
+        // the actual elements will not be used
+        DataStream<Record> input = env.fromElements(Record.of("a"));
+
+        // op1 -object-reuse-> op2
+        //     -object-reuse-> op3 -deep-copy-> op4
+        //                         -deep-copy-> op5
+        final TestOperator op1 = new TestOperator("op1", false);
+        input = input.transform("op1", Types.POJO(Record.class), op1);
+        final TestOperator op2 = new TestOperator("op2", false);
+        input.transform("op2", Types.POJO(Record.class), op2).addSink(new DiscardingSink<>());
+        final TestOperator op3 = new TestOperator("op3", true);
+        input = input.transform("op3", Types.POJO(Record.class), op3);
+        final TestOperator op4 = new TestOperator("op4", false);
+        input.transform("op4", Types.POJO(Record.class), op4).addSink(new DiscardingSink<>());
+        final TestOperator op5 = new TestOperator("op5", false);
+        input.transform("op5", Types.POJO(Record.class), op5).addSink(new DiscardingSink<>());
+
+        List<Record> inputs = Arrays.asList(Record.of("a"), Record.of("b"));
+        runJob(env, inputs);
+
+        assertThat(op1.getInputs().stream().map(r -> r.value).collect(Collectors.toList()))
+                .containsExactly("a", "b");
+        assertThat(op1.getOutputs()).containsExactlyElementsOf(op2.getInputs());
+        assertThat(op2.getInputs()).containsExactlyElementsOf(op3.getInputs());
+        assertThat(op2.getInputs().stream().map(r -> r.value).collect(Collectors.toList()))
+                .containsExactly("a-op1", "b-op1");
+
+        assertThat(op3.getOutputs()).doesNotContainAnyElementsOf(op4.getInputs());
+        assertThat(op3.getOutputs()).doesNotContainAnyElementsOf(op5.getInputs());
+        assertThat(op4.getInputs()).doesNotContainAnyElementsOf(op5.getInputs());
+        assertThat(op4.getInputs().stream().map(r -> r.value).collect(Collectors.toList()))
+                .containsExactly("a-op1-op3", "b-op1-op3");
+        assertThat(op5.getInputs().stream().map(r -> r.value).collect(Collectors.toList()))
+                .containsExactly("a-op1-op3", "b-op1-op3");
+    }
+
+    private void runJob(StreamExecutionEnvironment env, List<Record> inputs) throws Exception {
+        final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+        Assert.assertEquals(2, jobGraph.getVerticesSortedTopologicallyFromSources().size());
+
+        JobVertex chainedVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
+
+        Configuration configuration = chainedVertex.getConfiguration();
+
+        StreamConfig streamConfig = new StreamConfig(configuration);
+
+        TestOperator headOperator =
+                streamConfig.getStreamOperator(Thread.currentThread().getContextClassLoader());
+
+        try (MockEnvironment environment =
+                createMockEnvironment(chainedVertex.getName(), env.getConfig())) {
+            StreamTask<Record, TestOperator> mockTask = createMockTask(streamConfig, environment);
+            OperatorChain<Record, TestOperator> operatorChain =
+                    createOperatorChain(streamConfig, environment, mockTask);
+
+            headOperator.setup(mockTask, streamConfig, operatorChain.getMainOperatorOutput());
+
+            operatorChain.initializeStateAndOpenOperators(null);
+
+            for (Record input : inputs) {
+                headOperator.processElement(new StreamRecord<>(input));
+            }
+        }
+    }
+
+    private static class TestOperator extends AbstractStreamOperator<Record>
+            implements OneInputStreamOperator<Record, Record> {
+
+        private static final Map<String, List<Record>> inputsMap = new HashMap<>();
+        private static final Map<String, List<Record>> outputsMap = new HashMap<>();
+
+        private final String operatorName;
+        private final boolean outputStreamRecordValueStored;
+        private final List<OutputTag<Record>> outputTags;
+
+        public TestOperator(String operatorName, boolean outputStreamRecordValueStored) {
+            this(operatorName, outputStreamRecordValueStored, Collections.emptyList());
+        }
+
+        public TestOperator(
+                String operatorName,
+                boolean outputStreamRecordValueStored,
+                List<OutputTag<Record>> outputTags) {
+            inputsMap.put(operatorName, new ArrayList<>());
+            outputsMap.put(operatorName, new ArrayList<>());
+            this.operatorName = operatorName;
+            this.outputStreamRecordValueStored = outputStreamRecordValueStored;
+            this.outputTags = outputTags;
+            this.chainingStrategy = ChainingStrategy.ALWAYS;
+        }
+
+        @Override
+        public void processElement(StreamRecord<Record> element) throws Exception {
+            final Record input = element.getValue();
+            getInputs().add(input);
+
+            final Record output = Record.copy(input);
+            output.value += "-";
+            output.value += operatorName;
+            getOutputs().add(output);
+
+            final StreamRecord<Record> outputStreamRecord = element.copy(output);
+            this.output.collect(outputStreamRecord);
+
+            for (OutputTag<Record> outputTag : outputTags) {
+                this.output.collect(outputTag, outputStreamRecord);
+            }
+        }
+
+        public List<Record> getInputs() {
+            return inputsMap.get(operatorName);
+        }
+
+        public List<Record> getOutputs() {
+            return outputsMap.get(operatorName);
+        }
+
+        @Override
+        public OperatorAttributes getOperatorAttributes() {
+            return new OperatorAttributesBuilder()
+                    .setOutputStreamRecordValueStored(this.outputStreamRecordValueStored)
+                    .build();
+        }
+    }
+
+    /** Record class for testing. */
+    public static class Record {
+        public String value;
+
+        public Record() {}
+
+        public Record(String value) {
+            this.value = value;
+        }
+
+        public static Record of(String value) {
+            return new Record(value);
+        }
+
+        public static Record copy(Record r) {
+            return Record.of(r.value);
         }
     }
 }

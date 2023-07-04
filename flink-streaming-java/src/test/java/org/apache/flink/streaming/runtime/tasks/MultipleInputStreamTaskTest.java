@@ -209,11 +209,7 @@ public class MultipleInputStreamTaskTest {
             testHarness.endInput();
             testHarness.waitForTaskCompletion();
 
-            if (objectReuse) {
-                assertTrue(copiedElementsRef.get().isEmpty());
-            } else {
-                assertThat(copiedElementsRef.get(), containsInAnyOrder(42, 43));
-            }
+            assertTrue(copiedElementsRef.get().isEmpty());
         }
     }
 

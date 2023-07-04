@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.streaming.api.operators.Input;
@@ -26,18 +25,13 @@ import org.apache.flink.util.OutputTag;
 
 import javax.annotation.Nullable;
 
-final class CopyingChainingOutput<T> extends ChainingOutput<T> {
-
-    private final TypeSerializer<T> serializer;
-
-    public CopyingChainingOutput(
+final class ShallowCopyingChainingOutput<T> extends ChainingOutput<T> {
+    public ShallowCopyingChainingOutput(
             Input<T> input,
-            TypeSerializer<T> serializer,
-            @Nullable Counter prevRecordsOutCounter,
+            @Nullable Counter prevNumRecordsOut,
             OperatorMetricGroup curOperatorMetricGroup,
             @Nullable OutputTag<T> outputTag) {
-        super(input, prevRecordsOutCounter, curOperatorMetricGroup, outputTag);
-        this.serializer = serializer;
+        super(input, prevNumRecordsOut, curOperatorMetricGroup, outputTag);
     }
 
     @Override
@@ -50,8 +44,7 @@ final class CopyingChainingOutput<T> extends ChainingOutput<T> {
 
             numRecordsOut.inc();
             numRecordsIn.inc();
-            StreamRecord<T> copy = castRecord.copy(serializer.copy(castRecord.getValue()));
-            recordProcessor.accept(copy);
+            recordProcessor.accept(castRecord.copy(castRecord.getValue()));
         } catch (ClassCastException e) {
             if (outputTag != null) {
                 // Enrich error message

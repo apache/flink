@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.functions;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 
 /**
@@ -27,4 +28,13 @@ import org.apache.flink.annotation.Public;
  * method) interfaces that can be implemented via Java 8 lambdas.
  */
 @Public
-public interface Function extends java.io.Serializable {}
+public interface Function extends java.io.Serializable {
+    /**
+     * Returns false if it is guaranteed that the function will not store and access reference to
+     * the output value.
+     */
+    @Internal
+    default boolean isOutputValueStored() {
+        return false;
+    }
+}

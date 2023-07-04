@@ -99,6 +99,7 @@ public class AbstractUdfStreamOperatorLifecycleTest {
                     + "finish[], "
                     + "getCurrentKey[], "
                     + "getMetricGroup[], "
+                    + "getOperatorAttributes[], "
                     + "getOperatorID[], "
                     + "initializeState[interface org.apache.flink.streaming.api.operators.StreamTaskStateInitializer], "
                     + "notifyCheckpointAborted[long], "
@@ -111,7 +112,7 @@ public class AbstractUdfStreamOperatorLifecycleTest {
                     + "snapshotState[long, long, class org.apache.flink.runtime.checkpoint.CheckpointOptions, interface org.apache.flink.runtime.state.CheckpointStreamFactory]]";
 
     private static final String ALL_METHODS_RICH_FUNCTION =
-            "[close[], getIterationRuntimeContext[], getRuntimeContext[]"
+            "[close[], getIterationRuntimeContext[], getRuntimeContext[], isOutputValueStored[]"
                     + ", open[class org.apache.flink.configuration.Configuration], open[interface org.apache.flink.api.common.functions.OpenContext], setRuntimeContext[interface "
                     + "org.apache.flink.api.common.functions.RuntimeContext]]";
 

@@ -147,6 +147,14 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
         StreamingFunctionUtils.setOutputType(userFunction, outTypeInfo, executionConfig);
     }
 
+    @Override
+    public OperatorAttributes getOperatorAttributes() {
+        return new OperatorAttributesBuilder()
+                .setOutputStreamRecordValueStored(getUserFunction().isOutputValueStored())
+                .setInputStreamRecordStored(false)
+                .build();
+    }
+
     // ------------------------------------------------------------------------
     //  Utilities
     // ------------------------------------------------------------------------

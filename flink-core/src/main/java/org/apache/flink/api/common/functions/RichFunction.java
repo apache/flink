@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.functions;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
@@ -168,4 +169,15 @@ public interface RichFunction extends Function {
      * @param t The runtime context.
      */
     void setRuntimeContext(RuntimeContext t);
+
+    /**
+     * RichFunction is able to put the values to the state backend so the method returns true by
+     * default. For RichFunction that doesn't store output value to the state backend, it can return
+     * false.
+     */
+    @Internal
+    @Override
+    default boolean isOutputValueStored() {
+        return true;
+    }
 }
