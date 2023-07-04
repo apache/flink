@@ -246,7 +246,8 @@ public final class BuiltInFunctionDefinitions {
                                     Arrays.asList("haystack", "needle"),
                                     Arrays.asList(
                                             logical(LogicalTypeRoot.ARRAY), ARRAY_ELEMENT_ARG)))
-                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.INT())))
+                    .outputTypeStrategy(
+                            nullableIfArgs(ConstantArgumentCount.of(0), explicit(DataTypes.INT())))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.ArrayPositionFunction")
                     .build();

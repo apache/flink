@@ -65,17 +65,23 @@ public class ArrayPositionFunction extends BuiltInScalarFunction {
 
     public @Nullable Integer eval(ArrayData haystack, Object needle) {
         try {
-            if (haystack == null || needle == null) {
+            if (haystack == null) {
                 return null;
             }
+
+            boolean found = false;
             final int size = haystack.size();
             for (int pos = 0; pos < size; pos++) {
                 final Object element = elementGetter.getElementOrNull(haystack, pos);
-                if (element != null) {
-                    final boolean isEqual = (boolean) equalityHandle.invoke(element, needle);
-                    if (isEqual) {
-                        return Integer.valueOf(pos + 1);
-                    }
+                // handle nullability before to avoid SQL three-value logic for equality
+                // because in SQL `NULL == NULL` would return `NULL` and not `TRUE`
+                if (needle == null && element == null) {
+                    found = true;
+                } else if (needle != null && element != null) {
+                    found = (boolean) equalityHandle.invoke(element, needle);
+                }
+                if (found) {
+                    return Integer.valueOf(pos + 1);
                 }
             }
             return 0;

@@ -1491,8 +1491,8 @@ class Expression(Generic[T]):
         """
         Returns the position of the first occurrence of element in the given array as int.
 
-        Returns 0 if the given value could not be found in the array. Returns null if either of the
-        arguments are null.
+        Returns 0 if the given value could not be found in the array. If the array itself is null,
+        the function will return null.
         NOTE: that this is not zero based, but 1-based index. The first element in the array
         has index 1.
         """

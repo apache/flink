@@ -226,7 +226,7 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                     CollectionUtil.map(entry(3, "c"), entry(4, "d")),
                                 })
                         .andDataTypes(
-                                DataTypes.ARRAY(DataTypes.INT().notNull()).notNull(),
+                                DataTypes.ARRAY(DataTypes.INT()).notNull(),
                                 DataTypes.ARRAY(DataTypes.INT()),
                                 DataTypes.ARRAY(
                                         DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE())),
@@ -240,8 +240,8 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 $("f0").arrayPosition(null),
                                 "ARRAY_POSITION(f0, NULL)",
-                                null,
-                                DataTypes.INT())
+                                1,
+                                DataTypes.INT().notNull())
                         .testResult(
                                 $("f1").arrayPosition(2),
                                 "ARRAY_POSITION(f1, 2)",
