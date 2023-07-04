@@ -18,8 +18,10 @@
 
 package org.apache.flink.table.planner.functions;
 
+import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
@@ -634,7 +636,8 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                     LocalDate.of(2012, 5, 16),
                                     LocalDate.of(2092, 7, 19)
                                 },
-                                null)
+                                null,
+                                new Integer[] {1, 2})
                         .andDataTypes(
                                 DataTypes.ARRAY(DataTypes.INT()),
                                 DataTypes.ARRAY(DataTypes.INT()),
@@ -651,12 +654,21 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 DataTypes.INT().notNull(),
                                 DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())),
                                 DataTypes.ARRAY(DataTypes.DATE()),
-                                DataTypes.ARRAY(DataTypes.INT().notNull()))
+                                DataTypes.ARRAY(DataTypes.INT().notNull()),
+                                DataTypes.ARRAY(DataTypes.INT().notNull()).notNull())
                         .testResult($("f0").arrayMax(), "ARRAY_MAX(f0)", 2, DataTypes.INT())
                         .testResult($("f1").arrayMax(), "ARRAY_MAX(f1)", null, DataTypes.INT())
                         .testResult($("f2").arrayMax(), "ARRAY_MAX(f2)", 8.0, DataTypes.DOUBLE())
                         .testResult($("f3").arrayMax(), "ARRAY_MAX(f3)", "def", DataTypes.STRING())
                         .testResult($("f14").arrayMax(), "ARRAY_MAX(f14)", null, DataTypes.INT())
+                        .testResult($("f15").arrayMax(), "ARRAY_MAX(f15)", 2, DataTypes.INT())
+                        .testResult($("f15").arrayMax(), "ARRAY_MAX(f15)", 2, DataTypes.INT())
+                        .withFunction(CreateEmptyArray.class)
+                        .testResult(
+                                call("CreateEmptyArray").arrayMax(),
+                                "ARRAY_MAX(CreateEmptyArray())",
+                                null,
+                                DataTypes.INT())
                         .testResult(
                                 $("f13").arrayMax(),
                                 "ARRAY_MAX(f13)",
@@ -1031,5 +1043,11 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 "Invalid input arguments. Expected signatures are:\n"
                                         + "ARRAY_JOIN(ARRAY<STRING>, <CHARACTER_STRING>)\n"
                                         + "ARRAY_JOIN(ARRAY<STRING>, <CHARACTER_STRING>, <CHARACTER_STRING>)"));
+    }
+
+    public static class CreateEmptyArray extends ScalarFunction {
+        public @DataTypeHint("ARRAY<INT NOT NULL>") int[] eval() {
+            return new int[] {};
+        }
     }
 }
