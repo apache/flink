@@ -31,9 +31,8 @@ public class SqlShowProcedureConverter implements SqlNodeConverter<SqlShowProced
     public Operation convertSqlNode(SqlShowProcedures sqlShowProcedures, ConvertContext context) {
         if (sqlShowProcedures.getPreposition() == null) {
             return new ShowProceduresOperation(
-                    sqlShowProcedures.isWithLike(),
                     sqlShowProcedures.isNotLike(),
-                    sqlShowProcedures.isILike(),
+                    sqlShowProcedures.getLikeType(),
                     sqlShowProcedures.getLikeSqlPattern());
         }
 
@@ -52,12 +51,11 @@ public class SqlShowProcedureConverter implements SqlNodeConverter<SqlShowProced
         String databaseName =
                 (fullDatabaseName.length == 1) ? fullDatabaseName[0] : fullDatabaseName[1];
         return new ShowProceduresOperation(
+                sqlShowProcedures.getPreposition(),
                 catalogName,
                 databaseName,
-                sqlShowProcedures.getPreposition(),
-                sqlShowProcedures.isWithLike(),
                 sqlShowProcedures.isNotLike(),
-                sqlShowProcedures.isILike(),
+                sqlShowProcedures.getLikeType(),
                 sqlShowProcedures.getLikeSqlPattern());
     }
 }

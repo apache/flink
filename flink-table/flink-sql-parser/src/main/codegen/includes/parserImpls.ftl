@@ -498,7 +498,7 @@ SqlShowProcedures SqlShowProcedures() :
     String prep = null;
     SqlIdentifier databaseName = null;
     boolean notLike = false;
-    boolean isIlike = false;
+    String likeType = null;
     SqlCharStringLiteral likeLiteral = null;
     SqlParserPos pos;
 }
@@ -517,7 +517,7 @@ SqlShowProcedures SqlShowProcedures() :
                 notLike = true;
             }
         ]
-        ( <LIKE>  | <ILIKE> { isIlike = true; } )
+        ( <LIKE> { likeType = "LIKE"; }  | <ILIKE> { likeType = "ILIKE"; } )
         <QUOTED_STRING>
         {
             String likeCondition = SqlParserUtil.parseString(token.image);
@@ -525,7 +525,7 @@ SqlShowProcedures SqlShowProcedures() :
         }
     ]
     {
-        return new SqlShowProcedures(pos, prep, databaseName, notLike, isIlike, likeLiteral);
+        return new SqlShowProcedures(pos, prep, databaseName, notLike, likeType, likeLiteral);
     }
 }
 

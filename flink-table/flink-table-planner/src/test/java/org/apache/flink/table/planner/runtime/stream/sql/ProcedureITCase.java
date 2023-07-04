@@ -37,6 +37,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+/** IT Case for statements related to procedure. */
 public class ProcedureITCase extends StreamingTestBase {
 
     private static final String SYSTEM_DATABASE_NAME = "system";

@@ -42,40 +42,34 @@ public class ShowProceduresOperation implements ExecutableOperation {
     private final @Nullable String databaseName;
     private final @Nullable String preposition;
 
-    protected final boolean useLike;
-
     private final boolean notLike;
 
-    private final boolean isILike;
+    // different like type such as like, ilike
+    private final LikeType likeType;
 
     @Nullable private final String sqlLikePattern;
 
-    public ShowProceduresOperation(
-            boolean useLike, boolean isNotLike, boolean isILike, String sqlLikePattern) {
-        this.catalogName = null;
-        this.databaseName = null;
-        this.preposition = null;
-        this.useLike = useLike;
-        this.notLike = isNotLike;
-        this.isILike = isILike;
-        this.sqlLikePattern = sqlLikePattern;
+    public ShowProceduresOperation(boolean isNotLike, String likeType, String sqlLikePattern) {
+        this(null, null, null, isNotLike, likeType, sqlLikePattern);
     }
 
     public ShowProceduresOperation(
+            @Nullable String preposition,
             @Nullable String catalogName,
             @Nullable String databaseName,
-            String preposition,
-            boolean useLike,
             boolean notLike,
-            boolean isILike,
+            @Nullable String likeType,
             @Nullable String sqlLikePattern) {
+        this.preposition = preposition;
         this.catalogName = catalogName;
         this.databaseName = databaseName;
-        this.preposition = preposition;
-        this.useLike = useLike;
-        this.isILike = isILike;
         this.notLike = notLike;
+        this.likeType = likeType == null ? null : LikeType.of(likeType);
         this.sqlLikePattern = sqlLikePattern;
+    }
+
+    public boolean isWithLike() {
+        return likeType != null;
     }
 
     @Override
@@ -106,14 +100,14 @@ public class ShowProceduresOperation implements ExecutableOperation {
         }
 
         final String[] rows;
-        if (sqlLikePattern != null) {
+        if (isWithLike()) {
             rows =
                     procedures.stream()
                             .filter(
                                     row -> {
                                         boolean likeMatch =
-                                                isILike
-                                                        ? SqlLikeUtils.iLike(
+                                                likeType == LikeType.ILIKE
+                                                        ? SqlLikeUtils.ilike(
                                                                 row, sqlLikePattern, "\\")
                                                         : SqlLikeUtils.like(
                                                                 row, sqlLikePattern, "\\");
@@ -133,13 +127,11 @@ public class ShowProceduresOperation implements ExecutableOperation {
         if (this.preposition != null) {
             builder.append(String.format(" %s %s.%s", preposition, catalogName, databaseName));
         }
-        if (this.useLike) {
+        if (isWithLike()) {
             if (notLike) {
-                builder.append(
-                        String.format(
-                                " %s %s %s", "NOT", isILike ? "ILIKE" : "LIKE", sqlLikePattern));
+                builder.append(String.format(" %s %s %s", "NOT", likeType.name(), sqlLikePattern));
             } else {
-                builder.append(String.format(" %s %s", isILike ? "ILIKE" : "LIKE", sqlLikePattern));
+                builder.append(String.format(" %s %s", likeType.name(), sqlLikePattern));
             }
         }
         return builder.toString();

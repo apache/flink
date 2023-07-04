@@ -28,6 +28,8 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
+import javax.annotation.Nullable;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -47,22 +49,20 @@ public class SqlShowProcedures extends SqlCall {
     public static final SqlSpecialOperator OPERATOR =
             new SqlSpecialOperator("SHOW PROCEDURES", SqlKind.OTHER);
 
-    private final SqlIdentifier databaseName;
-    private final String preposition;
+    @Nullable private final SqlIdentifier databaseName;
+    @Nullable private final String preposition;
     private final boolean notLike;
-
-    /** ILike represents it's case insensitive when match procedures with regex expression. */
-    private final boolean isILike;
-
-    private final SqlCharStringLiteral likeLiteral;
+    // different like type such as like, ilike
+    @Nullable private final String likeType;
+    @Nullable private final SqlCharStringLiteral likeLiteral;
 
     public SqlShowProcedures(
             SqlParserPos pos,
-            String preposition,
-            SqlIdentifier databaseName,
+            @Nullable String preposition,
+            @Nullable SqlIdentifier databaseName,
             boolean notLike,
-            boolean isILike,
-            SqlCharStringLiteral likeLiteral) {
+            @Nullable String likeType,
+            @Nullable SqlCharStringLiteral likeLiteral) {
         super(pos);
         this.preposition = preposition;
         this.databaseName =
@@ -70,8 +70,8 @@ public class SqlShowProcedures extends SqlCall {
                         ? requireNonNull(databaseName, "Database name must not be null.")
                         : null;
         this.notLike = notLike;
+        this.likeType = likeType;
         this.likeLiteral = likeLiteral;
-        this.isILike = isILike;
     }
 
     public String getLikeSqlPattern() {
@@ -82,16 +82,12 @@ public class SqlShowProcedures extends SqlCall {
         return notLike;
     }
 
-    public boolean isILike() {
-        return isILike;
+    public String getLikeType() {
+        return likeType;
     }
 
     public SqlCharStringLiteral getLikeLiteral() {
         return likeLiteral;
-    }
-
-    public boolean isWithLike() {
-        return Objects.nonNull(likeLiteral);
     }
 
     public String getPreposition() {
@@ -116,6 +112,10 @@ public class SqlShowProcedures extends SqlCall {
                 : databaseName.names.toArray(new String[0]);
     }
 
+    public boolean isWithLike() {
+        return likeType != null;
+    }
+
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         if (this.preposition == null) {
@@ -126,12 +126,9 @@ public class SqlShowProcedures extends SqlCall {
         }
         if (isWithLike()) {
             if (isNotLike()) {
-                writer.keyword(
-                        String.format(
-                                "NOT %s '%s'", isILike ? "ILIKE" : "LIKE", getLikeSqlPattern()));
+                writer.keyword(String.format("NOT %s '%s'", likeType, getLikeSqlPattern()));
             } else {
-                writer.keyword(
-                        String.format("%s '%s'", isILike ? "ILIKE" : "LIKE", getLikeSqlPattern()));
+                writer.keyword(String.format("%s '%s'", likeType, getLikeSqlPattern()));
             }
         }
     }
