@@ -202,6 +202,28 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
 
         final String sql2 = "SHOW USER FUNCTIONS";
         assertShowFunctions(sql2, sql2, ShowFunctionsOperation.FunctionScope.USER);
+
+        String sql = "show functions from cat1.db1 not like 'f%'";
+        assertShowFunctions(
+                sql,
+                "SHOW FUNCTIONS FROM cat1.db1 NOT LIKE 'f%'",
+                ShowFunctionsOperation.FunctionScope.ALL);
+
+        sql = "show user functions from cat1.db1 ilike 'f%'";
+        assertShowFunctions(
+                sql,
+                "SHOW USER FUNCTIONS FROM cat1.db1 ILIKE 'f%'",
+                ShowFunctionsOperation.FunctionScope.USER);
+
+        sql = "show functions in db1";
+        assertShowFunctions(
+                sql, "SHOW FUNCTIONS IN builtin.db1", ShowFunctionsOperation.FunctionScope.ALL);
+
+        // test fail case
+        assertThatThrownBy(() -> parse("show functions in cat.db.t"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Show functions from/in identifier [ cat.db.t ] format error, it should be [catalog_name.]database_name.");
     }
 
     @Test
