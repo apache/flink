@@ -484,7 +484,7 @@ CREATE VIEW MyCustomView AS SELECT MyField2 FROM MyTable;
 
 -- Define user-defined functions here.
 
-CREATE FUNCTION foo.bar.AggregateUDF AS myUDF;
+CREATE FUNCTION myUDF AS 'foo.bar.AggregateUDF';
 
 -- Properties that change the fundamental execution behavior of a table program.
 
