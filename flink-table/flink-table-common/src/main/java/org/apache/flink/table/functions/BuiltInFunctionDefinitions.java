@@ -33,7 +33,6 @@ import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategies;
 import org.apache.flink.table.types.inference.TypeStrategies;
-import org.apache.flink.table.types.inference.strategies.ArrayElementOutputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ArrayOfStringArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies;
 import org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies;
@@ -304,7 +303,7 @@ public final class BuiltInFunctionDefinitions {
                     .name("ARRAY_MAX")
                     .kind(SCALAR)
                     .inputTypeStrategy(arrayFullyComparableElementType())
-                    .outputTypeStrategy(new ArrayElementOutputTypeStrategy())
+                    .outputTypeStrategy(forceNullable(SpecificTypeStrategies.ARRAY_ELEMENT))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.ArrayMaxFunction")
                     .build();
