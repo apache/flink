@@ -29,6 +29,7 @@ import javax.annotation.Nullable;
 
 import java.util.List;
 
+import static java.util.Objects.requireNonNull;
 import static org.apache.flink.table.api.internal.TableResultUtils.buildStringArrayResult;
 
 /**
@@ -63,9 +64,16 @@ public class ShowProceduresOperation implements ExecutableOperation {
         this.preposition = preposition;
         this.catalogName = catalogName;
         this.databaseName = databaseName;
-        this.notLike = notLike;
-        this.likeType = likeType == null ? null : LikeType.of(likeType);
-        this.sqlLikePattern = sqlLikePattern;
+
+        if (likeType != null) {
+            this.likeType = LikeType.of(likeType);
+            this.sqlLikePattern = requireNonNull(sqlLikePattern, "Like pattern must not be null");
+            this.notLike = notLike;
+        } else {
+            this.likeType = null;
+            this.sqlLikePattern = null;
+            this.notLike = false;
+        }
     }
 
     public boolean isWithLike() {

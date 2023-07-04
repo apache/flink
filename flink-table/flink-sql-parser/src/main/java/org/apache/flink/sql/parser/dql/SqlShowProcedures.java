@@ -69,9 +69,16 @@ public class SqlShowProcedures extends SqlCall {
                 preposition != null
                         ? requireNonNull(databaseName, "Database name must not be null.")
                         : null;
-        this.notLike = notLike;
-        this.likeType = likeType;
-        this.likeLiteral = likeLiteral;
+
+        if (likeType != null) {
+            this.likeType = likeType;
+            this.likeLiteral = requireNonNull(likeLiteral, "Like pattern must not be null");
+            this.notLike = notLike;
+        } else {
+            this.likeType = null;
+            this.likeLiteral = null;
+            this.notLike = false;
+        }
     }
 
     public String getLikeSqlPattern() {
