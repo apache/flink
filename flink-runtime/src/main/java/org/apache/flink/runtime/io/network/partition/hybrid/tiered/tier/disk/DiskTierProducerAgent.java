@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.disk;
 
+import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.network.api.EndOfSegmentEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -25,6 +26,7 @@ import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageIdMappingUtils;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.PartitionFileReader;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.PartitionFileWriter;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.NettyConnectionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.NettyConnectionWriter;
@@ -40,10 +42,12 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageUtils.DATA_FILE_SUFFIX;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -73,6 +77,8 @@ public class DiskTierProducerAgent implements TierProducerAgent, NettyServicePro
     /** Record the number of buffers currently written to each subpartition. */
     private final int[] currentSubpartitionWriteBuffers;
 
+    private final DiskIOScheduler diskIOScheduler;
+
     private volatile boolean isReleased;
 
     DiskTierProducerAgent(
@@ -84,9 +90,15 @@ public class DiskTierProducerAgent implements TierProducerAgent, NettyServicePro
             float minReservedDiskSpaceFraction,
             boolean isBroadcastOnly,
             PartitionFileWriter partitionFileWriter,
+            PartitionFileReader partitionFileReader,
             TieredStorageMemoryManager storageMemoryManager,
             TieredStorageNettyService nettyService,
-            TieredStorageResourceRegistry resourceRegistry) {
+            TieredStorageResourceRegistry resourceRegistry,
+            BatchShuffleReadBufferPool bufferPool,
+            ScheduledExecutorService ioExecutor,
+            int maxRequestedBuffers,
+            Duration bufferRequestTimeout,
+            int maxBufferReadAhead) {
         checkArgument(
                 numBytesPerSegment >= bufferSizeBytes,
                 "One segment should contain at least one buffer.");
@@ -111,6 +123,19 @@ public class DiskTierProducerAgent implements TierProducerAgent, NettyServicePro
                         isBroadcastOnly ? 1 : numSubpartitions,
                         storageMemoryManager,
                         partitionFileWriter);
+
+        this.diskIOScheduler =
+                new DiskIOScheduler(
+                        partitionId,
+                        bufferPool,
+                        ioExecutor,
+                        maxRequestedBuffers,
+                        bufferRequestTimeout,
+                        maxBufferReadAhead,
+                        nettyService,
+                        this::retrieveFirstBufferIndexInSegment,
+                        partitionFileReader);
+
         nettyService.registerProducer(partitionId, this);
         resourceRegistry.registerResource(partitionId, this::releaseResources);
     }
@@ -155,10 +180,13 @@ public class DiskTierProducerAgent implements TierProducerAgent, NettyServicePro
                     new PartitionNotFoundException(
                             TieredStorageIdMappingUtils.convertId(partitionId)));
         }
+        diskIOScheduler.connectionEstablished(subpartitionId, nettyConnectionWriter);
     }
 
     @Override
-    public void connectionBroken(NettyConnectionId connectionId) {}
+    public void connectionBroken(NettyConnectionId connectionId) {
+        diskIOScheduler.connectionBroken(connectionId);
+    }
 
     @Override
     public void close() {
@@ -184,8 +212,15 @@ public class DiskTierProducerAgent implements TierProducerAgent, NettyServicePro
 
     private void releaseResources() {
         if (!isReleased) {
+            firstBufferIndexInSegment.clear();
             diskCacheManager.release();
             isReleased = true;
         }
+    }
+
+    private Integer retrieveFirstBufferIndexInSegment(int subpartitionId, int bufferIndex) {
+        return firstBufferIndexInSegment.size() > subpartitionId
+                ? firstBufferIndexInSegment.get(subpartitionId).get(bufferIndex)
+                : null;
     }
 }

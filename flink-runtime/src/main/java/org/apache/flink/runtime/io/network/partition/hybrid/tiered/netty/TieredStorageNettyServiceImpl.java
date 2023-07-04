@@ -176,10 +176,14 @@ public class TieredStorageNettyServiceImpl implements TieredStorageNettyService 
             NettyConnectionReaderAvailabilityAndPriorityHelper helper) {
         List<NettyConnectionReaderRegistration> registrations =
                 getReaderRegistration(partitionId, subpartitionId);
+        boolean hasSetChannel = false;
         for (NettyConnectionReaderRegistration registration : registrations) {
             if (registration.trySetChannel(index, inputChannelProvider, helper)) {
-                return;
+                hasSetChannel = true;
             }
+        }
+        if (hasSetChannel) {
+            return;
         }
 
         NettyConnectionReaderRegistration registration = new NettyConnectionReaderRegistration();

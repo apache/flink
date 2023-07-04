@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.disk;
 
+import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.PartitionFileReader;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.PartitionFileWriter;
@@ -31,7 +32,9 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierFact
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierMasterAgent;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierProducerAgent;
 
+import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
 
 /** The implementation of {@link TierFactory} for disk tier. */
 public class DiskTierFactory implements TierFactory {
@@ -64,7 +67,12 @@ public class DiskTierFactory implements TierFactory {
             PartitionFileReader partitionFileReader,
             TieredStorageMemoryManager storageMemoryManager,
             TieredStorageNettyService nettyService,
-            TieredStorageResourceRegistry resourceRegistry) {
+            TieredStorageResourceRegistry resourceRegistry,
+            BatchShuffleReadBufferPool bufferPool,
+            ScheduledExecutorService ioExecutor,
+            int maxRequestedBuffers,
+            Duration bufferRequestTimeout,
+            int maxBufferReadAhead) {
         return new DiskTierProducerAgent(
                 partitionId,
                 numSubpartitions,
@@ -74,16 +82,21 @@ public class DiskTierFactory implements TierFactory {
                 minReservedDiskSpaceFraction,
                 isBroadcastOnly,
                 partitionFileWriter,
+                partitionFileReader,
                 storageMemoryManager,
                 nettyService,
-                resourceRegistry);
+                resourceRegistry,
+                bufferPool,
+                ioExecutor,
+                maxRequestedBuffers,
+                bufferRequestTimeout,
+                maxBufferReadAhead);
     }
 
     @Override
     public TierConsumerAgent createConsumerAgent(
             List<TieredStorageConsumerSpec> tieredStorageConsumerSpecs,
             TieredStorageNettyService nettyService) {
-        // TODO, create the disk tier consumer agent.
-        return null;
+        return new DiskTierConsumerAgent(tieredStorageConsumerSpecs, nettyService);
     }
 }

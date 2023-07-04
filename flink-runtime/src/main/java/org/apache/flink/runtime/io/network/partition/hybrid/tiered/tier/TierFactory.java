@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier;
 
+import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.PartitionFileReader;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.PartitionFileWriter;
@@ -26,7 +27,9 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.Tiere
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageMemoryManager;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageResourceRegistry;
 
+import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
 
 /** A factory that creates all the components of a tier. */
 public interface TierFactory {
@@ -44,7 +47,12 @@ public interface TierFactory {
             PartitionFileReader partitionFileReader,
             TieredStorageMemoryManager storageMemoryManager,
             TieredStorageNettyService nettyService,
-            TieredStorageResourceRegistry resourceRegistry);
+            TieredStorageResourceRegistry resourceRegistry,
+            BatchShuffleReadBufferPool bufferPool,
+            ScheduledExecutorService ioExecutor,
+            int maxRequestedBuffers,
+            Duration bufferRequestTimeout,
+            int maxBufferReadAhead);
 
     /** Creates the consumer-side agent of a Tier. */
     TierConsumerAgent createConsumerAgent(

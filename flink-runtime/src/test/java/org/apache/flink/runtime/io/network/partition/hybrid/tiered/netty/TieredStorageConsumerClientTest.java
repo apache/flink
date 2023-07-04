@@ -27,13 +27,17 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.Tiered
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TestingTierFactory;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageConsumerClient;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageConsumerSpec;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierConsumerAgent;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.memory.MemoryTierConsumerAgent;
 
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -46,28 +50,47 @@ class TieredStorageConsumerClientTest {
     private final TieredStorageSubpartitionId subpartitionId = new TieredStorageSubpartitionId(0);
 
     @Test
-    void testGetNextBuffer() {
+    void testGetNextBufferFromMemoryTier() {
         Buffer buffer = BufferBuilderTestUtils.buildSomeBuffer(0);
+        Optional<Buffer> nextBuffer =
+                createTieredStorageConsumerClient(segmentId -> buffer, MemoryTierConsumerAgent::new)
+                        .getNextBuffer(partitionId, subpartitionId);
+        assertThat(nextBuffer).hasValue(buffer);
+    }
+
+    @Test
+    void testGetNextBufferFromDiskTier() {
+        Buffer buffer = BufferBuilderTestUtils.buildSomeBuffer(0);
+        Optional<Buffer> nextBuffer =
+                createTieredStorageConsumerClient(segmentId -> buffer, MemoryTierConsumerAgent::new)
+                        .getNextBuffer(partitionId, subpartitionId);
+        assertThat(nextBuffer).hasValue(buffer);
+    }
+
+    private TieredStorageConsumerClient createTieredStorageConsumerClient(
+            Function<Integer, Buffer> readBufferFunction,
+            BiFunction<
+                            List<TieredStorageConsumerSpec>,
+                            TieredStorageNettyService,
+                            TierConsumerAgent>
+                    tierConsumerAgentSupplier) {
+
         TestingTieredStorageNettyService nettyService =
                 new TestingTieredStorageNettyService.Builder()
                         .setRegisterConsumerFunction(
                                 (partitionId, subpartitionId) ->
                                         CompletableFuture.completedFuture(
                                                 new TestingNettyConnectionReader.Builder()
-                                                        .setReadBufferFunction(segmentId -> buffer)
+                                                        .setReadBufferFunction(readBufferFunction)
                                                         .build()))
                         .build();
-        TieredStorageConsumerClient tieredStorageConsumerClient =
-                new TieredStorageConsumerClient(
-                        Collections.singletonList(
-                                new TestingTierFactory.Builder()
-                                        .setTierConsumerAgentSupplier(MemoryTierConsumerAgent::new)
-                                        .build()),
-                        Collections.singletonList(
-                                new TieredStorageConsumerSpec(partitionId, subpartitionId)),
-                        nettyService);
-        Optional<Buffer> nextBuffer =
-                tieredStorageConsumerClient.getNextBuffer(partitionId, subpartitionId);
-        assertThat(nextBuffer).hasValue(buffer);
+        return new TieredStorageConsumerClient(
+                Collections.singletonList(
+                        new TestingTierFactory.Builder()
+                                .setTierConsumerAgentSupplier(tierConsumerAgentSupplier)
+                                .build()),
+                Collections.singletonList(
+                        new TieredStorageConsumerSpec(partitionId, subpartitionId)),
+                nettyService);
     }
 }
