@@ -31,7 +31,6 @@ import org.apache.flink.sql.parser.ddl.SqlAlterTableOptions;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableRename;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableRenameColumn;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableReset;
-import org.apache.flink.sql.parser.ddl.SqlAlterTableSchema;
 import org.apache.flink.sql.parser.ddl.SqlAnalyzeTable;
 import org.apache.flink.sql.parser.ddl.SqlCompilePlan;
 import org.apache.flink.sql.parser.ddl.SqlCreateDatabase;
@@ -468,9 +467,6 @@ public class SqlNodeToOperationConversion {
                     tableIdentifier,
                     optionalCatalogTable.get(),
                     (SqlAlterTableCompact) sqlAlterTable);
-        } else if (sqlAlterTable instanceof SqlAlterTableSchema) {
-            return alterSchemaConverter.convertAlterSchema(
-                    (SqlAlterTableSchema) sqlAlterTable, resolvedCatalogTable);
         } else {
             throw new ValidationException(
                     String.format(
