@@ -19,6 +19,7 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
@@ -26,6 +27,8 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.resource.ResourceManager;
+
+import java.util.List;
 
 /**
  * An {@link ExecutableOperation} represents an operation that is executed for its side effects.
@@ -65,5 +68,10 @@ public interface ExecutableOperation extends Operation {
         TableConfig getTableConfig();
 
         boolean isStreamingMode();
+
+        List<Transformation<?>> translate(List<ModifyOperation> modifyOperations);
+
+        TableResultInternal executeInternal(
+                List<Transformation<?>> transformations, List<String> sinkIdentifierNames);
     }
 }

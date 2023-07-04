@@ -209,7 +209,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                         moduleManager,
                         resourceManager,
                         tableConfig,
-                        isStreamingMode);
+                        isStreamingMode,
+                        planner,
+                        execEnv);
     }
 
     public static TableEnvironmentImpl create(Configuration configuration) {

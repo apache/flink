@@ -270,4 +270,8 @@ public class SqlReplaceTableAs extends SqlCreate implements ExtendedSqlNode {
         writer.newlineAndIndent();
         this.asQuery.unparse(writer, leftPrec, rightPrec);
     }
+
+    public String[] fullTableName() {
+        return tableName.names.toArray(new String[0]);
+    }
 }
