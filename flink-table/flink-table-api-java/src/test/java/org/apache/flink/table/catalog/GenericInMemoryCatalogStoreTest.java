@@ -20,15 +20,15 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.configuration.Configuration;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
-/** Test for {@link GenericInMemoryCatalogStore} */
+/** Test for {@link GenericInMemoryCatalogStore}. */
 public class GenericInMemoryCatalogStoreTest {
 
     @Test
-    public void testStoreAndGet() {
+    void testStoreAndGet() {
         CatalogStore catalogStore = new GenericInMemoryCatalogStore();
         catalogStore.open();
 

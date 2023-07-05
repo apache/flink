@@ -21,18 +21,18 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.table.factories.CatalogStoreFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
-/** Test for {@link GenericInMemoryCatalogFactoryTest} */
+/** Test for {@link GenericInMemoryCatalogFactoryTest}. */
 public class GenericInMemoryCatalogStoreFactoryTest {
 
     @Test
-    public void testCatalogStoreInit() {
+    void testCatalogStoreInit() {
         String factoryIdentifier = GenericInMemoryCatalogStoreFactoryOptions.IDENTIFIER;
         Map<String, String> options = new HashMap<>();
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();

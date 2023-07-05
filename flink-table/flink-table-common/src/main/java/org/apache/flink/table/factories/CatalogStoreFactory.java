@@ -41,12 +41,25 @@ public interface CatalogStoreFactory extends Factory {
     /** Tear-down method for the CatalogStoreFactory. */
     void close();
 
+    /** Context provided when a catalog store is created. */
+    @PublicEvolving
     interface Context {
 
+        /**
+         * Returns the options with which the catalog store is created.
+         *
+         * <p>An implementation should perform validation of these options.
+         */
         Map<String, String> getOptions();
 
+        /** Gives read-only access to the configuration of the current session. */
         ReadableConfig getConfiguration();
 
+        /**
+         * Returns the class loader of the current session.
+         *
+         * <p>The class loader is in particular useful for discovering further (nested) factories.
+         */
         ClassLoader getClassLoader();
     }
 

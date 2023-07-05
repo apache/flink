@@ -21,9 +21,10 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
 
-/** Describes {@link Catalog} with catalogName and configuration */
+/** Describes {@link Catalog} with catalogName and configuration. */
 @PublicEvolving
 public class CatalogDescriptor {
+
     /* Catalog name */
     private final String catalogName;
 

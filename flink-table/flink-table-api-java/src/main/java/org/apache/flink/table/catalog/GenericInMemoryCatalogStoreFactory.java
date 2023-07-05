@@ -21,7 +21,7 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.table.factories.CatalogStoreFactory;
 
-import java.util.HashSet;
+import java.util.Collections;
 import java.util.Set;
 
 /** Catalog store factory for {@link GenericInMemoryCatalogStore}. */
@@ -44,11 +44,11 @@ public class GenericInMemoryCatalogStoreFactory implements CatalogStoreFactory {
 
     @Override
     public Set<ConfigOption<?>> requiredOptions() {
-        return new HashSet<>();
+        return Collections.emptySet();
     }
 
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
-        return new HashSet<>();
+        return Collections.emptySet();
     }
 }

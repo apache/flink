@@ -25,10 +25,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static java.lang.String.format;
+
 /** A generic catalog store implementation that store all catalog configuration in memory. */
 public class GenericInMemoryCatalogStore implements CatalogStore {
 
-    Map<String, CatalogDescriptor> descriptors;
+    private final Map<String, CatalogDescriptor> descriptors;
 
     public GenericInMemoryCatalogStore() {
         descriptors = new HashMap<>();
@@ -37,13 +39,22 @@ public class GenericInMemoryCatalogStore implements CatalogStore {
     @Override
     public void storeCatalog(String catalogName, CatalogDescriptor catalog)
             throws CatalogException {
+        if (descriptors.containsKey(catalogName)) {
+            throw new CatalogException(
+                    format("Catalog %s already exists in the catalog store.", catalogName));
+        }
         descriptors.put(catalogName, catalog);
     }
 
     @Override
     public void removeCatalog(String catalogName, boolean ignoreIfNotExists)
             throws CatalogException {
-        descriptors.remove(catalogName);
+        if (descriptors.containsKey(catalogName)) {
+            descriptors.remove(catalogName);
+        } else if (!ignoreIfNotExists) {
+            throw new CatalogException(
+                    format("Catalog %s does not exist in the catalog store.", catalogName));
+        }
     }
 
     @Override
