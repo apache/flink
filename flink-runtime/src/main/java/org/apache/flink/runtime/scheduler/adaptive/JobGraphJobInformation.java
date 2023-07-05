@@ -105,6 +105,11 @@ public class JobGraphJobInformation implements JobInformation {
         }
 
         @Override
+        public int getMinParallelism() {
+            return parallelismInfo.getMinParallelism();
+        }
+
+        @Override
         public int getParallelism() {
             return parallelismInfo.getParallelism();
         }

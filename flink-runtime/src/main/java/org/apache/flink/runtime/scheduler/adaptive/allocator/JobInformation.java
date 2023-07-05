@@ -42,6 +42,8 @@ public interface JobInformation {
     interface VertexInformation {
         JobVertexID getJobVertexID();
 
+        int getMinParallelism();
+
         int getParallelism();
 
         int getMaxParallelism();
