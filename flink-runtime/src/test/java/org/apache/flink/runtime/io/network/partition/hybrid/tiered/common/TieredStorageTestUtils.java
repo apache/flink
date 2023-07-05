@@ -37,13 +37,25 @@ public class TieredStorageTestUtils {
                     new ArrayList<>();
             for (int j = 0; j < numSegments; j++) {
                 List<Tuple2<Buffer, Integer>> bufferAndIndexes = new ArrayList<>();
-                for (int k = 0; k < numBuffersPerSegment; k++) {
+                // To create buffer contexts with different segment-finish states(true or false),
+                // half of the buffers within the segment are assigned to the context where the
+                // segment-finish state is false, and the other half of buffers are designated to
+                // the context where the segment-finish state is true.
+                for (int k = 0; k < numBuffersPerSegment / 2; k++) {
                     bufferAndIndexes.add(
                             new Tuple2<>(
                                     BufferBuilderTestUtils.buildSomeBuffer(bufferSizeBytes), k));
                 }
                 segmentBufferContexts.add(
                         new PartitionFileWriter.SegmentBufferContext(j, bufferAndIndexes, false));
+                bufferAndIndexes = new ArrayList<>();
+                for (int k = numBuffersPerSegment / 2; k < numBuffersPerSegment; k++) {
+                    bufferAndIndexes.add(
+                            new Tuple2<>(
+                                    BufferBuilderTestUtils.buildSomeBuffer(bufferSizeBytes), k));
+                }
+                segmentBufferContexts.add(
+                        new PartitionFileWriter.SegmentBufferContext(j, bufferAndIndexes, true));
             }
 
             subpartitionBuffers.add(
