@@ -74,32 +74,11 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
     public ResourceCounter calculateRequiredSlots(
             Iterable<JobInformation.VertexInformation> vertices) {
         int numTotalRequiredSlots = 0;
-        for (Integer requiredSlots : getMaxParallelismForSlotSharingGroups(vertices).values()) {
-            numTotalRequiredSlots += requiredSlots;
+        for (SlotSharingGroupMetaInfo slotSharingGroupMetaInfo :
+                SlotSharingGroupMetaInfo.from(vertices).values()) {
+            numTotalRequiredSlots += slotSharingGroupMetaInfo.getMaxUpperBound();
         }
         return ResourceCounter.withResource(ResourceProfile.UNKNOWN, numTotalRequiredSlots);
-    }
-
-    private static <T> Map<SlotSharingGroupId, T> getPerSlotSharingGroups(
-            Iterable<JobInformation.VertexInformation> vertices,
-            Function<JobInformation.VertexInformation, T> mapper,
-            BiFunction<T, T, T> reducer) {
-        final Map<SlotSharingGroupId, T> extractedPerSlotSharingGroups = new HashMap<>();
-        for (JobInformation.VertexInformation vertex : vertices) {
-            extractedPerSlotSharingGroups.compute(
-                    vertex.getSlotSharingGroup().getSlotSharingGroupId(),
-                    (slotSharingGroupId, currentData) ->
-                            currentData == null
-                                    ? mapper.apply(vertex)
-                                    : reducer.apply(currentData, mapper.apply(vertex)));
-        }
-        return extractedPerSlotSharingGroups;
-    }
-
-    private static Map<SlotSharingGroupId, Integer> getMaxParallelismForSlotSharingGroups(
-            Iterable<JobInformation.VertexInformation> vertices) {
-        return getPerSlotSharingGroups(
-                vertices, JobInformation.VertexInformation::getParallelism, Math::max);
     }
 
     @Override
@@ -365,6 +344,22 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
                                     Math.max(
                                             metaInfo1.getMaxLowerUpperBoundRange(),
                                             metaInfo2.getMaxLowerUpperBoundRange())));
+        }
+
+        private static <T> Map<SlotSharingGroupId, T> getPerSlotSharingGroups(
+                Iterable<JobInformation.VertexInformation> vertices,
+                Function<JobInformation.VertexInformation, T> mapper,
+                BiFunction<T, T, T> reducer) {
+            final Map<SlotSharingGroupId, T> extractedPerSlotSharingGroups = new HashMap<>();
+            for (JobInformation.VertexInformation vertex : vertices) {
+                extractedPerSlotSharingGroups.compute(
+                        vertex.getSlotSharingGroup().getSlotSharingGroupId(),
+                        (slotSharingGroupId, currentData) ->
+                                currentData == null
+                                        ? mapper.apply(vertex)
+                                        : reducer.apply(currentData, mapper.apply(vertex)));
+            }
+            return extractedPerSlotSharingGroups;
         }
     }
 }
