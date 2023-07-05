@@ -785,7 +785,7 @@ show partitions table1;
 3 rows in set
 ```
 
-- Shows all columns of the given table with the given partition spec.
+- Shows all partitions of the given table with the given partition spec.
 
 ```sql
 show partitions table1 partition (id=1002);
