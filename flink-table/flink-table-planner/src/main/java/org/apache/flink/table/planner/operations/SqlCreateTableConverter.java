@@ -37,11 +37,11 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.planner.calcite.FlinkCalciteSqlValidator;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
+import org.apache.flink.table.planner.utils.OperationConverterUtils;
 
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
-import org.apache.calcite.util.NlsString;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -171,11 +171,7 @@ class SqlCreateTableConverter {
                         mergingStrategies);
         verifyPartitioningColumnsExist(mergedSchema, partitionKeys);
 
-        String tableComment =
-                sqlCreateTable
-                        .getComment()
-                        .map(comment -> comment.getValueAs(NlsString.class).getValue())
-                        .orElse(null);
+        String tableComment = OperationConverterUtils.getTableComment(sqlCreateTable.getComment());
 
         return catalogManager.resolveCatalogTable(
                 CatalogTable.of(

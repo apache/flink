@@ -25,6 +25,7 @@ import org.apache.flink.table.catalog.TableChange;
 
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.util.NlsString;
 
 import javax.annotation.Nullable;
 
@@ -34,6 +35,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /** Utils methods for converting sql to operations. */
 public class OperationConverterUtils {
@@ -82,6 +84,12 @@ public class OperationConverterUtils {
         return column.getComment()
                 .map(SqlCharStringLiteral.class::cast)
                 .map(c -> c.getValueAs(String.class))
+                .orElse(null);
+    }
+
+    public static @Nullable String getTableComment(Optional<SqlCharStringLiteral> tableComment) {
+        return tableComment
+                .map(comment -> comment.getValueAs(NlsString.class).getValue())
                 .orElse(null);
     }
 

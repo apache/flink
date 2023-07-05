@@ -39,7 +39,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** IT Case for REPLACE TABLE AS SELECT statement. */
+/** IT Case for [CREATE OR] REPLACE TABLE AS SELECT statement. */
 public class RTASITCase extends StreamingTestBase {
 
     @BeforeEach
@@ -71,17 +71,11 @@ public class RTASITCase extends StreamingTestBase {
 
         // verify the table after replacing
         CatalogTable expectCatalogTable =
-                CatalogTable.of(
-                        Schema.newBuilder()
-                                .fromFields(
-                                        new String[] {"a", "b", "c"},
-                                        new AbstractDataType[] {
-                                            DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING()
-                                        })
-                                .build(),
-                        null,
-                        Collections.emptyList(),
-                        getDefaultTargetTableOptions());
+                getExpectCatalogTable(
+                        new String[] {"a", "b", "c"},
+                        new AbstractDataType[] {
+                            DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING()
+                        });
         verifyCatalogTable(expectCatalogTable, getCatalogTable("target"));
     }
 
@@ -91,7 +85,7 @@ public class RTASITCase extends StreamingTestBase {
                 .isInstanceOf(TableException.class)
                 .hasMessage(
                         "The table `default_catalog`.`default_database`.`t` to be replaced doesn't exist."
-                                + " You may want to use CREATE TABLE AS statement or CREATE OR REPLACE TABLE AS statement.");
+                                + " You can try to use CREATE TABLE AS statement or CREATE OR REPLACE TABLE AS statement.");
     }
 
     @Test
@@ -108,17 +102,9 @@ public class RTASITCase extends StreamingTestBase {
 
         // verify the table after replacing
         CatalogTable expectCatalogTable =
-                CatalogTable.of(
-                        Schema.newBuilder()
-                                .fromFields(
-                                        new String[] {"a", "c"},
-                                        new AbstractDataType[] {
-                                            DataTypes.INT(), DataTypes.STRING()
-                                        })
-                                .build(),
-                        null,
-                        Collections.emptyList(),
-                        getDefaultTargetTableOptions());
+                getExpectCatalogTable(
+                        new String[] {"a", "c"},
+                        new AbstractDataType[] {DataTypes.INT(), DataTypes.STRING()});
         verifyCatalogTable(expectCatalogTable, getCatalogTable("target"));
     }
 
@@ -136,18 +122,18 @@ public class RTASITCase extends StreamingTestBase {
 
         // verify the table after replacing
         CatalogTable expectCatalogTable =
-                CatalogTable.of(
-                        Schema.newBuilder()
-                                .fromFields(
-                                        new String[] {"a", "c"},
-                                        new AbstractDataType[] {
-                                            DataTypes.INT(), DataTypes.STRING()
-                                        })
-                                .build(),
-                        null,
-                        Collections.emptyList(),
-                        getDefaultTargetTableOptions());
+                getExpectCatalogTable(
+                        new String[] {"a", "c"},
+                        new AbstractDataType[] {DataTypes.INT(), DataTypes.STRING()});
         verifyCatalogTable(expectCatalogTable, getCatalogTable("not_exist_target"));
+    }
+
+    private CatalogTable getExpectCatalogTable(String[] cols, AbstractDataType[] fieldDataTypes) {
+        return CatalogTable.of(
+                Schema.newBuilder().fromFields(cols, fieldDataTypes).build(),
+                null,
+                Collections.emptyList(),
+                getDefaultTargetTableOptions());
     }
 
     private Map<String, String> getDefaultTargetTableOptions() {

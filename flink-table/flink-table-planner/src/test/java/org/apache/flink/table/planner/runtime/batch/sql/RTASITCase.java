@@ -34,9 +34,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -72,17 +70,11 @@ class RTASITCase extends BatchTestBase {
 
         // verify the table after replacing
         CatalogTable expectCatalogTable =
-                CatalogTable.of(
-                        Schema.newBuilder()
-                                .fromFields(
-                                        new String[] {"a", "b", "c"},
-                                        new AbstractDataType[] {
-                                            DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING()
-                                        })
-                                .build(),
-                        null,
-                        Collections.emptyList(),
-                        getDefaultTargetTableOptions());
+                getExpectCatalogTable(
+                        new String[] {"a", "b", "c"},
+                        new AbstractDataType[] {
+                            DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING()
+                        });
         verifyCatalogTable(expectCatalogTable, getCatalogTable("target"));
     }
 
@@ -92,7 +84,7 @@ class RTASITCase extends BatchTestBase {
                 .isInstanceOf(TableException.class)
                 .hasMessage(
                         "The table `default_catalog`.`default_database`.`t` to be replaced doesn't exist."
-                                + " You may want to use CREATE TABLE AS statement or CREATE OR REPLACE TABLE AS statement.");
+                                + " You can try to use CREATE TABLE AS statement or CREATE OR REPLACE TABLE AS statement.");
     }
 
     @Test
@@ -109,17 +101,9 @@ class RTASITCase extends BatchTestBase {
 
         // verify the table after replacing
         CatalogTable expectCatalogTable =
-                CatalogTable.of(
-                        Schema.newBuilder()
-                                .fromFields(
-                                        new String[] {"a", "c"},
-                                        new AbstractDataType[] {
-                                            DataTypes.INT(), DataTypes.STRING()
-                                        })
-                                .build(),
-                        null,
-                        Collections.emptyList(),
-                        getDefaultTargetTableOptions());
+                getExpectCatalogTable(
+                        new String[] {"a", "c"},
+                        new AbstractDataType[] {DataTypes.INT(), DataTypes.STRING()});
         verifyCatalogTable(expectCatalogTable, getCatalogTable("target"));
     }
 
@@ -137,18 +121,18 @@ class RTASITCase extends BatchTestBase {
 
         // verify the table after replacing
         CatalogTable expectCatalogTable =
-                CatalogTable.of(
-                        Schema.newBuilder()
-                                .fromFields(
-                                        new String[] {"a", "c"},
-                                        new AbstractDataType[] {
-                                            DataTypes.INT(), DataTypes.STRING()
-                                        })
-                                .build(),
-                        null,
-                        Collections.emptyList(),
-                        getDefaultTargetTableOptions());
+                getExpectCatalogTable(
+                        new String[] {"a", "c"},
+                        new AbstractDataType[] {DataTypes.INT(), DataTypes.STRING()});
         verifyCatalogTable(expectCatalogTable, getCatalogTable("not_exist_target"));
+    }
+
+    private CatalogTable getExpectCatalogTable(String[] cols, AbstractDataType[] fieldDataTypes) {
+        return CatalogTable.of(
+                Schema.newBuilder().fromFields(cols, fieldDataTypes).build(),
+                null,
+                Collections.emptyList(),
+                getDefaultTargetTableOptions());
     }
 
     private Map<String, String> getDefaultTargetTableOptions() {
@@ -156,10 +140,6 @@ class RTASITCase extends BatchTestBase {
         expectedOptions.put("connector", "values");
         expectedOptions.put("bounded", "true");
         return expectedOptions;
-    }
-
-    private List<String> sortedResult(List<String> result) {
-        return result.stream().sorted().collect(Collectors.toList());
     }
 
     private CatalogTable getCatalogTable(String tableName) throws TableNotExistException {

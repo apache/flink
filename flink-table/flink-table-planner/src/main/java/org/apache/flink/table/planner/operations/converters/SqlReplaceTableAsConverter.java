@@ -30,9 +30,9 @@ import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ReplaceTableAsOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
+import org.apache.flink.table.planner.utils.OperationConverterUtils;
 
 import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.util.NlsString;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -55,10 +55,7 @@ public class SqlReplaceTableAsConverter implements SqlNodeConverter<SqlReplaceTa
 
         // get table comment
         String tableComment =
-                sqlReplaceTableAs
-                        .getComment()
-                        .map(comment -> comment.getValueAs(NlsString.class).getValue())
-                        .orElse(null);
+                OperationConverterUtils.getTableComment(sqlReplaceTableAs.getComment());
 
         // get table properties
         Map<String, String> properties = new HashMap<>();
