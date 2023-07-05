@@ -20,7 +20,6 @@ package org.apache.flink.connector.file.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.util.CollectionUtil;
 
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
