@@ -213,6 +213,15 @@ class StreamExecutionEnvironment(object):
         """
         return self._j_stream_execution_environment.isChainingEnabled()
 
+    def is_chaining_of_operators_with_different_max_parallelism_enabled(self) -> bool:
+        """
+        Returns whether operators that have a different max parallelism can be chained.
+
+        :return: True if chaining is enabled, false otherwise
+        """
+        return self._j_stream_execution_environment\
+            .isChainingOfOperatorsWithDifferentMaxParallelismEnabled()
+
     def get_checkpoint_config(self) -> CheckpointConfig:
         """
         Gets the checkpoint config, which defines values like checkpoint interval, delay between
