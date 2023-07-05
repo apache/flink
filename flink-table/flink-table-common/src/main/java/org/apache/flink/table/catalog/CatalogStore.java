@@ -25,56 +25,51 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * This interface describes the behavior of retrieving, saving, or deleting Catalog configurations
- * from an external storage system.
+ * The {@link CatalogStore} is used in {@link CatalogManager} to retrieve, save and remove {@link
+ * CatalogDescriptor} at the external storage system.
  */
 @PublicEvolving
 public interface CatalogStore {
 
     /**
-     * Store a catalog under the give name. The catalog name must be unique.
+     * Store a catalog under the given catalog name. The catalog name must be unique.
      *
-     * @param catalogName name under which to register the given catalog
-     * @param catalog catalog instance to store
-     * @throws CatalogException if the registration of the catalog under the given name failed
+     * @param catalogName the given catalog name under which to store the given catalog
+     * @param catalog catalog descriptor to store
+     * @throws CatalogException throw when registration failed
      */
     void storeCatalog(String catalogName, CatalogDescriptor catalog) throws CatalogException;
 
     /**
-     * Unregisters a catalog under the given name. The catalog name must be existed.
+     * Remove a catalog with the given catalog name. The catalog name must be existed.
      *
-     * @param catalogName name under which to unregister the given catalog.
-     * @param ignoreIfNotExists If false exception will be thrown if the table or database or
-     *     catalog to be altered does not exist.
-     * @throws CatalogException if the unregistration of the catalog under the given name failed
+     * @param catalogName the given catalog name under which to remove the given catalog
+     * @param ignoreIfNotExists whether throw an exception when the catalog does not exist
+     * @throws CatalogException throw when the removal operation failed
      */
     void removeCatalog(String catalogName, boolean ignoreIfNotExists) throws CatalogException;
 
     /**
-     * Gets a catalog by name.
+     * Get a catalog by name.
      *
      * @param catalogName name of the catalog to retrieve
-     * @return the requested catalog or empty if it does not exist
+     * @return the requested catalog or empty if the catalog does not exist
      */
     Optional<CatalogDescriptor> getCatalog(String catalogName);
 
     /**
-     * Retrieves names of all registered catalogs.
+     * Retrieves the names of all registered catalogs.
      *
-     * @return a set of names of registered catalogs
+     * @return the names of registered catalogs
      */
     Set<String> listCatalogs();
 
-    /**
-     * Check if there is a corresponding catalog with the given name in CatalogStore.
-     *
-     * @return whether there is a corresponding Catalog with the given name
-     */
+    /** Return whether the catalog exists in the catalog store. */
     boolean contains(String catalogName);
 
-    /** Initialization method for the CatalogStore. */
+    /** Initialize the catalog store. */
     void open();
 
-    /** Tear-down method for the CatalogStore. */
+    /** Close the catalog store. */
     void close();
 }

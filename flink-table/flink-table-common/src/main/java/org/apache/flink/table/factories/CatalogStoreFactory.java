@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.factories;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.catalog.CatalogStore;
@@ -35,10 +34,10 @@ public interface CatalogStoreFactory extends Factory {
     /** Creates a {@link CatalogStore} instance from context information. */
     CatalogStore createCatalogStore(Context context);
 
-    /** Initialization method for the CatalogStoreFactory. */
+    /** Initialize the CatalogStoreFactory. */
     void open(Context context);
 
-    /** Tear-down method for the CatalogStoreFactory. */
+    /** Close the CatalogStoreFactory. */
     void close();
 
     /** Context provided when a catalog store is created. */
@@ -61,47 +60,5 @@ public interface CatalogStoreFactory extends Factory {
          * <p>The class loader is in particular useful for discovering further (nested) factories.
          */
         ClassLoader getClassLoader();
-    }
-
-    /** Default implementation of {@link CatalogStoreFactory.Context}. */
-    @Internal
-    class DefaultCatalogStoreContext implements CatalogStoreFactory.Context {
-
-        private Map<String, String> options;
-
-        private ReadableConfig configuration;
-
-        private ClassLoader classLoader;
-
-        public static DefaultCatalogStoreContext of(
-                Map<String, String> options,
-                ReadableConfig configuration,
-                ClassLoader classLoader) {
-            return new DefaultCatalogStoreContext(options, configuration, classLoader);
-        }
-
-        private DefaultCatalogStoreContext(
-                Map<String, String> options,
-                ReadableConfig configuration,
-                ClassLoader classLoader) {
-            this.options = options;
-            this.configuration = configuration;
-            this.classLoader = classLoader;
-        }
-
-        @Override
-        public Map<String, String> getOptions() {
-            return options;
-        }
-
-        @Override
-        public ReadableConfig getConfiguration() {
-            return configuration;
-        }
-
-        @Override
-        public ClassLoader getClassLoader() {
-            return classLoader;
-        }
     }
 }

@@ -20,6 +20,7 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.factories.CatalogStoreFactory;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.factories.FactoryUtil.DefaultCatalogStoreContext;
 
 import org.junit.jupiter.api.Test;
 
@@ -36,9 +37,8 @@ public class GenericInMemoryCatalogStoreFactoryTest {
         String factoryIdentifier = GenericInMemoryCatalogStoreFactoryOptions.IDENTIFIER;
         Map<String, String> options = new HashMap<>();
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-        final CatalogStoreFactory.DefaultCatalogStoreContext discoveryContext =
-                CatalogStoreFactory.DefaultCatalogStoreContext.of(options, null, classLoader);
-
+        final DefaultCatalogStoreContext discoveryContext =
+                new DefaultCatalogStoreContext(options, null, classLoader);
         final CatalogStoreFactory factory =
                 FactoryUtil.discoverFactory(
                         classLoader, CatalogStoreFactory.class, factoryIdentifier);

@@ -21,7 +21,16 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
 
-/** Describes {@link Catalog} with catalogName and configuration. */
+/**
+ * Describes a {@link Catalog} with the catalog name and configuration.
+ *
+ * <p>A {@link CatalogDescriptor} is a template for creating a {@link Catalog} instance. It closely
+ * resembles the "CREATE CATALOG" SQL DDL statement, containing catalog name and catalog
+ * configuration. A {@link CatalogDescriptor} could be stored to {@link CatalogStore}.
+ *
+ * <p>This can be used to register a catalog in the Table API, see {@link
+ * TableEnvironment#createCatalog(String, CatalogDescriptor)}.
+ */
 @PublicEvolving
 public class CatalogDescriptor {
 
@@ -45,9 +54,10 @@ public class CatalogDescriptor {
     }
 
     /**
-     * @param catalogName CatalogName of the register catalog.
-     * @param configuration Catalog configuration to the catalog instance.
-     * @return
+     * Creates an instance of this interface.
+     *
+     * @param catalogName the name of the catalog
+     * @param configuration the configuration of the catalog
      */
     public static CatalogDescriptor of(String catalogName, Configuration configuration) {
         return new CatalogDescriptor(catalogName, configuration);

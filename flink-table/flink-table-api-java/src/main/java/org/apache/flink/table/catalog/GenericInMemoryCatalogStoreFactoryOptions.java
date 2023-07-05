@@ -23,4 +23,6 @@ import org.apache.flink.configuration.ConfigOption;
 /** {@link ConfigOption}s for {@link GenericInMemoryCatalogStore}. */
 public class GenericInMemoryCatalogStoreFactoryOptions {
     public static final String IDENTIFIER = "generic_in_memory";
+
+    private GenericInMemoryCatalogStoreFactoryOptions() {}
 }
