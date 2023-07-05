@@ -750,10 +750,10 @@ SHOW PARTITIONS [[catalog_name.]database.]<table_name> [ PARTITION <partition_sp
   (key1=val1, key2=val2, ...)
 ```
 
-Show all partitions of the partitioned table with given table name and optional partition clause.
+Show all partitions of the partitioned table with the given table name and optional partition clause.
 
 **PARTITION**
-Show all partitions of the partitioned table with given table name and optional `PARTITION` clause, which are under the provided <partition_spec>.
+Show all partitions of the partitioned table with the given table name and optional `PARTITION` clause, which are under the provided <partition_spec>.
 
 ### SHOW PARTITIONS EXAMPLES
 

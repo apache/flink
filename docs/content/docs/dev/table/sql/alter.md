@@ -298,7 +298,7 @@ Flink SQL> SHOW TABLES;
 The following grammar gives an overview about the available syntax:
 ```text
 ALTER TABLE [IF EXISTS] table_name {
-    ADD { <schema_component> | (<schema_component> [, ...]) | [IF NOT EXISTS] <partition_add_component> [, ...]}
+    ADD { <schema_component> | (<schema_component> [, ...]) | [IF NOT EXISTS] <partition_component> [, ...]}
   | MODIFY { <schema_component> | (<schema_component> [, ...]) }
   | DROP {column_name | (column_name, column_name, ....) | PRIMARY KEY | CONSTRAINT constraint_name | WATERMARK | [IF EXISTS] <partition_component> [, ...]}
   | RENAME old_column_name TO new_column_name
@@ -332,10 +332,7 @@ ALTER TABLE [IF EXISTS] table_name {
   AS computed_column_expression
   
 <partition_component>:
-  PARTITION (key1=val1, key2=val2, ...)
-  
-<partition_add_component>:
-  <partition_component> [WITH (key1=val1, key2=val2, ...)]
+  PARTITION (key1=val1, key2=val2, ...) [WITH (key1=val1, key2=val2, ...)]
 ```
 
 **IF EXISTS**
@@ -363,6 +360,9 @@ ALTER TABLE MyTable ADD (
 
 -- add a new partition 
 ALTER TABLE MyTable ADD PARTITION (p1=1,p2='a') with ('k1'='v1');
+
+-- add two new partitions
+ALTER TABLE MyTable ADD PARTITION (p1=1,p2='a') with ('k1'='v1'), PARTITION (p1=1,p2='b') with ('k2'='v2');
 ```
 <span class="label label-danger">Note</span> Add a column to be primary key will change the column's nullability to false implicitly.
 
@@ -389,7 +389,7 @@ ALTER TABLE MyTable MODIFY (
 <span class="label label-danger">Note</span> Modify a column to be primary key will change the column's nullability to false implicitly.
 
 ### DROP
-Use `DROP` clause to drop columns, primary key, partitions and watermark strategy to an existing table.
+Use the `DROP` clause to drop columns, primary key, partitions, and watermark strategy to an existing table.
 
 The following examples illustrate the usage of the `DROP` statements.
 
@@ -403,8 +403,11 @@ ALTER TABLE MyTable DROP (col1, col2, col3);
 -- drop primary key
 ALTER TABLE MyTable DROP PRIMARY KEY;
 
--- drop partitions
+-- drop a partition
 ALTER TABLE MyTable DROP PARTITION (`id` = 1);
+
+-- drop two partitions
+ALTER TABLE MyTable DROP PARTITION (`id` = 1), PARTITION (`id` = 2);
 
 -- drop a watermark
 ALTER TABLE MyTable DROP WATERMARK;
