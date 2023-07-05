@@ -95,5 +95,11 @@ ONE_PHASE: Enforce to use one stage aggregate which only has CompleteGlobalAggre
             <td>Boolean</td>
             <td>When it is true, the optimizer will collect and use the statistics from source connectors if the source extends from SupportsStatisticReport and the statistics from catalog is UNKNOWN.Default value is true.</td>
         </tr>
+        <tr>
+            <td><h5>table.optimizer.sql2rel.project-merge.enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>If set to true, it will merge projects when converting SqlNode to RelNode.<br />Note: it is not recommended to turn on unless you are aware of possible side effects, such as causing the output of certain non-deterministic expressions to not meet expectations(see FLINK-20887).</td>
+        </tr>
     </tbody>
 </table>
