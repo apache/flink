@@ -19,6 +19,7 @@
 package org.apache.flink.connectors.hive;
 
 import org.apache.flink.configuration.BatchExecutionOptions;
+import org.apache.flink.connector.file.table.FileSystemConnectorOptions;
 import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
@@ -528,7 +529,8 @@ public class HiveDialectQueryITCase {
      */
     private boolean isDataFile(Path path) {
         String successFileName =
-                tableEnv.getConfig().get(HiveOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME);
+                tableEnv.getConfig()
+                        .get(FileSystemConnectorOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME);
         return !path.toFile().isHidden() && !path.toFile().getName().equals(successFileName);
     }
 

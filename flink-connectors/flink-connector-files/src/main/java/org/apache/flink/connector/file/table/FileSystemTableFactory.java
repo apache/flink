@@ -122,6 +122,7 @@ public class FileSystemTableFactory implements DynamicTableSourceFactory, Dynami
         options.add(FileSystemConnectorOptions.SINK_PARTITION_COMMIT_WATERMARK_TIME_ZONE);
         options.add(FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_KIND);
         options.add(FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_CLASS);
+        options.add(FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_CLASS_PARAMETERS);
         options.add(FileSystemConnectorOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME);
         options.add(FileSystemConnectorOptions.AUTO_COMPACTION);
         options.add(FileSystemConnectorOptions.COMPACTION_FILE_SIZE);
@@ -142,6 +143,7 @@ public class FileSystemTableFactory implements DynamicTableSourceFactory, Dynami
                         FileSystemConnectorOptions.SINK_PARTITION_COMMIT_WATERMARK_TIME_ZONE,
                         FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_KIND,
                         FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_CLASS,
+                        FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_CLASS_PARAMETERS,
                         FileSystemConnectorOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME,
                         FileSystemConnectorOptions.COMPACTION_FILE_SIZE)
                 .collect(Collectors.toSet());

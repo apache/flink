@@ -21,6 +21,7 @@ package org.apache.flink.connectors.hive;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.connector.file.table.FileSystemConnectorOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -728,7 +729,7 @@ class HiveTableSinkITCase {
 
     private long getPathSize(java.nio.file.Path path) throws IOException {
         String defaultSuccessFileName =
-                HiveOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME.defaultValue();
+                FileSystemConnectorOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME.defaultValue();
         return Files.list(path)
                 .filter(
                         p ->

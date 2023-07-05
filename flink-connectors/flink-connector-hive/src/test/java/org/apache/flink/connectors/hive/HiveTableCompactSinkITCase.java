@@ -18,6 +18,7 @@
 
 package org.apache.flink.connectors.hive;
 
+import org.apache.flink.connector.file.table.FileSystemConnectorOptions;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
@@ -196,7 +197,7 @@ class HiveTableCompactSinkITCase {
 
     private List<Path> listDataFiles(Path path) throws Exception {
         String defaultSuccessFileName =
-                HiveOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME.defaultValue();
+                FileSystemConnectorOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME.defaultValue();
         return Files.list(path)
                 .filter(
                         p ->

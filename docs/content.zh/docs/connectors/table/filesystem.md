@@ -454,6 +454,13 @@ public class HourPartTimeExtractor implements PartitionTimeExtractor {
         <td> 实现 PartitionCommitPolicy 接口的分区提交策略类。只有在 custom 提交策略下才使用该类。</td>
     </tr>
     <tr>
+        <td><h5>sink.partition-commit.policy.class.parameters</h5></td>
+        <td style="word-wrap: break-word;">(无)</td>
+        <td>String</td>
+        <td> 传入 custom 提交策略类的字符串参数, 多个参数之间用分号分隔, 比如 'param1;param2',
+        该字符串将被切分为列表(['param1','param2'])并传给 custom 提交策略类的构造器。该项为可选项，不配置的话将使用类的默认构造方法。</td>
+    </tr>
+    <tr>
         <td><h5>sink.partition-commit.success-file.name</h5></td>
         <td style="word-wrap: break-word;">_SUCCESS</td>
         <td>String</td>

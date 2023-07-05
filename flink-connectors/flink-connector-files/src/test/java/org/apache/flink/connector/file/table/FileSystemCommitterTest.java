@@ -54,7 +54,8 @@ public class FileSystemCommitterTest {
     public void before() throws IOException {
         metaStoreFactory = new TestMetaStoreFactory(new Path(outputPath.toString()));
         policies =
-                new PartitionCommitPolicyFactory("metastore,success-file", null, SUCCESS_FILE_NAME)
+                new PartitionCommitPolicyFactory(
+                                "metastore,success-file", null, SUCCESS_FILE_NAME, null)
                         .createPolicyChain(
                                 Thread.currentThread().getContextClassLoader(),
                                 LocalFileSystem::getSharedInstance);

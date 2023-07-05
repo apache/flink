@@ -134,12 +134,6 @@ public class HiveOptions {
                                     + " custom: use policy class to create a commit policy."
                                     + " Support to configure multiple policies: 'metastore,success-file'.");
 
-    public static final ConfigOption<String> SINK_PARTITION_COMMIT_POLICY_CLASS =
-            FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_CLASS;
-
-    public static final ConfigOption<String> SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME =
-            FileSystemConnectorOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME;
-
     public static final ConfigOption<MemorySize> COMPACT_SMALL_FILES_AVG_SIZE =
             key("compaction.small-files.avg-size")
                     .memoryType()
