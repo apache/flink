@@ -64,14 +64,14 @@ public class HttpHeader {
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (this == o) {
+    public boolean equals(Object other) {
+        if (this == other) {
             return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+        if (other == null || getClass() != other.getClass()) {
             return false;
         }
-        HttpHeader that = (HttpHeader) o;
+        HttpHeader that = (HttpHeader) other;
         return Objects.equals(getName(), that.getName())
                 && Objects.equals(getValue(), that.getValue());
     }

@@ -427,7 +427,7 @@ public class RestClient implements AutoCloseableAsync {
                     .set(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE)
                     .add(HttpHeaderNames.CONTENT_LENGTH, jsonPayload.capacity())
                     .add(HttpHeaderNames.CONTENT_TYPE, RestConstants.REST_CONTENT_TYPE);
-            customHeaders.forEach(ch -> headers.add(ch.getName(), ch.getValue()));
+            customHeaders.forEach(ch -> headers.set(ch.getName(), ch.getValue()));
 
             return new SimpleRequest(httpRequest);
         } else {
