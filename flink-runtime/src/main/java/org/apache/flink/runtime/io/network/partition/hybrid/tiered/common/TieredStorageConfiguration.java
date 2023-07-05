@@ -21,6 +21,8 @@ package org.apache.flink.runtime.io.network.partition.hybrid.tiered.common;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierFactory;
 
+import javax.annotation.Nullable;
+
 import java.util.Arrays;
 import java.util.List;
 
@@ -30,8 +32,20 @@ public class TieredStorageConfiguration {
     // TODO, after implementing the tier factory, add appreciate implementations to the array.
     private static final TierFactory[] DEFAULT_MEMORY_DISK_TIER_FACTORIES = new TierFactory[0];
 
+    /** If the remote storage tier is not used, this field may be null. */
+    @Nullable private final String remoteStorageBasePath;
+
+    public TieredStorageConfiguration(@Nullable String remoteStorageBasePath) {
+        this.remoteStorageBasePath = remoteStorageBasePath;
+    }
+
     public List<TierFactory> getTierFactories() {
         return Arrays.asList(DEFAULT_MEMORY_DISK_TIER_FACTORIES);
+    }
+
+    @Nullable
+    public String getRemoteStorageBasePath() {
+        return remoteStorageBasePath;
     }
 
     public static TieredStorageConfiguration.Builder builder() {
@@ -40,8 +54,16 @@ public class TieredStorageConfiguration {
 
     /** Builder for {@link TieredStorageConfiguration}. */
     public static class Builder {
+
+        @Nullable private String remoteStorageBasePath;
+
+        TieredStorageConfiguration.Builder setRemoteStorageBasePath(String remoteStorageBasePath) {
+            this.remoteStorageBasePath = remoteStorageBasePath;
+            return this;
+        }
+
         public TieredStorageConfiguration build() {
-            return new TieredStorageConfiguration();
+            return new TieredStorageConfiguration(remoteStorageBasePath);
         }
     }
 
