@@ -54,11 +54,6 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
 
     private static final String LEADER_ACQUISITION_EVENT_LOG_NAME = "Leader Acquisition";
     private static final String LEADER_REVOCATION_EVENT_LOG_NAME = "Leader Revocation";
-    private static final String SINGLE_LEADER_INFORMATION_CHANGE_EVENT_LOG_NAME =
-            "Single LeaderInformation Change";
-    private static final String ALL_LEADER_INFORMATION_CHANGE_EVENT_LOG_NAME =
-            "All LeaderInformation Change";
-
     private final Object lock = new Object();
 
     private final LeaderElectionDriverFactory leaderElectionDriverFactory;
@@ -79,7 +74,7 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
 
     /**
      * Saves the {@link LeaderInformation} for the registered {@link LeaderContender}s. There's no
-     * semantical difference between an entry with an empty {@code LeaderInformation} and no entry
+     * semantic difference between an entry with an empty {@code LeaderInformation} and no entry
      * being present at all here. Both mean that no confirmed {@code LeaderInformation} is available
      * for the corresponding {@code contenderID}.
      */
