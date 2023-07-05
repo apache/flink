@@ -37,6 +37,9 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -49,6 +52,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Kubernetes HA services that use a single leader election service per JobManager. */
 public class KubernetesMultipleComponentLeaderElectionHaServices extends AbstractHaServices {
+
+    private static final Logger LOG =
+            LoggerFactory.getLogger(KubernetesMultipleComponentLeaderElectionHaServices.class);
 
     private final String clusterId;
 
@@ -178,6 +184,12 @@ public class KubernetesMultipleComponentLeaderElectionHaServices extends Abstrac
 
     private void closeK8sServices() {
         configMapSharedWatcher.close();
+        final int outstandingTaskCount = watchExecutorService.shutdownNow().size();
+        if (outstandingTaskCount != 0) {
+            LOG.debug(
+                    "The k8s HA services were closed with {} event(s) still not being processed. No further action necessary.",
+                    outstandingTaskCount);
+        }
     }
 
     @Override
