@@ -1150,15 +1150,15 @@ public class AdaptiveSchedulerTest {
 
         final AdaptiveScheduler scheduler =
                 createSchedulerWithNoResourceWaitTimeout(jobGraph, declarativeSlotPool);
+        int scaledUpParallelism = PARALLELISM * 10;
 
         final SubmissionBufferingTaskManagerGateway taskManagerGateway =
-                createSubmissionBufferingTaskManagerGateway(PARALLELISM, scheduler);
+                createSubmissionBufferingTaskManagerGateway(scaledUpParallelism, scheduler);
 
         startJobWithSlotsMatchingParallelism(
                 scheduler, declarativeSlotPool, taskManagerGateway, PARALLELISM);
         awaitJobReachingParallelism(taskManagerGateway, scheduler, PARALLELISM);
 
-        int scaledUpParallelism = PARALLELISM * 10;
         JobResourceRequirements newJobResourceRequirements =
                 createRequirementsWithEqualLowerAndUpperParallelism(scaledUpParallelism);
 
@@ -1172,6 +1172,38 @@ public class AdaptiveSchedulerTest {
                                 },
                                 singleThreadMainThreadExecutor))
                 .eventuallySucceeds();
+
+        // adding a few slots does not cause rescale or failure
+        FlinkAssertions.assertThatFuture(
+                        CompletableFuture.runAsync(
+                                () -> {
+                                    final State originalState = scheduler.getState();
+                                    offerSlots(
+                                            declarativeSlotPool,
+                                            createSlotOffersForResourceRequirements(
+                                                    ResourceCounter.withResource(
+                                                            ResourceProfile.UNKNOWN, PARALLELISM)),
+                                            taskManagerGateway);
+                                    assertThat(scheduler.getState()).isSameAs(originalState);
+                                },
+                                singleThreadMainThreadExecutor))
+                .eventuallySucceeds();
+
+        // adding enough slots to reach minimum causes rescale
+        FlinkAssertions.assertThatFuture(
+                        CompletableFuture.runAsync(
+                                () ->
+                                        offerSlots(
+                                                declarativeSlotPool,
+                                                createSlotOffersForResourceRequirements(
+                                                        ResourceCounter.withResource(
+                                                                ResourceProfile.UNKNOWN,
+                                                                PARALLELISM * 8)),
+                                                taskManagerGateway),
+                                singleThreadMainThreadExecutor))
+                .eventuallySucceeds();
+
+        awaitJobReachingParallelism(taskManagerGateway, scheduler, scaledUpParallelism);
     }
 
     @Test
