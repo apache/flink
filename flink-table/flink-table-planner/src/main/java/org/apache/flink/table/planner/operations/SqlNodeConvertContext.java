@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.utils.Expander;
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.dialect.CalciteSqlDialect;
+import org.apache.calcite.sql.dialect.AnsiSqlDialect;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.validate.SqlValidator;
 
@@ -60,7 +60,9 @@ public class SqlNodeConvertContext implements SqlNodeConverter.ConvertContext {
     public String toQuotedSqlString(SqlNode sqlNode) {
         SqlParser.Config parserConfig = flinkPlanner.config().getParserConfig();
         SqlDialect dialect =
-                new CalciteSqlDialect(
+                // The default implementation of SqlDialect suppresses all table hints since
+                // CALCITE-4640, so we should use AnsiSqlDialect instead to reserve table hints.
+                new AnsiSqlDialect(
                         SqlDialect.EMPTY_CONTEXT
                                 .withQuotedCasing(parserConfig.unquotedCasing())
                                 .withConformance(parserConfig.conformance())

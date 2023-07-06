@@ -26,6 +26,10 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions;
 
 import org.junit.Test;
 
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.apache.flink.table.planner.utils.TableTestUtil.readFromResource;
 import static org.apache.flink.table.planner.utils.TableTestUtil.replaceNodeIdInOperator;
@@ -148,5 +152,42 @@ public class FileSystemTableSinkTest {
 
     private static String buildInsertIntoSql(String sinkTable, String sourceTable) {
         return String.format("INSERT INTO %s SELECT * FROM %s", sinkTable, sourceTable);
+    }
+
+    @Test
+    public void testFileSystemTableSinkWithCustomCommitPolicy() throws Exception {
+        final String outputTable = "outputTable";
+        final String customPartitionCommitPolicyClassName = TestCustomCommitPolicy.class.getName();
+        final TableEnvironment tEnv =
+                TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+        String ddl =
+                "CREATE TABLE %s ("
+                        + "  a INT,"
+                        + "  b STRING,"
+                        + "  d STRING,"
+                        + "  e STRING"
+                        + ") PARTITIONED BY (d, e) WITH ("
+                        + "'connector'='filesystem',"
+                        + "'path'='/tmp',"
+                        + "'format'='testcsv',"
+                        + "'sink.partition-commit.delay'='0s',"
+                        + "'sink.partition-commit.policy.kind'='custom',"
+                        + "'sink.partition-commit.policy.class'='%s',"
+                        + "'sink.partition-commit.policy.class.parameters'='test1;test2'"
+                        + ")";
+        ddl = String.format(ddl, outputTable, customPartitionCommitPolicyClassName);
+        tEnv.executeSql(ddl);
+        tEnv.executeSql(
+                        "insert into outputTable select *"
+                                + " from (values (1, 'a', '2020-05-03', '3'), "
+                                + "(2, 'x', '2020-05-03', '4'))")
+                .await();
+        Set<String> actualCommittedPaths =
+                TestCustomCommitPolicy.getCommittedPartitionPathsAndReset();
+        Set<String> expectedCommittedPaths =
+                new HashSet<>(
+                        Arrays.asList(
+                                "test1test2", "/tmp/d=2020-05-03/e=3", "/tmp/d=2020-05-03/e=4"));
+        assertEquals(expectedCommittedPaths, actualCommittedPaths);
     }
 }

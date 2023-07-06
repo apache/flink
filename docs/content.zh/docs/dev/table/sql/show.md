@@ -759,13 +759,24 @@ SHOW CREATE VIEW [catalog_name.][db_name.]view_name
 ## SHOW FUNCTIONS
 
 ```sql
-SHOW [USER] FUNCTIONS
+SHOW [USER] FUNCTIONS [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] (LIKE | ILIKE) <sql_like_pattern> ]
 ```
 
-展示当前 catalog 和当前 database 中所有的 function，包括：系统 function 和用户定义的 function。
+展示指定 catalog 和 database 下的所有 function，包括：系统 function 和用户定义的 function。
+如果没有指定 catalog 和 database，则将使用当前 catalog 和 当前 database。另外可以用 `<sql_like_pattern>` 来过滤要返回的 function。
 
 **USER**
-仅仅展示当前 catalog 和当前 database 中用户定义的 function。
+仅展示用户定义的 function, 另外可以用 `<sql_like_pattern>` 来过滤要返回的 function。
+
+**LIKE**
+根据可选的 `LIKE` 语句与 `<sql_like_pattern>` 是否模糊匹配的所有 function。
+
+`LIKE` 子句中 SQL 正则式的语法与 `MySQL` 方言中的语法相同。
+* `%` 匹配任意数量的字符, 也包括0数量字符, `\%` 匹配一个 `%` 字符.
+* `_` 只匹配一个字符, `\_` 匹配一个 `_` 字符.
+
+**ILIKE**
+它的行为和 LIKE 相同，只是对于大小写是不敏感的。
 
 ## SHOW MODULES
 

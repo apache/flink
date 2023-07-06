@@ -123,7 +123,7 @@ public class ParquetFormatStatisticsReportUtil {
                     convertToColumnStats(columnStatisticsMap, producedRowType, isUtcTimestamp);
             return new TableStats(rowCount, columnStatsMap);
         } catch (Exception e) {
-            LOG.warn("Reporting statistics failed for Parquet format: {}", e.getMessage());
+            LOG.warn("Reporting statistics failed for Parquet format", e);
             return TableStats.UNKNOWN;
         }
     }

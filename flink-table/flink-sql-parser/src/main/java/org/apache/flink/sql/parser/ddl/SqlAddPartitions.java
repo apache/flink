@@ -99,4 +99,11 @@ public class SqlAddPartitions extends SqlAlterTable {
             }
         }
     }
+
+    /** Alter table add partition context. */
+    public static class AlterTableAddPartitionContext {
+        public boolean ifNotExists;
+        public List<SqlNodeList> partSpecs;
+        public List<SqlNodeList> partProps;
+    }
 }

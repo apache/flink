@@ -41,11 +41,10 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Test behaviors of {@link ZooKeeperLeaderElectionDriver} when losing the connection to ZooKeeper.
+ * Test behaviors of {@link ZooKeeperMultipleComponentLeaderElectionDriver} when losing the
+ * connection to ZooKeeper.
  */
 class ZooKeeperLeaderElectionConnectionHandlingTest {
-
-    private static final String PATH = "/path";
 
     @RegisterExtension
     private static final EachCallbackWrapper<ZooKeeperExtension> zooKeeperResource =
@@ -135,10 +134,12 @@ class ZooKeeperLeaderElectionConnectionHandlingTest {
                         configuration,
                         testingFatalErrorHandlerResource.getTestingFatalErrorHandler());
         CuratorFramework client = curatorFrameworkWrapper.asCuratorFramework();
-        LeaderElectionDriverFactory leaderElectionDriverFactory =
-                new ZooKeeperLeaderElectionDriverFactory(client, PATH);
+        MultipleComponentLeaderElectionDriverFactory leaderElectionDriverFactory =
+                new ZooKeeperMultipleComponentLeaderElectionDriverFactory(client);
         DefaultLeaderElectionService leaderElectionService =
-                new DefaultLeaderElectionService(leaderElectionDriverFactory);
+                new DefaultLeaderElectionService(
+                        leaderElectionDriverFactory,
+                        testingFatalErrorHandlerResource.getTestingFatalErrorHandler());
         leaderElectionService.startLeaderElectionBackend();
 
         final TestingConnectionStateListener connectionStateListener =
@@ -146,7 +147,8 @@ class ZooKeeperLeaderElectionConnectionHandlingTest {
         client.getConnectionStateListenable().addListener(connectionStateListener);
 
         final TestingContender contender = new TestingContender();
-        try (LeaderElection leaderElection = leaderElectionService.createLeaderElection()) {
+        try (LeaderElection leaderElection =
+                leaderElectionService.createLeaderElection("random-contender-id")) {
             leaderElection.startLeaderElection(contender);
 
             contender.awaitGrantLeadership();

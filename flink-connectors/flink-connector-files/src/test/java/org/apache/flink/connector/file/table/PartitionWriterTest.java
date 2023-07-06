@@ -25,6 +25,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.utils.LegacyRowResource;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CollectionUtil;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -102,7 +103,8 @@ class PartitionWriterTest {
 
                 @Override
                 public LinkedHashMap<String, String> generatePartValues(Row in) {
-                    LinkedHashMap<String, String> ret = new LinkedHashMap<>(1);
+                    LinkedHashMap<String, String> ret =
+                            CollectionUtil.newLinkedHashMapWithExpectedSize(1);
                     ret.put("p", in.getField(0).toString());
                     return ret;
                 }

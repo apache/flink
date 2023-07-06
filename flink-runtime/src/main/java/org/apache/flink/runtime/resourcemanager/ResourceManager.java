@@ -80,6 +80,7 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationRejection;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
 import org.apache.flink.runtime.taskexecutor.partition.ClusterPartitionReport;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkExpectedException;
@@ -89,7 +90,6 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -201,10 +201,10 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
         this.resourceManagerMetricGroup = checkNotNull(resourceManagerMetricGroup);
 
-        this.jobManagerRegistrations = new HashMap<>(4);
-        this.jmResourceIdRegistrations = new HashMap<>(4);
-        this.taskExecutors = new HashMap<>(8);
-        this.taskExecutorGatewayFutures = new HashMap<>(8);
+        this.jobManagerRegistrations = CollectionUtil.newHashMapWithExpectedSize(4);
+        this.jmResourceIdRegistrations = CollectionUtil.newHashMapWithExpectedSize(4);
+        this.taskExecutors = CollectionUtil.newHashMapWithExpectedSize(8);
+        this.taskExecutorGatewayFutures = CollectionUtil.newHashMapWithExpectedSize(8);
         this.blocklistHandler =
                 blocklistHandlerFactory.create(
                         new ResourceManagerBlocklistContext(),

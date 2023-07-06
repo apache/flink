@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.client.cli.utils;
 
+import org.apache.flink.table.api.SqlDialect;
+import org.apache.flink.table.client.cli.parser.SqlClientParserState;
+
 import javax.annotation.Nullable;
 
 import java.io.BufferedReader;
@@ -25,6 +28,8 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
+
+import static org.apache.flink.table.client.cli.parser.SqlClientParserState.computeCurrentStateAtTheEndOfLine;
 
 /**
  * A utility to read and parse content of a SQL script. The SQL script is located in "resources/sql"
@@ -96,7 +101,11 @@ public final class SqlScriptReader implements AutoCloseable {
                         status = ReadingStatus.RESULT_CONTENT;
                     } else {
                         sqlLines.append(currentLine).append("\n");
-                        if (!enableMultiStatement && currentLine.trim().endsWith(";")) {
+                        if (!enableMultiStatement
+                                && currentLine.trim().endsWith(";")
+                                && computeCurrentStateAtTheEndOfLine(
+                                                sqlLines.toString().trim(), SqlDialect.DEFAULT)
+                                        == SqlClientParserState.DEFAULT) {
                             // SQL statement is finished, begin to read result content
                             status = ReadingStatus.RESULT_CONTENT;
                         }

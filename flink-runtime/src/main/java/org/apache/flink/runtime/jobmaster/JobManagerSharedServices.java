@@ -162,7 +162,8 @@ public class JobManagerSharedServices {
                                         classLoaderResolveOrder),
                                 alwaysParentFirstLoaderPatterns,
                                 failOnJvmMetaspaceOomError ? fatalErrorHandler : null,
-                                checkClassLoaderLeak));
+                                checkClassLoaderLeak),
+                        true);
 
         final int numberCPUCores = Hardware.getNumberCPUCores();
         final int jobManagerFuturePoolSize =

@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.operations;
 
 import org.apache.flink.sql.parser.ddl.SqlAddJar;
-import org.apache.flink.sql.parser.ddl.SqlAddPartitions;
 import org.apache.flink.sql.parser.ddl.SqlAlterDatabase;
 import org.apache.flink.sql.parser.ddl.SqlAlterFunction;
 import org.apache.flink.sql.parser.ddl.SqlAlterTable;
@@ -42,7 +41,6 @@ import org.apache.flink.sql.parser.ddl.SqlCreateTableAs;
 import org.apache.flink.sql.parser.ddl.SqlDropCatalog;
 import org.apache.flink.sql.parser.ddl.SqlDropDatabase;
 import org.apache.flink.sql.parser.ddl.SqlDropFunction;
-import org.apache.flink.sql.parser.ddl.SqlDropPartitions;
 import org.apache.flink.sql.parser.ddl.SqlDropTable;
 import org.apache.flink.sql.parser.ddl.SqlDropView;
 import org.apache.flink.sql.parser.ddl.SqlRemoveJar;
@@ -72,11 +70,9 @@ import org.apache.flink.sql.parser.dql.SqlShowCreateView;
 import org.apache.flink.sql.parser.dql.SqlShowCurrentCatalog;
 import org.apache.flink.sql.parser.dql.SqlShowCurrentDatabase;
 import org.apache.flink.sql.parser.dql.SqlShowDatabases;
-import org.apache.flink.sql.parser.dql.SqlShowFunctions;
 import org.apache.flink.sql.parser.dql.SqlShowJars;
 import org.apache.flink.sql.parser.dql.SqlShowJobs;
 import org.apache.flink.sql.parser.dql.SqlShowModules;
-import org.apache.flink.sql.parser.dql.SqlShowPartitions;
 import org.apache.flink.sql.parser.dql.SqlShowTables;
 import org.apache.flink.sql.parser.dql.SqlShowViews;
 import org.apache.flink.sql.parser.dql.SqlUnloadModule;
@@ -136,10 +132,7 @@ import org.apache.flink.table.operations.ShowCreateViewOperation;
 import org.apache.flink.table.operations.ShowCurrentCatalogOperation;
 import org.apache.flink.table.operations.ShowCurrentDatabaseOperation;
 import org.apache.flink.table.operations.ShowDatabasesOperation;
-import org.apache.flink.table.operations.ShowFunctionsOperation;
-import org.apache.flink.table.operations.ShowFunctionsOperation.FunctionScope;
 import org.apache.flink.table.operations.ShowModulesOperation;
-import org.apache.flink.table.operations.ShowPartitionsOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.ShowViewsOperation;
 import org.apache.flink.table.operations.SinkModifyOperation;
@@ -157,7 +150,6 @@ import org.apache.flink.table.operations.command.SetOperation;
 import org.apache.flink.table.operations.command.ShowJarsOperation;
 import org.apache.flink.table.operations.command.ShowJobsOperation;
 import org.apache.flink.table.operations.command.StopJobOperation;
-import org.apache.flink.table.operations.ddl.AddPartitionsOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterPartitionPropertiesOperation;
@@ -171,7 +163,6 @@ import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropCatalogOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
-import org.apache.flink.table.operations.ddl.DropPartitionsOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropViewOperation;
@@ -346,10 +337,6 @@ public class SqlNodeToOperationConversion {
             return Optional.of(converter.convertShowCreateTable((SqlShowCreateTable) validated));
         } else if (validated instanceof SqlShowCreateView) {
             return Optional.of(converter.convertShowCreateView((SqlShowCreateView) validated));
-        } else if (validated instanceof SqlShowFunctions) {
-            return Optional.of(converter.convertShowFunctions((SqlShowFunctions) validated));
-        } else if (validated instanceof SqlShowPartitions) {
-            return Optional.of(converter.convertShowPartitions((SqlShowPartitions) validated));
         } else if (validated instanceof SqlRichExplain) {
             return Optional.of(converter.convertRichExplain((SqlRichExplain) validated));
         } else if (validated instanceof SqlRichDescribeTable) {
@@ -476,26 +463,6 @@ public class SqlNodeToOperationConversion {
         } else if (sqlAlterTable instanceof SqlAlterTableRenameColumn) {
             return alterSchemaConverter.convertAlterSchema(
                     (SqlAlterTableRenameColumn) sqlAlterTable, resolvedCatalogTable);
-        } else if (sqlAlterTable instanceof SqlAddPartitions) {
-            List<CatalogPartitionSpec> specs = new ArrayList<>();
-            List<CatalogPartition> partitions = new ArrayList<>();
-            SqlAddPartitions addPartitions = (SqlAddPartitions) sqlAlterTable;
-            for (int i = 0; i < addPartitions.getPartSpecs().size(); i++) {
-                specs.add(new CatalogPartitionSpec(addPartitions.getPartitionKVs(i)));
-                Map<String, String> props =
-                        OperationConverterUtils.extractProperties(
-                                addPartitions.getPartProps().get(i));
-                partitions.add(new CatalogPartitionImpl(props, null));
-            }
-            return new AddPartitionsOperation(
-                    tableIdentifier, addPartitions.ifPartitionNotExists(), specs, partitions);
-        } else if (sqlAlterTable instanceof SqlDropPartitions) {
-            SqlDropPartitions dropPartitions = (SqlDropPartitions) sqlAlterTable;
-            List<CatalogPartitionSpec> specs = new ArrayList<>();
-            for (int i = 0; i < dropPartitions.getPartSpecs().size(); i++) {
-                specs.add(new CatalogPartitionSpec(dropPartitions.getPartitionKVs(i)));
-            }
-            return new DropPartitionsOperation(tableIdentifier, dropPartitions.ifExists(), specs);
         } else if (sqlAlterTable instanceof SqlAlterTableCompact) {
             return convertAlterTableCompact(
                     tableIdentifier,
@@ -996,25 +963,6 @@ public class SqlNodeToOperationConversion {
                 UnresolvedIdentifier.of(sqlShowCreateView.getFullViewName());
         ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
         return new ShowCreateViewOperation(identifier);
-    }
-
-    /** Convert SHOW FUNCTIONS statement. */
-    private Operation convertShowFunctions(SqlShowFunctions sqlShowFunctions) {
-        return new ShowFunctionsOperation(
-                sqlShowFunctions.requireUser() ? FunctionScope.USER : FunctionScope.ALL);
-    }
-
-    /** Convert SHOW PARTITIONS statement. */
-    private Operation convertShowPartitions(SqlShowPartitions sqlShowPartitions) {
-        UnresolvedIdentifier unresolvedIdentifier =
-                UnresolvedIdentifier.of(sqlShowPartitions.fullTableName());
-        ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
-        LinkedHashMap<String, String> partitionKVs = sqlShowPartitions.getPartitionKVs();
-        if (partitionKVs != null) {
-            CatalogPartitionSpec partitionSpec = new CatalogPartitionSpec(partitionKVs);
-            return new ShowPartitionsOperation(tableIdentifier, partitionSpec);
-        }
-        return new ShowPartitionsOperation(tableIdentifier, null);
     }
 
     /** Convert DROP VIEW statement. */

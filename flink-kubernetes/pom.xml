@@ -32,6 +32,10 @@ under the License.
 
 	<properties>
 		<kubernetes.client.version>6.6.2</kubernetes.client.version>
+		<surefire.module.config><!--
+			CommonTestUtils#setEnv
+			-->--add-opens=java.base/java.util=ALL-UNNAMED
+		</surefire.module.config>
 	</properties>
 
 	<dependencies>

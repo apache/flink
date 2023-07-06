@@ -31,6 +31,13 @@ under the License.
 	<artifactId>flink-metrics-jmx</artifactId>
 	<name>Flink : Metrics : JMX</name>
 
+	<properties>
+		<surefire.module.config> <!--
+			required by JmxServer
+			-->--add-exports=java.rmi/sun.rmi.registry=ALL-UNNAMED
+		</surefire.module.config>
+	</properties>
+
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>

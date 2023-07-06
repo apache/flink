@@ -18,8 +18,12 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.memory;
 
+import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.PartitionFileReader;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.PartitionFileWriter;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyService;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageConsumerSpec;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageMemoryManager;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageResourceRegistry;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.NoOpMasterAgent;
@@ -27,6 +31,10 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierCons
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierFactory;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierMasterAgent;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierProducerAgent;
+
+import java.time.Duration;
+import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
 
 /** The implementation of {@link TierFactory} for memory tier. */
 public class MemoryTierFactory implements TierFactory {
@@ -52,9 +60,16 @@ public class MemoryTierFactory implements TierFactory {
             TieredStoragePartitionId partitionID,
             String dataFileBasePath,
             boolean isBroadcastOnly,
+            PartitionFileWriter partitionFileWriter,
+            PartitionFileReader partitionFileReader,
             TieredStorageMemoryManager memoryManager,
             TieredStorageNettyService nettyService,
-            TieredStorageResourceRegistry resourceRegistry) {
+            TieredStorageResourceRegistry resourceRegistry,
+            BatchShuffleReadBufferPool bufferPool,
+            ScheduledExecutorService ioExecutor,
+            int maxRequestedBuffers,
+            Duration bufferRequestTimeout,
+            int maxBufferReadAhead) {
         return new MemoryTierProducerAgent(
                 partitionID,
                 numSubpartitions,
@@ -67,8 +82,9 @@ public class MemoryTierFactory implements TierFactory {
     }
 
     @Override
-    public TierConsumerAgent createConsumerAgent() {
-        // TODO, create the memory tier consumer agent.
-        return null;
+    public TierConsumerAgent createConsumerAgent(
+            List<TieredStorageConsumerSpec> tieredStorageConsumerSpecs,
+            TieredStorageNettyService nettyService) {
+        return new MemoryTierConsumerAgent(tieredStorageConsumerSpecs, nettyService);
     }
 }

@@ -951,6 +951,60 @@ class TableEnvironmentTest {
   }
 
   @Test
+  def testAlterTableDropPartitions(): Unit = {
+    val createTableStmt =
+      """
+        |CREATE TABLE tbl (
+        |  a INT,
+        |  b BIGINT,
+        |  c DATE
+        |) PARTITIONED BY (b, c)
+        |WITH (
+        |  'connector' = 'COLLECTION'
+        |)
+          """.stripMargin
+    tableEnv.executeSql(createTableStmt)
+
+    val catalog = tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
+    val spec1 = new CatalogPartitionSpec(Map("b" -> "1000", "c" -> "2020-05-01").asJava)
+    val part1 = new CatalogPartitionImpl(Map("k1" -> "v1").asJava, "")
+    val spec2 = new CatalogPartitionSpec(Map("b" -> "2000", "c" -> "2020-01-01").asJava)
+    val part2 = new CatalogPartitionImpl(Map("k1" -> "v1").asJava, "")
+    val tablePath = new ObjectPath("default_database", "tbl")
+    // create partition
+    catalog.createPartition(tablePath, spec1, part1, false)
+    catalog.createPartition(tablePath, spec2, part2, false)
+
+    // check the partitions
+    assertThat(catalog.listPartitions(tablePath).toString)
+      .isEqualTo(
+        "[CatalogPartitionSpec{{b=1000, c=2020-05-01}}," +
+          " CatalogPartitionSpec{{b=2000, c=2020-01-01}}]")
+
+    // drop the partitions
+    var tableResult =
+      tableEnv.executeSql("alter table tbl drop partition(b='1000', c ='2020-05-01')")
+    assertEquals(ResultKind.SUCCESS, tableResult.getResultKind)
+    assertThat(catalog.listPartitions(tablePath).toString)
+      .isEqualTo("[CatalogPartitionSpec{{b=2000, c=2020-01-01}}]")
+
+    // drop the partition again with if exists
+    tableResult =
+      tableEnv.executeSql("alter table tbl drop if exists partition(b='1000', c='2020-05-01')")
+    assertEquals(ResultKind.SUCCESS, tableResult.getResultKind)
+    assertThat(catalog.listPartitions(tablePath).toString)
+      .isEqualTo("[CatalogPartitionSpec{{b=2000, c=2020-01-01}}]")
+
+    // drop the partition again without if exists,
+    // should throw exception then
+    assertThatThrownBy(
+      () => tableEnv.executeSql("alter table tbl drop partition (b=1000,c='2020-05-01')"))
+      .isInstanceOf(classOf[TableException])
+      .hasMessageContaining("Could not execute ALTER TABLE default_catalog.default_database.tbl" +
+        " DROP PARTITION (b=1000, c=2020-05-01)")
+  }
+
+  @Test
   def testAlterTableCompactOnNonManagedTable(): Unit = {
     val statement =
       """
@@ -2701,6 +2755,108 @@ class TableEnvironmentTest {
           "Currently, the 'execution.runtime-mode' can only be set when instantiating the " +
           "table environment. Subsequent changes are not supported. " +
           "Please instantiate a new TableEnvironment if necessary.")
+  }
+
+  @Test
+  def testAddPartitions(): Unit = {
+    val createTableStmt =
+      """
+        |CREATE TABLE tbl (
+        |  a INT,
+        |  b BIGINT,
+        |  c DATE
+        |) PARTITIONED BY (b, c)
+        |WITH (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(createTableStmt)
+
+    // test add partition
+    var tableResult = tableEnv.executeSql(
+      "alter table tbl add partition " +
+        "(b=1000,c='2020-05-01') partition (b=2000,c='2020-01-01') with ('k'='v')")
+    assertEquals(ResultKind.SUCCESS, tableResult.getResultKind)
+
+    val spec1 = new CatalogPartitionSpec(Map("b" -> "1000", "c" -> "2020-05-01").asJava)
+    val spec2 = new CatalogPartitionSpec(Map("b" -> "2000", "c" -> "2020-01-01").asJava)
+
+    val catalog = tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
+
+    val tablePath = new ObjectPath("default_database", "tbl")
+    val actual = catalog.listPartitions(tablePath)
+    // assert partition spec
+    assertEquals(List(spec1, spec2).asJava, actual)
+
+    val part1 = catalog.getPartition(tablePath, spec1)
+    val part2 = catalog.getPartition(tablePath, spec2)
+    // assert partition properties
+    assertEquals(Collections.emptyMap(), part1.getProperties)
+    assertEquals(Collections.singletonMap("k", "v"), part2.getProperties)
+
+    // add existed partition with if not exists
+    tableResult =
+      tableEnv.executeSql("alter table tbl add if not exists partition (b=1000,c='2020-05-01')")
+    assertEquals(ResultKind.SUCCESS, tableResult.getResultKind)
+
+    // add existed partition without if not exists
+    assertThatThrownBy(
+      () => tableEnv.executeSql("alter table tbl add partition (b=1000,c='2020-05-01')"))
+      .isInstanceOf(classOf[TableException])
+      .hasMessageContaining("Could not execute ALTER TABLE default_catalog.default_database.tbl" +
+        " ADD PARTITION (b=1000, c=2020-05-01)")
+
+  }
+
+  @Test
+  def testShowPartitions(): Unit = {
+    val createTableStmt =
+      """
+        |CREATE TABLE tbl (
+        |  a INT,
+        |  b BIGINT,
+        |  c DATE
+        |) PARTITIONED BY (b, c)
+        |WITH (
+        |  'connector' = 'COLLECTION'
+        |)
+          """.stripMargin
+    tableEnv.executeSql(createTableStmt)
+
+    // partitions
+    val catalog = tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
+    val spec1 = new CatalogPartitionSpec(Map("b" -> "1000", "c" -> "2020-05-01").asJava)
+    val part1 = new CatalogPartitionImpl(Map("k1" -> "v1").asJava, "")
+    val spec2 = new CatalogPartitionSpec(Map("b" -> "2000", "c" -> "2020-01-01").asJava)
+    val part2 = new CatalogPartitionImpl(Map("k1" -> "v1").asJava, "")
+    val spec3 = new CatalogPartitionSpec(Map("b" -> "2000", "c" -> "2020-05-01").asJava)
+    val part3 = new CatalogPartitionImpl(Map("k1" -> "v1").asJava, "")
+
+    val tablePath = new ObjectPath("default_database", "tbl")
+    // create partition
+    catalog.createPartition(tablePath, spec1, part1, false)
+    catalog.createPartition(tablePath, spec2, part2, false)
+    catalog.createPartition(tablePath, spec3, part3, false)
+
+    // test show all partitions
+    var tableResult =
+      tableEnv.executeSql("show partitions tbl")
+
+    var expectedResult = util.Arrays.asList(
+      Row.of("b=1000/c=2020-05-01"),
+      Row.of("b=2000/c=2020-01-01"),
+      Row.of("b=2000/c=2020-05-01")
+    )
+
+    checkData(expectedResult.iterator(), tableResult.collect())
+
+    // test show partitions with partition spec
+    tableResult = tableEnv.executeSql("show partitions tbl partition (b=2000)")
+    expectedResult = util.Arrays.asList(
+      Row.of("b=2000/c=2020-01-01"),
+      Row.of("b=2000/c=2020-05-01")
+    )
+    checkData(expectedResult.iterator(), tableResult.collect())
   }
 
   private def checkData(expected: util.Iterator[Row], actual: util.Iterator[Row]): Unit = {

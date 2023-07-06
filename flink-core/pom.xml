@@ -33,6 +33,24 @@ under the License.
 
 	<packaging>jar</packaging>
 
+	<properties>
+		<surefire.module.config> <!--
+			required by JmxServer
+			-->--add-exports=java.rmi/sun.rmi.registry=ALL-UNNAMED <!--
+			PluginConfigTest (CommonTestUtils#setEnv)
+			-->--add-opens=java.base/java.util=ALL-UNNAMED <!--
+			ExceptionUtilsTest
+			-->--add-opens=java.base/java.lang=ALL-UNNAMED <!--
+			StateDescriptorTest (Kryo serialization of File)
+			-->--add-opens=java.base/java.io=ALL-UNNAMED <!--
+			SerializersTest (Kryo serialization of Nested1->Path->URI)
+			-->--add-opens=java.base/java.net=ALL-UNNAMED <!--
+			InitOutputPathTest
+			-->--add-opens=java.base/java.util.concurrent.locks=ALL-UNNAMED <!--
+			-->--add-opens=java.base/java.lang.reflect=ALL-UNNAMED
+		</surefire.module.config>
+	</properties>
+
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>

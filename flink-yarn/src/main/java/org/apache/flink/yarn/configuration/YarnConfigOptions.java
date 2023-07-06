@@ -231,6 +231,31 @@ public class YarnConfigOptions {
                     .withDescription(
                             "A comma-separated list of tags to apply to the Flink YARN application.");
 
+    /**
+     * Users and groups to give VIEW access.
+     * https://www.cloudera.com/documentation/enterprise/latest/topics/cm_mc_yarn_acl.html
+     */
+    public static final ConfigOption<String> APPLICATION_VIEW_ACLS =
+            key("yarn.view.acls")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Users and groups to give VIEW access. The ACLs are of for"
+                                    + " comma-separated-users&lt;space&gt;comma-separated-groups."
+                                    + " Wildcard ACL is also supported. The only valid wildcard ACL"
+                                    + " is *, which grants permission to all users and groups.");
+
+    /** Users and groups to give MODIFY access. */
+    public static final ConfigOption<String> APPLICATION_MODIFY_ACLS =
+            key("yarn.modify.acls")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Users and groups to give MODIFY access. The ACLs are of for"
+                                    + " comma-separated-users&lt;space&gt;comma-separated-groups."
+                                    + " Wildcard ACL is also supported. The only valid wildcard ACL"
+                                    + " is *, which grants permission to all users and groups.");
+
     // ----------------------- YARN CLI OPTIONS ------------------------------------
 
     public static final ConfigOption<String> STAGING_DIRECTORY =

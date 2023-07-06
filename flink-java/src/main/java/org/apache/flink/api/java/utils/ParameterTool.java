@@ -21,6 +21,7 @@ package org.apache.flink.api.java.utils;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.lang3.math.NumberUtils;
@@ -62,7 +63,7 @@ public class ParameterTool extends AbstractParameterTool {
      * @return A {@link ParameterTool}
      */
     public static ParameterTool fromArgs(String[] args) {
-        final Map<String, String> map = new HashMap<>(args.length / 2);
+        final Map<String, String> map = CollectionUtil.newHashMapWithExpectedSize(args.length / 2);
 
         int i = 0;
         while (i < args.length) {
@@ -296,7 +297,8 @@ public class ParameterTool extends AbstractParameterTool {
      * @return The Merged {@link ParameterTool}
      */
     public ParameterTool mergeWith(ParameterTool other) {
-        final Map<String, String> resultData = new HashMap<>(data.size() + other.data.size());
+        final Map<String, String> resultData =
+                CollectionUtil.newHashMapWithExpectedSize(data.size() + other.data.size());
         resultData.putAll(data);
         resultData.putAll(other.data);
 

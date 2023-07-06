@@ -65,6 +65,19 @@ public class DefaultInputConsumableDecider implements InputConsumableDecider {
         return true;
     }
 
+    @Override
+    public boolean isConsumableBasedOnFinishedProducers(
+            final ConsumedPartitionGroup consumedPartitionGroup) {
+        if (consumedPartitionGroup.getResultPartitionType().canBePipelinedConsumed()) {
+            // For canBePipelined consumed partition group, whether it is consumable does not depend
+            // on task finish. To optimize performance and avoid unnecessary computation, we simply
+            // return false.
+            return false;
+        } else {
+            return consumedPartitionGroup.areAllPartitionsFinished();
+        }
+    }
+
     private boolean isConsumedPartitionGroupConsumable(
             final ConsumedPartitionGroup consumedPartitionGroup,
             final Set<ExecutionVertexID> verticesToSchedule) {

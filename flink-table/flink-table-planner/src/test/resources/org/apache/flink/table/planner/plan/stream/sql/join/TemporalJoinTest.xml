@@ -549,14 +549,15 @@ LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency
       +- LogicalSnapshot(period=[$cor0.proctime])
          +- LogicalProject(currency=[$0], rate=[$1], proctime=[$2])
             +- LogicalFilter(condition=[=($3, 1)])
-               +- LogicalProject(currency=[$0], rate=[$1], proctime=[PROCTIME()], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY PROCTIME() DESC NULLS LAST)])
-                  +- LogicalTableScan(table=[[default_catalog, default_database, RatesOnly]])
+               +- LogicalProject(currency=[$0], rate=[$1], proctime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+                  +- LogicalProject(currency=[$0], rate=[$1], proctime=[PROCTIME()])
+                     +- LogicalTableScan(table=[[default_catalog, default_database, RatesOnly]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate, PROCTIME_MATERIALIZE($2) AS $2])
-+- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND __TEMPORAL_JOIN_CONDITION(proctime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate, $2])
+Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate, PROCTIME_MATERIALIZE(proctime0) AS proctime0])
++- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND __TEMPORAL_JOIN_CONDITION(proctime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate, proctime0])
    :- Exchange(distribution=[hash[currency]])
    :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
    :     +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime])
@@ -564,7 +565,7 @@ Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS procti
    +- Exchange(distribution=[hash[currency]])
       +- Deduplicate(keep=[LastRow], key=[currency], order=[PROCTIME])
          +- Exchange(distribution=[hash[currency]])
-            +- Calc(select=[currency, rate, PROCTIME() AS $2])
+            +- Calc(select=[currency, rate, PROCTIME() AS proctime])
                +- TableSourceScan(table=[[default_catalog, default_database, RatesOnly]], fields=[currency, rate])
 ]]>
     </Resource>

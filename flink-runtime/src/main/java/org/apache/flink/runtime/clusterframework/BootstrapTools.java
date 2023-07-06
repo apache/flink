@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.clusterframework;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
@@ -27,8 +28,8 @@ import org.apache.flink.runtime.entrypoint.parser.CommandLineOptions;
 import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 import org.apache.flink.util.OperatingSystem;
 
-import org.apache.flink.shaded.guava30.com.google.common.escape.Escaper;
-import org.apache.flink.shaded.guava30.com.google.common.escape.Escapers;
+import org.apache.flink.shaded.guava31.com.google.common.escape.Escaper;
+import org.apache.flink.shaded.guava31.com.google.common.escape.Escapers;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
@@ -60,6 +61,9 @@ public class BootstrapTools {
 
     private static final Escaper WINDOWS_DOUBLE_QUOTE_ESCAPER =
             Escapers.builder().addEscape('"', "\\\"").addEscape('^', "\"^^\"").build();
+
+    @VisibleForTesting
+    static final String IGNORE_UNRECOGNIZED_VM_OPTIONS = "-XX:+IgnoreUnrecognizedVMOptions";
 
     /**
      * Writes a Flink YAML config file from a Flink Configuration object.
@@ -191,6 +195,7 @@ public class BootstrapTools {
         if (flinkConfig.getString(CoreOptions.FLINK_TM_JVM_OPTIONS).length() > 0) {
             javaOpts += " " + flinkConfig.getString(CoreOptions.FLINK_TM_JVM_OPTIONS);
         }
+        javaOpts += " " + IGNORE_UNRECOGNIZED_VM_OPTIONS;
 
         // krb5.conf file will be available as local resource in JM/TM container
         if (hasKrb5) {

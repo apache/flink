@@ -20,6 +20,7 @@ package org.apache.flink.table.codesplit;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.codesplit.JavaParser.BlockStatementContext;
 import org.apache.flink.table.codesplit.JavaParser.StatementContext;
+import org.apache.flink.util.CollectionUtil;
 
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
@@ -147,7 +148,8 @@ public class BlockStatementGrouper {
         visitor.rewrite();
         Map<String, Pair<TokenStreamRewriter, List<LocalGroupElement>>> groups = visitor.groups;
 
-        Map<String, List<String>> groupStrings = new HashMap<>(groups.size());
+        Map<String, List<String>> groupStrings =
+                CollectionUtil.newHashMapWithExpectedSize(groups.size());
         for (Entry<String, Pair<TokenStreamRewriter, List<LocalGroupElement>>> group :
                 groups.entrySet()) {
             List<String> collectedStringGroups =

@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.net.InetAddress;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -140,6 +141,18 @@ public class NettyConfig {
             default:
                 return TransportType.AUTO;
         }
+    }
+
+    public Optional<Integer> getTcpKeepIdleInSeconds() {
+        return config.getOptional(NettyShuffleEnvironmentOptions.CLIENT_TCP_KEEP_IDLE_SECONDS);
+    }
+
+    public Optional<Integer> getTcpKeepInternalInSeconds() {
+        return config.getOptional(NettyShuffleEnvironmentOptions.CLIENT_TCP_KEEP_INTERVAL_SECONDS);
+    }
+
+    public Optional<Integer> getTcpKeepCount() {
+        return config.getOptional(NettyShuffleEnvironmentOptions.CLIENT_TCP_KEEP_COUNT);
     }
 
     @Nullable

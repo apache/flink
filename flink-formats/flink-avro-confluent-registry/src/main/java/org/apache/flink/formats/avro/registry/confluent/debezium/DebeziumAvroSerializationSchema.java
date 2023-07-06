@@ -66,6 +66,14 @@ public class DebeziumAvroSerializationSchema implements SerializationSchema<RowD
             RowType rowType,
             String schemaRegistryUrl,
             String schemaRegistrySubject,
+            @Nullable Map<String, ?> registryConfigs) {
+        this(rowType, schemaRegistryUrl, schemaRegistrySubject, null, registryConfigs);
+    }
+
+    public DebeziumAvroSerializationSchema(
+            RowType rowType,
+            String schemaRegistryUrl,
+            String schemaRegistrySubject,
             @Nullable String schemaString,
             @Nullable Map<String, ?> registryConfigs) {
         RowType debeziumAvroRowType = createDebeziumAvroRowType(fromLogicalToDataType(rowType));

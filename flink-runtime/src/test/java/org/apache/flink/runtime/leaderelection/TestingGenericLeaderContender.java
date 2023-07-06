@@ -20,7 +20,6 @@ package org.apache.flink.runtime.leaderelection;
 
 import java.util.UUID;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 /**
  * {@code TestingGenericLeaderContender} is a more generic testing implementation of the {@link
@@ -33,17 +32,14 @@ public class TestingGenericLeaderContender implements LeaderContender {
     private final Consumer<UUID> grantLeadershipConsumer;
     private final Runnable revokeLeadershipRunnable;
     private final Consumer<Exception> handleErrorConsumer;
-    private final Supplier<String> getDescriptionSupplier;
 
     private TestingGenericLeaderContender(
             Consumer<UUID> grantLeadershipConsumer,
             Runnable revokeLeadershipRunnable,
-            Consumer<Exception> handleErrorConsumer,
-            Supplier<String> getDescriptionSupplier) {
+            Consumer<Exception> handleErrorConsumer) {
         this.grantLeadershipConsumer = grantLeadershipConsumer;
         this.revokeLeadershipRunnable = revokeLeadershipRunnable;
         this.handleErrorConsumer = handleErrorConsumer;
-        this.getDescriptionSupplier = getDescriptionSupplier;
     }
 
     @Override
@@ -67,11 +63,6 @@ public class TestingGenericLeaderContender implements LeaderContender {
         }
     }
 
-    @Override
-    public String getDescription() {
-        return getDescriptionSupplier.get();
-    }
-
     public static Builder newBuilder() {
         return new Builder();
     }
@@ -84,7 +75,6 @@ public class TestingGenericLeaderContender implements LeaderContender {
                 error -> {
                     throw new AssertionError(error);
                 };
-        private Supplier<String> getDescriptionSupplier = () -> "testing contender";
 
         private Builder() {}
 
@@ -103,17 +93,9 @@ public class TestingGenericLeaderContender implements LeaderContender {
             return this;
         }
 
-        public Builder setGetDescriptionSupplier(Supplier<String> getDescriptionSupplier) {
-            this.getDescriptionSupplier = getDescriptionSupplier;
-            return this;
-        }
-
         public TestingGenericLeaderContender build() {
             return new TestingGenericLeaderContender(
-                    grantLeadershipConsumer,
-                    revokeLeadershipRunnable,
-                    handleErrorConsumer,
-                    getDescriptionSupplier);
+                    grantLeadershipConsumer, revokeLeadershipRunnable, handleErrorConsumer);
         }
     }
 }

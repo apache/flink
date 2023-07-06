@@ -105,7 +105,7 @@
         "name" : "order_time",
         "fieldType" : "TIMESTAMP(3)"
       }, {
-        "name" : "$4",
+        "name" : "proctime",
         "fieldType" : {
           "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
@@ -114,7 +114,7 @@
         }
       } ]
     },
-    "description" : "Calc(select=[order_id, user, product, order_time, PROCTIME() AS $4])"
+    "description" : "Calc(select=[order_id, user, product, order_time, PROCTIME() AS proctime])"
   }, {
     "id" : 3,
     "type" : "stream-exec-exchange_1",
@@ -141,7 +141,7 @@
         "name" : "order_time",
         "fieldType" : "TIMESTAMP(3)"
       }, {
-        "name" : "$4",
+        "name" : "proctime",
         "fieldType" : {
           "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
@@ -191,7 +191,7 @@
         "name" : "order_time",
         "fieldType" : "TIMESTAMP(3)"
       }, {
-        "name" : "$4",
+        "name" : "proctime",
         "fieldType" : {
           "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,

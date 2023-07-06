@@ -50,6 +50,11 @@ CREATE TABLE MyUserTable (
                                         -- section for more details
   'partition.default-name' = '...',     -- optional: default partition name in case the dynamic partition
                                         -- column value is null/empty string
+  'source.path.regex-pattern' = '...',  -- optional: regex pattern to filter files to read under the 
+                                        -- directory of `path` option. This regex pattern should be
+                                        -- matched with the absolute file path. If this option is set,
+                                        -- the connector  will recursive all files under the directory
+                                        -- of `path` option
 
   -- optional: the option to enable shuffle data by dynamic partition fields in sink phase, this can greatly
   -- reduce the number of file for filesystem sink but may lead data skew, the default value is false.
@@ -469,6 +474,14 @@ The partition commit policy defines what action is taken when partitions are com
         <td style="word-wrap: break-word;">(none)</td>
         <td>String</td>
         <td>The partition commit policy class for implement PartitionCommitPolicy interface. Only work in custom commit policy.</td>
+    </tr>
+    <tr>
+        <td><h5>sink.partition-commit.policy.class.parameters</h5></td>
+        <td>optional</td>
+        <td>yes</td>
+        <td style="word-wrap: break-word;">(none)</td>
+        <td>String</td>
+        <td>The parameters passed to the constructor of the custom commit policy, with multiple parameters separated by semicolons, such as 'param1;param2'. The configuration value will be split into a list (['param1', 'param2']) and passed to the constructor of the custom commit policy class. This option is optional, if not configured, the default constructor will be used.</td>
     </tr>
     <tr>
         <td><h5>sink.partition-commit.success-file.name</h5></td>

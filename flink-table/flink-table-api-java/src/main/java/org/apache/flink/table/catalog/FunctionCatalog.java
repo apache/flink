@@ -324,11 +324,17 @@ public final class FunctionCatalog {
      * functions and catalog functions in the current catalog and current database.
      */
     public String[] getFunctions() {
+        return getFunctions(
+                catalogManager.getCurrentCatalog(), catalogManager.getCurrentDatabase());
+    }
+
+    /**
+     * Get names of all functions, including temp system functions, system functions, temp catalog
+     * functions and catalog functions with specific catalog and database.
+     */
+    public String[] getFunctions(String catalogName, String databaseName) {
         Set<String> result =
-                getUserDefinedFunctions(
-                                catalogManager.getCurrentCatalog(),
-                                catalogManager.getCurrentDatabase())
-                        .stream()
+                getUserDefinedFunctions(catalogName, databaseName).stream()
                         .map(FunctionIdentifier::getFunctionName)
                         .collect(Collectors.toSet());
 

@@ -20,8 +20,6 @@ package org.apache.flink.runtime.leaderelection;
 
 import org.apache.flink.util.Preconditions;
 
-import javax.annotation.Nullable;
-
 import java.util.UUID;
 
 /**
@@ -31,36 +29,31 @@ import java.util.UUID;
 class DefaultLeaderElection implements LeaderElection {
 
     private final AbstractLeaderElectionService parentService;
-    @Nullable private LeaderContender leaderContender;
+    private final String contenderID;
 
-    DefaultLeaderElection(AbstractLeaderElectionService parentService) {
+    DefaultLeaderElection(AbstractLeaderElectionService parentService, String contenderID) {
         this.parentService = parentService;
+        this.contenderID = contenderID;
     }
 
     @Override
     public void startLeaderElection(LeaderContender contender) throws Exception {
-        Preconditions.checkState(
-                leaderContender == null, "There shouldn't be any LeaderContender registered, yet.");
-        leaderContender = Preconditions.checkNotNull(contender);
-
-        parentService.register(leaderContender);
+        Preconditions.checkNotNull(contender);
+        parentService.register(contenderID, contender);
     }
 
     @Override
     public void confirmLeadership(UUID leaderSessionID, String leaderAddress) {
-        parentService.confirmLeadership(leaderSessionID, leaderAddress);
+        parentService.confirmLeadership(contenderID, leaderSessionID, leaderAddress);
     }
 
     @Override
     public boolean hasLeadership(UUID leaderSessionId) {
-        return parentService.hasLeadership(leaderSessionId);
+        return parentService.hasLeadership(contenderID, leaderSessionId);
     }
 
     @Override
     public void close() throws Exception {
-        if (leaderContender != null) {
-            parentService.remove(leaderContender);
-            leaderContender = null;
-        }
+        parentService.remove(contenderID);
     }
 }

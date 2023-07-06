@@ -19,147 +19,266 @@
 package org.apache.flink.runtime.leaderelection;
 
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.ThrowingConsumer;
+import org.apache.flink.util.function.TriConsumer;
 
-import javax.annotation.Nullable;
-
-import java.util.UUID;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
 
 /**
- * {@link LeaderElectionDriver} implementation which provides some convenience functions for testing
- * purposes. Please use {@link #isLeader} and {@link #notLeader()} to manually control the
- * leadership.
+ * {@code TestingLeaderElectionDriver} is a generic test implementation of {@link
+ * MultipleComponentLeaderElectionDriver} which can be used in test cases.
  */
-public class TestingLeaderElectionDriver implements LeaderElectionDriver {
+public class TestingLeaderElectionDriver implements MultipleComponentLeaderElectionDriver {
 
-    private final Object lock = new Object();
+    private final Function<ReentrantLock, Boolean> hasLeadershipFunction;
+    private final TriConsumer<ReentrantLock, String, LeaderInformation>
+            publishLeaderInformationConsumer;
+    private final BiConsumer<ReentrantLock, String> deleteLeaderInformationConsumer;
 
-    private final AtomicBoolean isLeader = new AtomicBoolean(false);
-    private final LeaderElectionEventHandler leaderElectionEventHandler;
+    private final ThrowingConsumer<ReentrantLock, Exception> closeConsumer;
+
+    private final ReentrantLock lock = new ReentrantLock();
+
     private final FatalErrorHandler fatalErrorHandler;
 
-    private final ThrowingConsumer<LeaderElectionEventHandler, Exception> closeRunnable;
-    private final ThrowingConsumer<LeaderElectionEventHandler, Exception> beforeLockCloseRunnable;
-
-    private final Consumer<LeaderElectionEventHandler> beforeGrantRunnable;
-
-    // Leader information on external storage
-    private LeaderInformation leaderInformation = LeaderInformation.empty();
-
-    private TestingLeaderElectionDriver(
-            LeaderElectionEventHandler leaderElectionEventHandler,
+    public TestingLeaderElectionDriver(
             FatalErrorHandler fatalErrorHandler,
-            ThrowingConsumer<LeaderElectionEventHandler, Exception> closeRunnable,
-            ThrowingConsumer<LeaderElectionEventHandler, Exception> beforeLockCloseRunnable,
-            Consumer<LeaderElectionEventHandler> beforeGrantRunnable) {
-        this.leaderElectionEventHandler = leaderElectionEventHandler;
+            Function<ReentrantLock, Boolean> hasLeadershipFunction,
+            TriConsumer<ReentrantLock, String, LeaderInformation> publishLeaderInformationConsumer,
+            BiConsumer<ReentrantLock, String> deleteLeaderInformationConsumer,
+            ThrowingConsumer<ReentrantLock, Exception> closeConsumer) {
         this.fatalErrorHandler = fatalErrorHandler;
-        this.closeRunnable = closeRunnable;
-        this.beforeLockCloseRunnable = beforeLockCloseRunnable;
-        this.beforeGrantRunnable = beforeGrantRunnable;
-    }
 
-    @Override
-    public void writeLeaderInformation(LeaderInformation leaderInformation) {
-        this.leaderInformation = leaderInformation;
+        this.hasLeadershipFunction = hasLeadershipFunction;
+        this.publishLeaderInformationConsumer = publishLeaderInformationConsumer;
+        this.deleteLeaderInformationConsumer = deleteLeaderInformationConsumer;
+        this.closeConsumer = closeConsumer;
     }
 
     @Override
     public boolean hasLeadership() {
-        return isLeader.get();
+        return hasLeadershipFunction.apply(lock);
+    }
+
+    @Override
+    public void publishLeaderInformation(String contenderID, LeaderInformation leaderInformation) {
+        publishLeaderInformationConsumer.accept(lock, contenderID, leaderInformation);
+    }
+
+    @Override
+    public void deleteLeaderInformation(String contenderID) {
+        deleteLeaderInformationConsumer.accept(lock, contenderID);
     }
 
     @Override
     public void close() throws Exception {
-        beforeLockCloseRunnable.accept(leaderElectionEventHandler);
-        synchronized (lock) {
-            closeRunnable.accept(leaderElectionEventHandler);
+        closeConsumer.accept(lock);
+    }
+
+    public void triggerFatalError(Throwable t) {
+        fatalErrorHandler.onFatalError(t);
+    }
+
+    public static Builder newNoOpBuilder() {
+        return new Builder();
+    }
+
+    public ReentrantLock getLock() {
+        return lock;
+    }
+
+    public static Builder newBuilder(AtomicBoolean grantLeadership) {
+        return newBuilder(grantLeadership, new AtomicReference<>(), new AtomicBoolean());
+    }
+
+    /**
+     * Returns a {@code Builder} that comes with a basic default implementation of the {@link
+     * MultipleComponentLeaderElectionDriver} contract using the passed parameters for information
+     * storage.
+     *
+     * @param hasLeadership saves the current leadership state of the instance that is created from
+     *     the {@code Builder}.
+     * @param storedLeaderInformation saves the leader information that would be otherwise stored in
+     *     some external storage.
+     * @param isClosed saves the running state of the driver.
+     */
+    public static Builder newBuilder(
+            AtomicBoolean hasLeadership,
+            AtomicReference<LeaderInformationRegister> storedLeaderInformation,
+            AtomicBoolean isClosed) {
+        Preconditions.checkState(
+                storedLeaderInformation.get() == null
+                        || !storedLeaderInformation
+                                .get()
+                                .getRegisteredContenderIDs()
+                                .iterator()
+                                .hasNext(),
+                "Initial state check for storedLeaderInformation failed.");
+        Preconditions.checkState(!isClosed.get(), "Initial state check for isClosed failed.");
+        return newNoOpBuilder()
+                .setHasLeadershipFunction(
+                        lock -> {
+                            try {
+                                lock.lock();
+                                return hasLeadership.get();
+                            } finally {
+                                lock.unlock();
+                            }
+                        })
+                .setPublishLeaderInformationConsumer(
+                        (lock, contenderID, leaderInformation) -> {
+                            try {
+                                lock.lock();
+                                if (hasLeadership.get()) {
+                                    storedLeaderInformation.getAndUpdate(
+                                            oldData ->
+                                                    LeaderInformationRegister.merge(
+                                                            oldData,
+                                                            contenderID,
+                                                            leaderInformation));
+                                }
+                            } finally {
+                                lock.unlock();
+                            }
+                        })
+                .setDeleteLeaderInformationConsumer(
+                        (lock, contenderID) -> {
+                            try {
+                                lock.lock();
+                                if (hasLeadership.get()) {
+                                    storedLeaderInformation.getAndUpdate(
+                                            oldData ->
+                                                    LeaderInformationRegister.clear(
+                                                            oldData, contenderID));
+                                }
+                            } finally {
+                                lock.unlock();
+                            }
+                        })
+                .setCloseConsumer(
+                        lock -> {
+                            try {
+                                lock.lock();
+                                isClosed.set(true);
+                            } finally {
+                                lock.unlock();
+                            }
+                        });
+    }
+
+    /**
+     * {@code Factory} implements {@link MultipleComponentLeaderElectionDriverFactory} for the
+     * {@code TestingLeaderElectionDriver}.
+     */
+    public static class Factory implements MultipleComponentLeaderElectionDriverFactory {
+
+        private final Builder driverBuilder;
+
+        private final Queue<TestingLeaderElectionDriver> createdDrivers =
+                new ConcurrentLinkedQueue<>();
+
+        public static Factory createFactoryWithNoOpDriver() {
+            return new Factory(TestingLeaderElectionDriver.newNoOpBuilder());
         }
-    }
 
-    public LeaderInformation getLeaderInformation() {
-        return leaderInformation;
-    }
-
-    public void isLeader(UUID newSessionID) {
-        synchronized (lock) {
-            isLeader.set(true);
-            beforeGrantRunnable.accept(leaderElectionEventHandler);
-            leaderElectionEventHandler.onGrantLeadership(newSessionID);
-        }
-    }
-
-    public void isLeader() {
-        isLeader(UUID.randomUUID());
-    }
-
-    public void notLeader() {
-        synchronized (lock) {
-            isLeader.set(false);
-            leaderElectionEventHandler.onRevokeLeadership();
-        }
-    }
-
-    public void leaderInformationChanged(LeaderInformation newLeader) {
-        leaderInformation = newLeader;
-        leaderElectionEventHandler.onLeaderInformationChange(newLeader);
-    }
-
-    public void onFatalError(Throwable throwable) {
-        fatalErrorHandler.onFatalError(throwable);
-    }
-
-    /** Factory for create {@link TestingLeaderElectionDriver}. */
-    public static class TestingLeaderElectionDriverFactory implements LeaderElectionDriverFactory {
-
-        private TestingLeaderElectionDriver currentLeaderDriver;
-
-        private final ThrowingConsumer<LeaderElectionEventHandler, Exception> closeRunnable;
-        private final ThrowingConsumer<LeaderElectionEventHandler, Exception>
-                beforeLockCloseRunnable;
-
-        private final Consumer<LeaderElectionEventHandler> beforeGrantRunnable;
-
-        public TestingLeaderElectionDriverFactory() {
-            this(ignoredLeaderElectionEventHandler -> {});
+        public static Factory defaultDriverFactory(
+                AtomicBoolean hasLeadership,
+                AtomicReference<LeaderInformationRegister> storedLeaderInformation,
+                AtomicBoolean isClosed) {
+            return new Factory(
+                    TestingLeaderElectionDriver.newBuilder(
+                            hasLeadership, storedLeaderInformation, isClosed));
         }
 
-        public TestingLeaderElectionDriverFactory(
-                ThrowingConsumer<LeaderElectionEventHandler, Exception> closeRunnable) {
-            this(
-                    closeRunnable,
-                    ignoredLeaderElectionEventHandler -> {},
-                    ignoredLeaderElectionEventHandler -> {});
-        }
-
-        public TestingLeaderElectionDriverFactory(
-                ThrowingConsumer<LeaderElectionEventHandler, Exception> closeRunnable,
-                ThrowingConsumer<LeaderElectionEventHandler, Exception> beforeLockCloseRunnable,
-                Consumer<LeaderElectionEventHandler> beforeGrantRunnable) {
-            this.closeRunnable = closeRunnable;
-            this.beforeLockCloseRunnable = beforeLockCloseRunnable;
-            this.beforeGrantRunnable = beforeGrantRunnable;
+        public Factory(Builder driverBuilder) {
+            this.driverBuilder = driverBuilder;
         }
 
         @Override
-        public LeaderElectionDriver createLeaderElectionDriver(
-                LeaderElectionEventHandler leaderEventHandler,
-                FatalErrorHandler fatalErrorHandler) {
-            currentLeaderDriver =
-                    new TestingLeaderElectionDriver(
-                            leaderEventHandler,
-                            fatalErrorHandler,
-                            closeRunnable,
-                            beforeLockCloseRunnable,
-                            beforeGrantRunnable);
-            return currentLeaderDriver;
+        public MultipleComponentLeaderElectionDriver create(
+                Listener leaderElectionListener, FatalErrorHandler fatalErrorHandler)
+                throws Exception {
+            final TestingLeaderElectionDriver driver =
+                    driverBuilder.build(leaderElectionListener, fatalErrorHandler);
+            createdDrivers.add(driver);
+
+            return driver;
         }
 
-        @Nullable
-        public TestingLeaderElectionDriver getCurrentLeaderDriver() {
-            return currentLeaderDriver;
+        /**
+         * Returns the {@link TestingLeaderElectionDriver} instance that was created by this {@code
+         * Factory} and verifies that no other driver was created.
+         *
+         * @return The only {@code MultipleComponentLeaderElectionDriver} that was created by this
+         *     {@code Factory}.
+         * @throws AssertionError if no {@code MultipleComponentLeaderElectionDriver} or more than
+         *     one instance was created by this {@code Factory}.
+         */
+        public TestingLeaderElectionDriver assertAndGetOnlyCreatedDriver() {
+            final TestingLeaderElectionDriver driver = createdDrivers.poll();
+            if (driver == null) {
+                throw new AssertionError("No driver was created by this factory, yet.");
+            } else if (!createdDrivers.isEmpty()) {
+                throw new AssertionError("More than one driver was created by this factory.");
+            }
+
+            return driver;
+        }
+    }
+
+    /** {@link Builder} for creating {@link TestingLeaderElectionDriver} instances. */
+    public static class Builder {
+
+        private Function<ReentrantLock, Boolean> hasLeadershipFunction = ignoredLock -> false;
+        private TriConsumer<ReentrantLock, String, LeaderInformation>
+                publishLeaderInformationConsumer =
+                        (ignoredLock, ignoredContenderID, ignoredLeaderInformation) -> {};
+        private BiConsumer<ReentrantLock, String> deleteLeaderInformationConsumer =
+                (ignoredLock, ignoredContenderID) -> {};
+
+        private ThrowingConsumer<ReentrantLock, Exception> closeConsumer = (ignoredLock) -> {};
+
+        private Builder() {}
+
+        public Builder setHasLeadershipFunction(
+                Function<ReentrantLock, Boolean> hasLeadershipFunction) {
+            this.hasLeadershipFunction = hasLeadershipFunction;
+            return this;
+        }
+
+        public Builder setPublishLeaderInformationConsumer(
+                TriConsumer<ReentrantLock, String, LeaderInformation>
+                        publishLeaderInformationConsumer) {
+            this.publishLeaderInformationConsumer = publishLeaderInformationConsumer;
+            return this;
+        }
+
+        public Builder setDeleteLeaderInformationConsumer(
+                BiConsumer<ReentrantLock, String> deleteLeaderInformationConsumer) {
+            this.deleteLeaderInformationConsumer = deleteLeaderInformationConsumer;
+            return this;
+        }
+
+        public Builder setCloseConsumer(ThrowingConsumer<ReentrantLock, Exception> closeConsumer) {
+            this.closeConsumer = closeConsumer;
+            return this;
+        }
+
+        public TestingLeaderElectionDriver build(
+                Listener ignoredListener, FatalErrorHandler fatalErrorHandler) {
+            return new TestingLeaderElectionDriver(
+                    fatalErrorHandler,
+                    hasLeadershipFunction,
+                    publishLeaderInformationConsumer,
+                    deleteLeaderInformationConsumer,
+                    closeConsumer);
         }
     }
 }

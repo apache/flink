@@ -40,8 +40,9 @@ Calc(select=[ts, a, b], where=[(a > 1)])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
-+- LogicalTableScan(table=[[default_catalog, default_database, computed_column_t]])
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, computed_column_t]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -57,8 +58,9 @@ Calc(select=[a, b, (a + 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)], ptime=[PROCTIME()])
-+- LogicalTableScan(table=[[default_catalog, default_database, proctime_t]])
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], ptime=[$5])
++- LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)], ptime=[PROCTIME()])
+   +- LogicalTableScan(table=[[default_catalog, default_database, proctime_t]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -74,8 +76,9 @@ Calc(select=[a, b, (a + 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e, PROCTIME_
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
-+- LogicalTableScan(table=[[default_catalog, default_database, c_watermark_t]])
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, c_watermark_t]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">

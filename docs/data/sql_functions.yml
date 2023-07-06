@@ -646,6 +646,15 @@ collection:
   - sql: ARRAY_UNION(array1, array2)
     table: haystack.arrayUnion(array)
     description: Returns an array of the elements in the union of array1 and array2, without duplicates. If any of the array is null, the function will return null.
+  - sql: ARRAY_CONCAT(array1, ...)
+    table: array1.arrayConcat(...)
+    description: Returns an array that is the result of concatenating at least one array. This array contains all the elements in the first array, followed by all the elements in the second array, and so forth, up to the Nth array. If any input array is NULL, the function returns NULL.
+  - sql: ARRAY_MAX(array)
+    table: array.arrayMax()
+    description: Returns the maximum value from the array, if array itself is null, the function returns null.
+  - sql: ARRAY_JOIN(array, delimiter[, nullReplacement])
+    table: array.arrayJoin(delimiter[, nullReplacement])
+    description: Returns a string that represents the concatenation of the elements in the given array and the elements' data type in the given array is string. The delimiter is a string that separates each pair of consecutive elements of the array. The optional nullReplacement is a string that replaces null elements in the array. If nullReplacement is not specified, null elements in the array will be omitted from the resulting string. Returns null if input array or delimiter or nullReplacement are null.
   - sql: MAP_KEYS(map)
     table: MAP.mapKeys()
     description: Returns the keys of the map as array. No order guaranteed.

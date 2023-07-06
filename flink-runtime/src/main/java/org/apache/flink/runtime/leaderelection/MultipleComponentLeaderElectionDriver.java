@@ -18,19 +18,12 @@
 
 package org.apache.flink.runtime.leaderelection;
 
-import java.util.Collection;
+import java.util.UUID;
 
 /**
  * A leader election driver that allows to write {@link LeaderInformation} for multiple components.
  */
-public interface MultipleComponentLeaderElectionDriver {
-
-    /**
-     * Closes the driver.
-     *
-     * @throws Exception if closing this driver fails
-     */
-    void close() throws Exception;
+public interface MultipleComponentLeaderElectionDriver extends AutoCloseable {
 
     /**
      * Returns whether the driver has currently leadership.
@@ -44,18 +37,15 @@ public interface MultipleComponentLeaderElectionDriver {
      *
      * @param componentId identifying the component for which to publish the leader information
      * @param leaderInformation leader information of the respective component
-     * @throws Exception if publishing fails
      */
-    void publishLeaderInformation(String componentId, LeaderInformation leaderInformation)
-            throws Exception;
+    void publishLeaderInformation(String componentId, LeaderInformation leaderInformation);
 
     /**
      * Deletes the leader information for the given component.
      *
      * @param componentId identifying the component for which to delete the leader information
-     * @throws Exception if deleting fails
      */
-    void deleteLeaderInformation(String componentId) throws Exception;
+    void deleteLeaderInformation(String componentId);
 
     /**
      * Listener interface for state changes of the {@link MultipleComponentLeaderElectionDriver}.
@@ -63,7 +53,7 @@ public interface MultipleComponentLeaderElectionDriver {
     interface Listener {
 
         /** Callback that is called once the driver obtains the leadership. */
-        void isLeader();
+        void isLeader(UUID leaderSessionID);
 
         /** Callback that is called once the driver loses the leadership. */
         void notLeader();
@@ -76,12 +66,7 @@ public interface MultipleComponentLeaderElectionDriver {
          */
         void notifyLeaderInformationChange(String componentId, LeaderInformation leaderInformation);
 
-        /**
-         * Notifies the listener about all currently known leader information.
-         *
-         * @param leaderInformationWithComponentIds leader information with component ids
-         */
-        void notifyAllKnownLeaderInformation(
-                Collection<LeaderInformationWithComponentId> leaderInformationWithComponentIds);
+        /** Notifies the listener about all currently known leader information. */
+        void notifyAllKnownLeaderInformation(LeaderInformationRegister leaderInformationRegister);
     }
 }

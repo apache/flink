@@ -77,12 +77,12 @@ public class EmbeddedHaServices extends AbstractNonHaServices {
 
     @Override
     public LeaderElection getResourceManagerLeaderElection() {
-        return resourceManagerLeaderService.createLeaderElectionService();
+        return resourceManagerLeaderService.createLeaderElectionService("resource_manager");
     }
 
     @Override
     public LeaderElection getDispatcherLeaderElection() {
-        return dispatcherLeaderService.createLeaderElectionService();
+        return dispatcherLeaderService.createLeaderElectionService("dispatcher");
     }
 
     @Override
@@ -114,13 +114,13 @@ public class EmbeddedHaServices extends AbstractNonHaServices {
         synchronized (lock) {
             checkNotShutdown();
             EmbeddedLeaderService service = getOrCreateJobManagerService(jobID);
-            return service.createLeaderElectionService();
+            return service.createLeaderElectionService("job-" + jobID);
         }
     }
 
     @Override
     public LeaderElection getClusterRestEndpointLeaderElection() {
-        return clusterRestEndpointLeaderService.createLeaderElectionService();
+        return clusterRestEndpointLeaderService.createLeaderElectionService("rest_server");
     }
 
     // ------------------------------------------------------------------------

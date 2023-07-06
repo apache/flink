@@ -68,7 +68,7 @@ class LegacySinkTest extends TableTestBase {
     thrown.expect(classOf[TableException])
     thrown.expectMessage(
       "OverAggregate doesn't support consuming update changes " +
-        "which is produced by node GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt])")
+        "which is produced by node Calc(select=[cnt]")
     util.verifyRelPlan(stmtSet)
   }
 

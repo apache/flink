@@ -24,6 +24,7 @@ import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
@@ -91,6 +92,7 @@ import org.apache.flink.table.operations.ddl.AnalyzeTableOperation;
 import org.apache.flink.table.operations.ddl.CompilePlanOperation;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.resource.ResourceManager;
+import org.apache.flink.table.resource.ResourceType;
 import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
@@ -104,10 +106,8 @@ import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.MutableURLClassLoader;
 import org.apache.flink.util.Preconditions;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -208,7 +208,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                         functionCatalog,
                         moduleManager,
                         resourceManager,
-                        tableConfig);
+                        tableConfig,
+                        isStreamingMode);
     }
 
     public static TableEnvironmentImpl create(Configuration configuration) {
@@ -731,38 +732,47 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     private CompiledPlan compilePlanAndWrite(
-            String filePath, boolean ifNotExists, Operation operation) {
-        File file = Paths.get(filePath).toFile();
-        if (file.exists()) {
-            if (ifNotExists) {
-                return loadPlan(PlanReference.fromFile(filePath));
+            String pathString, boolean ignoreIfExists, Operation operation) {
+        try {
+            ResourceUri planResource = new ResourceUri(ResourceType.FILE, pathString);
+            Path planPath = new Path(pathString);
+            if (resourceManager.exists(planPath)) {
+                if (ignoreIfExists) {
+                    return loadPlan(
+                            PlanReference.fromFile(
+                                    resourceManager.registerFileResource(planResource)));
+                }
+
+                if (!tableConfig.get(TableConfigOptions.PLAN_FORCE_RECOMPILE)) {
+                    throw new TableException(
+                            String.format(
+                                    "Cannot overwrite the plan file '%s'. "
+                                            + "Either manually remove the file or, "
+                                            + "if you're debugging your job, "
+                                            + "set the option '%s' to true.",
+                                    pathString, TableConfigOptions.PLAN_FORCE_RECOMPILE.key()));
+                }
             }
 
-            if (!tableConfig.get(TableConfigOptions.PLAN_FORCE_RECOMPILE)) {
+            CompiledPlan compiledPlan;
+            if (operation instanceof StatementSetOperation) {
+                compiledPlan = compilePlan(((StatementSetOperation) operation).getOperations());
+            } else if (operation instanceof ModifyOperation) {
+                compiledPlan = compilePlan(Collections.singletonList((ModifyOperation) operation));
+            } else {
                 throw new TableException(
-                        String.format(
-                                "Cannot overwrite the plan file '%s'. "
-                                        + "Either manually remove the file or, "
-                                        + "if you're debugging your job, "
-                                        + "set the option '%s' to true.",
-                                filePath, TableConfigOptions.PLAN_FORCE_RECOMPILE.key()));
+                        "Unsupported operation to compile: "
+                                + operation.getClass()
+                                + ". This is a bug, please file an issue.");
             }
-        }
-
-        CompiledPlan compiledPlan;
-        if (operation instanceof StatementSetOperation) {
-            compiledPlan = compilePlan(((StatementSetOperation) operation).getOperations());
-        } else if (operation instanceof ModifyOperation) {
-            compiledPlan = compilePlan(Collections.singletonList((ModifyOperation) operation));
-        } else {
+            resourceManager.syncFileResource(
+                    planResource, path -> compiledPlan.writeToFile(path, false));
+            return compiledPlan;
+        } catch (IOException e) {
             throw new TableException(
-                    "Unsupported operation to compile: "
-                            + operation.getClass()
-                            + ". This is a bug, please file an issue.");
+                    String.format("Failed to execute %s statement.", operation.asSummaryString()),
+                    e);
         }
-
-        compiledPlan.writeToFile(file, false);
-        return compiledPlan;
     }
 
     @Override
@@ -938,8 +948,20 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             return executeQueryOperation((QueryOperation) operation);
         } else if (operation instanceof ExecutePlanOperation) {
             ExecutePlanOperation executePlanOperation = (ExecutePlanOperation) operation;
-            return (TableResultInternal)
-                    executePlan(PlanReference.fromFile(executePlanOperation.getFilePath()));
+            try {
+                return (TableResultInternal)
+                        executePlan(
+                                PlanReference.fromFile(
+                                        resourceManager.registerFileResource(
+                                                new ResourceUri(
+                                                        ResourceType.FILE,
+                                                        executePlanOperation.getFilePath()))));
+            } catch (IOException e) {
+                throw new TableException(
+                        String.format(
+                                "Failed to execute %s statement.", operation.asSummaryString()),
+                        e);
+            }
         } else if (operation instanceof CompilePlanOperation) {
             CompilePlanOperation compilePlanOperation = (CompilePlanOperation) operation;
             compilePlanAndWrite(

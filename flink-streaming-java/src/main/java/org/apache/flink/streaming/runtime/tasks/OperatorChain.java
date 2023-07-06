@@ -66,11 +66,12 @@ import org.apache.flink.streaming.runtime.io.StreamTaskSourceInput;
 import org.apache.flink.streaming.runtime.operators.sink.SinkWriterOperatorFactory;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorFactory;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.SerializedValue;
 
-import org.apache.flink.shaded.guava30.com.google.common.io.Closer;
+import org.apache.flink.shaded.guava31.com.google.common.io.Closer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -176,7 +177,7 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
         List<NonChainedOutput> outputsInOrder =
                 configuration.getVertexNonChainedOutputs(userCodeClassloader);
         Map<IntermediateDataSetID, RecordWriterOutput<?>> recordWriterOutputs =
-                new HashMap<>(outputsInOrder.size());
+                CollectionUtil.newHashMapWithExpectedSize(outputsInOrder.size());
         this.streamOutputs = new RecordWriterOutput<?>[outputsInOrder.size()];
         this.finishedOnRestoreInput =
                 this.isTaskDeployedAsFinished()

@@ -25,10 +25,10 @@ import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.hive.HiveGenericUDAF;
 import org.apache.flink.table.module.hive.udf.generic.GenericUDFLegacyGroupingID;
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseDriver;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserASTNode;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer;
@@ -44,8 +44,6 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveParserUnparseTran
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserCreateViewInfo;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserErrorMsg;
-import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction;
-import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
@@ -144,6 +142,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiPredicate;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.planner.delegation.hive.HiveParserTypeCheckProcFactory.DefaultExprProcessor.getFunctionText;
@@ -154,6 +153,11 @@ import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBase
 public class HiveParserUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(HiveParserUtils.class);
+
+    public static final String BRIDGING_SQL_FUNCTION_CLZ_NAME =
+            "org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction";
+    private static final String BRIDGING_SQL_AGG_FUNCTION_CLZ_NAME =
+            "org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction";
 
     private static final Class immutableListClz =
             HiveReflectionUtils.tryGetClass("com.google.common.collect.ImmutableList");
@@ -168,6 +172,21 @@ public class HiveParserUtils {
             HiveReflectionUtils.tryGetClass(
                     "org.apache.flink.calcite.shaded.com.google.common.collect.ImmutableSet");
     private static final boolean useShadedImmutableSet = shadedImmutableSetClz != null;
+
+    private static final BiPredicate<SqlOperator, String> BRIDGING_SQL_FUNCTION_CHECKER =
+            (sqlOperator, clazzName) -> {
+                if (sqlOperator != null) {
+                    Class<?> clazz = HiveReflectionUtils.tryGetClass(clazzName);
+                    if (clazz == null) {
+                        throw new FlinkHiveException(
+                                String.format(
+                                        "Fail to get class %s for the class can't be found",
+                                        clazzName));
+                    }
+                    return clazz.isInstance(sqlOperator);
+                }
+                return false;
+            };
 
     private HiveParserUtils() {}
 
@@ -618,11 +637,10 @@ public class HiveParserUtils {
             // this happens for temp functions
             SqlOperator sqlOperator =
                     getSqlOperator(aggName, opTable, SqlFunctionCategory.USER_DEFINED_FUNCTION);
-            if (sqlOperator instanceof BridgingSqlAggFunction
-                    && ((BridgingSqlAggFunction) sqlOperator).getDefinition()
-                            instanceof HiveGenericUDAF) {
+            if (isBridgingSqlAggFunction(sqlOperator)
+                    && getBridgingSqlFunctionDefinition(sqlOperator) instanceof HiveGenericUDAF) {
                 HiveGenericUDAF hiveGenericUDAF =
-                        (HiveGenericUDAF) ((BridgingSqlAggFunction) sqlOperator).getDefinition();
+                        (HiveGenericUDAF) getBridgingSqlFunctionDefinition(sqlOperator);
                 result =
                         hiveGenericUDAF.createEvaluator(
                                 originalParameterTypeInfos.toArray(new ObjectInspector[0]));
@@ -639,6 +657,28 @@ public class HiveParserUtils {
                             ErrorMsg.INVALID_FUNCTION_SIGNATURE, aggTree.getChild(0), reason));
         }
         return result;
+    }
+
+    public static boolean isBridgingSqlFunction(SqlOperator sqlOperator) {
+        return BRIDGING_SQL_FUNCTION_CHECKER.test(sqlOperator, BRIDGING_SQL_FUNCTION_CLZ_NAME);
+    }
+
+    private static boolean isBridgingSqlAggFunction(SqlOperator sqlOperator) {
+        return BRIDGING_SQL_FUNCTION_CHECKER.test(sqlOperator, BRIDGING_SQL_AGG_FUNCTION_CLZ_NAME);
+    }
+
+    private static FunctionDefinition getBridgingSqlFunctionDefinition(SqlOperator sqlOperator) {
+        try {
+            return (FunctionDefinition)
+                    HiveReflectionUtils.invokeMethod(
+                            sqlOperator.getClass(),
+                            sqlOperator,
+                            "getDefinition",
+                            new Class[] {},
+                            new Object[] {});
+        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            throw new FlinkHiveException("Failed to create immutable list", e);
+        }
     }
 
     /**
@@ -932,8 +972,7 @@ public class HiveParserUtils {
             RelDataTypeFactory dataTypeFactory) {
         HiveParserOperatorBinding operatorBinding =
                 new HiveParserOperatorBinding(dataTypeFactory, sqlOperator, types, operands);
-        if (sqlOperator instanceof BridgingSqlFunction
-                || sqlOperator instanceof BridgingSqlAggFunction) {
+        if (isBridgingSqlFunction(sqlOperator) || isBridgingSqlAggFunction(sqlOperator)) {
             SqlReturnTypeInference returnTypeInference = sqlOperator.getReturnTypeInference();
             return returnTypeInference.inferReturnType(operatorBinding);
         } else {
@@ -1018,9 +1057,8 @@ public class HiveParserUtils {
     }
 
     public static boolean isUDTF(SqlOperator sqlOperator) {
-        if (sqlOperator instanceof BridgingSqlFunction) {
-            return ((BridgingSqlFunction) sqlOperator).getDefinition().getKind()
-                    == FunctionKind.TABLE;
+        if (isBridgingSqlFunction(sqlOperator)) {
+            return getBridgingSqlFunctionDefinition(sqlOperator).getKind() == FunctionKind.TABLE;
         } else {
             return sqlOperator instanceof SqlUserDefinedTableFunction;
         }
@@ -1528,20 +1566,6 @@ public class HiveParserUtils {
             // literals to string type,
             // so we need to differentiate cast from a real literal
             return operand != null && RexUtil.isNullLiteral(operand, false);
-        }
-
-        public Object[] getConstantOperands() {
-            Object[] res = new Object[operands.size()];
-            for (int i = 0; i < res.length; i++) {
-                if (isOperandLiteral(i, false)) {
-                    res[i] =
-                            getOperandLiteralValue(
-                                    i,
-                                    FlinkTypeFactory.toLogicalType(getOperandType(i))
-                                            .getDefaultConversion());
-                }
-            }
-            return res;
         }
     }
 

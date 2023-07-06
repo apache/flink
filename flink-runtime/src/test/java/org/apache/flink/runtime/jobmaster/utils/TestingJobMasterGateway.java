@@ -571,4 +571,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
             JobResourceRequirements jobResourceRequirements) {
         return updateJobResourceRequirementsFunction.apply(jobResourceRequirements);
     }
+
+    @Override
+    public void notifyEndOfData(ExecutionAttemptID executionAttempt) {}
 }

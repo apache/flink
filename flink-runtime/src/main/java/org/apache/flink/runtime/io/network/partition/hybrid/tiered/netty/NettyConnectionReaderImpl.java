@@ -54,7 +54,11 @@ public class NettyConnectionReaderImpl implements NettyConnectionReader {
     public Optional<Buffer> readBuffer(int segmentId) {
         if (segmentId > 0L && (segmentId != lastRequiredSegmentId)) {
             lastRequiredSegmentId = segmentId;
-            inputChannelProvider.get().notifyRequiredSegmentId(segmentId);
+            try {
+                inputChannelProvider.get().notifyRequiredSegmentId(segmentId);
+            } catch (IOException e) {
+                ExceptionUtils.rethrow(e, "Failed to notify required segment id");
+            }
         }
         Optional<InputChannel.BufferAndAvailability> bufferAndAvailability = Optional.empty();
         try {

@@ -18,6 +18,7 @@
 
 package org.apache.flink.util;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -25,6 +26,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
+import static org.apache.flink.util.CollectionUtil.HASH_MAP_DEFAULT_LOAD_FACTOR;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for java collection utilities. */
@@ -51,5 +53,58 @@ public class CollectionUtilTest {
     public void testFromNullableWithObject() {
         final Object element = new Object();
         assertThat(CollectionUtil.ofNullable(element)).singleElement().isEqualTo(element);
+    }
+
+    @Test
+    public void testComputeCapacity() {
+        Assertions.assertEquals(
+                1, CollectionUtil.computeRequiredCapacity(0, HASH_MAP_DEFAULT_LOAD_FACTOR));
+        Assertions.assertEquals(
+                2, CollectionUtil.computeRequiredCapacity(1, HASH_MAP_DEFAULT_LOAD_FACTOR));
+        Assertions.assertEquals(
+                3, CollectionUtil.computeRequiredCapacity(2, HASH_MAP_DEFAULT_LOAD_FACTOR));
+        Assertions.assertEquals(
+                4, CollectionUtil.computeRequiredCapacity(3, HASH_MAP_DEFAULT_LOAD_FACTOR));
+        Assertions.assertEquals(
+                6, CollectionUtil.computeRequiredCapacity(4, HASH_MAP_DEFAULT_LOAD_FACTOR));
+        Assertions.assertEquals(
+                7, CollectionUtil.computeRequiredCapacity(5, HASH_MAP_DEFAULT_LOAD_FACTOR));
+        Assertions.assertEquals(
+                8, CollectionUtil.computeRequiredCapacity(6, HASH_MAP_DEFAULT_LOAD_FACTOR));
+        Assertions.assertEquals(
+                10, CollectionUtil.computeRequiredCapacity(7, HASH_MAP_DEFAULT_LOAD_FACTOR));
+        Assertions.assertEquals(
+                11, CollectionUtil.computeRequiredCapacity(8, HASH_MAP_DEFAULT_LOAD_FACTOR));
+        Assertions.assertEquals(
+                134, CollectionUtil.computeRequiredCapacity(100, HASH_MAP_DEFAULT_LOAD_FACTOR));
+        Assertions.assertEquals(
+                1334, CollectionUtil.computeRequiredCapacity(1000, HASH_MAP_DEFAULT_LOAD_FACTOR));
+        Assertions.assertEquals(
+                13334, CollectionUtil.computeRequiredCapacity(10000, HASH_MAP_DEFAULT_LOAD_FACTOR));
+
+        Assertions.assertEquals(20000, CollectionUtil.computeRequiredCapacity(10000, 0.5f));
+
+        Assertions.assertEquals(100000, CollectionUtil.computeRequiredCapacity(10000, 0.1f));
+
+        Assertions.assertEquals(
+                1431655808,
+                CollectionUtil.computeRequiredCapacity(
+                        Integer.MAX_VALUE / 2, HASH_MAP_DEFAULT_LOAD_FACTOR));
+        Assertions.assertEquals(
+                Integer.MAX_VALUE,
+                CollectionUtil.computeRequiredCapacity(
+                        1 + Integer.MAX_VALUE / 2, HASH_MAP_DEFAULT_LOAD_FACTOR));
+
+        try {
+            CollectionUtil.computeRequiredCapacity(-1, HASH_MAP_DEFAULT_LOAD_FACTOR);
+            Assertions.fail();
+        } catch (IllegalArgumentException expected) {
+        }
+
+        try {
+            CollectionUtil.computeRequiredCapacity(Integer.MIN_VALUE, HASH_MAP_DEFAULT_LOAD_FACTOR);
+            Assertions.fail();
+        } catch (IllegalArgumentException expected) {
+        }
     }
 }

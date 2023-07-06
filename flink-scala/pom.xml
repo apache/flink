@@ -31,6 +31,13 @@ under the License.
 	<name>Flink : Scala</name>
 	<packaging>jar</packaging>
 
+	<properties>
+		<surefire.module.config><!--
+			chill ArraysAsListSerializer
+			-->--add-opens=java.base/java.util=ALL-UNNAMED
+		</surefire.module.config>
+	</properties>
+
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -324,6 +331,24 @@ under the License.
 								</configuration>
 							</execution>
 						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+		<profile>
+			<id>java17</id>
+			<activation>
+				<jdk>[17,)</jdk>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>io.github.zentol.japicmp</groupId>
+						<artifactId>japicmp-maven-plugin</artifactId>
+						<configuration>
+							<!-- version bump broke the checks -->
+							<skip>true</skip>
+						</configuration>
 					</plugin>
 				</plugins>
 			</build>

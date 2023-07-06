@@ -40,11 +40,7 @@ import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.jobmanager.ZooKeeperJobGraphStoreUtil;
 import org.apache.flink.runtime.jobmanager.ZooKeeperJobGraphStoreWatcher;
-import org.apache.flink.runtime.leaderelection.DefaultLeaderElectionService;
-import org.apache.flink.runtime.leaderelection.LeaderElectionDriverFactory;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
-import org.apache.flink.runtime.leaderelection.ZooKeeperLeaderElectionDriver;
-import org.apache.flink.runtime.leaderelection.ZooKeeperLeaderElectionDriverFactory;
 import org.apache.flink.runtime.leaderretrieval.DefaultLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalDriverFactory;
 import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalDriver;
@@ -366,7 +362,19 @@ public class ZooKeeperUtils {
      */
     public static ZooKeeperLeaderRetrievalDriverFactory createLeaderRetrievalDriverFactory(
             final CuratorFramework client) {
-        return createLeaderRetrievalDriverFactory(client, "", new Configuration());
+        return createLeaderRetrievalDriverFactory(client, "");
+    }
+
+    /**
+     * Creates a {@link LeaderRetrievalDriverFactory} implemented by ZooKeeper.
+     *
+     * @param client The {@link CuratorFramework} ZooKeeper client to use
+     * @param path The parent path that shall be used by the client.
+     * @return {@link LeaderRetrievalDriverFactory} instance.
+     */
+    public static ZooKeeperLeaderRetrievalDriverFactory createLeaderRetrievalDriverFactory(
+            final CuratorFramework client, String path) {
+        return createLeaderRetrievalDriverFactory(client, path, new Configuration());
     }
 
     /**
@@ -394,59 +402,6 @@ public class ZooKeeperUtils {
 
         return new ZooKeeperLeaderRetrievalDriverFactory(
                 client, path, leaderInformationClearancePolicy);
-    }
-
-    /**
-     * Creates a {@link DefaultLeaderElectionService} instance with {@link
-     * ZooKeeperLeaderElectionDriver}.
-     *
-     * @param client The {@link CuratorFramework} ZooKeeper client to use
-     * @return {@link DefaultLeaderElectionService} instance.
-     */
-    public static DefaultLeaderElectionService createLeaderElectionService(CuratorFramework client)
-            throws Exception {
-
-        return createLeaderElectionService(client, "");
-    }
-
-    /**
-     * Creates a {@link DefaultLeaderElectionService} instance with {@link
-     * ZooKeeperLeaderElectionDriver}.
-     *
-     * @param client The {@link CuratorFramework} ZooKeeper client to use
-     * @param path The path for the leader election
-     * @return {@link DefaultLeaderElectionService} instance.
-     */
-    public static DefaultLeaderElectionService createLeaderElectionService(
-            final CuratorFramework client, final String path) throws Exception {
-        final DefaultLeaderElectionService leaderElectionService =
-                new DefaultLeaderElectionService(createLeaderElectionDriverFactory(client, path));
-        leaderElectionService.startLeaderElectionBackend();
-
-        return leaderElectionService;
-    }
-
-    /**
-     * Creates a {@link LeaderElectionDriverFactory} implemented by ZooKeeper.
-     *
-     * @param client The {@link CuratorFramework} ZooKeeper client to use
-     * @return {@link LeaderElectionDriverFactory} instance.
-     */
-    public static ZooKeeperLeaderElectionDriverFactory createLeaderElectionDriverFactory(
-            final CuratorFramework client) {
-        return createLeaderElectionDriverFactory(client, "");
-    }
-
-    /**
-     * Creates a {@link LeaderElectionDriverFactory} implemented by ZooKeeper.
-     *
-     * @param client The {@link CuratorFramework} ZooKeeper client to use
-     * @param path The path suffix which we want to append
-     * @return {@link LeaderElectionDriverFactory} instance.
-     */
-    public static ZooKeeperLeaderElectionDriverFactory createLeaderElectionDriverFactory(
-            final CuratorFramework client, final String path) {
-        return new ZooKeeperLeaderElectionDriverFactory(client, path);
     }
 
     public static void writeLeaderInformationToZooKeeper(

@@ -24,13 +24,13 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -262,8 +262,9 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
                 Collections.singletonMap(
                         StateMetaInfoSnapshot.CommonOptionsKeys.KEYED_STATE_TYPE.toString(),
                         stateType.toString());
-        Map<String, TypeSerializer<?>> serializerMap = new HashMap<>(2);
-        Map<String, TypeSerializerSnapshot<?>> serializerConfigSnapshotsMap = new HashMap<>(2);
+        Map<String, TypeSerializer<?>> serializerMap = CollectionUtil.newHashMapWithExpectedSize(2);
+        Map<String, TypeSerializerSnapshot<?>> serializerConfigSnapshotsMap =
+                CollectionUtil.newHashMapWithExpectedSize(2);
         String namespaceSerializerKey =
                 StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER.toString();
         String valueSerializerKey =

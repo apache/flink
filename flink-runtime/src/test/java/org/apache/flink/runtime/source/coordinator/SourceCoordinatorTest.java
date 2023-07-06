@@ -118,6 +118,13 @@ class SourceCoordinatorTest extends SourceCoordinatorTestBase {
         sourceCoordinator.start();
         sourceCoordinator.close();
         assertThat(getEnumerator().isClosed()).isTrue();
+        assertThat(sourceCoordinator.getContext().isClosed()).isTrue();
+    }
+
+    @Test
+    void testClosedWithoutStart() throws Exception {
+        sourceCoordinator.close();
+        assertThat(sourceCoordinator.getContext().isClosed()).isTrue();
     }
 
     @Test

@@ -25,6 +25,7 @@ import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
@@ -104,7 +105,7 @@ public class RocksDBStateUploader extends RocksDBStateDataTransfer {
             CloseableRegistry closeableRegistry,
             CloseableRegistry tmpResourcesRegistry) {
         Map<StateHandleID, CompletableFuture<StreamStateHandle>> futures =
-                new HashMap<>(files.size());
+                CollectionUtil.newHashMapWithExpectedSize(files.size());
 
         for (Map.Entry<StateHandleID, Path> entry : files.entrySet()) {
             final Supplier<StreamStateHandle> supplier =

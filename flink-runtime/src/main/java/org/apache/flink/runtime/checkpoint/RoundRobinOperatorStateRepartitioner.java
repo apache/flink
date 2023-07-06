@@ -23,6 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
@@ -153,7 +154,8 @@ public class RoundRobinOperatorStateRepartitioner
     private Map<String, StateEntry> collectStates(
             List<List<OperatorStateHandle>> parallelSubtaskStates, OperatorStateHandle.Mode mode) {
 
-        Map<String, StateEntry> states = new HashMap<>(parallelSubtaskStates.size());
+        Map<String, StateEntry> states =
+                CollectionUtil.newHashMapWithExpectedSize(parallelSubtaskStates.size());
 
         for (int i = 0; i < parallelSubtaskStates.size(); ++i) {
             final int subtaskIndex = i;
@@ -370,7 +372,8 @@ public class RoundRobinOperatorStateRepartitioner
                     if (operatorStateHandle == null) {
                         operatorStateHandle =
                                 new OperatorStreamStateHandle(
-                                        new HashMap<>(nameToDistributeState.size()),
+                                        CollectionUtil.newHashMapWithExpectedSize(
+                                                nameToDistributeState.size()),
                                         handleWithOffsets.f0);
                         mergeMap.put(handleWithOffsets.f0, operatorStateHandle);
                     }
@@ -405,7 +408,9 @@ public class RoundRobinOperatorStateRepartitioner
                     if (operatorStateHandle == null) {
                         operatorStateHandle =
                                 new OperatorStreamStateHandle(
-                                        new HashMap<>(unionState.size()), handleWithMetaInfo.f0);
+                                        CollectionUtil.newHashMapWithExpectedSize(
+                                                unionState.size()),
+                                        handleWithMetaInfo.f0);
                         mergeMap.put(handleWithMetaInfo.f0, operatorStateHandle);
                     }
                     operatorStateHandle
@@ -442,7 +447,9 @@ public class RoundRobinOperatorStateRepartitioner
                 if (operatorStateHandle == null) {
                     operatorStateHandle =
                             new OperatorStreamStateHandle(
-                                    new HashMap<>(broadcastState.size()), handleWithMetaInfo.f0);
+                                    CollectionUtil.newHashMapWithExpectedSize(
+                                            broadcastState.size()),
+                                    handleWithMetaInfo.f0);
                     mergeMap.put(handleWithMetaInfo.f0, operatorStateHandle);
                 }
                 operatorStateHandle

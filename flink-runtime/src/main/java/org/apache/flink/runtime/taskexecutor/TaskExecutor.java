@@ -131,6 +131,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.threadinfo.ThreadInfoSamplesRequest;
 import org.apache.flink.types.SerializableOptional;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkExpectedException;
@@ -141,8 +142,8 @@ import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
-import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
+import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Sets;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -284,7 +285,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     @Nullable private UUID currentRegistrationTimeoutId;
 
     private final Map<JobID, Collection<CompletableFuture<ExecutionState>>>
-            taskResultPartitionCleanupFuturesPerJob = new HashMap<>(8);
+            taskResultPartitionCleanupFuturesPerJob = CollectionUtil.newHashMapWithExpectedSize(8);
 
     private final ThreadInfoSampleService threadInfoSampleService;
 
@@ -1577,7 +1578,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                     taskSlotTable.getAllocatedSlots(jobId);
             final JobMasterId jobMasterId = jobManagerConnection.getJobMasterId();
 
-            final Collection<SlotOffer> reservedSlots = new HashSet<>(2);
+            final Collection<SlotOffer> reservedSlots =
+                    CollectionUtil.newHashSetWithExpectedSize(2);
 
             while (reservedSlotsIterator.hasNext()) {
                 SlotOffer offer = reservedSlotsIterator.next().generateSlotOffer();
@@ -2480,6 +2482,11 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             } else {
                 TaskExecutor.this.updateTaskExecutionState(jobMasterGateway, taskExecutionState);
             }
+        }
+
+        @Override
+        public void notifyEndOfData(final ExecutionAttemptID executionAttemptID) {
+            runAsync(() -> jobMasterGateway.notifyEndOfData(executionAttemptID));
         }
     }
 

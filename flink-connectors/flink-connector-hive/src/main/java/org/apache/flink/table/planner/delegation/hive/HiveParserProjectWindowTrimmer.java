@@ -25,6 +25,7 @@ import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.rex.RexFieldCollation;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexOver;
@@ -34,7 +35,9 @@ import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Pair;
 import org.apache.hadoop.hive.ql.exec.ColumnInfo;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -204,13 +207,19 @@ public class HiveParserProjectWindowTrimmer {
         // reference in over windows
         for (RexOver rexOver : rexOverList) {
             RexWindow rexWindow = rexOver.getWindow();
-            // reference in partition-By
-            referenceFinder.visitEach(rexWindow.partitionKeys);
-            // reference in order-By
-            referenceFinder.visitEach(
-                    rexWindow.orderKeys.stream().map(Pair::getKey).collect(Collectors.toList()));
-            // reference in operand
-            referenceFinder.visitEach(rexOver.getOperands());
+            try {
+                // reference in partition-By
+                referenceFinder.visitEach(getPartitionKeys(rexWindow));
+                // reference in order-By
+                referenceFinder.visitEach(
+                        getOrderKeys(rexWindow).stream()
+                                .map(Pair::getKey)
+                                .collect(Collectors.toList()));
+                // reference in operand
+                referenceFinder.visitEach(rexOver.getOperands());
+            } catch (Exception e) {
+                throw new RuntimeException("sd");
+            }
         }
         return beReferred.build();
     }
@@ -221,6 +230,50 @@ public class HiveParserProjectWindowTrimmer {
             return beReferred.cardinality() + (initIndex - windowInputColumn);
         } else {
             return beReferred.get(0, initIndex).cardinality();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Collection<RexNode> getPartitionKeys(RexWindow rexWindow) {
+        // Hack logic,we must use reflection to get the fields, otherwise, it'll throw
+        // NoSuchFieldException.
+        // Hive connector depends on flink-table-calcite-bridge which won't do any shade,
+        // so if we try to access partitionKeys using rexWindow.partitionKeys, it will then
+        // consider to access a field named partitionKeys with type com.google.common.collect
+        // .ImmutableList.
+        // But in flink-table-planner, it'll shade com.google.xx to org.apache.flink.calcite.shaded
+        // .com.google.xx. Then rexWindow will contains a field named partitionKeys with type
+        // org.apache.flink.calcite.shaded
+        // .com.google.collect.ImmutableList instead of com.google.collect.ImmutableList, so the
+        // NoSuchFieldException will be thrown
+        // todo: remove the hack logic after FLINK-32286
+        return (Collection<RexNode>) getFieldValue(rexWindow, "partitionKeys");
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Collection<RexFieldCollation> getOrderKeys(RexWindow rexWindow) {
+        // hack logic, we must use reflection to get the fields.
+        // the reason is same as said in above method getPartitionKeys
+        return (Collection<RexFieldCollation>) getFieldValue(rexWindow, "orderKeys");
+    }
+
+    private static Object getFieldValue(RexWindow rexWindow, String fieldName) {
+        try {
+            Class<?> clazz = rexWindow.getClass();
+            Field field = clazz.getDeclaredField(fieldName);
+            field.setAccessible(true);
+            return field.get(rexWindow);
+        } catch (NoSuchFieldException e) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "Field %s not found in class %s", fieldName, rexWindow.getClass()),
+                    e);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(
+                    String.format(
+                            "Unable to access field %s in class %s",
+                            fieldName, rexWindow.getClass()),
+                    e);
         }
     }
 }

@@ -28,7 +28,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.InstantiationUtil;
 
-import org.apache.flink.shaded.guava30.com.google.common.io.Files;
+import org.apache.flink.shaded.guava31.com.google.common.io.Files;
 
 import org.junit.After;
 import org.junit.Before;

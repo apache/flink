@@ -39,7 +39,7 @@ import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 
-import org.apache.flink.shaded.guava30.com.google.common.primitives.Longs;
+import org.apache.flink.shaded.guava31.com.google.common.primitives.Longs;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 

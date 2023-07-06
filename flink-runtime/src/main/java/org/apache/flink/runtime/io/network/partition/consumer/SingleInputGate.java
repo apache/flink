@@ -41,13 +41,17 @@ import org.apache.flink.runtime.io.network.partition.PrioritizedDeque;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.NettyConnectionReaderAvailabilityAndPriorityHelper;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyServiceImpl;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageConsumerClient;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageConsumerSpec;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
 import org.apache.flink.runtime.throughput.BufferDebloater;
 import org.apache.flink.runtime.throughput.ThroughputCalculator;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.SupplierWithException;
 
@@ -62,12 +66,12 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Timer;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -217,6 +221,9 @@ public class SingleInputGate extends IndexedInputGate {
     // The consumer client will be null if the tiered storage is not enabled.
     @Nullable private final TieredStorageConsumerClient tieredStorageConsumerClient;
 
+    // The consumer specs in tiered storage will be null if the tiered storage is not enabled.
+    @Nullable private final List<TieredStorageConsumerSpec> tieredStorageConsumerSpecs;
+
     public SingleInputGate(
             String owningTaskName,
             int gateIndex,
@@ -231,7 +238,9 @@ public class SingleInputGate extends IndexedInputGate {
             int segmentSize,
             ThroughputCalculator throughputCalculator,
             @Nullable BufferDebloater bufferDebloater,
-            @Nullable TieredStorageConsumerClient tieredStorageConsumerClient) {
+            @Nullable TieredStorageConsumerClient tieredStorageConsumerClient,
+            @Nullable TieredStorageNettyServiceImpl nettyService,
+            @Nullable List<TieredStorageConsumerSpec> tieredStorageConsumerSpecs) {
 
         this.owningTaskName = checkNotNull(owningTaskName);
         Preconditions.checkArgument(0 <= gateIndex, "The gate index must be positive.");
@@ -246,7 +255,7 @@ public class SingleInputGate extends IndexedInputGate {
         checkArgument(numberOfInputChannels > 0);
         this.numberOfInputChannels = numberOfInputChannels;
 
-        this.inputChannels = new HashMap<>(numberOfInputChannels);
+        this.inputChannels = CollectionUtil.newHashMapWithExpectedSize(numberOfInputChannels);
         this.channels = new InputChannel[numberOfInputChannels];
         this.channelsWithEndOfPartitionEvents = new BitSet(numberOfInputChannels);
         this.channelsWithEndOfUserRecords = new BitSet(numberOfInputChannels);
@@ -266,6 +275,10 @@ public class SingleInputGate extends IndexedInputGate {
         this.throughputCalculator = checkNotNull(throughputCalculator);
 
         this.tieredStorageConsumerClient = tieredStorageConsumerClient;
+        this.tieredStorageConsumerSpecs = tieredStorageConsumerSpecs;
+        if (enabledTieredStorage()) {
+            setupTieredStorageNettyService(nettyService, tieredStorageConsumerSpecs);
+        }
     }
 
     protected PrioritizedDeque<InputChannel> getInputChannelsWithData() {
@@ -323,7 +336,7 @@ public class SingleInputGate extends IndexedInputGate {
             // Start the reader only when all InputChannels have been converted to either
             // LocalInputChannel or RemoteInputChannel, as this will prevent RecoveredInputChannels
             // from being queued again.
-            if (enabledTieredStore()) {
+            if (enabledTieredStorage()) {
                 tieredStorageConsumerClient.start();
             }
         }
@@ -705,7 +718,7 @@ public class SingleInputGate extends IndexedInputGate {
             synchronized (inputChannelsWithData) {
                 inputChannelsWithData.notifyAll();
             }
-            if (enabledTieredStore()) {
+            if (enabledTieredStorage()) {
                 tieredStorageConsumerClient.close();
             }
         }
@@ -791,8 +804,8 @@ public class SingleInputGate extends IndexedInputGate {
 
                 final InputChannel inputChannel = inputChannelOpt.get();
                 Optional<Buffer> buffer;
-                if (enabledTieredStore()) {
-                    buffer = readBufferFromTieredStore(inputChannel.getChannelIndex());
+                if (enabledTieredStorage()) {
+                    buffer = readBufferFromTieredStore(inputChannel);
                 } else {
                     buffer = readBufferFromInputChannel(inputChannel);
                 }
@@ -837,11 +850,16 @@ public class SingleInputGate extends IndexedInputGate {
         return Optional.of(bufferAndAvailability.buffer());
     }
 
-    private Optional<Buffer> readBufferFromTieredStore(int subpartitionId) {
-        return checkNotNull(tieredStorageConsumerClient).getNextBuffer(subpartitionId);
+    private Optional<Buffer> readBufferFromTieredStore(InputChannel inputChannel) {
+        TieredStorageConsumerSpec tieredStorageConsumerSpec =
+                checkNotNull(tieredStorageConsumerSpecs).get(inputChannel.getChannelIndex());
+        return checkNotNull(tieredStorageConsumerClient)
+                .getNextBuffer(
+                        tieredStorageConsumerSpec.getPartitionId(),
+                        tieredStorageConsumerSpec.getSubpartitionId());
     }
 
-    private boolean enabledTieredStore() {
+    private boolean enabledTieredStorage() {
         return tieredStorageConsumerClient != null;
     }
 
@@ -979,7 +997,7 @@ public class SingleInputGate extends IndexedInputGate {
     @Override
     public void acknowledgeAllRecordsProcessed(InputChannelInfo channelInfo) throws IOException {
         checkState(!isFinished(), "InputGate already finished.");
-        if (!enabledTieredStore()) {
+        if (!enabledTieredStorage()) {
             channels[channelInfo.getInputChannelIdx()].acknowledgeAllRecordsProcessed();
         }
     }
@@ -1118,6 +1136,31 @@ public class SingleInputGate extends IndexedInputGate {
         enqueuedInputChannelsWithData.clear(inputChannel.getChannelIndex());
 
         return Optional.of(inputChannel);
+    }
+
+    private void setupTieredStorageNettyService(
+            TieredStorageNettyServiceImpl nettyService,
+            List<TieredStorageConsumerSpec> tieredStorageConsumerSpecs) {
+        List<Supplier<InputChannel>> channelSuppliers = new ArrayList<>();
+        for (int index = 0; index < channels.length; ++index) {
+            int channelIndex = index;
+            channelSuppliers.add(() -> channels[channelIndex]);
+        }
+        nettyService.setupInputChannels(
+                tieredStorageConsumerSpecs,
+                channelSuppliers,
+                new NettyConnectionReaderAvailabilityAndPriorityHelper() {
+                    @Override
+                    public void notifyReaderAvailableAndPriority(
+                            int channelIndex, boolean isPriority) {
+                        queueChannel(channels[channelIndex], null, isPriority);
+                    }
+
+                    @Override
+                    public void updatePrioritySequenceNumber(int channelIndex, int sequenceNumber) {
+                        lastPrioritySequenceNumber[channelIndex] = sequenceNumber;
+                    }
+                });
     }
 
     // ------------------------------------------------------------------------

@@ -24,6 +24,7 @@ import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 import org.apache.flink.runtime.rest.messages.RequestBody;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
@@ -31,7 +32,6 @@ import javax.annotation.Nonnull;
 import java.io.File;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
@@ -209,7 +209,8 @@ public class HandlerRequest<R extends RequestBody> {
 
     private static <P extends MessageParameter<?>> Map<Class<? extends P>, P> mapParameters(
             Collection<P> parameters) {
-        final Map<Class<? extends P>, P> mappedParameters = new HashMap<>(2);
+        final Map<Class<? extends P>, P> mappedParameters =
+                CollectionUtil.newHashMapWithExpectedSize(2);
 
         for (P parameter : parameters) {
             if (parameter.isResolved()) {

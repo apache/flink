@@ -383,6 +383,8 @@ public class InputGateFairnessTest {
                     BUFFER_SIZE,
                     new ThroughputCalculator(SystemClock.getInstance()),
                     null,
+                    null,
+                    null,
                     null);
 
             channelsWithData = getInputChannelsWithData();

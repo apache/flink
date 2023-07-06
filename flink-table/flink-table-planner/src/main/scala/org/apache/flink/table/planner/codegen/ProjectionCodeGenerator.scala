@@ -146,9 +146,13 @@ object ProjectionCodeGenerator {
       outClass: Class[_ <: RowData] = classOf[BinaryRowData],
       inputTerm: String = DEFAULT_INPUT1_TERM,
       aggInfos: Array[AggregateInfo],
+      auxGrouping: Array[Int],
       outRecordTerm: String = DEFAULT_OUT_RECORD_TERM,
       outRecordWriterTerm: String = DEFAULT_OUT_RECORD_WRITER_TERM): String = {
     val fieldExprs: ArrayBuffer[GeneratedExpression] = ArrayBuffer()
+    // The auxGrouping also need to consider which is aggBuffer field
+    auxGrouping.foreach(i => fieldExprs += reuseFieldExprForAggFunc(ctx, inputType, inputTerm, i))
+
     aggInfos.map {
       aggInfo =>
         aggInfo.function match {

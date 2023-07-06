@@ -132,6 +132,13 @@ public abstract class AbstractSqlGatewayStatementITCase extends AbstractTestBase
                 Files.createDirectory(temporaryFolder.resolve("streaming_compiled_plan"))
                         .toFile()
                         .getPath());
+        replaceVars.put(
+                "$VAR_STREAMING_PLAN_RELATIVE_PATH",
+                new File(".")
+                        .getCanonicalFile()
+                        .toPath()
+                        .relativize(Paths.get(replaceVars.get("$VAR_STREAMING_PLAN_PATH")))
+                        .toString());
     }
 
     @TestTemplate

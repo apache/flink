@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.accumulators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
@@ -198,7 +199,7 @@ public class AccumulatorHelper {
         }
 
         Map<String, OptionalFailure<Object>> accumulators =
-                new HashMap<>(serializedAccumulators.size());
+                CollectionUtil.newHashMapWithExpectedSize(serializedAccumulators.size());
 
         for (Map.Entry<String, SerializedValue<OptionalFailure<Object>>> entry :
                 serializedAccumulators.entrySet()) {
@@ -234,7 +235,8 @@ public class AccumulatorHelper {
             return Collections.emptyMap();
         }
 
-        Map<String, Object> accumulators = new HashMap<>(serializedAccumulators.size());
+        Map<String, Object> accumulators =
+                CollectionUtil.newHashMapWithExpectedSize(serializedAccumulators.size());
 
         for (Map.Entry<String, OptionalFailure<Object>> entry :
                 deserializedAccumulators.entrySet()) {

@@ -23,6 +23,7 @@ import org.apache.flink.api.java.typeutils.{PojoTypeInfo, RowTypeInfo, TupleType
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.configuration.BatchExecutionOptions
 import org.apache.flink.core.testutils.FlinkMatchers.containsMessage
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParseException
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode
 import org.apache.flink.streaming.api.{environment, TimeCharacteristic}
 import org.apache.flink.streaming.api.datastream.DataStream
@@ -1777,6 +1778,19 @@ object TableTestUtil {
     val parser = objectMapper.getFactory.createParser(json)
     val jsonNode: JsonNode = parser.readValueAsTree[JsonNode]
     jsonNode.toPrettyString
+  }
+
+  @throws[IOException]
+  def isValidJson(json: String): Boolean = {
+    try {
+      val parser = objectMapper.getFactory.createParser(json)
+      while (parser.nextToken() != null) {
+        // Do nothing, just parse the JSON string
+      }
+      true
+    } catch {
+      case _: JsonParseException => false
+    }
   }
 
   /**

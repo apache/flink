@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 
@@ -31,12 +32,17 @@ public class TestingTieredStorageNettyService implements TieredStorageNettyServi
             registerProducerConsumer;
 
     private final BiFunction<
-                    TieredStoragePartitionId, TieredStorageSubpartitionId, NettyConnectionReader>
+                    TieredStoragePartitionId,
+                    TieredStorageSubpartitionId,
+                    CompletableFuture<NettyConnectionReader>>
             registerConsumerFunction;
 
     private TestingTieredStorageNettyService(
             BiConsumer<TieredStoragePartitionId, NettyServiceProducer> registerProducerConsumer,
-            BiFunction<TieredStoragePartitionId, TieredStorageSubpartitionId, NettyConnectionReader>
+            BiFunction<
+                            TieredStoragePartitionId,
+                            TieredStorageSubpartitionId,
+                            CompletableFuture<NettyConnectionReader>>
                     registerConsumerFunction) {
         this.registerProducerConsumer = registerProducerConsumer;
         this.registerConsumerFunction = registerConsumerFunction;
@@ -49,7 +55,7 @@ public class TestingTieredStorageNettyService implements TieredStorageNettyServi
     }
 
     @Override
-    public NettyConnectionReader registerConsumer(
+    public CompletableFuture<NettyConnectionReader> registerConsumer(
             TieredStoragePartitionId partitionId, TieredStorageSubpartitionId subpartitionId) {
         return registerConsumerFunction.apply(partitionId, subpartitionId);
     }
@@ -63,7 +69,7 @@ public class TestingTieredStorageNettyService implements TieredStorageNettyServi
         private BiFunction<
                         TieredStoragePartitionId,
                         TieredStorageSubpartitionId,
-                        NettyConnectionReader>
+                        CompletableFuture<NettyConnectionReader>>
                 registerConsumerFunction = (tieredStoragePartitionId, subpartitionId) -> null;
 
         public Builder() {}
@@ -79,7 +85,7 @@ public class TestingTieredStorageNettyService implements TieredStorageNettyServi
                 BiFunction<
                                 TieredStoragePartitionId,
                                 TieredStorageSubpartitionId,
-                                NettyConnectionReader>
+                                CompletableFuture<NettyConnectionReader>>
                         registerConsumerFunction) {
             this.registerConsumerFunction = registerConsumerFunction;
             return this;

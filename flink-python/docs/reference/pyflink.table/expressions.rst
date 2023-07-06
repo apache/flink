@@ -225,11 +225,14 @@ advanced type helper functions
     Expression.at
     Expression.cardinality
     Expression.element
+    Expression.array_concat
     Expression.array_contains
     Expression.array_distinct
+    Expression.array_join
     Expression.array_position
     Expression.array_remove
     Expression.array_reverse
+    Expression.array_max
     Expression.array_union
     Expression.map_entries
     Expression.map_keys

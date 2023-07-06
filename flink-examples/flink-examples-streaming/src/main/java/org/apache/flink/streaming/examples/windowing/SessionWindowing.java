@@ -17,17 +17,20 @@
 
 package org.apache.flink.streaming.examples.windowing;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
+import org.apache.flink.api.common.typeinfo.TypeHint;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.connector.datagen.source.DataGeneratorSource;
+import org.apache.flink.connector.datagen.source.GeneratorFunction;
 import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 
@@ -64,24 +67,20 @@ public class SessionWindowing {
         // We expect to detect session "b" and "c" at this point as well
         input.add(new Tuple3<>("c", 11L, 1));
 
+        GeneratorFunction<Long, Tuple3<String, Long, Integer>> dataGenerator =
+                index -> input.get(index.intValue());
+        DataGeneratorSource<Tuple3<String, Long, Integer>> generatorSource =
+                new DataGeneratorSource<>(
+                        dataGenerator,
+                        input.size(),
+                        TypeInformation.of(new TypeHint<Tuple3<String, Long, Integer>>() {}));
+
         DataStream<Tuple3<String, Long, Integer>> source =
-                env.addSource(
-                        new SourceFunction<Tuple3<String, Long, Integer>>() {
-                            private static final long serialVersionUID = 1L;
-
-                            @Override
-                            public void run(SourceContext<Tuple3<String, Long, Integer>> ctx)
-                                    throws Exception {
-                                for (Tuple3<String, Long, Integer> value : input) {
-                                    ctx.collectWithTimestamp(value, value.f1);
-                                    ctx.emitWatermark(new Watermark(value.f1 - 1));
-                                }
-                                ctx.emitWatermark(new Watermark(Long.MAX_VALUE));
-                            }
-
-                            @Override
-                            public void cancel() {}
-                        });
+                env.fromSource(
+                        generatorSource,
+                        WatermarkStrategy.<Tuple3<String, Long, Integer>>forMonotonousTimestamps()
+                                .withTimestampAssigner((event, timestamp) -> event.f1),
+                        "Generated data source");
 
         // We create sessions for each id with max timeout of 3 time units
         DataStream<Tuple3<String, Long, Integer>> aggregated =

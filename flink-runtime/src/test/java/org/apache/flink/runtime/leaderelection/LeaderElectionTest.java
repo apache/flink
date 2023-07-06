@@ -127,11 +127,6 @@ public class LeaderElectionTest {
         }
 
         @Override
-        public String getDescription() {
-            return "foobar";
-        }
-
-        @Override
         public void handleError(Exception exception) {
             this.exception = exception;
         }
@@ -180,9 +175,11 @@ public class LeaderElectionTest {
             curatorFrameworkWrapper =
                     ZooKeeperUtils.startCuratorFramework(configuration, fatalErrorHandler);
 
-            leaderElectionService =
-                    ZooKeeperUtils.createLeaderElectionService(
+            final MultipleComponentLeaderElectionDriverFactory driverFactory =
+                    new ZooKeeperMultipleComponentLeaderElectionDriverFactory(
                             curatorFrameworkWrapper.asCuratorFramework());
+            leaderElectionService = new DefaultLeaderElectionService(driverFactory);
+            leaderElectionService.startLeaderElectionBackend();
         }
 
         @Override
@@ -204,7 +201,7 @@ public class LeaderElectionTest {
 
         @Override
         public LeaderElection createLeaderElection() {
-            return leaderElectionService.createLeaderElection();
+            return leaderElectionService.createLeaderElection("random-contender-id");
         }
     }
 
@@ -226,7 +223,7 @@ public class LeaderElectionTest {
 
         @Override
         public LeaderElection createLeaderElection() {
-            return embeddedLeaderService.createLeaderElectionService();
+            return embeddedLeaderService.createLeaderElectionService("embedded_leader_election");
         }
     }
 

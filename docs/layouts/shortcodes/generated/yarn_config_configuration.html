@@ -123,6 +123,12 @@
             <td>Time between heartbeats with the ResourceManager in seconds.</td>
         </tr>
         <tr>
+            <td><h5>yarn.modify.acls</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Users and groups to give MODIFY access. The ACLs are of for comma-separated-users&amp;lt;space&amp;gt;comma-separated-groups. Wildcard ACL is also supported. The only valid wildcard ACL is *, which grants permission to all users and groups.</td>
+        </tr>
+        <tr>
             <td><h5>yarn.properties-file.location</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
@@ -181,6 +187,12 @@
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>Specify YARN node label for the Flink TaskManagers, it will override the yarn.application.node-label for TaskManagers if both are set.</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.view.acls</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Users and groups to give VIEW access. The ACLs are of for comma-separated-users&amp;lt;space&amp;gt;comma-separated-groups. Wildcard ACL is also supported. The only valid wildcard ACL is *, which grants permission to all users and groups.</td>
         </tr>
     </tbody>
 </table>

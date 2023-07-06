@@ -23,11 +23,11 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.util.CollectionUtil;
 
 import javax.annotation.Nonnull;
 
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -68,8 +68,9 @@ public abstract class LocationPreferenceSlotSelectionStrategy implements SlotSel
         // we build up two indexes, one for resource id and one for host names of the preferred
         // locations.
         final Map<ResourceID, Integer> preferredResourceIDs =
-                new HashMap<>(locationPreferences.size());
-        final Map<String, Integer> preferredFQHostNames = new HashMap<>(locationPreferences.size());
+                CollectionUtil.newHashMapWithExpectedSize(locationPreferences.size());
+        final Map<String, Integer> preferredFQHostNames =
+                CollectionUtil.newHashMapWithExpectedSize(locationPreferences.size());
 
         for (TaskManagerLocation locationPreference : locationPreferences) {
             preferredResourceIDs.merge(locationPreference.getResourceID(), 1, Integer::sum);

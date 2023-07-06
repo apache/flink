@@ -62,11 +62,12 @@ under the License.
 			<version>${calcite.version}</version>
 			<exclusions>
 				<!--
-				"mvn dependency:tree" as of Calcite 1.30.0:
+				"mvn dependency:tree" as of Calcite 1.31.0:
 
-				[INFO] +- org.apache.calcite:calcite-core:jar:1.30.0:compile
-				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.20.0:compile
-				[INFO] |  \- org.checkerframework:checker-qual:jar:3.10.0:compile
+				[INFO] +- org.apache.calcite:calcite-core:jar:1.31.0:compile
+				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.22.0:compile
+				[INFO] |  +- org.apiguardian:apiguardian-api:jar:1.1.2:compile
+				[INFO] |  \- org.checkerframework:checker-qual:jar:3.12.0:compile
 
 				Dependencies that are not needed for how we use Calcite right now.
 				-->
@@ -162,11 +163,6 @@ under the License.
 					<groupId>com.google.uzaygezen</groupId>
 					<artifactId>uzaygezen-core</artifactId>
 				</exclusion>
-				<!-- Excluding org.apiguardian:apiguardian-api v1.1.0 because org.junit.jupiter:junit-jupiter contains newer version v1.1.2 -->
-				<exclusion>
-					<groupId>org.apiguardian</groupId>
-					<artifactId>apiguardian-api</artifactId>
-				</exclusion>
 				<exclusion>
 					<groupId>com.google.errorprone</groupId>
 					<artifactId>error_prone_annotations</artifactId>
@@ -178,6 +174,14 @@ under the License.
 				<exclusion>
 					<groupId>org.jetbrains.kotlin</groupId>
 					<artifactId>kotlin-stdlib-jdk8</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.httpcomponents.client5</groupId>
+					<artifactId>httpclient5</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.httpcomponents.core5</groupId>
+					<artifactId>httpcore5</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -226,13 +230,6 @@ under the License.
 			<artifactId>calcite-linq4j</artifactId>
 			<version>${calcite.version}</version>
 			<scope>test</scope>
-			<exclusions>
-				<!-- Excluding org.apiguardian:apiguardian-api v1.1.0 because org.junit.jupiter:junit-jupiter contains newer version v1.1.2 -->
-				<exclusion>
-					<groupId>org.apiguardian</groupId>
-					<artifactId>apiguardian-api</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>

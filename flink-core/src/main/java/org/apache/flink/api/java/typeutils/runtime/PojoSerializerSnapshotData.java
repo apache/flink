@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.LinkedOptionalMap;
 import org.apache.flink.util.function.BiConsumerWithException;
@@ -33,7 +34,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -100,12 +100,13 @@ final class PojoSerializerSnapshotData<T> {
         }
 
         LinkedHashMap<Class<?>, TypeSerializerSnapshot<?>> registeredSubclassSerializerSnapshots =
-                new LinkedHashMap<>(registeredSubclassSerializers.size());
+                CollectionUtil.newLinkedHashMapWithExpectedSize(
+                        registeredSubclassSerializers.size());
         registeredSubclassSerializers.forEach(
                 (k, v) -> registeredSubclassSerializerSnapshots.put(k, v.snapshotConfiguration()));
 
         Map<Class<?>, TypeSerializerSnapshot<?>> nonRegisteredSubclassSerializerSnapshots =
-                new HashMap<>(nonRegisteredSubclassSerializers.size());
+                CollectionUtil.newHashMapWithExpectedSize(nonRegisteredSubclassSerializers.size());
         nonRegisteredSubclassSerializers.forEach(
                 (k, v) ->
                         nonRegisteredSubclassSerializerSnapshots.put(k, v.snapshotConfiguration()));

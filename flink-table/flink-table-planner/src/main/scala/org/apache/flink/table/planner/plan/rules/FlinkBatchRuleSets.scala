@@ -196,7 +196,7 @@ object FlinkBatchRuleSets {
     // push a projection to the children of a semi/anti Join
     ProjectSemiAntiJoinTransposeRule.INSTANCE,
     // merge projections
-    CoreRules.PROJECT_MERGE,
+    FlinkProjectMergeRule.INSTANCE,
     // remove identity project
     CoreRules.PROJECT_REMOVE,
     // removes constant keys from an Agg
@@ -254,7 +254,7 @@ object FlinkBatchRuleSets {
     CoreRules.UNION_TO_DISTINCT,
 
     // aggregation and projection rules
-    CoreRules.AGGREGATE_PROJECT_MERGE,
+    FlinkAggregateProjectMergeRule.INSTANCE,
     CoreRules.AGGREGATE_PROJECT_PULL_UP_CONSTANTS,
 
     // remove aggregation if it does not aggregate and input is already distinct
@@ -288,7 +288,7 @@ object FlinkBatchRuleSets {
 
     // calc rules
     FlinkFilterCalcMergeRule.INSTANCE,
-    CoreRules.PROJECT_CALC_MERGE,
+    FlinkProjectCalcMergeRule.INSTANCE,
     CoreRules.FILTER_TO_CALC,
     CoreRules.PROJECT_TO_CALC,
     FlinkCalcMergeRule.INSTANCE,

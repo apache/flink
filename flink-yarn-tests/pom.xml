@@ -38,6 +38,14 @@ under the License.
 
 	<properties>
 		<japicmp.skip>true</japicmp.skip>
+		<surefire.module.config><!--
+			CommonTestUtils#setEnv
+			-->--add-opens=java.base/java.util=ALL-UNNAMED <!--
+			MiniYARNCluster
+			-->--add-opens=java.base/java.lang=ALL-UNNAMED <!--
+			YARNSessionFIFOSecuredITCase
+			-->--add-exports=java.security.jgss/sun.security.krb5=ALL-UNNAMED
+		</surefire.module.config>
 	</properties>
 
 	<dependencies>

@@ -35,6 +35,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ThreadFactory;
 import java.util.function.BiConsumer;
 
+import static org.apache.flink.util.Preconditions.checkState;
+
 /** The provider of {@link SourceCoordinator}. */
 public class SourceCoordinatorProvider<SplitT extends SourceSplit>
         extends RecreateOnResetOperatorCoordinator.Provider {
@@ -94,7 +96,10 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
                 coordinatorListeningID);
     }
 
-    /** A thread factory class that provides some helper methods. */
+    /**
+     * A thread factory class that provides some helper methods. Because it is used to check the
+     * current thread, it is a one-off, do not use this ThreadFactory to create multiple threads.
+     */
     public static class CoordinatorExecutorThreadFactory
             implements ThreadFactory, Thread.UncaughtExceptionHandler {
 
@@ -130,6 +135,10 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
 
         @Override
         public synchronized Thread newThread(Runnable r) {
+            checkState(
+                    t == null,
+                    "Please using the new CoordinatorExecutorThreadFactory,"
+                            + " this factory cannot new multiple threads.");
             t = new Thread(r, coordinatorThreadName);
             t.setContextClassLoader(cl);
             t.setUncaughtExceptionHandler(this);

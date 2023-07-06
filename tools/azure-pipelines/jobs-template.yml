@@ -49,11 +49,14 @@ jobs:
   # as a key for the build cache (CACHE_KEY). If we have a cache miss on the hash
   # (usually because a pom file has changed), we'll fall back to a key without
   # the pom files (CACHE_FALLBACK_KEY).
+  # Note that we use the year number that the pipeline run starts in the cache key,
+  # which means the cache is invalidated per year, in order to avoid the size of
+  # cached .m2 directory growing indefinitely.
   # Offical documentation of the Cache task: https://docs.microsoft.com/en-us/azure/devops/pipelines/caching/?view=azure-devops
   - task: Cache@2
     inputs:
-      key: $(CACHE_KEY)
-      restoreKeys: $(CACHE_FALLBACK_KEY)
+      key: $(PIPELINE_START_YEAR) | $(CACHE_KEY)
+      restoreKeys: $(PIPELINE_START_YEAR) | $(CACHE_FALLBACK_KEY)
       path: $(MAVEN_CACHE_FOLDER)
     continueOnError: true # continue the build even if the cache fails.
     # do not use cache on the "Default" queue
@@ -118,8 +121,8 @@ jobs:
 
   - task: Cache@2
     inputs:
-      key: $(CACHE_KEY)
-      restoreKeys: $(CACHE_FALLBACK_KEY)
+      key: $(PIPELINE_START_YEAR) | $(CACHE_KEY)
+      restoreKeys: $(PIPELINE_START_YEAR) | $(CACHE_FALLBACK_KEY)
       path: $(MAVEN_CACHE_FOLDER)
     continueOnError: true # continue the build even if the cache fails.
     condition: not(eq('${{parameters.test_pool_definition.name}}', 'Default'))
@@ -149,6 +152,7 @@ jobs:
 
   # Test
   - script: ${{parameters.environment}} ./tools/azure-pipelines/uploading_watchdog.sh ./tools/ci/test_controller.sh $(module)
+    condition: or(not(eq(${{parameters.jdk}}, '17')), not(eq(variables.module, 'python')))
     displayName: Test - $(module)
     env:
       IT_CASE_S3_BUCKET: $(SECRET_S3_BUCKET)
@@ -162,7 +166,7 @@ jobs:
 
   # upload debug artifacts
   - task: PublishPipelineArtifact@1
-    condition: not(eq('$(DEBUG_FILES_OUTPUT_DIR)', ''))
+    condition: and(not(eq('$(DEBUG_FILES_OUTPUT_DIR)', '')), or(not(eq(${{parameters.jdk}}, '17')), not(eq(variables.module, 'python'))))
     displayName: Upload Logs
     inputs:
       targetPath: $(DEBUG_FILES_OUTPUT_DIR)

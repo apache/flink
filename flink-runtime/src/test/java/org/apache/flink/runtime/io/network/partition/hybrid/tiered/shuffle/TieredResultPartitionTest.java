@@ -38,17 +38,16 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.Tiere
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+import org.apache.flink.util.concurrent.IgnoreShutdownRejectedExecutionHandler;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collections;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
@@ -90,13 +89,7 @@ class TieredResultPartitionTest {
                 new ScheduledThreadPoolExecutor(
                         NUM_THREADS,
                         new ExecutorThreadFactory("test-io-scheduler-thread"),
-                        (ignored, executor) -> {
-                            if (executor.isShutdown()) {
-                                // ignore rejected as shutdown.
-                            } else {
-                                throw new RejectedExecutionException();
-                            }
-                        });
+                        new IgnoreShutdownRejectedExecutionHandler());
     }
 
     @AfterEach
@@ -119,7 +112,6 @@ class TieredResultPartitionTest {
     }
 
     @Test
-    @Timeout(30)
     void testRelease() throws Exception {
         final int numSubpartitions = 2;
         final int numBuffers = 10;

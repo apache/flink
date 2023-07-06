@@ -337,7 +337,33 @@ SELECT INTERVAL '1' DAY as dayInterval, INTERVAL '1' YEAR as yearInterval;
 1 row in set
 !ok
 
+SELECT ';
+';
++--------+
+| EXPR$0 |
++--------+
+|     ;
+ |
++--------+
+1 row in set
+!ok
+
 SELECT /*;
-[ERROR] Could not execute SQL statement. Reason:
-org.apache.flink.sql.parser.impl.TokenMgrError: Lexical error at line 1, column 11.  Encountered: <EOF> after : ""
-!error
+'*/ 1;
++--------+
+| EXPR$0 |
++--------+
+|      1 |
++--------+
+1 row in set
+!ok
+
+SELECT --;
+1;
++--------+
+| EXPR$0 |
++--------+
+|      1 |
++--------+
+1 row in set
+!ok

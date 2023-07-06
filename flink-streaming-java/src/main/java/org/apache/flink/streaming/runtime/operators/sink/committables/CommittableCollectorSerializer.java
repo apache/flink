@@ -25,12 +25,12 @@ import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.CollectionUtil;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -154,7 +154,7 @@ public final class CommittableCollectorSerializer<CommT>
                             new SubtaskSimpleVersionedSerializer(checkpointId), in);
 
             Map<Integer, SubtaskCommittableManager<CommT>> subtasksCommittableManagers =
-                    new HashMap<>(subtaskCommittableManagers.size());
+                    CollectionUtil.newHashMapWithExpectedSize(subtaskCommittableManagers.size());
 
             for (SubtaskCommittableManager<CommT> subtaskCommittableManager :
                     subtaskCommittableManagers) {

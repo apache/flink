@@ -63,5 +63,7 @@ public interface ExecutableOperation extends Operation {
         ResourceManager getResourceManager();
 
         TableConfig getTableConfig();
+
+        boolean isStreamingMode();
     }
 }

@@ -21,6 +21,7 @@ package org.apache.flink.connectors.hive;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.connector.file.table.FileSystemConnectorOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -43,7 +44,7 @@ import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.TestLoggerExtension;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.jupiter.api.AfterAll;
@@ -469,7 +470,7 @@ class HiveTableSinkITCase {
 
         // insert overwrite partition
         tEnv.executeSql(
-                        "INSERT OVERWRITE target_table partition (dt='2022-07-28') SELECT name FROM src_table where dt = '2022-07-28'")
+                        "INSERT OVERWRITE TABLE target_table partition (dt='2022-07-28') SELECT name FROM src_table where dt = '2022-07-28'")
                 .await();
         partitions =
                 CollectionUtil.iteratorToList(
@@ -494,7 +495,7 @@ class HiveTableSinkITCase {
 
         // insert overwrite a partition with data
         tEnv.executeSql(
-                        "INSERT OVERWRITE target_table partition (dt='2022-07-29') SELECT name FROM src_table where dt = '2022-07-29'")
+                        "INSERT OVERWRITE TABLE target_table partition (dt='2022-07-29') SELECT name FROM src_table where dt = '2022-07-29'")
                 .await();
         partitions =
                 CollectionUtil.iteratorToList(
@@ -728,7 +729,7 @@ class HiveTableSinkITCase {
 
     private long getPathSize(java.nio.file.Path path) throws IOException {
         String defaultSuccessFileName =
-                HiveOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME.defaultValue();
+                FileSystemConnectorOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME.defaultValue();
         return Files.list(path)
                 .filter(
                         p ->

@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.CollectionUtil;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -656,7 +657,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
     LinkedHashMap<Class<?>, TypeSerializer<?>> getBundledSubclassSerializerRegistry() {
         final LinkedHashMap<Class<?>, TypeSerializer<?>> result =
-                new LinkedHashMap<>(registeredClasses.size());
+                CollectionUtil.newLinkedHashMapWithExpectedSize(registeredClasses.size());
         registeredClasses.forEach(
                 (registeredClass, id) -> result.put(registeredClass, registeredSerializers[id]));
         return result;
@@ -675,7 +676,8 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
             Class<?> basePojoClass, ExecutionConfig executionConfig) {
 
         LinkedHashSet<Class<?>> subclassesInRegistrationOrder =
-                new LinkedHashSet<>(executionConfig.getRegisteredPojoTypes().size());
+                CollectionUtil.newLinkedHashSetWithExpectedSize(
+                        executionConfig.getRegisteredPojoTypes().size());
         for (Class<?> registeredClass : executionConfig.getRegisteredPojoTypes()) {
             if (registeredClass.equals(basePojoClass)) {
                 continue;
@@ -788,7 +790,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
             Map<Class<?>, TypeSerializer<?>> nonRegisteredSubclassSerializerCache) {
 
         final LinkedHashMap<Class<?>, TypeSerializer<?>> subclassRegistry =
-                new LinkedHashMap<>(registeredSubclassesToTags.size());
+                CollectionUtil.newLinkedHashMapWithExpectedSize(registeredSubclassesToTags.size());
 
         for (Map.Entry<Class<?>, Integer> entry : registeredSubclassesToTags.entrySet()) {
             subclassRegistry.put(entry.getKey(), registeredSubclassSerializers[entry.getValue()]);

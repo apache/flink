@@ -55,9 +55,7 @@ import static org.junit.Assert.fail;
 
 /**
  * A test suite to check that restrictions on recovery with changelog enabled are enforced; and that
- * non-restricted scenarios are not blocked. In particular, recovery from non-changelog checkpoints
- * should not be allowed (see <a
- * href="https://issues.apache.org/jira/browse/FLINK-26079">FLINK-26079</a>).
+ * non-restricted scenarios are not blocked.
  */
 @RunWith(Parameterized.class)
 public class ChangelogCompatibilityITCase {

@@ -60,7 +60,7 @@ class SourceCoordinatorConcurrentAttemptsTest extends SourceCoordinatorTestBase 
 
     @Override
     @BeforeEach
-    void setup() {
+    void setup() throws Exception {
         supportsConcurrentExecutionAttempts = true;
         enumeratorSupportsHandleExecutionAttemptSourceEvent = true;
         super.setup();

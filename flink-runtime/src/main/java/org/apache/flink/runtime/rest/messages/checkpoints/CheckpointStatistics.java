@@ -31,6 +31,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.json.JobVertexIDKeyDeserializer;
 import org.apache.flink.runtime.rest.messages.json.JobVertexIDKeySerializer;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -44,7 +45,6 @@ import javax.annotation.Nullable;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -300,7 +300,8 @@ public class CheckpointStatistics implements ResponseBody {
         if (includeTaskCheckpointStatistics) {
             Collection<TaskStateStats> taskStateStats = checkpointStats.getAllTaskStateStats();
 
-            checkpointStatisticsPerTask = new HashMap<>(taskStateStats.size());
+            checkpointStatisticsPerTask =
+                    CollectionUtil.newHashMapWithExpectedSize(taskStateStats.size());
 
             for (TaskStateStats taskStateStat : taskStateStats) {
                 checkpointStatisticsPerTask.put(

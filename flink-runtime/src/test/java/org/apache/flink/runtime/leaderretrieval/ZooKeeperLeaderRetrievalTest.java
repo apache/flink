@@ -162,7 +162,8 @@ class ZooKeeperLeaderRetrievalTest {
                                                 testingFatalErrorHandlerResource
                                                         .getTestingFatalErrorHandler()),
                                         ZooKeeperUtils.generateLeaderLatchPath("")),
-                                new TestingLeaderElectionListener());
+                                new TestingLeaderElectionListener(),
+                                testingFatalErrorHandlerResource.getTestingFatalErrorHandler());
                 externalProcessDriver.isLeader();
 
                 externalProcessDriver.publishLeaderInformation(

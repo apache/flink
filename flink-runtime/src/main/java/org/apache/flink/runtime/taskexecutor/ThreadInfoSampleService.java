@@ -23,13 +23,13 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.messages.ThreadInfoSample;
 import org.apache.flink.runtime.util.JvmUtils;
 import org.apache.flink.runtime.webmonitor.threadinfo.ThreadInfoSamplesRequest;
+import org.apache.flink.util.CollectionUtil;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
@@ -72,7 +72,7 @@ class ThreadInfoSampleService implements Closeable {
                                 requestParams.getNumSamples(),
                                 requestParams.getDelayBetweenSamples(),
                                 requestParams.getMaxStackTraceDepth(),
-                                new HashMap<>(threads.size()),
+                                CollectionUtil.newHashMapWithExpectedSize(threads.size()),
                                 resultFuture));
         return resultFuture;
     }

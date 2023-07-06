@@ -39,6 +39,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
@@ -51,6 +52,7 @@ import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.KvStateHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.VertexEndOfDataListener;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointTerminationManager;
@@ -93,6 +95,8 @@ abstract class StateWithExecutionGraph implements State {
 
     private final List<ExceptionHistoryEntry> failureCollection;
 
+    private final VertexEndOfDataListener vertexEndOfDataListener;
+
     StateWithExecutionGraph(
             Context context,
             ExecutionGraph executionGraph,
@@ -109,6 +113,7 @@ abstract class StateWithExecutionGraph implements State {
         this.logger = logger;
         this.userCodeClassLoader = userClassCodeLoader;
         this.failureCollection = new ArrayList<>(failureCollection);
+        this.vertexEndOfDataListener = new VertexEndOfDataListener(executionGraph);
 
         FutureUtils.assertNoException(
                 executionGraph
@@ -193,6 +198,18 @@ abstract class StateWithExecutionGraph implements State {
 
     void declineCheckpoint(DeclineCheckpoint decline) {
         executionGraphHandler.declineCheckpoint(decline);
+    }
+
+    void notifyEndOfData(ExecutionAttemptID executionAttemptID) {
+        CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration =
+                executionGraph.getCheckpointCoordinatorConfiguration();
+        if (checkpointCoordinatorConfiguration != null
+                && checkpointCoordinatorConfiguration.isEnableCheckpointsAfterTasksFinish()) {
+            vertexEndOfDataListener.recordTaskEndOfData(executionAttemptID);
+            if (vertexEndOfDataListener.areAllTasksEndOfData()) {
+                triggerCheckpoint(CheckpointType.CONFIGURED);
+            }
+        }
     }
 
     void reportCheckpointMetrics(

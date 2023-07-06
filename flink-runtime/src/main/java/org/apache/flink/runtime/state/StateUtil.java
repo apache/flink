@@ -21,7 +21,7 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.LambdaUtil;
 
-import org.apache.flink.shaded.guava30.com.google.common.base.Joiner;
+import org.apache.flink.shaded.guava31.com.google.common.base.Joiner;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -35,9 +35,9 @@ under the License.
 		<!-- If updating these dependency versions, please also update the corresponding links -->
 		<!-- in the GCS file system documentation. -->
 		<fs.gs.sdk.version>2.15.0</fs.gs.sdk.version>
-		<fs.gs.connector.version>hadoop3-2.2.11</fs.gs.connector.version>
+		<fs.gs.connector.version>hadoop3-2.2.15</fs.gs.connector.version>
 		<!-- Set this to the highest version of grpc artifacts from gcs-connector and google-cloud-storage -->
-		<fs.gs.grpc.version>1.50.2</fs.gs.grpc.version>
+		<fs.gs.grpc.version>1.50.3</fs.gs.grpc.version>
 	</properties>
 
 	<dependencies>

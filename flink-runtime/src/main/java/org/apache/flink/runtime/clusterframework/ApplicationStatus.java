@@ -20,8 +20,8 @@ package org.apache.flink.runtime.clusterframework;
 
 import org.apache.flink.api.common.JobStatus;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.BiMap;
-import org.apache.flink.shaded.guava30.com.google.common.collect.EnumBiMap;
+import org.apache.flink.shaded.guava31.com.google.common.collect.BiMap;
+import org.apache.flink.shaded.guava31.com.google.common.collect.EnumBiMap;
 
 /** The status of an application. */
 public enum ApplicationStatus {

@@ -58,6 +58,13 @@ public final class SpecificTypeStrategies {
     /** See {@link ArrayTypeStrategy}. */
     public static final TypeStrategy ARRAY = new ArrayTypeStrategy();
 
+    /** Type strategy specific for array element. */
+    public static final TypeStrategy ARRAY_ELEMENT =
+            callContext ->
+                    Optional.of(
+                            ((CollectionDataType) callContext.getArgumentDataTypes().get(0))
+                                    .getElementDataType());
+
     /** See {@link GetTypeStrategy}. */
     public static final TypeStrategy GET = new GetTypeStrategy();
 

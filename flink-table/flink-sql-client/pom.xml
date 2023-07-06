@@ -35,6 +35,15 @@ under the License.
 
 	<packaging>jar</packaging>
 
+	<properties>
+		<surefire.module.config><!--
+			Hadoop StringInternUtils
+			-->--add-opens=java.base/java.net=ALL-UNNAMED <!--
+			CommonTestUtils#setEnv
+			-->--add-opens=java.base/java.util=ALL-UNNAMED
+		</surefire.module.config>
+	</properties>
+
 	<dependencies>
 
 		<!-- Flink client to submit jobs -->
@@ -247,6 +256,27 @@ under the License.
 									<include>org.apache.flink:flink-sql-parser</include>
 								</includes>
 							</artifactSet>
+							<!-- Keep it in sync with table-planner -->
+							<relocations>
+								<relocation>
+									<pattern>com.google</pattern>
+									<shadedPattern>org.apache.flink.calcite.shaded.com.google</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.commons.codec</pattern>
+									<shadedPattern>org.apache.flink.calcite.shaded.org.apache.commons.codec</shadedPattern>
+								</relocation>
+								<!-- Currently Flink-SQL-Client depends on commons-io e.g.
+								org.apache.flink.table.client.SqlClient#readFromURL
+								<relocation>
+									<pattern>org.apache.commons.io</pattern>
+									<shadedPattern>org.apache.flink.calcite.shaded.org.apache.commons.io</shadedPattern>
+								</relocation-->
+								<relocation>
+									<pattern>org.checkerframework</pattern>
+									<shadedPattern>org.apache.flink.calcite.shaded.org.checkerframework</shadedPattern>
+								</relocation>
+							</relocations>
 						</configuration>
 					</execution>
 				</executions>

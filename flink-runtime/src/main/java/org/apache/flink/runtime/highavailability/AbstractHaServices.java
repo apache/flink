@@ -27,8 +27,8 @@ import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.leaderelection.DefaultLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
-import org.apache.flink.runtime.leaderelection.LeaderElectionDriverFactory;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.leaderelection.MultipleComponentLeaderElectionDriverFactory;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.util.ExceptionUtils;
 
@@ -247,18 +247,24 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
         leaderElectionService.startLeaderElectionBackend();
 
         closeableRegistry.registerCloseable(leaderElectionService);
-        return leaderElectionService.createLeaderElection();
+        // the leaderName which is passed as a contenderID here is not actively used within the
+        // DefaultLeaderElectionService for now - this will change in a future step where the
+        // DefaultLeaderElectionService will start to use MultipleComponentLeaderElectionDriver
+        // instead of LeaderElectionDriver and fully replace
+        // DefaultMultipleComponentLeaderElectionService (FLINK-31783)
+        return leaderElectionService.createLeaderElection("unused-contender-id");
     }
 
     /**
-     * Create {@link LeaderElectionDriverFactory} instance for the specified leaderName.
+     * Create {@link MultipleComponentLeaderElectionDriverFactory} instance for the specified
+     * leaderName.
      *
      * @param leaderName ConfigMap name in Kubernetes or child node path in Zookeeper.
-     * @return Return {@code LeaderElectionDriverFactory} used for the {@link
+     * @return Return {@code MultipleComponentLeaderElectionDriverFactory} used for the {@link
      *     LeaderElectionService}.
      */
-    protected abstract LeaderElectionDriverFactory createLeaderElectionDriverFactory(
-            String leaderName);
+    protected abstract MultipleComponentLeaderElectionDriverFactory
+            createLeaderElectionDriverFactory(String leaderName);
 
     /**
      * Create leader retrieval service with specified leaderName.

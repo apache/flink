@@ -279,9 +279,8 @@ task with the number of new subtasks equal to the number of running tasks.
 
 To ensure all the records could be committed for operators using the two-phase commit, 
 the tasks would wait for the final checkpoint completed successfully after all the operators finished. 
-It needs to be noted that this behavior would prolong the execution time of tasks. 
-If the checkpoint interval is long, the execution time would also be prolonged largely. 
-For the worst case, if the checkpoint interval is set to `Long.MAX_VALUE`, 
-the tasks would in fact be blocked forever since the final checkpoint would never happen.
+The final checkpoint would be triggered immediately after all operators have reached end of data, 
+without waiting for periodic triggering, but the job will need to wait for this final checkpoint 
+to be completed.
 
 {{< top >}}

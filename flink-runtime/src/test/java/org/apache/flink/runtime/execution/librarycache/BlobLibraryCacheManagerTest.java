@@ -35,6 +35,8 @@ import org.apache.flink.util.UserCodeClassLoader;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.File;
 import java.io.IOException;
@@ -42,6 +44,7 @@ import java.net.InetSocketAddress;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -58,9 +61,17 @@ import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
 /** Tests for {@link BlobLibraryCacheManager}. */
+@RunWith(Parameterized.class)
 public class BlobLibraryCacheManagerTest extends TestLogger {
 
     @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+    @Parameterized.Parameters(name = "Use system class loader: {0}")
+    public static List<Boolean> useSystemClassLoader() {
+        return Arrays.asList(true, false);
+    }
+
+    @Parameterized.Parameter public boolean wrapsSystemClassLoader;
 
     /**
      * Tests that the {@link BlobLibraryCacheManager} cleans up after the class loader leases for
@@ -117,7 +128,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
             assertEquals(1, libCache.getNumberOfManagedJobs());
             assertEquals(1, libCache.getNumberOfReferenceHolders(jobId1));
             assertEquals(0, libCache.getNumberOfReferenceHolders(jobId2));
-            assertEquals(2, checkFilesExist(jobId1, keys1, cache, true));
+            assertEquals(2, checkFilesExist(jobId1, keys1, cache, false));
             checkFileCountForJob(2, jobId1, server);
             checkFileCountForJob(2, jobId1, cache);
             assertEquals(0, checkFilesExist(jobId2, keys2, cache, false));
@@ -148,10 +159,10 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
             assertEquals(2, libCache.getNumberOfManagedJobs());
             assertEquals(1, libCache.getNumberOfReferenceHolders(jobId1));
             assertEquals(1, libCache.getNumberOfReferenceHolders(jobId2));
-            assertEquals(2, checkFilesExist(jobId1, keys1, cache, true));
+            assertEquals(2, checkFilesExist(jobId1, keys1, cache, false));
             checkFileCountForJob(2, jobId1, server);
             checkFileCountForJob(2, jobId1, cache);
-            assertEquals(1, checkFilesExist(jobId2, keys2, cache, true));
+            assertEquals(1, checkFilesExist(jobId2, keys2, cache, false));
             checkFileCountForJob(1, jobId2, server);
             checkFileCountForJob(1, jobId2, cache);
 
@@ -160,10 +171,10 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
             assertEquals(1, libCache.getNumberOfManagedJobs());
             assertEquals(0, libCache.getNumberOfReferenceHolders(jobId1));
             assertEquals(1, libCache.getNumberOfReferenceHolders(jobId2));
-            assertEquals(2, checkFilesExist(jobId1, keys1, cache, true));
+            assertEquals(2, checkFilesExist(jobId1, keys1, cache, false));
             checkFileCountForJob(2, jobId1, server);
             checkFileCountForJob(2, jobId1, cache);
-            assertEquals(1, checkFilesExist(jobId2, keys2, cache, true));
+            assertEquals(1, checkFilesExist(jobId2, keys2, cache, false));
             checkFileCountForJob(1, jobId2, server);
             checkFileCountForJob(1, jobId2, cache);
 
@@ -172,10 +183,10 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
             assertEquals(0, libCache.getNumberOfManagedJobs());
             assertEquals(0, libCache.getNumberOfReferenceHolders(jobId1));
             assertEquals(0, libCache.getNumberOfReferenceHolders(jobId2));
-            assertEquals(2, checkFilesExist(jobId1, keys1, cache, true));
+            assertEquals(2, checkFilesExist(jobId1, keys1, cache, false));
             checkFileCountForJob(2, jobId1, server);
             checkFileCountForJob(2, jobId1, cache);
-            assertEquals(1, checkFilesExist(jobId2, keys2, cache, true));
+            assertEquals(1, checkFilesExist(jobId2, keys2, cache, false));
             checkFileCountForJob(1, jobId2, server);
             checkFileCountForJob(1, jobId2, cache);
 
@@ -478,7 +489,9 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
         final LibraryCacheManager.ClassLoaderLease classLoaderLease2 =
                 libraryCacheManager.registerClassLoaderLease(jobId);
 
-        classLoaderLease1.getOrResolveClassLoader(Collections.emptyList(), Collections.emptyList());
+        UserCodeClassLoader userCodeClassLoader =
+                classLoaderLease1.getOrResolveClassLoader(
+                        Collections.emptyList(), Collections.emptyList());
 
         classLoaderLease1.release();
 
@@ -486,7 +499,12 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 
         classLoaderLease2.release();
 
-        assertTrue(classLoader.isClosed());
+        if (wrapsSystemClassLoader) {
+            assertEquals(userCodeClassLoader.asClassLoader(), ClassLoader.getSystemClassLoader());
+            assertFalse(classLoader.isClosed());
+        } else {
+            assertTrue(classLoader.isClosed());
+        }
     }
 
     @Test
@@ -531,11 +549,18 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 
         final LibraryCacheManager.ClassLoaderLease classLoaderLease =
                 libraryCacheManager.registerClassLoaderLease(new JobID());
-        classLoaderLease.getOrResolveClassLoader(Collections.emptyList(), Collections.emptyList());
+        UserCodeClassLoader userCodeClassLoader =
+                classLoaderLease.getOrResolveClassLoader(
+                        Collections.emptyList(), Collections.emptyList());
 
         libraryCacheManager.shutdown();
 
-        assertTrue(classLoader.isClosed());
+        if (wrapsSystemClassLoader) {
+            assertEquals(userCodeClassLoader.asClassLoader(), ClassLoader.getSystemClassLoader());
+            assertFalse(classLoader.isClosed());
+        } else {
+            assertTrue(classLoader.isClosed());
+        }
     }
 
     @Test
@@ -628,7 +653,8 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
         }
 
         BlobLibraryCacheManager build() {
-            return new BlobLibraryCacheManager(permanentBlobCache, classLoaderFactory);
+            return new BlobLibraryCacheManager(
+                    permanentBlobCache, classLoaderFactory, wrapsSystemClassLoader);
         }
     }
 

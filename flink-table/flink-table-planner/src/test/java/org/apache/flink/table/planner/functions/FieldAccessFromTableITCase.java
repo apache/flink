@@ -42,13 +42,16 @@ class FieldAccessFromTableITCase extends BuiltInFunctionTestBase {
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
         return Stream.of(
+                // for a nullable structured type we should enforce nullable for all inner fields,
+                // that is to say, not null is invalid for inner fields in such cases, more details
+                // see FLINK-31830
 
                 // Actually in case of SQL it does not use the GET method, but
                 // a custom logic for accessing nested fields of a Table.
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.GET)
                         .onFieldsWithData(null, Row.of(1))
                         .andDataTypes(
-                                ROW(FIELD("nested", BIGINT().notNull())).nullable(),
+                                ROW(FIELD("nested", BIGINT().nullable())).nullable(),
                                 ROW(FIELD("nested", BIGINT().notNull())).notNull())
                         .testResult($("f0").get("nested"), "f0.nested", null, BIGINT().nullable())
                         .testResult($("f1").get("nested"), "f1.nested", 1L, BIGINT().notNull()),
@@ -63,11 +66,11 @@ class FieldAccessFromTableITCase extends BuiltInFunctionTestBase {
                                 null,
                                 Row.of(1))
                         .andDataTypes(
-                                ARRAY(BIGINT().notNull()).nullable(),
+                                ARRAY(BIGINT().nullable()).nullable(),
                                 ARRAY(BIGINT().notNull()).notNull(),
-                                MAP(STRING(), BIGINT().notNull()).nullable(),
+                                MAP(STRING(), BIGINT().nullable()).nullable(),
                                 MAP(STRING(), BIGINT().notNull()).notNull(),
-                                ROW(FIELD("nested", BIGINT().notNull())).nullable(),
+                                ROW(FIELD("nested", BIGINT().nullable())).nullable(),
                                 ROW(FIELD("nested", BIGINT().notNull())).notNull())
                         // accessing elements of MAP or ARRAY is a runtime operations,
                         // we do not know about the size or contents during the inference

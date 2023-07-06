@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.leaderelection;
 
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerExtension;
 import org.apache.flink.util.ExceptionUtils;
@@ -30,9 +31,9 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -47,11 +48,8 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
 
     @Test
     void isLeaderInformsAllRegisteredLeaderElectionEventHandlers() throws Exception {
-        final TestingMultipleComponentLeaderElectionDriver leaderElectionDriver =
-                TestingMultipleComponentLeaderElectionDriver.newBuilder().build();
-
         final DefaultMultipleComponentLeaderElectionService leaderElectionService =
-                createDefaultMultiplexingLeaderElectionService(leaderElectionDriver);
+                createDefaultMultiplexingLeaderElectionService();
 
         try {
             final Collection<SimpleTestingLeaderElectionEventListener> eventListeners =
@@ -66,7 +64,7 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
                 counter++;
             }
 
-            leaderElectionDriver.grantLeadership();
+            leaderElectionService.isLeader(UUID.randomUUID());
 
             for (SimpleTestingLeaderElectionEventListener eventListener : eventListeners) {
                 assertThat(eventListener.hasLeadership()).isTrue();
@@ -77,22 +75,26 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
     }
 
     private DefaultMultipleComponentLeaderElectionService
+            createDefaultMultiplexingLeaderElectionService() throws Exception {
+        final TestingLeaderElectionDriver.Factory driverFactory =
+                new TestingLeaderElectionDriver.Factory(
+                        TestingLeaderElectionDriver.newBuilder(new AtomicBoolean()));
+        return createDefaultMultiplexingLeaderElectionService(driverFactory);
+    }
+
+    private DefaultMultipleComponentLeaderElectionService
             createDefaultMultiplexingLeaderElectionService(
-                    TestingMultipleComponentLeaderElectionDriver leaderElectionDriver)
-                    throws Exception {
+                    TestingLeaderElectionDriver.Factory driverFactory) throws Exception {
         return new DefaultMultipleComponentLeaderElectionService(
                 fatalErrorHandlerExtension.getTestingFatalErrorHandler(),
-                new TestingMultipleComponentLeaderElectionDriverFactory(leaderElectionDriver),
+                driverFactory,
                 Executors.newDirectExecutorService());
     }
 
     @Test
     void notLeaderInformsAllRegisteredLeaderElectionEventHandlers() throws Exception {
-        final TestingMultipleComponentLeaderElectionDriver leaderElectionDriver =
-                TestingMultipleComponentLeaderElectionDriver.newBuilder().build();
-
         final DefaultMultipleComponentLeaderElectionService leaderElectionService =
-                createDefaultMultiplexingLeaderElectionService(leaderElectionDriver);
+                createDefaultMultiplexingLeaderElectionService();
 
         try {
             final Collection<SimpleTestingLeaderElectionEventListener> eventListeners =
@@ -107,8 +109,8 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
                 counter++;
             }
 
-            leaderElectionDriver.grantLeadership();
-            leaderElectionDriver.revokeLeadership();
+            leaderElectionService.isLeader(UUID.randomUUID());
+            leaderElectionService.notLeader();
 
             for (SimpleTestingLeaderElectionEventListener eventListener : eventListeners) {
                 assertThat(eventListener.hasLeadership()).isFalse();
@@ -119,12 +121,42 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
     }
 
     @Test
-    void unregisteredEventHandlersAreNotNotified() throws Exception {
-        final TestingMultipleComponentLeaderElectionDriver leaderElectionDriver =
-                TestingMultipleComponentLeaderElectionDriver.newBuilder().build();
+    void handleFatalError() throws Exception {
+        final TestingLeaderElectionDriver.Factory driverFactory =
+                new TestingLeaderElectionDriver.Factory(
+                        TestingLeaderElectionDriver.newBuilder(new AtomicBoolean()));
 
         final DefaultMultipleComponentLeaderElectionService leaderElectionService =
-                createDefaultMultiplexingLeaderElectionService(leaderElectionDriver);
+                createDefaultMultiplexingLeaderElectionService(driverFactory);
+        final TestingLeaderElectionDriver leaderElectionDriver =
+                driverFactory.assertAndGetOnlyCreatedDriver();
+
+        try {
+            final Throwable expectedFatalError =
+                    new Exception("Expected exception simulating a fatal error.");
+
+            leaderElectionDriver.triggerFatalError(expectedFatalError);
+
+            FlinkAssertions.assertThatFuture(
+                            fatalErrorHandlerExtension
+                                    .getTestingFatalErrorHandler()
+                                    .getErrorFuture())
+                    .eventuallySucceeds()
+                    .isEqualTo(expectedFatalError);
+        } finally {
+            leaderElectionService.close();
+            fatalErrorHandlerExtension.getTestingFatalErrorHandler().clearError();
+        }
+    }
+
+    @Test
+    void unregisteredEventHandlersAreNotNotified() throws Exception {
+        final TestingLeaderElectionDriver.Factory driverFactory =
+                new TestingLeaderElectionDriver.Factory(
+                        TestingLeaderElectionDriver.newBuilder(new AtomicBoolean()));
+
+        final DefaultMultipleComponentLeaderElectionService leaderElectionService =
+                createDefaultMultiplexingLeaderElectionService(driverFactory);
 
         try {
             final SimpleTestingLeaderElectionEventListener leaderElectionEventHandler =
@@ -134,7 +166,7 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
                     componentId, leaderElectionEventHandler);
             leaderElectionService.unregisterLeaderElectionEventHandler(componentId);
 
-            leaderElectionDriver.grantLeadership();
+            leaderElectionService.isLeader(UUID.randomUUID());
 
             assertThat(leaderElectionEventHandler.hasLeadership()).isFalse();
         } finally {
@@ -144,13 +176,15 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
 
     @Test
     void newlyRegisteredEventHandlersAreInformedAboutLeadership() throws Exception {
-        final TestingMultipleComponentLeaderElectionDriver leaderElectionDriver =
-                TestingMultipleComponentLeaderElectionDriver.newBuilder().build();
+        final TestingLeaderElectionDriver.Factory driverFactory =
+                new TestingLeaderElectionDriver.Factory(
+                        TestingLeaderElectionDriver.newBuilder(new AtomicBoolean()));
+
         final DefaultMultipleComponentLeaderElectionService leaderElectionService =
-                createDefaultMultiplexingLeaderElectionService(leaderElectionDriver);
+                createDefaultMultiplexingLeaderElectionService(driverFactory);
 
         try {
-            leaderElectionDriver.grantLeadership();
+            leaderElectionService.isLeader(UUID.randomUUID());
 
             final SimpleTestingLeaderElectionEventListener leaderElectionEventHandler =
                     new SimpleTestingLeaderElectionEventListener();
@@ -165,10 +199,12 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
 
     @Test
     public void testLeaderSessionIdMatchesBetweenComponents() throws Exception {
-        final TestingMultipleComponentLeaderElectionDriver leaderElectionDriver =
-                TestingMultipleComponentLeaderElectionDriver.newBuilder().build();
+        final TestingLeaderElectionDriver.Factory driverFactory =
+                new TestingLeaderElectionDriver.Factory(
+                        TestingLeaderElectionDriver.newBuilder(new AtomicBoolean()));
+
         final DefaultMultipleComponentLeaderElectionService leaderElectionService =
-                createDefaultMultiplexingLeaderElectionService(leaderElectionDriver);
+                createDefaultMultiplexingLeaderElectionService(driverFactory);
 
         try {
             final Component preLeadershipGrantedComponent =
@@ -186,7 +222,7 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
                     preLeadershipGrantedComponent.getComponentId(),
                     preLeadershipGrantedComponent.getLeaderElectionEventListener());
 
-            leaderElectionDriver.grantLeadership();
+            leaderElectionService.isLeader(UUID.randomUUID());
 
             leaderElectionService.registerLeaderElectionEventHandler(
                     postLeadershipGrantedComponent.getComponentId(),
@@ -210,13 +246,15 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
 
     @Test
     void allKnownLeaderInformationCallsEventHandlers() throws Exception {
-        final TestingMultipleComponentLeaderElectionDriver leaderElectionDriver =
-                TestingMultipleComponentLeaderElectionDriver.newBuilder().build();
+        final TestingLeaderElectionDriver.Factory driverFactory =
+                new TestingLeaderElectionDriver.Factory(
+                        TestingLeaderElectionDriver.newBuilder(new AtomicBoolean()));
+
         final DefaultMultipleComponentLeaderElectionService leaderElectionService =
-                createDefaultMultiplexingLeaderElectionService(leaderElectionDriver);
+                createDefaultMultiplexingLeaderElectionService(driverFactory);
 
         try {
-            leaderElectionDriver.grantLeadership();
+            leaderElectionService.isLeader(UUID.randomUUID());
 
             final Collection<Component> knownLeaderInformation = createComponents(3);
             final Collection<Component> unknownLeaderInformation = createComponents(2);
@@ -225,13 +263,12 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
             registerLeaderElectionEventHandler(leaderElectionService, unknownLeaderInformation);
 
             leaderElectionService.notifyAllKnownLeaderInformation(
-                    knownLeaderInformation.stream()
-                            .map(
-                                    component ->
-                                            LeaderInformationWithComponentId.create(
-                                                    component.getComponentId(),
-                                                    component.getLeaderInformation()))
-                            .collect(Collectors.toList()));
+                    new LeaderInformationRegister(
+                            knownLeaderInformation.stream()
+                                    .collect(
+                                            Collectors.toMap(
+                                                    Component::getComponentId,
+                                                    Component::getLeaderInformation))));
 
             for (Component component : knownLeaderInformation) {
                 assertThat(component.getLeaderElectionEventListener().getLeaderInformation())
@@ -250,16 +287,18 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
 
     @Test
     void allKnownLeaderInformationDoesNotBlock() throws Exception {
-        final TestingMultipleComponentLeaderElectionDriver leaderElectionDriver =
-                TestingMultipleComponentLeaderElectionDriver.newBuilder().build();
+        final TestingLeaderElectionDriver.Factory driverFactory =
+                new TestingLeaderElectionDriver.Factory(
+                        TestingLeaderElectionDriver.newBuilder(new AtomicBoolean()));
+
         final DefaultMultipleComponentLeaderElectionService leaderElectionService =
                 new DefaultMultipleComponentLeaderElectionService(
                         fatalErrorHandlerExtension.getTestingFatalErrorHandler(),
-                        new TestingMultipleComponentLeaderElectionDriverFactory(
-                                leaderElectionDriver),
+                        driverFactory,
                         java.util.concurrent.Executors.newSingleThreadScheduledExecutor());
+
         try {
-            leaderElectionDriver.grantLeadership();
+            leaderElectionService.isLeader(UUID.randomUUID());
 
             final String knownLeaderInformationComponent = "knownLeaderInformationComponent";
             final BlockingLeaderElectionEventHandler knownLeaderElectionEventHandler =
@@ -273,10 +312,9 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
 
             // make sure that this call succeeds w/o blocking
             leaderElectionService.notifyAllKnownLeaderInformation(
-                    Collections.singleton(
-                            LeaderInformationWithComponentId.create(
-                                    knownLeaderInformationComponent,
-                                    LeaderInformation.known(UUID.randomUUID(), "localhost"))));
+                    LeaderInformationRegister.of(
+                            knownLeaderInformationComponent,
+                            LeaderInformation.known(UUID.randomUUID(), "localhost")));
 
             knownLeaderElectionEventHandler.unblock();
             unknownLeaderElectionEventHandler.unblock();

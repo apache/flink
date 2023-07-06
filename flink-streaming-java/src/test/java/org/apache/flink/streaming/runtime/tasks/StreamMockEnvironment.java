@@ -56,7 +56,9 @@ import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.NoOpCheckpointResponder;
+import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
 import org.apache.flink.runtime.taskmanager.NoOpTaskOperatorEventGateway;
+import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingUserCodeClassLoader;
@@ -366,6 +368,11 @@ public class StreamMockEnvironment implements Environment {
     @Override
     public ExternalResourceInfoProvider getExternalResourceInfoProvider() {
         return ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES;
+    }
+
+    @Override
+    public TaskManagerActions getTaskManagerActions() {
+        return new NoOpTaskManagerActions();
     }
 
     @Override

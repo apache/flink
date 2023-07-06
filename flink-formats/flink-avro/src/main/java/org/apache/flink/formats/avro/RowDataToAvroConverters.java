@@ -27,6 +27,7 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.util.CollectionUtil;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
@@ -36,7 +37,6 @@ import org.apache.avro.util.Utf8;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -296,7 +296,8 @@ public class RowDataToAvroConverters {
                 final MapData mapData = (MapData) object;
                 final ArrayData keyArray = mapData.keyArray();
                 final ArrayData valueArray = mapData.valueArray();
-                final Map<Object, Object> map = new HashMap<>(mapData.size());
+                final Map<Object, Object> map =
+                        CollectionUtil.newHashMapWithExpectedSize(mapData.size());
                 for (int i = 0; i < mapData.size(); ++i) {
                     final String key = keyArray.getString(i).toString();
                     final Object value =

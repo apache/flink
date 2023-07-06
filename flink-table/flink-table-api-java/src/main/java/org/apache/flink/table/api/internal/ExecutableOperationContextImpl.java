@@ -34,17 +34,21 @@ public class ExecutableOperationContextImpl implements ExecutableOperation.Conte
     private final ResourceManager resourceManager;
     private final TableConfig tableConfig;
 
+    private final boolean isStreamingMode;
+
     public ExecutableOperationContextImpl(
             CatalogManager catalogManager,
             FunctionCatalog functionCatalog,
             ModuleManager moduleManager,
             ResourceManager resourceManager,
-            TableConfig tableConfig) {
+            TableConfig tableConfig,
+            boolean isStreamingMode) {
         this.catalogManager = catalogManager;
         this.functionCatalog = functionCatalog;
         this.moduleManager = moduleManager;
         this.resourceManager = resourceManager;
         this.tableConfig = tableConfig;
+        this.isStreamingMode = isStreamingMode;
     }
 
     @Override
@@ -70,5 +74,10 @@ public class ExecutableOperationContextImpl implements ExecutableOperation.Conte
     @Override
     public TableConfig getTableConfig() {
         return tableConfig;
+    }
+
+    @Override
+    public boolean isStreamingMode() {
+        return isStreamingMode;
     }
 }

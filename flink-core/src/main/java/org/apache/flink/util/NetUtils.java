@@ -21,7 +21,7 @@ package org.apache.flink.util;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.IllegalConfigurationException;
 
-import org.apache.flink.shaded.guava30.com.google.common.net.InetAddresses;
+import org.apache.flink.shaded.guava31.com.google.common.net.InetAddresses;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

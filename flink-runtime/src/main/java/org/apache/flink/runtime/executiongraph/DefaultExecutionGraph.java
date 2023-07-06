@@ -27,6 +27,7 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.JobStatusHook;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.JobException;
@@ -79,6 +80,7 @@ import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.IterableUtils;
@@ -330,10 +332,10 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
         this.userClassLoader = checkNotNull(userClassLoader, "userClassLoader");
 
-        this.tasks = new HashMap<>(16);
-        this.intermediateResults = new HashMap<>(16);
+        this.tasks = CollectionUtil.newHashMapWithExpectedSize(16);
+        this.intermediateResults = CollectionUtil.newHashMapWithExpectedSize(16);
         this.verticesInCreationOrder = new ArrayList<>(16);
-        this.currentExecutions = new HashMap<>(16);
+        this.currentExecutions = CollectionUtil.newHashMapWithExpectedSize(16);
 
         this.jobStatusListeners = new ArrayList<>();
 

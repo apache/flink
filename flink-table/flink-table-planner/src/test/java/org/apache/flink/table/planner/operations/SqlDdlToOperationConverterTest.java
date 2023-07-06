@@ -48,6 +48,7 @@ import org.apache.flink.table.operations.NopOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.operations.SourceQueryOperation;
+import org.apache.flink.table.operations.ddl.AddPartitionsOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterTableChangeOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
@@ -57,6 +58,7 @@ import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateViewOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
+import org.apache.flink.table.operations.ddl.DropPartitionsOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.expressions.utils.Func0$;
 import org.apache.flink.table.planner.expressions.utils.Func1$;
@@ -2163,6 +2165,52 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
 
         Operation operation = parse(sql);
         assertThat(operation).isInstanceOf(CreateViewOperation.class);
+    }
+
+    @Test
+    public void testAlterTableAddPartitions() throws Exception {
+        prepareTable("tb1", false, true, true, 0);
+
+        // test add single partition
+        Operation operation = parse("alter table tb1 add partition (b = '1', c = '2')");
+        assertThat(operation).isInstanceOf(AddPartitionsOperation.class);
+        assertThat(operation.asSummaryString())
+                .isEqualTo("ALTER TABLE cat1.db1.tb1 ADD PARTITION (b=1, c=2)");
+
+        // test add single partition with property
+        operation = parse("alter table tb1 add partition (b = '1', c = '2') with ('k' = 'v')");
+        assertThat(operation).isInstanceOf(AddPartitionsOperation.class);
+        assertThat(operation.asSummaryString())
+                .isEqualTo("ALTER TABLE cat1.db1.tb1 ADD PARTITION (b=1, c=2) WITH (k: [v])");
+
+        // test add multiple partition simultaneously
+        operation =
+                parse(
+                        "alter table tb1 add if not exists partition (b = '1', c = '2') with ('k' = 'v') "
+                                + "partition (b = '2')");
+        assertThat(operation).isInstanceOf(AddPartitionsOperation.class);
+        assertThat(operation.asSummaryString())
+                .isEqualTo(
+                        "ALTER TABLE cat1.db1.tb1 ADD IF NOT EXISTS PARTITION (b=1, c=2) WITH (k: [v]) PARTITION (b=2)");
+    }
+
+    @Test
+    public void testAlterTableDropPartitions() throws Exception {
+        prepareTable("tb1", false, true, true, 0);
+        // test drop single partition
+        Operation operation = parse("alter table tb1 drop partition (b = '1', c = '2')");
+        assertThat(operation).isInstanceOf(DropPartitionsOperation.class);
+        assertThat(operation.asSummaryString())
+                .isEqualTo("ALTER TABLE cat1.db1.tb1 DROP PARTITION (b=1, c=2)");
+
+        // test drop multiple partition simultaneously
+        operation =
+                parse(
+                        "alter table tb1 drop if exists partition (b = '1', c = '2'), partition (b = '2')");
+        assertThat(operation).isInstanceOf(DropPartitionsOperation.class);
+        assertThat(operation.asSummaryString())
+                .isEqualTo(
+                        "ALTER TABLE cat1.db1.tb1 DROP IF EXISTS PARTITION (b=1, c=2) PARTITION (b=2)");
     }
 
     // ~ Tool Methods ----------------------------------------------------------

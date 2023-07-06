@@ -20,10 +20,10 @@ package org.apache.flink.table.tpcds.schema;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.util.CollectionUtil;
 
 import java.sql.Date;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -36,7 +36,8 @@ public class TpcdsSchemaProvider {
     private static final Map<String, TpcdsSchema> schemaMap = createTableSchemas();
 
     private static Map<String, TpcdsSchema> createTableSchemas() {
-        final Map<String, TpcdsSchema> schemaMap = new HashMap<>(tpcdsTableNums);
+        final Map<String, TpcdsSchema> schemaMap =
+                CollectionUtil.newHashMapWithExpectedSize(tpcdsTableNums);
         schemaMap.put(
                 "catalog_sales",
                 new TpcdsSchema(

@@ -30,8 +30,9 @@ LogicalProject(a2=[random_udf($0)], a3=[random_udf($0)])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[random_udf(random_udf(a)) AS a2, random_udf(random_udf(a)) AS a3], where=[(b > 10)])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[], project=[a, b], metadata=[]]], fields=[a, b])
+Calc(select=[random_udf(a1) AS a2, random_udf(a1) AS a3])
++- Calc(select=[random_udf(a) AS a1, b], where=[(b > 10)])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[], project=[a, b], metadata=[]]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>

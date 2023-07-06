@@ -312,6 +312,7 @@ object FlinkRexUtil {
 
   /**
    * Find all inputRefs.
+   *
    * @return
    *   InputRef HashSet.
    */
@@ -612,6 +613,7 @@ object FlinkRexUtil {
 
   /**
    * Returns whether a given [[RexProgram]] is deterministic.
+   *
    * @return
    *   false if any expression of the program is not deterministic
    */

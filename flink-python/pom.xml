@@ -35,6 +35,15 @@ under the License.
 
 	<properties>
 		<arrow.version>5.0.0</arrow.version>
+		<kafka.version>3.2.3</kafka.version>
+		<surefire.module.config><!--
+			CommonTestUtils#setEnv
+			-->--add-opens=java.base/java.util=ALL-UNNAMED <!--
+			Kryo AtomicBoolean
+			-->--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED <!--
+			Arrow MemoryUtil
+			-->--add-opens=java.base/java.nio=ALL-UNNAMED
+		</surefire.module.config>
 	</properties>
 
 	<dependencies>
@@ -282,7 +291,7 @@ under the License.
 			<!-- Indirectly accessed in pyflink_gateway_server -->
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-sql-connector-kafka</artifactId>
-			<version>${project.version}</version>
+			<version>3.0.0-1.17</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -330,7 +339,7 @@ under the License.
 			<!-- Indirectly accessed in pyflink_gateway_server -->
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-jdbc</artifactId>
-			<version>3.0.0-1.16</version>
+			<version>3.1.1-1.17</version>
 			<scope>test</scope>
 		</dependency>
 
