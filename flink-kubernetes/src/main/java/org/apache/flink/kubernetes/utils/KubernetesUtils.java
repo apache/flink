@@ -596,12 +596,6 @@ public class KubernetesUtils {
         }
     }
 
-    /** Cluster components. */
-    public enum ClusterComponent {
-        JOB_MANAGER,
-        TASK_MANAGER
-    }
-
     public static String encodeLeaderInformation(LeaderInformation leaderInformation) {
         Preconditions.checkArgument(leaderInformation.getLeaderSessionID() != null);
         Preconditions.checkArgument(leaderInformation.getLeaderAddress() != null);
