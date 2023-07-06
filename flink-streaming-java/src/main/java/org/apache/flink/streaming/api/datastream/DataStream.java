@@ -839,7 +839,7 @@ public class DataStream<T> {
      * event time progress. The given {@link WatermarkStrategy} is used to create a {@link
      * TimestampAssigner} and {@link WatermarkGenerator}.
      *
-     * <p>For each event in the data stream, the {@link TimestampAssigner#extractTimestamp(Object,
+     * <p>For each element in the data stream, the {@link TimestampAssigner#extractTimestamp(Object,
      * long)} method is called to assign an event timestamp.
      *
      * <p>For each event in the data stream, the {@link WatermarkGenerator#onEvent(Object, long,
