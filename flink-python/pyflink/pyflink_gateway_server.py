@@ -61,7 +61,7 @@ def read_from_config(key, default_value, flink_conf_file):
 
 
 def find_java_executable():
-    java_executable = "java.exe" if on_windows() else "/Library/Java/JavaVirtualMachines/jdk-17.0.5.jdk/Contents/Home/bin/java"
+    java_executable = "java.exe" if on_windows() else "java"
     flink_home = _find_flink_home()
     flink_conf_file = os.path.join(flink_home, "conf", "flink-conf.yaml")
     java_home = read_from_config(KEY_ENV_JAVA_HOME, None, flink_conf_file)
