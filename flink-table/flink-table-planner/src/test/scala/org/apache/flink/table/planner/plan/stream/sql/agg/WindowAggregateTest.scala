@@ -1009,6 +1009,54 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
       """.stripMargin
     util.verifyRelPlan(sql)
   }
+
+  @Test
+  def testProctimeWindowWithFilter(): Unit = {
+    util.tableEnv.executeSql(s"""
+                                |CREATE TEMPORARY TABLE source (
+                                |  a INT,
+                                |  b BIGINT,
+                                |  c STRING NOT NULL,
+                                |  d BIGINT,
+                                |  proctime as PROCTIME()
+                                |) with (
+                                |  'connector' = 'values'
+                                |)
+                                |""".stripMargin)
+
+    util.tableEnv.executeSql("""
+                               |CREATE TEMPORARY TABLE sink(
+                               |    ws TIMESTAMP,
+                               |    we TIMESTAMP,
+                               |    b bigint,
+                               |    c bigint
+                               |)
+                               |WITH (
+                               |    'connector' = 'values'
+                               |)
+                               |""".stripMargin)
+
+    util.verifyExecPlanInsert(
+      """
+        |insert into sink
+        |    select
+        |        window_start,
+        |        window_end,
+        |        b,
+        |        COALESCE(sum(case
+        |            when a = 11
+        |            then 1
+        |        end), 0) c
+        |    from
+        |        TABLE(
+        |            TUMBLE(TABLE source, DESCRIPTOR(proctime), INTERVAL '10' SECONDS)
+        |        )
+        |    where
+        |        a in (1, 5, 7, 9, 11)
+        |    GROUP BY
+        |        window_start, window_end, b
+        |""".stripMargin)
+  }
 }
 
 object WindowAggregateTest {

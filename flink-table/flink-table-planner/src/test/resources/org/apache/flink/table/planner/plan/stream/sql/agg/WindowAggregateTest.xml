@@ -1650,6 +1650,96 @@ Sink(table=[default_catalog.default_database.s1], fields=[window_start, window_e
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testProctimeWindowWithFilter[aggPhaseEnforcer=ONE_PHASE]">
+    <Resource name="sql">
+      <![CDATA[
+insert into sink
+    select
+        window_start,
+        window_end,
+        b,
+        COALESCE(sum(case
+            when a = 11
+            then 1
+        end), 0) c
+    from
+        TABLE(
+            TUMBLE(TABLE source, DESCRIPTOR(proctime), INTERVAL '10' SECONDS)
+        )
+    where
+        a in (1, 5, 7, 9, 11)
+    GROUP BY
+        window_start, window_end, b
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink], fields=[ws, we, b, c])
++- LogicalProject(ws=[CAST($0):TIMESTAMP(6)], we=[CAST($1):TIMESTAMP(6)], b=[$2], c=[CAST(COALESCE($3, 0)):BIGINT])
+   +- LogicalAggregate(group=[{0, 1, 2}], agg#0=[SUM($3)])
+      +- LogicalProject(window_start=[$5], window_end=[$6], b=[$1], $f3=[CASE(=($0, 11), 1, null:INTEGER)])
+         +- LogicalFilter(condition=[OR(=($0, 1), =($0, 5), =($0, 7), =($0, 9), =($0, 11))])
+            +- LogicalTableFunctionScan(invocation=[TUMBLE($4, DESCRIPTOR($4), 10000:INTERVAL SECOND)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, BIGINT d, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP_LTZ(3) *PROCTIME* window_time)])
+               +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, source]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink], fields=[ws, we, b, c])
++- Calc(select=[CAST(window_start AS TIMESTAMP(6)) AS ws, CAST(window_end AS TIMESTAMP(6)) AS we, b, CAST(COALESCE($f1, 0) AS BIGINT) AS c])
+   +- WindowAggregate(groupBy=[b], window=[TUMBLE(time_col=[proctime], size=[10 s])], select=[b, SUM($f3) AS $f1, start('w$) AS window_start, end('w$) AS window_end])
+      +- Exchange(distribution=[hash[b]])
+         +- Calc(select=[b, CASE((a = 11), 1, null:INTEGER) AS $f3, PROCTIME() AS proctime], where=[SEARCH(a, Sarg[1, 5, 7, 9, 11])])
+            +- TableSourceScan(table=[[default_catalog, default_database, source, project=[a, b], metadata=[]]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProctimeWindowWithFilter[aggPhaseEnforcer=TWO_PHASE]">
+    <Resource name="sql">
+      <![CDATA[
+insert into sink
+    select
+        window_start,
+        window_end,
+        b,
+        COALESCE(sum(case
+            when a = 11
+            then 1
+        end), 0) c
+    from
+        TABLE(
+            TUMBLE(TABLE source, DESCRIPTOR(proctime), INTERVAL '10' SECONDS)
+        )
+    where
+        a in (1, 5, 7, 9, 11)
+    GROUP BY
+        window_start, window_end, b
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink], fields=[ws, we, b, c])
++- LogicalProject(ws=[CAST($0):TIMESTAMP(6)], we=[CAST($1):TIMESTAMP(6)], b=[$2], c=[CAST(COALESCE($3, 0)):BIGINT])
+   +- LogicalAggregate(group=[{0, 1, 2}], agg#0=[SUM($3)])
+      +- LogicalProject(window_start=[$5], window_end=[$6], b=[$1], $f3=[CASE(=($0, 11), 1, null:INTEGER)])
+         +- LogicalFilter(condition=[OR(=($0, 1), =($0, 5), =($0, 7), =($0, 9), =($0, 11))])
+            +- LogicalTableFunctionScan(invocation=[TUMBLE($4, DESCRIPTOR($4), 10000:INTERVAL SECOND)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, BIGINT d, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP_LTZ(3) *PROCTIME* window_time)])
+               +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, source]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink], fields=[ws, we, b, c])
++- Calc(select=[CAST(window_start AS TIMESTAMP(6)) AS ws, CAST(window_end AS TIMESTAMP(6)) AS we, b, CAST(COALESCE($f1, 0) AS BIGINT) AS c])
+   +- WindowAggregate(groupBy=[b], window=[TUMBLE(time_col=[proctime], size=[10 s])], select=[b, SUM($f3) AS $f1, start('w$) AS window_start, end('w$) AS window_end])
+      +- Exchange(distribution=[hash[b]])
+         +- Calc(select=[b, CASE((a = 11), 1, null:INTEGER) AS $f3, PROCTIME() AS proctime], where=[SEARCH(a, Sarg[1, 5, 7, 9, 11])])
+            +- TableSourceScan(table=[[default_catalog, default_database, source, project=[a, b], metadata=[]]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testTumble_CalcOnTVF[aggPhaseEnforcer=ONE_PHASE]">
     <Resource name="sql">
       <![CDATA[
