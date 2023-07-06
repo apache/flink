@@ -208,7 +208,9 @@ Users can do some performance tuning by tuning the split's size with the follow 
 
 ### Read Table Statistics
 
-To obtain hive table statistics faster, When hive table format is `orc` or `parquet`. You can use `table.exec.hive.read-format-statistics.thread-num` to configure the thread number. The default value is the number of available processors in the current system and the configured value should be bigger than 0.
+When the table statistic is not available from Hive metastore, such as `orc` or `parquet`. We will then try to get the statistic by scanning the table. 
+To obtain hive table statistics faster, you can use `table.exec.hive.read-statistics.thread-num` to configure the thread number. 
+The default value is the number of available processors in the current system and the configured value should be bigger than 0.
 
 ### Load Partition Splits
 

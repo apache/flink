@@ -69,12 +69,12 @@ public class OrcFormatStatisticsReportUtil {
             DataType producedDataType,
             Configuration hadoopConfig,
             int statisticsThreadNum) {
+        ExecutorService executorService = null;
         try {
             long rowCount = 0;
             Map<String, ColumnStatistics> columnStatisticsMap = new HashMap<>();
             RowType producedRowType = (RowType) producedDataType.getLogicalType();
-
-            ExecutorService executorService =
+            executorService =
                     Executors.newFixedThreadPool(
                             statisticsThreadNum,
                             new ExecutorThreadFactory("orc-get-table-statistic-worker"));
@@ -95,7 +95,6 @@ public class OrcFormatStatisticsReportUtil {
                     }
                 }
             }
-            executorService.shutdownNow();
             Map<String, ColumnStats> columnStatsMap =
                     convertToColumnStats(rowCount, columnStatisticsMap, producedRowType);
 
@@ -103,6 +102,10 @@ public class OrcFormatStatisticsReportUtil {
         } catch (Exception e) {
             LOG.warn("Reporting statistics failed for Orc format: {}", e.getMessage());
             return TableStats.UNKNOWN;
+        } finally {
+            if (executorService != null) {
+                executorService.shutdownNow();
+            }
         }
     }
 

@@ -89,10 +89,11 @@ public class ParquetFormatStatisticsReportUtil {
             Configuration hadoopConfig,
             boolean isUtcTimestamp,
             int statisticsThreadNum) {
+        ExecutorService executorService = null;
         try {
             Map<String, Statistics<?>> columnStatisticsMap = new HashMap<>();
             RowType producedRowType = (RowType) producedDataType.getLogicalType();
-            ExecutorService executorService =
+            executorService =
                     Executors.newFixedThreadPool(
                             statisticsThreadNum,
                             new ExecutorThreadFactory("parquet-get-table-statistic-worker"));
@@ -118,13 +119,16 @@ public class ParquetFormatStatisticsReportUtil {
                     }
                 }
             }
-            executorService.shutdownNow();
             Map<String, ColumnStats> columnStatsMap =
                     convertToColumnStats(columnStatisticsMap, producedRowType, isUtcTimestamp);
             return new TableStats(rowCount, columnStatsMap);
         } catch (Exception e) {
             LOG.warn("Reporting statistics failed for Parquet format", e);
             return TableStats.UNKNOWN;
+        } finally {
+            if (executorService != null) {
+                executorService.shutdownNow();
+            }
         }
     }
 
