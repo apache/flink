@@ -76,7 +76,10 @@ class SubpartitionDiskCacheManagerTest {
                 new SubpartitionDiskCacheManager();
         Buffer buffer = BufferBuilderTestUtils.buildSomeBuffer();
         subpartitionDiskCacheManager.append(buffer);
+        List<Tuple2<Buffer, Integer>> bufferAndIndexes =
+                subpartitionDiskCacheManager.removeAllBuffers();
+        assertThat(bufferAndIndexes).hasSize(1);
+        assertThat(bufferAndIndexes.get(0).f0).isEqualTo(buffer);
         assertThatNoException().isThrownBy(subpartitionDiskCacheManager::release);
-        assertThat(buffer.isRecycled()).isTrue();
     }
 }

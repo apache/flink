@@ -36,7 +36,6 @@ import java.util.Queue;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * {@link HashSubpartitionBufferAccumulator} accumulates the records in a subpartition.
@@ -76,7 +75,9 @@ public class HashSubpartitionBufferAccumulator {
     }
 
     public void close() {
-        checkState(unfinishedBuffers.isEmpty(), "There are unfinished buffers.");
+        while (!unfinishedBuffers.isEmpty()) {
+            unfinishedBuffers.poll().close();
+        }
     }
 
     // ------------------------------------------------------------------------
