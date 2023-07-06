@@ -48,10 +48,6 @@ under the License.
 				"mvn dependency:tree" as of Calcite 1.32.0:
 				[INFO] +- org.apache.calcite:calcite-core:jar:1.32.0:compile
 				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.32.0:compile
-				[INFO] |  +- org.locationtech.jts:jts-core:jar:1.19.0:compile
-				[INFO] |  +- org.locationtech.jts.io:jts-io-common:jar:1.19.0:compile
-				[INFO] |  |  \- com.googlecode.json-simple:json-simple:jar:1.1.1:compile
-				[INFO] |  +- org.locationtech.proj4j:proj4j:jar:1.1.5:compile
 				[INFO] |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.14.3:compile
 				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.22.0:compile
 				[INFO] |  +- org.apiguardian:apiguardian-api:jar:1.1.2:compile
@@ -146,6 +142,14 @@ under the License.
 				<exclusion>
 					<groupId>org.checkerframework</groupId>
 					<artifactId>checker-qual</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.locationtech.jts.io</groupId>
+					<artifactId>jts-io-common</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.locationtech.proj4j</groupId>
+					<artifactId>proj4j</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
