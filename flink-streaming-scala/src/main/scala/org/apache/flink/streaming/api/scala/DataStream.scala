@@ -838,7 +838,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * time progress. The given [[WatermarkStrategy is used to create a [[TimestampAssigner]] and
    * [[org.apache.flink.api.common.eventtime.WatermarkGenerator]].
    *
-   * For each event in the data stream, the [[TimestampAssigner#extractTimestamp(Object, long)]]
+   * For each element in the data stream, the [[TimestampAssigner#extractTimestamp(Object, long)]]
    * method is called to assign an event timestamp.
    *
    * For each event in the data stream, the
