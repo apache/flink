@@ -194,7 +194,9 @@ public class StreamExecutionEnvironment implements AutoCloseable {
 
     private long bufferTimeout = ExecutionOptions.BUFFER_TIMEOUT.defaultValue().toMillis();
 
-    protected boolean isChainingEnabled = true;
+    private boolean isChainingEnabled = true;
+
+    private boolean isChainingOfOperatorsWithDifferentMaxParallelismEnabled = true;
 
     /** The state backend used for storing k/v state and state snapshots. */
     private StateBackend defaultStateBackend;
@@ -473,6 +475,11 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     @PublicEvolving
     public boolean isChainingEnabled() {
         return isChainingEnabled;
+    }
+
+    @PublicEvolving
+    public boolean isChainingOfOperatorsWithDifferentMaxParallelismEnabled() {
+        return isChainingOfOperatorsWithDifferentMaxParallelismEnabled;
     }
 
     // ------------------------------------------------------------------------
@@ -990,6 +997,11 @@ public class StreamExecutionEnvironment implements AutoCloseable {
         configuration
                 .getOptional(PipelineOptions.OPERATOR_CHAINING)
                 .ifPresent(c -> this.isChainingEnabled = c);
+        configuration
+                .getOptional(
+                        PipelineOptions
+                                .OPERATOR_CHAINING_CHAIN_OPERATORS_WITH_DIFFERENT_MAX_PARALLELISM)
+                .ifPresent(c -> this.isChainingOfOperatorsWithDifferentMaxParallelismEnabled = c);
         configuration
                 .getOptional(DeploymentOptions.JOB_LISTENERS)
                 .ifPresent(listeners -> registerCustomListeners(classLoader, listeners));
@@ -2299,6 +2311,8 @@ public class StreamExecutionEnvironment implements AutoCloseable {
                 .setChangelogStateBackendEnabled(changelogStateBackendEnabled)
                 .setSavepointDir(defaultSavepointDirectory)
                 .setChaining(isChainingEnabled)
+                .setChainingOfOperatorsWithDifferentMaxParallelism(
+                        isChainingOfOperatorsWithDifferentMaxParallelismEnabled)
                 .setUserArtifacts(cacheFile)
                 .setTimeCharacteristic(timeCharacteristic)
                 .setDefaultBufferTimeout(bufferTimeout)

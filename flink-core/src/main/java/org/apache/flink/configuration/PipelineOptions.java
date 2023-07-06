@@ -243,12 +243,21 @@ public class PipelineOptions {
                                     .build());
 
     public static final ConfigOption<Boolean> OPERATOR_CHAINING =
-            key("pipeline.operator-chaining")
+            key("pipeline.operator-chaining.enabled")
                     .booleanType()
                     .defaultValue(true)
+                    .withDeprecatedKeys("pipeline.operator-chaining")
                     .withDescription(
                             "Operator chaining allows non-shuffle operations to be co-located in the same thread "
                                     + "fully avoiding serialization and de-serialization.");
+
+    public static final ConfigOption<Boolean>
+            OPERATOR_CHAINING_CHAIN_OPERATORS_WITH_DIFFERENT_MAX_PARALLELISM =
+                    key("pipeline.operator-chaining.chain-operators-with-different-max-parallelism")
+                            .booleanType()
+                            .defaultValue(true)
+                            .withDescription(
+                                    "Operators with different max parallelism can be chained together. Default behavior may prevent rescaling when the AdaptiveScheduler is used.");
 
     public static final ConfigOption<List<String>> CACHED_FILES =
             key("pipeline.cached-files")

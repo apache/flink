@@ -1512,12 +1512,11 @@ public class StreamingJobGraphGenerator {
         StreamNode upStreamVertex = streamGraph.getSourceVertex(edge);
         StreamNode downStreamVertex = streamGraph.getTargetVertex(edge);
 
-        if (!(upStreamVertex.isSameSlotSharingGroup(downStreamVertex)
+        if (!(streamGraph.isChainingEnabled()
+                && upStreamVertex.isSameSlotSharingGroup(downStreamVertex)
                 && areOperatorsChainable(upStreamVertex, downStreamVertex, streamGraph)
                 && arePartitionerAndExchangeModeChainable(
-                        edge.getPartitioner(), edge.getExchangeMode(), streamGraph.isDynamic())
-                && upStreamVertex.getParallelism() == downStreamVertex.getParallelism()
-                && streamGraph.isChainingEnabled())) {
+                        edge.getPartitioner(), edge.getExchangeMode(), streamGraph.isDynamic()))) {
 
             return false;
         }
@@ -1599,6 +1598,14 @@ public class StreamingJobGraphGenerator {
             default:
                 throw new RuntimeException(
                         "Unknown chaining strategy: " + downStreamOperator.getChainingStrategy());
+        }
+
+        // Only vertices with the same parallelism can be chained.
+        isChainable &= upStreamVertex.getParallelism() == downStreamVertex.getParallelism();
+
+        if (!streamGraph.isChainingOfOperatorsWithDifferentMaxParallelismEnabled()) {
+            isChainable &=
+                    upStreamVertex.getMaxParallelism() == downStreamVertex.getMaxParallelism();
         }
 
         return isChainable;
