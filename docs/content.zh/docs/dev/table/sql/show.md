@@ -784,7 +784,7 @@ show partitions table1;
 3 rows in set
 ```
 
-- 显示指定分区表和指定分区下的所有分区。
+- 显示指定分区表在指定分区下的所有分区。
 
 ```sql
 show partitions table1 partition (id=1002);

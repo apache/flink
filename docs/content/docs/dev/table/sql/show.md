@@ -753,7 +753,7 @@ SHOW PARTITIONS [[catalog_name.]database.]<table_name> [ PARTITION <partition_sp
 Show all partitions of the partitioned table with the given table name and optional partition clause.
 
 **PARTITION**
-Show all partitions of the partitioned table with the given table name and optional `PARTITION` clause, which are under the provided <partition_spec>.
+Show all the partitions which are under the provided <partition_spec> in the given table.
 
 ### SHOW PARTITIONS EXAMPLES
 

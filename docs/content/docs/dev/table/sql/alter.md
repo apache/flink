@@ -298,7 +298,7 @@ Flink SQL> SHOW TABLES;
 The following grammar gives an overview about the available syntax:
 ```text
 ALTER TABLE [IF EXISTS] table_name {
-    ADD { <schema_component> | (<schema_component> [, ...]) | [IF NOT EXISTS] <partition_component> [, ...]}
+    ADD { <schema_component> | (<schema_component> [, ...]) | [IF NOT EXISTS] <partition_component> [<partition_component> ...]}
   | MODIFY { <schema_component> | (<schema_component> [, ...]) }
   | DROP {column_name | (column_name, column_name, ....) | PRIMARY KEY | CONSTRAINT constraint_name | WATERMARK | [IF EXISTS] <partition_component> [, ...]}
   | RENAME old_column_name TO new_column_name
@@ -362,7 +362,7 @@ ALTER TABLE MyTable ADD (
 ALTER TABLE MyTable ADD PARTITION (p1=1,p2='a') with ('k1'='v1');
 
 -- add two new partitions
-ALTER TABLE MyTable ADD PARTITION (p1=1,p2='a') with ('k1'='v1'), PARTITION (p1=1,p2='b') with ('k2'='v2');
+ALTER TABLE MyTable ADD PARTITION (p1=1,p2='a') with ('k1'='v1') PARTITION (p1=1,p2='b') with ('k2'='v2');
 ```
 <span class="label label-danger">Note</span> Add a column to be primary key will change the column's nullability to false implicitly.
 
