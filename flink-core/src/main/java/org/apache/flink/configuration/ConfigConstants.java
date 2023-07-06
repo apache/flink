@@ -1756,6 +1756,12 @@ public final class ConfigConstants {
     /** The user lib directory name. */
     public static final String DEFAULT_FLINK_USR_LIB_DIR = "usrlib";
 
+    /**
+     * The environment variable name which contains a list of newline-separated HTTP headers for
+     * Flink's REST client.
+     */
+    public static final String FLINK_REST_CLIENT_HEADERS = "FLINK_REST_CLIENT_HEADERS";
+
     // ---------------------------- Encoding ------------------------------
 
     public static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;

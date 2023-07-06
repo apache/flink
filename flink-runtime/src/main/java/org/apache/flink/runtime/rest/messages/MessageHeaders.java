@@ -18,8 +18,10 @@
 
 package org.apache.flink.runtime.rest.messages;
 
+import org.apache.flink.runtime.rest.HttpHeader;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import java.util.Collection;
@@ -92,5 +94,17 @@ public interface MessageHeaders<
 
         return getHttpMethod().name().toLowerCase(Locale.ROOT)
                 + className.substring(0, headersSuffixStart);
+    }
+
+    /**
+     * Returns a collection of custom HTTP headers.
+     *
+     * <p>This default implementation returns an empty list. Override this method to provide custom
+     * headers if needed.
+     *
+     * @return a collection of custom {@link HttpHeaders}, empty by default.
+     */
+    default Collection<HttpHeader> getCustomHeaders() {
+        return Collections.emptyList();
     }
 }
