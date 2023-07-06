@@ -84,4 +84,21 @@ public class CalcJsonPlanITCase extends JsonPlanTestBase {
         assertResult(
                 Arrays.asList("2,2,2,Hello2,$Hello", "3,3,2,Hello world3,$Hello wo"), sinkPath);
     }
+
+    @Test
+    public void testProjectPushDown() throws Exception {
+        List<String> data = Arrays.asList("1,1,hi", "2,1,hello", "3,2,hello world");
+        createTestCsvSourceTable("MyTable", data, "a bigint", "b int not null", "c varchar");
+        File sinkPath = createTestCsvSinkTable("MySink", "b int", "a bigint", "a1 varchar");
+
+        compileSqlAndExecutePlan(
+                        "insert into MySink select "
+                                + "b, "
+                                + "a, "
+                                + "cast(a as varchar) as a1 "
+                                + "from MyTable where b > 1")
+                .await();
+
+        assertResult(Collections.singletonList("2,3,3"), sinkPath);
+    }
 }
