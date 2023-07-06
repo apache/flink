@@ -793,26 +793,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 mapOperations.add(ctasOperation.toSinkModifyOperation(catalogManager));
             } else if (modify instanceof ReplaceTableAsOperation) {
                 ReplaceTableAsOperation rtasOperation = (ReplaceTableAsOperation) modify;
-                // rtas drop table first, then create
-                CreateTableOperation createTableOperation = rtasOperation.getCreateTableOperation();
-                ObjectIdentifier tableIdentifier = createTableOperation.getTableIdentifier();
-                try {
-                    catalogManager.dropTable(tableIdentifier, rtasOperation.isCreateOrReplace());
-                } catch (ValidationException e) {
-                    if (String.format(
-                                    "Table with identifier '%s' does not exist.",
-                                    tableIdentifier.asSummaryString())
-                            .equals(e.getMessage())) {
-                        throw new TableException(
-                                String.format(
-                                        "The table %s to be replaced doesn't exist. You can try to use CREATE TABLE AS statement or CREATE OR REPLACE TABLE AS statement.",
-                                        tableIdentifier));
-                    } else {
-                        throw e;
-                    }
-                }
-                executeInternal(createTableOperation);
-                mapOperations.add(rtasOperation.toSinkModifyOperation(catalogManager));
+                mapOperations.add(getOperation(rtasOperation));
             } else {
                 boolean isRowLevelModification = isRowLevelModification(modify);
                 if (isRowLevelModification) {
@@ -841,6 +822,31 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         List<Transformation<?>> transformations = translate(mapOperations);
         List<String> sinkIdentifierNames = extractSinkIdentifierNames(mapOperations);
         return executeInternal(transformations, sinkIdentifierNames);
+    }
+
+    private ModifyOperation getOperation(ReplaceTableAsOperation rtasOperation) {
+        // rtas drop table first, then create
+        CreateTableOperation createTableOperation = rtasOperation.getCreateTableOperation();
+        ObjectIdentifier tableIdentifier = createTableOperation.getTableIdentifier();
+        try {
+            catalogManager.dropTable(tableIdentifier, rtasOperation.isCreateOrReplace());
+        } catch (ValidationException e) {
+            if (String.format(
+                            "Table with identifier '%s' does not exist.",
+                            tableIdentifier.asSummaryString())
+                    .equals(e.getMessage())) {
+                throw new TableException(
+                        String.format(
+                                "The table %s to be replaced doesn't exist. "
+                                        + "You can try to use CREATE TABLE AS statement or "
+                                        + "CREATE OR REPLACE TABLE AS statement.",
+                                tableIdentifier));
+            } else {
+                throw e;
+            }
+        }
+        executeInternal(createTableOperation);
+        return rtasOperation.toSinkModifyOperation(catalogManager);
     }
 
     private TableResultInternal executeInternal(

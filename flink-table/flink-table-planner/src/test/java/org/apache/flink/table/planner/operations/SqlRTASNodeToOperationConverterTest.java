@@ -33,6 +33,8 @@ import org.apache.flink.table.types.AbstractDataType;
 import org.apache.calcite.sql.SqlNode;
 import org.junit.jupiter.api.Test;
 
+import javax.annotation.Nullable;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -45,11 +47,14 @@ public class SqlRTASNodeToOperationConverterTest extends SqlNodeToOperationConve
     @Test
     public void testReplaceTableAS() {
         String tableName = "replace_table";
+        String tableComment = "test table comment 表描述";
         String sql =
                 "REPLACE TABLE "
                         + tableName
-                        + " WITH ('k1' = 'v1', 'k2' = 'v2') as SELECT * FROM t1";
-        testCommonReplaceTableAs(sql, tableName);
+                        + " COMMENT '"
+                        + tableComment
+                        + "' WITH ('k1' = 'v1', 'k2' = 'v2') as SELECT * FROM t1";
+        testCommonReplaceTableAs(sql, tableName, tableComment);
     }
 
     @Test
@@ -59,16 +64,17 @@ public class SqlRTASNodeToOperationConverterTest extends SqlNodeToOperationConve
                 "CREATE OR REPLACE TABLE "
                         + tableName
                         + " WITH ('k1' = 'v1', 'k2' = 'v2') as SELECT * FROM t1";
-        testCommonReplaceTableAs(sql, tableName);
+        testCommonReplaceTableAs(sql, tableName, null);
     }
 
-    private void testCommonReplaceTableAs(String sql, String tableName) {
+    private void testCommonReplaceTableAs(
+            String sql, String tableName, @Nullable String tableComment) {
         ObjectIdentifier expectedIdentifier = ObjectIdentifier.of("builtin", "default", tableName);
         Operation operation = parseAndConvert(sql);
         CatalogTable expectedCatalogTable =
                 CatalogTable.of(
                         getDefaultTableSchema(),
-                        null,
+                        tableComment,
                         Collections.emptyList(),
                         getDefaultTableOptions());
         verifyReplaceTableAsOperation(operation, expectedIdentifier, expectedCatalogTable);

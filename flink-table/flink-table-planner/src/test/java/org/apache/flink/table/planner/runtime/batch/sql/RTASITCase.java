@@ -127,7 +127,8 @@ class RTASITCase extends BatchTestBase {
         verifyCatalogTable(expectCatalogTable, getCatalogTable("not_exist_target"));
     }
 
-    private CatalogTable getExpectCatalogTable(String[] cols, AbstractDataType[] fieldDataTypes) {
+    private CatalogTable getExpectCatalogTable(
+            String[] cols, AbstractDataType<?>[] fieldDataTypes) {
         return CatalogTable.of(
                 Schema.newBuilder().fromFields(cols, fieldDataTypes).build(),
                 null,
