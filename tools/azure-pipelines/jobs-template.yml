@@ -152,7 +152,6 @@ jobs:
 
   # Test
   - script: ${{parameters.environment}} ./tools/azure-pipelines/uploading_watchdog.sh ./tools/ci/test_controller.sh $(module)
-    condition: or(not(eq(${{parameters.jdk}}, '17')), not(eq(variables.module, 'python')))
     displayName: Test - $(module)
     env:
       IT_CASE_S3_BUCKET: $(SECRET_S3_BUCKET)
@@ -166,7 +165,7 @@ jobs:
 
   # upload debug artifacts
   - task: PublishPipelineArtifact@1
-    condition: and(not(eq('$(DEBUG_FILES_OUTPUT_DIR)', '')), or(not(eq(${{parameters.jdk}}, '17')), not(eq(variables.module, 'python'))))
+    condition: not(eq('$(DEBUG_FILES_OUTPUT_DIR)', ''))
     displayName: Upload Logs
     inputs:
       targetPath: $(DEBUG_FILES_OUTPUT_DIR)
