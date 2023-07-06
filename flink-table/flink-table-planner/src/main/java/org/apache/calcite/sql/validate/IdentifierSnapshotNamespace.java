@@ -20,14 +20,14 @@ package org.apache.calcite.sql.validate;
 import org.apache.calcite.schema.SchemaVersion;
 
 /** Represent the snapshot of the {@link IdentifierNamespace} */
-public class IdentifierNamespaceSnapshot extends IdentifierNamespace {
-    public IdentifierNamespaceSnapshot(
-            IdentifierNamespace ns, SchemaVersion schemaVersion, SqlValidatorScope parentSope) {
+public class IdentifierSnapshotNamespace extends IdentifierNamespace {
+    public IdentifierSnapshotNamespace(
+            IdentifierNamespace ns, SchemaVersion schemaVersion, SqlValidatorScope parentScope) {
         super(
                 (SqlValidatorImpl) ns.getValidator(),
                 ns.getId(),
                 ns.extendList,
                 ns.enclosingNode,
-                new ScopeSnapshot(parentSope, schemaVersion));
+                new SnapshotScope(parentScope, schemaVersion));
     }
 }

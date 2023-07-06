@@ -30,7 +30,7 @@ public abstract class FlinkSchemaVersion implements SchemaVersion {
     /** The implementation of {@link SchemaVersion} to specify the snapshot at the specific time. */
     public static class TimestampSchemaVersion extends FlinkSchemaVersion {
 
-        private long timestamp;
+        private final long timestamp;
 
         public TimestampSchemaVersion(long timestamp) {
             this.timestamp = timestamp;
@@ -42,7 +42,14 @@ public abstract class FlinkSchemaVersion implements SchemaVersion {
 
         @Override
         public boolean isBefore(SchemaVersion other) {
-            return false;
+            if (!(other instanceof TimestampSchemaVersion)) {
+                throw new IllegalArgumentException(
+                        "Cannot compare a TimestampSchemaVersion object with a "
+                                + other.getClass()
+                                + " object.");
+            } else {
+                return this.timestamp < ((TimestampSchemaVersion) other).timestamp;
+            }
         }
     }
 }

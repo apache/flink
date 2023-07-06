@@ -23,6 +23,7 @@ import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.logical.DecimalType;
 
 import org.apache.calcite.plan.RelOptCluster;
@@ -36,6 +37,7 @@ import org.apache.calcite.schema.SchemaVersion;
 import org.apache.calcite.sql.JoinType;
 import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlFunction;
+import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlJoin;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
@@ -44,9 +46,9 @@ import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.SqlSnapshot;
 import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.SqlWindowTableFunction;
+import org.apache.calcite.sql.validate.DelegatingScope;
 import org.apache.calcite.sql.validate.IdentifierNamespace;
-import org.apache.calcite.sql.validate.IdentifierNamespaceSnapshot;
-import org.apache.calcite.sql.validate.SelectScope;
+import org.apache.calcite.sql.validate.IdentifierSnapshotNamespace;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorCatalogReader;
 import org.apache.calcite.sql.validate.SqlValidatorImpl;
@@ -62,7 +64,6 @@ import java.math.BigDecimal;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
@@ -81,14 +82,6 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
     private RelOptTable.ToRelContext toRelContext;
 
     private FrameworkConfig frameworkConfig;
-
-    public FlinkCalciteSqlValidator(
-            SqlOperatorTable opTab,
-            SqlValidatorCatalogReader catalogReader,
-            RelDataTypeFactory typeFactory,
-            SqlValidator.Config config) {
-        super(opTab, catalogReader, typeFactory, config);
-    }
 
     public FlinkCalciteSqlValidator(
             SqlOperatorTable opTab,
@@ -173,15 +166,18 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
             @Nullable String alias,
             SqlValidatorNamespace ns,
             boolean forceNullable) {
-        // apply snapshot to SqlValidatorNameSpace
 
-        if (ns instanceof IdentifierNamespace && ns.getEnclosingNode() instanceof SqlSnapshot) {
-            SqlSnapshot sqlSnapshot = (SqlSnapshot) ((SelectScope) usingScope).getNode().getFrom();
-            SqlNode sqlNode = sqlSnapshot.getPeriod();
+        // apply snapshot to SqlValidatorNameSpace
+        // Time travel only supports constant expressions, so we need to investigate scenarios
+        // where the period of Snapshot is a SqlIdentifier.
+        if (usingScope != null
+                && ns instanceof IdentifierNamespace
+                && ns.getEnclosingNode() instanceof SqlSnapshot
+                && !(((SqlSnapshot) ns.getEnclosingNode()).getPeriod() instanceof SqlIdentifier)) {
+            SqlSnapshot sqlSnapshot = (SqlSnapshot) ns.getEnclosingNode();
+            SqlNode periodNode = sqlSnapshot.getPeriod();
             SqlToRelConverter sqlToRelConverter = this.createSqlToRelConverter();
-            SqlNode sqlNode1 = this.validateParameterizedExpression(sqlNode, new HashMap<>());
-            this.getValidatedNodeType(sqlNode1);
-            RexNode rexNode = sqlToRelConverter.convertExpression(sqlNode1);
+            RexNode rexNode = sqlToRelConverter.convertExpression(periodNode);
             RexNode simplifiedRexNode =
                     FlinkRexUtil.simplify(
                             sqlToRelConverter.getRexBuilder(),
@@ -195,40 +191,42 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
                             relOptCluster.getRexBuilder(),
                             Collections.singletonList(simplifiedRexNode),
                             reducedNodes);
-            RexLiteral node = (RexLiteral) reducedNodes.get(0);
+            // check whether period is the unsupported expression
+            if (!(reducedNodes.get(0) instanceof RexLiteral)) {
+                throw new UnsupportedOperationException(
+                        String.format("Unsupported time travel period: %s", periodNode));
+            }
+
+            RexLiteral rexLiteral = (RexLiteral) (reducedNodes).get(0);
             sqlSnapshot.setOperand(
                     1,
                     SqlLiteral.createTimestamp(
-                            node.getValueAs(TimestampString.class),
-                            node.getType().getPrecision(),
+                            rexLiteral.getValueAs(TimestampString.class),
+                            rexLiteral.getType().getPrecision(),
                             sqlSnapshot.getPeriod().getParserPosition()));
 
-            TableConfig tableConfig = getTableConfig();
+            TimestampString timestampString = rexLiteral.getValueAs(TimestampString.class);
+            TableConfig tableConfig = ShortcutUtils.unwrapContext(relOptCluster).getTableConfig();
             ZoneId zoneId = tableConfig.getLocalTimeZone();
-            TimestampString timestampString = node.getValueAs(TimestampString.class);
 
             long timeTravelTimestamp =
                     TimestampData.fromEpochMillis(timestampString.getMillisSinceEpoch())
-                                    .toLocalDateTime()
-                                    .atZone(zoneId)
-                                    .toEpochSecond()
-                            * 1000;
+                            .toLocalDateTime()
+                            .atZone(zoneId)
+                            .toInstant()
+                            .toEpochMilli();
 
             SchemaVersion schemaVersion = FlinkSchemaVersion.of(timeTravelTimestamp);
             IdentifierNamespace identifierNamespace = (IdentifierNamespace) ns;
             IdentifierNamespace snapshotNameSpace =
-                    new IdentifierNamespaceSnapshot(
+                    new IdentifierSnapshotNamespace(
                             identifierNamespace,
                             schemaVersion,
-                            ((SelectScope) usingScope).getParent());
+                            ((DelegatingScope) usingScope).getParent());
             ns = snapshotNameSpace;
         }
 
         super.registerNamespace(usingScope, alias, ns, forceNullable);
-    }
-
-    private TableConfig getTableConfig() {
-        return frameworkConfig.getContext().unwrap(FlinkContext.class).getTableConfig();
     }
 
     private SqlToRelConverter createSqlToRelConverter() {

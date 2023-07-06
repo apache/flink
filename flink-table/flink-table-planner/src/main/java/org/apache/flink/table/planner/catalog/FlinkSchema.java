@@ -35,10 +35,6 @@ public abstract class FlinkSchema implements Schema {
 
     private @Nullable SchemaVersion schemaVersion;
 
-    public FlinkSchema() {
-        this.schemaVersion = null;
-    }
-
     @Override
     public RelProtoDataType getType(String name) {
         return null;

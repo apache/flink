@@ -417,7 +417,7 @@ public final class CatalogManager implements CatalogRegistry {
                     resolveCatalogBaseTable(temporaryTable);
             return Optional.of(ContextResolvedTable.temporary(objectIdentifier, resolvedTable));
         } else {
-            return getPermanentTable(objectIdentifier);
+            return getPermanentTable(objectIdentifier, Optional.empty());
         }
     }
 
@@ -438,7 +438,7 @@ public final class CatalogManager implements CatalogRegistry {
                     resolveCatalogBaseTable(temporaryTable);
             return Optional.of(ContextResolvedTable.temporary(objectIdentifier, resolvedTable));
         } else {
-            return getPermanentTable(objectIdentifier, timestamp);
+            return getPermanentTable(objectIdentifier, Optional.of(timestamp));
         }
     }
 
@@ -504,30 +504,24 @@ public final class CatalogManager implements CatalogRegistry {
         return Optional.empty();
     }
 
-    private Optional<ContextResolvedTable> getPermanentTable(ObjectIdentifier objectIdentifier) {
-        Catalog currentCatalog = catalogs.get(objectIdentifier.getCatalogName());
-        ObjectPath objectPath = objectIdentifier.toObjectPath();
-        if (currentCatalog != null) {
-            try {
-                final CatalogBaseTable table = currentCatalog.getTable(objectPath);
-                final ResolvedCatalogBaseTable<?> resolvedTable = resolveCatalogBaseTable(table);
-                return Optional.of(
-                        ContextResolvedTable.permanent(
-                                objectIdentifier, currentCatalog, resolvedTable));
-            } catch (TableNotExistException e) {
-                // Ignore.
-            }
-        }
-        return Optional.empty();
-    }
-
     private Optional<ContextResolvedTable> getPermanentTable(
-            ObjectIdentifier objectIdentifier, long timestamp) {
+            ObjectIdentifier objectIdentifier, Optional<Long> timestamp) {
         Catalog currentCatalog = catalogs.get(objectIdentifier.getCatalogName());
         ObjectPath objectPath = objectIdentifier.toObjectPath();
         if (currentCatalog != null) {
             try {
-                final CatalogBaseTable table = currentCatalog.getTable(objectPath, timestamp);
+                final CatalogBaseTable table;
+                if (timestamp.isPresent()) {
+                    table = currentCatalog.getTable(objectPath, timestamp.get());
+                    if (table.getTableKind() == CatalogBaseTable.TableKind.VIEW) {
+                        throw new TableException(
+                                String.format(
+                                        "Table view: %s does not support time travel",
+                                        objectIdentifier.asSummaryString()));
+                    }
+                } else {
+                    table = currentCatalog.getTable(objectPath);
+                }
                 final ResolvedCatalogBaseTable<?> resolvedTable = resolveCatalogBaseTable(table);
                 return Optional.of(
                         ContextResolvedTable.permanent(

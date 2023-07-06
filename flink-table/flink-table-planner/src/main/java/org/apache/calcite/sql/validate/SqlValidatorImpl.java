@@ -2620,7 +2620,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
                                 usingScope,
                                 register,
                                 operand,
-                                enclosingNode,
+                                call,
                                 alias,
                                 extendList,
                                 forceNullable,

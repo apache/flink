@@ -17,7 +17,7 @@
 
 package org.apache.calcite.sql.validate;
 
-import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReaderSnapshot;
+import org.apache.flink.table.planner.plan.FlinkCalciteCatalogSnapshotReader;
 
 import org.apache.calcite.schema.SchemaVersion;
 
@@ -27,7 +27,7 @@ public class SqlValidatorSnapshot extends SqlValidatorImpl {
     public SqlValidatorSnapshot(SqlValidatorImpl parent, SchemaVersion schemaVersion) {
         super(
                 parent.getOperatorTable(),
-                new FlinkCalciteCatalogReaderSnapshot(
+                new FlinkCalciteCatalogSnapshotReader(
                         parent.getCatalogReader(), parent.getTypeFactory(), schemaVersion),
                 parent.getTypeFactory(),
                 parent.config());

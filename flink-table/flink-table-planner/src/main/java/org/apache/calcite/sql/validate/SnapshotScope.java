@@ -24,10 +24,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import java.util.List;
 
 /** Represent the snapshot of the {@link SqlValidatorScope} */
-public class ScopeSnapshot extends DelegatingScope {
-    private SqlValidatorSnapshot sqlValidatorSnapshot;
+public class SnapshotScope extends DelegatingScope {
+    private final SqlValidatorSnapshot sqlValidatorSnapshot;
 
-    public ScopeSnapshot(SqlValidatorScope parent, SchemaVersion schemaVersion) {
+    public SnapshotScope(SqlValidatorScope parent, SchemaVersion schemaVersion) {
         super(parent);
         this.sqlValidatorSnapshot =
                 new SqlValidatorSnapshot((SqlValidatorImpl) parent.getValidator(), schemaVersion);
@@ -36,6 +36,8 @@ public class ScopeSnapshot extends DelegatingScope {
     @Override
     public void resolveTable(
             List<String> names, SqlNameMatcher nameMatcher, Path path, Resolved resolved) {
+        // In the time travel case, the parent of the  ScopeSnapshot will always be CatalogScope
+        // with an EmptyScope as the parent of the CatalogScope, So we use EmptyScope here directly.
         new EmptyScope(sqlValidatorSnapshot).resolveTable(names, nameMatcher, path, resolved);
     }
 

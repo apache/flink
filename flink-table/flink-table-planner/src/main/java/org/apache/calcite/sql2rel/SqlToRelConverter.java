@@ -19,10 +19,10 @@ package org.apache.calcite.sql2rel;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.planner.alias.ClearJoinHintWithInvalidPropagationShuttle;
-import org.apache.flink.table.planner.calcite.FlinkContextImpl;
 import org.apache.flink.table.planner.calcite.FlinkSchemaVersion;
 import org.apache.flink.table.planner.hint.FlinkHints;
-import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReaderSnapshot;
+import org.apache.flink.table.planner.plan.FlinkCalciteCatalogSnapshotReader;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -237,6 +237,9 @@ import static org.apache.calcite.sql.SqlUtil.stripAs;
  *   <li>Added in FLINK-28682: Lines 2277 ~ 2294
  *   <li>Added in FLINK-28682: Lines 2331 ~ 2359
  *   <li>Added in FLINK-20873: Lines 5427 ~ 5436
+ *   <li>Added in FLINK-20873: Lines 5431 ~ 5440
+ *   <li>Added in FLINK-32474: Lines 2839 ~ 2847
+ *   <li>Added in FLINK-32474: Lines 2944 ~ 2950
  * </ol>
  */
 @SuppressWarnings("UnstableApiUsage")
@@ -2839,7 +2842,7 @@ public class SqlToRelConverter {
                         fromNamespace,
                         schemaVersion == null
                                 ? catalogReader
-                                : new FlinkCalciteCatalogReaderSnapshot(
+                                : new FlinkCalciteCatalogSnapshotReader(
                                         catalogReader,
                                         catalogReader.getTypeFactory(),
                                         schemaVersion),
@@ -2947,22 +2950,18 @@ public class SqlToRelConverter {
         if (tableRef instanceof SqlBasicCall
                 && ((SqlBasicCall) tableRef).operand(0) instanceof SqlIdentifier
                 && period instanceof RexLiteral) {
-            TableConfig tableConfig =
-                    cluster.getPlanner()
-                            .getContext()
-                            .unwrap(FlinkContextImpl.class)
-                            .getTableConfig();
+            TableConfig tableConfig = ShortcutUtils.unwrapContext(relBuilder).getTableConfig();
             ZoneId zoneId = tableConfig.getLocalTimeZone();
             TimestampString timestampString =
                     ((RexLiteral) period).getValueAs(TimestampString.class);
 
             long timeTravelTimestamp =
                     TimestampData.fromEpochMillis(timestampString.getMillisSinceEpoch())
-                                    .toLocalDateTime()
-                                    .atZone(zoneId)
-                                    .toEpochSecond()
-                            * 1000;
-            SqlIdentifier identifier = (SqlIdentifier) ((SqlBasicCall) tableRef).operand(0);
+                            .toLocalDateTime()
+                            .atZone(zoneId)
+                            .toInstant()
+                            .toEpochMilli();
+            SqlIdentifier identifier = ((SqlBasicCall) tableRef).operand(0);
             SchemaVersion schemaVersion = FlinkSchemaVersion.of(timeTravelTimestamp);
             convertIdentifier(bb, identifier, null, null, schemaVersion);
         } else {

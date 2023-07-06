@@ -82,8 +82,7 @@ class DatabaseCalciteSchema extends FlinkSchema {
             } else {
                 throw new UnsupportedOperationException(
                         String.format(
-                                "Unsupported schema version type, the class is %s",
-                                schemaVersion.getClass()));
+                                "Unsupported schema version type: %s", schemaVersion.getClass()));
             }
         } else {
             table = catalogManager.getTable(identifier);
