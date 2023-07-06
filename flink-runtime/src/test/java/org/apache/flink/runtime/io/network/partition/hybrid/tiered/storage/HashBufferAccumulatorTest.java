@@ -37,7 +37,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.TieredStorageTestUtils.generateRandomData;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link HashBufferAccumulator}. */
 class HashBufferAccumulatorTest {
@@ -137,23 +136,19 @@ class HashBufferAccumulatorTest {
 
         TieredStorageMemoryManager tieredStorageMemoryManager =
                 createStorageMemoryManager(numBuffers);
-        assertThatThrownBy(
-                        () -> {
-                            try (HashBufferAccumulator bufferAccumulator =
-                                    new HashBufferAccumulator(
-                                            1, NETWORK_BUFFER_SIZE, tieredStorageMemoryManager)) {
-                                bufferAccumulator.setup(
-                                        ((subpartition, buffers) ->
-                                                buffers.forEach(Buffer::recycleBuffer)));
-                                bufferAccumulator.receive(
-                                        generateRandomData(1, new Random()),
-                                        new TieredStorageSubpartitionId(0),
-                                        Buffer.DataType.DATA_BUFFER,
-                                        false);
-                            }
-                        })
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("There are unfinished buffers");
+        HashBufferAccumulator bufferAccumulator =
+                new HashBufferAccumulator(1, NETWORK_BUFFER_SIZE, tieredStorageMemoryManager);
+        bufferAccumulator.setup(
+                ((subpartition, buffers) -> buffers.forEach(Buffer::recycleBuffer)));
+        bufferAccumulator.receive(
+                generateRandomData(1, new Random()),
+                new TieredStorageSubpartitionId(0),
+                Buffer.DataType.DATA_BUFFER,
+                false);
+        assertThat(tieredStorageMemoryManager.numOwnerRequestedBuffer(bufferAccumulator))
+                .isEqualTo(1);
+        bufferAccumulator.close();
+        assertThat(tieredStorageMemoryManager.numOwnerRequestedBuffer(this)).isZero();
     }
 
     private TieredStorageMemoryManagerImpl createStorageMemoryManager(int numBuffersInBufferPool)

@@ -109,7 +109,6 @@ class SubpartitionDiskCacheManager {
     }
 
     void release() {
-        recycleBuffers();
         checkState(allBuffers.isEmpty(), "Leaking buffers.");
     }
 
@@ -130,17 +129,5 @@ class SubpartitionDiskCacheManager {
             allBuffers.add(new Tuple2<>(buffer, bufferIndex));
         }
         bufferIndex++;
-    }
-
-    private void recycleBuffers() {
-        synchronized (allBuffers) {
-            for (Tuple2<Buffer, Integer> bufferAndIndex : allBuffers) {
-                Buffer buffer = bufferAndIndex.f0;
-                if (!buffer.isRecycled()) {
-                    buffer.recycleBuffer();
-                }
-            }
-            allBuffers.clear();
-        }
     }
 }

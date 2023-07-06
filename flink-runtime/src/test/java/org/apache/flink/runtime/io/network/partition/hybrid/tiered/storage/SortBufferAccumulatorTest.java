@@ -153,6 +153,27 @@ class SortBufferAccumulatorTest {
         }
     }
 
+    @Test
+    void testCloseWithUnFinishedBuffers() throws IOException {
+        int numBuffers = 10;
+
+        TieredStorageMemoryManager tieredStorageMemoryManager =
+                createStorageMemoryManager(numBuffers);
+        SortBufferAccumulator bufferAccumulator =
+                new SortBufferAccumulator(1, 2, BUFFER_SIZE_BYTES, tieredStorageMemoryManager);
+        bufferAccumulator.setup(
+                ((subpartition, buffers) -> buffers.forEach(Buffer::recycleBuffer)));
+        bufferAccumulator.receive(
+                generateRandomData(1, new Random()),
+                new TieredStorageSubpartitionId(0),
+                Buffer.DataType.DATA_BUFFER,
+                false);
+        assertThat(tieredStorageMemoryManager.numOwnerRequestedBuffer(bufferAccumulator))
+                .isEqualTo(2);
+        bufferAccumulator.close();
+        assertThat(tieredStorageMemoryManager.numOwnerRequestedBuffer(bufferAccumulator)).isZero();
+    }
+
     private TieredStorageMemoryManagerImpl createStorageMemoryManager(int numBuffersInBufferPool)
             throws IOException {
         BufferPool bufferPool =
