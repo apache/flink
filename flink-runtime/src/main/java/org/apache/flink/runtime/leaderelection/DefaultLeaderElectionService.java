@@ -529,22 +529,27 @@ public class DefaultLeaderElectionService extends AbstractLeaderElectionService
 
     private void forwardErrorToLeaderContender(Throwable t) {
         synchronized (lock) {
+            final LeaderElectionException leaderElectionException =
+                    convertToLeaderElectionException(t);
             if (leaderContenderRegistry.isEmpty()) {
-                fallbackErrorHandler.onFatalError(t);
+                fallbackErrorHandler.onFatalError(leaderElectionException);
                 return;
             }
 
             leaderContenderRegistry
                     .values()
                     .forEach(
-                            leaderContender -> {
-                                if (t instanceof LeaderElectionException) {
-                                    leaderContender.handleError((LeaderElectionException) t);
-                                } else {
-                                    leaderContender.handleError(new LeaderElectionException(t));
-                                }
-                            });
+                            leaderContender ->
+                                    leaderContender.handleError(leaderElectionException));
         }
+    }
+
+    private static LeaderElectionException convertToLeaderElectionException(Throwable t) {
+        if (t instanceof LeaderElectionException) {
+            return (LeaderElectionException) t;
+        }
+
+        return new LeaderElectionException(t);
     }
 
     @Override

@@ -1131,7 +1131,8 @@ class DefaultLeaderElectionServiceTest {
                                             fatalErrorHandlerExtension
                                                     .getTestingFatalErrorHandler()
                                                     .getException())
-                                    .isEqualTo(testException);
+                                    .isInstanceOf(LeaderElectionException.class)
+                                    .hasCause(testException);
 
                             fatalErrorHandlerExtension.getTestingFatalErrorHandler().clearError();
                         });
