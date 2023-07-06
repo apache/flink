@@ -131,4 +131,7 @@ class JavaSqlTests(PyFlinkTestCase):
         test_jar_path = self.get_jar_path(test_jar_pattern)
         test_classpath = self.get_classpath() + os.pathsep + test_jar_path
         java_executable = self.get_java_executable()
-        subprocess.check_output([java_executable, "-cp", test_classpath, test_class], shell=False)
+        subprocess.check_output([java_executable,
+                                 "-XX:+IgnoreUnrecognizedVMOptions",
+                                 "--add-opens=java.base/java.lang=ALL-UNNAMED",
+                                 "-cp", test_classpath, test_class], shell=False)
