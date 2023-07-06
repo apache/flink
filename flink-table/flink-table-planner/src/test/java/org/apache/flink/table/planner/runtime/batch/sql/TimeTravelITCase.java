@@ -38,6 +38,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,14 +54,14 @@ public class TimeTravelITCase extends BatchTestBase {
                     Tuple3.of(
                             "2023-01-01 01:00:00",
                             Schema.newBuilder().column("f1", DataTypes.INT()).build(),
-                            Arrays.asList(Row.of(1))),
+                            Collections.singletonList(Row.of(1))),
                     Tuple3.of(
                             "2023-01-01 02:00:00",
                             Schema.newBuilder()
                                     .column("f1", DataTypes.INT())
                                     .column("f2", DataTypes.INT())
                                     .build(),
-                            Arrays.asList(Row.of(1, 2))),
+                            Collections.singletonList(Row.of(1, 2))),
                     Tuple3.of(
                             "2023-01-01 03:00:00",
                             Schema.newBuilder()
@@ -68,7 +69,7 @@ public class TimeTravelITCase extends BatchTestBase {
                                     .column("f2", DataTypes.INT())
                                     .column("f3", DataTypes.INT())
                                     .build(),
-                            Arrays.asList(Row.of(1, 2, 3))));
+                            Collections.singletonList(Row.of(1, 2, 3))));
 
     private static final List<Tuple2<String, String>> EXPECTED_TIME_TRAVEL_RESULT =
             Arrays.asList(
@@ -229,12 +230,12 @@ public class TimeTravelITCase extends BatchTestBase {
                 .hasMessageContaining("Unsupported time travel period: TO_TIMESTAMP_LTZ(0, 3)");
 
         assertThatThrownBy(
-                () ->
-                        tEnv().executeSql(
-                                "SELECT\n"
-                                        + "    *\n"
-                                        + "FROM\n"
-                                        + "    t1 FOR SYSTEM_TIME AS OF PROCTIME()"))
+                        () ->
+                                tEnv().executeSql(
+                                                "SELECT\n"
+                                                        + "    *\n"
+                                                        + "FROM\n"
+                                                        + "    t1 FOR SYSTEM_TIME AS OF PROCTIME()"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("Unsupported time travel period: PROCTIME()");
     }
