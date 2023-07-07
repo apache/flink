@@ -77,7 +77,7 @@ class KubernetesHighAvailabilityTestBase {
     protected class Context {
         private final KubernetesTestFixture kubernetesTestFixture;
 
-        final String contenderID;
+        final String componentId;
         final String leaderAddress;
         final LeaderElectionDriver leaderElectionDriver;
         final TestingLeaderElectionListener electionEventHandler;
@@ -96,7 +96,7 @@ class KubernetesHighAvailabilityTestBase {
                     new KubernetesTestFixture(CLUSTER_ID, LEADER_CONFIGMAP_NAME, LOCK_IDENTITY);
 
             final UUID randomTestID = UUID.randomUUID();
-            contenderID = "random-contender-id-" + randomTestID;
+            componentId = "random-component-id-" + randomTestID;
             leaderAddress = "random-address-" + randomTestID;
 
             flinkKubeClient = kubernetesTestFixture.getFlinkKubeClient();
@@ -136,7 +136,7 @@ class KubernetesHighAvailabilityTestBase {
         }
 
         String getLeaderInformationKey() {
-            return KubernetesUtils.createSingleLeaderKey(contenderID);
+            return KubernetesUtils.createSingleLeaderKey(componentId);
         }
 
         Optional<LeaderInformation> getLeaderInformationFromConfigMap() {
@@ -164,7 +164,7 @@ class KubernetesHighAvailabilityTestBase {
 
             final UUID leaderSessionID = UUID.randomUUID();
             leaderElectionDriver.publishLeaderInformation(
-                    contenderID, LeaderInformation.known(leaderSessionID, leaderAddress));
+                    componentId, LeaderInformation.known(leaderSessionID, leaderAddress));
 
             return leaderSessionID;
         }
@@ -202,7 +202,7 @@ class KubernetesHighAvailabilityTestBase {
                             kubernetesTestFixture.getConfigMapSharedWatcher(),
                             watchCallbackExecutorService,
                             LEADER_CONFIGMAP_NAME,
-                            contenderID);
+                            componentId);
             return factory.createLeaderRetrievalDriver(
                     retrievalEventHandler, retrievalEventHandler::handleError);
         }

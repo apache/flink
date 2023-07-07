@@ -126,7 +126,7 @@ class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabilityTestB
                 runTest(
                         () -> {
                             leaderElectionDriver.publishLeaderInformation(
-                                    contenderID,
+                                    componentId,
                                     LeaderInformation.known(UUID.randomUUID(), LEADER_ADDRESS));
 
                             final String expectedErrorMessage =
@@ -175,15 +175,15 @@ class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabilityTestB
                                             .getLeaderInformationRegister();
 
                             assertThat(leaderInformationRegister.getRegisteredComponentIds())
-                                    .containsExactly(contenderID);
+                                    .containsExactly(componentId);
 
                             final LeaderInformation expectedFaultyLeaderInformation =
                                     LeaderInformation.known(faultySessionID, faultyAddress);
-                            assertThat(leaderInformationRegister.forComponentId(contenderID))
+                            assertThat(leaderInformationRegister.forComponentId(componentId))
                                     .hasValue(expectedFaultyLeaderInformation);
 
                             leaderElectionDriver.publishLeaderInformation(
-                                    contenderID,
+                                    componentId,
                                     LeaderInformation.known(leaderSessionID, leaderAddress));
 
                             assertThat(getLeaderInformationFromConfigMap())
