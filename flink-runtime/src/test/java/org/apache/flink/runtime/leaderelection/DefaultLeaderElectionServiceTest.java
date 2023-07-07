@@ -343,7 +343,7 @@ class DefaultLeaderElectionServiceTest {
                         Executors.newDirectExecutorService())) {
 
             final LeaderElection leaderElection =
-                    testInstance.createLeaderElection(createRandomContenderID());
+                    testInstance.createLeaderElection(createRandomComponentId());
             final TestingContender testingContender =
                     new TestingContender("unused-address", leaderElection);
             testingContender.startLeaderElection();
@@ -454,7 +454,7 @@ class DefaultLeaderElectionServiceTest {
                             executorService.trigger();
 
                             final LeaderElection leaderElection =
-                                    leaderElectionService.createLeaderElection("contender_id");
+                                    leaderElectionService.createLeaderElection(createRandomComponentId());
 
                             final AtomicInteger revokeCallCount = new AtomicInteger();
                             final LeaderContender contender =
@@ -678,7 +678,7 @@ class DefaultLeaderElectionServiceTest {
                                             contenderContext1.componentId);
 
                             // change LeaderInformation only affects an unregistered componentId
-                            final String unknownComponentId = createRandomContenderID();
+                            final String unknownComponentId = createRandomComponentId();
                             final LeaderInformationRegister
                                     partiallyChangedLeaderInformationRegister =
                                             LeaderInformationRegister.merge(
@@ -938,7 +938,7 @@ class DefaultLeaderElectionServiceTest {
                             // LeaderInformationRegister is implemented as a singleton which would
                             // prevent us from checking the identity of the external storage at the
                             // end of the test)
-                            final String otherComponentId = createRandomContenderID();
+                            final String otherComponentId = createRandomComponentId();
                             final LeaderInformation otherLeaderInformation =
                                     LeaderInformation.known(
                                             UUID.randomUUID(), "address-for-" + otherComponentId);
@@ -1234,7 +1234,7 @@ class DefaultLeaderElectionServiceTest {
                         driverFactory, fatalErrorHandlerExtension.getTestingFatalErrorHandler());
 
         final LeaderElection leaderElection =
-                testInstance.createLeaderElection(createRandomContenderID());
+                testInstance.createLeaderElection(createRandomComponentId());
         leaderElection.startLeaderElection(contender);
 
         listenerAction.accept(leadershipGranted, testInstance);
@@ -1245,8 +1245,8 @@ class DefaultLeaderElectionServiceTest {
         testInstance.close();
     }
 
-    private static String createRandomContenderID() {
-        return String.format("contender-id-%s", UUID.randomUUID());
+    private static String createRandomComponentId() {
+        return String.format("component-id-%s", UUID.randomUUID());
     }
 
     private class Context {
