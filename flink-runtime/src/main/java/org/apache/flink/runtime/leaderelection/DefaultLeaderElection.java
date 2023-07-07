@@ -29,32 +29,32 @@ import java.util.UUID;
 class DefaultLeaderElection implements LeaderElection {
 
     private final ParentService parentService;
-    private final String contenderID;
+    private final String componentId;
 
-    DefaultLeaderElection(ParentService parentService, String contenderID) {
+    DefaultLeaderElection(ParentService parentService, String componentId) {
         this.parentService = parentService;
-        this.contenderID = contenderID;
+        this.componentId = componentId;
     }
 
     @Override
     public void startLeaderElection(LeaderContender contender) throws Exception {
         Preconditions.checkNotNull(contender);
-        parentService.register(contenderID, contender);
+        parentService.register(componentId, contender);
     }
 
     @Override
     public void confirmLeadership(UUID leaderSessionID, String leaderAddress) {
-        parentService.confirmLeadership(contenderID, leaderSessionID, leaderAddress);
+        parentService.confirmLeadership(componentId, leaderSessionID, leaderAddress);
     }
 
     @Override
     public boolean hasLeadership(UUID leaderSessionId) {
-        return parentService.hasLeadership(contenderID, leaderSessionId);
+        return parentService.hasLeadership(componentId, leaderSessionId);
     }
 
     @Override
     public void close() throws Exception {
-        parentService.remove(contenderID);
+        parentService.remove(componentId);
     }
 
     /**
@@ -64,32 +64,32 @@ class DefaultLeaderElection implements LeaderElection {
     abstract static class ParentService {
 
         /**
-         * Registers the {@link LeaderContender} under the {@code contenderID} with the underlying
+         * Registers the {@link LeaderContender} under the {@code componentId} with the underlying
          * {@code ParentService}. Leadership changes are starting to be reported to the {@code
          * LeaderContender}.
          */
-        abstract void register(String contenderID, LeaderContender contender) throws Exception;
+        abstract void register(String componentId, LeaderContender contender) throws Exception;
 
         /**
          * Removes the {@code LeaderContender} from the {@code ParentService} that is associated
-         * with the {@code contenderID}.
+         * with the {@code componentId}.
          */
-        abstract void remove(String contenderID) throws Exception;
+        abstract void remove(String componentId) throws Exception;
 
         /**
          * Confirms the leadership with the {@code leaderSessionID} and {@code leaderAddress} for
-         * the {@link LeaderContender} that is associated with the {@code contenderID}.
+         * the {@link LeaderContender} that is associated with the {@code componentId}.
          */
         abstract void confirmLeadership(
-                String contenderID, UUID leaderSessionID, String leaderAddress);
+                String componentId, UUID leaderSessionID, String leaderAddress);
 
         /**
          * Checks whether the {@code ParentService} has the leadership acquired for the {@code
-         * contenderID} and {@code leaderSessionID}.
+         * componentId} and {@code leaderSessionID}.
          *
          * @return {@code true} if the service has leadership with the passed {@code
          *     leaderSessionID} acquired; {@code false} otherwise.
          */
-        abstract boolean hasLeadership(String contenderID, UUID leaderSessionID);
+        abstract boolean hasLeadership(String componentId, UUID leaderSessionID);
     }
 }

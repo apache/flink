@@ -132,14 +132,14 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
     }
 
     @Override
-    public void publishLeaderInformation(String contenderID, LeaderInformation leaderInformation) {
+    public void publishLeaderInformation(String componentId, LeaderInformation leaderInformation) {
         Preconditions.checkState(running.get());
 
         try {
             kubeClient
                     .checkAndUpdateConfigMap(
                             configMapName,
-                            updateConfigMapWithLeaderInformation(contenderID, leaderInformation))
+                            updateConfigMapWithLeaderInformation(componentId, leaderInformation))
                     .get();
         } catch (InterruptedException | ExecutionException e) {
             leaderElectionListener.onError(e);
@@ -148,13 +148,13 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
         LOG.debug(
                 "Successfully wrote leader information {} for leader {} into the config map {}.",
                 leaderInformation,
-                contenderID,
+                componentId,
                 configMapName);
     }
 
     @Override
-    public void deleteLeaderInformation(String contenderID) {
-        publishLeaderInformation(contenderID, LeaderInformation.empty());
+    public void deleteLeaderInformation(String componentId) {
+        publishLeaderInformation(componentId, LeaderInformation.empty());
     }
 
     private Function<KubernetesConfigMap, Optional<KubernetesConfigMap>>

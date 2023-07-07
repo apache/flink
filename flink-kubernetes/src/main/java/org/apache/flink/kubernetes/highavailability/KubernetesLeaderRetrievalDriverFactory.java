@@ -43,17 +43,17 @@ public class KubernetesLeaderRetrievalDriverFactory implements LeaderRetrievalDr
 
     private final String configMapName;
 
-    private final String contenderID;
+    private final String componentId;
 
     public KubernetesLeaderRetrievalDriverFactory(
             KubernetesConfigMapSharedWatcher configMapSharedWatcher,
             Executor watchExecutor,
             String configMapName,
-            String contenderID) {
+            String componentId) {
         this.configMapSharedWatcher = Preconditions.checkNotNull(configMapSharedWatcher);
         this.watchExecutor = Preconditions.checkNotNull(watchExecutor);
         this.configMapName = Preconditions.checkNotNull(configMapName);
-        this.contenderID = Preconditions.checkNotNull(contenderID);
+        this.componentId = Preconditions.checkNotNull(componentId);
     }
 
     @Override
@@ -69,7 +69,7 @@ public class KubernetesLeaderRetrievalDriverFactory implements LeaderRetrievalDr
     }
 
     public LeaderInformation extractLeaderInformation(KubernetesConfigMap configMap) {
-        final String configDataLeaderKey = KubernetesUtils.createSingleLeaderKey(contenderID);
+        final String configDataLeaderKey = KubernetesUtils.createSingleLeaderKey(componentId);
 
         final Map<String, String> data = configMap.getData();
 

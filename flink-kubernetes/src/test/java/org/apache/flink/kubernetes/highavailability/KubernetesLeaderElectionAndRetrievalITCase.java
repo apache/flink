@@ -67,7 +67,7 @@ class KubernetesLeaderElectionAndRetrievalITCase {
 
     @Test
     void testLeaderElectionAndRetrieval() throws Exception {
-        final String contenderID = "contender-id";
+        final String componentId = "component-id";
         final String leaderAddress = "random-address";
         final String configMapName = LEADER_CONFIGMAP_NAME + UUID.randomUUID();
         final FlinkKubeClient flinkKubeClient = KUBERNETES_EXTENSION.getFlinkKubeClient();
@@ -110,7 +110,7 @@ class KubernetesLeaderElectionAndRetrievalITCase {
                             configMapSharedWatcher,
                             EXECUTOR_EXTENSION.getExecutor(),
                             configMapName,
-                            contenderID);
+                            componentId);
 
             final TestingFatalErrorHandler fatalErrorHandler = new TestingFatalErrorHandler();
             final TestingLeaderRetrievalEventHandler firstLeaderRetrievalEventHandler =
@@ -123,7 +123,7 @@ class KubernetesLeaderElectionAndRetrievalITCase {
             electionEventHandler.await(LeaderElectionEvent.IsLeaderEvent.class);
             final LeaderInformation leaderInformation =
                     LeaderInformation.known(UUID.randomUUID(), leaderAddress);
-            leaderElectionDriver.publishLeaderInformation(contenderID, leaderInformation);
+            leaderElectionDriver.publishLeaderInformation(componentId, leaderInformation);
 
             // Check if the leader retrieval driver is notified about the leader address
             awaitLeadership(firstLeaderRetrievalEventHandler, leaderInformation);

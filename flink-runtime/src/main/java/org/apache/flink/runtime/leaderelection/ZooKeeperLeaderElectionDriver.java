@@ -128,7 +128,7 @@ public class ZooKeeperLeaderElectionDriver implements LeaderElectionDriver, Lead
     }
 
     @Override
-    public void publishLeaderInformation(String contenderID, LeaderInformation leaderInformation) {
+    public void publishLeaderInformation(String componentId, LeaderInformation leaderInformation) {
         Preconditions.checkState(running.get());
 
         if (!leaderLatch.hasLeadership()) {
@@ -136,12 +136,12 @@ public class ZooKeeperLeaderElectionDriver implements LeaderElectionDriver, Lead
         }
 
         final String connectionInformationPath =
-                ZooKeeperUtils.generateConnectionInformationPath(contenderID);
+                ZooKeeperUtils.generateConnectionInformationPath(componentId);
 
         LOG.debug(
                 "Write leader information {} for {} to {}.",
                 leaderInformation,
-                contenderID,
+                componentId,
                 ZooKeeperUtils.generateZookeeperPath(
                         curatorFramework.getNamespace(), connectionInformationPath));
 
@@ -157,10 +157,10 @@ public class ZooKeeperLeaderElectionDriver implements LeaderElectionDriver, Lead
     }
 
     @Override
-    public void deleteLeaderInformation(String contenderID) {
+    public void deleteLeaderInformation(String componentId) {
         try {
             ZooKeeperUtils.deleteZNode(
-                    curatorFramework, ZooKeeperUtils.generateZookeeperPath(contenderID));
+                    curatorFramework, ZooKeeperUtils.generateZookeeperPath(componentId));
         } catch (Exception e) {
             leaderElectionListener.onError(e);
         }

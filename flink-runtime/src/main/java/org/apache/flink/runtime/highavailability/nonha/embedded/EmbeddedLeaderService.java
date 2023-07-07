@@ -154,9 +154,9 @@ public class EmbeddedLeaderService {
     //  creating contenders and listeners
     // ------------------------------------------------------------------------
 
-    public LeaderElection createLeaderElectionService(String contenderID) {
+    public LeaderElection createLeaderElectionService(String componentId) {
         checkState(!shutdown, "leader election service is shut down");
-        return new EmbeddedLeaderElection(contenderID);
+        return new EmbeddedLeaderElection(componentId);
     }
 
     public LeaderRetrievalService createLeaderRetrievalService() {
@@ -440,15 +440,15 @@ public class EmbeddedLeaderService {
 
     private class EmbeddedLeaderElection implements LeaderElection {
 
-        final String contenderID;
+        final String componentId;
         volatile LeaderContender contender;
 
         volatile boolean isLeader;
 
         volatile boolean running;
 
-        EmbeddedLeaderElection(String contenderID) {
-            this.contenderID = contenderID;
+        EmbeddedLeaderElection(String componentId) {
+            this.componentId = componentId;
         }
 
         @Override

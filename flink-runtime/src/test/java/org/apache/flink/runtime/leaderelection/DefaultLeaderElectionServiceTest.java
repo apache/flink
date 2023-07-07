@@ -69,7 +69,7 @@ class DefaultLeaderElectionServiceTest {
                                         assertThat(ctx.contender.getLeaderSessionID())
                                                 .isEqualTo(
                                                         leaderElectionService.getLeaderSessionID(
-                                                                ctx.contenderID))
+                                                                ctx.componentId))
                                                 .isEqualTo(leaderSessionID);
 
                                         final LeaderInformation
@@ -79,7 +79,7 @@ class DefaultLeaderElectionServiceTest {
                                         assertThat(
                                                         storedLeaderInformation
                                                                 .get()
-                                                                .forContenderID(ctx.contenderID))
+                                                                .forContenderID(ctx.componentId))
                                                 .as(
                                                         "The HA backend should have its leader information updated.")
                                                 .hasValue(expectedLeaderInformationInHaBackend);
@@ -93,7 +93,7 @@ class DefaultLeaderElectionServiceTest {
                                         assertThat(ctx.contender.getLeaderSessionID()).isNull();
                                         assertThat(
                                                         leaderElectionService.getLeaderSessionID(
-                                                                ctx.contenderID))
+                                                                ctx.componentId))
                                                 .isNull();
 
                                         final LeaderInformation
@@ -104,7 +104,7 @@ class DefaultLeaderElectionServiceTest {
                                         assertThat(
                                                         storedLeaderInformation
                                                                 .get()
-                                                                .forContenderID(ctx.contenderID))
+                                                                .forContenderID(ctx.componentId))
                                                 .as(
                                                         "External storage is not touched by the leader session because the leadership is already lost.")
                                                 .hasValue(expectedLeaderInformationInHaBackend);
@@ -115,7 +115,7 @@ class DefaultLeaderElectionServiceTest {
     }
 
     @Test
-    void testErrorOnContenderIDReuse() throws Exception {
+    void testErrorOnComponentIdReuse() throws Exception {
         new Context() {
             {
                 runTestWithSynchronousEventHandling(
@@ -123,7 +123,7 @@ class DefaultLeaderElectionServiceTest {
                                 assertThatThrownBy(
                                                 () ->
                                                         leaderElectionService.createLeaderElection(
-                                                                contenderContext0.contenderID))
+                                                                contenderContext0.componentId))
                                         .isInstanceOf(IllegalStateException.class));
             }
         };
@@ -524,18 +524,18 @@ class DefaultLeaderElectionServiceTest {
                                                 .isEqualTo(leaderSessionID);
                                         assertThat(
                                                         leaderElectionService.getLeaderSessionID(
-                                                                ctx.contenderID))
+                                                                ctx.componentId))
                                                 .isEqualTo(leaderSessionID);
 
                                         assertThat(
                                                         leaderElectionService.getLeaderSessionID(
-                                                                ctx.contenderID))
+                                                                ctx.componentId))
                                                 .isEqualTo(leaderSessionID);
 
                                         assertThat(
                                                         storedLeaderInformation
                                                                 .get()
-                                                                .forContenderID(ctx.contenderID))
+                                                                .forContenderID(ctx.componentId))
                                                 .hasValue(
                                                         LeaderInformation.known(
                                                                 leaderSessionID, ctx.address));
@@ -548,7 +548,7 @@ class DefaultLeaderElectionServiceTest {
                                                 .isNull();
                                         assertThat(
                                                         leaderElectionService.getLeaderSessionID(
-                                                                ctx.contenderID))
+                                                                ctx.componentId))
                                                 .as(
                                                         "The LeaderElectionService should have its internal state cleaned.")
                                                 .isNull();
@@ -581,11 +581,11 @@ class DefaultLeaderElectionServiceTest {
                             // corrected.
                             storedLeaderInformation.set(LeaderInformationRegister.empty());
                             leaderElectionService.onLeaderInformationChange(
-                                    contenderContext0.contenderID, LeaderInformation.empty());
+                                    contenderContext0.componentId, LeaderInformation.empty());
                             assertThat(
                                             storedLeaderInformation
                                                     .get()
-                                                    .forContenderID(contenderContext0.contenderID))
+                                                    .forContenderID(contenderContext0.componentId))
                                     .as("Removed leader information should have been reset.")
                                     .hasValue(expectedLeaderInformation);
 
@@ -593,14 +593,14 @@ class DefaultLeaderElectionServiceTest {
                                     LeaderInformation.known(UUID.randomUUID(), "faulty-address");
                             storedLeaderInformation.set(
                                     LeaderInformationRegister.of(
-                                            contenderContext0.contenderID,
+                                            contenderContext0.componentId,
                                             faultyLeaderInformation));
                             leaderElectionService.onLeaderInformationChange(
-                                    contenderContext0.contenderID, faultyLeaderInformation);
+                                    contenderContext0.componentId, faultyLeaderInformation);
                             assertThat(
                                             storedLeaderInformation
                                                     .get()
-                                                    .forContenderID(contenderContext0.contenderID))
+                                                    .forContenderID(contenderContext0.componentId))
                                     .as("Overwritten leader information should have been reset.")
                                     .hasValue(expectedLeaderInformation);
                         });
@@ -623,17 +623,17 @@ class DefaultLeaderElectionServiceTest {
                                     storedLeaderInformation.get();
                             assertThat(correctLeaderInformationRegister.getRegisteredContenderIDs())
                                     .containsExactlyInAnyOrder(
-                                            contenderContext0.contenderID,
-                                            contenderContext1.contenderID);
+                                            contenderContext0.componentId,
+                                            contenderContext1.componentId);
 
                             // change LeaderInformation partially on external storage
-                            final String contenderIdWithChange = contenderContext0.contenderID;
-                            final String contenderIdWithoutChange = contenderContext1.contenderID;
+                            final String componentIdWithChange = contenderContext0.componentId;
+                            final String componentIdWithoutChange = contenderContext1.componentId;
                             final LeaderInformationRegister
                                     partiallyChangedLeaderInformationRegister =
                                             LeaderInformationRegister.clear(
                                                     correctLeaderInformationRegister,
-                                                    contenderIdWithChange);
+                                                    componentIdWithChange);
                             storedLeaderInformation.set(partiallyChangedLeaderInformationRegister);
                             leaderElectionService.onLeaderInformationChange(
                                     partiallyChangedLeaderInformationRegister);
@@ -641,26 +641,26 @@ class DefaultLeaderElectionServiceTest {
                             assertThat(
                                             storedLeaderInformation
                                                     .get()
-                                                    .forContenderID(contenderIdWithChange))
+                                                    .forContenderID(componentIdWithChange))
                                     .as("Removed leader information should have been reset.")
                                     .hasValue(
                                             correctLeaderInformationRegister.forContenderIdOrEmpty(
-                                                    contenderIdWithChange));
+                                                    componentIdWithChange));
 
                             assertThat(
                                             storedLeaderInformation
                                                     .get()
-                                                    .forContenderID(contenderIdWithoutChange))
+                                                    .forContenderID(componentIdWithoutChange))
                                     .hasValue(
                                             correctLeaderInformationRegister.forContenderIdOrEmpty(
-                                                    contenderIdWithoutChange));
+                                                    componentIdWithoutChange));
                         });
             }
         };
     }
 
     @Test
-    void testAllLeaderInformationChangeEventWithUnknownContenderID() throws Exception {
+    void testAllLeaderInformationChangeEventWithUnknownComponentId() throws Exception {
         final AtomicReference<LeaderInformationRegister> storedLeaderInformation =
                 new AtomicReference<>();
         new Context(storedLeaderInformation) {
@@ -674,19 +674,19 @@ class DefaultLeaderElectionServiceTest {
                                     storedLeaderInformation.get();
                             assertThat(correctLeaderInformationRegister.getRegisteredContenderIDs())
                                     .containsExactlyInAnyOrder(
-                                            contenderContext0.contenderID,
-                                            contenderContext1.contenderID);
+                                            contenderContext0.componentId,
+                                            contenderContext1.componentId);
 
-                            // change LeaderInformation only affects an unregistered contenderID
-                            final String unknownContenderID = createRandomContenderID();
+                            // change LeaderInformation only affects an unregistered componentId
+                            final String unknownComponentId = createRandomContenderID();
                             final LeaderInformationRegister
                                     partiallyChangedLeaderInformationRegister =
                                             LeaderInformationRegister.merge(
                                                     correctLeaderInformationRegister,
-                                                    unknownContenderID,
+                                                    unknownComponentId,
                                                     LeaderInformation.known(
                                                             UUID.randomUUID(),
-                                                            "address-for-" + unknownContenderID));
+                                                            "address-for-" + unknownComponentId));
                             storedLeaderInformation.set(partiallyChangedLeaderInformationRegister);
                             leaderElectionService.onLeaderInformationChange(
                                     partiallyChangedLeaderInformationRegister);
@@ -713,11 +713,11 @@ class DefaultLeaderElectionServiceTest {
                                     ctx -> {
                                         assertThat(
                                                         leaderElectionService.hasLeadership(
-                                                                ctx.contenderID, expectedSessionID))
+                                                                ctx.componentId, expectedSessionID))
                                                 .isFalse();
                                         assertThat(
                                                         leaderElectionService.hasLeadership(
-                                                                ctx.contenderID, UUID.randomUUID()))
+                                                                ctx.componentId, UUID.randomUUID()))
                                                 .isFalse();
                                     });
                         });
@@ -746,11 +746,11 @@ class DefaultLeaderElectionServiceTest {
 
                                         assertThat(
                                                         leaderElectionService.hasLeadership(
-                                                                ctx.contenderID, expectedSessionID))
+                                                                ctx.componentId, expectedSessionID))
                                                 .isTrue();
                                         assertThat(
                                                         leaderElectionService.hasLeadership(
-                                                                ctx.contenderID, UUID.randomUUID()))
+                                                                ctx.componentId, UUID.randomUUID()))
                                                 .isFalse();
                                     });
                         });
@@ -774,7 +774,7 @@ class DefaultLeaderElectionServiceTest {
                                     ctx -> {
                                         assertThat(
                                                         leaderElectionService.hasLeadership(
-                                                                ctx.contenderID, expectedSessionID))
+                                                                ctx.componentId, expectedSessionID))
                                                 .as(
                                                         "No operation should be handled anymore after the HA backend "
                                                                 + "indicated leadership loss even if the onRevokeLeadership wasn't "
@@ -784,7 +784,7 @@ class DefaultLeaderElectionServiceTest {
                                                 .isFalse();
                                         assertThat(
                                                         leaderElectionService.hasLeadership(
-                                                                ctx.contenderID, UUID.randomUUID()))
+                                                                ctx.componentId, UUID.randomUUID()))
                                                 .isFalse();
                                     });
                         });
@@ -806,11 +806,11 @@ class DefaultLeaderElectionServiceTest {
                                     ctx -> {
                                         assertThat(
                                                         leaderElectionService.hasLeadership(
-                                                                ctx.contenderID, expectedSessionID))
+                                                                ctx.componentId, expectedSessionID))
                                                 .isFalse();
                                         assertThat(
                                                         leaderElectionService.hasLeadership(
-                                                                ctx.contenderID, UUID.randomUUID()))
+                                                                ctx.componentId, UUID.randomUUID()))
                                                 .isFalse();
                                     });
                         });
@@ -833,7 +833,7 @@ class DefaultLeaderElectionServiceTest {
 
                                         assertThat(
                                                         leaderElectionService.hasLeadership(
-                                                                ctx.contenderID, expectedSessionID))
+                                                                ctx.componentId, expectedSessionID))
                                                 .isFalse();
                                     });
                         });
@@ -853,15 +853,15 @@ class DefaultLeaderElectionServiceTest {
                                     LeaderInformation.known(UUID.randomUUID(), "different-address");
                             storedLeaderInformation.set(
                                     LeaderInformationRegister.of(
-                                            contenderContext0.contenderID,
+                                            contenderContext0.componentId,
                                             differentLeaderInformation));
                             leaderElectionService.onLeaderInformationChange(
-                                    contenderContext0.contenderID, differentLeaderInformation);
+                                    contenderContext0.componentId, differentLeaderInformation);
 
                             assertThat(
                                             storedLeaderInformation
                                                     .get()
-                                                    .forContenderID(contenderContext0.contenderID))
+                                                    .forContenderID(contenderContext0.componentId))
                                     .as("The external storage shouldn't have been changed.")
                                     .hasValue(differentLeaderInformation);
                         });
@@ -882,7 +882,7 @@ class DefaultLeaderElectionServiceTest {
                                     ctx -> {
                                         assertThat(
                                                         leaderElectionService.getLeaderSessionID(
-                                                                ctx.contenderID))
+                                                                ctx.componentId))
                                                 .as(
                                                         "The grant event shouldn't have been processed by the LeaderElectionService.")
                                                 .isNull();
@@ -899,8 +899,8 @@ class DefaultLeaderElectionServiceTest {
     @Test
     void testOnLeaderInformationChangeIsIgnoredAfterLeaderElectionBeingClosed() throws Exception {
         testLeadershipChangeEventHandlingBeingIgnoredAfterLeaderElectionClose(
-                (listener, contenderIDs, externalStorage) ->
-                        contenderIDs.forEach(
+                (listener, componentIds, externalStorage) ->
+                        componentIds.forEach(
                                 c ->
                                         listener.onLeaderInformationChange(
                                                 c, externalStorage.forContenderIdOrEmpty(c))));
@@ -909,7 +909,7 @@ class DefaultLeaderElectionServiceTest {
     @Test
     void testAllLeaderInformationChangeIsIgnoredAfterLeaderElectionBeingClosed() throws Exception {
         testLeadershipChangeEventHandlingBeingIgnoredAfterLeaderElectionClose(
-                (listener, ignoredContenderIDs, externalStorage) ->
+                (listener, ignoredComponentIds, externalStorage) ->
                         listener.onLeaderInformationChange(externalStorage));
     }
 
@@ -927,8 +927,8 @@ class DefaultLeaderElectionServiceTest {
 
                             assertThat(storedLeaderInformation.get().getRegisteredContenderIDs())
                                     .containsExactlyInAnyOrder(
-                                            contenderContext0.contenderID,
-                                            contenderContext1.contenderID);
+                                            contenderContext0.componentId,
+                                            contenderContext1.componentId);
 
                             contenderContext0.leaderElection.close();
 
@@ -938,19 +938,19 @@ class DefaultLeaderElectionServiceTest {
                             // LeaderInformationRegister is implemented as a singleton which would
                             // prevent us from checking the identity of the external storage at the
                             // end of the test)
-                            final String otherContenderID = createRandomContenderID();
+                            final String otherComponentId = createRandomContenderID();
                             final LeaderInformation otherLeaderInformation =
                                     LeaderInformation.known(
-                                            UUID.randomUUID(), "address-for-" + otherContenderID);
+                                            UUID.randomUUID(), "address-for-" + otherComponentId);
                             final LeaderInformationRegister registerWithUnknownContender =
                                     LeaderInformationRegister.of(
-                                            otherContenderID, otherLeaderInformation);
+                                            otherComponentId, otherLeaderInformation);
                             storedLeaderInformation.set(registerWithUnknownContender);
                             callback.accept(
                                     leaderElectionService,
                                     Arrays.asList(
-                                            contenderContext0.contenderID,
-                                            contenderContext1.contenderID),
+                                            contenderContext0.componentId,
+                                            contenderContext1.componentId),
                                     storedLeaderInformation.get());
 
                             final LeaderInformationRegister correctedExternalStorage =
@@ -959,7 +959,7 @@ class DefaultLeaderElectionServiceTest {
                                     .as(
                                             "Only the still registered contender and the unknown one should have corrected its LeaderInformation.")
                                     .containsExactlyInAnyOrder(
-                                            contenderContext1.contenderID, otherContenderID);
+                                            contenderContext1.componentId, otherComponentId);
 
                             contenderContext1.leaderElection.close();
 
@@ -968,7 +968,7 @@ class DefaultLeaderElectionServiceTest {
 
                             callback.accept(
                                     leaderElectionService,
-                                    Collections.singleton(contenderContext1.contenderID),
+                                    Collections.singleton(contenderContext1.componentId),
                                     leftOverData);
 
                             assertThat(storedLeaderInformation.get().getRegisteredContenderIDs())
@@ -992,7 +992,7 @@ class DefaultLeaderElectionServiceTest {
                             grantLeadership();
                             final UUID oldSessionId =
                                     leaderElectionService.getLeaderSessionID(
-                                            contenderContext0.contenderID);
+                                            contenderContext0.componentId);
 
                             applyToBothContenderContexts(
                                     ctx -> {
@@ -1033,7 +1033,7 @@ class DefaultLeaderElectionServiceTest {
                                         assertThat(
                                                         storedLeaderInformation
                                                                 .get()
-                                                                .forContenderID(ctx.contenderID))
+                                                                .forContenderID(ctx.componentId))
                                                 .hasValue(expectedLeaderInformation);
 
                                         // Old confirm call should be ignored.
@@ -1041,7 +1041,7 @@ class DefaultLeaderElectionServiceTest {
                                                 UUID.randomUUID(), ctx.address);
                                         assertThat(
                                                         leaderElectionService.getLeaderSessionID(
-                                                                ctx.contenderID))
+                                                                ctx.componentId))
                                                 .isEqualTo(currentLeaderSessionId);
                                     });
 
@@ -1073,7 +1073,7 @@ class DefaultLeaderElectionServiceTest {
 
                                         assertThat(
                                                         leaderElectionService.getLeaderSessionID(
-                                                                ctx.contenderID))
+                                                                ctx.componentId))
                                                 .isNull();
                                     });
                         });
@@ -1139,17 +1139,17 @@ class DefaultLeaderElectionServiceTest {
     @Test
     void testGrantDoesNotBlockNotifyLeaderInformationChange() throws Exception {
         testLeaderEventDoesNotBlockLeaderInformationChangeEventHandling(
-                (listener, contenderID, storedLeaderInformation) -> {
+                (listener, componentId, storedLeaderInformation) -> {
                     listener.onLeaderInformationChange(
-                            contenderID,
-                            storedLeaderInformation.forContenderIdOrEmpty(contenderID));
+                            componentId,
+                            storedLeaderInformation.forContenderIdOrEmpty(componentId));
                 });
     }
 
     @Test
     void testGrantDoesNotBlockNotifyAllKnownLeaderInformation() throws Exception {
         testLeaderEventDoesNotBlockLeaderInformationChangeEventHandling(
-                (listener, contenderID, storedLeaderInformation) -> {
+                (listener, componentId, storedLeaderInformation) -> {
                     listener.onLeaderInformationChange(storedLeaderInformation);
                 });
     }
@@ -1170,11 +1170,11 @@ class DefaultLeaderElectionServiceTest {
                                             UUID.randomUUID(), contenderContext0.address);
                             storedLeaderInformation.set(
                                     LeaderInformationRegister.of(
-                                            contenderContext0.contenderID,
+                                            contenderContext0.componentId,
                                             changedLeaderInformation));
                             callback.accept(
                                     leaderElectionService,
-                                    contenderContext0.contenderID,
+                                    contenderContext0.componentId,
                                     storedLeaderInformation.get());
 
                             assertThat(storedLeaderInformation.get().hasNoLeaderInformation())
@@ -1353,7 +1353,7 @@ class DefaultLeaderElectionServiceTest {
     /** Context for holding the per-contender information. */
     private static class ContenderContext implements AutoCloseable {
 
-        private final String contenderID;
+        private final String componentId;
         private final String address;
         private final TestingContender contender;
         private LeaderElection leaderElection;
@@ -1362,23 +1362,23 @@ class DefaultLeaderElectionServiceTest {
                 throws Exception {
             // randomSuffix is added to ensure uniqueness even between tests
             final String randomSuffix = UUID.randomUUID().toString().substring(0, 4);
-            final String contenderID = String.format("contender-id-%d-%s", id, randomSuffix);
+            final String componentId = String.format("component-id-%d-%s", id, randomSuffix);
             final String address = String.format("address-%d-%s", id, randomSuffix);
 
             final LeaderElection leaderElection =
-                    leaderElectionService.createLeaderElection(contenderID);
+                    leaderElectionService.createLeaderElection(componentId);
             final TestingContender contender = new TestingContender(address, leaderElection);
             contender.startLeaderElection();
 
-            return new ContenderContext(contenderID, address, contender, leaderElection);
+            return new ContenderContext(componentId, address, contender, leaderElection);
         }
 
         private ContenderContext(
-                String contenderID,
+                String componentId,
                 String address,
                 TestingContender contender,
                 LeaderElection leaderElection) {
-            this.contenderID = contenderID;
+            this.componentId = componentId;
             this.address = address;
             this.contender = contender;
             this.leaderElection = leaderElection;

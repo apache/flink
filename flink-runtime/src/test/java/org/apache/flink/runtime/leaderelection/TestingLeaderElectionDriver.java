@@ -62,13 +62,13 @@ public class TestingLeaderElectionDriver implements LeaderElectionDriver {
     }
 
     @Override
-    public void publishLeaderInformation(String contenderID, LeaderInformation leaderInformation) {
-        publishLeaderInformationConsumer.accept(lock, contenderID, leaderInformation);
+    public void publishLeaderInformation(String componentId, LeaderInformation leaderInformation) {
+        publishLeaderInformationConsumer.accept(lock, componentId, leaderInformation);
     }
 
     @Override
-    public void deleteLeaderInformation(String contenderID) {
-        deleteLeaderInformationConsumer.accept(lock, contenderID);
+    public void deleteLeaderInformation(String componentId) {
+        deleteLeaderInformationConsumer.accept(lock, componentId);
     }
 
     @Override
@@ -122,7 +122,7 @@ public class TestingLeaderElectionDriver implements LeaderElectionDriver {
                             }
                         })
                 .setPublishLeaderInformationConsumer(
-                        (lock, contenderID, leaderInformation) -> {
+                        (lock, componentId, leaderInformation) -> {
                             try {
                                 lock.lock();
                                 if (hasLeadership.get()) {
@@ -130,7 +130,7 @@ public class TestingLeaderElectionDriver implements LeaderElectionDriver {
                                             oldData ->
                                                     LeaderInformationRegister.merge(
                                                             oldData,
-                                                            contenderID,
+                                                            componentId,
                                                             leaderInformation));
                                 }
                             } finally {
@@ -138,14 +138,14 @@ public class TestingLeaderElectionDriver implements LeaderElectionDriver {
                             }
                         })
                 .setDeleteLeaderInformationConsumer(
-                        (lock, contenderID) -> {
+                        (lock, componentId) -> {
                             try {
                                 lock.lock();
                                 if (hasLeadership.get()) {
                                     storedLeaderInformation.getAndUpdate(
                                             oldData ->
                                                     LeaderInformationRegister.clear(
-                                                            oldData, contenderID));
+                                                            oldData, componentId));
                                 }
                             } finally {
                                 lock.unlock();
@@ -228,9 +228,9 @@ public class TestingLeaderElectionDriver implements LeaderElectionDriver {
         private Function<ReentrantLock, Boolean> hasLeadershipFunction = ignoredLock -> false;
         private TriConsumer<ReentrantLock, String, LeaderInformation>
                 publishLeaderInformationConsumer =
-                        (ignoredLock, ignoredContenderID, ignoredLeaderInformation) -> {};
+                        (ignoredLock, ignoredComponentId, ignoredLeaderInformation) -> {};
         private BiConsumer<ReentrantLock, String> deleteLeaderInformationConsumer =
-                (ignoredLock, ignoredContenderID) -> {};
+                (ignoredLock, ignoredComponentId) -> {};
 
         private ThrowingConsumer<ReentrantLock, Exception> closeConsumer = (ignoredLock) -> {};
 

@@ -134,13 +134,13 @@ public class KubernetesLeaderElectionHaServices extends AbstractHaServices {
     }
 
     @Override
-    protected LeaderRetrievalService createLeaderRetrievalService(String contenderID) {
+    protected LeaderRetrievalService createLeaderRetrievalService(String componentId) {
         return new DefaultLeaderRetrievalService(
                 new KubernetesLeaderRetrievalDriverFactory(
                         configMapSharedWatcher,
                         watchExecutorService,
                         getClusterConfigMap(),
-                        contenderID));
+                        componentId));
     }
 
     @Override
