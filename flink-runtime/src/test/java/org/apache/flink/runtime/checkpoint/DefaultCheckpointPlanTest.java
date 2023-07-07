@@ -222,12 +222,12 @@ public class DefaultCheckpointPlanTest {
     }
 
     private CheckpointPlan createCheckpointPlan(ExecutionGraph executionGraph) throws Exception {
-        CheckpointPlanCalculator checkpointPlanCalculator =
+        PlanCalculator planCalculator =
                 new DefaultCheckpointPlanCalculator(
                         new JobID(),
                         new ExecutionGraphCheckpointPlanCalculatorContext(executionGraph),
                         executionGraph.getVerticesTopologically(),
                         true);
-        return checkpointPlanCalculator.calculateCheckpointPlan().get();
+        return (CheckpointPlan) planCalculator.calculateEventPlan().get();
     }
 }

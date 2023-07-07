@@ -76,6 +76,7 @@ class FailoverStrategyCheckpointCoordinatorTest {
                         true,
                         false,
                         0,
+                        0,
                         0);
         CheckpointCoordinator checkpointCoordinator =
                 new CheckpointCoordinator(
@@ -94,7 +95,12 @@ class FailoverStrategyCheckpointCoordinatorTest {
                                 new ExecutionGraphCheckpointPlanCalculatorContext(graph),
                                 graph.getVerticesTopologically(),
                                 false),
-                        mock(CheckpointStatsTracker.class));
+                        mock(CheckpointStatsTracker.class),
+                        new ManuallyTriggeredScheduledExecutor(),
+                        new DefaultFlushPlanCalculator(
+                                graph.getJobID(),
+                                new ExecutionGraphCheckpointPlanCalculatorContext(graph),
+                                graph.getVerticesTopologically()));
 
         // switch current execution's state to running to allow checkpoint could be triggered.
         graph.transitionToRunning();

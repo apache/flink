@@ -969,4 +969,6 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
                                         .sendEventToCoordinator(
                                                 new AcknowledgeCheckpointEvent(checkpointId)));
     }
+
+    void flush() throws Exception {}
 }

@@ -21,7 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 /**
- * Provides the context for {@link DefaultCheckpointPlanCalculator} to compute the plan of
+ * Provides the context for {@link DefaultPlanCalculator} to compute the plan of
  * checkpoints.
  */
 public interface CheckpointPlanCalculatorContext {

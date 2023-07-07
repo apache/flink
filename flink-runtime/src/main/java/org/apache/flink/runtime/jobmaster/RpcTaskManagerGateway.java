@@ -115,6 +115,16 @@ public class RpcTaskManagerGateway implements TaskManagerGateway {
     }
 
     @Override
+    public CompletableFuture<Acknowledge> triggerFlushEvent(
+            ExecutionAttemptID executionAttemptID,
+            JobID jobId,
+            long flushEventId,
+            long timestamp) {
+        return taskExecutorGateway.triggerFlushEvent(
+                executionAttemptID, flushEventId, timestamp);
+    }
+
+    @Override
     public CompletableFuture<Acknowledge> freeSlot(
             AllocationID allocationId, Throwable cause, Time timeout) {
         return taskExecutorGateway.freeSlot(allocationId, cause, timeout);

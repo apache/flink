@@ -105,7 +105,7 @@ class CheckpointStateRestoreTest {
 
             CheckpointCoordinator coord =
                     new CheckpointCoordinatorBuilder()
-                            .setTimer(manuallyTriggeredScheduledExecutor)
+                            .setCheckpointTimer(manuallyTriggeredScheduledExecutor)
                             .build(graph);
 
             // create ourselves a checkpoint with state

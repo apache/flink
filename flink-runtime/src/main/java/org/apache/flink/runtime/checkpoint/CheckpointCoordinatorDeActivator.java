@@ -32,18 +32,35 @@ public class CheckpointCoordinatorDeActivator implements JobStatusListener {
 
     private final CheckpointCoordinator coordinator;
 
+    private boolean checkpointEnabled;
+
+    private boolean flushEventEnabled;
+
     public CheckpointCoordinatorDeActivator(CheckpointCoordinator coordinator) {
         this.coordinator = checkNotNull(coordinator);
+        this.checkpointEnabled = coordinator.isPeriodicCheckpointingConfigured();
+        this.flushEventEnabled = coordinator.isAllowedLatencyConfigured();
     }
 
     @Override
     public void jobStatusChanges(JobID jobId, JobStatus newJobStatus, long timestamp) {
         if (newJobStatus == JobStatus.RUNNING) {
-            // start the checkpoint scheduler
-            coordinator.startCheckpointScheduler();
+            if (checkpointEnabled) {
+                // start the checkpoint scheduler
+                coordinator.startCheckpointScheduler();
+            }
+            if (flushEventEnabled) {
+                // TODO: start flush scheduler, define a new scheduler class to periodically trigger flush events
+                coordinator.startFlushEventScheduler();
+            }
         } else {
-            // anything else should stop the trigger for now
-            coordinator.stopCheckpointScheduler();
+            if (checkpointEnabled) {
+                // anything else should stop the trigger for now
+                coordinator.stopCheckpointScheduler();
+            }
+            if (flushEventEnabled) {
+                coordinator.stopFlushEventScheduler();;
+            }
         }
     }
 }

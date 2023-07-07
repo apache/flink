@@ -28,11 +28,14 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.EventAnnouncement;
+import org.apache.flink.runtime.io.network.api.FlushEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.EndOfChannelStateEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.streaming.runtime.io.StreamTaskNetworkInput;
+
+import org.apache.flink.streaming.runtime.io.flushing.FlushEventHandler;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,6 +60,8 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 
     private final CheckpointBarrierHandler barrierHandler;
 
+    private final FlushEventHandler flushEventHandler;
+
     private final UpstreamRecoveryTracker upstreamRecoveryTracker;
 
     /** The gate that the buffer draws its input from. */
@@ -80,17 +85,20 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
     public CheckpointedInputGate(
             InputGate inputGate,
             CheckpointBarrierHandler barrierHandler,
+            FlushEventHandler flushEventHandler,
             MailboxExecutor mailboxExecutor) {
-        this(inputGate, barrierHandler, mailboxExecutor, UpstreamRecoveryTracker.NO_OP);
+        this(inputGate, barrierHandler, flushEventHandler, mailboxExecutor, UpstreamRecoveryTracker.NO_OP);
     }
 
     public CheckpointedInputGate(
             InputGate inputGate,
             CheckpointBarrierHandler barrierHandler,
+            FlushEventHandler flushEventHandler,
             MailboxExecutor mailboxExecutor,
             UpstreamRecoveryTracker upstreamRecoveryTracker) {
         this.inputGate = inputGate;
         this.barrierHandler = barrierHandler;
+        this.flushEventHandler = flushEventHandler;
         this.mailboxExecutor = mailboxExecutor;
         this.upstreamRecoveryTracker = upstreamRecoveryTracker;
 
@@ -176,7 +184,11 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 
     private Optional<BufferOrEvent> handleEvent(BufferOrEvent bufferOrEvent) throws IOException {
         Class<? extends AbstractEvent> eventClass = bufferOrEvent.getEvent().getClass();
-        if (eventClass == CheckpointBarrier.class) {
+        if (eventClass == FlushEvent.class) {
+            flushEventHandler.processFlushEvent(
+                    (FlushEvent) bufferOrEvent.getEvent(),
+                    bufferOrEvent.getChannelInfo());
+        } else if (eventClass == CheckpointBarrier.class) {
             CheckpointBarrier checkpointBarrier = (CheckpointBarrier) bufferOrEvent.getEvent();
             barrierHandler.processBarrier(checkpointBarrier, bufferOrEvent.getChannelInfo(), false);
         } else if (eventClass == CancelCheckpointMarker.class) {

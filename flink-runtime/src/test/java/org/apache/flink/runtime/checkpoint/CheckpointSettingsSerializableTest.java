@@ -94,6 +94,7 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
                                 true,
                                 false,
                                 0,
+                                0,
                                 0),
                         new SerializedValue<StateBackend>(new CustomStateBackend(outOfClassPath)),
                         TernaryBoolean.UNDEFINED,

@@ -54,4 +54,3 @@ public class EndOfStreamWindow extends WindowAssigner<Object, TimeWindow> {
         return true;
     }
 }
-

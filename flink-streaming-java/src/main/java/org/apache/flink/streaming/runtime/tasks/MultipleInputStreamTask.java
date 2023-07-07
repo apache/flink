@@ -41,6 +41,7 @@ import org.apache.flink.streaming.runtime.io.StreamTaskSourceInput;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierHandler;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.io.checkpointing.InputProcessorUtil;
+import org.apache.flink.streaming.runtime.io.flushing.FlushEventHandler;
 import org.apache.flink.streaming.runtime.metrics.MinWatermarkGauge;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
@@ -71,6 +72,8 @@ public class MultipleInputStreamTask<OUT>
             new HashMap<>();
 
     @Nullable private CheckpointBarrierHandler checkpointBarrierHandler;
+
+    @Nullable private FlushEventHandler flushEventHandler;
 
     public MultipleInputStreamTask(Environment env) throws Exception {
         super(env);
@@ -150,12 +153,17 @@ public class MultipleInputStreamTask<OUT>
                         mainMailboxExecutor,
                         timerService);
 
+        flushEventHandler = InputProcessorUtil.createFlushEventHandler(
+                this,
+                getTaskNameWithSubtaskAndId());
+
         CheckpointedInputGate[] checkpointedInputGates =
                 InputProcessorUtil.createCheckpointedMultipleInputGate(
                         mainMailboxExecutor,
                         inputGates,
                         getEnvironment().getMetricGroup().getIOMetricGroup(),
                         checkpointBarrierHandler,
+                        flushEventHandler,
                         configuration);
 
         inputProcessor =
@@ -179,6 +187,8 @@ public class MultipleInputStreamTask<OUT>
                         gatePartitioners,
                         getEnvironment().getTaskInfo(),
                         getCanEmitBatchOfRecords());
+
+
     }
 
     protected Optional<CheckpointBarrierHandler> getCheckpointBarrierHandler() {

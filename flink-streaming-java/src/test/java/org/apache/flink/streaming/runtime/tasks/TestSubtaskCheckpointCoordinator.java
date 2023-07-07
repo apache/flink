@@ -25,6 +25,7 @@ import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.runtime.state.TestCheckpointStorageWorkerView;
 
+import java.io.IOException;
 import java.util.function.Supplier;
 
 /** {@link SubtaskCheckpointCoordinator} implementation for tests. */
@@ -71,6 +72,16 @@ public class TestSubtaskCheckpointCoordinator implements SubtaskCheckpointCoordi
     public void abortCheckpointOnBarrier(
             long checkpointId, CheckpointException cause, OperatorChain<?, ?> operatorChain) {
         channelStateWriter.abort(checkpointId, cause, true);
+    }
+
+    @Override
+    public void emitFlushEvent(
+            long flushEventID,
+            long flushEventTimeStamp,
+            OperatorChain<?, ?> operatorChain,
+            boolean isTaskFinished,
+            Supplier<Boolean> isRunning) throws IOException {
+
     }
 
     @Override

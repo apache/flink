@@ -40,6 +40,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
+import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -48,6 +49,7 @@ import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierTrac
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.io.checkpointing.SingleCheckpointBarrierHandler;
 import org.apache.flink.streaming.runtime.io.checkpointing.UpstreamRecoveryTracker;
+import org.apache.flink.streaming.runtime.io.flushing.FlushEventHandler;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
@@ -153,6 +155,7 @@ public class StreamTaskNetworkInputTest {
                                                 SystemClock.getInstance(),
                                                 false,
                                                 inputGate.getInputGate()),
+                                new FlushEventHandler(new DummyCheckpointInvokable(),"test"),
                                 new SyncMailboxExecutor()),
                         inSerializer,
                         ioManager,
@@ -343,6 +346,7 @@ public class StreamTaskNetworkInputTest {
                 inputGate,
                 new CheckpointBarrierTracker(
                         1, new DummyCheckpointInvokable(), SystemClock.getInstance(), false),
+                new FlushEventHandler(new DummyCheckpointInvokable(), "test"),
                 new SyncMailboxExecutor(),
                 UpstreamRecoveryTracker.forInputGate(inputGate));
     }

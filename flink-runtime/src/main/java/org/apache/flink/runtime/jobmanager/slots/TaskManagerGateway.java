@@ -136,6 +136,20 @@ public interface TaskManagerGateway extends TaskExecutorOperatorEventGateway {
             CheckpointOptions checkpointOptions);
 
     /**
+     *
+     * @param executionAttemptID
+     * @param jobId
+     * @param flushEventId
+     * @param timestamp
+     * @return
+     */
+    CompletableFuture<Acknowledge> triggerFlushEvent(
+            ExecutionAttemptID executionAttemptID,
+            JobID jobId,
+            long flushEventId,
+            long timestamp);
+
+    /**
      * Frees the slot with the given allocation ID.
      *
      * @param allocationId identifying the slot to free

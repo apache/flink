@@ -22,8 +22,7 @@ public class EndOfStreamWindow extends WindowAssigner<Object, TimeWindow> {
     private static final TimeWindow TIME_WINDOW_INSTANCE =
             new TimeWindow(Long.MIN_VALUE, Long.MAX_VALUE);
 
-    private EndOfStreamWindow() {
-    }
+    private EndOfStreamWindow() {}
 
     public static EndOfStreamWindow get() {
         return INSTANCE;
@@ -55,4 +54,3 @@ public class EndOfStreamWindow extends WindowAssigner<Object, TimeWindow> {
         return true;
     }
 }
-

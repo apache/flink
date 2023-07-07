@@ -35,6 +35,7 @@ import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.EndOfSegmentEvent;
 import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
 import org.apache.flink.runtime.io.network.api.EventAnnouncement;
+import org.apache.flink.runtime.io.network.api.FlushEvent;
 import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.SubtaskConnectionDescriptor;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -78,6 +79,8 @@ public class EventSerializer {
 
     private static final int END_OF_SEGMENT = 9;
 
+    private static final int FLUSH_EVENT = 10;
+
     private static final byte CHECKPOINT_TYPE_CHECKPOINT = 0;
 
     private static final byte CHECKPOINT_TYPE_SAVEPOINT = 1;
@@ -97,7 +100,14 @@ public class EventSerializer {
 
     public static ByteBuffer toSerializedEvent(AbstractEvent event) throws IOException {
         final Class<?> eventClass = event.getClass();
-        if (eventClass == EndOfPartitionEvent.class) {
+        if (eventClass == FlushEvent.class) {
+            FlushEvent flushEvent = (FlushEvent) event;
+            ByteBuffer buf = ByteBuffer.allocate(20);
+            buf.putInt(0, FLUSH_EVENT);
+            buf.putLong(4, flushEvent.getFlushEventId());
+            buf.putLong(12, flushEvent.getTimestamp());
+            return buf;
+        } else if (eventClass == EndOfPartitionEvent.class) {
             return ByteBuffer.wrap(new byte[] {0, 0, 0, END_OF_PARTITION_EVENT});
         } else if (eventClass == CheckpointBarrier.class) {
             return serializeCheckpointBarrier((CheckpointBarrier) event);
@@ -168,8 +178,12 @@ public class EventSerializer {
 
         try {
             final int type = buffer.getInt();
-
-            if (type == END_OF_PARTITION_EVENT) {
+            if (type == FLUSH_EVENT) {
+                long flushEventId = buffer.getLong();
+                long timestamp = buffer.getLong();
+//                System.out.println("reading flush event: id = " + flushEventId + ", timestamp = " + timestamp);
+                return new FlushEvent(flushEventId, timestamp);
+            } else if (type == END_OF_PARTITION_EVENT) {
                 return EndOfPartitionEvent.INSTANCE;
             } else if (type == CHECKPOINT_BARRIER_EVENT) {
                 return deserializeCheckpointBarrier(buffer);

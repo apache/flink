@@ -5,9 +5,7 @@ import org.apache.flink.connector.datagen.source.GeneratorFunction;
 
 import java.util.Random;
 
-/**
- * A bounded source used to generate data stream in batch mode.
- */
+/** A bounded source used to generate data stream in batch mode. */
 public class MyJoinGenerator implements GeneratorFunction<Long, String> {
 
     private Random random;

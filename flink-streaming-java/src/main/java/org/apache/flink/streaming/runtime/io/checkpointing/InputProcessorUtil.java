@@ -30,6 +30,8 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.io.InputGateUtil;
 import org.apache.flink.streaming.runtime.io.StreamOneInputProcessor;
 import org.apache.flink.streaming.runtime.io.StreamTaskSourceInput;
+import org.apache.flink.streaming.runtime.io.flushing.FlushEventHandler;
+import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.SubtaskCheckpointCoordinator;
 import org.apache.flink.streaming.runtime.tasks.TimerService;
 import org.apache.flink.util.clock.Clock;
@@ -48,11 +50,18 @@ import java.util.stream.Stream;
 @Internal
 public class InputProcessorUtil {
 
+    public static FlushEventHandler createFlushEventHandler(
+            StreamTask toNotifyOnFlushEvent,
+            String taskName) {
+        return new FlushEventHandler(toNotifyOnFlushEvent, taskName);
+    }
+
     public static CheckpointedInputGate[] createCheckpointedMultipleInputGate(
             MailboxExecutor mailboxExecutor,
             List<IndexedInputGate>[] inputGates,
             TaskIOMetricGroup taskIOMetricGroup,
             CheckpointBarrierHandler barrierHandler,
+            FlushEventHandler flushEventHandler,
             StreamConfig config) {
 
         registerCheckpointMetrics(taskIOMetricGroup, barrierHandler);
@@ -68,6 +77,7 @@ public class InputProcessorUtil {
                                 new CheckpointedInputGate(
                                         unionedInputGate,
                                         barrierHandler,
+                                        flushEventHandler,
                                         mailboxExecutor,
                                         config.isGraphContainingLoops()
                                                 ? UpstreamRecoveryTracker.NO_OP

@@ -128,6 +128,18 @@ public class ExecutionOptions {
                                                             + "throughput"))
                                     .build());
 
+    public static final ConfigOption<Duration> ALLOWED_LATENCY =
+            ConfigOptions.key("execution.allowed-latency")
+                    .durationType()
+                    .defaultValue(null)
+                    .withDescription(
+                            "If this configuration is not null and every source has isProcessingBacklog = false, "
+                                    + "Flink will make its best effort to limit the processing latency of the "
+                                    + "Flink job to the specified value. It's important to note that the actual "
+                                    + "latency can exceed this configured value due to factors such as backlog, "
+                                    + "per-record processing delays, or operators that hold records until the next "
+                                    + "checkpoint. This configuration is applicable only in the STREAMING runtime mode.");
+
     @Documentation.ExcludeFromDocumentation(
             "This is an expert option, that we do not want to expose in the documentation")
     public static final ConfigOption<Boolean> SORT_INPUTS =

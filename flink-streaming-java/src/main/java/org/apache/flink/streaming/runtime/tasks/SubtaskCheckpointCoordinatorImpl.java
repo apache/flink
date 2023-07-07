@@ -28,6 +28,7 @@ import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriterImpl;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.FlushEvent;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStateToolset;
@@ -102,6 +103,8 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
     private long maxAbortedCheckpointId = 0;
 
     private long lastCheckpointId;
+
+    private long lastFlushEventId;
 
     /** Lock that guards state of AsyncCheckpointRunnable registry. * */
     private final Object lock;
@@ -189,6 +192,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                 createAbortedCheckpointSetWithLimitSize(maxRecordAbortedCheckpoints);
         this.maxRecordAbortedCheckpoints = maxRecordAbortedCheckpoints;
         this.lastCheckpointId = -1L;
+        this.lastFlushEventId = -1L;
         this.closed = false;
         this.enableCheckpointAfterTasksFinished = enableCheckpointAfterTasksFinished;
         this.registerTimer = registerTimer;
@@ -242,6 +246,31 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                     operatorChain.abortCheckpoint(checkpointId, cause);
                     operatorChain.broadcastEvent(new CancelCheckpointMarker(checkpointId));
                 });
+    }
+
+    @Override
+    public void emitFlushEvent(
+            long flushEventID,
+            long flushEventTimeStamp,
+            OperatorChain<?, ?> operatorChain,
+            boolean isTaskFinished,
+            Supplier<Boolean> isRunning) throws Exception {
+        if (lastFlushEventId >= flushEventID) {
+            LOG.info(
+                    "Out of order flush event: {} >= {}",
+                    lastFlushEventId,
+                    flushEventID);
+            return;
+        }
+
+        // only trigger flush operation on receiving a flush event with higher flush event id
+        lastFlushEventId = flushEventID;
+        // call flush function on all the operators in the chain
+        operatorChain.flush();
+        // broadcast flush events to all the output channels
+        FlushEvent flushEvent =
+                new FlushEvent(flushEventID, flushEventTimeStamp);
+        operatorChain.broadcastEvent(flushEvent, false);
     }
 
     private void cancelAlignmentTimer() {

@@ -445,6 +445,20 @@ public class CheckpointCoordinatorTestingUtils {
                 .build();
     }
 
+    static class TriggeredFlushEvent {
+        final JobID jobID;
+
+        final long flushEventID;
+
+        final long timestamp;
+
+        TriggeredFlushEvent(JobID jobID, long flushEventID, long timestamp) {
+            this.jobID = jobID;
+            this.flushEventID = flushEventID;
+            this.timestamp = timestamp;
+        }
+    }
+
     static class TriggeredCheckpoint {
         final JobID jobId;
         final long checkpointId;
@@ -472,6 +486,40 @@ public class CheckpointCoordinatorTestingUtils {
             this.jobId = jobId;
             this.checkpointId = checkpointId;
             this.timestamp = timestamp;
+        }
+    }
+
+    static class FlushEventRecorderTaskManagerGateway extends SimpleAckingTaskManagerGateway {
+
+        private final Map<ExecutionAttemptID, List<TriggeredFlushEvent>> triggeredFlushEvents =
+                new HashMap<>();
+
+        @Override
+        public CompletableFuture<Acknowledge> triggerFlushEvent(
+                ExecutionAttemptID executionAttemptID,
+                JobID jobId,
+                long flushEventId,
+                long timestamp) {
+            triggeredFlushEvents.computeIfAbsent(executionAttemptID, k -> new ArrayList<>())
+                                .add(new TriggeredFlushEvent(jobId, flushEventId, timestamp));
+            return CompletableFuture.completedFuture(Acknowledge.get());
+        }
+
+        public List<TriggeredFlushEvent> getTriggeredFlushEvents(ExecutionAttemptID attemptId) {
+            return triggeredFlushEvents.getOrDefault(attemptId, Collections.emptyList());
+        }
+
+        public TriggeredFlushEvent getOnlyTriggeredFlushEvent(ExecutionAttemptID attemptId) {
+            List<TriggeredFlushEvent> triggeredFlushEvents = getTriggeredFlushEvents(attemptId);
+            assertEquals(
+                    "There should be exactly one flush event triggered for " + attemptId,
+                    1,
+                    triggeredFlushEvents.size());
+            return triggeredFlushEvents.get(0);
+        }
+
+        public void resetCount() {
+            triggeredFlushEvents.clear();
         }
     }
 
@@ -709,6 +757,8 @@ public class CheckpointCoordinatorTestingUtils {
 
         private CheckpointIDCounter checkpointIDCounter = new StandaloneCheckpointIDCounter();
 
+        private CheckpointIDCounter flushEventIDCounter = new StandaloneCheckpointIDCounter();
+
         private CompletedCheckpointStore completedCheckpointStore =
                 new StandaloneCompletedCheckpointStore(1);
 
@@ -718,7 +768,9 @@ public class CheckpointCoordinatorTestingUtils {
 
         private CheckpointsCleaner checkpointsCleaner = new CheckpointsCleaner();
 
-        private ScheduledExecutor timer = new ManuallyTriggeredScheduledExecutor();
+        private ScheduledExecutor checkpointTimer = new ManuallyTriggeredScheduledExecutor();
+
+        private ScheduledExecutor flushEventTimer = new ManuallyTriggeredScheduledExecutor();
 
         private CheckpointFailureManager failureManager =
                 new CheckpointFailureManager(0, NoOpFailJobCall.INSTANCE);
@@ -758,6 +810,12 @@ public class CheckpointCoordinatorTestingUtils {
             return this;
         }
 
+        public CheckpointCoordinatorBuilder setFlushEventIDCounter(
+                CheckpointIDCounter flushEventIDCounter) {
+            this.flushEventIDCounter = flushEventIDCounter;
+            return this;
+        }
+
         public CheckpointCoordinatorBuilder setCheckpointFailureManager(
                 CheckpointFailureManager checkpointFailureManager) {
             this.failureManager = checkpointFailureManager;
@@ -775,8 +833,13 @@ public class CheckpointCoordinatorTestingUtils {
             return this;
         }
 
-        public CheckpointCoordinatorBuilder setTimer(ScheduledExecutor timer) {
-            this.timer = timer;
+        public CheckpointCoordinatorBuilder setCheckpointTimer(ScheduledExecutor checkpointTimer) {
+            this.checkpointTimer = checkpointTimer;
+            return this;
+        }
+
+        public CheckpointCoordinatorBuilder setFlushEventTimer(ScheduledExecutor flushEventTimer) {
+            this.flushEventTimer = flushEventTimer;
             return this;
         }
 
@@ -823,12 +886,18 @@ public class CheckpointCoordinatorTestingUtils {
 
         public CheckpointCoordinator build(ExecutionGraph executionGraph) throws Exception {
 
-            DefaultCheckpointPlanCalculator checkpointPlanCalculator =
+            DefaultPlanCalculator checkpointPlanCalculator =
                     new DefaultCheckpointPlanCalculator(
                             executionGraph.getJobID(),
                             new ExecutionGraphCheckpointPlanCalculatorContext(executionGraph),
                             executionGraph.getVerticesTopologically(),
                             allowCheckpointsAfterTasksFinished);
+
+            DefaultPlanCalculator flushPlanCalculator =
+                    new DefaultFlushPlanCalculator(
+                            executionGraph.getJobID(),
+                            new ExecutionGraphCheckpointPlanCalculatorContext(executionGraph),
+                            executionGraph.getVerticesTopologically());
 
             return new CheckpointCoordinator(
                     executionGraph.getJobID(),
@@ -839,12 +908,14 @@ public class CheckpointCoordinatorTestingUtils {
                     checkpointStorage,
                     ioExecutor,
                     checkpointsCleaner,
-                    timer,
+                    checkpointTimer,
                     failureManager,
                     checkpointPlanCalculator,
                     SystemClock.getInstance(),
                     checkpointStatsTracker,
-                    vertexFinishedStateCheckerFactory);
+                    vertexFinishedStateCheckerFactory,
+                    flushEventTimer,
+                    flushPlanCalculator);
         }
     }
 

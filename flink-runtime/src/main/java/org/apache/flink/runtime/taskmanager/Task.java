@@ -63,6 +63,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointableTask;
 import org.apache.flink.runtime.jobgraph.tasks.CoordinatedTask;
+import org.apache.flink.runtime.jobgraph.tasks.FlushingTask;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
@@ -1382,6 +1383,27 @@ public class Task
             // send back a message that we did not do the checkpoint
             declineCheckpoint(
                     checkpointID, CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_NOT_READY);
+        }
+    }
+
+    public void triggerFlushEvent(
+            final long flushEventID,
+            final long flushEventTimestamp) {
+
+        final TaskInvokable invokable = this.invokable;
+
+        if (executionState == ExecutionState.RUNNING) {
+            checkState(invokable instanceof FlushingTask, "invokable can't flush");
+            try {
+                ((CheckpointableTask) invokable)
+                        .triggerFlushEventAsync(flushEventID, flushEventTimestamp)
+                        .handle(
+                                (triggerResult, exception) -> {
+                                    return exception == null && triggerResult;
+                                });
+            } catch (RejectedExecutionException ex) {
+                System.out.println("task rejects to emit flush events");
+            }
         }
     }
 

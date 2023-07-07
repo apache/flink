@@ -203,7 +203,7 @@ class CheckpointCoordinatorRestoringTest extends TestLogger {
         // set up the coordinator and validate the initial state
         final CheckpointCoordinator coordinator =
                 new CheckpointCoordinatorBuilder()
-                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .setCheckpointTimer(manuallyTriggeredScheduledExecutor)
                         .setCompletedCheckpointStore(store)
                         .build(executionGraph);
 
@@ -244,7 +244,7 @@ class CheckpointCoordinatorRestoringTest extends TestLogger {
         // set up the coordinator and validate the initial state
         final CheckpointCoordinator coordinator =
                 new CheckpointCoordinatorBuilder()
-                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .setCheckpointTimer(manuallyTriggeredScheduledExecutor)
                         .setCompletedCheckpointStore(store)
                         .build(executionGraph);
 
@@ -315,7 +315,7 @@ class CheckpointCoordinatorRestoringTest extends TestLogger {
         CheckpointCoordinator coord =
                 new CheckpointCoordinatorBuilder()
                         .setCompletedCheckpointStore(completedCheckpointStore)
-                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .setCheckpointTimer(manuallyTriggeredScheduledExecutor)
                         .build(graph);
 
         // trigger the checkpoint
@@ -428,7 +428,7 @@ class CheckpointCoordinatorRestoringTest extends TestLogger {
         CheckpointCoordinator newCoord =
                 new CheckpointCoordinatorBuilder()
                         .setCompletedCheckpointStore(completedCheckpointStore)
-                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .setCheckpointTimer(manuallyTriggeredScheduledExecutor)
                         .build(newGraph);
 
         Set<ExecutionJobVertex> tasks = new HashSet<>();
@@ -518,7 +518,7 @@ class CheckpointCoordinatorRestoringTest extends TestLogger {
         CheckpointCoordinator coord =
                 new CheckpointCoordinatorBuilder()
                         .setCompletedCheckpointStore(completedCheckpointStore)
-                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .setCheckpointTimer(manuallyTriggeredScheduledExecutor)
                         .build(graph);
 
         // trigger the checkpoint
@@ -597,7 +597,7 @@ class CheckpointCoordinatorRestoringTest extends TestLogger {
         CheckpointCoordinator newCoord =
                 new CheckpointCoordinatorBuilder()
                         .setCompletedCheckpointStore(completedCheckpointStore)
-                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .setCheckpointTimer(manuallyTriggeredScheduledExecutor)
                         .build(newGraph);
 
         Set<ExecutionJobVertex> tasks = new HashSet<>();
@@ -786,7 +786,7 @@ class CheckpointCoordinatorRestoringTest extends TestLogger {
                 new CheckpointCoordinatorBuilder()
                         .setCompletedCheckpointStore(
                                 storeFor(sharedStateRegistry, () -> {}, completedCheckpoint))
-                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .setCheckpointTimer(manuallyTriggeredScheduledExecutor)
                         .build(newGraph);
 
         coord.restoreLatestCheckpointedStateToAll(tasks, true);
@@ -985,7 +985,7 @@ class CheckpointCoordinatorRestoringTest extends TestLogger {
                                 new CheckpointCoordinatorConfigurationBuilder()
                                         .setCheckpointIdOfIgnoredInFlightData(1)
                                         .build())
-                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .setCheckpointTimer(manuallyTriggeredScheduledExecutor)
                         .build(graph);
 
         // trigger the checkpoint
@@ -1171,7 +1171,7 @@ class CheckpointCoordinatorRestoringTest extends TestLogger {
                         .build(EXECUTOR_RESOURCE.getExecutor());
         CheckpointCoordinator coordinator =
                 new CheckpointCoordinatorBuilder()
-                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .setCheckpointTimer(manuallyTriggeredScheduledExecutor)
                         .build(graph);
         File savepointPath = TempDirUtils.newFolder(tmpFolder);
         CompletableFuture<CompletedCheckpoint> savepointFuture =

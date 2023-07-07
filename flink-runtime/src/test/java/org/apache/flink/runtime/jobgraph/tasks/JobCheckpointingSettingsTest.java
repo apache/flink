@@ -45,6 +45,7 @@ public class JobCheckpointingSettingsTest {
                                 false,
                                 false,
                                 0,
+                                0,
                                 0),
                         new SerializedValue<>(new MemoryStateBackend()));
 

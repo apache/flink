@@ -133,6 +133,14 @@ public class TaskExecutorGatewayDecoratorBase implements TaskExecutorGateway {
     }
 
     @Override
+    public CompletableFuture<Acknowledge> triggerFlushEvent(
+            ExecutionAttemptID executionAttemptID,
+            long flushEventID,
+            long flushEventTimestamp) {
+        return originalGateway.triggerFlushEvent(executionAttemptID, flushEventID, flushEventTimestamp);
+    }
+
+    @Override
     public CompletableFuture<Acknowledge> confirmCheckpoint(
             ExecutionAttemptID executionAttemptID,
             long completedCheckpointId,

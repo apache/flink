@@ -398,6 +398,7 @@ public class JobGraphTest extends TestLogger {
                         true,
                         false,
                         0,
+                        0,
                         0);
 
         return new JobCheckpointingSettings(checkpointCoordinatorConfiguration, null);

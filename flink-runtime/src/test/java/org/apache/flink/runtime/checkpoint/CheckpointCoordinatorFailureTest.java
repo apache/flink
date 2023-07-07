@@ -96,7 +96,7 @@ class CheckpointCoordinatorFailureTest extends TestLogger {
                                 new FailingCompletedCheckpointStore(
                                         new Exception(
                                                 "The failing completed checkpoint store failed again... :-(")))
-                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .setCheckpointTimer(manuallyTriggeredScheduledExecutor)
                         .build(testGraph);
 
         coord.triggerCheckpoint(false);
@@ -235,7 +235,7 @@ class CheckpointCoordinatorFailureTest extends TestLogger {
                                     }
                                 })
                         .setCompletedCheckpointStore(completedCheckpointStore)
-                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .setCheckpointTimer(manuallyTriggeredScheduledExecutor)
                         .setCheckpointStatsTracker(statsTracker)
                         .build(graph);
         checkpointCoordinator.triggerCheckpoint(false);

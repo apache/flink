@@ -109,6 +109,7 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
                                 true,
                                 false,
                                 0,
+                                0,
                                 0),
                         null);
 

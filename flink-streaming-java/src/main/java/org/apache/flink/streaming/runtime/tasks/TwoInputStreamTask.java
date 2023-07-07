@@ -25,6 +25,7 @@ import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessorFactory;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierHandler;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.io.checkpointing.InputProcessorUtil;
+import org.apache.flink.streaming.runtime.io.flushing.FlushEventHandler;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 
 import javax.annotation.Nullable;
@@ -44,6 +45,8 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTask<IN1, IN2, OUT> {
 
     @Nullable private CheckpointBarrierHandler checkpointBarrierHandler;
+
+    @Nullable private FlushEventHandler flushEventHandler;
 
     public TwoInputStreamTask(Environment env) throws Exception {
         super(env);
@@ -73,12 +76,17 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
                         mainMailboxExecutor,
                         systemTimerService);
 
+        flushEventHandler = InputProcessorUtil.createFlushEventHandler(
+                this,
+                getTaskNameWithSubtaskAndId());
+
         CheckpointedInputGate[] checkpointedInputGates =
                 InputProcessorUtil.createCheckpointedMultipleInputGate(
                         mainMailboxExecutor,
                         new List[] {inputGates1, inputGates2},
                         getEnvironment().getMetricGroup().getIOMetricGroup(),
                         checkpointBarrierHandler,
+                        flushEventHandler,
                         configuration);
 
         checkState(checkpointedInputGates.length == 2);
@@ -104,6 +112,8 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
                         gatePartitioners,
                         getEnvironment().getTaskInfo(),
                         getCanEmitBatchOfRecords());
+
+
     }
 
     // This is needed for StreamMultipleInputProcessor#processInput to preserve the existing

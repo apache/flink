@@ -40,6 +40,7 @@ import org.apache.flink.streaming.runtime.io.StreamTaskNetworkInputFactory;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierHandler;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.io.checkpointing.InputProcessorUtil;
+import org.apache.flink.streaming.runtime.io.flushing.FlushEventHandler;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -65,6 +66,8 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamOperator<IN, OUT>> {
 
     @Nullable private CheckpointBarrierHandler checkpointBarrierHandler;
+
+    @Nullable private FlushEventHandler flushEventHandler;
 
     private final WatermarkGauge inputWatermarkGauge = new WatermarkGauge();
 
@@ -169,12 +172,17 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
                         mainMailboxExecutor,
                         systemTimerService);
 
+
+        flushEventHandler = InputProcessorUtil.createFlushEventHandler(this, getTaskNameWithSubtaskAndId());
+
+
         CheckpointedInputGate[] checkpointedInputGates =
                 InputProcessorUtil.createCheckpointedMultipleInputGate(
                         mainMailboxExecutor,
                         new List[] {Arrays.asList(inputGates)},
                         getEnvironment().getMetricGroup().getIOMetricGroup(),
                         checkpointBarrierHandler,
+                        flushEventHandler,
                         configuration);
 
         return Iterables.getOnlyElement(Arrays.asList(checkpointedInputGates));

@@ -13,6 +13,15 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 
+/**
+ * Example illustrating a windowed stream join between two data streams.
+ *
+ * <p>The example works on two input streams with pairs (name, grade) and (name, salary)
+ * respectively. It joins the streams based on "name" within a configurable window.
+ *
+ * <p>The example uses a built-in sample data generator that generates the streams of pairs at a
+ * configurable rate.
+ */
 public class AllowLatency {
     public static void main(String[] args) throws Exception {
 
@@ -28,28 +37,23 @@ public class AllowLatency {
         env.setRestartStrategy(RestartStrategies.noRestart());
         env.setParallelism(1);
         env.getConfig().setAutoWatermarkInterval(0);
-        env.getCheckpointConfig().disableCheckpointing();
-
+        env.getCheckpointConfig().setCheckpointInterval(3000);
         env.setStateBackend(new EmbeddedRocksDBStateBackend());
+        env.getConfig().setAllowedLatency(5000);
 
-        long dataNum = (long) 1e5;
+        long dataNum = (long) 3e8;
         if (params.has("dataNum")) {
             dataNum = Long.parseLong(params.get("dataNum"));
             System.out.println("Number of records: " + dataNum);
         }
-        long latency = (long) 50;
-        if (params.has("latency")) {
-            latency = Long.parseLong(params.get("latency"));
-            System.out.println("Allowed latency: " + latency + "ms");
-        }
-        DataStream<Integer> ds1 = env
-                .addSource(new MyJoinSource(dataNum, System.currentTimeMillis(), latency));
-//        ds1.print();
-        ds1.keyBy(value -> value).transform(
+
+        DataStream<Integer> ds1 = env.addSource(new MyJoinSource(dataNum));
+        //        ds1.print();
+        ds1.keyBy(value -> value)
+                .transform(
                         "MyAggregator",
                         new TupleTypeInfo<>(
-                                IntegerTypeInfo.INT_TYPE_INFO,
-                                IntegerTypeInfo.LONG_TYPE_INFO),
+                                IntegerTypeInfo.INT_TYPE_INFO, IntegerTypeInfo.LONG_TYPE_INFO),
                         new MyAggregator(value -> value))
                 .addSink(new CountingAndDiscardingSink<>());
 

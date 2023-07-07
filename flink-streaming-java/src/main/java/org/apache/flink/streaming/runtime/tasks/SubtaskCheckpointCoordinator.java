@@ -55,7 +55,13 @@ public interface SubtaskCheckpointCoordinator extends Closeable {
             long checkpointId, CheckpointException cause, OperatorChain<?, ?> operatorChain)
             throws IOException;
 
-    /** Must be called after {@link #initInputsCheckpoint(long, CheckpointOptions)}. */
+    void emitFlushEvent(
+            long flushEventID,
+            long flushEventTimeStamp,
+            OperatorChain<?, ?> operatorChain,
+            boolean isTaskFinished,
+            Supplier<Boolean> isRunning) throws Exception;
+
     void checkpointState(
             CheckpointMetaData checkpointMetaData,
             CheckpointOptions checkpointOptions,

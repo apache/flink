@@ -114,7 +114,7 @@ class CheckpointCoordinatorTriggeringTest extends TestLogger {
                             .setCheckpointCoordinatorConfiguration(
                                     checkpointCoordinatorConfiguration)
                             .setCompletedCheckpointStore(new StandaloneCompletedCheckpointStore(2))
-                            .setTimer(manuallyTriggeredScheduledExecutor)
+                            .setCheckpointTimer(manuallyTriggeredScheduledExecutor)
                             .build(graph);
 
             checkpointCoordinator.startCheckpointScheduler();
@@ -156,6 +156,78 @@ class CheckpointCoordinatorTriggeringTest extends TestLogger {
         }
     }
 
+    @Test
+    void testPeriodicFlushing() {
+        try {
+            final long start = System.currentTimeMillis();
+
+            CheckpointCoordinatorTestingUtils.FlushEventRecorderTaskManagerGateway gateway =
+                    new CheckpointCoordinatorTestingUtils.FlushEventRecorderTaskManagerGateway();
+
+            JobVertexID jobVertexID = new JobVertexID();
+            ExecutionGraph graph =
+                    new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                            .addJobVertex(jobVertexID)
+                            .setTaskManagerGateway(gateway)
+                            .build(EXECUTOR_RESOURCE.getExecutor());
+
+            ExecutionVertex vertex = graph.getJobVertex(jobVertexID).getTaskVertices()[0];
+            ExecutionAttemptID attemptID = vertex.getCurrentExecutionAttempt().getAttemptId();
+
+            CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration =
+                    new CheckpointCoordinatorConfigurationBuilder()
+                            .setCheckpointInterval(Long.MAX_VALUE)
+                            .setAlignedCheckpointTimeout(Long.MAX_VALUE)
+                            .setMaxConcurrentCheckpoints(Integer.MAX_VALUE)
+                            .setAllowedLatency(10) // periodic interval is 10 ms
+                            .build();
+
+            CheckpointCoordinator checkpointCoordinator =
+                    new CheckpointCoordinatorBuilder()
+                            .setCheckpointCoordinatorConfiguration(
+                                    checkpointCoordinatorConfiguration)
+                            .setFlushEventTimer(manuallyTriggeredScheduledExecutor)
+                            .build(graph);
+
+            checkpointCoordinator.startFlushEventScheduler();
+
+            for (int i = 0; i < 5; ++i) {
+                manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+                manuallyTriggeredScheduledExecutor.triggerAll();
+            }
+            checkRecordedTriggeredFlushEvents(5, start, gateway.getTriggeredFlushEvents(attemptID));
+
+            checkpointCoordinator.stopFlushEventScheduler();
+
+            // no further calls may come.
+            manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+            manuallyTriggeredScheduledExecutor.triggerAll();
+            assertThat(gateway.getTriggeredFlushEvents(attemptID).size()).isEqualTo(5);
+
+            // start another sequence of periodic scheduling
+            gateway.resetCount();
+            checkpointCoordinator.startFlushEventScheduler();
+
+            for (int i = 0; i < 5; ++i) {
+                manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+                manuallyTriggeredScheduledExecutor.triggerAll();
+            }
+            checkRecordedTriggeredFlushEvents(5, start, gateway.getTriggeredFlushEvents(attemptID));
+
+            checkpointCoordinator.stopFlushEventScheduler();
+
+            // no further calls may come
+            manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+            manuallyTriggeredScheduledExecutor.triggerAll();
+            assertThat(gateway.getTriggeredFlushEvents(attemptID).size()).isEqualTo(5);
+
+            checkpointCoordinator.shutdown();
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
+
     private void checkRecordedTriggeredCheckpoints(
             int numTrigger,
             long start,
@@ -178,6 +250,31 @@ class CheckpointCoordinatorTriggeringTest extends TestLogger {
 
             lastId = checkpoint.checkpointId;
             lastTs = checkpoint.timestamp;
+        }
+    }
+
+    private void checkRecordedTriggeredFlushEvents(
+            int numTrigger,
+            long start,
+            List<CheckpointCoordinatorTestingUtils.TriggeredFlushEvent> flushEvents) {
+        assertThat(flushEvents).hasSize(numTrigger);
+
+        long lastId = -1;
+        long lastTs = -1;
+
+        for (CheckpointCoordinatorTestingUtils.TriggeredFlushEvent flushEvent : flushEvents) {
+            assertThat(flushEvent.flushEventID)
+                    .as("Trigger checkpoint id should be in increase order")
+                    .isGreaterThan(lastId);
+            assertThat(flushEvent.timestamp)
+                    .as("Trigger checkpoint timestamp should be in increase order")
+                    .isGreaterThanOrEqualTo(lastTs);
+            assertThat(flushEvent.timestamp)
+                    .as("Trigger checkpoint timestamp should be larger than the start time")
+                    .isGreaterThanOrEqualTo(start);
+
+            lastId = flushEvent.flushEventID;
+            lastTs = flushEvent.timestamp;
         }
     }
 
@@ -497,7 +594,7 @@ class CheckpointCoordinatorTriggeringTest extends TestLogger {
                 .setCheckpointCoordinatorConfiguration(checkpointCoordinatorConfiguration)
                 .setCompletedCheckpointStore(checkpointStore)
                 .setCheckpointIDCounter(checkpointIDCounter)
-                .setTimer(manuallyTriggeredScheduledExecutor)
+                .setCheckpointTimer(manuallyTriggeredScheduledExecutor)
                 .build(graph);
     }
 
@@ -535,7 +632,7 @@ class CheckpointCoordinatorTriggeringTest extends TestLogger {
                 new CheckpointCoordinatorBuilder()
                         .setCheckpointCoordinatorConfiguration(checkpointCoordinatorConfiguration)
                         .setCompletedCheckpointStore(new StandaloneCompletedCheckpointStore(2))
-                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .setCheckpointTimer(manuallyTriggeredScheduledExecutor)
                         .build(graph);
 
         try {
@@ -641,6 +738,34 @@ class CheckpointCoordinatorTriggeringTest extends TestLogger {
     }
 
     @Test
+    void testTriggerFLushEventWithShuttingDownCoordinator() throws Exception {
+        // set up the coordinator and validate the initial state
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(new JobVertexID())
+                        .addJobVertex(new JobVertexID(), false)
+                        .setTransitToRunning(false)
+                        .build(EXECUTOR_RESOURCE.getExecutor());
+
+        CheckpointCoordinator checkpointCoordinator = new CheckpointCoordinatorBuilder()
+                .setCheckpointCoordinatorConfiguration(
+                        CheckpointCoordinatorConfiguration.builder()
+                                .setAllowedLatency(10)
+                                .setCheckpointInterval(Long.MAX_VALUE)
+                                .setAlignedCheckpointTimeout(Long.MAX_VALUE)
+                                .setMaxConcurrentCheckpoints(Integer.MAX_VALUE)
+                                .build())
+                .setFlushEventTimer(manuallyTriggeredScheduledExecutor)
+                .build(graph);
+
+        checkpointCoordinator.startFlushEventScheduler();
+        checkpointCoordinator.triggerFlushEvent();
+
+        checkpointCoordinator.shutdown();
+        manuallyTriggeredScheduledExecutor.triggerAll();
+    }
+
+    @Test
     void testTriggerCheckpointBeforePreviousOneCompleted() throws Exception {
         JobVertexID jobVertexID = new JobVertexID();
 
@@ -700,7 +825,7 @@ class CheckpointCoordinatorTriggeringTest extends TestLogger {
         CheckpointCoordinator checkpointCoordinator =
                 new CheckpointCoordinatorBuilder()
                         .setCheckpointIDCounter(new UnstableCheckpointIDCounter(id -> id == 0))
-                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .setCheckpointTimer(manuallyTriggeredScheduledExecutor)
                         .build(graph);
 
         checkpointCoordinator.startCheckpointScheduler();
@@ -792,7 +917,7 @@ class CheckpointCoordinatorTriggeringTest extends TestLogger {
         CheckpointCoordinator checkpointCoordinator =
                 new CheckpointCoordinatorBuilder()
                         .setCheckpointIDCounter(new UnstableCheckpointIDCounter(id -> id == 0))
-                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .setCheckpointTimer(manuallyTriggeredScheduledExecutor)
                         .build(EXECUTOR_RESOURCE.getExecutor());
 
         checkpointCoordinator.startCheckpointScheduler();
@@ -883,7 +1008,7 @@ class CheckpointCoordinatorTriggeringTest extends TestLogger {
                 Executors.newSingleThreadScheduledExecutor();
         final CheckpointCoordinator checkpointCoordinator =
                 new CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder()
-                        .setTimer(new ScheduledExecutorServiceAdapter(scheduledExecutorService))
+                        .setCheckpointTimer(new ScheduledExecutorServiceAdapter(scheduledExecutorService))
                         .setCheckpointCoordinatorConfiguration(
                                 CheckpointCoordinatorConfiguration.builder().build())
                         // Since timer thread != main thread we should override the default main
@@ -933,14 +1058,14 @@ class CheckpointCoordinatorTriggeringTest extends TestLogger {
 
     private CheckpointCoordinator createCheckpointCoordinator() throws Exception {
         return new CheckpointCoordinatorBuilder()
-                .setTimer(manuallyTriggeredScheduledExecutor)
+                .setCheckpointTimer(manuallyTriggeredScheduledExecutor)
                 .build(EXECUTOR_RESOURCE.getExecutor());
     }
 
     private CheckpointCoordinator createCheckpointCoordinator(ExecutionGraph graph)
             throws Exception {
         return new CheckpointCoordinatorBuilder()
-                .setTimer(manuallyTriggeredScheduledExecutor)
+                .setCheckpointTimer(manuallyTriggeredScheduledExecutor)
                 .build(graph);
     }
 

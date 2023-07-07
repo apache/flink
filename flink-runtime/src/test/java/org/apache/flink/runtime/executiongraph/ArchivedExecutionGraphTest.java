@@ -106,6 +106,7 @@ public class ArchivedExecutionGraphTest {
                         true,
                         false,
                         0,
+                        0,
                         0);
         JobCheckpointingSettings checkpointingSettings =
                 new JobCheckpointingSettings(chkConfig, null);

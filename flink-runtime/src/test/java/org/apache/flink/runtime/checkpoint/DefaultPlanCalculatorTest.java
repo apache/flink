@@ -61,12 +61,12 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /**
- * Declarative tests for {@link DefaultCheckpointPlanCalculator}.
+ * Declarative tests for {@link DefaultPlanCalculator}.
  *
  * <p>This test contains a framework for declaring vertex and edge states to then assert the
  * calculator behavior.
  */
-public class DefaultCheckpointPlanCalculatorTest {
+public class DefaultPlanCalculatorTest {
 
     @ClassRule
     public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
@@ -187,11 +187,11 @@ public class DefaultCheckpointPlanCalculatorTest {
             // The second vertex is everything except RUNNING.
             transitVertexToState(graph, notRunningVertex, notRunningState);
 
-            DefaultCheckpointPlanCalculator checkpointPlanCalculator =
+            DefaultPlanCalculator checkpointPlanCalculator =
                     createCheckpointPlanCalculator(graph);
 
             try {
-                checkpointPlanCalculator.calculateCheckpointPlan().get();
+                checkpointPlanCalculator.calculateEventPlan().get();
                 fail(
                         "The computation should fail since some tasks to trigger are in "
                                 + notRunningState
@@ -244,7 +244,7 @@ public class DefaultCheckpointPlanCalculatorTest {
             throws Exception {
 
         ExecutionGraph graph = createExecutionGraph(vertexDeclarations, edgeDeclarations);
-        DefaultCheckpointPlanCalculator planCalculator = createCheckpointPlanCalculator(graph);
+        DefaultPlanCalculator planCalculator = createCheckpointPlanCalculator(graph);
 
         List<TaskDeclaration> expectedRunningTaskDeclarations = new ArrayList<>();
         List<ExecutionJobVertex> expectedFullyFinishedJobVertices = new ArrayList<>();
@@ -277,7 +277,7 @@ public class DefaultCheckpointPlanCalculatorTest {
 
         // Tests computing checkpoint plan(isUnalignedCheckpoint flag doesn't influence on result
         // because all tasks are in RUNNING state here).
-        CheckpointPlan checkpointPlan = planCalculator.calculateCheckpointPlan().get();
+        CheckpointPlan checkpointPlan = (CheckpointPlan) planCalculator.calculateEventPlan().get();
         checkCheckpointPlan(
                 expectedToTriggerTasks,
                 expectedRunningTasks,
@@ -334,8 +334,8 @@ public class DefaultCheckpointPlanCalculatorTest {
         return graph;
     }
 
-    private DefaultCheckpointPlanCalculator createCheckpointPlanCalculator(ExecutionGraph graph) {
-        DefaultCheckpointPlanCalculator checkpointPlanCalculator =
+    private DefaultPlanCalculator createCheckpointPlanCalculator(ExecutionGraph graph) {
+        DefaultPlanCalculator checkpointPlanCalculator =
                 new DefaultCheckpointPlanCalculator(
                         graph.getJobID(),
                         new ExecutionGraphCheckpointPlanCalculatorContext(graph),

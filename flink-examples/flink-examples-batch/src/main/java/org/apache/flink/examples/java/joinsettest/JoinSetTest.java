@@ -17,18 +17,18 @@ import java.util.Iterator;
 import java.util.Random;
 
 /**
- * Implements the "JoinTest" program to test the performance of join operator in batch mode and stream mode.
+ * Implements the "JoinTest" program to test the performance of join operator in batch mode and
+ * stream mode.
  *
- * <p>Usage: <code>JoinTest --batch &lt; --dataNum &lt;</code>
- * If no parameters are provided, the program is run with 5e5 records in stream mode.
+ * <p>Usage: <code>JoinTest --batch &lt; --dataNum &lt;</code> If no parameters are provided, the
+ * program is run with 5e5 records in stream mode.
  */
 public class JoinSetTest {
     public static void main(String[] args) throws Exception {
 
         final MultipleParameterTool params = MultipleParameterTool.fromArgs(args);
 
-        final ExecutionEnvironment env =
-                ExecutionEnvironment.getExecutionEnvironment();
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         env.getConfig().enableObjectReuse();
         env.getConfig().disableGenericTypes();
@@ -48,38 +48,40 @@ public class JoinSetTest {
         }
         DataSet<Integer> ds1 =
                 env.fromCollection(
-                        new DataGenerator(dataNum, System.currentTimeMillis()),
-                        Types.INT);
+                        new DataGenerator(dataNum, System.currentTimeMillis()), Types.INT);
         DataSet<Integer> ds2 =
                 env.fromCollection(
-                        new DataGenerator(dataNum, System.currentTimeMillis()),
-                        Types.INT);
+                        new DataGenerator(dataNum, System.currentTimeMillis()), Types.INT);
 
         ds1.coGroup(ds2)
                 .where(Integer::intValue)
                 .equalTo(Integer::intValue)
-                .with(new CoGroupFunction<Integer, Integer, Integer>() {
-                    @Override
-                    public void coGroup(
-                            Iterable<Integer> first,
-                            Iterable<Integer> second,
-                            Collector<Integer> out) throws Exception {
-                        out.collect(1);
-                    }
-//                    @Override
-//                    public Integer (Integer first, Integer second) throws Exception {
-//                        return 1;
-//                    }
+                .with(
+                        new CoGroupFunction<Integer, Integer, Integer>() {
+                            @Override
+                            public void coGroup(
+                                    Iterable<Integer> first,
+                                    Iterable<Integer> second,
+                                    Collector<Integer> out)
+                                    throws Exception {
+                                out.collect(1);
+                            }
+                            //                    @Override
+                            //                    public Integer (Integer first, Integer second)
+                            // throws Exception {
+                            //                        return 1;
+                            //                    }
 
-//                    @Override
-//                    public void join(
-//                            Integer first,
-//                            Integer second,
-//                            Collector<Integer> out) throws Exception {
-////                        System.out.println(first + " " + second);
-//                        out.collect(1);
-//                    }
-                }).write(new CountingAndDiscardingSink(), "/tmp");
+                            //                    @Override
+                            //                    public void join(
+                            //                            Integer first,
+                            //                            Integer second,
+                            //                            Collector<Integer> out) throws Exception {
+                            ////                        System.out.println(first + " " + second);
+                            //                        out.collect(1);
+                            //                    }
+                        })
+                .write(new CountingAndDiscardingSink(), "/tmp");
 
         long startTime = System.currentTimeMillis();
         JobExecutionResult executionResult = env.execute("Flink Benchmark Job");
@@ -91,9 +93,9 @@ public class JoinSetTest {
     }
 
     /**
-     * A set sink that counts the number of all elements. The counting result is stored in an
-     * {@link org.apache.flink.api.common.accumulators.Accumulator} specified by {@link
-     * #COUNTER_NAME} and can be acquired by {@link
+     * A set sink that counts the number of all elements. The counting result is stored in an {@link
+     * org.apache.flink.api.common.accumulators.Accumulator} specified by {@link #COUNTER_NAME} and
+     * can be acquired by {@link
      * org.apache.flink.api.common.JobExecutionResult#getAccumulatorResult(String)}.
      */
     private static class CountingAndDiscardingSink extends FileOutputFormat<Integer> {
@@ -113,8 +115,7 @@ public class JoinSetTest {
         }
     }
 
-    private static class DataGenerator
-            implements Iterator<Integer>, Serializable {
+    private static class DataGenerator implements Iterator<Integer>, Serializable {
         private Random random;
         private final long numValues;
         private int numPreGeneratedData;

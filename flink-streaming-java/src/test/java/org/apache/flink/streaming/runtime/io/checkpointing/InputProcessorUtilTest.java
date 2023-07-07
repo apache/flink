@@ -34,6 +34,7 @@ import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.runtime.io.flushing.FlushEventHandler;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.TestSubtaskCheckpointCoordinator;
 import org.apache.flink.streaming.util.MockStreamTask;
@@ -81,12 +82,17 @@ public class InputProcessorUtilTest {
                             new SyncMailboxExecutor(),
                             new TestProcessingTimeService());
 
+            FlushEventHandler flushEventHandler = InputProcessorUtil.createFlushEventHandler(
+                    streamTask,
+                    streamTask.getName());
+
             CheckpointedInputGate[] checkpointedMultipleInputGate =
                     InputProcessorUtil.createCheckpointedMultipleInputGate(
                             new SyncMailboxExecutor(),
                             inputGates,
                             environment.getMetricGroup().getIOMetricGroup(),
                             barrierHandler,
+                            flushEventHandler,
                             streamConfig);
 
             for (CheckpointedInputGate checkpointedInputGate : checkpointedMultipleInputGate) {

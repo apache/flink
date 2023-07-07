@@ -40,6 +40,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 import org.apache.flink.streaming.runtime.io.MockInputGate;
+import org.apache.flink.streaming.runtime.io.flushing.FlushEventHandler;
 import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.ManualClock;
 import org.apache.flink.util.clock.SystemClock;
@@ -836,6 +837,7 @@ public class CheckpointBarrierTrackerTest {
                 inputGate,
                 new CheckpointBarrierTracker(
                         inputGate.getNumberOfInputChannels(), toNotifyOnCheckpoint, clock, true),
+                new FlushEventHandler(new DummyCheckpointInvokable(),"test"),
                 new SyncMailboxExecutor());
     }
 

@@ -38,7 +38,9 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.TestInputChannel;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
+import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 import org.apache.flink.streaming.runtime.io.checkpointing.BarrierAlignmentUtil.Cancellable;
+import org.apache.flink.streaming.runtime.io.flushing.FlushEventHandler;
 import org.apache.flink.streaming.util.TestCheckpointedInputGateBuilder;
 import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.ManualClock;
@@ -1336,7 +1338,11 @@ public class AlternatingCheckpointsTest {
         SingleCheckpointBarrierHandler barrierHandler =
                 getTestBarrierHandlerFactory(target).create(gate);
         CheckpointedInputGate checkpointedGate =
-                new CheckpointedInputGate(gate, barrierHandler, new SyncMailboxExecutor());
+                new CheckpointedInputGate(
+                        gate,
+                        barrierHandler,
+                        new FlushEventHandler(new DummyCheckpointInvokable(),"test"),
+                        new SyncMailboxExecutor());
 
         if (checkpointType.isSavepoint()) {
             fast.setBlocked(true);

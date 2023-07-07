@@ -40,6 +40,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 import org.apache.flink.streaming.runtime.io.MockInputGate;
+import org.apache.flink.streaming.runtime.io.flushing.FlushEventHandler;
 import org.apache.flink.util.clock.SystemClock;
 
 import org.hamcrest.BaseMatcher;
@@ -154,6 +155,7 @@ public class AlignedCheckpointsTest {
                         (callable, duration) -> () -> {},
                         enableCheckpointsAfterTasksFinish,
                         gate),
+                new FlushEventHandler(new DummyCheckpointInvokable(),"test"),
                 new SyncMailboxExecutor());
     }
 

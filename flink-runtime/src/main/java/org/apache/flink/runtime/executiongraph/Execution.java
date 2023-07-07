@@ -856,6 +856,16 @@ public class Execution
     }
 
     /**
+     * Emit a flush event on the task of this excution.
+     * @param flushEventId of the flush event to emit
+     * @param timestamp of the flush event to emit
+     * @return Future acknowledge which is returned once the flush function has been triggered on receiving the flush event
+     */
+    public CompletableFuture<Acknowledge> triggerFlushEvent(long flushEventId, long timestamp) {
+        return triggerFlushEventHelper(flushEventId, timestamp);
+    }
+
+    /**
      * Trigger a new checkpoint on the task of this execution.
      *
      * @param checkpointId of th checkpoint to trigger
@@ -878,6 +888,21 @@ public class Execution
 
             return taskManagerGateway.triggerCheckpoint(
                     attemptId, getVertex().getJobId(), checkpointId, timestamp, checkpointOptions);
+        }
+        LOG.debug(
+                "The execution has no slot assigned. This indicates that the execution is no longer running.");
+        return CompletableFuture.completedFuture(Acknowledge.get());
+    }
+
+    private CompletableFuture<Acknowledge> triggerFlushEventHelper(long flushEventId, long timestamp) {
+
+        final LogicalSlot slot = assignedResource;
+
+        if (slot != null) {
+            final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
+
+            return taskManagerGateway.triggerFlushEvent(
+                    attemptId, getVertex().getJobId(), flushEventId, timestamp);
         }
         LOG.debug(
                 "The execution has no slot assigned. This indicates that the execution is no longer running.");

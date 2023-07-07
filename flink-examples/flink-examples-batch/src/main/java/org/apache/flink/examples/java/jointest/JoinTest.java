@@ -16,10 +16,11 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.util.Collector;
 
 /**
- * Implements the "JoinTest" program to test the performance of join operator in batch mode and stream mode.
+ * Implements the "JoinTest" program to test the performance of join operator in batch mode and
+ * stream mode.
  *
- * <p>Usage: <code>JoinTest --batch &lt; --dataNum &lt;</code>
- * If no parameters are provided, the program is run with 5e5 records in stream mode.
+ * <p>Usage: <code>JoinTest --batch &lt; --dataNum &lt;</code> If no parameters are provided, the
+ * program is run with 5e5 records in stream mode.
  */
 public class JoinTest {
     public static void main(String[] args) throws Exception {
@@ -69,29 +70,33 @@ public class JoinTest {
         ds1.coGroup(ds2)
                 .where(value -> value)
                 .equalTo(value -> value)
-//                .window(GlobalWindows.create())
+                //                .window(GlobalWindows.create())
                 .window(EndOfStreamWindow.get())
-                .apply(new CoGroupFunction<Integer, Integer, Integer>() {
-                    @Override
-                    public void coGroup(
-                            Iterable<Integer> first,
-                            Iterable<Integer> second,
-                            Collector<Integer> out) throws Exception {
-                        out.collect(1);
-                    }
-//                    @Override
-//                    public Integer join(Integer first, Integer second) throws Exception {
-//                        return 1;
-//                    }
-//                    @Override
-//                    public void join(
-//                            Integer first,
-//                            Integer second,
-//                            Collector<Integer> out) throws Exception {
-////                        System.out.println(first + " " + second);
-//                        out.collect(1);
-//                    }
-                }).addSink(new CountingAndDiscardingSink<>());
+                .apply(
+                        new CoGroupFunction<Integer, Integer, Integer>() {
+                            @Override
+                            public void coGroup(
+                                    Iterable<Integer> first,
+                                    Iterable<Integer> second,
+                                    Collector<Integer> out)
+                                    throws Exception {
+                                out.collect(1);
+                            }
+                            //                    @Override
+                            //                    public Integer join(Integer first, Integer second)
+                            // throws Exception {
+                            //                        return 1;
+                            //                    }
+                            //                    @Override
+                            //                    public void join(
+                            //                            Integer first,
+                            //                            Integer second,
+                            //                            Collector<Integer> out) throws Exception {
+                            ////                        System.out.println(first + " " + second);
+                            //                        out.collect(1);
+                            //                    }
+                        })
+                .addSink(new CountingAndDiscardingSink<>());
 
         long startTime = System.currentTimeMillis();
         JobExecutionResult executionResult = env.execute("");

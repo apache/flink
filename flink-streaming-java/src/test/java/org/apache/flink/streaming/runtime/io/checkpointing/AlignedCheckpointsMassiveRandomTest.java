@@ -29,6 +29,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
+import org.apache.flink.streaming.runtime.io.flushing.FlushEventHandler;
 import org.apache.flink.util.clock.SystemClock;
 
 import org.junit.Test;
@@ -79,6 +80,7 @@ public class AlignedCheckpointsMassiveRandomTest {
                                     (callable, duration) -> () -> {},
                                     true,
                                     myIG),
+                            new FlushEventHandler(new DummyCheckpointInvokable(),"test"),
                             new SyncMailboxExecutor());
 
             for (int i = 0; i < 2000000; i++) {

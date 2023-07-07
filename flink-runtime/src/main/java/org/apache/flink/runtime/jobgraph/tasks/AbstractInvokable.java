@@ -25,6 +25,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.io.network.api.FlushEvent;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.taskmanager.Task;
@@ -168,6 +169,18 @@ public abstract class AbstractInvokable
         throw new UnsupportedOperationException(
                 String.format(
                         "triggerCheckpointAsync not supported by %s", this.getClass().getName()));
+    }
+
+    @Override
+    public CompletableFuture<Boolean> triggerFlushEventAsync(
+            long flushEventID,
+            long flushEventTimeStamp) {
+        throw new UnsupportedOperationException("should never be called");
+    }
+
+    @Override
+    public void triggerFlushEventOnEvent(FlushEvent flushEvent) {
+        throw new UnsupportedOperationException("should never be called");
     }
 
     @Override

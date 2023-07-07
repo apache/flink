@@ -29,8 +29,10 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.TestInputChannel;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
+import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.io.checkpointing.TestBarrierHandlerFactory;
+import org.apache.flink.streaming.runtime.io.flushing.FlushEventHandler;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxProcessor;
 import org.apache.flink.util.function.SupplierWithException;
 
@@ -103,7 +105,10 @@ public class TestCheckpointedInputGateBuilder {
         SingleInputGate gate = gateBuilder.get();
 
         return new CheckpointedInputGate(
-                gate, barrierHandlerFactory.create(gate, channelStateWriter), mailboxExecutor);
+                gate,
+                barrierHandlerFactory.create(gate, channelStateWriter),
+                new FlushEventHandler(new DummyCheckpointInvokable(),"test"),
+                mailboxExecutor);
     }
 
     private SingleInputGate buildTestGate() {

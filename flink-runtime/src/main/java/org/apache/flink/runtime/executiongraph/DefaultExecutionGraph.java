@@ -38,12 +38,13 @@ import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureManager;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
-import org.apache.flink.runtime.checkpoint.CheckpointPlanCalculator;
+import org.apache.flink.runtime.checkpoint.DefaultCheckpointPlanCalculator;
+import org.apache.flink.runtime.checkpoint.DefaultFlushPlanCalculator;
+import org.apache.flink.runtime.checkpoint.PlanCalculator;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
-import org.apache.flink.runtime.checkpoint.DefaultCheckpointPlanCalculator;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.checkpoint.OperatorCoordinatorCheckpointContext;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -254,6 +255,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     /** TODO, replace it with main thread executor. */
     @Nullable private ScheduledExecutorService checkpointCoordinatorTimer;
+
+    @Nullable private ScheduledExecutorService flushEventTimer;
 
     /**
      * Checkpoint stats tracker separate from the coordinator in order to be available after
@@ -480,11 +483,15 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                         });
 
         checkState(checkpointCoordinatorTimer == null);
+        checkState(flushEventTimer == null);
 
         checkpointCoordinatorTimer =
                 Executors.newSingleThreadScheduledExecutor(
                         new DispatcherThreadFactory(
                                 Thread.currentThread().getThreadGroup(), "Checkpoint Timer"));
+        flushEventTimer = Executors.newSingleThreadScheduledExecutor(
+                new DispatcherThreadFactory(
+                        Thread.currentThread().getThreadGroup(), "Flush Event Timer"));
 
         // create the coordinator that triggers and commits checkpoints and holds the state
         checkpointCoordinator =
@@ -501,7 +508,9 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                         failureManager,
                         createCheckpointPlanCalculator(
                                 chkConfig.isEnableCheckpointsAfterTasksFinish()),
-                        checkpointStatsTracker);
+                        checkpointStatsTracker,
+                        new ScheduledExecutorServiceAdapter(flushEventTimer),
+                        createFlushPlanCalculator());
 
         // register the master hooks on the checkpoint coordinator
         for (MasterTriggerRestoreHook<?> hook : masterHooks) {
@@ -512,7 +521,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
             }
         }
 
-        if (checkpointCoordinator.isPeriodicCheckpointingConfigured()) {
+        if (checkpointCoordinator.isPeriodicCheckpointingConfigured() || checkpointCoordinator.isAllowedLatencyConfigured()) {
             // the periodic checkpoint scheduler is activated and deactivated as a result of
             // job status changes (running -> on, all other states -> off)
             registerJobStatusListener(checkpointCoordinator.createActivatorDeactivator());
@@ -527,13 +536,20 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         this.changelogStorageName = changelogStorageName;
     }
 
-    private CheckpointPlanCalculator createCheckpointPlanCalculator(
+    private PlanCalculator createCheckpointPlanCalculator(
             boolean enableCheckpointsAfterTasksFinish) {
         return new DefaultCheckpointPlanCalculator(
                 getJobID(),
                 new ExecutionGraphCheckpointPlanCalculatorContext(this),
                 getVerticesTopologically(),
                 enableCheckpointsAfterTasksFinish);
+    }
+
+    private PlanCalculator createFlushPlanCalculator() {
+        return new DefaultFlushPlanCalculator(
+                getJobID(),
+                new ExecutionGraphCheckpointPlanCalculatorContext(this),
+                getVerticesTopologically());
     }
 
     @Override
@@ -1335,6 +1351,10 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
             if (checkpointCoordinatorTimer != null) {
                 checkpointCoordinatorTimer.shutdownNow();
                 checkpointCoordinatorTimer = null;
+            }
+            if (flushEventTimer != null) {
+                flushEventTimer.shutdownNow();
+                flushEventTimer = null;
             }
         } catch (Exception e) {
             LOG.error("Error while cleaning up after execution", e);

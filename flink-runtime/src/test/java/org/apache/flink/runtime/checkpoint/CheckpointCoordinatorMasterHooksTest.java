@@ -482,6 +482,7 @@ class CheckpointCoordinatorMasterHooksTest {
                         true,
                         false,
                         0,
+                        0,
                         0);
         Executor executor = Executors.directExecutor();
         return new CheckpointCoordinator(
@@ -500,7 +501,12 @@ class CheckpointCoordinatorMasterHooksTest {
                         new ExecutionGraphCheckpointPlanCalculatorContext(graph),
                         graph.getVerticesTopologically(),
                         false),
-                new CheckpointStatsTracker(1, new DummyMetricGroup()));
+                new CheckpointStatsTracker(1, new DummyMetricGroup()),
+                new ManuallyTriggeredScheduledExecutor(),
+                new DefaultFlushPlanCalculator(
+                        graph.getJobID(),
+                        new ExecutionGraphCheckpointPlanCalculatorContext(graph),
+                        graph.getVerticesTopologically()));
     }
 
     private static <T> T mockGeneric(Class<?> clazz) {
