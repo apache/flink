@@ -740,6 +740,65 @@ show columns from orders not like '%_r';
 4 rows in set
 ```
 
+## SHOW PARTITIONS
+
+```sql
+SHOW PARTITIONS [[catalog_name.]database.]<table_name> [ PARTITION <partition_spec>]
+
+<partition_spec>:
+  (key1=val1, key2=val2, ...)
+```
+
+展示给定分区表的所有分区。
+
+**PARTITION**
+根据可选的 `PARTITION` 语句展示给定分区表中在指定的 `<partition_spec>` 分区下的所有分区。
+
+### SHOW PARTITIONS 示例
+
+假定在 `catalog1` catalog 中的 `database1` 数据库中有名为 `table1` 的分区表，其包含的所有分区如下所示：
+
+```sql
++---------+-----------------------------+
+|      id |                        date |
++---------+-----------------------------+
+|    1001 |                  2020-01-01 |
+|    1002 |                  2020-01-01 |
+|    1002 |                  2020-01-02 |
++---------+-----------------------------+
+```
+
+- 显示指定分区表中的所有分区。
+
+```sql
+show partitions table1;
+-- show partitions database1.table1;
+-- show partitions catalog1.database1.table1;
++---------+-----------------------------+
+|      id |                        date |
++---------+-----------------------------+
+|    1001 |                  2020-01-01 |
+|    1002 |                  2020-01-01 |
+|    1002 |                  2020-01-02 |
++---------+-----------------------------+
+3 rows in set
+```
+
+- 显示指定分区表在指定分区下的所有分区。
+
+```sql
+show partitions table1 partition (id=1002);
+-- show partitions database1.table1 partition (id=1002);
+-- show partitions catalog1.database1.table1 partition (id=1002);
++---------+-----------------------------+
+|      id |                        date |
++---------+-----------------------------+
+|    1002 |                  2020-01-01 |
+|    1002 |                  2020-01-02 |
++---------+-----------------------------+
+2 rows in set
+```
+
 ## SHOW VIEWS
 
 ```sql
