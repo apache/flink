@@ -24,14 +24,14 @@ import java.util.UUID;
 
 /**
  * {@code DefaultLeaderElection} implements the {@link LeaderElection} based on the {@link
- * AbstractLeaderElectionService}.
+ * ParentService}.
  */
 class DefaultLeaderElection implements LeaderElection {
 
-    private final AbstractLeaderElectionService parentService;
+    private final ParentService parentService;
     private final String contenderID;
 
-    DefaultLeaderElection(AbstractLeaderElectionService parentService, String contenderID) {
+    DefaultLeaderElection(ParentService parentService, String contenderID) {
         this.parentService = parentService;
         this.contenderID = contenderID;
     }
@@ -55,5 +55,41 @@ class DefaultLeaderElection implements LeaderElection {
     @Override
     public void close() throws Exception {
         parentService.remove(contenderID);
+    }
+
+    /**
+     * {@link ParentService} defines the protocol between any implementing class and {@code
+     * DefaultLeaderElection}.
+     */
+    abstract static class ParentService {
+
+        /**
+         * Registers the {@link LeaderContender} under the {@code contenderID} with the underlying
+         * {@code ParentService}. Leadership changes are starting to be reported to the {@code
+         * LeaderContender}.
+         */
+        abstract void register(String contenderID, LeaderContender contender) throws Exception;
+
+        /**
+         * Removes the {@code LeaderContender} from the {@code ParentService} that is associated
+         * with the {@code contenderID}.
+         */
+        abstract void remove(String contenderID);
+
+        /**
+         * Confirms the leadership with the {@code leaderSessionID} and {@code leaderAddress} for
+         * the {@link LeaderContender} that is associated with the {@code contenderID}.
+         */
+        abstract void confirmLeadership(
+                String contenderID, UUID leaderSessionID, String leaderAddress);
+
+        /**
+         * Checks whether the {@code ParentService} has the leadership acquired for the {@code
+         * contenderID} and {@code leaderSessionID}.
+         *
+         * @return {@code true} if the service has leadership with the passed {@code
+         *     leaderSessionID} acquired; {@code false} otherwise.
+         */
+        abstract boolean hasLeadership(String contenderID, UUID leaderSessionID);
     }
 }

@@ -41,7 +41,7 @@ class DefaultLeaderElectionTest {
     void testContenderRegistration() throws Exception {
         final AtomicReference<String> contenderIDRef = new AtomicReference<>();
         final AtomicReference<LeaderContender> contenderRef = new AtomicReference<>();
-        final AbstractLeaderElectionService parentService =
+        final DefaultLeaderElection.ParentService parentService =
                 TestingAbstractLeaderElectionService.newBuilder()
                         .setRegisterConsumer(
                                 (actualContenderID, actualContender) -> {
@@ -75,7 +75,7 @@ class DefaultLeaderElectionTest {
     void testContenderRegistrationFailure() throws Exception {
         final Exception expectedException =
                 new Exception("Expected exception during contender registration.");
-        final AbstractLeaderElectionService parentService =
+        final DefaultLeaderElection.ParentService parentService =
                 TestingAbstractLeaderElectionService.newBuilder()
                         .setRegisterConsumer(
                                 (actualContenderID, actualContender) -> {
@@ -97,7 +97,7 @@ class DefaultLeaderElectionTest {
         final AtomicReference<String> contenderIDRef = new AtomicReference<>();
         final AtomicReference<UUID> leaderSessionIDRef = new AtomicReference<>();
         final AtomicReference<String> leaderAddressRef = new AtomicReference<>();
-        final AbstractLeaderElectionService parentService =
+        final DefaultLeaderElection.ParentService parentService =
                 TestingAbstractLeaderElectionService.newBuilder()
                         .setConfirmLeadershipConsumer(
                                 (contenderID, leaderSessionID, address) -> {
@@ -122,7 +122,7 @@ class DefaultLeaderElectionTest {
     @Test
     void testClose() throws Exception {
         final CompletableFuture<String> actualContenderID = new CompletableFuture<>();
-        final AbstractLeaderElectionService parentService =
+        final DefaultLeaderElection.ParentService parentService =
                 TestingAbstractLeaderElectionService.newBuilder()
                         .setRegisterConsumer((ignoredContenderID, ignoredContender) -> {})
                         .setRemoveConsumer(actualContenderID::complete)
@@ -140,7 +140,7 @@ class DefaultLeaderElectionTest {
     @Test
     void testCloseWithoutStart() throws Exception {
         final CompletableFuture<String> actualContenderID = new CompletableFuture<>();
-        final AbstractLeaderElectionService parentService =
+        final DefaultLeaderElection.ParentService parentService =
                 TestingAbstractLeaderElectionService.newBuilder()
                         .setRemoveConsumer(actualContenderID::complete)
                         .build();
@@ -167,7 +167,7 @@ class DefaultLeaderElectionTest {
     private void testHasLeadership(boolean expectedReturnValue) throws Exception {
         final AtomicReference<String> contenderIDRef = new AtomicReference<>();
         final AtomicReference<UUID> leaderSessionIDRef = new AtomicReference<>();
-        final AbstractLeaderElectionService parentService =
+        final DefaultLeaderElection.ParentService parentService =
                 TestingAbstractLeaderElectionService.newBuilder()
                         .setHasLeadershipFunction(
                                 (actualContenderID, actualLeaderSessionID) -> {
@@ -188,7 +188,7 @@ class DefaultLeaderElectionTest {
     }
 
     private static class TestingAbstractLeaderElectionService
-            extends AbstractLeaderElectionService {
+            extends DefaultLeaderElection.ParentService {
 
         private final BiConsumerWithException<String, LeaderContender, Exception> registerConsumer;
         private final Consumer<String> removeConsumer;
