@@ -58,8 +58,8 @@ class DefaultLeaderElection implements LeaderElection {
     }
 
     /**
-     * {@link ParentService} defines the protocol between {@link LeaderElectionService} and {@link
-     * LeaderElection}.
+     * {@link ParentService} defines the protocol between {@code ParentService} and {@code
+     * DefaultLeaderElection}.
      */
     static abstract class ParentService {
 
