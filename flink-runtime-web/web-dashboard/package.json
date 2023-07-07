@@ -72,7 +72,7 @@
     "postcss-less": "^6.0.0",
     "prettier": "^2.4.1",
     "protractor": "~7.0.0",
-    "stylelint": "^14.0.1",
+    "stylelint": "^15.10.1",
     "stylelint-config-hudochenkov": "^6.0.1",
     "stylelint-config-prettier": "^9.0.3",
     "stylelint-config-standard": "^24.0.0",
