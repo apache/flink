@@ -227,7 +227,7 @@ class ZooKeeperLeaderElectionDriverTest {
                                                     LeaderElectionEvent.LeaderInformationChangeEvent
                                                             .class);
 
-                            assertThat(leaderInformationChangeEvent.getContenderID())
+                            assertThat(leaderInformationChangeEvent.getComponentId())
                                     .isEqualTo(componentId);
                             assertThat(leaderInformationChangeEvent.getLeaderInformation())
                                     .isEqualTo(leaderInformation);
@@ -328,7 +328,7 @@ class ZooKeeperLeaderElectionDriverTest {
                                             leaderElectionListener.await(
                                                     LeaderElectionEvent.LeaderInformationChangeEvent
                                                             .class);
-                            assertThat(leaderInformationChangeEvent.getContenderID())
+                            assertThat(leaderInformationChangeEvent.getComponentId())
                                     .isEqualTo(componentId);
                             assertThat(leaderInformationChangeEvent.getLeaderInformation())
                                     .isEqualTo(LeaderInformation.empty());

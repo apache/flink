@@ -80,11 +80,11 @@ public abstract class LeaderElectionEvent {
     }
 
     public static class LeaderInformationChangeEvent extends LeaderElectionEvent {
-        private final String contenderID;
+        private final String componentId;
         private final LeaderInformation leaderInformation;
 
-        LeaderInformationChangeEvent(String contenderID, LeaderInformation leaderInformation) {
-            this.contenderID = contenderID;
+        LeaderInformationChangeEvent(String componentId, LeaderInformation leaderInformation) {
+            this.componentId = componentId;
             this.leaderInformation = leaderInformation;
         }
 
@@ -92,8 +92,8 @@ public abstract class LeaderElectionEvent {
             return leaderInformation;
         }
 
-        public String getContenderID() {
-            return contenderID;
+        public String getComponentId() {
+            return componentId;
         }
 
         @Override
