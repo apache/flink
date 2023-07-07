@@ -174,12 +174,12 @@ class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabilityTestB
                                                             .AllLeaderInformationChangeEvent.class)
                                             .getLeaderInformationRegister();
 
-                            assertThat(leaderInformationRegister.getRegisteredContenderIDs())
+                            assertThat(leaderInformationRegister.getRegisteredComponentIds())
                                     .containsExactly(contenderID);
 
                             final LeaderInformation expectedFaultyLeaderInformation =
                                     LeaderInformation.known(faultySessionID, faultyAddress);
-                            assertThat(leaderInformationRegister.forContenderID(contenderID))
+                            assertThat(leaderInformationRegister.forComponentId(contenderID))
                                     .hasValue(expectedFaultyLeaderInformation);
 
                             leaderElectionDriver.publishLeaderInformation(

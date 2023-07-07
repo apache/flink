@@ -30,218 +30,218 @@ class LeaderInformationRegisterTest {
 
     @Test
     void testOfWithKnownLeaderInformation() {
-        final String contenderID = "contender-id";
+        final String componentId = "component-id";
         final LeaderInformation leaderInformation =
                 LeaderInformation.known(UUID.randomUUID(), "address");
 
         final LeaderInformationRegister testInstance =
-                LeaderInformationRegister.of(contenderID, leaderInformation);
-        assertThat(testInstance.getRegisteredContenderIDs()).containsExactly(contenderID);
-        assertThat(testInstance.forContenderID(contenderID)).hasValue(leaderInformation);
+                LeaderInformationRegister.of(componentId, leaderInformation);
+        assertThat(testInstance.getRegisteredComponentIds()).containsExactly(componentId);
+        assertThat(testInstance.forComponentId(componentId)).hasValue(leaderInformation);
     }
 
     @Test
     void testOfWithEmptyLeaderInformation() {
-        final String contenderID = "contender-id";
+        final String componentId = "component-id";
         final LeaderInformationRegister testInstance =
-                LeaderInformationRegister.of(contenderID, LeaderInformation.empty());
+                LeaderInformationRegister.of(componentId, LeaderInformation.empty());
 
-        assertThat(testInstance.getRegisteredContenderIDs()).isEmpty();
-        assertThat(testInstance.forContenderID(contenderID)).isNotPresent();
+        assertThat(testInstance.getRegisteredComponentIds()).isEmpty();
+        assertThat(testInstance.forComponentId(componentId)).isNotPresent();
     }
 
     @Test
     void testMerge() {
-        final String contenderID = "contender-id";
+        final String componentId = "component-id";
         final LeaderInformation leaderInformation =
                 LeaderInformation.known(UUID.randomUUID(), "address");
 
-        final String newContenderID = "new-contender-id";
+        final String newComponentId = "new-component-id";
         final LeaderInformation newLeaderInformation =
                 LeaderInformation.known(UUID.randomUUID(), "new-address");
 
         final LeaderInformationRegister initialRegister =
-                LeaderInformationRegister.of(contenderID, leaderInformation);
+                LeaderInformationRegister.of(componentId, leaderInformation);
 
         final LeaderInformationRegister newRegister =
                 LeaderInformationRegister.merge(
-                        initialRegister, newContenderID, newLeaderInformation);
+                        initialRegister, newComponentId, newLeaderInformation);
 
         assertThat(newRegister).isNotSameAs(initialRegister);
-        assertThat(newRegister.getRegisteredContenderIDs())
-                .containsExactlyInAnyOrder(contenderID, newContenderID);
-        assertThat(newRegister.forContenderID(contenderID)).hasValue(leaderInformation);
-        assertThat(newRegister.forContenderID(newContenderID)).hasValue(newLeaderInformation);
+        assertThat(newRegister.getRegisteredComponentIds())
+                .containsExactlyInAnyOrder(componentId, newComponentId);
+        assertThat(newRegister.forComponentId(componentId)).hasValue(leaderInformation);
+        assertThat(newRegister.forComponentId(newComponentId)).hasValue(newLeaderInformation);
     }
 
     @Test
     void testMergeEmptyLeaderInformation() {
-        final String contenderID = "contender-id";
+        final String componentId = "component-id";
         final LeaderInformation leaderInformation =
                 LeaderInformation.known(UUID.randomUUID(), "address");
 
-        final String newContenderID = "new-contender-id";
+        final String newComponentId = "new-component-id";
 
         final LeaderInformationRegister initialRegister =
-                LeaderInformationRegister.of(contenderID, leaderInformation);
+                LeaderInformationRegister.of(componentId, leaderInformation);
 
         final LeaderInformationRegister newRegister =
                 LeaderInformationRegister.merge(
-                        initialRegister, newContenderID, LeaderInformation.empty());
+                        initialRegister, newComponentId, LeaderInformation.empty());
 
         assertThat(newRegister).isNotSameAs(initialRegister);
-        assertThat(newRegister.getRegisteredContenderIDs()).containsExactly(contenderID);
-        assertThat(newRegister.forContenderID(newContenderID)).isNotPresent();
+        assertThat(newRegister.getRegisteredComponentIds()).containsExactly(componentId);
+        assertThat(newRegister.forComponentId(newComponentId)).isNotPresent();
     }
 
     @Test
-    void testMergeEmptyLeaderInformationForExistingContenderID() {
-        final String contenderID = "contender-id";
+    void testMergeEmptyLeaderInformationForExistingComponentId() {
+        final String componentId = "component-id";
         final LeaderInformation leaderInformation =
                 LeaderInformation.known(UUID.randomUUID(), "address");
 
         final LeaderInformationRegister initialRegister =
-                LeaderInformationRegister.of(contenderID, leaderInformation);
+                LeaderInformationRegister.of(componentId, leaderInformation);
 
         final LeaderInformationRegister newRegister =
                 LeaderInformationRegister.merge(
-                        initialRegister, contenderID, LeaderInformation.empty());
+                        initialRegister, componentId, LeaderInformation.empty());
 
         assertThat(newRegister).isNotSameAs(initialRegister);
-        assertThat(newRegister.getRegisteredContenderIDs()).isEmpty();
-        assertThat(newRegister.forContenderID(contenderID)).isNotPresent();
+        assertThat(newRegister.getRegisteredComponentIds()).isEmpty();
+        assertThat(newRegister.forComponentId(componentId)).isNotPresent();
     }
 
     @Test
-    void testMergeKnownLeaderInformationForExistingContenderID() {
-        final String contenderID = "contender-id";
+    void testMergeKnownLeaderInformationForExistingComponentId() {
+        final String componentId = "component-id";
         final LeaderInformation oldLeaderInformation =
                 LeaderInformation.known(UUID.randomUUID(), "old-address");
 
         final LeaderInformationRegister initialRegister =
-                LeaderInformationRegister.of(contenderID, oldLeaderInformation);
+                LeaderInformationRegister.of(componentId, oldLeaderInformation);
 
         final LeaderInformation newLeaderInformation =
                 LeaderInformation.known(UUID.randomUUID(), "new-address");
         final LeaderInformationRegister newRegister =
-                LeaderInformationRegister.merge(initialRegister, contenderID, newLeaderInformation);
+                LeaderInformationRegister.merge(initialRegister, componentId, newLeaderInformation);
 
         assertThat(newRegister).isNotSameAs(initialRegister);
-        assertThat(newRegister.getRegisteredContenderIDs()).containsExactly(contenderID);
-        assertThat(newRegister.forContenderID(contenderID)).hasValue(newLeaderInformation);
+        assertThat(newRegister.getRegisteredComponentIds()).containsExactly(componentId);
+        assertThat(newRegister.forComponentId(componentId)).hasValue(newLeaderInformation);
     }
 
     @Test
     void testClear() {
-        final String contenderID = "contender-id";
+        final String componentId = "component-id";
         final LeaderInformation leaderInformation =
                 LeaderInformation.known(UUID.randomUUID(), "address");
 
         final LeaderInformationRegister initialRegister =
-                LeaderInformationRegister.of(contenderID, leaderInformation);
+                LeaderInformationRegister.of(componentId, leaderInformation);
 
         final LeaderInformationRegister newRegister =
-                LeaderInformationRegister.clear(initialRegister, contenderID);
+                LeaderInformationRegister.clear(initialRegister, componentId);
 
         assertThat(newRegister).isNotSameAs(initialRegister);
-        assertThat(newRegister.getRegisteredContenderIDs()).isEmpty();
-        assertThat(newRegister.forContenderID(contenderID)).isNotPresent();
+        assertThat(newRegister.getRegisteredComponentIds()).isEmpty();
+        assertThat(newRegister.forComponentId(componentId)).isNotPresent();
     }
 
     @Test
-    void testClearNotRegisteredContenderID() {
-        final String contenderID = "contender-id";
+    void testClearNotRegisteredComponentId() {
+        final String componentId = "component-id";
         final LeaderInformationRegister initialRegister =
                 LeaderInformationRegister.of(
-                        contenderID, LeaderInformation.known(UUID.randomUUID(), "address"));
+                        componentId, LeaderInformation.known(UUID.randomUUID(), "address"));
 
         final LeaderInformationRegister newRegister =
-                LeaderInformationRegister.clear(initialRegister, "another-contender-id");
+                LeaderInformationRegister.clear(initialRegister, "another-component-id");
 
         assertThat(newRegister).isNotSameAs(initialRegister);
-        assertThat(newRegister.getRegisteredContenderIDs()).containsExactly(contenderID);
+        assertThat(newRegister.getRegisteredComponentIds()).containsExactly(componentId);
     }
 
     @Test
     void testEmptyLeaderInformationFiltering() {
-        final String contenderID = "contender-id";
+        final String componentId = "component-id";
         final LeaderInformation leaderInformation =
                 LeaderInformation.known(UUID.randomUUID(), "address");
 
-        final String contenderIDWithEmptyLeaderInformation = "new-contender-id";
+        final String componentIdWithEmptyLeaderInformation = "new-component-id";
 
         final Map<String, LeaderInformation> records = new HashMap<>();
-        records.put(contenderID, leaderInformation);
-        records.put(contenderIDWithEmptyLeaderInformation, LeaderInformation.empty());
+        records.put(componentId, leaderInformation);
+        records.put(componentIdWithEmptyLeaderInformation, LeaderInformation.empty());
 
         final LeaderInformationRegister testInstance = new LeaderInformationRegister(records);
-        assertThat(testInstance.getRegisteredContenderIDs()).containsExactly(contenderID);
-        assertThat(testInstance.forContenderID(contenderIDWithEmptyLeaderInformation))
+        assertThat(testInstance.getRegisteredComponentIds()).containsExactly(componentId);
+        assertThat(testInstance.forComponentId(componentIdWithEmptyLeaderInformation))
                 .isNotPresent();
     }
 
     @Test
     void testEmptyInstance() {
-        assertThat(LeaderInformationRegister.empty().getRegisteredContenderIDs()).isEmpty();
+        assertThat(LeaderInformationRegister.empty().getRegisteredComponentIds()).isEmpty();
     }
 
     @Test
-    void testForContenderID() {
-        final String contenderID = "contender-id";
+    void testForComponentId() {
+        final String componentId = "component-id";
         final LeaderInformation leaderInformation =
                 LeaderInformation.known(UUID.randomUUID(), "address");
         assertThat(
-                        LeaderInformationRegister.of(contenderID, leaderInformation)
-                                .forContenderID(contenderID))
+                        LeaderInformationRegister.of(componentId, leaderInformation)
+                                .forComponentId(componentId))
                 .hasValue(leaderInformation);
     }
 
     @Test
-    void testForContenderIDOrEmpty() {
-        final String contenderID = "contender-id";
+    void testForComponentIdOrEmpty() {
+        final String componentId = "component-id";
         final LeaderInformation leaderInformation =
                 LeaderInformation.known(UUID.randomUUID(), "address");
         assertThat(
-                        LeaderInformationRegister.of(contenderID, leaderInformation)
-                                .forContenderIdOrEmpty(contenderID))
+                        LeaderInformationRegister.of(componentId, leaderInformation)
+                                .forComponentIdOrEmpty(componentId))
                 .isEqualTo(leaderInformation);
     }
 
     @Test
-    void testForContenderIDWithEmptyLeaderInformation() {
-        final String contenderID = "contender-id";
+    void testForComponentIdWithEmptyLeaderInformation() {
+        final String componentId = "component-id";
         assertThat(
-                        LeaderInformationRegister.of(contenderID, LeaderInformation.empty())
-                                .forContenderID(contenderID))
+                        LeaderInformationRegister.of(componentId, LeaderInformation.empty())
+                                .forComponentId(componentId))
                 .isNotPresent();
     }
 
     @Test
-    void testForContenderIDOrEmptyWithEmptyLeaderInformation() {
-        final String contenderID = "contender-id";
+    void testForComponentIdOrEmptyWithEmptyLeaderInformation() {
+        final String componentId = "component-id";
         assertThat(
-                        LeaderInformationRegister.of(contenderID, LeaderInformation.empty())
-                                .forContenderIdOrEmpty(contenderID))
+                        LeaderInformationRegister.of(componentId, LeaderInformation.empty())
+                                .forComponentIdOrEmpty(componentId))
                 .isEqualTo(LeaderInformation.empty());
     }
 
     @Test
     void testHasLeaderInformation() {
-        final String contenderID = "contender-id";
+        final String componentId = "component-id";
         final LeaderInformation leaderInformation =
                 LeaderInformation.known(UUID.randomUUID(), "address");
         assertThat(
-                        LeaderInformationRegister.of(contenderID, leaderInformation)
-                                .hasLeaderInformation(contenderID))
+                        LeaderInformationRegister.of(componentId, leaderInformation)
+                                .hasLeaderInformation(componentId))
                 .isTrue();
     }
 
     @Test
     void testHasLeaderInformationWithEmptyLeaderInformation() {
-        final String contenderID = "contender-id";
+        final String componentId = "component-id";
         assertThat(
-                        LeaderInformationRegister.of(contenderID, LeaderInformation.empty())
-                                .hasLeaderInformation(contenderID))
+                        LeaderInformationRegister.of(componentId, LeaderInformation.empty())
+                                .hasLeaderInformation(componentId))
                 .isFalse();
     }
 
@@ -250,13 +250,13 @@ class LeaderInformationRegisterTest {
         LeaderInformationRegister register = LeaderInformationRegister.empty();
         assertThat(register.hasNoLeaderInformation()).isTrue();
 
-        register = LeaderInformationRegister.of("contender-id", LeaderInformation.empty());
+        register = LeaderInformationRegister.of("component-id", LeaderInformation.empty());
         assertThat(register.hasNoLeaderInformation()).isTrue();
 
         register =
                 LeaderInformationRegister.merge(
                         register,
-                        "other-contender-id",
+                        "other-component-id",
                         LeaderInformation.known(UUID.randomUUID(), "address"));
         assertThat(register.hasNoLeaderInformation()).isFalse();
     }

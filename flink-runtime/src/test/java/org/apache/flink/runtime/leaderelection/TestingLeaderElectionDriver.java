@@ -106,7 +106,7 @@ public class TestingLeaderElectionDriver implements LeaderElectionDriver {
                 storedLeaderInformation.get() == null
                         || !storedLeaderInformation
                                 .get()
-                                .getRegisteredContenderIDs()
+                                .getRegisteredComponentIds()
                                 .iterator()
                                 .hasNext(),
                 "Initial state check for storedLeaderInformation failed.");

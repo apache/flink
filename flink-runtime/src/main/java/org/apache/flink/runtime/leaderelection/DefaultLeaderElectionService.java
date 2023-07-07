@@ -390,7 +390,7 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
         synchronized (lock) {
             return leaderContenderRegistry.containsKey(componentId)
                     ? confirmedLeaderInformation
-                            .forContenderIdOrEmpty(componentId)
+                            .forComponentIdOrEmpty(componentId)
                             .getLeaderSessionID()
                     : null;
         }
@@ -476,7 +476,7 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
                     "Revoking leadership to contender {} for {}.",
                     componentId,
                     LeaderElectionUtils.convertToString(
-                            confirmedLeaderInformation.forContenderIdOrEmpty(componentId)));
+                            confirmedLeaderInformation.forComponentIdOrEmpty(componentId)));
         }
 
         confirmedLeaderInformation =
@@ -598,7 +598,7 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
             notifyLeaderInformationChangeInternal(
                     componentId,
                     leaderInformation,
-                    confirmedLeaderInformation.forContenderIdOrEmpty(componentId));
+                    confirmedLeaderInformation.forComponentIdOrEmpty(componentId));
         }
     }
 
@@ -609,10 +609,10 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
                     (componentId, leaderContender) -> {
                         final LeaderInformation externallyChangedLeaderInformationForContender =
                                 changedLeaderInformation
-                                        .forContenderID(componentId)
+                                        .forComponentId(componentId)
                                         .orElse(LeaderInformation.empty());
                         final LeaderInformation confirmedLeaderInformationForContender =
-                                confirmedLeaderInformation.forContenderIdOrEmpty(componentId);
+                                confirmedLeaderInformation.forComponentIdOrEmpty(componentId);
 
                         notifyLeaderInformationChangeInternal(
                                 componentId,
