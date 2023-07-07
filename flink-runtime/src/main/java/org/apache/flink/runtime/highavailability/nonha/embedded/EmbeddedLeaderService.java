@@ -313,7 +313,7 @@ public class EmbeddedLeaderService {
 
                 LOG.info(
                         "Proposing leadership to the contender that is registered under component ID '{}'.",
-                        embeddedLeaderElection.contender);
+                        embeddedLeaderElection.componentId);
 
                 return execute(
                         new GrantLeadershipCall(
