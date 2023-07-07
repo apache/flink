@@ -36,12 +36,26 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-java</artifactId>
 			<version>${project.version}</version>
+			<scope>compile</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-clients</artifactId>
 			<version>${project.version}</version>
+			<scope>compile</scope>
+		</dependency>
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-connector-datagen</artifactId>
+            <version>1.18-SNAPSHOT</version>
+            <scope>compile</scope>
+        </dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-datagen</artifactId>
+			<version>1.18-SNAPSHOT</version>
+			<scope>compile</scope>
 		</dependency>
 	</dependencies>
 	
@@ -283,6 +297,65 @@ under the License.
 							</includes>
 						</configuration>
 					</execution>
+
+					<execution>
+						<id>JoinTest</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<classifier>JoinTest</classifier>
+
+							<archive>
+								<manifest>
+									<useUniqueVersions>false</useUniqueVersions>
+									<addClasspath>true</addClasspath>
+								</manifest>
+								<manifestEntries>
+									<program-class>org.apache.flink.examples.java.jointest.JoinTest</program-class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>**/java/jointest/JoinTest.class</include>
+								<include>**/java/jointest/JoinTest*.class</include>
+								<include>**/java/jointest/util/MyJoinSource.class</include>
+								<include>**/java/jointest/util/MyJoinGenerator.class</include>
+								<include>**/java/jointest/util/EndOfStreamWindow.class</include>
+								<include>META-INF/LICENSE</include>
+								<include>META-INF/NOTICE</include>
+							</includes>
+						</configuration>
+					</execution>
+
+					<execution>
+						<id>JoinSetTest</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<classifier>JoinSetTest</classifier>
+
+							<archive>
+								<manifest>
+									<useUniqueVersions>false</useUniqueVersions>
+									<addClasspath>true</addClasspath>
+								</manifest>
+								<manifestEntries>
+									<program-class>org.apache.flink.examples.java.joinsettest.JoinSetTest</program-class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>**/java/joinsettest/JoinSetTest.class</include>
+								<include>**/java/joinsettest/JoinSetTest*.class</include>
+								<include>META-INF/LICENSE</include>
+								<include>META-INF/NOTICE</include>
+							</includes>
+						</configuration>
+					</execution>
 				</executions>
 			</plugin>
 
@@ -303,6 +376,8 @@ under the License.
 								<copy file="${project.basedir}/target/flink-examples-batch-${project.version}-WebLogAnalysis.jar" tofile="${project.basedir}/target/WebLogAnalysis.jar" />
 								<copy file="${project.basedir}/target/flink-examples-batch-${project.version}-WordCount.jar" tofile="${project.basedir}/target/WordCount.jar" />
 								<copy file="${project.basedir}/target/flink-examples-batch-${project.version}-DistCp.jar" tofile="${project.basedir}/target/DistCp.jar" />
+								<copy file="${project.basedir}/target/flink-examples-batch-${project.version}-JoinTest.jar" tofile="${project.basedir}/target/JoinTest.jar" />
+								<copy file="${project.basedir}/target/flink-examples-batch-${project.version}-JoinSetTest.jar" tofile="${project.basedir}/target/JoinSetTest.jar" />
 							</target>
 						</configuration>
 					</execution>
