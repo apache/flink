@@ -153,7 +153,7 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
                     "The service was already closed and cannot be reused.");
             Preconditions.checkState(
                     !leaderContenderRegistry.containsKey(componentId),
-                    "There is no contender already registered under the passed component ID '%s'.",
+                    "There shouldn't be any contender registered under the passed component ID '%s'.",
                     componentId);
             return new DefaultLeaderElection(this, componentId);
         }
@@ -191,11 +191,11 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
 
             Preconditions.checkState(
                     leaderContenderRegistry.put(componentId, contender) == null,
-                    "There is no contender already registered under the passed component ID '%s'.",
+                    "There shouldn't be any contender registered under the passed component ID '%s'.",
                     componentId);
 
             LOG.info(
-                    "LeaderContender {} has been registered for {}.",
+                    "LeaderContender has been registered under component ID {} for {}.",
                     componentId,
                     leaderElectionDriver);
 
@@ -225,7 +225,7 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
                     "The LeaderElectionDriver should be instantiated.");
 
             LOG.info(
-                    "Deregistering contender with ID '{}' from the DefaultLeaderElectionService.",
+                    "Deregistering contender with component ID '{}' from the DefaultLeaderElectionService.",
                     componentId);
 
             final LeaderContender leaderContender = leaderContenderRegistry.remove(componentId);
@@ -236,13 +236,13 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
             if (issuedLeaderSessionID != null) {
                 notifyLeaderContenderOfLeadershipLoss(componentId, leaderContender);
                 LOG.debug(
-                        "The contender registered under component ID '{}' is deregistered while the service has the leadership acquired. The revoke event is forwarded to the LeaderContender.",
+                        "The contender associated with component ID '{}' is deregistered while the service has the leadership acquired. The revoke event is forwarded to the LeaderContender.",
                         componentId);
 
                 if (leaderElectionDriver.hasLeadership()) {
                     leaderElectionDriver.deleteLeaderInformation(componentId);
                     LOG.debug(
-                            "Leader information is cleaned up while deregistering the contender '{}' from the service.",
+                            "Leader information is cleaned up while deregistering the contender for component ID '{}' from the service.",
                             componentId);
                 }
             } else {
@@ -251,7 +251,7 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
                         "The confirmed leader information should have been cleared during leadership revocation.");
 
                 LOG.debug(
-                        "Contender registered under component ID '{}' is deregistered while the service doesn't have the leadership acquired. No cleanup necessary.",
+                        "Contender associated with component ID '{}' is deregistered while the service doesn't have the leadership acquired. No cleanup necessary.",
                         componentId);
             }
 
@@ -345,14 +345,14 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
             } else {
                 if (!leaderSessionID.equals(this.issuedLeaderSessionID)) {
                     LOG.debug(
-                            "Received an old confirmation call of leader session ID {} for contender '{}' (current issued session ID is {}).",
+                            "Received an old confirmation call of leader session ID {} for component ID '{}' (current issued session ID is {}).",
                             leaderSessionID,
                             componentId,
                             issuedLeaderSessionID);
                 } else {
                     LOG.warn(
-                            "The leader session ID {} for contender '{}' was confirmed even though the "
-                                    + "corresponding service was not elected as the leader or has been stopped already.",
+                            "The leader session ID {} for component ID '{}' was confirmed even though the corresponding "
+                                    + "service was not elected as the leader or has been stopped already.",
                             componentId,
                             leaderSessionID);
                 }
@@ -435,7 +435,7 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
                 "The leadership should have been granted while not having the leadership acquired.");
 
         LOG.debug(
-                "Granting leadership to contender {} with session ID {}.",
+                "Granting leadership to the contender registered under component ID {} with session ID {}.",
                 componentId,
                 issuedLeaderSessionID);
 
@@ -469,11 +469,11 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
 
         if (!confirmedLeaderInformation.hasLeaderInformation(componentId)) {
             LOG.debug(
-                    "Revoking leadership to contender {} while a previous leadership grant wasn't confirmed, yet.",
+                    "Revoking leadership for component ID {} while a previous leadership grant wasn't confirmed, yet.",
                     componentId);
         } else {
             LOG.debug(
-                    "Revoking leadership to contender {} for {}.",
+                    "Revoking leadership to component ID {} for previously confirmed leader information {}.",
                     componentId,
                     LeaderElectionUtils.convertToString(
                             confirmedLeaderInformation.forComponentIdOrEmpty(componentId)));

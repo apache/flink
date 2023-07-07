@@ -139,7 +139,7 @@ public class ZooKeeperLeaderElectionDriver implements LeaderElectionDriver, Lead
                 ZooKeeperUtils.generateConnectionInformationPath(componentId);
 
         LOG.debug(
-                "Write leader information {} for {} to {}.",
+                "Write leader information {} for component '{}' to {}.",
                 leaderInformation,
                 componentId,
                 ZooKeeperUtils.generateZookeeperPath(
@@ -181,7 +181,7 @@ public class ZooKeeperLeaderElectionDriver implements LeaderElectionDriver, Lead
             case LOST:
                 // Maybe we have to throw an exception here to terminate the JobManager
                 LOG.warn(
-                        "Connection to ZooKeeper lost. The contender no longer participates in the leader election.");
+                        "Connection to ZooKeeper lost. None of the contenders participates in the leader election anymore.");
                 break;
         }
     }
@@ -201,22 +201,22 @@ public class ZooKeeperLeaderElectionDriver implements LeaderElectionDriver, Lead
 
     private void handleChangedLeaderInformation(ChildData childData) {
         if (shouldHandleLeaderInformationEvent(childData.getPath())) {
-            final String leaderName = extractLeaderName(childData.getPath());
+            final String componentId = extractComponentId(childData.getPath());
 
             final LeaderInformation leaderInformation =
-                    tryReadingLeaderInformation(childData, leaderName);
+                    tryReadingLeaderInformation(childData, componentId);
 
-            leaderElectionListener.onLeaderInformationChange(leaderName, leaderInformation);
+            leaderElectionListener.onLeaderInformationChange(componentId, leaderInformation);
         }
     }
 
-    private String extractLeaderName(String path) {
+    private String extractComponentId(String path) {
         final String[] splits = ZooKeeperUtils.splitZooKeeperPath(path);
 
         Preconditions.checkState(
                 splits.length >= 2,
                 String.format(
-                        "Expecting path consisting of /<leader_name>/connection_info. Got path '%s'",
+                        "Expecting path consisting of /<component-id>/connection_info. Got path '%s'",
                         path));
 
         return splits[splits.length - 2];
@@ -224,7 +224,7 @@ public class ZooKeeperLeaderElectionDriver implements LeaderElectionDriver, Lead
 
     private void handleRemovedLeaderInformation(String removedNodePath) {
         if (shouldHandleLeaderInformationEvent(removedNodePath)) {
-            final String leaderName = extractLeaderName(removedNodePath);
+            final String leaderName = extractComponentId(removedNodePath);
 
             leaderElectionListener.onLeaderInformationChange(leaderName, LeaderInformation.empty());
         }

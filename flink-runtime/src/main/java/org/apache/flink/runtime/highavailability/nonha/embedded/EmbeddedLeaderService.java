@@ -311,7 +311,9 @@ public class EmbeddedLeaderService {
                 currentLeaderProposed = embeddedLeaderElection;
                 currentLeaderProposed.isLeader = true;
 
-                LOG.info("Proposing leadership to contender {}", embeddedLeaderElection.contender);
+                LOG.info(
+                        "Proposing leadership to the contender that is registered under component ID '{}'.",
+                        embeddedLeaderElection.contender);
 
                 return execute(
                         new GrantLeadershipCall(
