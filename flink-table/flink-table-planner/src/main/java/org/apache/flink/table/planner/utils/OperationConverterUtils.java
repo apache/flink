@@ -34,6 +34,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /** Utils methods for converting sql to operations. */
 public class OperationConverterUtils {
@@ -83,6 +84,10 @@ public class OperationConverterUtils {
                 .map(SqlCharStringLiteral.class::cast)
                 .map(c -> c.getValueAs(String.class))
                 .orElse(null);
+    }
+
+    public static @Nullable String getTableComment(Optional<SqlCharStringLiteral> tableComment) {
+        return tableComment.map(comment -> comment.getValueAs(String.class)).orElse(null);
     }
 
     public static Map<String, String> extractProperties(SqlNodeList propList) {

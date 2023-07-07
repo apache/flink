@@ -83,6 +83,7 @@ import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.NopOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.operations.ReplaceTableAsOperation;
 import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.operations.SourceQueryOperation;
 import org.apache.flink.table.operations.StatementSetOperation;
@@ -90,6 +91,7 @@ import org.apache.flink.table.operations.TableSourceQueryOperation;
 import org.apache.flink.table.operations.command.ExecutePlanOperation;
 import org.apache.flink.table.operations.ddl.AnalyzeTableOperation;
 import org.apache.flink.table.operations.ddl.CompilePlanOperation;
+import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.resource.ResourceType;
@@ -784,11 +786,14 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     public TableResultInternal executeInternal(List<ModifyOperation> operations) {
         List<ModifyOperation> mapOperations = new ArrayList<>();
         for (ModifyOperation modify : operations) {
-            // execute CREATE TABLE first for CTAS statements
             if (modify instanceof CreateTableASOperation) {
+                // execute CREATE TABLE first for CTAS statements
                 CreateTableASOperation ctasOperation = (CreateTableASOperation) modify;
                 executeInternal(ctasOperation.getCreateTableOperation());
                 mapOperations.add(ctasOperation.toSinkModifyOperation(catalogManager));
+            } else if (modify instanceof ReplaceTableAsOperation) {
+                ReplaceTableAsOperation rtasOperation = (ReplaceTableAsOperation) modify;
+                mapOperations.add(getOperation(rtasOperation));
             } else {
                 boolean isRowLevelModification = isRowLevelModification(modify);
                 if (isRowLevelModification) {
@@ -817,6 +822,31 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         List<Transformation<?>> transformations = translate(mapOperations);
         List<String> sinkIdentifierNames = extractSinkIdentifierNames(mapOperations);
         return executeInternal(transformations, sinkIdentifierNames);
+    }
+
+    private ModifyOperation getOperation(ReplaceTableAsOperation rtasOperation) {
+        // rtas drop table first, then create
+        CreateTableOperation createTableOperation = rtasOperation.getCreateTableOperation();
+        ObjectIdentifier tableIdentifier = createTableOperation.getTableIdentifier();
+        try {
+            catalogManager.dropTable(tableIdentifier, rtasOperation.isCreateOrReplace());
+        } catch (ValidationException e) {
+            if (String.format(
+                            "Table with identifier '%s' does not exist.",
+                            tableIdentifier.asSummaryString())
+                    .equals(e.getMessage())) {
+                throw new TableException(
+                        String.format(
+                                "The table %s to be replaced doesn't exist. "
+                                        + "You can try to use CREATE TABLE AS statement or "
+                                        + "CREATE OR REPLACE TABLE AS statement.",
+                                tableIdentifier));
+            } else {
+                throw e;
+            }
+        }
+        executeInternal(createTableOperation);
+        return rtasOperation.toSinkModifyOperation(catalogManager);
     }
 
     private TableResultInternal executeInternal(

@@ -37,4 +37,6 @@ public interface ModifyOperationVisitor<T> {
     T visit(CollectModifyOperation selectOperation);
 
     T visit(CreateTableASOperation ctas);
+
+    T visit(ReplaceTableAsOperation rtas);
 }

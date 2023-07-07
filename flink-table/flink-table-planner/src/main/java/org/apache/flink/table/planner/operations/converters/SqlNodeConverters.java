@@ -50,6 +50,7 @@ public class SqlNodeConverters {
         register(new SqlTruncateTableConverter());
         register(new SqlShowFunctionsConverter());
         register(new SqlShowProcedureConverter());
+        register(new SqlReplaceTableAsConverter());
     }
 
     /**
