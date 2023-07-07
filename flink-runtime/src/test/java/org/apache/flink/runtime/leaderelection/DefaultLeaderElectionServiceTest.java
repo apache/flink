@@ -311,11 +311,33 @@ class DefaultLeaderElectionServiceTest {
     @Test
     void testGrantCallWhileInstantiatingDriver() throws Exception {
         final UUID expectedLeaderSessionID = UUID.randomUUID();
+        final TestingLeaderElectionDriver.Builder driverBuilder =
+                TestingLeaderElectionDriver.newNoOpBuilder();
         try (final DefaultLeaderElectionService testInstance =
                 new DefaultLeaderElectionService(
                         listener -> {
-                            listener.onGrantLeadership(expectedLeaderSessionID);
-                            return TestingLeaderElectionDriver.newNoOpBuilder().build(listener);
+                            final OneShotLatch waitForGrantTriggerLatch = new OneShotLatch();
+                            // calling the grant from a separate thread will let the thread
+                            // end in the service's lock until the registration of the
+                            // contender is done
+                            CompletableFuture.runAsync(
+                                    () -> {
+                                        waitForGrantTriggerLatch.trigger();
+                                        listener.onGrantLeadership(expectedLeaderSessionID);
+                                    });
+
+                            waitForGrantTriggerLatch.await();
+
+                            // we can't ensure easily that the future finally called the
+                            // method that triggers the grant event: Waiting for the method
+                            // to return would lead to a deadlock because the grant
+                            // processing is going to wait for the
+                            // DefaultLeaderElectionService#lock before it can submit the
+                            // event processing. Adding a short sleep here is a nasty
+                            // workaround to simulate the race condition.
+                            Thread.sleep(100);
+
+                            return driverBuilder.build(listener);
                         },
                         fatalErrorHandlerExtension.getTestingFatalErrorHandler(),
                         Executors.newDirectExecutorService())) {
@@ -325,6 +347,8 @@ class DefaultLeaderElectionServiceTest {
             final TestingContender testingContender =
                     new TestingContender("unused-address", leaderElection);
             testingContender.startLeaderElection();
+
+            testingContender.waitForLeader();
 
             assertThat(testingContender.getLeaderSessionID()).isEqualTo(expectedLeaderSessionID);
 
