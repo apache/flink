@@ -208,8 +208,7 @@ Users can do some performance tuning by tuning the split's size with the follow 
 
 ### Read Table Statistics
 
-When the table statistic is not available from Hive metastore, such as `orc` or `parquet`. We will then try to get the statistic by scanning the table. 
-To obtain hive table statistics faster, you can use `table.exec.hive.read-statistics.thread-num` to configure the thread number. 
+When the table statistic is not available from the Hive metastore, Flink will try to scan the table to get the statistic to generate a better execution plan. It may cost some time to get the statistic. To get it faster, you can use `table.exec.hive.read-statistics.thread-num` to configure how many threads to use to scan the table.
 The default value is the number of available processors in the current system and the configured value should be bigger than 0.
 
 ### Load Partition Splits

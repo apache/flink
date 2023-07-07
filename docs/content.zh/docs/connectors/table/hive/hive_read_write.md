@@ -192,7 +192,7 @@ Flink 允许你灵活的配置并发推断策略。你可以在 `TableConfig` �
 
 ### 读取表统计信息
 
-当hive metastore(如`orc`或`parquet`)中没有表的统计信息时，需要扫描表获取信息。你可以使用`table.exec.hive.read-statistics.thread-num`去配置扫描线程数。默认值是当前系统可用处理器数，你配置的值应该大于0。
+当hive metastore 中没有表的统计信息时，Flink 会尝试扫描表来获取统计信息从而生成合适的执行计划。此过程可以会比较耗时，你可以使用`table.exec.hive.read-statistics.thread-num`去配置使用多少个线程去扫描表，默认值是当前系统可用处理器数，配置的值应该大于0。
 
 ### 加载分区切片
 
