@@ -19,20 +19,19 @@
 package org.apache.flink.table.connector.sink.abilities;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.core.execution.JobStatusHook;
 import org.apache.flink.table.catalog.StagedTable;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 
 /**
- * Interface for {@link DynamicTableSink}s that support CTAS(CREATE TABLE AS SELECT) statement
- * atomic semantic using a two-phase commit protocol. The table sink is responsible for telling
- * planner how to implement atomicity semantics via {@link StagedTable}.
+ * Interface for {@link DynamicTableSink}s that support atomic semantic for CTAS(CREATE TABLE AS
+ * SELECT) statement using a two-phase commit protocol. The table sink is responsible for returning
+ * a {@link StagedTable} to tell the Flink how to implement the atomicity semantics.
  *
- * <p>If the user turns on {@link TableConfigOptions#TABLE_CTAS_ATOMICITY_ENABLED}, and {@link
+ * <p>If the user turns on {@link TableConfigOptions#TABLE_CTAS_ATOMICITY_ENABLED}, and the {@link
  * DynamicTableSink} implements {@link SupportsStaging}, the planner will call method {@link
- * #applyStaging(StagingContext)} to get the {@link StagedTable} returned by sink, then {@link
- * StagedTable} will be combined with {@link JobStatusHook} to implement a two-stage commit; The
- * implementation will be determined by {@link StagedTable}.
+ * #applyStaging(StagingContext)} to get the {@link StagedTable} returned by the sink, then {@link
+ * StagedTable} will be used by Flink to implement a two-phase commit with the actual implementation
+ * of {@link StagedTable}.
  */
 @PublicEvolving
 public interface SupportsStaging {

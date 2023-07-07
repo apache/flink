@@ -16,23 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.runtime.batch.sql;
+package org.apache.flink.table.planner.runtime.stream.sql;
 
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.connector.sink.abilities.SupportsStaging;
 import org.apache.flink.table.planner.factories.TestSupportsStagingTableFactory;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
-import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
-import org.apache.flink.testutils.junit.utils.TempDirUtils;
+import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.FileUtils;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
@@ -40,12 +39,8 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
-/** Tests staged table in batch mode. */
-public class StagedTableITCase extends BatchTestBase {
-
-    @TempDir Path temporaryFolder;
-
-    private File tmpDataFolder;
+/** Tests atomic ctas in stream mode. */
+public class AtomicCtasITCase extends StreamingTestBase {
 
     @BeforeEach
     void setup() throws Exception {
@@ -57,27 +52,19 @@ public class StagedTableITCase extends BatchTestBase {
 
         String sourceDDL = "create table t1(a int, b varchar) with ('connector' = 'COLLECTION')";
         tEnv().executeSql(sourceDDL);
-        tmpDataFolder = TempDirUtils.newFolder(temporaryFolder);
-    }
-
-    @AfterEach
-    void close() {
-        if (tmpDataFolder != null) {
-            tmpDataFolder.delete();
-        }
     }
 
     @Test
-    void testStagedTableWithAtomicCtas() throws Exception {
-        commonTestStagedTableWithAtomicCtas("ctas_batch_table", false);
+    void testAtomicCtas(@TempDir Path temporaryFolder) throws Exception {
+        commonTestForAtomicCtas("ctas_stream_table", false, temporaryFolder.toFile());
     }
 
     @Test
-    void testStagedTableWithAtomicCtasIfNotExists() throws Exception {
-        commonTestStagedTableWithAtomicCtas("ctas_if_not_exists_batch_table", true);
+    void testAtomicCtasIfNotExists(@TempDir Path temporaryFolder) throws Exception {
+        commonTestForAtomicCtas("ctas_if_not_exists_stream_table", true, temporaryFolder.toFile());
     }
 
-    void commonTestStagedTableWithAtomicCtas(String tableName, boolean ifNotExists)
+    private void commonTestForAtomicCtas(String tableName, boolean ifNotExists, File tmpDataFolder)
             throws Exception {
         tEnv().getConfig().set(TableConfigOptions.TABLE_CTAS_ATOMICITY_ENABLED, true);
         String dataDir = tmpDataFolder.getAbsolutePath();
@@ -90,10 +77,7 @@ public class StagedTableITCase extends BatchTestBase {
                                 + "') as select * from t1")
                 .await();
         assertThat(tEnv().listTables()).doesNotContain(tableName);
-        File file = new File(dataDir, "data");
-        assertThat(file).exists();
-        assertThat(file).isFile();
-        assertThat(FileUtils.readFileUtf8(file)).isEqualTo("1,ZM");
+        verifyDataFile(dataDir, "data");
         assertThat(TestSupportsStagingTableFactory.JOB_STATUS_CHANGE_PROCESS).hasSize(2);
         assertThat(TestSupportsStagingTableFactory.JOB_STATUS_CHANGE_PROCESS)
                 .contains("begin", "commit");
@@ -108,13 +92,13 @@ public class StagedTableITCase extends BatchTestBase {
     }
 
     @Test
-    void testFailStagedTableWithAtomicCtas() {
+    void testAtomicCtasWithException(@TempDir Path temporaryFolder) throws Exception {
         tEnv().getConfig().set(TableConfigOptions.TABLE_CTAS_ATOMICITY_ENABLED, true);
-        String dataDir = tmpDataFolder.getAbsolutePath();
+        String dataDir = temporaryFolder.toFile().getAbsolutePath();
         assertThatCode(
                         () ->
                                 tEnv().executeSql(
-                                                "create table ctas_batch_table_fail with ('connector' = 'test-staging', 'data-dir' = '"
+                                                "create table ctas_stream_table_fail with ('connector' = 'test-staging', 'data-dir' = '"
                                                         + dataDir
                                                         + "', 'sink-fail' = '"
                                                         + true
@@ -128,21 +112,25 @@ public class StagedTableITCase extends BatchTestBase {
     }
 
     @Test
-    void testStagedTableWithoutAtomicCtas() throws Exception {
+    void testWithoutAtomicCtas(@TempDir Path temporaryFolder) throws Exception {
         tEnv().getConfig().set(TableConfigOptions.TABLE_CTAS_ATOMICITY_ENABLED, false);
-        String dataDir = tmpDataFolder.getAbsolutePath();
+        String dataDir = temporaryFolder.toFile().getAbsolutePath();
         tEnv().executeSql(
-                        "create table ctas_batch_table with ('connector' = 'test-staging', 'data-dir' = '"
+                        "create table ctas_stream_table with ('connector' = 'test-staging', 'data-dir' = '"
                                 + dataDir
                                 + "') as select * from t1")
                 .await();
-        assertThat(tEnv().listTables()).contains("ctas_batch_table");
+        assertThat(tEnv().listTables()).contains("ctas_stream_table");
         // Not using StagedTable, so need to read the hidden file
-        File file = new File(dataDir, "_data");
-        assertThat(file).exists();
-        assertThat(file).isFile();
-        assertThat(FileUtils.readFileUtf8(file)).isEqualTo("1,ZM");
+        verifyDataFile(dataDir, "_data");
         assertThat(TestSupportsStagingTableFactory.JOB_STATUS_CHANGE_PROCESS).hasSize(0);
         assertThat(TestSupportsStagingTableFactory.STAGING_PURPOSE_LIST).hasSize(0);
+    }
+
+    private void verifyDataFile(String dataDir, String fileName) throws IOException {
+        File dataFile = new File(dataDir, fileName);
+        assertThat(dataFile).exists();
+        assertThat(dataFile).isFile();
+        assertThat(FileUtils.readFileUtf8(dataFile)).isEqualTo("1,ZM");
     }
 }

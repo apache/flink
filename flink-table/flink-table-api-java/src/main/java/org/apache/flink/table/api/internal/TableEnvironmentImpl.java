@@ -861,49 +861,50 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     private ModifyOperation getOperation(
             CreateTableASOperation ctasOperation, List<JobStatusHook> jobStatusHookList) {
         CreateTableOperation createTableOperation = ctasOperation.getCreateTableOperation();
-        ObjectIdentifier tableIdentifier = createTableOperation.getTableIdentifier();
-        Catalog catalog = catalogManager.getCatalog(tableIdentifier.getCatalogName()).orElse(null);
-        ResolvedCatalogTable catalogTable =
-                catalogManager.resolveCatalogTable(createTableOperation.getCatalogTable());
-
-        if (!TableFactoryUtil.isLegacyConnectorOptions(
-                catalog,
-                tableConfig,
-                isStreamingMode,
-                tableIdentifier,
-                catalogTable,
-                createTableOperation.isTemporary())) {
-            DynamicTableSink dynamicTableSink =
-                    ExecutableOperationUtils.createDynamicTableSink(
-                            catalog,
-                            () -> moduleManager.getFactory((Module::getTableSinkFactory)),
-                            tableIdentifier,
+        if (tableConfig.get(TableConfigOptions.TABLE_CTAS_ATOMICITY_ENABLED)) {
+            ObjectIdentifier tableIdentifier = createTableOperation.getTableIdentifier();
+            Catalog catalog =
+                    catalogManager.getCatalog(tableIdentifier.getCatalogName()).orElse(null);
+            ResolvedCatalogTable catalogTable =
+                    catalogManager.resolveCatalogTable(createTableOperation.getCatalogTable());
+            if (!TableFactoryUtil.isLegacyConnectorOptions(
+                    catalog,
+                    tableConfig,
+                    isStreamingMode,
+                    tableIdentifier,
+                    catalogTable,
+                    createTableOperation.isTemporary())) {
+                DynamicTableSink dynamicTableSink =
+                        ExecutableOperationUtils.createDynamicTableSink(
+                                catalog,
+                                () -> moduleManager.getFactory((Module::getTableSinkFactory)),
+                                tableIdentifier,
+                                catalogTable,
+                                Collections.emptyMap(),
+                                tableConfig,
+                                resourceManager.getUserClassLoader(),
+                                createTableOperation.isTemporary());
+                if (dynamicTableSink instanceof SupportsStaging) {
+                    // use atomic ctas
+                    SupportsStaging.StagingPurpose stagingPurpose =
+                            createTableOperation.isIgnoreIfExists()
+                                    ? SupportsStaging.StagingPurpose.CREATE_TABLE_AS_IF_NOT_EXISTS
+                                    : SupportsStaging.StagingPurpose.CREATE_TABLE_AS;
+                    StagedTable stagedTable =
+                            ((SupportsStaging) dynamicTableSink)
+                                    .applyStaging(new SinkStagingContext(stagingPurpose));
+                    CtasJobStatusHook ctasJobStatusHook = new CtasJobStatusHook(stagedTable);
+                    jobStatusHookList.add(ctasJobStatusHook);
+                    return ctasOperation.toStagedSinkModifyOperation(
+                            createTableOperation.getTableIdentifier(),
                             catalogTable,
-                            Collections.emptyMap(),
-                            tableConfig,
-                            resourceManager.getUserClassLoader(),
-                            createTableOperation.isTemporary());
-            if (dynamicTableSink instanceof SupportsStaging
-                    && tableConfig.get(TableConfigOptions.TABLE_CTAS_ATOMICITY_ENABLED)) {
-                // use atomic ctas
-                SupportsStaging.StagingPurpose stagingPurpose =
-                        createTableOperation.isIgnoreIfExists()
-                                ? SupportsStaging.StagingPurpose.CREATE_TABLE_AS_IF_NOT_EXISTS
-                                : SupportsStaging.StagingPurpose.CREATE_TABLE_AS;
-                StagedTable stagedTable =
-                        ((SupportsStaging) dynamicTableSink)
-                                .applyStaging(new SinkStagingContext(stagingPurpose));
-                CtasJobStatusHook ctasJobStatusHook = new CtasJobStatusHook(stagedTable);
-                jobStatusHookList.add(ctasJobStatusHook);
-                return ctasOperation.toStagedSinkModifyOperation(
-                        createTableOperation.getTableIdentifier(),
-                        catalogTable,
-                        catalog,
-                        dynamicTableSink);
+                            catalog,
+                            dynamicTableSink);
+                }
             }
         }
         // use non-atomic ctas, create table first
-        executeInternal(ctasOperation.getCreateTableOperation());
+        executeInternal(createTableOperation);
         return ctasOperation.toSinkModifyOperation(catalogManager);
     }
 

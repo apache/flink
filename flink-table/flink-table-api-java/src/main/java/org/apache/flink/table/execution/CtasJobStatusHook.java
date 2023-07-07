@@ -24,7 +24,7 @@ import org.apache.flink.table.catalog.StagedTable;
 
 /**
  * This hook is used to implement atomic semantics for CTAS(CREATE TABLE AS SELECT) statement. It'll
- * call the corresponding interfaces of the inner {@link StagedTable} on job status changing.
+ * call the corresponding interfaces of the inner {@link StagedTable} on job status changes.
  */
 public class CtasJobStatusHook implements JobStatusHook {
 

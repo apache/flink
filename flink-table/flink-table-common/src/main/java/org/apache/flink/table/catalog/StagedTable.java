@@ -25,14 +25,14 @@ import org.apache.flink.table.connector.sink.abilities.SupportsStaging;
 import java.io.Serializable;
 
 /**
- * The {@link StagedTable} is designed to implement atomic semantic using a two-phase commit
- * protocol. The {@link StagedTable} is supposed to be returned via method {@link
- * SupportsStaging#applyStaging} by the {@link DynamicTableSink} which implements the {@link
- * SupportsStaging} interface.
+ * The {@link StagedTable} is designed to implement Flink's atomic semantic for CTAS(CREATE TABLE AS
+ * SELECT) statement using a two-phase commit protocol. The {@link StagedTable} is supposed to be
+ * returned via method {@link SupportsStaging#applyStaging} by the {@link DynamicTableSink} which
+ * implements the {@link SupportsStaging} interface.
  *
- * <p>When the Flink job for writing to a {@link DynamicTableSink} is CREATED, the {@link
- * StagedTable#begin()} will be called; when the Flink job is FINISHED, the {@link
- * StagedTable#commit()} will be called; when the Flink job is FAILED or CANCELED, the {@link
+ * <p>When the Flink job for writing to a {@link DynamicTableSink} with atomic semantic supporting
+ * is CREATED, the {@link StagedTable#begin()} will be called; when the Flink job is FINISHED, the
+ * {@link StagedTable#commit()} will be called; when the Flink job is FAILED or CANCELED, the {@link
  * StagedTable#abort()} will be called;
  *
  * <p>See more in {@link SupportsStaging}.
@@ -49,7 +49,7 @@ public interface StagedTable extends Serializable {
     void begin();
 
     /**
-     * This method will be called when the job is succeeds. In Flink's atomic CTAS scenario, it is
+     * This method will be called when the job succeeds. In Flink's atomic CTAS scenario, it is
      * expected to do some commit work. For example, moving the underlying data to the target
      * directory to make it visible, writing buffer data to the underlying storage service, or even
      * call the commit transaction API of the underlying service, etc.
@@ -57,10 +57,10 @@ public interface StagedTable extends Serializable {
     void commit();
 
     /**
-     * This method will be called when the job is failed or canceled. In Flink's atomic CTAS
-     * scenario, it is expected to do some cleaning work for a writing; For example, delete the data
-     * in tmp directory, delete the temporary data in the underlying storage service, or even call
-     * the rollback transaction API of the underlying service, etc.
+     * This method will be called when the job is failed or is canceled. In Flink's atomic CTAS
+     * scenario, it is expected to do some cleaning work for writing; For example, delete the data
+     * in the tmp directory, delete the temporary data in the underlying storage service, or even
+     * call the rollback transaction API of the underlying service, etc.
      */
     void abort();
 }

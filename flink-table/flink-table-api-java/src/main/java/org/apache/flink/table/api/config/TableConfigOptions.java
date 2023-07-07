@@ -203,10 +203,10 @@ public class TableConfigOptions {
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            "Specifies if the CREATE TABLE AS SELECT statement is executed atomically. "
-                                    + "By default, the statement is non-atomic. The target table is created in client side, and it will not be dropped even though the job fails or is cancelled. "
-                                    + "If set this option to true and DynamicTableSink implements the SupportsStaging interface, the statement is expected to be executed atomically, "
-                                    + "the behavior of which depends on the actual DynamicTableSink.");
+                            "Specifies if the CREATE TABLE AS SELECT statement is executed atomically. By default, the statement is non-atomic. "
+                                    + "The target table is created on the client side, and it will not be dropped even though the job fails or is canceled. "
+                                    + "If set this option to true and the underlying DynamicTableSink implements the SupportsStaging interface, "
+                                    + "the statement is expected to be executed atomically, the behavior of which depends on the actual DynamicTableSink.");
 
     // ------------------------------------------------------------------------------------------
     // Enum option types
