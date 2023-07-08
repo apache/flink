@@ -278,6 +278,24 @@ public final class BuiltInFunctionDefinitions {
                             "org.apache.flink.table.runtime.functions.scalar.ArrayReverseFunction")
                     .build();
 
+    public static final BuiltInFunctionDefinition ARRAY_SLICE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ARRAY_SLICE")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            or(
+                                    sequence(
+                                            logical(LogicalTypeRoot.ARRAY),
+                                            logical(LogicalTypeRoot.INTEGER),
+                                            logical(LogicalTypeRoot.INTEGER)),
+                                    sequence(
+                                            logical(LogicalTypeRoot.ARRAY),
+                                            logical(LogicalTypeRoot.INTEGER))))
+                    .outputTypeStrategy(nullableIfArgs(argument(0)))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.ArraySliceFunction")
+                    .build();
+
     public static final BuiltInFunctionDefinition ARRAY_UNION =
             BuiltInFunctionDefinition.newBuilder()
                     .name("ARRAY_UNION")

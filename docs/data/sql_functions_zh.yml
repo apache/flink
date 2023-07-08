@@ -745,6 +745,12 @@ collection:
   - sql: ARRAY_REVERSE(haystack)
     table: haystack.arrayReverse()
     description: Returns an array in reverse order. If the array itself is null, the function will return null.
+  - sql: ARRAY_SLICE(array, start_offset[, end_offset])
+    table: array.arraySlice(start_offset[, end_offset])
+    description: 返回输入数组的子数组，位于“start_offset”和“end_offset”之间
+      包含“start_offset”和“end_offset”）。偏移量从 1 开始，但 0 也被视为数组的开头。正值从数组开头开始计数，
+      负值从数组末尾开始计数。如果省略“end_offset”，则该偏移量将被视为数组的长度。如果“start_offset”在
+      “end_offset”之后或者两者都超出数组范围，则将返回空数组。如果任何输入为 null，则返回 null。
   - sql: ARRAY_UNION(array1, array2)
     table: haystack.arrayUnion(array)
     description: Returns an array of the elements in the union of array1 and array2, without duplicates. If any of the array is null, the function will return null.

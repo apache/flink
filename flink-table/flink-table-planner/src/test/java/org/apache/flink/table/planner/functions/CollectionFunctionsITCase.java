@@ -49,7 +49,8 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                         arrayUnionTestCases(),
                         arrayConcatTestCases(),
                         arrayMaxTestCases(),
-                        arrayJoinTestCases())
+                        arrayJoinTestCases(),
+                        arraySliceTestCases())
                 .flatMap(s -> s);
     }
 
@@ -1049,5 +1050,147 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
         public @DataTypeHint("ARRAY<INT NOT NULL>") int[] eval() {
             return new int[] {};
         }
+    }
+
+    private Stream<TestSetSpec> arraySliceTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.ARRAY_SLICE)
+                        .onFieldsWithData(
+                                new Integer[] {null, 1, 2, 3, 4, 5, 6, null},
+                                null,
+                                new Row[] {
+                                    Row.of(true, LocalDate.of(2022, 4, 20)),
+                                    Row.of(true, LocalDate.of(1990, 10, 14)),
+                                    null
+                                },
+                                new String[] {"a", "b", "c", "d", "e"},
+                                new Integer[] {1, 2, 3, 4, 5})
+                        .andDataTypes(
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(
+                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE())),
+                                DataTypes.ARRAY(DataTypes.STRING()),
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                $("f4").arraySlice(-123),
+                                "ARRAY_SLICE(f4, -123)",
+                                new Integer[] {1, 2, 3, 4, 5},
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                $("f4").arraySlice(0),
+                                "ARRAY_SLICE(f4, 0)",
+                                new Integer[] {1, 2, 3, 4, 5},
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                $("f4").arraySlice(-3),
+                                "ARRAY_SLICE(f4, -3)",
+                                new Integer[] {3, 4, 5},
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                $("f4").arraySlice(9),
+                                "ARRAY_SLICE(f4, 9)",
+                                new Integer[] {},
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                $("f4").arraySlice(-123, -231),
+                                "ARRAY_SLICE(f4, -123, -231)",
+                                new Integer[] {},
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                $("f4").arraySlice(-5, -5),
+                                "ARRAY_SLICE(f4, -5, -5)",
+                                new Integer[] {1},
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                $("f4").arraySlice(-6, -5),
+                                "ARRAY_SLICE(f4, -6, -5)",
+                                new Integer[] {1},
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                $("f4").arraySlice(5, 6),
+                                "ARRAY_SLICE(f4, 5, 6)",
+                                new Integer[] {5},
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                $("f4").arraySlice(20, 30),
+                                "ARRAY_SLICE(f4, 20, 30)",
+                                new Integer[] {},
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                $("f4").arraySlice(-123, 123),
+                                "ARRAY_SLICE(f4, -123, 123)",
+                                new Integer[] {1, 2, 3, 4, 5},
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                $("f0").arraySlice(0, 8),
+                                "ARRAY_SLICE(f0, 0, 8)",
+                                new Integer[] {null, 1, 2, 3, 4, 5, 6, null},
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                $("f0").arraySlice(0, 9),
+                                "ARRAY_SLICE(f0, 0, 9)",
+                                new Integer[] {null, 1, 2, 3, 4, 5, 6, null},
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                $("f0").arraySlice(0, -1),
+                                "ARRAY_SLICE(f0, 0, -1)",
+                                new Integer[] {null, 1, 2, 3, 4, 5, 6, null},
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                $("f0").arraySlice(1, 0),
+                                "ARRAY_SLICE(f0, 1, 0)",
+                                new Integer[] {null},
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                $("f0").arraySlice(-1, 15),
+                                "ARRAY_SLICE(f0, -1, 15)",
+                                new Integer[] {null},
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                $("f0").arraySlice(8, 15),
+                                "ARRAY_SLICE(f0, 8, 15)",
+                                new Integer[] {null},
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                $("f0").arraySlice(null, 15),
+                                "ARRAY_SLICE(f0, null, 15)",
+                                null,
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                $("f0").arraySlice(1, null),
+                                "ARRAY_SLICE(f0, 1, null)",
+                                null,
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                $("f0").arraySlice(null, null),
+                                "ARRAY_SLICE(f0, null, null)",
+                                null,
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                $("f1").arraySlice(1, 3),
+                                "ARRAY_SLICE(f1, 1, 3)",
+                                null,
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                $("f2").arraySlice(1, 1),
+                                "ARRAY_SLICE(f2, 1, 1)",
+                                new Row[] {
+                                    Row.of(true, LocalDate.of(2022, 4, 20)),
+                                },
+                                DataTypes.ARRAY(
+                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE())))
+                        .testSqlValidationError(
+                                "ARRAY_SLICE(f3, TRUE, 2.5)",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ARRAY_SLICE(<ARRAY>, <INTEGER>, <INTEGER>)")
+                        .testTableApiValidationError(
+                                $("f3").arraySlice(true, 2.5),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ARRAY_SLICE(<ARRAY>, <INTEGER>, <INTEGER>)")
+                        .testSqlValidationError(
+                                "ARRAY_SLICE()",
+                                " No match found for function signature ARRAY_SLICE()")
+                        .testSqlValidationError("ARRAY_SLICE(null)", "Illegal use of 'NULL'"));
     }
 }
