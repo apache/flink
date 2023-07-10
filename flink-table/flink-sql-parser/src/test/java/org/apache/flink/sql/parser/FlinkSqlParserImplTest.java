@@ -52,6 +52,24 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     void testShowCatalogs() {
         sql("show catalogs").ok("SHOW CATALOGS");
+
+        // ----------- The following cases are used to detect LIKE -----------
+
+        sql("show catalogs like '%'").ok("SHOW CATALOGS LIKE '%'");
+        sql("show catalogs not like '%'").ok("SHOW CATALOGS NOT LIKE '%'");
+
+        // ----------- The following cases are used to detect ILIKE -----------
+
+        sql("show catalogs ilike '%'").ok("SHOW CATALOGS ILIKE '%'");
+        sql("show catalogs not ilike '%'").ok("SHOW CATALOGS NOT ILIKE '%'");
+
+        sql("show catalogs ^likes^").fails("(?s).*Encountered \"likes\" at line 1, column 15.\n.*");
+        sql("show catalogs not ^likes^")
+                .fails("(?s).*Encountered \"likes\" at line 1, column 19" + ".\n" + ".*");
+        sql("show catalogs ^ilikes^")
+                .fails("(?s).*Encountered \"ilikes\" at line 1, column 15.\n.*");
+        sql("show catalogs not ^ilikes^")
+                .fails("(?s).*Encountered \"ilikes\" at line 1, column 19" + ".\n" + ".*");
     }
 
     @Test

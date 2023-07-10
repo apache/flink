@@ -69,6 +69,46 @@ show catalogs;
 2 rows in set
 !ok
 
+show catalogs like '%c1';
+!output
++--------------+
+| catalog name |
++--------------+
+|           c1 |
++--------------+
+1 row in set
+!ok
+
+show catalogs not like 'default%';
+!output
++--------------+
+| catalog name |
++--------------+
+|           c1 |
++--------------+
+1 row in set
+!ok
+
+show catalogs ilike '%c1';
+!output
++--------------+
+| catalog name |
++--------------+
+|           c1 |
++--------------+
+1 row in set
+!ok
+
+show catalogs not ilike 'default%';
+!output
++--------------+
+| catalog name |
++--------------+
+|           c1 |
++--------------+
+1 row in set
+!ok
+
 show current catalog;
 !output
 +----------------------+
