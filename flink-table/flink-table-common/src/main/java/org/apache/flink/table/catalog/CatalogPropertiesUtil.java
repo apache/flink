@@ -38,6 +38,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -77,6 +78,11 @@ public final class CatalogPropertiesUtil {
             final String comment = resolvedTable.getComment();
             if (comment != null && comment.length() > 0) {
                 properties.put(COMMENT, comment);
+            }
+
+            final Optional<Long> snapshot = resolvedTable.getSnapshot();
+            if (snapshot.isPresent()) {
+                properties.put(SNAPSHOT, Long.toString(snapshot.get()));
             }
 
             serializePartitionKeys(properties, resolvedTable.getPartitionKeys());
@@ -139,11 +145,16 @@ public final class CatalogPropertiesUtil {
 
             final @Nullable String comment = properties.get(COMMENT);
 
+            final @Nullable Long snapshot =
+                    properties.containsKey(SNAPSHOT)
+                            ? getValue(properties, SNAPSHOT, Long::parseLong)
+                            : null;
+
             final List<String> partitionKeys = deserializePartitionKeys(properties);
 
             final Map<String, String> options = deserializeOptions(properties, schemaKey);
 
-            return CatalogTable.of(schema, comment, partitionKeys, options);
+            return CatalogTable.of(schema, comment, partitionKeys, options, snapshot);
         } catch (Exception e) {
             throw new CatalogException("Error in deserializing catalog table.", e);
         }
@@ -194,6 +205,8 @@ public final class CatalogPropertiesUtil {
 
     private static final String COMMENT = "comment";
 
+    private static final String SNAPSHOT = "snapshot";
+
     private static Map<String, String> deserializeOptions(
             Map<String, String> map, String schemaKey) {
         return map.entrySet().stream()
@@ -202,7 +215,8 @@ public final class CatalogPropertiesUtil {
                             final String key = e.getKey();
                             return !key.startsWith(schemaKey + SEPARATOR)
                                     && !key.startsWith(PARTITION_KEYS + SEPARATOR)
-                                    && !key.equals(COMMENT);
+                                    && !key.equals(COMMENT)
+                                    && !key.equals(SNAPSHOT);
                         })
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }

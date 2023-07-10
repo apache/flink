@@ -131,12 +131,13 @@ public class DefaultCatalogTable implements CatalogTable {
         return schema.equals(that.schema)
                 && Objects.equals(comment, that.comment)
                 && partitionKeys.equals(that.partitionKeys)
-                && options.equals(that.options);
+                && options.equals(that.options)
+                && Objects.equals(snapshot, that.snapshot);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(schema, comment, partitionKeys, options);
+        return Objects.hash(schema, comment, partitionKeys, options, snapshot);
     }
 
     @Override
@@ -151,6 +152,8 @@ public class DefaultCatalogTable implements CatalogTable {
                 + partitionKeys
                 + ", options="
                 + options
+                + ", snapshot="
+                + snapshot
                 + '}';
     }
 
