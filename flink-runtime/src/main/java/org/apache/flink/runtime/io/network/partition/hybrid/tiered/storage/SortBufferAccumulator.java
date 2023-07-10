@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.BufferWithChannel;
@@ -179,8 +180,7 @@ public class SortBufferAccumulator implements BufferAccumulator {
 
     private void requestBuffers() {
         while (freeSegments.size() < numBuffers) {
-            BufferBuilder bufferBuilder = memoryManager.requestBufferBlocking(this);
-            Buffer buffer = bufferBuilder.createBufferConsumerFromBeginning().build();
+            Buffer buffer = requestBuffer();
             freeSegments.add(checkNotNull(buffer).getMemorySegment());
             if (bufferRecycler == null) {
                 bufferRecycler = buffer.getRecycler();
@@ -237,9 +237,7 @@ public class SortBufferAccumulator implements BufferAccumulator {
     private MemorySegment getFreeSegment() {
         MemorySegment freeSegment = freeSegments.poll();
         if (freeSegment == null) {
-            BufferBuilder bufferBuilder = memoryManager.requestBufferBlocking(this);
-            Buffer buffer = bufferBuilder.createBufferConsumerFromBeginning().build();
-            freeSegment = buffer.getMemorySegment();
+            freeSegment = requestBuffer().getMemorySegment();
         }
         return freeSegment;
     }
@@ -249,6 +247,15 @@ public class SortBufferAccumulator implements BufferAccumulator {
                 .accept(
                         new TieredStorageSubpartitionId(bufferWithChannel.getChannelIndex()),
                         Collections.singletonList(bufferWithChannel.getBuffer()));
+    }
+
+    private Buffer requestBuffer() {
+        BufferBuilder bufferBuilder = memoryManager.requestBufferBlocking(this);
+        BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumerFromBeginning();
+        Buffer buffer = bufferConsumer.build();
+        bufferBuilder.close();
+        bufferConsumer.close();
+        return buffer;
     }
 
     private void releaseFreeBuffers() {

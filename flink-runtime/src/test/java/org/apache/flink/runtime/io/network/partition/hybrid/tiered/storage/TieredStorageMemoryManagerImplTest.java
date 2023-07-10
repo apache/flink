@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
@@ -206,6 +207,39 @@ public class TieredStorageMemoryManagerImplTest {
         recycleRequestedBuffers();
 
         storageMemoryManager.release();
+    }
+
+    @Test
+    void testTransferBufferOwnership() throws IOException {
+        TieredStorageMemoryManagerImpl memoryManager =
+                createStorageMemoryManager(
+                        1, Collections.singletonList(new TieredStorageMemorySpec(this, 0)));
+        BufferBuilder bufferBuilder = memoryManager.requestBufferBlocking(this);
+        assertThat(memoryManager.numOwnerRequestedBuffer(this)).isEqualTo(1);
+
+        BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumerFromBeginning();
+        Buffer buffer = bufferConsumer.build();
+        bufferBuilder.close();
+        bufferConsumer.close();
+        Object newOwner = new Object();
+        memoryManager.transferBufferOwnership(this, newOwner, buffer);
+        assertThat(memoryManager.numOwnerRequestedBuffer(this)).isEqualTo(0);
+        assertThat(memoryManager.numOwnerRequestedBuffer(newOwner)).isEqualTo(1);
+        buffer.recycleBuffer();
+        assertThat(memoryManager.numOwnerRequestedBuffer(newOwner)).isEqualTo(0);
+    }
+
+    @Test
+    void testCanNotTransferOwnershipForEvent() throws IOException {
+        TieredStorageMemoryManagerImpl memoryManager =
+                createStorageMemoryManager(
+                        1, Collections.singletonList(new TieredStorageMemorySpec(this, 0)));
+        BufferConsumer bufferConsumer =
+                BufferBuilderTestUtils.createEventBufferConsumer(1, Buffer.DataType.EVENT_BUFFER);
+        Buffer buffer = bufferConsumer.build();
+        bufferConsumer.close();
+        assertThatThrownBy(() -> memoryManager.transferBufferOwnership(this, new Object(), buffer))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test

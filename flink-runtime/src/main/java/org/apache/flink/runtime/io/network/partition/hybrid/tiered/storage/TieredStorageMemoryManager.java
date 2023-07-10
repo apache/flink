@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage;
 
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.LocalBufferPool;
@@ -99,6 +100,16 @@ public interface TieredStorageMemoryManager {
      * @return the number of requested buffers belonging to the owner.
      */
     int numOwnerRequestedBuffer(Object owner);
+
+    /**
+     * Notify the memory manager that transferring one buffer's ownership from the old owner to the
+     * new owner.
+     *
+     * @param oldOwner the old owner of one buffer
+     * @param newOwner the new owner of one buffer
+     * @param buffer the buffer to transfer the ownership
+     */
+    void transferBufferOwnership(Object oldOwner, Object newOwner, Buffer buffer);
 
     /**
      * Release all the resources(if exists) and check the state of the {@link

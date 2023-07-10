@@ -53,7 +53,8 @@ public class TestingTierProducerAgent implements TierProducerAgent {
     }
 
     @Override
-    public boolean tryWrite(TieredStorageSubpartitionId subpartitionId, Buffer finishedBuffer) {
+    public boolean tryWrite(
+            TieredStorageSubpartitionId subpartitionId, Buffer finishedBuffer, Object bufferOwner) {
         return tryWriterFunction.apply(subpartitionId, finishedBuffer);
     }
 
