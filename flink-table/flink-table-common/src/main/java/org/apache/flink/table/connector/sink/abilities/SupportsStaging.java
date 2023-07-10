@@ -29,9 +29,9 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
  *
  * <p>If the user turns on {@link TableConfigOptions#TABLE_CTAS_ATOMICITY_ENABLED}, and the {@link
  * DynamicTableSink} implements {@link SupportsStaging}, the planner will call method {@link
- * #applyStaging(StagingContext)} to get the {@link StagedTable} returned by the sink, then {@link
- * StagedTable} will be used by Flink to implement a two-phase commit with the actual implementation
- * of {@link StagedTable}.
+ * #applyStaging(StagingContext)} to get the {@link StagedTable} returned by the sink, then the
+ * {@link StagedTable} will be used by Flink to implement a two-phase commit with the actual
+ * implementation of the {@link StagedTable}.
  */
 @PublicEvolving
 public interface SupportsStaging {

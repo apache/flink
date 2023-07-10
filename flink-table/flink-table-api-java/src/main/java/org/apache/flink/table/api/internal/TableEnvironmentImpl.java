@@ -799,7 +799,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             if (modify instanceof CreateTableASOperation) {
                 // execute CREATE TABLE first for CTAS statements
                 CreateTableASOperation ctasOperation = (CreateTableASOperation) modify;
-                mapOperations.add(getOperation(ctasOperation, jobStatusHookList));
+                mapOperations.add(getModifyOperation(ctasOperation, jobStatusHookList));
             } else if (modify instanceof ReplaceTableAsOperation) {
                 ReplaceTableAsOperation rtasOperation = (ReplaceTableAsOperation) modify;
                 mapOperations.add(getOperation(rtasOperation));
@@ -858,7 +858,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         return rtasOperation.toSinkModifyOperation(catalogManager);
     }
 
-    private ModifyOperation getOperation(
+    private ModifyOperation getModifyOperation(
             CreateTableASOperation ctasOperation, List<JobStatusHook> jobStatusHookList) {
         CreateTableOperation createTableOperation = ctasOperation.getCreateTableOperation();
         if (tableConfig.get(TableConfigOptions.TABLE_CTAS_ATOMICITY_ENABLED)) {
