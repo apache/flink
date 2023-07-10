@@ -17,11 +17,13 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.serialization.SerializationSchema.InitializationContext;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.Sink.InitContext;
@@ -37,6 +39,7 @@ import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
 import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
 import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
+import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
@@ -244,6 +247,7 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
                 processingTimeService,
                 mailboxExecutor,
                 InternalSinkWriterMetricGroup.wrap(getMetricGroup()),
+                getOperatorConfig(),
                 restoredCheckpointId);
     }
 
@@ -274,6 +278,8 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
 
         private final SinkWriterMetricGroup metricGroup;
 
+        private final StreamConfig operatorConfig;
+
         @Nullable private final Long restoredCheckpointId;
 
         private final StreamingRuntimeContext runtimeContext;
@@ -283,12 +289,14 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
                 ProcessingTimeService processingTimeService,
                 MailboxExecutor mailboxExecutor,
                 SinkWriterMetricGroup metricGroup,
+                StreamConfig operatorConfig,
                 @Nullable Long restoredCheckpointId) {
             this.runtimeContext = checkNotNull(runtimeContext);
             this.mailboxExecutor = checkNotNull(mailboxExecutor);
             this.processingTimeService = checkNotNull(processingTimeService);
             this.metricGroup = checkNotNull(metricGroup);
             this.restoredCheckpointId = restoredCheckpointId;
+            this.operatorConfig = checkNotNull(operatorConfig);
         }
 
         @Override
@@ -350,6 +358,23 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
         public InitializationContext asSerializationSchemaInitializationContext() {
             return new InitContextInitializationContextAdapter(
                     getUserCodeClassLoader(), () -> metricGroup.addGroup("user"));
+        }
+
+        @Override
+        public boolean isObjectReuseEnabled() {
+            return runtimeContext.getExecutionConfig().isObjectReuseEnabled();
+        }
+
+        @Override
+        public <IN> TypeSerializer<IN> createInputSerializer() {
+            return operatorConfig
+                    .<IN>getTypeSerializerIn(0, runtimeContext.getUserCodeClassLoader())
+                    .duplicate();
+        }
+
+        @Override
+        public JobID getJobId() {
+            return runtimeContext.getJobId();
         }
     }
 }

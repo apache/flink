@@ -17,9 +17,11 @@
 
 package org.apache.flink.streaming.api.functions;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.metrics.MetricGroup;
@@ -215,6 +217,21 @@ class PrintSinkTest {
         public SerializationSchema.InitializationContext
                 asSerializationSchemaInitializationContext() {
             return this;
+        }
+
+        @Override
+        public boolean isObjectReuseEnabled() {
+            return false;
+        }
+
+        @Override
+        public <IN> TypeSerializer<IN> createInputSerializer() {
+            return null;
+        }
+
+        @Override
+        public JobID getJobId() {
+            return null;
         }
     }
 

@@ -18,8 +18,11 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.connector.sink.Sink;
@@ -28,6 +31,7 @@ import org.apache.flink.core.io.SimpleVersionedSerialization;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
@@ -57,6 +61,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Queue;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.streaming.runtime.operators.sink.SinkTestUtil.fromOutput;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -380,6 +385,50 @@ class SinkWriterOperatorTest {
 
         assertEmitted(Collections.singletonList(record), testHarness.getOutput());
         assertThat(sinkWriter.elements).isEmpty();
+
+        testHarness.close();
+    }
+
+    @Test
+    void testInitContext() throws Exception {
+        final AtomicReference<org.apache.flink.api.connector.sink2.Sink.InitContext> initContext =
+                new AtomicReference<>();
+        final org.apache.flink.api.connector.sink2.Sink<String> sink =
+                context -> {
+                    initContext.set(context);
+                    return null;
+                };
+
+        final int subtaskId = 1;
+        final int parallelism = 10;
+        final TypeSerializer<String> typeSerializer = StringSerializer.INSTANCE;
+        final JobID jobID = new JobID();
+
+        final MockEnvironment environment =
+                MockEnvironment.builder()
+                        .setSubtaskIndex(subtaskId)
+                        .setParallelism(parallelism)
+                        .setMaxParallelism(parallelism)
+                        .setJobID(jobID)
+                        .setExecutionConfig(new ExecutionConfig().enableObjectReuse())
+                        .build();
+
+        final OneInputStreamOperatorTestHarness<String, CommittableMessage<String>> testHarness =
+                new OneInputStreamOperatorTestHarness<>(
+                        new SinkWriterOperatorFactory<>(sink), typeSerializer, environment);
+        testHarness.open();
+
+        assertThat(initContext.get().getUserCodeClassLoader()).isNotNull();
+        assertThat(initContext.get().getMailboxExecutor()).isNotNull();
+        assertThat(initContext.get().getProcessingTimeService()).isNotNull();
+        assertThat(initContext.get().getSubtaskId()).isEqualTo(subtaskId);
+        assertThat(initContext.get().getNumberOfParallelSubtasks()).isEqualTo(parallelism);
+        assertThat(initContext.get().getAttemptNumber()).isEqualTo(0);
+        assertThat(initContext.get().metricGroup()).isNotNull();
+        assertThat(initContext.get().getRestoredCheckpointId()).isNotPresent();
+        assertThat(initContext.get().isObjectReuseEnabled()).isTrue();
+        assertThat(initContext.get().createInputSerializer()).isEqualTo(typeSerializer);
+        assertThat(initContext.get().getJobId()).isEqualTo(jobID);
 
         testHarness.close();
     }
