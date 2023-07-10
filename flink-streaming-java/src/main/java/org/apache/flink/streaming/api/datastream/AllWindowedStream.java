@@ -62,6 +62,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
+import java.time.Duration;
+
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -132,10 +134,25 @@ public class AllWindowedStream<T, W extends Window> {
      * is {@code 0L}.
      *
      * <p>Setting an allowed lateness is only valid for event-time windows.
+     *
+     * @deprecated Use {@link #allowedLateness(Duration)}, instead.
      */
+    @Deprecated
     @PublicEvolving
     public AllWindowedStream<T, W> allowedLateness(Time lateness) {
-        final long millis = lateness.toMilliseconds();
+        return allowedLateness(lateness.toDuration());
+    }
+
+    /**
+     * Sets the time by which elements are allowed to be late. Elements that arrive behind the
+     * watermark by more than the specified time will be dropped. By default, the allowed lateness
+     * is {@code 0L}.
+     *
+     * <p>Setting an allowed lateness is only valid for event-time windows.
+     */
+    @PublicEvolving
+    public AllWindowedStream<T, W> allowedLateness(Duration lateness) {
+        final long millis = lateness.toMillis();
         checkArgument(millis >= 0, "The allowed lateness cannot be negative.");
 
         this.allowedLateness = millis;
@@ -145,7 +162,7 @@ public class AllWindowedStream<T, W extends Window> {
     /**
      * Send late arriving data to the side output identified by the given {@link OutputTag}. Data is
      * considered late after the watermark has passed the end of the window plus the allowed
-     * lateness set using {@link #allowedLateness(Time)}.
+     * lateness set using {@link #allowedLateness(Duration)}.
      *
      * <p>You can get the stream of late data using {@link
      * SingleOutputStreamOperator#getSideOutput(OutputTag)} on the {@link

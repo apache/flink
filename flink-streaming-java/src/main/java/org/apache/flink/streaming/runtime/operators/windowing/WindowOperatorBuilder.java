@@ -57,6 +57,7 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.lang.reflect.Type;
+import java.time.Duration;
 
 /**
  * A builder for creating {@link WindowOperator WindowOperators}.
@@ -113,10 +114,16 @@ public class WindowOperatorBuilder<T, K, W extends Window> {
         this.trigger = trigger;
     }
 
+    /** @deprecated Use {@link #allowedLateness(Duration)}. */
+    @Deprecated
     public void allowedLateness(Time lateness) {
+        allowedLateness(lateness.toDuration());
+    }
+
+    public void allowedLateness(Duration lateness) {
         Preconditions.checkNotNull(lateness, "Allowed lateness cannot be null");
 
-        final long millis = lateness.toMilliseconds();
+        final long millis = lateness.toMillis();
         Preconditions.checkArgument(millis >= 0, "The allowed lateness cannot be negative.");
 
         this.allowedLateness = millis;

@@ -73,6 +73,7 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.lang3.StringUtils;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Stack;
@@ -429,7 +430,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 
     /**
      * Join elements of this {@link KeyedStream} with elements of another {@link KeyedStream} over a
-     * time interval that can be specified with {@link IntervalJoin#between(Time, Time)}.
+     * time interval that can be specified with {@link IntervalJoin#between(Duration, Duration)}.
      *
      * @param otherStream The other keyed stream to join this keyed stream with
      * @param <T1> Type parameter of elements in the other stream
@@ -497,9 +498,30 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
          *
          * @param lowerBound The lower bound. Needs to be smaller than or equal to the upperBound
          * @param upperBound The upper bound. Needs to be bigger than or equal to the lowerBound
+         * @deprecated Use {@link #between(Duration, Duration)}
          */
+        @Deprecated
         @PublicEvolving
         public IntervalJoined<T1, T2, KEY> between(Time lowerBound, Time upperBound) {
+            return between(lowerBound.toDuration(), upperBound.toDuration());
+        }
+
+        /**
+         * Specifies the time boundaries over which the join operation works, so that
+         *
+         * <pre>
+         * leftElement.timestamp + lowerBound <= rightElement.timestamp <= leftElement.timestamp + upperBound
+         * </pre>
+         *
+         * <p>By default both the lower and the upper bound are inclusive. This can be configured
+         * with {@link IntervalJoined#lowerBoundExclusive()} and {@link
+         * IntervalJoined#upperBoundExclusive()}
+         *
+         * @param lowerBound The lower bound. Needs to be smaller than or equal to the upperBound
+         * @param upperBound The upper bound. Needs to be bigger than or equal to the lowerBound
+         */
+        @PublicEvolving
+        public IntervalJoined<T1, T2, KEY> between(Duration lowerBound, Duration upperBound) {
             if (timeBehaviour != TimeBehaviour.EventTime) {
                 throw new UnsupportedTimeCharacteristicException(
                         "Time-bounded stream joins are only supported in event time");
@@ -509,12 +531,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
             checkNotNull(upperBound, "An upper bound needs to be provided for a time-bounded join");
 
             return new IntervalJoined<>(
-                    streamOne,
-                    streamTwo,
-                    lowerBound.toMilliseconds(),
-                    upperBound.toMilliseconds(),
-                    true,
-                    true);
+                    streamOne, streamTwo, lowerBound.toMillis(), upperBound.toMillis(), true, true);
         }
     }
 
