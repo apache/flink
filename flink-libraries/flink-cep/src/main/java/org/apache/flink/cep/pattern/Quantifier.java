@@ -23,8 +23,10 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.EnumSet;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * A quantifier describing the Pattern. There are three main groups of {@link Quantifier}.
@@ -190,9 +192,9 @@ public class Quantifier {
     public static class Times {
         private final int from;
         private final int to;
-        private final @Nullable Time windowTime;
+        private final @Nullable Duration windowTime;
 
-        private Times(int from, int to, @Nullable Time windowTime) {
+        private Times(int from, int to, @Nullable Duration windowTime) {
             Preconditions.checkArgument(
                     from > 0, "The from should be a positive number greater than 0.");
             Preconditions.checkArgument(
@@ -211,15 +213,33 @@ public class Quantifier {
             return to;
         }
 
+        /** @deprecated Use {@link #getWindowSize()}. */
+        @Deprecated
         public Time getWindowTime() {
-            return windowTime;
+            return getWindowSize().map(Time::of).orElse(null);
         }
 
+        public Optional<Duration> getWindowSize() {
+            return Optional.ofNullable(windowTime);
+        }
+
+        /** @deprecated Use {@link #of(int, int, Duration)} */
+        @Deprecated
         public static Times of(int from, int to, @Nullable Time windowTime) {
+            return of(from, to, Time.toDuration(windowTime));
+        }
+
+        public static Times of(int from, int to, @Nullable Duration windowTime) {
             return new Times(from, to, windowTime);
         }
 
+        /** @deprecated Use {@link #of(int, Duration)} */
+        @Deprecated
         public static Times of(int times, @Nullable Time windowTime) {
+            return of(times, Time.toDuration(windowTime));
+        }
+
+        public static Times of(int times, @Nullable Duration windowTime) {
             return new Times(times, times, windowTime);
         }
 
@@ -237,8 +257,7 @@ public class Quantifier {
                     && ((windowTime == null && times.windowTime == null)
                             || (windowTime != null
                                     && times.windowTime != null
-                                    && windowTime.toMilliseconds()
-                                            == times.windowTime.toMilliseconds()));
+                                    && windowTime.toMillis() == times.windowTime.toMillis()));
         }
 
         @Override

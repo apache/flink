@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.windowing.triggers.ProcessingTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 
@@ -40,7 +41,7 @@ import java.util.Collections;
  * DataStream<Tuple2<String, Integer>> in = ...;
  * KeyedStream<String, Tuple2<String, Integer>> keyed = in.keyBy(...);
  * WindowedStream<Tuple2<String, Integer>, String, TimeWindows> windowed =
- *   keyed.window(ProcessingTimeSessionWindows.withGap(Time.minutes(1)));
+ *   keyed.window(ProcessingTimeSessionWindows.withGap(Duration.ofMinutes(1)));
  * }</pre>
  */
 public class ProcessingTimeSessionWindows extends MergingWindowAssigner<Object, TimeWindow> {
@@ -87,9 +88,22 @@ public class ProcessingTimeSessionWindows extends MergingWindowAssigner<Object, 
      *
      * @param size The session timeout, i.e. the time gap between sessions
      * @return The policy.
+     * @deprecated Use {@link #withGap(Duration)}
      */
+    @Deprecated
     public static ProcessingTimeSessionWindows withGap(Time size) {
-        return new ProcessingTimeSessionWindows(size.toMilliseconds());
+        return withGap(size.toDuration());
+    }
+
+    /**
+     * Creates a new {@code SessionWindows} {@link WindowAssigner} that assigns elements to sessions
+     * based on the element timestamp.
+     *
+     * @param size The session timeout, i.e. the time gap between sessions
+     * @return The policy.
+     */
+    public static ProcessingTimeSessionWindows withGap(Duration size) {
+        return new ProcessingTimeSessionWindows(size.toMillis());
     }
 
     /**

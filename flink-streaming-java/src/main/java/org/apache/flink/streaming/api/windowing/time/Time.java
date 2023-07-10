@@ -20,6 +20,9 @@ package org.apache.flink.streaming.api.windowing.time;
 
 import org.apache.flink.annotation.Public;
 
+import javax.annotation.Nullable;
+
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -27,9 +30,22 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * The definition of a time interval for windowing. The time characteristic referred to is the
  * default time characteristic set on the execution environment.
+ *
+ * @deprecated Use {@link Duration}
  */
+@Deprecated
 @Public
 public final class Time {
+
+    @Nullable
+    public static Duration toDuration(@Nullable Time time) {
+        return time != null ? time.toDuration() : null;
+    }
+
+    @Nullable
+    public static Time of(@Nullable Duration duration) {
+        return duration != null ? Time.milliseconds(duration.toMillis()) : null;
+    }
 
     /** The time unit for this policy's time interval. */
     private final TimeUnit unit;
@@ -72,6 +88,10 @@ public final class Time {
      */
     public long toMilliseconds() {
         return unit.toMillis(size);
+    }
+
+    public Duration toDuration() {
+        return Duration.ofMillis(this.toMilliseconds());
     }
 
     // ------------------------------------------------------------------------
