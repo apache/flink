@@ -37,6 +37,8 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.Tiered
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyServiceImpl;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageMemoryManager;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageMemorySpec;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageProducerClient;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageProducerMetricUpdate;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageResourceRegistry;
@@ -48,6 +50,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkState;
@@ -67,6 +70,10 @@ public class TieredResultPartition extends ResultPartition {
 
     private final TieredStorageNettyServiceImpl nettyService;
 
+    private final List<TieredStorageMemorySpec> tieredStorageMemorySpecs;
+
+    private final TieredStorageMemoryManager storageMemoryManager;
+
     private boolean hasNotifiedEndOfUserRecords;
 
     public TieredResultPartition(
@@ -81,7 +88,9 @@ public class TieredResultPartition extends ResultPartition {
             SupplierWithException<BufferPool, IOException> bufferPoolFactory,
             TieredStorageProducerClient tieredStorageProducerClient,
             TieredStorageResourceRegistry tieredStorageResourceRegistry,
-            TieredStorageNettyServiceImpl nettyService) {
+            TieredStorageNettyServiceImpl nettyService,
+            List<TieredStorageMemorySpec> tieredStorageMemorySpecs,
+            TieredStorageMemoryManager storageMemoryManager) {
         super(
                 owningTaskName,
                 partitionIndex,
@@ -97,6 +106,8 @@ public class TieredResultPartition extends ResultPartition {
         this.tieredStorageProducerClient = tieredStorageProducerClient;
         this.tieredStorageResourceRegistry = tieredStorageResourceRegistry;
         this.nettyService = nettyService;
+        this.tieredStorageMemorySpecs = tieredStorageMemorySpecs;
+        this.storageMemoryManager = storageMemoryManager;
     }
 
     @Override
@@ -104,6 +115,8 @@ public class TieredResultPartition extends ResultPartition {
         if (isReleased()) {
             throw new IOException("Result partition has been released.");
         }
+        storageMemoryManager.setup(bufferPool, tieredStorageMemorySpecs);
+        tieredStorageResourceRegistry.registerResource(partitionId, storageMemoryManager::release);
     }
 
     @Override

@@ -21,6 +21,7 @@ package org.apache.flink.test.runtime;
 import org.apache.flink.api.common.BatchShuffleMode;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
 import org.junit.jupiter.api.Test;
@@ -34,6 +35,8 @@ class HybridShuffleITCase extends BatchShuffleITCaseBase {
         Configuration configuration = getConfiguration();
         configuration.set(
                 ExecutionOptions.BATCH_SHUFFLE_MODE, BatchShuffleMode.ALL_EXCHANGES_HYBRID_FULL);
+        configuration.set(
+                NettyShuffleEnvironmentOptions.NETWORK_HYBRID_SHUFFLE_ENABLE_NEW_MODE, false);
         JobGraph jobGraph = createJobGraph(numRecordsToSend, false, configuration);
         executeJob(jobGraph, configuration, numRecordsToSend);
     }
@@ -45,6 +48,8 @@ class HybridShuffleITCase extends BatchShuffleITCaseBase {
         configuration.set(
                 ExecutionOptions.BATCH_SHUFFLE_MODE,
                 BatchShuffleMode.ALL_EXCHANGES_HYBRID_SELECTIVE);
+        configuration.set(
+                NettyShuffleEnvironmentOptions.NETWORK_HYBRID_SHUFFLE_ENABLE_NEW_MODE, false);
         JobGraph jobGraph = createJobGraph(numRecordsToSend, false, configuration);
         executeJob(jobGraph, configuration, numRecordsToSend);
     }
@@ -55,6 +60,8 @@ class HybridShuffleITCase extends BatchShuffleITCaseBase {
         Configuration configuration = getConfiguration();
         configuration.set(
                 ExecutionOptions.BATCH_SHUFFLE_MODE, BatchShuffleMode.ALL_EXCHANGES_HYBRID_FULL);
+        configuration.set(
+                NettyShuffleEnvironmentOptions.NETWORK_HYBRID_SHUFFLE_ENABLE_NEW_MODE, false);
         JobGraph jobGraph = createJobGraph(numRecordsToSend, true, configuration);
         executeJob(jobGraph, configuration, numRecordsToSend);
     }
@@ -66,6 +73,8 @@ class HybridShuffleITCase extends BatchShuffleITCaseBase {
         configuration.set(
                 ExecutionOptions.BATCH_SHUFFLE_MODE,
                 BatchShuffleMode.ALL_EXCHANGES_HYBRID_SELECTIVE);
+        configuration.set(
+                NettyShuffleEnvironmentOptions.NETWORK_HYBRID_SHUFFLE_ENABLE_NEW_MODE, false);
         JobGraph jobGraph = createJobGraph(numRecordsToSend, true, configuration);
         executeJob(jobGraph, configuration, numRecordsToSend);
     }

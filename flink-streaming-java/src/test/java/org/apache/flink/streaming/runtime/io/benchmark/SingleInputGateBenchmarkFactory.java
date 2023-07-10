@@ -57,6 +57,7 @@ public class SingleInputGateBenchmarkFactory extends SingleInputGateFactory {
                 partitionManager,
                 taskEventPublisher,
                 networkBufferPool,
+                null,
                 null);
     }
 

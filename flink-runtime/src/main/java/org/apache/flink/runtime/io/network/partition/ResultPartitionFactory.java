@@ -28,6 +28,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolFactory;
 import org.apache.flink.runtime.io.network.partition.hybrid.HsResultPartition;
 import org.apache.flink.runtime.io.network.partition.hybrid.HybridShuffleConfiguration;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.shuffle.TieredResultPartitionFactory;
 import org.apache.flink.runtime.shuffle.NettyShuffleUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -40,6 +41,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 
 /** Factory for {@link ResultPartition} to use in {@link NettyShuffleEnvironment}. */
@@ -83,6 +85,8 @@ public class ResultPartitionFactory {
 
     private final int maxOverdraftBuffersPerGate;
 
+    private final Optional<TieredResultPartitionFactory> tieredStorage;
+
     public ResultPartitionFactory(
             ResultPartitionManager partitionManager,
             FileChannelManager channelManager,
@@ -101,7 +105,8 @@ public class ResultPartitionFactory {
             boolean sslEnabled,
             int maxOverdraftBuffersPerGate,
             int hybridShuffleSpilledIndexRegionGroupSize,
-            long hybridShuffleNumRetainedInMemoryRegionsMax) {
+            long hybridShuffleNumRetainedInMemoryRegionsMax,
+            Optional<TieredResultPartitionFactory> tieredStorage) {
 
         this.partitionManager = partitionManager;
         this.channelManager = channelManager;
@@ -122,6 +127,7 @@ public class ResultPartitionFactory {
         this.hybridShuffleSpilledIndexRegionGroupSize = hybridShuffleSpilledIndexRegionGroupSize;
         this.hybridShuffleNumRetainedInMemoryRegionsMax =
                 hybridShuffleNumRetainedInMemoryRegionsMax;
+        this.tieredStorage = tieredStorage;
     }
 
     public ResultPartition create(
@@ -227,23 +233,43 @@ public class ResultPartitionFactory {
             }
         } else if (type == ResultPartitionType.HYBRID_FULL
                 || type == ResultPartitionType.HYBRID_SELECTIVE) {
-            partition =
-                    new HsResultPartition(
-                            taskNameWithSubtaskAndId,
-                            partitionIndex,
-                            id,
-                            type,
-                            subpartitions.length,
-                            maxParallelism,
-                            batchShuffleReadBufferPool,
-                            batchShuffleReadIOExecutor,
-                            partitionManager,
-                            channelManager.createChannel().getPath(),
-                            networkBufferSize,
-                            getHybridShuffleConfiguration(numberOfSubpartitions, type),
-                            bufferCompressor,
-                            isBroadcast,
-                            bufferPoolFactory);
+            if (tieredStorage.isPresent()) {
+                partition =
+                        tieredStorage
+                                .get()
+                                .createTieredResultPartition(
+                                        taskNameWithSubtaskAndId,
+                                        partitionIndex,
+                                        id,
+                                        type,
+                                        subpartitions.length,
+                                        maxParallelism,
+                                        isBroadcast,
+                                        partitionManager,
+                                        bufferCompressor,
+                                        bufferPoolFactory,
+                                        channelManager,
+                                        batchShuffleReadBufferPool,
+                                        batchShuffleReadIOExecutor);
+            } else {
+                partition =
+                        new HsResultPartition(
+                                taskNameWithSubtaskAndId,
+                                partitionIndex,
+                                id,
+                                type,
+                                subpartitions.length,
+                                maxParallelism,
+                                batchShuffleReadBufferPool,
+                                batchShuffleReadIOExecutor,
+                                partitionManager,
+                                channelManager.createChannel().getPath(),
+                                networkBufferSize,
+                                getHybridShuffleConfiguration(numberOfSubpartitions, type),
+                                bufferCompressor,
+                                isBroadcast,
+                                bufferPoolFactory);
+            }
         } else {
             throw new IllegalArgumentException("Unrecognized ResultPartitionType: " + type);
         }
@@ -336,6 +362,13 @@ public class ResultPartitionFactory {
                             sortShuffleMinParallelism,
                             sortShuffleMinBuffers,
                             numberOfSubpartitions,
+                            tieredStorage.isPresent(),
+                            tieredStorage
+                                    .map(
+                                            storage ->
+                                                    storage.getTieredStorageConfiguration()
+                                                            .getTotalExclusiveBufferNum())
+                                    .orElse(0),
                             type);
 
             return bufferPoolFactory.createBufferPool(
