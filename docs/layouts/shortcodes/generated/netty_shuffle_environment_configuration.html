@@ -51,16 +51,28 @@
             <td>Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue lengths.</td>
         </tr>
         <tr>
+            <td><h5>taskmanager.network.hybrid-shuffle.enable-new-mode</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>The option is used to enable the new mode of hybrid shuffle, which has resolved existing issues in the legacy mode. First, the new mode uses less required network memory. Second, the new mode can store shuffle data in remote storage when the disk space is not enough, which could avoid insufficient disk space errors and is only supported when taskmanager.network.hybrid-shuffle.remote.path is configured. The new mode is currently in an experimental phase. It can be set to false to fallback to the legacy mode  if something unexpected. Once the new mode reaches a stable state, the legacy mode as well as the option will be removed.</td>
+        </tr>
+        <tr>
             <td><h5>taskmanager.network.hybrid-shuffle.num-retained-in-memory-regions-max</h5></td>
             <td style="word-wrap: break-word;">1048576</td>
             <td>Long</td>
-            <td>Controls the max number of hybrid retained regions in memory.</td>
+            <td>Controls the max number of hybrid retained regions in memory. Note: This option will be ignored if taskmanager.network.hybrid-shuffle.enable-new-mode is set true. </td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.hybrid-shuffle.remote.path</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The option is used to configure the base path of remote storage for hybrid shuffle. The shuffle data will be stored in remote storage when the disk space is not enough. Note: If the option is configured and taskmanager.network.hybrid-shuffle.enable-new-mode is false, this option will be ignored. If the option is not configured and taskmanager.network.hybrid-shuffle.enable-new-mode is true, the remote storage will be disabled.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.network.hybrid-shuffle.spill-index-region-group-size</h5></td>
             <td style="word-wrap: break-word;">1024</td>
             <td>Integer</td>
-            <td>Controls the region group size(in bytes) of hybrid spilled file data index. </td>
+            <td>Controls the region group size(in bytes) of hybrid spilled file data index. Note: This option will be ignored if taskmanager.network.hybrid-shuffle.enable-new-mode is set true.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.network.max-num-tcp-connections</h5></td>

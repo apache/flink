@@ -32,6 +32,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.TestingBufferAccumulator;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.TestingTierProducerAgent;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.TestingTieredStorageMemoryManager;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyServiceImpl;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageProducerClient;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageResourceRegistry;
@@ -184,6 +185,8 @@ class TieredResultPartitionTest {
             int numSubpartitions, BufferPool bufferPool, boolean isBroadcastOnly)
             throws IOException {
         TestingTierProducerAgent tierProducerAgent = new TestingTierProducerAgent.Builder().build();
+        TieredStorageResourceRegistry tieredStorageResourceRegistry =
+                new TieredStorageResourceRegistry();
         TieredResultPartition tieredResultPartition =
                 new TieredResultPartition(
                         "TieredStoreResultPartitionTest",
@@ -201,8 +204,10 @@ class TieredResultPartitionTest {
                                 new TestingBufferAccumulator(),
                                 null,
                                 Collections.singletonList(tierProducerAgent)),
-                        new TieredStorageResourceRegistry(),
-                        new TieredStorageNettyServiceImpl(new TieredStorageResourceRegistry()));
+                        tieredStorageResourceRegistry,
+                        new TieredStorageNettyServiceImpl(tieredStorageResourceRegistry),
+                        Collections.emptyList(),
+                        new TestingTieredStorageMemoryManager.Builder().build());
         taskIOMetricGroup =
                 UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup();
         tieredResultPartition.setup();

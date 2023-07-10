@@ -1340,6 +1340,7 @@ public class SingleInputGateTest extends InputGateTestBase {
                                 : netEnv.getResultPartitionManager(),
                         new TaskEventDispatcher(),
                         netEnv.getNetworkBufferPool(),
+                        null,
                         null)
                 .create(
                         netEnv.createShuffleIOOwnerContext(
@@ -1347,8 +1348,7 @@ public class SingleInputGateTest extends InputGateTestBase {
                         0,
                         gateDesc,
                         SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER,
-                        newUnregisteredInputChannelMetrics(),
-                        null);
+                        newUnregisteredInputChannelMetrics());
     }
 
     private static Map<InputGateID, SingleInputGate> createInputGateWithLocalChannels(
