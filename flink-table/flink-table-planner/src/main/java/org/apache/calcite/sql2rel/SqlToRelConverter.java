@@ -228,7 +228,7 @@ import static org.apache.calcite.sql.SqlUtil.stripAs;
  *   <li>Added in FLINK-29081, FLINK-28682: Lines 644 ~ 654
  *   <li>Added in FLINK-28682: Lines 2277 ~ 2294
  *   <li>Added in FLINK-28682: Lines 2331 ~ 2359
- *   <li>Added in FLINK-20873: Lines 5431 ~ 5440
+ *   <li>Added in FLINK-20873: Lines 5427 ~ 5436
  * </ol>
  */
 @SuppressWarnings("UnstableApiUsage")
@@ -4497,14 +4497,10 @@ public class SqlToRelConverter {
                 joinList.add(lastList);
             }
             lastList = new ArrayList<>();
-            final SqlTypeName typeName =
-                    requireNonNull(validator, "validator")
-                            .getValidatedNodeType(call)
-                            .getSqlTypeName();
             relBuilder.push(
                     Collect.create(
                             requireNonNull(input, "input"),
-                            typeName,
+                            call.getKind(),
                             castNonNull(validator().deriveAlias(call, i))));
             joinList.add(relBuilder.build());
         }

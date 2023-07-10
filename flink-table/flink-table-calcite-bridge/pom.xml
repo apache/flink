@@ -45,15 +45,15 @@ under the License.
 			<version>${calcite.version}</version>
 			<exclusions>
 				<!--
-				"mvn dependency:tree" as of Calcite 1.31.0:
-				[INFO] +- org.apache.calcite:calcite-core:jar:1.31.0:compile
-				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.31.0:compile
-				[INFO] |  +- com.esri.geometry:esri-geometry-api:jar:2.2.0:compile
-				[INFO] |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.13.4:compile
+				"mvn dependency:tree" as of Calcite 1.32.0:
+				[INFO] +- org.apache.calcite:calcite-core:jar:1.32.0:compile
+				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.32.0:compile
+				[INFO] |  +- org.locationtech.jts:jts-core:jar:1.19.0:compile
+				[INFO] |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.14.3:compile
 				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.22.0:compile
 				[INFO] |  +- org.apiguardian:apiguardian-api:jar:1.1.2:compile
-				[INFO] |  +- com.fasterxml.jackson.core:jackson-core:jar:2.13.4:compile
-				[INFO] |  +- com.fasterxml.jackson.core:jackson-databind:jar:2.13.4.2:compile
+				[INFO] |  +- com.fasterxml.jackson.core:jackson-core:jar:2.14.3:compile
+				[INFO] |  +- com.fasterxml.jackson.core:jackson-databind:jar:2.14.3:compile
 				[INFO] |  +- com.jayway.jsonpath:json-path:jar:2.7.0:runtime
 				[INFO] |  |  \- net.minidev:json-smart:jar:2.4.7:runtime
 				[INFO] |  |     \- net.minidev:accessors-smart:jar:2.4.7:runtime
@@ -143,6 +143,14 @@ under the License.
 				<exclusion>
 					<groupId>org.checkerframework</groupId>
 					<artifactId>checker-qual</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.locationtech.jts.io</groupId>
+					<artifactId>jts-io-common</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.locationtech.proj4j</groupId>
+					<artifactId>proj4j</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>

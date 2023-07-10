@@ -62,9 +62,9 @@ under the License.
 			<version>${calcite.version}</version>
 			<exclusions>
 				<!--
-				"mvn dependency:tree" as of Calcite 1.31.0:
+				"mvn dependency:tree" as of Calcite 1.32.0:
 
-				[INFO] +- org.apache.calcite:calcite-core:jar:1.31.0:compile
+				[INFO] +- org.apache.calcite:calcite-core:jar:1.32.0:compile
 				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.22.0:compile
 				[INFO] |  +- org.apiguardian:apiguardian-api:jar:1.1.2:compile
 				[INFO] |  \- org.checkerframework:checker-qual:jar:3.12.0:compile
@@ -100,8 +100,16 @@ under the License.
 					<artifactId>commons-dbcp2</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>com.esri.geometry</groupId>
-					<artifactId>esri-geometry-api</artifactId>
+					<groupId>org.locationtech.jts</groupId>
+					<artifactId>jts-core</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.locationtech.jts.io</groupId>
+					<artifactId>jts-io-common</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.locationtech.proj4j</groupId>
+					<artifactId>proj4j</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.fasterxml.jackson.dataformat</groupId>
