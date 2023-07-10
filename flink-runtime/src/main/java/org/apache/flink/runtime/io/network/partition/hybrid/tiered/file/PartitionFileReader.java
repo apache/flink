@@ -24,6 +24,8 @@ import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 
 /** {@link PartitionFileReader} defines the read logic for different types of shuffle files. */
@@ -38,8 +40,9 @@ public interface PartitionFileReader {
      * @param bufferIndex the index of buffer
      * @param memorySegment the empty buffer to store the read buffer
      * @param recycler the buffer recycler
-     * @return the read buffer
+     * @return null if there is no data otherwise a buffer.
      */
+    @Nullable
     Buffer readBuffer(
             TieredStoragePartitionId partitionId,
             TieredStorageSubpartitionId subpartitionId,

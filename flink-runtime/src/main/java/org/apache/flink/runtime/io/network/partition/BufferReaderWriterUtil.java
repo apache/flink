@@ -294,7 +294,7 @@ public final class BufferReaderWriterUtil {
         }
     }
 
-    static BufferHeader parseBufferHeader(ByteBuffer headerBuffer) {
+    public static BufferHeader parseBufferHeader(ByteBuffer headerBuffer) {
         configureByteBuffer(headerBuffer);
 
         short dataTypeIndex = headerBuffer.getShort();
