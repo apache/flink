@@ -1143,7 +1143,7 @@ aggregate:
 
       请注意，键必须是唯一的。如果一个键出现多次，将抛出一个错误。
 
-      目前在 `OVER` windows 中不支持此函数。同时，此函数不支持与其他聚合函数一起使用。
+      目前在 `OVER` windows 中不支持此函数。
 
       ```sql
       -- '{"Apple":2,"Banana":17,"Orange":0}'
@@ -1158,7 +1158,7 @@ aggregate:
 
       项目表达式可以是任意的，包括其他 JSON 函数。如果值为 `NULL`，则 `ON NULL` 行为定义了要执行的操作。如果省略，默认情况下假定为 `ABSENT ON NULL`。
 
-      此函数目前不支持 `OVER` windows、未绑定的 session windows 或 hop windows。同时，此函数不支持与其他聚合函数一起使用。
+      此函数目前不支持 `OVER` windows、未绑定的 session windows 或 hop windows。
 
       ```sql
       -- '["Apple","Banana","Orange"]'
