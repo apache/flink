@@ -32,17 +32,21 @@ public class TestingNettyConnectionWriter implements NettyConnectionWriter {
 
     private final Supplier<Integer> numQueuedBuffersSupplier;
 
+    private final Runnable availableNotifier;
+
     private final Function<Throwable, Void> closeFunction;
 
     private TestingNettyConnectionWriter(
             Function<NettyPayload, Void> writeBufferFunction,
             Supplier<NettyConnectionId> nettyConnectionIdSupplier,
             Supplier<Integer> numQueuedBuffersSupplier,
-            Function<Throwable, Void> closeFunction) {
+            Function<Throwable, Void> closeFunction,
+            Runnable availableNotifier) {
         this.writeBufferFunction = writeBufferFunction;
         this.nettyConnectionIdSupplier = nettyConnectionIdSupplier;
         this.numQueuedBuffersSupplier = numQueuedBuffersSupplier;
         this.closeFunction = closeFunction;
+        this.availableNotifier = availableNotifier;
     }
 
     @Override
@@ -61,6 +65,11 @@ public class TestingNettyConnectionWriter implements NettyConnectionWriter {
     }
 
     @Override
+    public void notifyAvailable() {
+        availableNotifier.run();
+    }
+
+    @Override
     public void close(@Nullable Throwable error) {
         closeFunction.apply(error);
     }
@@ -75,6 +84,8 @@ public class TestingNettyConnectionWriter implements NettyConnectionWriter {
         private Supplier<Integer> numQueuedBuffersSupplier = () -> 0;
 
         private Function<Throwable, Void> closeFunction = throwable -> null;
+
+        private Runnable availableNotifier = () -> {};
 
         public TestingNettyConnectionWriter.Builder setWriteBufferFunction(
                 Function<NettyPayload, Void> writeBufferFunction) {
@@ -100,12 +111,19 @@ public class TestingNettyConnectionWriter implements NettyConnectionWriter {
             return this;
         }
 
+        public TestingNettyConnectionWriter.Builder setAvailableNotifier(
+                Runnable availableNotifier) {
+            this.availableNotifier = availableNotifier;
+            return this;
+        }
+
         public TestingNettyConnectionWriter build() {
             return new TestingNettyConnectionWriter(
                     writeBufferFunction,
                     nettyConnectionIdSupplier,
                     numQueuedBuffersSupplier,
-                    closeFunction);
+                    closeFunction,
+                    availableNotifier);
         }
     }
 }

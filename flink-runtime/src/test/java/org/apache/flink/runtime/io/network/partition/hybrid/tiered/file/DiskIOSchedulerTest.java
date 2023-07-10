@@ -28,7 +28,6 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.Tiered
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.NettyConnectionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.NettyPayload;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TestingNettyConnectionWriter;
-import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyServiceImpl;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.disk.DiskIOScheduler;
 
 import org.junit.jupiter.api.AfterEach;
@@ -88,7 +87,6 @@ class DiskIOSchedulerTest {
                         BUFFER_POOL_SIZE,
                         DEFAULT_BUFFER_REQUEST_TIMEOUT,
                         DEFAULT_MAX_READ_AHEAD,
-                        new TieredStorageNettyServiceImpl(),
                         (subpartitionId, bufferIndex) ->
                                 firstBufferIndexInSegment.get(subpartitionId).get(bufferIndex),
                         new TestingPartitionFileReader.Builder()

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 
 import javax.annotation.Nullable;
 
@@ -31,14 +32,23 @@ public class NettyConnectionWriterImpl implements NettyConnectionWriter {
 
     private final NettyConnectionId connectionId;
 
-    public NettyConnectionWriterImpl(Queue<NettyPayload> bufferQueue) {
+    private final BufferAvailabilityListener availabilityListener;
+
+    public NettyConnectionWriterImpl(
+            Queue<NettyPayload> bufferQueue, BufferAvailabilityListener availabilityListener) {
         this.bufferQueue = bufferQueue;
         this.connectionId = NettyConnectionId.newId();
+        this.availabilityListener = availabilityListener;
     }
 
     @Override
     public NettyConnectionId getNettyConnectionId() {
         return connectionId;
+    }
+
+    @Override
+    public void notifyAvailable() {
+        availabilityListener.notifyDataAvailable();
     }
 
     @Override

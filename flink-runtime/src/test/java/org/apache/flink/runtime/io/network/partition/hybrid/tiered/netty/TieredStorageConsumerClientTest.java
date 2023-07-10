@@ -28,6 +28,7 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.Testi
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageConsumerClient;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageConsumerSpec;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierConsumerAgent;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.disk.DiskTierConsumerAgent;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.memory.MemoryTierConsumerAgent;
 
 import org.junit.jupiter.api.Test;
@@ -44,17 +45,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Tests for {@link TieredStorageConsumerClient}. */
 class TieredStorageConsumerClientTest {
 
-    private final TieredStoragePartitionId partitionId =
+    private static final TieredStoragePartitionId DEFAULT_PARTITION_ID =
             TieredStorageIdMappingUtils.convertId(new ResultPartitionID());
 
-    private final TieredStorageSubpartitionId subpartitionId = new TieredStorageSubpartitionId(0);
+    private static final TieredStorageSubpartitionId DEFAULT_SUBPARTITION_ID =
+            new TieredStorageSubpartitionId(0);
 
     @Test
     void testGetNextBufferFromMemoryTier() {
         Buffer buffer = BufferBuilderTestUtils.buildSomeBuffer(0);
         Optional<Buffer> nextBuffer =
                 createTieredStorageConsumerClient(segmentId -> buffer, MemoryTierConsumerAgent::new)
-                        .getNextBuffer(partitionId, subpartitionId);
+                        .getNextBuffer(DEFAULT_PARTITION_ID, DEFAULT_SUBPARTITION_ID);
         assertThat(nextBuffer).hasValue(buffer);
     }
 
@@ -62,8 +64,8 @@ class TieredStorageConsumerClientTest {
     void testGetNextBufferFromDiskTier() {
         Buffer buffer = BufferBuilderTestUtils.buildSomeBuffer(0);
         Optional<Buffer> nextBuffer =
-                createTieredStorageConsumerClient(segmentId -> buffer, MemoryTierConsumerAgent::new)
-                        .getNextBuffer(partitionId, subpartitionId);
+                createTieredStorageConsumerClient(segmentId -> buffer, DiskTierConsumerAgent::new)
+                        .getNextBuffer(DEFAULT_PARTITION_ID, DEFAULT_SUBPARTITION_ID);
         assertThat(nextBuffer).hasValue(buffer);
     }
 
@@ -90,7 +92,8 @@ class TieredStorageConsumerClientTest {
                                 .setTierConsumerAgentSupplier(tierConsumerAgentSupplier)
                                 .build()),
                 Collections.singletonList(
-                        new TieredStorageConsumerSpec(partitionId, subpartitionId)),
+                        new TieredStorageConsumerSpec(
+                                DEFAULT_PARTITION_ID, DEFAULT_SUBPARTITION_ID)),
                 nettyService);
     }
 }

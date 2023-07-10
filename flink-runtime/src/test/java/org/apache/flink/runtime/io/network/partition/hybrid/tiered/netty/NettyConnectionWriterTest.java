@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -37,7 +38,7 @@ public class NettyConnectionWriterTest {
         int bufferNumber = 10;
         ArrayDeque<NettyPayload> nettyPayloadQueue = new ArrayDeque<>();
         NettyConnectionWriter nettyConnectionWriter =
-                new NettyConnectionWriterImpl(nettyPayloadQueue);
+                new NettyConnectionWriterImpl(nettyPayloadQueue, () -> {});
         writeBufferToWriter(bufferNumber, nettyConnectionWriter);
         assertThat(nettyPayloadQueue).hasSize(bufferNumber);
         assertThat(nettyConnectionWriter.numQueuedBuffers()).isEqualTo(bufferNumber);
@@ -47,8 +48,22 @@ public class NettyConnectionWriterTest {
     void testGetNettyConnectionId() {
         ArrayDeque<NettyPayload> nettyPayloadQueue = new ArrayDeque<>();
         NettyConnectionWriter nettyConnectionWriter =
-                new NettyConnectionWriterImpl(nettyPayloadQueue);
+                new NettyConnectionWriterImpl(nettyPayloadQueue, () -> {});
         assertThat(nettyConnectionWriter.getNettyConnectionId()).isNotNull();
+    }
+
+    @Test
+    void testNotifyAvailable() {
+        CompletableFuture<Void> notifier = new CompletableFuture<>();
+        ArrayDeque<NettyPayload> nettyPayloadQueue = new ArrayDeque<>();
+        NettyConnectionWriter nettyConnectionWriter =
+                new NettyConnectionWriterImpl(
+                        nettyPayloadQueue,
+                        () -> {
+                            notifier.complete(null);
+                        });
+        nettyConnectionWriter.notifyAvailable();
+        assertThat(notifier).isDone();
     }
 
     @Test
@@ -56,7 +71,7 @@ public class NettyConnectionWriterTest {
         int bufferNumber = 10;
         ArrayDeque<NettyPayload> nettyPayloadQueue = new ArrayDeque<>();
         NettyConnectionWriter nettyConnectionWriter =
-                new NettyConnectionWriterImpl(nettyPayloadQueue);
+                new NettyConnectionWriterImpl(nettyPayloadQueue, () -> {});
         writeBufferToWriter(bufferNumber, nettyConnectionWriter);
         nettyConnectionWriter.close(null);
         assertThat(nettyConnectionWriter.numQueuedBuffers()).isEqualTo(0);

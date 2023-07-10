@@ -140,7 +140,7 @@ public class NettyShuffleEnvironment
         this.nettyService =
                 config.getTieredStorageConfiguration() == null
                         ? null
-                        : new TieredStorageNettyServiceImpl();
+                        : new TieredStorageNettyServiceImpl(null);
     }
 
     // --------------------------------------------------------------------------------------------
