@@ -190,6 +190,11 @@ public class TieredResultPartition extends ResultPartition {
     }
 
     @Override
+    public CompletableFuture<?> getAvailableFuture() {
+        return AVAILABLE;
+    }
+
+    @Override
     public void alignedBarrierTimeout(long checkpointId) throws IOException {
         // Nothing to do.
     }
