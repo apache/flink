@@ -181,11 +181,11 @@ public class TieredStorageProducerClient {
         }
 
         if (!currentSubpartitionTierAgent[subpartitionId.getSubpartitionId()].tryWrite(
-                subpartitionId, compressedBuffer)) {
+                subpartitionId, compressedBuffer, bufferAccumulator)) {
             chooseStorageTierToStartSegment(subpartitionId);
             checkState(
                     currentSubpartitionTierAgent[subpartitionId.getSubpartitionId()].tryWrite(
-                            subpartitionId, compressedBuffer),
+                            subpartitionId, compressedBuffer, bufferAccumulator),
                     "Failed to write the first buffer to the new segment");
         }
     }

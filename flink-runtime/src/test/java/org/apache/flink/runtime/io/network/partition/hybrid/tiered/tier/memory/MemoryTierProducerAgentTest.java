@@ -97,11 +97,15 @@ class MemoryTierProducerAgentTest {
                     SUBPARTITION_ID, new TestingNettyConnectionWriter.Builder().build());
             assertThat(
                             memoryTierProducerAgent.tryWrite(
-                                    SUBPARTITION_ID, BufferBuilderTestUtils.buildSomeBuffer()))
+                                    SUBPARTITION_ID,
+                                    BufferBuilderTestUtils.buildSomeBuffer(),
+                                    this))
                     .isTrue();
             assertThat(
                             memoryTierProducerAgent.tryWrite(
-                                    SUBPARTITION_ID, BufferBuilderTestUtils.buildSomeBuffer()))
+                                    SUBPARTITION_ID,
+                                    BufferBuilderTestUtils.buildSomeBuffer(),
+                                    this))
                     .isFalse();
         }
     }

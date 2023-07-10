@@ -51,7 +51,7 @@ class DiskCacheManager {
     DiskCacheManager(
             TieredStoragePartitionId partitionId,
             int numSubpartitions,
-            TieredStorageMemoryManager storageMemoryManager,
+            TieredStorageMemoryManager memoryManager,
             PartitionFileWriter partitionFileWriter) {
         this.partitionId = partitionId;
         this.numSubpartitions = numSubpartitions;
@@ -62,7 +62,7 @@ class DiskCacheManager {
         for (int subpartitionId = 0; subpartitionId < numSubpartitions; ++subpartitionId) {
             subpartitionCacheManagers[subpartitionId] = new SubpartitionDiskCacheManager();
         }
-        storageMemoryManager.listenBufferReclaimRequest(this::notifyFlushCachedBuffers);
+        memoryManager.listenBufferReclaimRequest(this::notifyFlushCachedBuffers);
     }
 
     // ------------------------------------------------------------------------

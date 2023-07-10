@@ -18,10 +18,12 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered;
 
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageMemoryManager;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageMemorySpec;
+import org.apache.flink.util.function.TriConsumer;
 
 import java.util.List;
 import java.util.function.BiConsumer;
@@ -41,6 +43,8 @@ public class TestingTieredStorageMemoryManager implements TieredStorageMemoryMan
 
     private final Function<Object, Integer> numOwnerRequestedBufferFunction;
 
+    private final TriConsumer<Object, Object, Buffer> transferBufferOwnershipConsumer;
+
     private final Runnable releaseRunnable;
 
     private TestingTieredStorageMemoryManager(
@@ -49,12 +53,14 @@ public class TestingTieredStorageMemoryManager implements TieredStorageMemoryMan
             Function<Object, BufferBuilder> requestBufferBlockingFunction,
             Function<Object, Integer> getMaxNonReclaimableBuffersFunction,
             Function<Object, Integer> numOwnerRequestedBufferFunction,
+            TriConsumer<Object, Object, Buffer> transferBufferOwnershipConsumer,
             Runnable releaseRunnable) {
         this.setupConsumer = setupConsumer;
         this.listenBufferReclaimRequestConsumer = listenBufferReclaimRequestConsumer;
         this.requestBufferBlockingFunction = requestBufferBlockingFunction;
         this.getMaxNonReclaimableBuffersFunction = getMaxNonReclaimableBuffersFunction;
         this.numOwnerRequestedBufferFunction = numOwnerRequestedBufferFunction;
+        this.transferBufferOwnershipConsumer = transferBufferOwnershipConsumer;
         this.releaseRunnable = releaseRunnable;
     }
 
@@ -84,6 +90,11 @@ public class TestingTieredStorageMemoryManager implements TieredStorageMemoryMan
     }
 
     @Override
+    public void transferBufferOwnership(Object oldOwner, Object newOwner, Buffer buffer) {
+        transferBufferOwnershipConsumer.accept(oldOwner, newOwner, buffer);
+    }
+
+    @Override
     public void release() {
         releaseRunnable.run();
     }
@@ -101,6 +112,9 @@ public class TestingTieredStorageMemoryManager implements TieredStorageMemoryMan
         private Function<Object, Integer> getMaxNonReclaimableBuffersFunction = owner -> 0;
 
         private Function<Object, Integer> numOwnerRequestedBufferFunction = owner -> 0;
+
+        private TriConsumer<Object, Object, Buffer> transferBufferOwnershipConsumer =
+                (oldOwner, newOwner, buffer) -> {};
 
         private Runnable releaseRunnable = () -> {};
 
@@ -136,6 +150,12 @@ public class TestingTieredStorageMemoryManager implements TieredStorageMemoryMan
             return this;
         }
 
+        public TestingTieredStorageMemoryManager.Builder setTransferBufferOwnershipConsumer(
+                TriConsumer<Object, Object, Buffer> transferBufferOwnershipConsumer) {
+            this.transferBufferOwnershipConsumer = transferBufferOwnershipConsumer;
+            return this;
+        }
+
         public TestingTieredStorageMemoryManager.Builder setReleaseRunnable(
                 Runnable releaseRunnable) {
             this.releaseRunnable = releaseRunnable;
@@ -149,6 +169,7 @@ public class TestingTieredStorageMemoryManager implements TieredStorageMemoryMan
                     requestBufferBlockingFunction,
                     getMaxNonReclaimableBuffersFunction,
                     numOwnerRequestedBufferFunction,
+                    transferBufferOwnershipConsumer,
                     releaseRunnable);
         }
     }

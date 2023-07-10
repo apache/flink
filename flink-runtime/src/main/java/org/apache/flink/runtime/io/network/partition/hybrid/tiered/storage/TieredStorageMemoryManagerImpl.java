@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage;
 
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.LocalBufferPool;
@@ -83,7 +84,7 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
      * The number of requested buffers from {@link BufferPool} for each memory owner. This field
      * should be thread-safe because it can be touched both by the task thread and the netty thread.
      */
-    private final Map<Object, AtomicInteger> numOwnerRequestedBuffers;
+    private final Map<Object, Integer> numOwnerRequestedBuffers;
 
     /**
      * This is for triggering buffer reclaiming while blocked on requesting new buffers.
@@ -196,8 +197,15 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
 
     @Override
     public int numOwnerRequestedBuffer(Object owner) {
-        AtomicInteger numRequestedBuffer = numOwnerRequestedBuffers.get(owner);
-        return numRequestedBuffer == null ? 0 : numRequestedBuffer.get();
+        return numOwnerRequestedBuffers.getOrDefault(owner, 0);
+    }
+
+    @Override
+    public void transferBufferOwnership(Object oldOwner, Object newOwner, Buffer buffer) {
+        checkState(buffer.isBuffer(), "Only buffer supports transfer ownership.");
+        decNumRequestedBuffer(oldOwner);
+        incNumRequestedBuffer(newOwner);
+        buffer.setRecycler(memorySegment -> recycleBuffer(newOwner, memorySegment));
     }
 
     @Override
@@ -240,15 +248,14 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
     }
 
     private void incNumRequestedBuffer(Object owner) {
-        numOwnerRequestedBuffers
-                .computeIfAbsent(owner, ignore -> new AtomicInteger(0))
-                .incrementAndGet();
+        numOwnerRequestedBuffers.compute(
+                owner, (ignore, numRequested) -> numRequested == null ? 1 : numRequested + 1);
         numRequestedBuffers.incrementAndGet();
     }
 
     private void decNumRequestedBuffer(Object owner) {
-        AtomicInteger numOwnerRequestedBuffer = numOwnerRequestedBuffers.get(owner);
-        checkNotNull(numOwnerRequestedBuffer).decrementAndGet();
+        numOwnerRequestedBuffers.compute(
+                owner, (ignore, numRequested) -> checkNotNull(numRequested) - 1);
         numRequestedBuffers.decrementAndGet();
     }
 
