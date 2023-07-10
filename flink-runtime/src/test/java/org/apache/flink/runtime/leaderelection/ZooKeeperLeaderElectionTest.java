@@ -96,7 +96,7 @@ class ZooKeeperLeaderElectionTest {
 
     private Configuration configuration;
 
-    private static final String CONTENDER_ID = "contender-id";
+    private static final String COMPONENT_ID = "component-id";
     private static final String LEADER_ADDRESS = "akka//user/jobmanager";
     private static final long timeout = 200L * 1000L;
 
@@ -124,7 +124,7 @@ class ZooKeeperLeaderElectionTest {
                                 createZooKeeperClient(), electionEventHandler);
                 LeaderRetrievalDriver leaderRetrievalDriver =
                         ZooKeeperUtils.createLeaderRetrievalDriverFactory(
-                                        createZooKeeperClient(), CONTENDER_ID)
+                                        createZooKeeperClient(), COMPONENT_ID)
                                 .createLeaderRetrievalDriver(
                                         retrievalEventHandler,
                                         retrievalEventHandler::handleError)) {
@@ -133,7 +133,7 @@ class ZooKeeperLeaderElectionTest {
 
             final UUID leaderSessionID = UUID.randomUUID();
             leaderElectionDriver.publishLeaderInformation(
-                    CONTENDER_ID, LeaderInformation.known(leaderSessionID, LEADER_ADDRESS));
+                    COMPONENT_ID, LeaderInformation.known(leaderSessionID, LEADER_ADDRESS));
 
             retrievalEventHandler.waitForNewLeader();
 
@@ -166,7 +166,7 @@ class ZooKeeperLeaderElectionTest {
         try {
             leaderRetrievalService =
                     ZooKeeperUtils.createLeaderRetrievalService(
-                            createZooKeeperClient(), CONTENDER_ID, new Configuration());
+                            createZooKeeperClient(), COMPONENT_ID, new Configuration());
 
             LOG.debug("Start leader retrieval service for the TestingListener.");
 
@@ -176,7 +176,7 @@ class ZooKeeperLeaderElectionTest {
                 final LeaderElectionDriverFactory driverFactory =
                         new ZooKeeperLeaderElectionDriverFactory(createZooKeeperClient());
                 leaderElectionService[i] = new DefaultLeaderElectionService(driverFactory);
-                leaderElections[i] = leaderElectionService[i].createLeaderElection(CONTENDER_ID);
+                leaderElections[i] = leaderElectionService[i].createLeaderElection(COMPONENT_ID);
                 contenders[i] = new TestingContender(createAddress(i), leaderElections[i]);
 
                 LOG.debug("Start leader election service for contender #{}.", i);
@@ -268,7 +268,7 @@ class ZooKeeperLeaderElectionTest {
         try {
             leaderRetrievalService =
                     ZooKeeperUtils.createLeaderRetrievalService(
-                            createZooKeeperClient(), CONTENDER_ID, new Configuration());
+                            createZooKeeperClient(), COMPONENT_ID, new Configuration());
 
             leaderRetrievalService.start(listener);
 
@@ -276,7 +276,7 @@ class ZooKeeperLeaderElectionTest {
                 final LeaderElectionDriverFactory driverFactory =
                         new ZooKeeperLeaderElectionDriverFactory(createZooKeeperClient());
                 leaderElectionService[i] = new DefaultLeaderElectionService(driverFactory);
-                leaderElections[i] = leaderElectionService[i].createLeaderElection(CONTENDER_ID);
+                leaderElections[i] = leaderElectionService[i].createLeaderElection(COMPONENT_ID);
                 contenders[i] =
                         new TestingContender(LEADER_ADDRESS + "_" + i + "_0", leaderElections[i]);
 
@@ -311,7 +311,7 @@ class ZooKeeperLeaderElectionTest {
                             new ZooKeeperLeaderElectionDriverFactory(createZooKeeperClient());
                     leaderElectionService[index] = new DefaultLeaderElectionService(driverFactory);
                     leaderElections[index] =
-                            leaderElectionService[index].createLeaderElection(CONTENDER_ID);
+                            leaderElectionService[index].createLeaderElection(COMPONENT_ID);
 
                     contenders[index] =
                             new TestingContender(
@@ -355,7 +355,7 @@ class ZooKeeperLeaderElectionTest {
             electionEventHandler.await(LeaderElectionEvent.IsLeaderEvent.class);
 
             leaderElectionDriver.publishLeaderInformation(
-                    CONTENDER_ID, LeaderInformation.known(UUID.randomUUID(), LEADER_ADDRESS));
+                    COMPONENT_ID, LeaderInformation.known(UUID.randomUUID(), LEADER_ADDRESS));
 
             // First update will successfully complete.
             electionEventHandler.await(LeaderElectionEvent.LeaderInformationChangeEvent.class);
@@ -402,7 +402,7 @@ class ZooKeeperLeaderElectionTest {
                 electionEventHandler.await(LeaderElectionEvent.IsLeaderEvent.class);
 
                 leaderElectionDriver.publishLeaderInformation(
-                        CONTENDER_ID, LeaderInformation.known(UUID.randomUUID(), "some-address"));
+                        COMPONENT_ID, LeaderInformation.known(UUID.randomUUID(), "some-address"));
 
                 final LeaderElectionEvent.ErrorEvent errorEvent =
                         electionEventHandler.await(LeaderElectionEvent.ErrorEvent.class);
@@ -446,25 +446,25 @@ class ZooKeeperLeaderElectionTest {
                             curatorFrameworkWrapper.asCuratorFramework(), electionEventHandler);
             leaderRetrievalDriver =
                     ZooKeeperUtils.createLeaderRetrievalDriverFactory(
-                                    curatorFrameworkWrapper2.asCuratorFramework(), CONTENDER_ID)
+                                    curatorFrameworkWrapper2.asCuratorFramework(), COMPONENT_ID)
                             .createLeaderRetrievalDriver(
                                     retrievalEventHandler, retrievalEventHandler::handleError);
 
             cache =
                     CuratorCache.build(
                             curatorFrameworkWrapper2.asCuratorFramework(),
-                            ZooKeeperUtils.generateConnectionInformationPath(CONTENDER_ID));
+                            ZooKeeperUtils.generateConnectionInformationPath(COMPONENT_ID));
 
             final ExistsCacheListener existsListener =
                     ExistsCacheListener.createWithNodeIsMissingValidation(
-                            cache, ZooKeeperUtils.generateConnectionInformationPath(CONTENDER_ID));
+                            cache, ZooKeeperUtils.generateConnectionInformationPath(COMPONENT_ID));
             cache.listenable().addListener(existsListener);
             cache.start();
 
             electionEventHandler.await(LeaderElectionEvent.IsLeaderEvent.class);
 
             leaderElectionDriver.publishLeaderInformation(
-                    CONTENDER_ID, LeaderInformation.known(UUID.randomUUID(), LEADER_ADDRESS));
+                    COMPONENT_ID, LeaderInformation.known(UUID.randomUUID(), LEADER_ADDRESS));
 
             retrievalEventHandler.waitForNewLeader();
 
@@ -474,7 +474,7 @@ class ZooKeeperLeaderElectionTest {
 
             final DeletedCacheListener deletedCacheListener =
                     DeletedCacheListener.createWithNodeExistValidation(
-                            cache, ZooKeeperUtils.generateConnectionInformationPath(CONTENDER_ID));
+                            cache, ZooKeeperUtils.generateConnectionInformationPath(COMPONENT_ID));
             cache.listenable().addListener(deletedCacheListener);
 
             leaderElectionDriver.close();
@@ -519,7 +519,7 @@ class ZooKeeperLeaderElectionTest {
 
             final UUID leaderSessionID = UUID.randomUUID();
             leaderElectionDriver.publishLeaderInformation(
-                    CONTENDER_ID, LeaderInformation.known(leaderSessionID, LEADER_ADDRESS));
+                    COMPONENT_ID, LeaderInformation.known(leaderSessionID, LEADER_ADDRESS));
 
             // Leader is revoked
             leaderElectionDriver.notLeader();
@@ -528,7 +528,7 @@ class ZooKeeperLeaderElectionTest {
             // The data on ZooKeeper has not been cleared
             try (ZooKeeperLeaderRetrievalDriver leaderRetrievalDriver =
                     ZooKeeperUtils.createLeaderRetrievalDriverFactory(
-                                    createZooKeeperClient(), CONTENDER_ID)
+                                    createZooKeeperClient(), COMPONENT_ID)
                             .createLeaderRetrievalDriver(
                                     retrievalEventHandler, retrievalEventHandler::handleError)) {
 

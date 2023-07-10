@@ -45,7 +45,7 @@ class EmbeddedLeaderServiceTest {
             final TestingLeaderContender contender = new TestingLeaderContender();
 
             final LeaderElection leaderElection =
-                    embeddedLeaderService.createLeaderElectionService("contender_id");
+                    embeddedLeaderService.createLeaderElectionService("component_id");
             leaderElection.startLeaderElection(contender);
             leaderElection.close();
 
@@ -79,7 +79,7 @@ class EmbeddedLeaderServiceTest {
             final TestingLeaderContender contender = new TestingLeaderContender();
 
             final LeaderElection leaderElection =
-                    embeddedLeaderService.createLeaderElectionService("contender_id");
+                    embeddedLeaderService.createLeaderElectionService("component_id");
             leaderElection.startLeaderElection(contender);
 
             // wait for the leadership

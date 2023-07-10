@@ -172,11 +172,11 @@ public class ZooKeeperLeaderElectionHaServices extends AbstractHaServices {
     // ///////////////////////////////////////////////
 
     @Override
-    protected LeaderRetrievalService createLeaderRetrievalService(String contenderID) {
+    protected LeaderRetrievalService createLeaderRetrievalService(String componentId) {
         // Maybe use a single service for leader retrieval
         return ZooKeeperUtils.createLeaderRetrievalService(
                 curatorFrameworkWrapper.asCuratorFramework(),
-                ZooKeeperUtils.getLeaderPath(contenderID),
+                ZooKeeperUtils.getLeaderPath(componentId),
                 configuration);
     }
 

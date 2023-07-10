@@ -76,7 +76,7 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
      * Saves the {@link LeaderInformation} for the registered {@link LeaderContender}s. There's no
      * semantic difference between an entry with an empty {@code LeaderInformation} and no entry
      * being present at all here. Both mean that no confirmed {@code LeaderInformation} is available
-     * for the corresponding {@code contenderID}.
+     * for the corresponding {@code componentId}.
      */
     @GuardedBy("lock")
     private LeaderInformationRegister confirmedLeaderInformation;
@@ -146,16 +146,16 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
     }
 
     @Override
-    public LeaderElection createLeaderElection(String contenderID) {
+    public LeaderElection createLeaderElection(String componentId) {
         synchronized (lock) {
             Preconditions.checkState(
                     !leadershipOperationExecutor.isShutdown(),
                     "The service was already closed and cannot be reused.");
             Preconditions.checkState(
-                    !leaderContenderRegistry.containsKey(contenderID),
-                    "There is no contender already registered under the passed contender ID '%s'.",
-                    contenderID);
-            return new DefaultLeaderElection(this, contenderID);
+                    !leaderContenderRegistry.containsKey(componentId),
+                    "There shouldn't be any contender registered under the passed component '%s'.",
+                    componentId);
+            return new DefaultLeaderElection(this, componentId);
         }
     }
 
@@ -176,8 +176,8 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
     }
 
     @Override
-    protected void register(String contenderID, LeaderContender contender) throws Exception {
-        checkNotNull(contenderID, "ContenderID must not be null.");
+    protected void register(String componentId, LeaderContender contender) throws Exception {
+        checkNotNull(componentId, "componentId must not be null.");
         checkNotNull(contender, "Contender must not be null.");
 
         synchronized (lock) {
@@ -190,13 +190,13 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
             }
 
             Preconditions.checkState(
-                    leaderContenderRegistry.put(contenderID, contender) == null,
-                    "There is no contender already registered under the passed contender ID '%s'.",
-                    contenderID);
+                    leaderContenderRegistry.put(componentId, contender) == null,
+                    "There shouldn't be any contender registered under the passed component '%s'.",
+                    componentId);
 
             LOG.info(
-                    "LeaderContender {} has been registered for {}.",
-                    contenderID,
+                    "LeaderContender has been registered under component '{}' for {}.",
+                    componentId,
                     leaderElectionDriver);
 
             if (issuedLeaderSessionID != null) {
@@ -205,19 +205,19 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
                         LEADER_ACQUISITION_EVENT_LOG_NAME,
                         () ->
                                 notifyLeaderContenderOfLeadership(
-                                        contenderID, issuedLeaderSessionID));
+                                        componentId, issuedLeaderSessionID));
             }
         }
     }
 
     @Override
-    protected final void remove(String contenderID) throws Exception {
+    protected final void remove(String componentId) throws Exception {
         AutoCloseable driverToClose = null;
         synchronized (lock) {
-            if (!leaderContenderRegistry.containsKey(contenderID)) {
+            if (!leaderContenderRegistry.containsKey(componentId)) {
                 LOG.debug(
-                        "There is no contender registered under contenderID '{}' anymore. No action necessary.",
-                        contenderID);
+                        "There is no contender registered under component '{}' anymore. No action necessary.",
+                        componentId);
                 return;
             }
             Preconditions.checkState(
@@ -225,25 +225,25 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
                     "The LeaderElectionDriver should be instantiated.");
 
             LOG.info(
-                    "Deregistering contender with ID '{}' from the DefaultLeaderElectionService.",
-                    contenderID);
+                    "Deregistering contender with component '{}' from the DefaultLeaderElectionService.",
+                    componentId);
 
-            final LeaderContender leaderContender = leaderContenderRegistry.remove(contenderID);
+            final LeaderContender leaderContender = leaderContenderRegistry.remove(componentId);
             Preconditions.checkNotNull(
                     leaderContender,
-                    "There should be a LeaderContender registered under the given contenderID '%s'.",
-                    contenderID);
+                    "There should be a LeaderContender registered under the given component '%s'.",
+                    componentId);
             if (issuedLeaderSessionID != null) {
-                notifyLeaderContenderOfLeadershipLoss(contenderID, leaderContender);
+                notifyLeaderContenderOfLeadershipLoss(componentId, leaderContender);
                 LOG.debug(
-                        "The contender registered under contenderID '{}' is deregistered while the service has the leadership acquired. The revoke event is forwarded to the LeaderContender.",
-                        contenderID);
+                        "The contender associated with component '{}' is deregistered while the service has the leadership acquired. The revoke event is forwarded to the LeaderContender.",
+                        componentId);
 
                 if (leaderElectionDriver.hasLeadership()) {
-                    leaderElectionDriver.deleteLeaderInformation(contenderID);
+                    leaderElectionDriver.deleteLeaderInformation(componentId);
                     LOG.debug(
-                            "Leader information is cleaned up while deregistering the contender '{}' from the service.",
-                            contenderID);
+                            "Leader information is cleaned up while deregistering the contender for component '{}' from the service.",
+                            componentId);
                 }
             } else {
                 Preconditions.checkState(
@@ -251,8 +251,8 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
                         "The confirmed leader information should have been cleared during leadership revocation.");
 
                 LOG.debug(
-                        "Contender registered under contenderID '{}' is deregistered while the service doesn't have the leadership acquired. No cleanup necessary.",
-                        contenderID);
+                        "Contender associated with component '{}' is deregistered while the service doesn't have the leadership acquired. No cleanup necessary.",
+                        componentId);
             }
 
             if (leaderContenderRegistry.isEmpty()) {
@@ -314,23 +314,23 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
 
     @Override
     protected void confirmLeadership(
-            String contenderID, UUID leaderSessionID, String leaderAddress) {
-        Preconditions.checkArgument(leaderContenderRegistry.containsKey(contenderID));
+            String componentId, UUID leaderSessionID, String leaderAddress) {
+        Preconditions.checkArgument(leaderContenderRegistry.containsKey(componentId));
         LOG.debug(
-                "The leader session for contender '{}' is confirmed with session ID {} and address {}.",
-                contenderID,
+                "The leader session for component '{}' is confirmed with session ID {} and address {}.",
+                componentId,
                 leaderSessionID,
                 leaderAddress);
 
         checkNotNull(leaderSessionID);
 
         synchronized (lock) {
-            if (hasLeadership(contenderID, leaderSessionID)) {
+            if (hasLeadership(componentId, leaderSessionID)) {
                 Preconditions.checkState(
                         leaderElectionDriver != null,
                         "The leadership check should only return true if a driver is instantiated.");
                 Preconditions.checkState(
-                        !confirmedLeaderInformation.hasLeaderInformation(contenderID),
+                        !confirmedLeaderInformation.hasLeaderInformation(componentId),
                         "No confirmation should have happened, yet.");
 
                 final LeaderInformation newConfirmedLeaderInformation =
@@ -338,22 +338,22 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
                 confirmedLeaderInformation =
                         LeaderInformationRegister.merge(
                                 confirmedLeaderInformation,
-                                contenderID,
+                                componentId,
                                 newConfirmedLeaderInformation);
                 leaderElectionDriver.publishLeaderInformation(
-                        contenderID, newConfirmedLeaderInformation);
+                        componentId, newConfirmedLeaderInformation);
             } else {
                 if (!leaderSessionID.equals(this.issuedLeaderSessionID)) {
                     LOG.debug(
-                            "Received an old confirmation call of leader session ID {} for contender '{}' (current issued session ID is {}).",
+                            "Received an old confirmation call of leader session ID {} for component '{}' (current issued session ID is {}).",
                             leaderSessionID,
-                            contenderID,
+                            componentId,
                             issuedLeaderSessionID);
                 } else {
                     LOG.warn(
-                            "The leader session ID {} for contender '{}' was confirmed even though the "
-                                    + "corresponding service was not elected as the leader or has been stopped already.",
-                            contenderID,
+                            "The leader session ID {} for component '{}' was confirmed even though the corresponding "
+                                    + "service was not elected as the leader or has been stopped already.",
+                            componentId,
                             leaderSessionID);
                 }
             }
@@ -361,16 +361,16 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
     }
 
     @Override
-    protected boolean hasLeadership(String contenderID, UUID leaderSessionId) {
+    protected boolean hasLeadership(String componentId, UUID leaderSessionId) {
         synchronized (lock) {
             if (leaderElectionDriver != null) {
-                if (leaderContenderRegistry.containsKey(contenderID)) {
+                if (leaderContenderRegistry.containsKey(componentId)) {
                     return leaderElectionDriver.hasLeadership()
                             && leaderSessionId.equals(issuedLeaderSessionID);
                 } else {
                     LOG.debug(
-                            "hasLeadership is called for contender ID '{}' while there is no contender registered under that ID in the service, returning false.",
-                            contenderID);
+                            "hasLeadership is called for component '{}' while there is no contender registered under that ID in the service, returning false.",
+                            componentId);
                     return false;
                 }
             } else {
@@ -381,16 +381,16 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
     }
 
     /**
-     * Returns the current leader session ID for the given {@code contenderID} or {@code null}, if
+     * Returns the current leader session ID for the given {@code componentId} or {@code null}, if
      * the session wasn't confirmed.
      */
     @VisibleForTesting
     @Nullable
-    public UUID getLeaderSessionID(String contenderID) {
+    public UUID getLeaderSessionID(String componentId) {
         synchronized (lock) {
-            return leaderContenderRegistry.containsKey(contenderID)
+            return leaderContenderRegistry.containsKey(componentId)
                     ? confirmedLeaderInformation
-                            .forContenderIdOrEmpty(contenderID)
+                            .forComponentIdOrEmpty(componentId)
                             .getLeaderSessionID()
                     : null;
         }
@@ -409,14 +409,14 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
         leaderContenderRegistry
                 .keySet()
                 .forEach(
-                        contenderID ->
+                        componentId ->
                                 notifyLeaderContenderOfLeadership(
-                                        contenderID, issuedLeaderSessionID));
+                                        componentId, issuedLeaderSessionID));
     }
 
     @GuardedBy("lock")
-    private void notifyLeaderContenderOfLeadership(String contenderID, UUID sessionID) {
-        if (!leaderContenderRegistry.containsKey(contenderID)) {
+    private void notifyLeaderContenderOfLeadership(String componentId, UUID sessionID) {
+        if (!leaderContenderRegistry.containsKey(componentId)) {
             LOG.debug(
                     "The grant leadership notification for session ID {} is not forwarded because the DefaultLeaderElectionService ({}) has no contender registered.",
                     sessionID,
@@ -431,15 +431,15 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
         }
 
         Preconditions.checkState(
-                !confirmedLeaderInformation.hasLeaderInformation(contenderID),
+                !confirmedLeaderInformation.hasLeaderInformation(componentId),
                 "The leadership should have been granted while not having the leadership acquired.");
 
         LOG.debug(
-                "Granting leadership to contender {} with session ID {}.",
-                contenderID,
+                "Granting leadership to the contender registered under component '{}' with session ID {}.",
+                componentId,
                 issuedLeaderSessionID);
 
-        leaderContenderRegistry.get(contenderID).grantLeadership(issuedLeaderSessionID);
+        leaderContenderRegistry.get(componentId).grantLeadership(issuedLeaderSessionID);
     }
 
     @GuardedBy("lock")
@@ -462,31 +462,31 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
 
     @GuardedBy("lock")
     private void notifyLeaderContenderOfLeadershipLoss(
-            String contenderID, LeaderContender leaderContender) {
+            String componentId, LeaderContender leaderContender) {
         Preconditions.checkState(
                 leaderContender != null,
                 "The LeaderContender should be always set when calling this method.");
 
-        if (!confirmedLeaderInformation.hasLeaderInformation(contenderID)) {
+        if (!confirmedLeaderInformation.hasLeaderInformation(componentId)) {
             LOG.debug(
-                    "Revoking leadership to contender {} while a previous leadership grant wasn't confirmed, yet.",
-                    contenderID);
+                    "Revoking leadership for component '{}' while a previous leadership grant wasn't confirmed, yet.",
+                    componentId);
         } else {
             LOG.debug(
-                    "Revoking leadership to contender {} for {}.",
-                    contenderID,
+                    "Revoking leadership to component '{}' for previously confirmed leader information {}.",
+                    componentId,
                     LeaderElectionUtils.convertToString(
-                            confirmedLeaderInformation.forContenderIdOrEmpty(contenderID)));
+                            confirmedLeaderInformation.forComponentIdOrEmpty(componentId)));
         }
 
         confirmedLeaderInformation =
-                LeaderInformationRegister.clear(confirmedLeaderInformation, contenderID);
+                LeaderInformationRegister.clear(confirmedLeaderInformation, componentId);
         leaderContender.revokeLeadership();
     }
 
     @GuardedBy("lock")
     private void notifyLeaderInformationChangeInternal(
-            String contenderID,
+            String componentId,
             LeaderInformation externallyChangedLeaderInformation,
             LeaderInformation confirmedLeaderInformation) {
         if (leaderElectionDriver == null) {
@@ -504,24 +504,24 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
 
         if (confirmedLeaderInformation.isEmpty()) {
             LOG.trace(
-                    "Leader information changed while there's no confirmation available by the contender for contender ID '{}', yet. Changed leader information {} will be reset.",
-                    contenderID,
+                    "Leader information changed while there's no confirmation available by the contender for component '{}', yet. Changed leader information {} will be reset.",
+                    componentId,
                     LeaderElectionUtils.convertToString(externallyChangedLeaderInformation));
         } else if (externallyChangedLeaderInformation.isEmpty()) {
             LOG.debug(
-                    "Re-writing leader information ({}) for contender '{}' to overwrite the empty leader information in the external storage.",
+                    "Re-writing leader information ({}) for component '{}' to overwrite the empty leader information in the external storage.",
                     LeaderElectionUtils.convertToString(confirmedLeaderInformation),
-                    contenderID);
+                    componentId);
         } else {
             // the changed LeaderInformation does not match the confirmed LeaderInformation
             LOG.debug(
-                    "Correcting leader information for contender '{}' (local: {}, external storage: {}).",
-                    contenderID,
+                    "Correcting leader information for component '{}' (local: {}, external storage: {}).",
+                    componentId,
                     LeaderElectionUtils.convertToString(confirmedLeaderInformation),
                     LeaderElectionUtils.convertToString(externallyChangedLeaderInformation));
         }
 
-        leaderElectionDriver.publishLeaderInformation(contenderID, confirmedLeaderInformation);
+        leaderElectionDriver.publishLeaderInformation(componentId, confirmedLeaderInformation);
     }
 
     private void runInLeaderEventThread(String leaderElectionEventName, Runnable callback) {
@@ -593,12 +593,12 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
     }
 
     @Override
-    public void onLeaderInformationChange(String contenderID, LeaderInformation leaderInformation) {
+    public void onLeaderInformationChange(String componentId, LeaderInformation leaderInformation) {
         synchronized (lock) {
             notifyLeaderInformationChangeInternal(
-                    contenderID,
+                    componentId,
                     leaderInformation,
-                    confirmedLeaderInformation.forContenderIdOrEmpty(contenderID));
+                    confirmedLeaderInformation.forComponentIdOrEmpty(componentId));
         }
     }
 
@@ -606,16 +606,16 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
     public void onLeaderInformationChange(LeaderInformationRegister changedLeaderInformation) {
         synchronized (lock) {
             leaderContenderRegistry.forEach(
-                    (contenderID, leaderContender) -> {
+                    (componentId, leaderContender) -> {
                         final LeaderInformation externallyChangedLeaderInformationForContender =
                                 changedLeaderInformation
-                                        .forContenderID(contenderID)
+                                        .forComponentId(componentId)
                                         .orElse(LeaderInformation.empty());
                         final LeaderInformation confirmedLeaderInformationForContender =
-                                confirmedLeaderInformation.forContenderIdOrEmpty(contenderID);
+                                confirmedLeaderInformation.forComponentIdOrEmpty(componentId);
 
                         notifyLeaderInformationChangeInternal(
-                                contenderID,
+                                componentId,
                                 externallyChangedLeaderInformationForContender,
                                 confirmedLeaderInformationForContender);
                     });

@@ -719,9 +719,9 @@ class JobMasterServiceLeadershipRunnerTest {
                                     return CompletableFuture.completedFuture(null);
                                 })
                         .build();
-        final String contenderID = "random-contender-id";
+        final String componentId = "random-component-id";
         final LeaderElection leaderElection =
-                defaultLeaderElectionService.createLeaderElection(contenderID);
+                defaultLeaderElectionService.createLeaderElection(componentId);
         try (final JobMasterServiceLeadershipRunner jobManagerRunner =
                 newJobMasterServiceLeadershipRunnerBuilder()
                         .setClassLoaderLease(

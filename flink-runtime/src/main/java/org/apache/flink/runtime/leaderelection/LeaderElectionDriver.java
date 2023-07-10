@@ -35,17 +35,17 @@ public interface LeaderElectionDriver extends AutoCloseable {
     /**
      * Publishes the leader information for the given component.
      *
-     * @param contenderID identifying the component for which to publish the leader information
+     * @param componentId identifying the component for which to publish the leader information
      * @param leaderInformation leader information of the respective component
      */
-    void publishLeaderInformation(String contenderID, LeaderInformation leaderInformation);
+    void publishLeaderInformation(String componentId, LeaderInformation leaderInformation);
 
     /**
      * Deletes the leader information for the given component.
      *
-     * @param contenderID identifying the component for which to delete the leader information
+     * @param componentId identifying the component for which to delete the leader information
      */
-    void deleteLeaderInformation(String contenderID);
+    void deleteLeaderInformation(String componentId);
 
     /** Listener interface for state changes of the {@link LeaderElectionDriver}. */
     interface Listener {
@@ -59,10 +59,10 @@ public interface LeaderElectionDriver extends AutoCloseable {
         /**
          * Notifies the listener about a changed leader information for the given component.
          *
-         * @param contenderID identifying the component whose leader information has changed
+         * @param componentId identifying the component whose leader information has changed
          * @param leaderInformation new leader information
          */
-        void onLeaderInformationChange(String contenderID, LeaderInformation leaderInformation);
+        void onLeaderInformationChange(String componentId, LeaderInformation leaderInformation);
 
         /** Notifies the listener about all currently known leader information. */
         void onLeaderInformationChange(LeaderInformationRegister leaderInformationRegister);

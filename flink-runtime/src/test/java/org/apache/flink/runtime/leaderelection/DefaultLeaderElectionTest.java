@@ -35,27 +35,27 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class DefaultLeaderElectionTest {
 
-    private static final String DEFAULT_TEST_CONTENDER_ID = "test-contender-id";
+    private static final String DEFAULT_TEST_COMPONENT_ID = "test-component-id";
 
     @Test
     void testContenderRegistration() throws Exception {
-        final AtomicReference<String> contenderIDRef = new AtomicReference<>();
+        final AtomicReference<String> componentIdRef = new AtomicReference<>();
         final AtomicReference<LeaderContender> contenderRef = new AtomicReference<>();
         final DefaultLeaderElection.ParentService parentService =
                 TestingAbstractLeaderElectionService.newBuilder()
                         .setRegisterConsumer(
-                                (actualContenderID, actualContender) -> {
-                                    contenderIDRef.set(actualContenderID);
+                                (actualComponentId, actualContender) -> {
+                                    componentIdRef.set(actualComponentId);
                                     contenderRef.set(actualContender);
                                 })
                         .build();
         try (final DefaultLeaderElection testInstance =
-                new DefaultLeaderElection(parentService, DEFAULT_TEST_CONTENDER_ID)) {
+                new DefaultLeaderElection(parentService, DEFAULT_TEST_COMPONENT_ID)) {
 
             final LeaderContender contender = TestingGenericLeaderContender.newBuilder().build();
             testInstance.startLeaderElection(contender);
 
-            assertThat(contenderIDRef).hasValue(DEFAULT_TEST_CONTENDER_ID);
+            assertThat(componentIdRef).hasValue(DEFAULT_TEST_COMPONENT_ID);
             assertThat(contenderRef.get()).isSameAs(contender);
         }
     }
@@ -65,7 +65,7 @@ class DefaultLeaderElectionTest {
         try (final DefaultLeaderElection testInstance =
                 new DefaultLeaderElection(
                         TestingAbstractLeaderElectionService.newBuilder().build(),
-                        DEFAULT_TEST_CONTENDER_ID)) {
+                        DEFAULT_TEST_COMPONENT_ID)) {
             assertThatThrownBy(() -> testInstance.startLeaderElection(null))
                     .isInstanceOf(NullPointerException.class);
         }
@@ -78,12 +78,12 @@ class DefaultLeaderElectionTest {
         final DefaultLeaderElection.ParentService parentService =
                 TestingAbstractLeaderElectionService.newBuilder()
                         .setRegisterConsumer(
-                                (actualContenderID, actualContender) -> {
+                                (actualComponentId, actualContender) -> {
                                     throw expectedException;
                                 })
                         .build();
         try (final DefaultLeaderElection testInstance =
-                new DefaultLeaderElection(parentService, DEFAULT_TEST_CONTENDER_ID)) {
+                new DefaultLeaderElection(parentService, DEFAULT_TEST_COMPONENT_ID)) {
             assertThatThrownBy(
                             () ->
                                     testInstance.startLeaderElection(
@@ -94,26 +94,26 @@ class DefaultLeaderElectionTest {
 
     @Test
     void testLeaderConfirmation() throws Exception {
-        final AtomicReference<String> contenderIDRef = new AtomicReference<>();
+        final AtomicReference<String> componentIdRef = new AtomicReference<>();
         final AtomicReference<UUID> leaderSessionIDRef = new AtomicReference<>();
         final AtomicReference<String> leaderAddressRef = new AtomicReference<>();
         final DefaultLeaderElection.ParentService parentService =
                 TestingAbstractLeaderElectionService.newBuilder()
                         .setConfirmLeadershipConsumer(
-                                (contenderID, leaderSessionID, address) -> {
-                                    contenderIDRef.set(contenderID);
+                                (componentId, leaderSessionID, address) -> {
+                                    componentIdRef.set(componentId);
                                     leaderSessionIDRef.set(leaderSessionID);
                                     leaderAddressRef.set(address);
                                 })
                         .build();
         try (final DefaultLeaderElection testInstance =
-                new DefaultLeaderElection(parentService, DEFAULT_TEST_CONTENDER_ID)) {
+                new DefaultLeaderElection(parentService, DEFAULT_TEST_COMPONENT_ID)) {
 
             final UUID expectedLeaderSessionID = UUID.randomUUID();
             final String expectedAddress = "random-address";
             testInstance.confirmLeadership(expectedLeaderSessionID, expectedAddress);
 
-            assertThat(contenderIDRef).hasValue(DEFAULT_TEST_CONTENDER_ID);
+            assertThat(componentIdRef).hasValue(DEFAULT_TEST_COMPONENT_ID);
             assertThat(leaderSessionIDRef).hasValue(expectedLeaderSessionID);
             assertThat(leaderAddressRef).hasValue(expectedAddress);
         }
@@ -121,37 +121,37 @@ class DefaultLeaderElectionTest {
 
     @Test
     void testClose() throws Exception {
-        final CompletableFuture<String> actualContenderID = new CompletableFuture<>();
+        final CompletableFuture<String> actualComponentId = new CompletableFuture<>();
         final DefaultLeaderElection.ParentService parentService =
                 TestingAbstractLeaderElectionService.newBuilder()
-                        .setRegisterConsumer((ignoredContenderID, ignoredContender) -> {})
-                        .setRemoveConsumer(actualContenderID::complete)
+                        .setRegisterConsumer((ignoredComponentId, ignoredContender) -> {})
+                        .setRemoveConsumer(actualComponentId::complete)
                         .build();
 
         final DefaultLeaderElection testInstance =
-                new DefaultLeaderElection(parentService, DEFAULT_TEST_CONTENDER_ID);
+                new DefaultLeaderElection(parentService, DEFAULT_TEST_COMPONENT_ID);
 
         testInstance.startLeaderElection(TestingGenericLeaderContender.newBuilder().build());
         testInstance.close();
 
-        assertThat(actualContenderID).isCompletedWithValue(DEFAULT_TEST_CONTENDER_ID);
+        assertThat(actualComponentId).isCompletedWithValue(DEFAULT_TEST_COMPONENT_ID);
     }
 
     @Test
     void testCloseWithoutStart() throws Exception {
-        final CompletableFuture<String> actualContenderID = new CompletableFuture<>();
+        final CompletableFuture<String> actualComponentId = new CompletableFuture<>();
         final DefaultLeaderElection.ParentService parentService =
                 TestingAbstractLeaderElectionService.newBuilder()
-                        .setRemoveConsumer(actualContenderID::complete)
+                        .setRemoveConsumer(actualComponentId::complete)
                         .build();
 
         final DefaultLeaderElection testInstance =
-                new DefaultLeaderElection(parentService, DEFAULT_TEST_CONTENDER_ID);
+                new DefaultLeaderElection(parentService, DEFAULT_TEST_COMPONENT_ID);
         testInstance.close();
 
-        assertThatFuture(actualContenderID)
+        assertThatFuture(actualComponentId)
                 .eventuallySucceeds()
-                .isEqualTo(DEFAULT_TEST_CONTENDER_ID);
+                .isEqualTo(DEFAULT_TEST_COMPONENT_ID);
     }
 
     @Test
@@ -165,24 +165,24 @@ class DefaultLeaderElectionTest {
     }
 
     private void testHasLeadership(boolean expectedReturnValue) throws Exception {
-        final AtomicReference<String> contenderIDRef = new AtomicReference<>();
+        final AtomicReference<String> componentIdRef = new AtomicReference<>();
         final AtomicReference<UUID> leaderSessionIDRef = new AtomicReference<>();
         final DefaultLeaderElection.ParentService parentService =
                 TestingAbstractLeaderElectionService.newBuilder()
                         .setHasLeadershipFunction(
-                                (actualContenderID, actualLeaderSessionID) -> {
-                                    contenderIDRef.set(actualContenderID);
+                                (actualComponentId, actualLeaderSessionID) -> {
+                                    componentIdRef.set(actualComponentId);
                                     leaderSessionIDRef.set(actualLeaderSessionID);
                                     return expectedReturnValue;
                                 })
                         .build();
         try (final DefaultLeaderElection testInstance =
-                new DefaultLeaderElection(parentService, DEFAULT_TEST_CONTENDER_ID)) {
+                new DefaultLeaderElection(parentService, DEFAULT_TEST_COMPONENT_ID)) {
 
             final UUID expectedLeaderSessionID = UUID.randomUUID();
             assertThat(testInstance.hasLeadership(expectedLeaderSessionID))
                     .isEqualTo(expectedReturnValue);
-            assertThat(contenderIDRef).hasValue(DEFAULT_TEST_CONTENDER_ID);
+            assertThat(componentIdRef).hasValue(DEFAULT_TEST_COMPONENT_ID);
             assertThat(leaderSessionIDRef).hasValue(expectedLeaderSessionID);
         }
     }
@@ -209,40 +209,40 @@ class DefaultLeaderElectionTest {
         }
 
         @Override
-        protected void register(String contenderID, LeaderContender contender) throws Exception {
-            registerConsumer.accept(contenderID, contender);
+        protected void register(String componentId, LeaderContender contender) throws Exception {
+            registerConsumer.accept(componentId, contender);
         }
 
         @Override
-        protected void remove(String contenderID) {
-            removeConsumer.accept(contenderID);
+        protected void remove(String componentId) {
+            removeConsumer.accept(componentId);
         }
 
         @Override
         protected void confirmLeadership(
-                String contenderID, UUID leaderSessionID, String leaderAddress) {
-            confirmLeadershipConsumer.accept(contenderID, leaderSessionID, leaderAddress);
+                String componentId, UUID leaderSessionID, String leaderAddress) {
+            confirmLeadershipConsumer.accept(componentId, leaderSessionID, leaderAddress);
         }
 
         @Override
-        protected boolean hasLeadership(String contenderID, UUID leaderSessionId) {
-            return hasLeadershipFunction.apply(contenderID, leaderSessionId);
+        protected boolean hasLeadership(String componentId, UUID leaderSessionId) {
+            return hasLeadershipFunction.apply(componentId, leaderSessionId);
         }
 
         public static Builder newBuilder() {
             return new Builder()
                     .setRegisterConsumer(
-                            (contenderID, contender) -> {
+                            (componentId, contender) -> {
                                 throw new UnsupportedOperationException("register not supported");
                             })
-                    .setRemoveConsumer(contenderID -> {})
+                    .setRemoveConsumer(componentId -> {})
                     .setConfirmLeadershipConsumer(
-                            (contenderID, leaderSessionID, address) -> {
+                            (componentId, leaderSessionID, address) -> {
                                 throw new UnsupportedOperationException(
                                         "confirmLeadership not supported");
                             })
                     .setHasLeadershipFunction(
-                            (contenderID, leaderSessionID) -> {
+                            (componentId, leaderSessionID) -> {
                                 throw new UnsupportedOperationException(
                                         "hasLeadership not supported");
                             });

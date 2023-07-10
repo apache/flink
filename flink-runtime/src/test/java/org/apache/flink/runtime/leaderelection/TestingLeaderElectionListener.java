@@ -46,8 +46,8 @@ public final class TestingLeaderElectionListener implements LeaderElectionDriver
     }
 
     @Override
-    public void onLeaderInformationChange(String contenderID, LeaderInformation leaderInformation) {
-        put(new LeaderElectionEvent.LeaderInformationChangeEvent(contenderID, leaderInformation));
+    public void onLeaderInformationChange(String componentId, LeaderInformation leaderInformation) {
+        put(new LeaderElectionEvent.LeaderInformationChangeEvent(componentId, leaderInformation));
     }
 
     @Override

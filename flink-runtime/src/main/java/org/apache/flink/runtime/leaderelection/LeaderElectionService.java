@@ -39,8 +39,8 @@ public interface LeaderElectionService {
      * Creates a new {@link LeaderElection} instance that is registered to this {@code
      * LeaderElectionService} instance.
      *
-     * @param contenderID a unique identifier that refers to the stored leader information that the
+     * @param componentId a unique identifier that refers to the stored leader information that the
      *     newly created {@link LeaderElection} manages.
      */
-    LeaderElection createLeaderElection(String contenderID);
+    LeaderElection createLeaderElection(String componentId);
 }
