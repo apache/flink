@@ -20,9 +20,11 @@ package org.apache.flink.api.connector.sink2;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.util.UserCodeClassLoader;
 
@@ -115,6 +117,18 @@ public interface Sink<InputT> extends Serializable {
          * Provides a view on this context as a {@link SerializationSchema.InitializationContext}.
          */
         SerializationSchema.InitializationContext asSerializationSchemaInitializationContext();
+
+        /** Returns whether object reuse has been enabled or disabled. */
+        boolean isObjectReuseEnabled();
+
+        /** Creates a serializer for the type of sink's input. */
+        <IN> TypeSerializer<IN> createInputSerializer();
+
+        /**
+         * The ID of the current job. Note that Job ID can change in particular upon manual restart.
+         * The returned ID should NOT be used for any job management tasks.
+         */
+        JobID getJobId();
 
         /**
          * Returns a metadata consumer, the {@link SinkWriter} can publish metadata events of type
