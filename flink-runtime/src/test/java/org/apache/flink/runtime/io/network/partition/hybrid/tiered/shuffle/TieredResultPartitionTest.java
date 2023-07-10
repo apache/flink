@@ -202,7 +202,7 @@ class TieredResultPartitionTest {
                                 null,
                                 Collections.singletonList(tierProducerAgent)),
                         new TieredStorageResourceRegistry(),
-                        new TieredStorageNettyServiceImpl());
+                        new TieredStorageNettyServiceImpl(new TieredStorageResourceRegistry()));
         taskIOMetricGroup =
                 UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup();
         tieredResultPartition.setup();

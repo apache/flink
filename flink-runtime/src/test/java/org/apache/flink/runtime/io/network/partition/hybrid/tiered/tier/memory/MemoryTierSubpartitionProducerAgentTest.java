@@ -22,7 +22,6 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.NettyPayload;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TestingNettyConnectionWriter;
-import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TestingTieredStorageNettyService;
 
 import org.junit.jupiter.api.Test;
 
@@ -123,7 +122,6 @@ class MemoryTierSubpartitionProducerAgentTest {
     }
 
     private static MemoryTierSubpartitionProducerAgent createSubpartitionProducerAgent() {
-        return new MemoryTierSubpartitionProducerAgent(
-                0, new TestingTieredStorageNettyService.Builder().build());
+        return new MemoryTierSubpartitionProducerAgent(0);
     }
 }

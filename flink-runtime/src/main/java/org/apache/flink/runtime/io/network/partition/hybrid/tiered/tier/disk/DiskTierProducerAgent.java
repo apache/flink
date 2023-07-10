@@ -133,7 +133,6 @@ public class DiskTierProducerAgent implements TierProducerAgent, NettyServicePro
                         maxRequestedBuffers,
                         bufferRequestTimeout,
                         maxBufferReadAhead,
-                        nettyService,
                         this::retrieveFirstBufferIndexInSegment,
                         partitionFileReader);
 

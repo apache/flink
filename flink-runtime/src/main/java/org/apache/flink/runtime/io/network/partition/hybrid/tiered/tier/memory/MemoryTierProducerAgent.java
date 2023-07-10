@@ -89,7 +89,7 @@ public class MemoryTierProducerAgent implements TierProducerAgent, NettyServiceP
         nettyService.registerProducer(partitionId, this);
         for (int subpartitionId = 0; subpartitionId < numSubpartitions; ++subpartitionId) {
             subpartitionProducerAgents[subpartitionId] =
-                    new MemoryTierSubpartitionProducerAgent(subpartitionId, nettyService);
+                    new MemoryTierSubpartitionProducerAgent(subpartitionId);
         }
         resourceRegistry.registerResource(partitionId, this::releaseResources);
     }

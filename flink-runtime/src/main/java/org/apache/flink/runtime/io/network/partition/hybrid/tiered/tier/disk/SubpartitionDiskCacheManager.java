@@ -109,7 +109,9 @@ class SubpartitionDiskCacheManager {
     }
 
     void release() {
-        checkState(allBuffers.isEmpty(), "Leaking buffers.");
+        synchronized (allBuffers) {
+            checkState(allBuffers.isEmpty(), "Leaking buffers.");
+        }
     }
 
     // ------------------------------------------------------------------------

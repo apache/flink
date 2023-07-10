@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.AvailabilityNotifier;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -46,6 +47,13 @@ public interface TierConsumerAgent {
             TieredStoragePartitionId partitionId,
             TieredStorageSubpartitionId subpartitionId,
             int segmentId);
+
+    /**
+     * Register the notifier to notify the availability of a subpartition.
+     *
+     * @param notifier to notify availability.
+     */
+    void registerAvailabilityNotifier(AvailabilityNotifier notifier);
 
     /** Close the consumer agent. */
     void close() throws IOException;

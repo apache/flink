@@ -21,8 +21,6 @@ package org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.memory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.NettyConnectionWriter;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.NettyPayload;
-import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyService;
-import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyServiceImpl;
 
 import javax.annotation.Nullable;
 
@@ -33,8 +31,6 @@ class MemoryTierSubpartitionProducerAgent {
 
     private final int subpartitionId;
 
-    private final TieredStorageNettyService nettyService;
-
     /**
      * The {@link NettyConnectionWriter} is used to write buffers to the netty connection.
      *
@@ -44,10 +40,8 @@ class MemoryTierSubpartitionProducerAgent {
 
     private int finishedBufferIndex;
 
-    MemoryTierSubpartitionProducerAgent(
-            int subpartitionId, TieredStorageNettyService nettyService) {
+    MemoryTierSubpartitionProducerAgent(int subpartitionId) {
         this.subpartitionId = subpartitionId;
-        this.nettyService = nettyService;
     }
 
     // ------------------------------------------------------------------------
@@ -71,7 +65,7 @@ class MemoryTierSubpartitionProducerAgent {
 
     void release() {
         if (nettyConnectionWriter != null) {
-            nettyConnectionWriter.close(null);
+            checkNotNull(nettyConnectionWriter).close(null);
         }
     }
 
@@ -82,11 +76,8 @@ class MemoryTierSubpartitionProducerAgent {
     private void addFinishedBuffer(NettyPayload nettyPayload) {
         finishedBufferIndex++;
         checkNotNull(nettyConnectionWriter).writeBuffer(nettyPayload);
-        if (nettyConnectionWriter.numQueuedBuffers() <= 1
-                && nettyService.getClass() == TieredStorageNettyServiceImpl.class) {
-            ((TieredStorageNettyServiceImpl) nettyService)
-                    .notifyResultSubpartitionViewSendBuffer(
-                            nettyConnectionWriter.getNettyConnectionId());
+        if (checkNotNull(nettyConnectionWriter).numQueuedBuffers() <= 1) {
+            checkNotNull(nettyConnectionWriter).notifyAvailable();
         }
     }
 }

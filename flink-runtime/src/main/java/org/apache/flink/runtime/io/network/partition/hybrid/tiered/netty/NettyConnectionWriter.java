@@ -42,6 +42,9 @@ public interface NettyConnectionWriter {
      */
     NettyConnectionId getNettyConnectionId();
 
+    /** Notify the buffer is available in writer. */
+    void notifyAvailable();
+
     /**
      * Get the number of written but unsent buffers.
      *
