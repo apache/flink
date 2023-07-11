@@ -26,6 +26,8 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.OperatorAttributes;
+import org.apache.flink.streaming.api.operators.OperatorAttributesBuilder;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
@@ -102,6 +104,14 @@ public class TimestampsAndWatermarksOperator<T> extends AbstractStreamOperator<T
         element.setTimestamp(newTimestamp);
         output.collect(element);
         watermarkGenerator.onEvent(event, newTimestamp, wmOutput);
+    }
+
+    @Override
+    public OperatorAttributes getOperatorAttributes() {
+        return new OperatorAttributesBuilder()
+                .setInputStreamRecordStored(false)
+                .setOutputStreamRecordValueStored(false)
+                .build();
     }
 
     @Override

@@ -23,6 +23,8 @@ import org.apache.flink.streaming.api.functions.async.AsyncRetryStrategy;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.OperatorAttributes;
+import org.apache.flink.streaming.api.operators.OperatorAttributesBuilder;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
@@ -68,8 +70,8 @@ public class AsyncWaitOperatorFactory<IN, OUT> extends AbstractStreamOperatorFac
     @Override
     public <T extends StreamOperator<OUT>> T createStreamOperator(
             StreamOperatorParameters<OUT> parameters) {
-        AsyncWaitOperator asyncWaitOperator =
-                new AsyncWaitOperator(
+        AsyncWaitOperator<IN, OUT> asyncWaitOperator =
+                new AsyncWaitOperator<>(
                         asyncFunction,
                         timeout,
                         capacity,
@@ -82,6 +84,14 @@ public class AsyncWaitOperatorFactory<IN, OUT> extends AbstractStreamOperatorFac
                 parameters.getStreamConfig(),
                 parameters.getOutput());
         return (T) asyncWaitOperator;
+    }
+
+    @Override
+    public OperatorAttributes getOperatorAttributes() {
+        return new OperatorAttributesBuilder()
+                .setOutputStreamRecordValueStored(asyncFunction.isOutputValueStored())
+                .setInputStreamRecordStored(false)
+                .build();
     }
 
     @Override

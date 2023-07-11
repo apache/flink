@@ -61,4 +61,9 @@ public abstract class WrappingFunction<T extends Function> extends AbstractRichF
     public T getWrappedFunction() {
         return this.wrappedFunction;
     }
+
+    @Override
+    public boolean isOutputValueStored() {
+        return getWrappedFunction().isOutputValueStored();
+    }
 }

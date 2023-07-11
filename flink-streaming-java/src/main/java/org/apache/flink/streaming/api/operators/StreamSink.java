@@ -55,6 +55,14 @@ public class StreamSink<IN> extends AbstractUdfStreamOperator<Object, SinkFuncti
     }
 
     @Override
+    public OperatorAttributes getOperatorAttributes() {
+        return new OperatorAttributesBuilder()
+                .setInputStreamRecordStored(false)
+                .setOutputStreamRecordValueStored(false)
+                .build();
+    }
+
+    @Override
     protected void reportOrForwardLatencyMarker(LatencyMarker marker) {
         // all operators are tracking latencies
         this.latencyStats.reportLatency(marker);

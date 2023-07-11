@@ -30,6 +30,8 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.OperatorAttributes;
+import org.apache.flink.streaming.api.operators.OperatorAttributesBuilder;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
 import org.apache.flink.streaming.api.transformations.SinkV1Adapter;
@@ -188,5 +190,13 @@ class GlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamOperator
     @Override
     public void processElement(StreamRecord<CommittableMessage<CommT>> element) throws Exception {
         committableCollector.addMessage(element.getValue());
+    }
+
+    @Override
+    public OperatorAttributes getOperatorAttributes() {
+        return new OperatorAttributesBuilder()
+                .setInputStreamRecordStored(false)
+                .setOutputStreamRecordValueStored(false)
+                .build();
     }
 }

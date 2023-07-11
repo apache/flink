@@ -30,6 +30,8 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.OperatorAttributes;
+import org.apache.flink.streaming.api.operators.OperatorAttributesBuilder;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
 import org.apache.flink.streaming.runtime.operators.sink.committables.CheckpointCommittableManager;
@@ -198,6 +200,14 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
         if (checkpointId.isPresent() && checkpointId.getAsLong() <= lastCompletedCheckpointId) {
             commitAndEmitCheckpoints();
         }
+    }
+
+    @Override
+    public OperatorAttributes getOperatorAttributes() {
+        return new OperatorAttributesBuilder()
+                .setInputStreamRecordStored(false)
+                .setOutputStreamRecordValueStored(false)
+                .build();
     }
 
     @Override

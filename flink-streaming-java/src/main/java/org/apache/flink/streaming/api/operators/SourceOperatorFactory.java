@@ -153,6 +153,14 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
         return true;
     }
 
+    @Override
+    public OperatorAttributes getOperatorAttributes() {
+        return new OperatorAttributesBuilder()
+                .setOutputStreamRecordValueStored(false)
+                .setInputStreamRecordStored(false)
+                .build();
+    }
+
     /**
      * This is a utility method to conjure up a "SplitT" generics variable binding so that we can
      * construct the SourceOperator without resorting to "all raw types". That way, this methods

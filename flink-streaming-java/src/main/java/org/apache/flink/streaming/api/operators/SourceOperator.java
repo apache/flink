@@ -538,6 +538,14 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     }
 
     @Override
+    public OperatorAttributes getOperatorAttributes() {
+        return new OperatorAttributesBuilder()
+                .setOutputStreamRecordValueStored(false)
+                .setInputStreamRecordStored(false)
+                .build();
+    }
+
+    @Override
     public void initializeState(StateInitializationContext context) throws Exception {
         super.initializeState(context);
         final ListState<byte[]> rawState =
