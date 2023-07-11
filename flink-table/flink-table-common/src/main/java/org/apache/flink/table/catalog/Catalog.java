@@ -42,6 +42,8 @@ import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.factories.TableFactory;
 import org.apache.flink.table.procedures.Procedure;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -120,9 +122,13 @@ public interface Catalog {
      * value probably comes from configuration, will not change for the life time of the catalog
      * instance.
      *
+     * <p>If the default database is null, users will need to set a current database themselves or
+     * qualify identifiers at least with the database name when using the catalog.
+     *
      * @return the name of the current database
      * @throws CatalogException in case of any runtime exception
      */
+    @Nullable
     String getDefaultDatabase() throws CatalogException;
 
     /**

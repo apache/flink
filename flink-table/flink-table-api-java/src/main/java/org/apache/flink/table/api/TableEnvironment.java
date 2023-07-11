@@ -33,6 +33,8 @@ import org.apache.flink.table.module.ModuleEntry;
 import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.table.types.AbstractDataType;
 
+import javax.annotation.Nullable;
+
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
@@ -1110,10 +1112,13 @@ public interface TableEnvironment {
      *     </tbody>
      * </table>
      *
+     * <p>You can unset the current catalog by passing a null value. If the current catalog is
+     * unset, you need to use fully qualified identifiers.
+     *
      * @param catalogName The name of the catalog to set as the current default catalog.
      * @see TableEnvironment#useDatabase(String)
      */
-    void useCatalog(String catalogName);
+    void useCatalog(@Nullable String catalogName);
 
     /**
      * Gets the current default database name of the running session.
@@ -1179,10 +1184,13 @@ public interface TableEnvironment {
      *     </tbody>
      * </table>
      *
+     * <p>You can unset the current database by passing a null value. If the current database is
+     * unset, you need to qualify identifiers at least with the database name.
+     *
      * @param databaseName The name of the database to set as the current database.
      * @see TableEnvironment#useCatalog(String)
      */
-    void useDatabase(String databaseName);
+    void useDatabase(@Nullable String databaseName);
 
     /** Returns the table config that defines the runtime behavior of the Table API. */
     TableConfig getConfig();
