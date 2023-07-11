@@ -790,6 +790,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      *
      * @param restartStrategyConfiguration Restart strategy configuration to be set
      */
+    @Deprecated
     @PublicEvolving
     public void setRestartStrategy(
             RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration) {
@@ -801,6 +802,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      *
      * @return The restart strategy configuration to be used
      */
+    @Deprecated
     @PublicEvolving
     public RestartStrategies.RestartStrategyConfiguration getRestartStrategy() {
         return config.getRestartStrategy();

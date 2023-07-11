@@ -36,6 +36,7 @@ import java.util.concurrent.TimeUnit;
  * <p>The RestartStrategyConfigurations are used to decouple the core module from the runtime
  * module.
  */
+@Deprecated
 @PublicEvolving
 public class RestartStrategies {
 

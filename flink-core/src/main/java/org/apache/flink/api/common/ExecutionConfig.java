@@ -149,6 +149,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      */
     @Deprecated private long executionRetryDelay = DEFAULT_RESTART_DELAY;
 
+    @Deprecated
     private RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration =
             new RestartStrategies.FallbackRestartStrategyConfiguration();
 
@@ -438,6 +439,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      *
      * @param restartStrategyConfiguration Configuration defining the restart strategy to use
      */
+    @Deprecated
     @PublicEvolving
     public void setRestartStrategy(
             RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration) {
@@ -450,6 +452,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      *
      * @return The specified restart configuration
      */
+    @Deprecated
     @PublicEvolving
     @SuppressWarnings("deprecation")
     public RestartStrategies.RestartStrategyConfiguration getRestartStrategy() {
