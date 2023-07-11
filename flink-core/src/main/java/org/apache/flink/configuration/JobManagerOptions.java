@@ -717,6 +717,19 @@ public class JobManagerOptions {
                                                             code(UNFINISHED_PRODUCERS.name())))
                                             .build());
 
+    /**
+     * This config option describes number of cpu cores of JobManager. In case of Yarn / Kubernetes,
+     * it is used to launch a container for the JobManager.
+     *
+     * <p>For configuring the cpu cores of JobManager on Yarn / Kubernetes, please use {@link
+     * YarnConfigOptions#APP_MASTER_VCORES} and {@link KubernetesConfigOptions#JOB_MANAGER_CPU}.
+     */
+    @Documentation.ExcludeFromDocumentation
+    public static final ConfigOption<Double> JOBMANAGER_CPU =
+            key("jobmanager.cpu.cores")
+                    .doubleType()
+                    .defaultValue(1.0)
+                    .withDescription("The number of cpu used by job manager.");
     // ---------------------------------------------------------------------------------------------
 
     private JobManagerOptions() {

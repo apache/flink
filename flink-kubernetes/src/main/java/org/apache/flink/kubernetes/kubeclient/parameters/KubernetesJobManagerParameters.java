@@ -122,7 +122,9 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
     }
 
     public double getJobManagerCPU() {
-        return flinkConfig.getDouble(KubernetesConfigOptions.JOB_MANAGER_CPU);
+        return flinkConfig
+                .getOptional(JobManagerOptions.JOBMANAGER_CPU)
+                .orElse(flinkConfig.getDouble(KubernetesConfigOptions.JOB_MANAGER_CPU));
     }
 
     public double getJobManagerCPULimitFactor() {
