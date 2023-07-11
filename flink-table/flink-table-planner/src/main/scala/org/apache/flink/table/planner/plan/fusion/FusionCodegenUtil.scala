@@ -218,19 +218,6 @@ object FusionCodegenUtil {
     exprs.foreach(_.accept(visitor))
     visitor.input1Fields.toSet
   }
-
-  def extractUsedMoreThanOnceRefInputFields(
-      exprs: Seq[RexNode],
-      input1Type: LogicalType): Set[Int] = {
-    val visitor = new InputRefVisitor(input1Type)
-    // extract referenced input fields from expressions
-    exprs.foreach(_.accept(visitor))
-
-    visitor.input1Fields
-      .groupBy(index => index)
-      .filter(_._2.size > 1)
-      .keySet
-  }
 }
 
 /** An RexVisitor to extract all referenced input fields */

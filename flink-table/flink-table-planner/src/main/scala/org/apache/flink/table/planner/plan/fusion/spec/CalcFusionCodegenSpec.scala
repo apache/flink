@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.plan.fusion.spec
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression}
-import org.apache.flink.table.planner.plan.fusion.FusionCodegenUtil.{evaluateRequiredVariables, extractRefInputFields, extractUsedMoreThanOnceRefInputFields}
+import org.apache.flink.table.planner.plan.fusion.FusionCodegenUtil.{evaluateRequiredVariables, extractRefInputFields}
 import org.apache.flink.table.planner.plan.fusion.OpFusionCodegenSpecBase
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.{toJava, toScala}
 
@@ -38,13 +38,6 @@ class CalcFusionCodegenSpec(
 
   override def variablePrefix: String = "calc"
 
-  override def usedInputColumns(inputId: Int): util.Set[Integer] = {
-    toJava(
-      extractUsedMoreThanOnceRefInputFields(
-        projection,
-        fusionContext.getInputFusionContexts.head.getOutputType))
-  }
-
   override def doProcessProduce(codegenCtx: CodeGeneratorContext): Unit = {
     assert(fusionContext.getInputFusionContexts.size == 1)
     fusionContext.getInputFusionContexts.head.processProduce(codegenCtx)
@@ -62,6 +55,8 @@ class CalcFusionCodegenSpec(
             rexNode.isInstanceOf[RexInputRef] && rexNode.asInstanceOf[RexInputRef].getIndex == index
         }
 
+    val projectionUsedColumns =
+      extractRefInputFields(projection, fusionContext.getInputFusionContexts.head.getOutputType)
     if (condition.isEmpty && onlyFilter) {
       throw new TableException(
         "This calc has no useful projection and no filter. " +
@@ -69,6 +64,7 @@ class CalcFusionCodegenSpec(
     } else if (condition.isEmpty) { // only projection
       val projectionExprs = projection.map(getExprCodeGenerator.generateExpression)
       s"""
+         |${evaluateRequiredVariables(toScala(inputVars), projectionUsedColumns)}
          |${fusionContext.processConsume(toJava(projectionExprs))}
          |""".stripMargin
     } else {
@@ -94,6 +90,7 @@ class CalcFusionCodegenSpec(
            |$evaluateFieldCode
            |${filterExpr.code}
            |if (${filterExpr.resultTerm}) {
+           |  ${evaluateRequiredVariables(toScala(inputVars), projectionUsedColumns)}
            |  ${fusionContext.processConsume(toJava(projectionExprs))}
            |}
            |""".stripMargin

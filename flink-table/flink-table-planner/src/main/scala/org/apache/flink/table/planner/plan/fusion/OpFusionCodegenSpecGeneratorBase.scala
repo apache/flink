@@ -134,21 +134,6 @@ abstract class OpFusionCodegenSpecGeneratorBase(
           val inputRowDataClass = outputSpec.getInputRowDataClass(inputIdOfOutput)
           val rowVar = prepareRowVar(row, inputVars, inputRowDataClass)
 
-          // reuse input expr for output node
-          val indices = fieldIndices(outputType)
-          indices.foreach(
-            index =>
-              outputSpec.getCodeGeneratorContext
-                .addReusableInputUnboxingExprs(rowVar.resultTerm, index, inputVars(index)))
-          // bind downstream operator input type and input row before call its doProcessConsume
-          if (inputIdOfOutput == 1) {
-            outputSpec.getExprCodeGenerator
-              .bindInput(outputType, rowVar.resultTerm, inputFieldMapping = Option(indices))
-          } else {
-            outputSpec.getExprCodeGenerator
-              .bindSecondInput(outputType, rowVar.resultTerm, inputFieldMapping = Option(indices))
-          }
-
           // need to copy composite type such as varchar for each output if has multiple output
           val (deepCopyLocalVariable, copiedInputVars) = if (outputs.length > 1) {
             val copiedRowVarTerm = newName("copiedRowVar")
@@ -159,6 +144,22 @@ abstract class OpFusionCodegenSpecGeneratorBase(
           } else {
             ("", inputVars)
           }
+
+          // reuse input expr for output node
+          val indices = fieldIndices(outputType)
+          indices.foreach(
+            index =>
+              outputSpec.getCodeGeneratorContext
+                .addReusableInputUnboxingExprs(rowVar.resultTerm, index, copiedInputVars(index)))
+          // bind downstream operator input type and input row before call its doProcessConsume
+          if (inputIdOfOutput == 1) {
+            outputSpec.getExprCodeGenerator
+              .bindInput(outputType, rowVar.resultTerm, inputFieldMapping = Option(indices))
+          } else {
+            outputSpec.getExprCodeGenerator
+              .bindSecondInput(outputType, rowVar.resultTerm, inputFieldMapping = Option(indices))
+          }
+
           // always pass column vars and row var to output op simultaneously, the output decide to use which one
           s"""
              |$evaluatedReqVars
