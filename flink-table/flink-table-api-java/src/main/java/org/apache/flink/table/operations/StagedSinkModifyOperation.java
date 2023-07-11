@@ -36,7 +36,7 @@ import java.util.Map;
  * DynamicTableSink firstly and check whether it implements {@link SupportsStaging} and then call
  * the method {@link SupportsStaging#applyStaging}. We maintain the DynamicTableSink in this
  * operation so that we can reuse this DynamicTableSink instead of creating a new DynamicTableSink
- * during translate the operation again which is error-prone.
+ * during translating the operation again which is error-prone.
  */
 @Internal
 public class StagedSinkModifyOperation extends SinkModifyOperation {
