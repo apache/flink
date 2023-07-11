@@ -69,15 +69,15 @@ class CalcFusionCodegenSpec(
          |""".stripMargin
     } else {
       // materialize the field access code in advance which is referenced by filter condition to avoid it be evaluated more time
-      val referencedFields = extractRefInputFields(
+      val filterUsedColumns = extractRefInputFields(
         Seq(condition.get),
         fusionContext.getInputFusionContexts.head.getOutputType)
-      val evaluateFieldCode = evaluateRequiredVariables(toScala(inputVars), referencedFields)
+      val filterAccessCode = evaluateRequiredVariables(toScala(inputVars), filterUsedColumns)
       val filterExpr = getExprCodeGenerator.generateExpression(condition.get)
       // only filter
       if (onlyFilter) {
         s"""
-           |$evaluateFieldCode
+           |$filterAccessCode
            |${filterExpr.code}
            |if (${filterExpr.resultTerm}) {
            |  ${fusionContext.processConsume(inputVars)}
@@ -87,7 +87,7 @@ class CalcFusionCodegenSpec(
         // if any filter conditions, projection code will enter an new scope
         val projectionExprs = projection.map(getExprCodeGenerator.generateExpression)
         s"""
-           |$evaluateFieldCode
+           |$filterAccessCode
            |${filterExpr.code}
            |if (${filterExpr.resultTerm}) {
            |  ${evaluateRequiredVariables(toScala(inputVars), projectionUsedColumns)}

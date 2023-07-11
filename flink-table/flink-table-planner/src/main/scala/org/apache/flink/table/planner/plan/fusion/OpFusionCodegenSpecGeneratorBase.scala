@@ -94,6 +94,10 @@ abstract class OpFusionCodegenSpecGeneratorBase(
     }
   }
 
+  /**
+   * <p> Note: The code of {@link GeneratedExpression} must not be empty for each member in
+   * outputVars, otherwise it has been evaluated before call this method.
+   */
   def processConsume(
       outputVars: java.util.List[GeneratedExpression],
       row: String = null): String = {
@@ -214,8 +218,7 @@ abstract class OpFusionCodegenSpecGeneratorBase(
       new GeneratedExpression(row, NEVER_NULL, NO_CODE, outputType)
     } else {
       getExprCodeGenerator.generateResultExpression(
-        // need copy the colVars first to avoid it code is used during generate row
-        colVars.map(_.copy()),
+        colVars,
         outputType,
         rowTypeClazz,
         getOutputRowTerm(row),
