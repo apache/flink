@@ -21,12 +21,80 @@ package org.apache.flink.table.factories;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.catalog.CatalogStore;
+import org.apache.flink.table.catalog.exceptions.CatalogException;
 
 import java.util.Map;
 
 /**
  * A factory to create configured catalog store instances based on string-based properties. See also
  * {@link Factory} for more information.
+ *
+ * <p>This factory is specifically designed for the Flink SQL gateway scenario, where different
+ * catalog stores need to be created for different sessions.
+ *
+ * <p>If the CatalogStore is implemented using JDBC, this factory can be used to create a JDBC
+ * connection pool in the open method. This connection pool can then be reused for subsequent
+ * catalog store creations.
+ *
+ * <p>The following examples implementation of CatalogStoreFactory using jdbc.
+ *
+ * <pre>{@code
+ *     public class JdbcCatalogStore implements CatalogStore {
+ *
+ *         private JdbcConnectionPool jdbcConnectionPool;
+ *         public JdbcCatalogStore(JdbcConnectionPool jdbcConnectionPool) {
+ *             this.jdbcConnectionPool = jdbcConnectionPool;
+ *         }
+ *         ...
+ *     }
+ *
+ *     public class JdbcCatalogStoreFactory implements CatalogStoreFactory {
+ *
+ *         private JdbcConnectionPool jdbcConnectionPool;
+ *
+ *         @Override
+ *         public CatalogStore createCatalogStore(Context context) {
+ *             return new JdbcCatalogStore(jdbcConnectionPool);
+ *         }
+ *
+ *         @Override
+ *         public void open(Context context) throws CatalogException {
+ *             // initialize the thread pool using options from context
+ *             jdbcConnectionPool = initializeJdbcConnectionPool(context);
+ *         }
+ *         ...
+ *     }
+ * }
+ *
+ * <p>The usage of the Flink SQL gateway is as follows. It's just an example and may not be the final implementation.
+ *
+ * <pre>{@code
+ *    // initialize CatalogStoreFactory when initialize the SessionManager
+ *    public class SessionManagerImpl implements SessionManager {
+ *        public SessionManagerImpl(DefaultContext defaultContext) {
+ *          this.catalogStoreFactory = createCatalogStore();
+ *        }
+ *
+ *        @Override
+ *        public void start() {
+ *            // initialize the CatalogStoreFactory
+ *            this.catalogStoreFactory(buildCatalogStoreContext());
+ *        }
+ *
+ *        @Override
+ *        public synchronized Session openSession(SessionEnvironment environment) {
+ *            // Create a new catalog store for this session.
+ *            CatalogStore catalogStore = this.catalogStoreFactory.createCatalogStore(buildCatalogStoreContext());
+ *
+ *            // Create a new CatalogManager using catalog store.
+ *        }
+ *
+ *        @Override
+ *        public void stop() {
+ *            // Close the CatalogStoreFactory when stopping the SessionManager.
+ *            this.catalogStoreFactory.close();
+ *        }
+ * }
  */
 @PublicEvolving
 public interface CatalogStoreFactory extends Factory {
@@ -34,11 +102,23 @@ public interface CatalogStoreFactory extends Factory {
     /** Creates a {@link CatalogStore} instance from context information. */
     CatalogStore createCatalogStore(Context context);
 
-    /** Initialize the CatalogStoreFactory. */
-    void open(Context context);
+    /**
+     * Initialize the CatalogStoreFactory.
+     *
+     * <p>For the use case of Flink SQL gateway, the open method will be called when starting
+     * SessionManager. It initializes common resources, such as a connection pool, for various
+     * catalog stores.
+     */
+    void open(Context context) throws CatalogException;
 
-    /** Close the CatalogStoreFactory. */
-    void close();
+    /**
+     * Close the CatalogStoreFactory.
+     *
+     * <p>For the use case of Flink SQL gateway, the close method will be called when closing
+     * SessionManager. It releases common resources, such as connection pool, after closing all
+     * catalog stores.
+     */
+    void close() throws CatalogException;
 
     /** Context provided when a catalog store is created. */
     @PublicEvolving

@@ -29,7 +29,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
-/** Test for {@link GenericInMemoryCatalogStore}. */
+/** Test for {@link GenericInMemoryCatalogStoreFactory}. */
 public class GenericInMemoryCatalogStoreFactoryTest {
 
     @Test

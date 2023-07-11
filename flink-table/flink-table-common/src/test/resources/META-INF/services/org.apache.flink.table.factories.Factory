@@ -22,5 +22,6 @@ org.apache.flink.table.factories.TestDynamicTableSourceOnlyFactory
 org.apache.flink.table.factories.TestConflictingDynamicTableFactory1
 org.apache.flink.table.factories.TestConflictingDynamicTableFactory2
 org.apache.flink.table.factories.TestCatalogFactory
+org.apache.flink.table.factories.TestCatalogStoreFactory
 org.apache.flink.table.factories.TestManagedTableFactory
 org.apache.flink.table.factories.module.DummyModuleFactory

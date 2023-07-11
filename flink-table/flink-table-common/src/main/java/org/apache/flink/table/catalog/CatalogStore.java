@@ -25,14 +25,18 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * The {@link CatalogStore} is used in {@link CatalogManager} to retrieve, save and remove {@link
- * CatalogDescriptor} at the external storage system.
+ * Represents the storage where persists all {@link Catalog}s.
+ *
+ * <p>All catalogs can be lazy initialized with the {@link CatalogStore}.
+ *
+ * <p>It can be used in {@code CatalogManager} to retrieve, save and remove catalog in {@link
+ * CatalogDescriptor} format at the external storage system.
  */
 @PublicEvolving
 public interface CatalogStore {
 
     /**
-     * Store a catalog under the given catalog name. The catalog name must be unique.
+     * Stores a catalog under the given catalog name. The catalog name must be unique.
      *
      * @param catalogName the given catalog name under which to store the given catalog
      * @param catalog catalog descriptor to store
@@ -41,7 +45,7 @@ public interface CatalogStore {
     void storeCatalog(String catalogName, CatalogDescriptor catalog) throws CatalogException;
 
     /**
-     * Remove a catalog with the given catalog name. The catalog name must be existed.
+     * Remove a catalog with the given catalog name.
      *
      * @param catalogName the given catalog name under which to remove the given catalog
      * @param ignoreIfNotExists whether throw an exception when the catalog does not exist

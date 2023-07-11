@@ -24,6 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CatalogStore;
 import org.apache.flink.table.catalog.CommonCatalogOptions;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
@@ -412,6 +413,21 @@ class FactoryUtilTest {
                         anyCauseMatches(
                                 ValidationException.class,
                                 "Unsupported options found for 'test-catalog'"));
+    }
+
+    @Test
+    void testCreateCatalogStore() {
+        final Map<String, String> options = new HashMap<>();
+        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        final FactoryUtil.DefaultCatalogStoreContext discoveryContext =
+                new FactoryUtil.DefaultCatalogStoreContext(options, null, classLoader);
+        final CatalogStoreFactory factory =
+                FactoryUtil.discoverFactory(
+                        classLoader, CatalogStoreFactory.class, TestCatalogStoreFactory.IDENTIFIER);
+        factory.open(discoveryContext);
+        CatalogStore catalogStore = factory.createCatalogStore(discoveryContext);
+
+        assertThat(catalogStore).isInstanceOf(TestCatalogStoreFactory.TestCatalogStore.class);
     }
 
     @Test

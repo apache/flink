@@ -19,10 +19,12 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.catalog.exceptions.CatalogException;
 
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
 /** Test for {@link GenericInMemoryCatalogStore}. */
 public class GenericInMemoryCatalogStoreTest {
@@ -39,6 +41,10 @@ public class GenericInMemoryCatalogStoreTest {
 
         catalogStore.removeCatalog("catalog1", true);
         assertThat(catalogStore.contains("catalog1")).isFalse();
+
+        assertThatThrownBy(() -> catalogStore.removeCatalog("catalog1", false))
+                .isInstanceOf(CatalogException.class)
+                .hasMessageContaining("Catalog catalog1 does not exist in the catalog store.");
 
         catalogStore.close();
     }
