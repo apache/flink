@@ -59,6 +59,8 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInitializer;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelOption;
+import org.apache.flink.shaded.netty4.io.netty.channel.DefaultSelectStrategyFactory;
+import org.apache.flink.shaded.netty4.io.netty.channel.SelectStrategyFactory;
 import org.apache.flink.shaded.netty4.io.netty.channel.SimpleChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
@@ -89,6 +91,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
+import java.nio.channels.spi.SelectorProvider;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -100,6 +103,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -122,9 +126,23 @@ public class RestClient implements AutoCloseableAsync {
 
     private final AtomicBoolean isRunning = new AtomicBoolean(true);
 
+    // Used to track unresolved request futures in case they need to be resolved when the client is
+    // closed
+    private final Collection<CompletableFuture<Channel>> responseChannelFutures =
+            ConcurrentHashMap.newKeySet();
+
     @VisibleForTesting List<OutboundChannelHandlerFactory> outboundChannelHandlerFactories;
 
     public RestClient(Configuration configuration, Executor executor)
+            throws ConfigurationException {
+        this(configuration, executor, DefaultSelectStrategyFactory.INSTANCE);
+    }
+
+    @VisibleForTesting
+    RestClient(
+            Configuration configuration,
+            Executor executor,
+            SelectStrategyFactory selectStrategyFactory)
             throws ConfigurationException {
         Preconditions.checkNotNull(configuration);
         this.executor = Preconditions.checkNotNull(executor);
@@ -199,8 +217,16 @@ public class RestClient implements AutoCloseableAsync {
                         }
                     }
                 };
+
+        // No NioEventLoopGroup constructor available that allows passing nThreads, threadFactory,
+        // and selectStrategyFactory without also passing a SelectorProvider, so mimicking its
+        // default value seen in other constructors
         NioEventLoopGroup group =
-                new NioEventLoopGroup(1, new ExecutorThreadFactory("flink-rest-client-netty"));
+                new NioEventLoopGroup(
+                        1,
+                        new ExecutorThreadFactory("flink-rest-client-netty"),
+                        SelectorProvider.provider(),
+                        selectStrategyFactory);
 
         bootstrap = new Bootstrap();
         bootstrap
@@ -212,6 +238,11 @@ public class RestClient implements AutoCloseableAsync {
                 .handler(initializer);
 
         LOG.debug("Rest client endpoint started.");
+    }
+
+    @VisibleForTesting
+    Collection<CompletableFuture<Channel>> getResponseChannelFutures() {
+        return responseChannelFutures;
     }
 
     @Override
@@ -241,6 +272,8 @@ public class RestClient implements AutoCloseableAsync {
                             .shutdownGracefully(0L, timeout.toMilliseconds(), TimeUnit.MILLISECONDS)
                             .addListener(
                                     finished -> {
+                                        notifyResponseFuturesOfShutdown();
+
                                         if (finished.isSuccess()) {
                                             terminationFuture.complete(null);
                                         } else {
@@ -252,6 +285,15 @@ public class RestClient implements AutoCloseableAsync {
             }
         }
         return terminationFuture;
+    }
+
+    private void notifyResponseFuturesOfShutdown() {
+        responseChannelFutures.forEach(
+                future ->
+                        future.completeExceptionally(
+                                new IllegalStateException(
+                                        "RestClient closed before request completed")));
+        responseChannelFutures.clear();
     }
 
     public <
@@ -466,12 +508,19 @@ public class RestClient implements AutoCloseableAsync {
 
     private <P extends ResponseBody> CompletableFuture<P> submitRequest(
             String targetAddress, int targetPort, Request httpRequest, JavaType responseType) {
-        final ChannelFuture connectFuture = bootstrap.connect(targetAddress, targetPort);
+        if (!isRunning.get()) {
+            return FutureUtils.completedExceptionally(
+                    new IllegalStateException("RestClient is already closed"));
+        }
 
         final CompletableFuture<Channel> channelFuture = new CompletableFuture<>();
+        responseChannelFutures.add(channelFuture);
 
+        final ChannelFuture connectFuture = bootstrap.connect(targetAddress, targetPort);
         connectFuture.addListener(
                 (ChannelFuture future) -> {
+                    responseChannelFutures.remove(channelFuture);
+
                     if (future.isSuccess()) {
                         channelFuture.complete(future.channel());
                     } else {
