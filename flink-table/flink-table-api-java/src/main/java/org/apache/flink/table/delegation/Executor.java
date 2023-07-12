@@ -25,6 +25,7 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.JobStatusHook;
 import org.apache.flink.table.api.TableEnvironment;
 
 import javax.annotation.Nullable;
@@ -60,6 +61,22 @@ public interface Executor {
             List<Transformation<?>> transformations,
             ReadableConfig tableConfiguration,
             @Nullable String defaultJobName);
+
+    /**
+     * Translates the given transformations with a list of {@link JobStatusHook}s to a {@link
+     * Pipeline}.
+     *
+     * @param transformations list of transformations
+     * @param tableConfiguration table-specific configuration options
+     * @param defaultJobName default job name if not specified via {@link PipelineOptions#NAME}
+     * @param jobStatusHookList list of {@link JobStatusHook}s
+     * @return The pipeline representing the transformations.
+     */
+    Pipeline createPipeline(
+            List<Transformation<?>> transformations,
+            ReadableConfig tableConfiguration,
+            @Nullable String defaultJobName,
+            List<JobStatusHook> jobStatusHookList);
 
     /**
      * Executes the given pipeline.

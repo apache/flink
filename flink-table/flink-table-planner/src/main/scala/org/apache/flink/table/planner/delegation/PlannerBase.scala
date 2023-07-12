@@ -217,6 +217,14 @@ abstract class PlannerBase(
           getFlinkContext.getClassLoader
         )
 
+      case stagedSink: StagedSinkModifyOperation =>
+        val input = createRelBuilder.queryOperation(modifyOperation.getChild).build()
+        DynamicSinkUtils.convertSinkToRel(
+          createRelBuilder,
+          input,
+          stagedSink,
+          stagedSink.getDynamicTableSink)
+
       case catalogSink: SinkModifyOperation =>
         val input = createRelBuilder.queryOperation(modifyOperation.getChild).build()
         val dynamicOptions = catalogSink.getDynamicOptions

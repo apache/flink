@@ -197,6 +197,17 @@ public class TableConfigOptions {
                     .withDescription(
                             "Local directory that is used by planner for storing downloaded resources.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> TABLE_CTAS_ATOMICITY_ENABLED =
+            key("table.ctas.atomicity-enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Specifies if the CREATE TABLE AS SELECT statement is executed atomically. By default, the statement is non-atomic. "
+                                    + "The target table is created on the client side, and it will not be dropped even though the job fails or is canceled. "
+                                    + "If set this option to true and the underlying DynamicTableSink implements the SupportsStaging interface, "
+                                    + "the statement is expected to be executed atomically, the behavior of which depends on the actual DynamicTableSink.");
+
     // ------------------------------------------------------------------------------------------
     // Enum option types
     // ------------------------------------------------------------------------------------------

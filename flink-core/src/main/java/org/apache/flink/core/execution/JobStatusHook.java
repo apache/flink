@@ -25,7 +25,7 @@ import org.apache.flink.api.common.JobStatus;
 import java.io.Serializable;
 
 /**
- * Hooks provided by users on job status changing. Triggered at the initial(CREATED) and final
+ * Hooks on job status changing. Triggered at the initial(CREATED) and final
  * state(FINISHED/CANCELED/FAILED) of the job.
  *
  * <p>Usage examples:

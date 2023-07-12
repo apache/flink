@@ -24,6 +24,7 @@ import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.JobStatusHook;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.DataTypes;
@@ -57,16 +58,22 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.StagedTable;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.sink.SinkStagingContext;
+import org.apache.flink.table.connector.sink.abilities.SupportsStaging;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.InternalPlan;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.delegation.Planner;
+import org.apache.flink.table.execution.CtasJobStatusHook;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.PlannerFactoryUtil;
+import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
@@ -92,6 +99,7 @@ import org.apache.flink.table.operations.command.ExecutePlanOperation;
 import org.apache.flink.table.operations.ddl.AnalyzeTableOperation;
 import org.apache.flink.table.operations.ddl.CompilePlanOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
+import org.apache.flink.table.operations.utils.ExecutableOperationUtils;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.resource.ResourceType;
@@ -114,6 +122,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -785,12 +794,12 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     @Override
     public TableResultInternal executeInternal(List<ModifyOperation> operations) {
         List<ModifyOperation> mapOperations = new ArrayList<>();
+        List<JobStatusHook> jobStatusHookList = new LinkedList<>();
         for (ModifyOperation modify : operations) {
             if (modify instanceof CreateTableASOperation) {
                 // execute CREATE TABLE first for CTAS statements
                 CreateTableASOperation ctasOperation = (CreateTableASOperation) modify;
-                executeInternal(ctasOperation.getCreateTableOperation());
-                mapOperations.add(ctasOperation.toSinkModifyOperation(catalogManager));
+                mapOperations.add(getModifyOperation(ctasOperation, jobStatusHookList));
             } else if (modify instanceof ReplaceTableAsOperation) {
                 ReplaceTableAsOperation rtasOperation = (ReplaceTableAsOperation) modify;
                 mapOperations.add(getOperation(rtasOperation));
@@ -821,7 +830,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
         List<Transformation<?>> transformations = translate(mapOperations);
         List<String> sinkIdentifierNames = extractSinkIdentifierNames(mapOperations);
-        return executeInternal(transformations, sinkIdentifierNames);
+        return executeInternal(transformations, sinkIdentifierNames, jobStatusHookList);
     }
 
     private ModifyOperation getOperation(ReplaceTableAsOperation rtasOperation) {
@@ -849,6 +858,56 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         return rtasOperation.toSinkModifyOperation(catalogManager);
     }
 
+    private ModifyOperation getModifyOperation(
+            CreateTableASOperation ctasOperation, List<JobStatusHook> jobStatusHookList) {
+        CreateTableOperation createTableOperation = ctasOperation.getCreateTableOperation();
+        if (tableConfig.get(TableConfigOptions.TABLE_CTAS_ATOMICITY_ENABLED)) {
+            ObjectIdentifier tableIdentifier = createTableOperation.getTableIdentifier();
+            Catalog catalog =
+                    catalogManager.getCatalog(tableIdentifier.getCatalogName()).orElse(null);
+            ResolvedCatalogTable catalogTable =
+                    catalogManager.resolveCatalogTable(createTableOperation.getCatalogTable());
+            if (!TableFactoryUtil.isLegacyConnectorOptions(
+                    catalog,
+                    tableConfig,
+                    isStreamingMode,
+                    tableIdentifier,
+                    catalogTable,
+                    createTableOperation.isTemporary())) {
+                DynamicTableSink dynamicTableSink =
+                        ExecutableOperationUtils.createDynamicTableSink(
+                                catalog,
+                                () -> moduleManager.getFactory((Module::getTableSinkFactory)),
+                                tableIdentifier,
+                                catalogTable,
+                                Collections.emptyMap(),
+                                tableConfig,
+                                resourceManager.getUserClassLoader(),
+                                createTableOperation.isTemporary());
+                if (dynamicTableSink instanceof SupportsStaging) {
+                    // use atomic ctas
+                    SupportsStaging.StagingPurpose stagingPurpose =
+                            createTableOperation.isIgnoreIfExists()
+                                    ? SupportsStaging.StagingPurpose.CREATE_TABLE_AS_IF_NOT_EXISTS
+                                    : SupportsStaging.StagingPurpose.CREATE_TABLE_AS;
+                    StagedTable stagedTable =
+                            ((SupportsStaging) dynamicTableSink)
+                                    .applyStaging(new SinkStagingContext(stagingPurpose));
+                    CtasJobStatusHook ctasJobStatusHook = new CtasJobStatusHook(stagedTable);
+                    jobStatusHookList.add(ctasJobStatusHook);
+                    return ctasOperation.toStagedSinkModifyOperation(
+                            createTableOperation.getTableIdentifier(),
+                            catalogTable,
+                            catalog,
+                            dynamicTableSink);
+                }
+            }
+        }
+        // use non-atomic ctas, create table first
+        executeInternal(createTableOperation);
+        return ctasOperation.toSinkModifyOperation(catalogManager);
+    }
+
     private TableResultInternal executeInternal(
             DeleteFromFilterOperation deleteFromFilterOperation) {
         Optional<Long> rows =
@@ -866,6 +925,13 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     private TableResultInternal executeInternal(
             List<Transformation<?>> transformations, List<String> sinkIdentifierNames) {
+        return executeInternal(transformations, sinkIdentifierNames, Collections.emptyList());
+    }
+
+    private TableResultInternal executeInternal(
+            List<Transformation<?>> transformations,
+            List<String> sinkIdentifierNames,
+            List<JobStatusHook> jobStatusHookList) {
         final String defaultJobName = "insert-into_" + String.join(",", sinkIdentifierNames);
 
         resourceManager.addJarConfiguration(tableConfig);
@@ -873,7 +939,10 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         // We pass only the configuration to avoid reconfiguration with the rootConfiguration
         Pipeline pipeline =
                 execEnv.createPipeline(
-                        transformations, tableConfig.getConfiguration(), defaultJobName);
+                        transformations,
+                        tableConfig.getConfiguration(),
+                        defaultJobName,
+                        jobStatusHookList);
         try {
             JobClient jobClient = execEnv.executeAsync(pipeline);
             final List<Column> columns = new ArrayList<>();
