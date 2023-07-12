@@ -39,62 +39,70 @@ import java.util.Map;
  * <p>The following examples implementation of CatalogStoreFactory using jdbc.
  *
  * <pre>{@code
- *     public class JdbcCatalogStore implements CatalogStore {
+ * public class JdbcCatalogStore implements CatalogStore {
  *
- *         private JdbcConnectionPool jdbcConnectionPool;
- *         public JdbcCatalogStore(JdbcConnectionPool jdbcConnectionPool) {
- *             this.jdbcConnectionPool = jdbcConnectionPool;
- *         }
- *         ...
+ *     private JdbcConnectionPool jdbcConnectionPool;
+ *     public JdbcCatalogStore(JdbcConnectionPool jdbcConnectionPool) {
+ *         this.jdbcConnectionPool = jdbcConnectionPool;
  *     }
- *
- *     public class JdbcCatalogStoreFactory implements CatalogStoreFactory {
- *
- *         private JdbcConnectionPool jdbcConnectionPool;
- *
- *         @Override
- *         public CatalogStore createCatalogStore(Context context) {
- *             return new JdbcCatalogStore(jdbcConnectionPool);
- *         }
- *
- *         @Override
- *         public void open(Context context) throws CatalogException {
- *             // initialize the thread pool using options from context
- *             jdbcConnectionPool = initializeJdbcConnectionPool(context);
- *         }
- *         ...
- *     }
+ *     ...
  * }
  *
- * <p>The usage of the Flink SQL gateway is as follows. It's just an example and may not be the final implementation.
+ * public class JdbcCatalogStoreFactory implements CatalogStoreFactory {
+ *
+ *     private JdbcConnectionPool jdbcConnectionPool;
+ *
+ *     @Override
+ *     public CatalogStore createCatalogStore(Context context) {
+ *         return new JdbcCatalogStore(jdbcConnectionPool);
+ *     }
+ *
+ *     @Override
+ *     public void open(Context context) throws CatalogException {
+ *         // initialize the thread pool using options from context
+ *         jdbcConnectionPool = initializeJdbcConnectionPool(context);
+ *     }
+ *
+ *     @Override
+ *     public void close() {
+ *         // release the connection thread pool.
+ *         releaseConnectionPool(jdbcConnectionPool);
+ *     }
+ *     ...
+ * }
+ * }</pre>
+ *
+ * <p>The usage of the Flink SQL gateway is as follows. It's just an example and may not be the
+ * final implementation.
  *
  * <pre>{@code
- *    // initialize CatalogStoreFactory when initialize the SessionManager
- *    public class SessionManagerImpl implements SessionManager {
- *        public SessionManagerImpl(DefaultContext defaultContext) {
- *          this.catalogStoreFactory = createCatalogStore();
- *        }
+ *  // initialize CatalogStoreFactory when initialize the SessionManager
+ *  public class SessionManagerImpl implements SessionManager {
+ *      public SessionManagerImpl(DefaultContext defaultContext) {
+ *        this.catalogStoreFactory = createCatalogStore();
+ *      }
  *
- *        @Override
- *        public void start() {
- *            // initialize the CatalogStoreFactory
- *            this.catalogStoreFactory(buildCatalogStoreContext());
- *        }
+ *      @Override
+ *      public void start() {
+ *          // initialize the CatalogStoreFactory
+ *          this.catalogStoreFactory(buildCatalogStoreContext());
+ *      }
  *
- *        @Override
- *        public synchronized Session openSession(SessionEnvironment environment) {
- *            // Create a new catalog store for this session.
- *            CatalogStore catalogStore = this.catalogStoreFactory.createCatalogStore(buildCatalogStoreContext());
+ *      @Override
+ *      public synchronized Session openSession(SessionEnvironment environment) {
+ *          // Create a new catalog store for this session.
+ *          CatalogStore catalogStore = this.catalogStoreFactory.createCatalogStore(buildCatalogStoreContext());
  *
- *            // Create a new CatalogManager using catalog store.
- *        }
+ *          // Create a new CatalogManager using catalog store.
+ *      }
  *
- *        @Override
- *        public void stop() {
- *            // Close the CatalogStoreFactory when stopping the SessionManager.
- *            this.catalogStoreFactory.close();
- *        }
+ *      @Override
+ *      public void stop() {
+ *          // Close the CatalogStoreFactory when stopping the SessionManager.
+ *          this.catalogStoreFactory.close();
+ *      }
  * }
+ * }</pre>
  */
 @PublicEvolving
 public interface CatalogStoreFactory extends Factory {
