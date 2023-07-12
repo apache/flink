@@ -21,6 +21,12 @@
             <td>The name of the default database in the initial catalog to be created when instantiating TableEnvironment.</td>
         </tr>
         <tr>
+            <td><h5>table.catalog-modification.listeners</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>List&lt;String&gt;</td>
+            <td>A (semicolon-separated) list of factories that creates listener for catalog modification which will be notified in catalog manager after it performs database and table ddl operations successfully.</td>
+        </tr>
+        <tr>
             <td><h5>table.rtas-ctas.atomicity-enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>

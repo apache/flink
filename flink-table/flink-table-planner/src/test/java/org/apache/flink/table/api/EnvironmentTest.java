@@ -25,14 +25,22 @@ import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.config.TableConfigOptions;
+import org.apache.flink.table.api.internal.TableEnvironmentImpl;
+import org.apache.flink.table.catalog.listener.CatalogModificationEvent;
+import org.apache.flink.table.catalog.listener.CatalogModificationListener;
+import org.apache.flink.table.catalog.listener.CatalogModificationListenerFactory;
 import org.apache.flink.types.Row;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link TableEnvironment} that require a planner. */
 public class EnvironmentTest {
@@ -87,5 +95,75 @@ public class EnvironmentTest {
                         TableConfigOptions.TABLE_CATALOG_NAME,
                         TableConfigOptions.TABLE_CATALOG_NAME.defaultValue());
         assertThat(stEnv.getCurrentCatalog()).isEqualTo("myCatalog");
+    }
+
+    @Test
+    public void testCreateCatalogModificationListeners() {
+        Configuration configuration = new Configuration();
+        TableEnvironmentImpl env1 =
+                (TableEnvironmentImpl)
+                        TableEnvironment.create(
+                                EnvironmentSettings.newInstance()
+                                        .withConfiguration(configuration)
+                                        .build());
+        assertTrue(env1.getCatalogManager().getCatalogModificationListeners().isEmpty());
+
+        configuration.setString(
+                TableConfigOptions.TABLE_CATALOG_MODIFICATION_LISTENERS.key(), "factory1;factory2");
+        TableEnvironmentImpl env2 =
+                (TableEnvironmentImpl)
+                        TableEnvironment.create(
+                                EnvironmentSettings.newInstance()
+                                        .withConfiguration(configuration)
+                                        .build());
+        assertEquals(
+                Arrays.asList(CatalogListener1.class.getName(), CatalogListener2.class.getName()),
+                env2.getCatalogManager().getCatalogModificationListeners().stream()
+                        .map(c -> c.getClass().getName())
+                        .collect(Collectors.toList()));
+    }
+
+    /** Testing catalog modification factory. */
+    public static class CatalogFactory1 implements CatalogModificationListenerFactory {
+        @Override
+        public String factoryIdentifier() {
+            return "factory1";
+        }
+
+        @Override
+        public CatalogModificationListener createListener(Context context) {
+            return new CatalogListener1();
+        }
+    }
+
+    /** Testing catalog modification listener. */
+    public static class CatalogListener1 implements CatalogModificationListener {
+
+        @Override
+        public void onEvent(CatalogModificationEvent event) {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    /** Testing catalog modification factory. */
+    public static class CatalogFactory2 implements CatalogModificationListenerFactory {
+        @Override
+        public String factoryIdentifier() {
+            return "factory2";
+        }
+
+        @Override
+        public CatalogModificationListener createListener(Context context) {
+            return new CatalogListener2();
+        }
+    }
+
+    /** Testing catalog modification listener. */
+    public static class CatalogListener2 implements CatalogModificationListener {
+
+        @Override
+        public void onEvent(CatalogModificationEvent event) {
+            throw new UnsupportedOperationException();
+        }
     }
 }

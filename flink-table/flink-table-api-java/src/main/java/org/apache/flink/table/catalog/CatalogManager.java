@@ -19,6 +19,7 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.CatalogNotExistException;
@@ -32,6 +33,7 @@ import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.catalog.listener.CatalogModificationListener;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.expressions.resolver.ExpressionResolver.ExpressionResolverBuilder;
 import org.apache.flink.util.Preconditions;
@@ -86,11 +88,14 @@ public final class CatalogManager implements CatalogRegistry {
 
     private final ManagedTableListener managedTableListener;
 
+    private final List<CatalogModificationListener> catalogModificationListeners;
+
     private CatalogManager(
             String defaultCatalogName,
             Catalog defaultCatalog,
             DataTypeFactory typeFactory,
-            ManagedTableListener managedTableListener) {
+            ManagedTableListener managedTableListener,
+            List<CatalogModificationListener> catalogModificationListeners) {
         checkArgument(
                 !StringUtils.isNullOrWhitespaceOnly(defaultCatalogName),
                 "Default catalog name cannot be null or empty");
@@ -107,6 +112,12 @@ public final class CatalogManager implements CatalogRegistry {
 
         this.typeFactory = typeFactory;
         this.managedTableListener = managedTableListener;
+        this.catalogModificationListeners = catalogModificationListeners;
+    }
+
+    @VisibleForTesting
+    public List<CatalogModificationListener> getCatalogModificationListeners() {
+        return catalogModificationListeners;
     }
 
     public static Builder newBuilder() {
@@ -127,6 +138,9 @@ public final class CatalogManager implements CatalogRegistry {
         private @Nullable ExecutionConfig executionConfig;
 
         private @Nullable DataTypeFactory dataTypeFactory;
+
+        private List<CatalogModificationListener> catalogModificationListeners =
+                Collections.emptyList();
 
         public Builder classLoader(ClassLoader classLoader) {
             this.classLoader = classLoader;
@@ -154,6 +168,12 @@ public final class CatalogManager implements CatalogRegistry {
             return this;
         }
 
+        public Builder catalogModificationListeners(
+                List<CatalogModificationListener> catalogModificationListeners) {
+            this.catalogModificationListeners = catalogModificationListeners;
+            return this;
+        }
+
         public CatalogManager build() {
             checkNotNull(classLoader, "Class loader cannot be null");
             checkNotNull(config, "Config cannot be null");
@@ -163,7 +183,8 @@ public final class CatalogManager implements CatalogRegistry {
                     dataTypeFactory != null
                             ? dataTypeFactory
                             : new DataTypeFactoryImpl(classLoader, config, executionConfig),
-                    new ManagedTableListener(classLoader, config));
+                    new ManagedTableListener(classLoader, config),
+                    catalogModificationListeners);
         }
     }
 
