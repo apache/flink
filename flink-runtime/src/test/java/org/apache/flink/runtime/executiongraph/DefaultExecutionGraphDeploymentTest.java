@@ -58,6 +58,7 @@ import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlotProvider;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
+import org.apache.flink.runtime.taskexecutor.NoOpShuffleDescriptorsCache;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
@@ -178,7 +179,8 @@ class DefaultExecutionGraphDeploymentTest {
         taskManagerGateway.setSubmitConsumer(
                 FunctionUtils.uncheckedConsumer(
                         taskDeploymentDescriptor -> {
-                            taskDeploymentDescriptor.loadBigData(blobCache);
+                            taskDeploymentDescriptor.loadBigData(
+                                    blobCache, NoOpShuffleDescriptorsCache.INSTANCE);
                             tdd.complete(taskDeploymentDescriptor);
                         }));
 

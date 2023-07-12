@@ -26,6 +26,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
+import org.apache.flink.runtime.taskexecutor.ShuffleDescriptorsCache;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
@@ -153,7 +154,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
      * Return the sub task's serialized job information.
      *
      * @return serialized job information (may throw {@link IllegalStateException} if {@link
-     *     #loadBigData(PermanentBlobService)} is not called beforehand).
+     *     #loadBigData} is not called beforehand).
      * @throws IllegalStateException If job information is offloaded to BLOB store.
      */
     public SerializedValue<JobInformation> getSerializedJobInformation() {
@@ -171,7 +172,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
      * Return the sub task's serialized task information.
      *
      * @return serialized task information (may throw {@link IllegalStateException} if {@link
-     *     #loadBigData(PermanentBlobService)} is not called beforehand)).
+     *     #loadBigData} is not called beforehand)).
      * @throws IllegalStateException If job information is offloaded to BLOB store.
      */
     public SerializedValue<TaskInformation> getSerializedTaskInformation() {
@@ -234,10 +235,14 @@ public final class TaskDeploymentDescriptor implements Serializable {
      *
      * @param blobService the blob store to use (may be <tt>null</tt> if {@link
      *     #serializedJobInformation} and {@link #serializedTaskInformation} are non-<tt>null</tt>)
+     * @param shuffleDescriptorsCache cache of shuffle descriptors to reduce the cost of
+     *     deserialization
      * @throws IOException during errors retrieving or reading the BLOBs
      * @throws ClassNotFoundException Class of a serialized object cannot be found.
      */
-    public void loadBigData(@Nullable PermanentBlobService blobService)
+    public void loadBigData(
+            @Nullable PermanentBlobService blobService,
+            ShuffleDescriptorsCache shuffleDescriptorsCache)
             throws IOException, ClassNotFoundException {
 
         // re-integrate offloaded job info from blob
@@ -274,7 +279,8 @@ public final class TaskDeploymentDescriptor implements Serializable {
         }
 
         for (InputGateDeploymentDescriptor inputGate : inputGates) {
-            inputGate.loadBigData(blobService, jobId);
+            inputGate.tryLoadAndDeserializeShuffleDescriptors(
+                    blobService, jobId, shuffleDescriptorsCache);
         }
 
         // make sure that the serialized job and task information fields are filled
