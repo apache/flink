@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
@@ -33,12 +34,17 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.function.CheckedSupplier;
 
+import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ConnectTimeoutException;
+import org.apache.flink.shaded.netty4.io.netty.channel.DefaultSelectStrategyFactory;
+import org.apache.flink.shaded.netty4.io.netty.channel.SelectStrategy;
+import org.apache.flink.shaded.netty4.io.netty.channel.SelectStrategyFactory;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.function.ThrowingRunnable;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -51,8 +57,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertThrows;
 
 /** Tests for {@link RestClient}. */
 public class RestClientTest extends TestLogger {
@@ -204,6 +214,120 @@ public class RestClientTest extends TestLogger {
             if (connectionSocket != null) {
                 connectionSocket.close();
             }
+        }
+    }
+
+    /**
+     * Tests that the futures returned by {@link RestClient} fail immediately if the client is
+     * already closed.
+     *
+     * <p>See FLINK-32583
+     */
+    @Test
+    public void testCloseClientBeforeRequest() throws Exception {
+        try (final RestClient restClient =
+                new RestClient(new Configuration(), Executors.directExecutor())) {
+            restClient.close(); // Intentionally close the client prior to the request
+
+            CompletableFuture<?> future =
+                    restClient.sendRequest(
+                            unroutableIp,
+                            80,
+                            new TestMessageHeaders(),
+                            EmptyMessageParameters.getInstance(),
+                            EmptyRequestBody.getInstance());
+
+            // Call get() on the future with a timeout of 0s so we can test that the exception
+            // thrown is not a TimeoutException, which is what would be thrown if restClient were
+            // not already closed
+            final ThrowingRunnable getFuture = () -> future.get(0, TimeUnit.SECONDS);
+
+            final Throwable cause = assertThrows(ExecutionException.class, getFuture).getCause();
+            assertThat(cause, instanceOf(IllegalStateException.class));
+            assertThat(cause.getMessage(), equalTo("RestClient is already closed"));
+        }
+    }
+
+    @Test
+    public void testCloseClientWhileProcessingRequest() throws Exception {
+        // Set up a Netty SelectStrategy with latches that allow us to step forward through Netty's
+        // request state machine, closing the client at a particular moment
+        final OneShotLatch connectTriggered = new OneShotLatch();
+        final OneShotLatch closeTriggered = new OneShotLatch();
+        final SelectStrategy fallbackSelectStrategy =
+                DefaultSelectStrategyFactory.INSTANCE.newSelectStrategy();
+        final SelectStrategyFactory selectStrategyFactory =
+                () ->
+                        (selectSupplier, hasTasks) -> {
+                            connectTriggered.trigger();
+                            closeTriggered.awaitQuietly();
+
+                            return fallbackSelectStrategy.calculateStrategy(
+                                    selectSupplier, hasTasks);
+                        };
+
+        try (final RestClient restClient =
+                new RestClient(
+                        new Configuration(), Executors.directExecutor(), selectStrategyFactory)) {
+            // Check that client's internal collection of pending response futures is empty prior to
+            // the request
+            assertThat(restClient.getResponseChannelFutures(), empty());
+
+            final CompletableFuture<?> requestFuture =
+                    restClient.sendRequest(
+                            unroutableIp,
+                            80,
+                            new TestMessageHeaders(),
+                            EmptyMessageParameters.getInstance(),
+                            EmptyRequestBody.getInstance());
+
+            // Check that client's internal collection of pending response futures now has one
+            // entry, presumably due to the call to sendRequest
+            assertThat(restClient.getResponseChannelFutures(), hasSize(1));
+
+            // Wait for Netty to start connecting, then while it's paused in the SelectStrategy,
+            // close the client before unpausing Netty
+            connectTriggered.await();
+            final CompletableFuture<Void> closeFuture = restClient.closeAsync();
+            closeTriggered.trigger();
+
+            // Close should complete successfully
+            closeFuture.get();
+
+            final Throwable cause =
+                    assertThrows(
+                                    ExecutionException.class,
+                                    () -> requestFuture.get(0, TimeUnit.SECONDS))
+                            .getCause();
+            assertThat(cause, instanceOf(IllegalStateException.class));
+            assertThat(cause.getMessage(), equalTo("executor not accepting a task"));
+        }
+    }
+
+    @Test
+    public void testResponseChannelFuturesResolvedExceptionallyOnClose() throws Exception {
+        try (final RestClient restClient =
+                new RestClient(new Configuration(), Executors.directExecutor())) {
+            CompletableFuture<Channel> responseChannelFuture = new CompletableFuture<>();
+
+            // Add the future to the client's internal collection of pending response futures
+            restClient.getResponseChannelFutures().add(responseChannelFuture);
+
+            // Close the client, which should resolve all pending response futures exceptionally and
+            // clear the collection
+            restClient.close();
+
+            // Ensure the client's internal collection of pending response futures was cleared after
+            // close
+            assertThat(restClient.getResponseChannelFutures(), empty());
+
+            final Throwable cause =
+                    assertThrows(
+                                    ExecutionException.class,
+                                    () -> responseChannelFuture.get(0, TimeUnit.SECONDS))
+                            .getCause();
+            assertThat(cause, instanceOf(IllegalStateException.class));
+            assertThat(cause.getMessage(), equalTo("RestClient closed before request completed"));
         }
     }
 
