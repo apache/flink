@@ -25,6 +25,9 @@ import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.junit.jupiter.api.Test;
 
 import java.util.Random;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -68,5 +71,58 @@ public class ChannelStateWriteRequestExecutorFactoryTest {
                         .isSameAs(currentExecutor);
             }
         }
+    }
+
+    @Test
+    void testSomeSubtasksCloseDuringOtherSubtasksStarting() throws Exception {
+        JobID jobID = new JobID();
+        JobVertexID jobVertexID = new JobVertexID();
+        int numberOfSubtask = 100_000;
+        int maxSubtasksPerChannelStateFile = 10;
+
+        ChannelStateWriteRequestExecutorFactory executorFactory =
+                new ChannelStateWriteRequestExecutorFactory(jobID);
+
+        BlockingQueue<ChannelStateWriteRequestExecutor> queue = new LinkedBlockingQueue<>(100);
+
+        CompletableFuture<Void> createFuture = new CompletableFuture<>();
+        new Thread(
+                        () -> {
+                            try {
+                                for (int i = 0; i < numberOfSubtask; i++) {
+                                    ChannelStateWriteRequestExecutor executor =
+                                            executorFactory.getOrCreateExecutor(
+                                                    jobVertexID,
+                                                    i,
+                                                    CHECKPOINT_STORAGE,
+                                                    maxSubtasksPerChannelStateFile,
+                                                    false);
+                                    assertThat(executor).isNotNull();
+                                    queue.put(executor);
+                                }
+                                createFuture.complete(null);
+                            } catch (Throwable e) {
+                                createFuture.completeExceptionally(e);
+                            }
+                        })
+                .start();
+
+        CompletableFuture<Void> releaseFuture = new CompletableFuture<>();
+        new Thread(
+                        () -> {
+                            try {
+                                for (int i = 0; i < numberOfSubtask; i++) {
+                                    ChannelStateWriteRequestExecutor executor = queue.take();
+                                    executor.releaseSubtask(jobVertexID, numberOfSubtask);
+                                }
+                                releaseFuture.complete(null);
+                            } catch (Throwable e) {
+                                releaseFuture.completeExceptionally(e);
+                            }
+                        })
+                .start();
+
+        createFuture.get();
+        releaseFuture.get();
     }
 }

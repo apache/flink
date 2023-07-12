@@ -80,29 +80,40 @@ class ChannelStateWriteRequestExecutorImpl implements ChannelStateWriteRequestEx
     private final Map<SubtaskID, Queue<ChannelStateWriteRequest>> unreadyQueues = new HashMap<>();
 
     @GuardedBy("lock")
-    private boolean isRegistering = true;
-
-    @GuardedBy("lock")
     private final Set<SubtaskID> subtasks;
 
-    /** It cannot be called inside the {@link #lock} to avoid the deadlock. */
+    /** Lock this before the {@link #lock} to avoid the deadlock. */
+    private final Object registerLock;
+
+    @GuardedBy("registerLock")
+    private boolean isRegistering = true;
+
+    @GuardedBy("registerLock")
     private final Consumer<ChannelStateWriteRequestExecutor> onRegistered;
 
     ChannelStateWriteRequestExecutorImpl(
             ChannelStateWriteRequestDispatcher dispatcher,
             int maxSubtasksPerChannelStateFile,
-            Consumer<ChannelStateWriteRequestExecutor> onRegistered) {
-        this(dispatcher, new ArrayDeque<>(), maxSubtasksPerChannelStateFile, onRegistered);
+            Consumer<ChannelStateWriteRequestExecutor> onRegistered,
+            Object registerLock) {
+        this(
+                dispatcher,
+                new ArrayDeque<>(),
+                maxSubtasksPerChannelStateFile,
+                registerLock,
+                onRegistered);
     }
 
     ChannelStateWriteRequestExecutorImpl(
             ChannelStateWriteRequestDispatcher dispatcher,
             Deque<ChannelStateWriteRequest> deque,
             int maxSubtasksPerChannelStateFile,
+            Object registerLock,
             Consumer<ChannelStateWriteRequestExecutor> onRegistered) {
         this.dispatcher = dispatcher;
         this.deque = deque;
         this.maxSubtasksPerChannelStateFile = maxSubtasksPerChannelStateFile;
+        this.registerLock = registerLock;
         this.onRegistered = onRegistered;
         this.thread = new Thread(this::run, "Channel state writer ");
         this.subtasks = new HashSet<>();
@@ -142,21 +153,21 @@ class ChannelStateWriteRequestExecutorImpl implements ChannelStateWriteRequestEx
         while (true) {
             try {
                 ChannelStateWriteRequest request;
-                boolean completeRegister = false;
                 synchronized (lock) {
                     request = waitAndTakeUnsafe();
                     if (request == null) {
                         // The executor is closed, so return directly.
                         return;
                     }
-                    // The executor will end the registration, when the start request comes.
-                    // Because the checkpoint can be started after all tasks are initiated.
-                    if (request instanceof CheckpointStartRequest) {
-                        completeRegister = completeRegister();
-                    }
                 }
-                if (completeRegister) {
-                    onRegistered.accept(this);
+                // The executor will end the registration, when the start request comes.
+                // Because the checkpoint can be started after all tasks are initiated.
+                if (request instanceof CheckpointStartRequest) {
+                    synchronized (registerLock) {
+                        if (completeRegister()) {
+                            onRegistered.accept(this);
+                        }
+                    }
                 }
                 dispatcher.dispatch(request);
             } catch (InterruptedException e) {
@@ -335,8 +346,9 @@ class ChannelStateWriteRequestExecutorImpl implements ChannelStateWriteRequestEx
 
     @Override
     public void registerSubtask(JobVertexID jobVertexID, int subtaskIndex) {
+        assert Thread.holdsLock(registerLock);
+
         SubtaskID subtaskID = SubtaskID.of(jobVertexID, subtaskIndex);
-        boolean completeRegister = false;
         synchronized (lock) {
             checkState(isRegistering(), "This executor has been registered.");
             checkState(
@@ -348,24 +360,21 @@ class ChannelStateWriteRequestExecutorImpl implements ChannelStateWriteRequestEx
                             subtaskID.getJobVertexID(), subtaskID.getSubtaskIndex()));
             lock.notifyAll();
             unreadyQueues.put(subtaskID, new ArrayDeque<>());
-            if (subtasks.size() == maxSubtasksPerChannelStateFile) {
-                completeRegister = completeRegister();
+            if (subtasks.size() == maxSubtasksPerChannelStateFile && completeRegister()) {
+                onRegistered.accept(this);
             }
-        }
-        if (completeRegister) {
-            onRegistered.accept(this);
         }
     }
 
     @VisibleForTesting
     public boolean isRegistering() {
-        synchronized (lock) {
+        synchronized (registerLock) {
             return isRegistering;
         }
     }
 
     private boolean completeRegister() {
-        assert Thread.holdsLock(lock);
+        assert Thread.holdsLock(registerLock);
         if (isRegistering) {
             isRegistering = false;
             return true;
@@ -375,20 +384,17 @@ class ChannelStateWriteRequestExecutorImpl implements ChannelStateWriteRequestEx
 
     @Override
     public void releaseSubtask(JobVertexID jobVertexID, int subtaskIndex) throws IOException {
-        boolean completeRegister = false;
-        try {
+        synchronized (registerLock) {
             synchronized (lock) {
-                completeRegister = completeRegister();
+                if (completeRegister()) {
+                    onRegistered.accept(this);
+                }
                 subtasks.remove(SubtaskID.of(jobVertexID, subtaskIndex));
                 if (!subtasks.isEmpty()) {
                     return;
                 }
                 wasClosed = true;
                 lock.notifyAll();
-            }
-        } finally {
-            if (completeRegister) {
-                onRegistered.accept(this);
             }
         }
         while (thread.isAlive()) {
