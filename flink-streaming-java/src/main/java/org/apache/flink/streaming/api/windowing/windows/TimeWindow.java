@@ -258,14 +258,14 @@ public class TimeWindow extends Window {
      *
      * @param timestamp epoch millisecond to get the window start.
      * @param offset The offset which window start would be shifted by.
-     * @param windowSize The size of the generated windows.
+     * @param windowStepSize The size of the tumbling window or the step size of the sliding window
      * @return window start
      */
-    public static long getWindowStartWithOffset(long timestamp, long offset, long windowSize) {
-        final long remainder = (timestamp - offset) % windowSize;
+    public static long getWindowStartWithOffset(long timestamp, long offset, long windowStepSize) {
+        final long remainder = (timestamp - offset) % windowStepSize;
         // handle both positive and negative cases
         if (remainder < 0) {
-            return timestamp - (remainder + windowSize);
+            return timestamp - (remainder + windowStepSize);
         } else {
             return timestamp - remainder;
         }
