@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.leaderelection;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.testutils.EachCallbackWrapper;
@@ -30,12 +32,10 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerExtension;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperExtension;
-import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.function.RunnableWithException;
-
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
-
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.function.RunnableWithException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
@@ -46,8 +46,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link ZooKeeperLeaderElectionDriver}. */
 class ZooKeeperLeaderElectionDriverTest {
@@ -296,7 +294,7 @@ class ZooKeeperLeaderElectionDriverTest {
     }
 
     @Test
-    void testLeaderConnectionInfoNodeRemovalLeadsToLeaderChangeWithEmptyLeaderInformation()
+    void testLeaderInformationNodeRemovalLeadsToLeaderChangeWithEmptyLeaderInformation()
             throws Exception {
         new Context() {
             {
