@@ -19,13 +19,21 @@ package org.apache.flink.table.planner.runtime.batch.sql
 
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.planner.codegen.agg.batch.HashAggCodeGenerator
+import org.apache.flink.table.planner.runtime.batch.sql.join.JoinITCaseHelper
+import org.apache.flink.table.planner.runtime.batch.sql.join.JoinType.{BroadcastHashJoin, HashJoin, JoinType}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
+import org.apache.flink.testutils.junit.extensions.parameterized.{Parameter, ParameterizedTestExtension, Parameters}
 
-import org.junit.jupiter.api.{BeforeEach, Test}
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
+
+import java.util
 
 /** IT cases for operator fusion codegen. */
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class OperatorFusionCodegenITCase extends BatchTestBase {
 
+  @Parameter var expectedJoinType: JoinType = _
   @BeforeEach
   override def before(): Unit = {
     super.before()
@@ -54,9 +62,10 @@ class OperatorFusionCodegenITCase extends BatchTestBase {
       MultipleInputITCase.rowType,
       "a, b, c, nt",
       MultipleInputITCase.nullables)
+    JoinITCaseHelper.disableOtherJoinOpForJoin(tEnv, expectedJoinType)
   }
 
-  @Test
+  @TestTemplate
   def testBasicInnerHashJoin(): Unit = {
     checkOpFusionCodegenResult("""
                                  |SELECT * FROM
@@ -67,7 +76,7 @@ class OperatorFusionCodegenITCase extends BatchTestBase {
                                  |""".stripMargin)
   }
 
-  @Test
+  @TestTemplate
   def testBasicInnerHashJoinWithCondition(): Unit = {
     checkOpFusionCodegenResult("""
                                  |SELECT * FROM
@@ -78,7 +87,7 @@ class OperatorFusionCodegenITCase extends BatchTestBase {
                                  |""".stripMargin)
   }
 
-  @Test
+  @TestTemplate
   def testBasicInnerHashJoinWithCondition2(): Unit = {
     checkOpFusionCodegenResult(
       """
@@ -90,7 +99,7 @@ class OperatorFusionCodegenITCase extends BatchTestBase {
         |""".stripMargin)
   }
 
-  @Test
+  @TestTemplate
   def testManyProbeOuterHashJoin(): Unit = {
     checkOpFusionCodegenResult(
       """
@@ -116,7 +125,7 @@ class OperatorFusionCodegenITCase extends BatchTestBase {
         |""".stripMargin)
   }
 
-  @Test
+  @TestTemplate
   def testProbeOuterHashJoinWithOnCondition(): Unit = {
     checkOpFusionCodegenResult(
       """
@@ -126,7 +135,7 @@ class OperatorFusionCodegenITCase extends BatchTestBase {
         |""".stripMargin)
   }
 
-  @Test
+  @TestTemplate
   def testProbeOuterHashJoinWithWhereCondition(): Unit = {
     checkOpFusionCodegenResult(
       """
@@ -136,7 +145,7 @@ class OperatorFusionCodegenITCase extends BatchTestBase {
         |""".stripMargin)
   }
 
-  @Test
+  @TestTemplate
   def testHashJoinWithNoPriorityConstraint(): Unit = {
     checkOpFusionCodegenResult(
       """
@@ -147,7 +156,7 @@ class OperatorFusionCodegenITCase extends BatchTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
   def testHashJoinWithDeadlockCausedByExchangeInAncestor(): Unit = {
     checkOpFusionCodegenResult(
       """
@@ -159,7 +168,7 @@ class OperatorFusionCodegenITCase extends BatchTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
   def testLeftSemiHashJoin(): Unit = {
     checkOpFusionCodegenResult(
       """
@@ -169,7 +178,7 @@ class OperatorFusionCodegenITCase extends BatchTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
   def testLeftSemiHashJoinWithCondition(): Unit = {
     checkOpFusionCodegenResult(
       """
@@ -179,7 +188,7 @@ class OperatorFusionCodegenITCase extends BatchTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
   def testLeftAntiHashJoin(): Unit = {
     checkOpFusionCodegenResult(
       """
@@ -190,7 +199,7 @@ class OperatorFusionCodegenITCase extends BatchTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
   def testLocalHashAggWithoutKey(): Unit = {
     // Due to the global hash agg is singleton when without key, so currently we can't cover the test case of
     // hash agg without key by MultipleInput, it can be covered by OperatorChain fusion codegen in future
@@ -203,7 +212,7 @@ class OperatorFusionCodegenITCase extends BatchTestBase {
                                  |""".stripMargin)
   }
 
-  @Test
+  @TestTemplate
   def testLocalHashAggWithoutKeyAndHashAggWithKey(): Unit = {
     checkOpFusionCodegenResult("""
                                  |SELECT count(distinct d) as cnt FROM
@@ -214,7 +223,7 @@ class OperatorFusionCodegenITCase extends BatchTestBase {
                                  |""".stripMargin)
   }
 
-  @Test
+  @TestTemplate
   def testHashAggWithKey(): Unit = {
     checkOpFusionCodegenResult(
       """
@@ -228,7 +237,7 @@ class OperatorFusionCodegenITCase extends BatchTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
   def testHashAggWithKey2(): Unit = {
     checkOpFusionCodegenResult("""
                                  |SELECT a, count(b) as cnt FROM
@@ -240,7 +249,7 @@ class OperatorFusionCodegenITCase extends BatchTestBase {
                                  |""".stripMargin)
   }
 
-  @Test
+  @TestTemplate
   def testLocalHashAggWithKey(): Unit = {
     tEnv.getConfig
       .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE")
@@ -254,7 +263,7 @@ class OperatorFusionCodegenITCase extends BatchTestBase {
                                  |""".stripMargin)
   }
 
-  @Test
+  @TestTemplate
   def testGlobalHashAggWithKey(): Unit = {
     checkOpFusionCodegenResult(
       """
@@ -267,7 +276,7 @@ class OperatorFusionCodegenITCase extends BatchTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
   def testGlobalHashAggWithKey2(): Unit = {
     checkOpFusionCodegenResult(
       """
@@ -281,7 +290,7 @@ class OperatorFusionCodegenITCase extends BatchTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
   def testLocalAndGlobalHashAggInTwoSeperatedFusionOperator(): Unit = {
     tEnv.getConfig
       .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE")
@@ -297,7 +306,7 @@ class OperatorFusionCodegenITCase extends BatchTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
   def testAdaptiveLocalHashAgg(): Unit = {
     tEnv.getConfig
       .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE")
@@ -316,7 +325,7 @@ class OperatorFusionCodegenITCase extends BatchTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
   def testHashAggWithKeyAndFilterArgs(): Unit = {
     checkOpFusionCodegenResult(
       """
@@ -336,5 +345,12 @@ class OperatorFusionCodegenITCase extends BatchTestBase {
     tEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_OPERATOR_FUSION_CODEGEN_ENABLED, Boolean.box(true))
     checkResult(sql, expected)
+  }
+}
+
+object OperatorFusionCodegenITCase {
+  @Parameters(name = "expectedJoinType={0}")
+  def parameters(): util.Collection[Any] = {
+    util.Arrays.asList(Array(BroadcastHashJoin), Array(HashJoin))
   }
 }
