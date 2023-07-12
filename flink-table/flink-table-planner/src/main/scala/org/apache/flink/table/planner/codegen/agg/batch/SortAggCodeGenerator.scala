@@ -56,7 +56,8 @@ object SortAggCodeGenerator {
       .filter(_.isInstanceOf[AggregateFunction[_, _]])
       .map(ctx.addReusableFunction(_))
     val functionIdentifiers = AggCodeGenHelper.getFunctionIdentifiers(aggInfos)
-    val aggBufferNames = AggCodeGenHelper.getAggBufferNames(auxGrouping, aggInfos)
+    val aggBufferPrefix = "sort"
+    val aggBufferNames = AggCodeGenHelper.getAggBufferNames(aggBufferPrefix, auxGrouping, aggInfos)
     val aggBufferTypes = AggCodeGenHelper.getAggBufferTypes(inputType, auxGrouping, aggInfos)
 
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
@@ -89,9 +90,11 @@ object SortAggCodeGenerator {
       functionIdentifiers,
       inputTerm,
       inputType,
+      aggBufferPrefix,
       aggBufferNames,
       aggBufferTypes,
-      outputType)
+      outputType
+    )
 
     val joinedRow = "joinedRow"
     ctx.addReusableOutputRecord(outputType, classOf[JoinedRowData], joinedRow)

@@ -149,6 +149,47 @@ object ProjectionCodeGenerator {
       auxGrouping: Array[Int],
       outRecordTerm: String = DEFAULT_OUT_RECORD_TERM,
       outRecordWriterTerm: String = DEFAULT_OUT_RECORD_WRITER_TERM): String = {
+    val fieldExprs =
+      genAdaptiveLocalHashAggValueProjectionExpr(ctx, inputType, inputTerm, aggInfos, auxGrouping)
+    val binaryRowWriter = CodeGenUtils.className[BinaryRowWriter]
+    val typeTerm = outClass.getCanonicalName
+    ctx.addReusableMember(s"private $typeTerm $outRecordTerm= new $typeTerm(${fieldExprs.size});")
+    ctx.addReusableMember(
+      s"private $binaryRowWriter $outRecordWriterTerm = new $binaryRowWriter($outRecordTerm);")
+
+    val fieldExprIdxToOutputRowPosMap = fieldExprs.indices.map(i => i -> i).toMap
+    val setFieldsCode = fieldExprs.zipWithIndex
+      .map {
+        case (fieldExpr, index) =>
+          val pos = fieldExprIdxToOutputRowPosMap.getOrElse(
+            index,
+            throw new CodeGenException(s"Illegal field expr index: $index"))
+          rowSetField(
+            ctx,
+            classOf[BinaryRowData],
+            outRecordTerm,
+            pos.toString,
+            fieldExpr,
+            Option(outRecordWriterTerm))
+      }
+      .mkString("\n")
+
+    val writer = outRecordWriterTerm
+    val resetWriter = s"$writer.reset();"
+    val completeWriter: String = s"$writer.complete();"
+    s"""
+       |$resetWriter
+       |$setFieldsCode
+       |$completeWriter
+        """.stripMargin
+  }
+
+  def genAdaptiveLocalHashAggValueProjectionExpr(
+      ctx: CodeGeneratorContext,
+      inputType: RowType,
+      inputTerm: String = DEFAULT_INPUT1_TERM,
+      aggInfos: Array[AggregateInfo],
+      auxGrouping: Array[Int]): Seq[GeneratedExpression] = {
     val fieldExprs: ArrayBuffer[GeneratedExpression] = ArrayBuffer()
     // The auxGrouping also need to consider which is aggBuffer field
     auxGrouping.foreach(i => fieldExprs += reuseFieldExprForAggFunc(ctx, inputType, inputTerm, i))
@@ -189,38 +230,7 @@ object ProjectionCodeGenerator {
             fieldExprs += genValueProjectionForCount1AggFunc(ctx)
         }
     }
-
-    val binaryRowWriter = CodeGenUtils.className[BinaryRowWriter]
-    val typeTerm = outClass.getCanonicalName
-    ctx.addReusableMember(s"private $typeTerm $outRecordTerm= new $typeTerm(${fieldExprs.size});")
-    ctx.addReusableMember(
-      s"private $binaryRowWriter $outRecordWriterTerm = new $binaryRowWriter($outRecordTerm);")
-
-    val fieldExprIdxToOutputRowPosMap = fieldExprs.indices.map(i => i -> i).toMap
-    val setFieldsCode = fieldExprs.zipWithIndex
-      .map {
-        case (fieldExpr, index) =>
-          val pos = fieldExprIdxToOutputRowPosMap.getOrElse(
-            index,
-            throw new CodeGenException(s"Illegal field expr index: $index"))
-          rowSetField(
-            ctx,
-            classOf[BinaryRowData],
-            outRecordTerm,
-            pos.toString,
-            fieldExpr,
-            Option(outRecordWriterTerm))
-      }
-      .mkString("\n")
-
-    val writer = outRecordWriterTerm
-    val resetWriter = s"$writer.reset();"
-    val completeWriter: String = s"$writer.complete();"
-    s"""
-       |$resetWriter
-       |$setFieldsCode
-       |$completeWriter
-        """.stripMargin
+    fieldExprs
   }
 
   /**

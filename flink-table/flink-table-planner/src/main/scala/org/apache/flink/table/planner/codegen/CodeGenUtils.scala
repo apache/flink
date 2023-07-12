@@ -1054,4 +1054,32 @@ object CodeGenUtils {
       Array(0)
     }
   }
+
+  def getReuseRowFieldExprs(
+      ctx: CodeGeneratorContext,
+      inputType: RowType,
+      inputRowTerm: String): Seq[GeneratedExpression] = {
+    fieldIndices(inputType)
+      .map(
+        index => {
+          val expr = GenerateUtils.generateFieldAccess(ctx, inputType, inputRowTerm, index)
+          ctx.addReusableInputUnboxingExprs(inputRowTerm, index, expr)
+          expr
+        })
+      .toSeq
+  }
+
+  def getFieldExpr(
+      ctx: CodeGeneratorContext,
+      inputTerm: String,
+      inputType: RowType,
+      index: Int): GeneratedExpression = {
+    ctx.getReusableInputUnboxingExprs(inputTerm, index) match {
+      // For operator fusion codegen case, the input field expr have been prepared before do this logic.
+      case Some(expr) => expr
+      // For single operator codegen case, this is needed.
+      case None =>
+        GenerateUtils.generateFieldAccess(ctx, inputType, inputTerm, index)
+    }
+  }
 }

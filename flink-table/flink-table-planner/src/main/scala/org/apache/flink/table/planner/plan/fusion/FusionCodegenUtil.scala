@@ -20,14 +20,16 @@ package org.apache.flink.table.planner.plan.fusion
 import org.apache.flink.streaming.api.operators.{Input, InputSelection, StreamOperatorParameters}
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenException, GeneratedExpression}
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{className, newName}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{className, newName, newNames, primitiveTypeTermForType}
 import org.apache.flink.table.planner.codegen.GeneratedExpression.NO_CODE
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.{OUT_ELEMENT, STREAM_RECORD}
 import org.apache.flink.table.planner.plan.fusion.OpFusionCodegenSpecGenerator.Context
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toJava
 import org.apache.flink.table.runtime.generated.GeneratedOperator
 import org.apache.flink.table.runtime.operators.fusion.{FusionStreamOperatorBase, OperatorFusionCodegenFactory}
 import org.apache.flink.table.runtime.operators.multipleinput.input.{InputSelectionHandler, InputSelectionSpec}
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldTypes
 
 import org.apache.calcite.rex.{RexInputRef, RexNode, RexVisitorImpl}
 
@@ -217,6 +219,53 @@ object FusionCodegenUtil {
     // extract referenced input fields from expressions
     exprs.foreach(_.accept(visitor))
     visitor.input1Fields.toSet
+  }
+
+  /** Constructing the consumeFunction according to resultType. */
+  def constructDoConsumeFunction(
+      prefix: String,
+      opCodegenCtx: CodeGeneratorContext,
+      fusionContext: OpFusionContext,
+      resultType: RowType): String = {
+    val parameters = mutable.ArrayBuffer[String]()
+    val paramVars = mutable.ArrayBuffer[GeneratedExpression]()
+    val consumeFunctionName = newName(prefix + "DoConsume")
+    for (i <- 0 until resultType.getFieldCount) {
+      val paramType = getFieldTypes(resultType).get(i)
+      val paramTypeTerm = primitiveTypeTermForType(paramType)
+      val Seq(paramTerm, paramNullTerm) = newNames("field", "isNull")
+
+      parameters += s"$paramTypeTerm $paramTerm"
+      parameters += s"boolean $paramNullTerm"
+
+      paramVars += GeneratedExpression(paramTerm, paramNullTerm, NO_CODE, paramType)
+    }
+
+    opCodegenCtx.addReusableMember(
+      s"""
+         | private void $consumeFunctionName(${parameters.mkString(", ")}) throws Exception {
+         |   ${fusionContext.processConsume(toJava(paramVars))}
+         | }
+       """.stripMargin
+    )
+
+    consumeFunctionName
+  }
+
+  /** Constructing the consume code according to consumeFunctionName and resultVars. */
+  def constructDoConsumeCode(
+      consumeFunctionName: String,
+      resultVars: Seq[GeneratedExpression]): String = {
+    val arguments = mutable.ArrayBuffer[String]()
+    resultVars.foreach {
+      case expr =>
+        arguments += expr.resultTerm
+        arguments += expr.nullTerm
+    }
+    s"""
+       | ${evaluateVariables(resultVars)}
+       | $consumeFunctionName(${arguments.mkString(", ")});
+     """.stripMargin
   }
 }
 

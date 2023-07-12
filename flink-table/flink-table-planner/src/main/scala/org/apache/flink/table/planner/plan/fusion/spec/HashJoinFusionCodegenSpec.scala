@@ -415,7 +415,7 @@ class HashJoinFusionCodegenSpec(
           var expr = GenerateUtils.generateFieldAccess(opCodegenCtx, buildType, buildRow, index)
 
           if (hashJoinType == HashJoinType.PROBE_OUTER) {
-            val fieldType = buildType.getTypeAt(index)
+            val fieldType = buildType.getTypeAt(index).copy(true)
             val resultTypeTerm = primitiveTypeTermForType(fieldType)
             val defaultValue = primitiveDefaultValue(fieldType)
             val Seq(fieldTerm, nullTerm) =
