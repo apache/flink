@@ -656,9 +656,10 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 throw new TaskSubmissionException(message);
             }
 
-            // re-integrate offloaded data:
+            // re-integrate offloaded data and deserialize shuffle descriptors
             try {
-                tdd.loadBigData(taskExecutorBlobService.getPermanentBlobService());
+                tdd.loadBigData(
+                        taskExecutorBlobService.getPermanentBlobService(), shuffleDescriptorsCache);
             } catch (IOException | ClassNotFoundException e) {
                 throw new TaskSubmissionException(
                         "Could not re-integrate offloaded TaskDeploymentDescriptor data.", e);
