@@ -17,7 +17,8 @@
  */
 package org.apache.flink.table.planner.runtime.batch.sql
 
-import org.apache.flink.table.api.config.ExecutionConfigOptions
+import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
+import org.apache.flink.table.planner.codegen.agg.batch.HashAggCodeGenerator
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 
 import org.junit.jupiter.api.{BeforeEach, Test}
@@ -187,6 +188,145 @@ class OperatorFusionCodegenITCase extends BatchTestBase {
         |AND NOT EXISTS (SELECT * FROM z t2 WHERE x.b = t2.h AND t2.h < 100)
         |""".stripMargin
     )
+  }
+
+  @Test
+  def testLocalHashAggWithoutKey(): Unit = {
+    // Due to the global hash agg is singleton when without key, so currently we can't cover the test case of
+    // hash agg without key by MultipleInput, it can be covered by OperatorChain fusion codegen in future
+    checkOpFusionCodegenResult("""
+                                 |SELECT count(a) as cnt FROM
+                                 |  (SELECT a FROM x INNER JOIN y ON x.a = y.d) T1
+                                 |  INNER JOIN
+                                 |  (SELECT d FROM y INNER JOIN t ON y.d = t.a) T2
+                                 |  ON T1.a = T2.d
+                                 |""".stripMargin)
+  }
+
+  @Test
+  def testLocalHashAggWithoutKeyAndHashAggWithKey(): Unit = {
+    checkOpFusionCodegenResult("""
+                                 |SELECT count(distinct d) as cnt FROM
+                                 |  (SELECT a FROM x INNER JOIN y ON x.a = y.d) T1
+                                 |  INNER JOIN
+                                 |  (SELECT d FROM y INNER JOIN t ON y.d = t.a) T2
+                                 |  ON T1.a = T2.d
+                                 |""".stripMargin)
+  }
+
+  @Test
+  def testHashAggWithKey(): Unit = {
+    checkOpFusionCodegenResult(
+      """
+        |WITH T AS (SELECT a, d FROM x INNER JOIN y ON x.a = y.d)
+        |SELECT * FROM
+        |  (SELECT a, COUNT(*) AS cnt FROM T GROUP BY a) T1
+        |  RIGHT JOIN
+        |  (SELECT d FROM y) T2
+        |  ON T1.a = T2.d
+        |""".stripMargin
+    )
+  }
+
+  @Test
+  def testHashAggWithKey2(): Unit = {
+    checkOpFusionCodegenResult("""
+                                 |SELECT a, count(b) as cnt FROM
+                                 |  (SELECT a, b FROM x INNER JOIN y ON x.a = y.d) T1
+                                 |  INNER JOIN
+                                 |  (SELECT d FROM y INNER JOIN t ON y.d = t.a) T2
+                                 |  ON T1.a = T2.d
+                                 |  GROUP BY a
+                                 |""".stripMargin)
+  }
+
+  @Test
+  def testLocalHashAggWithKey(): Unit = {
+    tEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE")
+    checkOpFusionCodegenResult("""
+                                 |SELECT a, count(b) as cnt, avg(b) as pj FROM
+                                 |  (SELECT a, b FROM x INNER JOIN y ON x.a = y.d) T1
+                                 |  INNER JOIN
+                                 |  (SELECT d FROM y INNER JOIN t ON y.d = t.a) T2
+                                 |  ON T1.a = T2.d
+                                 |  GROUP BY a
+                                 |""".stripMargin)
+  }
+
+  @Test
+  def testGlobalHashAggWithKey(): Unit = {
+    checkOpFusionCodegenResult(
+      """
+        |SELECT * FROM
+        |  (SELECT a FROM x INNER JOIN y ON x.a = y.d) T1
+        |  INNER JOIN
+        |  (SELECT a, SUM(b) AS cnt, AVG(b) AS pj FROM t GROUP BY a) T2
+        |  ON T1.a = T2.a
+        |""".stripMargin
+    )
+  }
+
+  @Test
+  def testGlobalHashAggWithKey2(): Unit = {
+    checkOpFusionCodegenResult(
+      """
+        |WITH agg AS (SELECT a, SUM(b) AS cnt FROM t GROUP BY a)
+        |SELECT * FROM
+        |  (SELECT a FROM x INNER JOIN y ON x.a = y.d) T1
+        |  INNER JOIN
+        |  (SELECT d FROM y INNER JOIN agg ON y.d = agg.a) T2
+        |  ON T1.a = T2.d
+        |""".stripMargin
+    )
+  }
+
+  @Test
+  def testLocalAndGlobalHashAggInTwoSeperatedFusionOperator(): Unit = {
+    tEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE")
+    checkOpFusionCodegenResult(
+      """
+        |WITH T AS (SELECT a, d FROM x INNER JOIN y ON x.a = y.d)
+        |SELECT * FROM
+        |  (SELECT a, COUNT(*) AS cnt FROM T GROUP BY a) T1
+        |  RIGHT JOIN
+        |  (SELECT d FROM y) T2
+        |  ON T1.a = T2.d
+        |""".stripMargin
+    )
+  }
+
+  @Test
+  def testAdaptiveLocalHashAgg(): Unit = {
+    tEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE")
+    tEnv.getConfig.set(
+      HashAggCodeGenerator.TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_SAMPLING_THRESHOLD,
+      Long.box(1L))
+    checkOpFusionCodegenResult(
+      """
+        |WITH T AS (SELECT a, d FROM x INNER JOIN y ON x.a = y.d)
+        |SELECT * FROM
+        |  (SELECT a, COUNT(*) AS cnt FROM T GROUP BY a) T1
+        |  RIGHT JOIN
+        |  (SELECT d FROM y) T2
+        |  ON T1.a = T2.d
+        |""".stripMargin
+    )
+  }
+
+  @Test
+  def testHashAggWithKeyAndFilterArgs(): Unit = {
+    checkOpFusionCodegenResult(
+      """
+        |WITH T AS (SELECT a, b, c, d FROM x INNER JOIN y ON x.a = y.d)
+        |SELECT * FROM
+        |  (SELECT a, COUNT(DISTINCT b) AS cnt1, COUNT(DISTINCT c) as cnt2 FROM T GROUP BY a) T1
+        |  RIGHT JOIN
+        |  (SELECT d FROM y) T2
+        |  ON T1.a = T2.d
+        |""".stripMargin)
   }
 
   def checkOpFusionCodegenResult(sql: String): Unit = {
