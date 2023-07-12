@@ -1584,11 +1584,10 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
 
   @Test
   def testMatchRecognizeSinkWithPk(): Unit = {
-    util.tableEnv.executeSql(
-      s"""
-         |create temporary view v1 as
-         |select *, PROCTIME() as proctime from src
-         |""".stripMargin)
+    util.tableEnv.executeSql(s"""
+                                |create temporary view v1 as
+                                |select *, PROCTIME() as proctime from src
+                                |""".stripMargin)
 
     util.verifyExecPlanInsert(
       """
@@ -1614,8 +1613,7 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
   @Test
   def testMatchRecognizeWithNonDeterministicConditionOnCdcSinkWithPk(): Unit = {
     // TODO this should be updated after StreamPhysicalMatch supports consuming updates
-    thrown.expectMessage(
-      "Match Recognize doesn't support consuming update and delete changes")
+    thrown.expectMessage("Match Recognize doesn't support consuming update and delete changes")
     thrown.expect(classOf[TableException])
     util.verifyExecPlanInsert(
       """
@@ -1641,8 +1639,7 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
   @Test
   def testMatchRecognizeOnCdcWithMetaDataSinkWithPk(): Unit = {
     // TODO this should be updated after StreamPhysicalMatch supports consuming updates
-    thrown.expectMessage(
-      "Match Recognize doesn't support consuming update and delete changes")
+    thrown.expectMessage("Match Recognize doesn't support consuming update and delete changes")
     thrown.expect(classOf[TableException])
     util.verifyExecPlanInsert(
       """
