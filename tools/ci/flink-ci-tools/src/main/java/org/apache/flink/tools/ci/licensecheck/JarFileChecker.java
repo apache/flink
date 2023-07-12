@@ -216,6 +216,10 @@ public class JarFileChecker {
                             path ->
                                     !pathStartsWith(
                                             path, "/org/apache/pulsar/shade/org/glassfish/jersey/"))
+                    .filter(
+                            path ->
+                                    !pathStartsWith(
+                                            path, "/org/apache/pulsar/shade/javax/xml/bind/"))
                     .map(
                             path -> {
                                 try {
