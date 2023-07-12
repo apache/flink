@@ -51,7 +51,8 @@ object AggWithoutKeysCodeGenerator {
       .filter(_.isInstanceOf[AggregateFunction[_, _]])
       .map(ctx.addReusableFunction(_))
     val functionIdentifiers = AggCodeGenHelper.getFunctionIdentifiers(aggInfos)
-    val aggBufferNames = AggCodeGenHelper.getAggBufferNames(auxGrouping, aggInfos)
+    val aggBufferPrefix = "hash"
+    val aggBufferNames = AggCodeGenHelper.getAggBufferNames(aggBufferPrefix, auxGrouping, aggInfos)
     val aggBufferTypes = AggCodeGenHelper.getAggBufferTypes(inputType, auxGrouping, aggInfos)
 
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
@@ -67,6 +68,7 @@ object AggWithoutKeysCodeGenerator {
       functionIdentifiers,
       inputTerm,
       inputType,
+      aggBufferPrefix,
       aggBufferNames,
       aggBufferTypes,
       outputType)

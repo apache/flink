@@ -76,8 +76,9 @@ abstract class WindowCodeGenerator(
   protected lazy val functionIdentifiers: Map[AggregateFunction[_, _], String] =
     AggCodeGenHelper.getFunctionIdentifiers(aggInfos)
 
+  private lazy val aggBufferPrefix = "window"
   protected lazy val aggBufferNames: Array[Array[String]] =
-    AggCodeGenHelper.getAggBufferNames(auxGrouping, aggInfos)
+    AggCodeGenHelper.getAggBufferNames(aggBufferPrefix, auxGrouping, aggInfos)
 
   protected lazy val aggBufferTypes: Array[Array[LogicalType]] =
     AggCodeGenHelper.getAggBufferTypes(inputRowType, auxGrouping, aggInfos)
@@ -205,6 +206,7 @@ abstract class WindowCodeGenerator(
       auxGrouping,
       aggInfos,
       argsMapping,
+      aggBufferPrefix,
       aggBufferNames,
       aggBufferTypes)
     val initAggBufferCode = genInitFlatAggregateBuffer(
@@ -227,9 +229,11 @@ abstract class WindowCodeGenerator(
       aggInfos,
       functionIdentifiers,
       argsMapping,
+      aggBufferPrefix,
       aggBufferNames,
       aggBufferTypes,
-      aggBufferExprs)
+      aggBufferExprs
+    )
 
     // --------------------------------------------------------------------------------------------
     // gen code to set group window aggregate output
@@ -246,6 +250,7 @@ abstract class WindowCodeGenerator(
         aggInfos,
         functionIdentifiers,
         argsMapping,
+        aggBufferPrefix,
         aggBufferNames,
         aggBufferTypes,
         aggBufferExprs,
@@ -443,6 +448,7 @@ abstract class WindowCodeGenerator(
           auxGrouping,
           aggInfos,
           argsMapping,
+          aggBufferPrefix,
           aggBufferNames,
           aggBufferTypes)
         val initAggBufferCode = genInitFlatAggregateBuffer(
@@ -465,9 +471,11 @@ abstract class WindowCodeGenerator(
           aggInfos,
           functionIdentifiers,
           argsMapping,
+          aggBufferPrefix,
           aggBufferNames,
           aggBufferTypes,
-          aggBufferExprs)
+          aggBufferExprs
+        )
 
         // project pre accumulated results into a binary row to fit to WindowsGrouping
         val exprCodegen = new ExprCodeGenerator(ctx, false)
