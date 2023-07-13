@@ -321,7 +321,7 @@ public class JobManagerOptions {
                     .stringType()
                     .noDefaultValue()
                     .withDescription(
-                            "Dictionary for JobManager to store the archives of completed jobs.");
+                            "Directory for JobManager to store the archives of completed jobs.");
 
     /** The job store cache size in bytes which is used to keep completed jobs in memory. */
     @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
