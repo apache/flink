@@ -55,7 +55,7 @@ import static org.apache.flink.table.types.extraction.TemplateUtils.findResultOn
  * STRING) to BOOLEAN.
  *
  * <p>It can not only be used for {@link UserDefinedFunction}, but also for {@link Procedure} which
- * is almost same to {@link UserDefinedFunction} with regarding to extracting the mapping from
+ * is almost same to {@link UserDefinedFunction} with regard to extracting the mapping from
  * signature to result.
  */
 abstract class BaseMappingExtractor {

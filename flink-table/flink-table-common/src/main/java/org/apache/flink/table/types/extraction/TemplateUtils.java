@@ -94,7 +94,7 @@ final class TemplateUtils {
                             try {
                                 return FunctionTemplate.fromAnnotation(typeFactory, hint);
                             } catch (Throwable t) {
-                                throw extractionError(t, "Error in function hint annotation.");
+                                throw extractionError(t, "Error in procedure hint annotation.");
                             }
                         })
                 .collect(Collectors.toCollection(LinkedHashSet::new));

@@ -26,6 +26,7 @@ import org.apache.flink.table.catalog.DataTypeFactory;
 
 import javax.annotation.Nullable;
 
+import java.lang.annotation.Annotation;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.function.Function;
@@ -41,8 +42,6 @@ import static org.apache.flink.table.types.extraction.ExtractionUtils.extraction
  */
 @Internal
 final class FunctionTemplate {
-
-    private static final FunctionHint DEFAULT_ANNOTATION = getDefaultAnnotation();
 
     private final @Nullable FunctionSignatureTemplate signatureTemplate;
 
@@ -144,35 +143,27 @@ final class FunctionTemplate {
 
     // --------------------------------------------------------------------------------------------
 
+    @ProcedureHint
     @FunctionHint
     private static class DefaultAnnotationHelper {
         // no implementation
     }
 
-    @ProcedureHint
-    private static class DefaultProcedureAnnotationHelper {
-        // no implementation
-    }
-
-    private static FunctionHint getDefaultAnnotation() {
-        return DefaultAnnotationHelper.class.getAnnotation(FunctionHint.class);
-    }
-
-    private static ProcedureHint getDefaultProcedureHintAnnotation() {
-        return DefaultProcedureAnnotationHelper.class.getAnnotation(ProcedureHint.class);
+    private static <H extends Annotation> H getDefaultAnnotation(Class<H> hClass) {
+        return DefaultAnnotationHelper.class.getAnnotation(hClass);
     }
 
     private static <T> T defaultAsNull(FunctionHint hint, Function<FunctionHint, T> accessor) {
-        final T defaultValue = accessor.apply(DEFAULT_ANNOTATION);
-        final T actualValue = accessor.apply(hint);
-        if (Objects.deepEquals(defaultValue, actualValue)) {
-            return null;
-        }
-        return actualValue;
+        return defaultAsNull(hint, getDefaultAnnotation(FunctionHint.class), accessor);
     }
 
     private static <T> T defaultAsNull(ProcedureHint hint, Function<ProcedureHint, T> accessor) {
-        final T defaultValue = accessor.apply(getDefaultProcedureHintAnnotation());
+        return defaultAsNull(hint, getDefaultAnnotation(ProcedureHint.class), accessor);
+    }
+
+    private static <T, H extends Annotation> T defaultAsNull(
+            H hint, H defaultHint, Function<H, T> accessor) {
+        final T defaultValue = accessor.apply(defaultHint);
         final T actualValue = accessor.apply(hint);
         if (Objects.deepEquals(defaultValue, actualValue)) {
             return null;

@@ -689,7 +689,7 @@ class TypeInferenceExtractorTest {
                                 "Considering all hints, the method should comply with the signature:\n"
                                         + "java.lang.String[] call(_, int[])"),
                 // no implementation
-                TestSpec.forProcedure(MissMethodProcedure.class)
+                TestSpec.forProcedure(MissingMethodProcedure.class)
                         .expectErrorMessage(
                                 "Could not find a publicly accessible method named 'call'."));
     }
@@ -843,7 +843,8 @@ class TypeInferenceExtractorTest {
             return forProcedure(null, procedure);
         }
 
-        static TestSpec forProcedure(String description, Class<? extends Procedure> procedure) {
+        static TestSpec forProcedure(
+                @Nullable String description, Class<? extends Procedure> procedure) {
             return new TestSpec(
                     description == null ? procedure.getSimpleName() : description,
                     () ->
@@ -1430,7 +1431,7 @@ class TypeInferenceExtractorTest {
         }
     }
 
-    private static class MissMethodProcedure implements Procedure {
+    private static class MissingMethodProcedure implements Procedure {
         public int[] call1(Object procedureContext) {
             return null;
         }
