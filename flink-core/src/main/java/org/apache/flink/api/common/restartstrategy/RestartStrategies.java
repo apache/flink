@@ -186,6 +186,7 @@ public class RestartStrategies {
     }
 
     /** Abstract configuration for restart strategies. */
+    @PublicEvolving
     public abstract static class RestartStrategyConfiguration implements Serializable {
         private static final long serialVersionUID = 6285853591578313960L;
 
@@ -205,6 +206,7 @@ public class RestartStrategies {
     }
 
     /** Configuration representing no restart strategy. */
+    @PublicEvolving
     public static final class NoRestartStrategyConfiguration extends RestartStrategyConfiguration {
         private static final long serialVersionUID = -5894362702943349962L;
 
@@ -228,6 +230,7 @@ public class RestartStrategies {
     }
 
     /** Configuration representing a fixed delay restart strategy. */
+    @PublicEvolving
     public static final class FixedDelayRestartStrategyConfiguration
             extends RestartStrategyConfiguration {
         private static final long serialVersionUID = 4149870149673363190L;
@@ -288,6 +291,7 @@ public class RestartStrategies {
     }
 
     /** Configuration representing an exponential delay restart strategy. */
+    @PublicEvolving
     public static final class ExponentialDelayRestartStrategyConfiguration
             extends RestartStrategyConfiguration {
         private static final long serialVersionUID = 1467941615941965194L;
@@ -410,6 +414,7 @@ public class RestartStrategies {
     }
 
     /** Configuration representing a failure rate restart strategy. */
+    @PublicEvolving
     public static final class FailureRateRestartStrategyConfiguration
             extends RestartStrategyConfiguration {
         private static final long serialVersionUID = 1195028697539661739L;
@@ -499,6 +504,7 @@ public class RestartStrategies {
      * strategy. Useful especially when one has a custom implementation of restart strategy set via
      * flink-conf.yaml.
      */
+    @PublicEvolving
     public static final class FallbackRestartStrategyConfiguration
             extends RestartStrategyConfiguration {
         private static final long serialVersionUID = -4441787204284085544L;
