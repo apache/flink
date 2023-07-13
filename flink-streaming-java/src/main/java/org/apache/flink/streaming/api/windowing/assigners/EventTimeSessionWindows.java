@@ -44,6 +44,7 @@ import java.util.Collections;
  *   keyed.window(EventTimeSessionWindows.withGap(Duration.ofMinutes(1)));
  * }</pre>
  */
+@PublicEvolving
 public class EventTimeSessionWindows extends MergingWindowAssigner<Object, TimeWindow> {
     private static final long serialVersionUID = 1L;
 

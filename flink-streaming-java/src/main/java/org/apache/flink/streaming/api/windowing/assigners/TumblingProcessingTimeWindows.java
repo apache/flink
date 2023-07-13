@@ -44,6 +44,7 @@ import java.util.Collections;
  *   keyed.window(TumblingProcessingTimeWindows.of(Duration.ofMinutes(1), Duration.ofSeconds(10));
  * }</pre>
  */
+@PublicEvolving
 public class TumblingProcessingTimeWindows extends WindowAssigner<Object, TimeWindow> {
     private static final long serialVersionUID = 1L;
 
