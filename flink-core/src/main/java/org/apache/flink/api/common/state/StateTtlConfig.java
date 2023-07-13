@@ -61,6 +61,7 @@ public class StateTtlConfig implements Serializable {
     /**
      * This option value configures when to update last access timestamp which prolongs state TTL.
      */
+    @PublicEvolving
     public enum UpdateType {
         /** TTL is disabled. State does not expire. */
         Disabled,
@@ -74,6 +75,7 @@ public class StateTtlConfig implements Serializable {
     }
 
     /** This option configures whether expired user value can be returned or not. */
+    @PublicEvolving
     public enum StateVisibility {
         /** Return expired user value if it is not cleaned up yet. */
         ReturnExpiredIfNotCleanedUp,
@@ -82,6 +84,7 @@ public class StateTtlConfig implements Serializable {
     }
 
     /** This option configures time scale to use for ttl. */
+    @PublicEvolving
     public enum TtlTimeCharacteristic {
         /**
          * Processing time, see also <code>
@@ -171,6 +174,7 @@ public class StateTtlConfig implements Serializable {
     }
 
     /** Builder for the {@link StateTtlConfig}. */
+    @PublicEvolving
     public static class Builder {
 
         private UpdateType updateType = OnCreateAndWrite;
@@ -393,6 +397,7 @@ public class StateTtlConfig implements Serializable {
      * cleaned up on explicit read access if found expired. Currently cleanup of state full snapshot
      * can be additionally activated.
      */
+    @PublicEvolving
     public static class CleanupStrategies implements Serializable {
         private static final long serialVersionUID = -1617740467277313524L;
 
@@ -452,6 +457,7 @@ public class StateTtlConfig implements Serializable {
     }
 
     /** Configuration of cleanup strategy while taking the full snapshot. */
+    @PublicEvolving
     public static class IncrementalCleanupStrategy implements CleanupStrategies.CleanupStrategy {
         private static final long serialVersionUID = 3109278696501988780L;
 
@@ -482,6 +488,7 @@ public class StateTtlConfig implements Serializable {
     }
 
     /** Configuration of cleanup strategy using custom compaction filter in RocksDB. */
+    @PublicEvolving
     public static class RocksdbCompactFilterCleanupStrategy
             implements CleanupStrategies.CleanupStrategy {
         private static final long serialVersionUID = 3109278796506988980L;
