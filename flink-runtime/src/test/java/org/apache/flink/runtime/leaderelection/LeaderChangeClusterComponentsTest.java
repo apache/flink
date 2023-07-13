@@ -165,11 +165,11 @@ class LeaderChangeClusterComponentsTest {
 
         // wait for the ResourceManager to confirm the leadership
         assertThat(
-                        LeaderRetrievalUtils.retrieveLeaderConnectionInfo(
+                        LeaderRetrievalUtils.retrieveLeaderInformation(
                                         highAvailabilityServices
                                                 .getResourceManagerLeaderRetriever(),
                                         TESTING_TIMEOUT)
-                                .getLeaderSessionId())
+                                .getLeaderSessionID())
                 .isNotNull();
 
         waitUntilTaskExecutorsHaveConnected(NUM_TMS);

@@ -296,7 +296,7 @@ class ZooKeeperLeaderElectionDriverTest {
     }
 
     @Test
-    void testLeaderConnectionInfoNodeRemovalLeadsToLeaderChangeWithEmptyLeaderInformation()
+    void testLeaderInformationNodeRemovalLeadsToLeaderChangeWithEmptyLeaderInformation()
             throws Exception {
         new Context() {
             {
