@@ -277,7 +277,7 @@
                         <!-- dependency convergence -->
                         <groupId>com.squareup.okio</groupId>
                         <artifactId>okio</artifactId>
-                        <version>1.17.2</version>
+                        <version>3.4.0</version>
                     </dependency>
                 </dependencies>
             </dependencyManagement>
