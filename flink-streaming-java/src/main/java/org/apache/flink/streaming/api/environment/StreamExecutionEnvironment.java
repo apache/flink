@@ -2569,7 +2569,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
 
     protected static void initializeContextEnvironment(StreamExecutionEnvironmentFactory ctx) {
         contextEnvironmentFactory = ctx;
-        threadLocalContextEnvironmentFactory.set(contextEnvironmentFactory);
+        threadLocalContextEnvironmentFactory.set(ctx);
     }
 
     protected static void resetContextEnvironment() {
