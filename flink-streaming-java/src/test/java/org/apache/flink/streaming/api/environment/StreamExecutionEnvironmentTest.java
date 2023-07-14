@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api;
+package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -28,11 +28,12 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.core.testutils.CheckedThread;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -45,13 +46,16 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.SplittableIterator;
 
+import org.assertj.core.api.Assertions;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.concurrent.CountDownLatch;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -450,6 +454,46 @@ public class StreamExecutionEnvironmentTest {
             env.configure(config, this.getClass().getClassLoader());
             fail("exception expected");
         } catch (IllegalArgumentException ignored) {
+        }
+    }
+
+    @Test
+    public void testConcurrentSetContext() throws Exception {
+        int numThreads = 20;
+        final CountDownLatch waitingThreadCount = new CountDownLatch(numThreads);
+        final OneShotLatch latch = new OneShotLatch();
+        final List<CheckedThread> threads = new ArrayList<>();
+        for (int x = 0; x < numThreads; x++) {
+            final CheckedThread thread =
+                    new CheckedThread() {
+                        @Override
+                        public void go() throws InterruptedException {
+                            final StreamExecutionEnvironment preparedEnvironment =
+                                    new StreamExecutionEnvironment();
+                            StreamExecutionEnvironment.initializeContextEnvironment(
+                                    configuration -> preparedEnvironment);
+                            try {
+                                waitingThreadCount.countDown();
+                                latch.await();
+                                Assertions.assertThat(
+                                                StreamExecutionEnvironment
+                                                        .getExecutionEnvironment())
+                                        .isSameAs(preparedEnvironment);
+                            } finally {
+                                StreamExecutionEnvironment.resetContextEnvironment();
+                            }
+                        }
+                    };
+            thread.start();
+            threads.add(thread);
+        }
+
+        // wait for all threads to be ready and trigger the job submissions at the same time
+        waitingThreadCount.await();
+        latch.trigger();
+
+        for (CheckedThread thread : threads) {
+            thread.sync();
         }
     }
 
