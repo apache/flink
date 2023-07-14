@@ -174,6 +174,12 @@ class FlinkTypeFactoryTest {
 
     static Stream<Arguments> testLeastRestrictive() {
         return Stream.of(
+                // Since the problem is actual for collection
+                // then tests are for array, map, multiset
+                // Also as https://issues.apache.org/jira/browse/CALCITE-4603 says
+                // before Calcite 1.27.0  it derived the type of nested collection based on the last
+                // element, for that reason the type of the last element is narrower
+                // than the type of element in the middle
                 Arguments.of(
                         Arrays.asList(
                                 new ArrayType(new VarCharType(6)),
@@ -189,7 +195,8 @@ class FlinkTypeFactoryTest {
                 Arguments.of(
                         Arrays.asList(
                                 new MapType(new CharType(1), new CharType(1)),
-                                new MapType(VarCharType.STRING_TYPE, VarCharType.STRING_TYPE)),
+                                new MapType(VarCharType.STRING_TYPE, VarCharType.STRING_TYPE),
+                                new MapType(new CharType(1), new CharType(1))),
                         new MapType(VarCharType.STRING_TYPE, VarCharType.STRING_TYPE)),
                 Arguments.of(
                         Arrays.asList(

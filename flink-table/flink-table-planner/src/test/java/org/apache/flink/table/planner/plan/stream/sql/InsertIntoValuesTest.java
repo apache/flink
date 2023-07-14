@@ -38,6 +38,9 @@ public class InsertIntoValuesTest extends TableTestBase {
                                 + "   'connector' = 'values'"
                                 + ")");
 
+        // As https://issues.apache.org/jira/browse/CALCITE-4603 says
+        // before Calcite 1.27.0 it derived the type of nested collection based on the last element,
+        // thus the type of the last element is narrower than the type of element in the middle
         util.verifyExecPlanInsert(
                 "INSERT INTO t1 VALUES "
                         + "(MAP['a', '123', 'b', '123456'], MAP['k1', X'C0FFEE', 'k2', X'BABE']), "
