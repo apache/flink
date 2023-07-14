@@ -81,9 +81,7 @@ public final class CatalogPropertiesUtil {
             }
 
             final Optional<Long> snapshot = resolvedTable.getSnapshot();
-            if (snapshot.isPresent()) {
-                properties.put(SNAPSHOT, Long.toString(snapshot.get()));
-            }
+            snapshot.ifPresent(snapshotId -> properties.put(SNAPSHOT, Long.toString(snapshotId)));
 
             serializePartitionKeys(properties, resolvedTable.getPartitionKeys());
 
