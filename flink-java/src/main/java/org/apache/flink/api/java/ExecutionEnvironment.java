@@ -1422,7 +1422,7 @@ public class ExecutionEnvironment {
      */
     protected static void initializeContextEnvironment(ExecutionEnvironmentFactory ctx) {
         contextEnvironmentFactory = Preconditions.checkNotNull(ctx);
-        threadLocalContextEnvironmentFactory.set(contextEnvironmentFactory);
+        threadLocalContextEnvironmentFactory.set(ctx);
     }
 
     /**
