@@ -41,8 +41,8 @@ public class FlinkTimestampWithPrecisionDynamicFunction extends FlinkTimestampDy
     private final int precision;
 
     public FlinkTimestampWithPrecisionDynamicFunction(
-            String name, SqlTypeName typeName, boolean isBatchMode, int precision) {
-        super(name, typeName, isBatchMode);
+            String name, SqlTypeName typeName, boolean useQueryTime, int precision) {
+        super(name, typeName, useQueryTime);
         this.returnTypeName = typeName;
         this.precision = precision;
     }
@@ -64,13 +64,13 @@ public class FlinkTimestampWithPrecisionDynamicFunction extends FlinkTimestampDy
                 (FlinkTimestampWithPrecisionDynamicFunction) obj;
         return this.getName().equals(other.getName())
                 && kind == other.kind
-                && this.isBatchMode == other.isBatchMode
+                && this.useQueryTime == other.useQueryTime
                 && this.precision == other.precision
                 && this.returnTypeName.equals(other.returnTypeName);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(kind, this.getName(), isBatchMode, precision, returnTypeName);
+        return Objects.hash(kind, this.getName(), useQueryTime, precision, returnTypeName);
     }
 }

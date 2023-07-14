@@ -53,6 +53,7 @@ import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.table.runtime.generated.CompileUtils
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
+import org.apache.flink.util.clock.SystemClock
 
 import _root_.scala.collection.JavaConversions._
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
@@ -472,7 +473,10 @@ abstract class PlannerBase(
   protected def beforeTranslation(): Unit = {
     // Add query start time to TableConfig, these config are used internally,
     // these configs will be used by temporal functions like CURRENT_TIMESTAMP,LOCALTIMESTAMP.
-    val epochTime: JLong = System.currentTimeMillis()
+    val clock = toScala(tableConfig.getPlannerConfig.unwrap(classOf[ClockPlannerConfig]))
+      .map(_.getClock)
+      .getOrElse(SystemClock.getInstance())
+    val epochTime: JLong = clock.absoluteTimeMillis()
     tableConfig.set(TABLE_QUERY_START_EPOCH_TIME, epochTime)
     val localTime: JLong = epochTime +
       TimeZone.getTimeZone(TableConfigUtils.getLocalTimeZone(tableConfig)).getOffset(epochTime)

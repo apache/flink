@@ -573,6 +573,16 @@ public class ExecutionConfigOptions {
                                     + "leading to possible discarding of these records by downstream watermark-dependent operators, such as window operators. "
                                     + "The default value is 0, which means it will clean up unmatched records immediately.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<TimeFunctionEvaluation> TIME_FUNCTION_EVALUATION =
+            key("table.exec.time-function-evaluation")
+                    .enumType(TimeFunctionEvaluation.class)
+                    .defaultValue(TimeFunctionEvaluation.AUTO)
+                    .withDescription(
+                            "Decides if time functions such as e.g. CURRENT_TIMESTAMP,"
+                                    + " CURRENT_DATE should use a stable time when the query has been"
+                                    + " planned or should they derive the time when processing a record.");
+
     // ------------------------------------------------------------------------------------------
     // Enum option types
     // ------------------------------------------------------------------------------------------
@@ -746,6 +756,28 @@ public class ExecutionConfigOptions {
         }
 
         @Internal
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
+    }
+
+    /** Determines how to evaluate time for time functions. */
+    @PublicEvolving
+    public enum TimeFunctionEvaluation implements DescribedEnum {
+        AUTO(
+                text(
+                        "Evaluates time functions based on the execution mode. Uses row based time in"
+                                + " streaming mode and query time in batch mode.")),
+        ROW(text("Evaluates time functions per every incoming record.")),
+        QUERY_START(text("Evaluates time functions once, at the time of query start."));
+
+        private final InlineElement description;
+
+        TimeFunctionEvaluation(InlineElement description) {
+            this.description = description;
+        }
+
         @Override
         public InlineElement getDescription() {
             return description;

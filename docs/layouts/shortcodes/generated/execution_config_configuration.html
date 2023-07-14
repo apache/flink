@@ -179,6 +179,12 @@ By default no operator is disabled.</td>
             <td>Specifies a minimum time interval for how long idle state (i.e. state which was not updated), will be retained. State will never be cleared until it was idle for less than the minimum time, and will be cleared at some time after it was idle. Default is never clean-up the state. NOTE: Cleaning up state requires additional overhead for bookkeeping. Default value is 0, which means that it will never clean up state.</td>
         </tr>
         <tr>
+            <td><h5>table.exec.time-function-evaluation</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">AUTO</td>
+            <td><p>Enum</p></td>
+            <td>Decides if time functions such as e.g. CURRENT_TIMESTAMP, CURRENT_DATE should use a stable time when the query has been planned or should they derive the time when processing a record.<br /><br />Possible values:<ul><li>"AUTO": Evaluates time functions based on the execution mode. Uses row based time in streaming mode and query time in batch mode.</li><li>"ROW": Evaluates time functions per every incoming record.</li><li>"QUERY_START": Evaluates time functions once, at the time of query start.</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>table.exec.uid.format</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">"&lt;id&gt;_&lt;transformation&gt;"</td>
             <td>String</td>

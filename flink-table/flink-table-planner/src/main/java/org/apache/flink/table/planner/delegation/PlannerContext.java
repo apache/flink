@@ -23,6 +23,7 @@ import org.apache.flink.sql.parser.validate.FlinkSqlConformance;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
@@ -324,7 +325,7 @@ public class PlannerContext {
 
     /** Returns the operator table for this environment including a custom Calcite configuration. */
     private SqlOperatorTable getSqlOperatorTable(CalciteConfig calciteConfig) {
-        return JavaScalaConversionUtil.<SqlOperatorTable>toJava(calciteConfig.getSqlOperatorTable())
+        return JavaScalaConversionUtil.toJava(calciteConfig.getSqlOperatorTable())
                 .map(
                         operatorTable -> {
                             if (calciteConfig.replacesSqlOperatorTable()) {
@@ -345,6 +346,19 @@ public class PlannerContext {
                         context.getCatalogManager().getDataTypeFactory(),
                         typeFactory,
                         context.getRexFactory()),
-                FlinkSqlOperatorTable.instance(context.isBatchMode()));
+                FlinkSqlOperatorTable.instance(shouldUseQueryTime()));
+    }
+
+    private boolean shouldUseQueryTime() {
+        switch (context.getTableConfig().get(ExecutionConfigOptions.TIME_FUNCTION_EVALUATION)) {
+            case AUTO:
+                return context.isBatchMode();
+            case ROW:
+                return false;
+            case QUERY_START:
+                return true;
+            default:
+                throw new IllegalStateException("Unexpected time function evaluation mode.");
+        }
     }
 }
