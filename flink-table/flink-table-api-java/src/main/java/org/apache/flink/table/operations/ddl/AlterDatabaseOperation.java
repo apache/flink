@@ -74,8 +74,6 @@ public class AlterDatabaseOperation implements AlterOperation {
                     .alterDatabase(
                             getCatalogName(), getDatabaseName(), getCatalogDatabase(), false);
             return TableResultImpl.TABLE_RESULT_OK;
-        } catch (ValidationException e) {
-            throw e;
         } catch (DatabaseNotExistException e) {
             throw new ValidationException(
                     String.format("Could not execute %s", asSummaryString()), e);

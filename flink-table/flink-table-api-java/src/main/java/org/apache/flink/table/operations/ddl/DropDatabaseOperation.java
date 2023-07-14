@@ -71,8 +71,6 @@ public class DropDatabaseOperation implements DropOperation {
             ctx.getCatalogManager()
                     .dropDatabase(getCatalogName(), getDatabaseName(), isIfExists(), isCascade());
             return TableResultImpl.TABLE_RESULT_OK;
-        } catch (ValidationException e) {
-            throw e;
         } catch (DatabaseNotExistException | DatabaseNotEmptyException e) {
             throw new ValidationException(
                     String.format("Could not execute %s", asSummaryString()), e);

@@ -83,8 +83,6 @@ public class CreateDatabaseOperation implements CreateOperation {
             ctx.getCatalogManager()
                     .createDatabase(catalogName, databaseName, catalogDatabase, ignoreIfExists);
             return TableResultImpl.TABLE_RESULT_OK;
-        } catch (ValidationException e) {
-            throw e;
         } catch (DatabaseAlreadyExistException e) {
             throw new ValidationException(
                     String.format("Could not execute %s", asSummaryString()), e);
