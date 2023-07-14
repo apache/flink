@@ -3161,4 +3161,84 @@ Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testMatchRecognizeSinkWithPk[nonDeterministicUpdateStrategy=IGNORE]">
+    <Resource name="sql">
+      <![CDATA[
+insert into sink_with_pk
+SELECT T1.a, T1.b, cast(T1.matchProctime as varchar)
+FROM v1
+MATCH_RECOGNIZE (
+PARTITION BY c
+ORDER BY proctime
+MEASURES
+  A.a as a,
+  A.b as b,
+  MATCH_PROCTIME() as matchProctime
+ONE ROW PER MATCH
+PATTERN (A)
+DEFINE
+  A AS A.a > 1
+) AS T1
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, EXPR$2])
++- LogicalProject(a=[$1], b=[$2], EXPR$2=[CAST($3):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL])
+   +- LogicalMatch(partition=[[2]], order=[[4 ASC-nulls-first]], outputFields=[[c, a, b, matchProctime]], allRows=[false], after=[FLAG(SKIP TO NEXT ROW)], pattern=[_UTF-16LE'A'], isStrictStarts=[false], isStrictEnds=[false], subsets=[[]], patternDefinitions=[[>(PREV(A.$0, 0), 1)]], inputFields=[[a, b, c, d, proctime]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+         +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, EXPR$2])
++- Calc(select=[a, b, CAST(PROCTIME_MATERIALIZE(matchProctime) AS VARCHAR(2147483647)) AS EXPR$2])
+   +- Match(partitionBy=[c], orderBy=[proctime ASC], measures=[FINAL(A.a) AS a, FINAL(A.b) AS b, FINAL(MATCH_PROCTIME()) AS matchProctime], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[_UTF-16LE'A'], define=[{A=>(PREV(A.$0, 0), 1)}])
+      +- Exchange(distribution=[hash[c]])
+         +- Calc(select=[a, b, c, d, PROCTIME() AS proctime])
+            +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMatchRecognizeSinkWithPk[nonDeterministicUpdateStrategy=TRY_RESOLVE]">
+    <Resource name="sql">
+      <![CDATA[
+insert into sink_with_pk
+SELECT T1.a, T1.b, cast(T1.matchProctime as varchar)
+FROM v1
+MATCH_RECOGNIZE (
+PARTITION BY c
+ORDER BY proctime
+MEASURES
+  A.a as a,
+  A.b as b,
+  MATCH_PROCTIME() as matchProctime
+ONE ROW PER MATCH
+PATTERN (A)
+DEFINE
+  A AS A.a > 1
+) AS T1
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, EXPR$2])
++- LogicalProject(a=[$1], b=[$2], EXPR$2=[CAST($3):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL])
+   +- LogicalMatch(partition=[[2]], order=[[4 ASC-nulls-first]], outputFields=[[c, a, b, matchProctime]], allRows=[false], after=[FLAG(SKIP TO NEXT ROW)], pattern=[_UTF-16LE'A'], isStrictStarts=[false], isStrictEnds=[false], subsets=[[]], patternDefinitions=[[>(PREV(A.$0, 0), 1)]], inputFields=[[a, b, c, d, proctime]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+         +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, EXPR$2])
++- Calc(select=[a, b, CAST(PROCTIME_MATERIALIZE(matchProctime) AS VARCHAR(2147483647)) AS EXPR$2])
+   +- Match(partitionBy=[c], orderBy=[proctime ASC], measures=[FINAL(A.a) AS a, FINAL(A.b) AS b, FINAL(MATCH_PROCTIME()) AS matchProctime], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[_UTF-16LE'A'], define=[{A=>(PREV(A.$0, 0), 1)}])
+      +- Exchange(distribution=[hash[c]])
+         +- Calc(select=[a, b, c, d, PROCTIME() AS proctime])
+            +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
 </Root>

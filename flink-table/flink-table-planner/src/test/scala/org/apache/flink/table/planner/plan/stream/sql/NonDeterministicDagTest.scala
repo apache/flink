@@ -1582,6 +1582,87 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
     util.verifyExecPlan(stmtSet)
   }
 
+  @Test
+  def testMatchRecognizeSinkWithPk(): Unit = {
+    util.tableEnv.executeSql(s"""
+                                |create temporary view v1 as
+                                |select *, PROCTIME() as proctime from src
+                                |""".stripMargin)
+
+    util.verifyExecPlanInsert(
+      """
+        |insert into sink_with_pk
+        |SELECT T1.a, T1.b, cast(T1.matchProctime as varchar)
+        |FROM v1
+        |MATCH_RECOGNIZE (
+        |PARTITION BY c
+        |ORDER BY proctime
+        |MEASURES
+        |  A.a as a,
+        |  A.b as b,
+        |  MATCH_PROCTIME() as matchProctime
+        |ONE ROW PER MATCH
+        |PATTERN (A)
+        |DEFINE
+        |  A AS A.a > 1
+        |) AS T1
+        |""".stripMargin
+    )
+  }
+
+  @Test
+  def testMatchRecognizeWithNonDeterministicConditionOnCdcSinkWithPk(): Unit = {
+    // TODO this should be updated after StreamPhysicalMatch supports consuming updates
+    thrown.expectMessage("Match Recognize doesn't support consuming update and delete changes")
+    thrown.expect(classOf[TableException])
+    util.verifyExecPlanInsert(
+      """
+        |insert into sink_with_pk
+        |SELECT T.a, T.b, cast(T.matchRowtime as varchar)
+        |FROM cdc_with_meta_and_wm
+        |MATCH_RECOGNIZE (
+        |PARTITION BY c
+        |ORDER BY op_ts
+        |MEASURES
+        |  A.a as a,
+        |  A.b as b,
+        |  MATCH_ROWTIME(op_ts) as matchRowtime
+        |ONE ROW PER MATCH
+        |PATTERN (A)
+        |DEFINE
+        |  A AS A.op_ts >= CURRENT_TIMESTAMP
+        |) AS T
+      """.stripMargin
+    )
+  }
+
+  @Test
+  def testMatchRecognizeOnCdcWithMetaDataSinkWithPk(): Unit = {
+    // TODO this should be updated after StreamPhysicalMatch supports consuming updates
+    thrown.expectMessage("Match Recognize doesn't support consuming update and delete changes")
+    thrown.expect(classOf[TableException])
+    util.verifyExecPlanInsert(
+      """
+        |insert into sink_with_pk
+        |SELECT T.a, T.b, cast(T.ts as varchar)
+        |FROM cdc_with_meta_and_wm
+        |MATCH_RECOGNIZE (
+        |PARTITION BY c
+        |ORDER BY op_ts
+        |MEASURES
+        |  A.a as a,
+        |  A.b as b,
+        |  A.op_ts as ts,
+        |  MATCH_ROWTIME(op_ts) as matchRowtime
+        |ONE ROW PER MATCH
+        |PATTERN (A)
+        |DEFINE
+        |  A AS A.a > 0
+        |) AS T
+      """.stripMargin
+    )
+  }
+
   /**
    * This upsert test sink does support getting primary key from table schema. We defined a similar
    * test sink here not using existing {@link TestingUpsertTableSink} in {@link StreamTestSink}
