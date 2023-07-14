@@ -18,11 +18,15 @@
 
 package org.apache.flink.table.planner.runtime.stream.sql;
 
+import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
-import org.apache.flink.table.catalog.GenericInMemoryCatalog;
-import org.apache.flink.table.catalog.exceptions.CatalogException;
-import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.planner.factories.TestProcedureCatalogFactory;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
@@ -40,14 +44,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** IT Case for statements related to procedure. */
 public class ProcedureITCase extends StreamingTestBase {
 
-    private static final String SYSTEM_DATABASE_NAME = "system";
-
     @BeforeEach
     @Override
     public void before() throws Exception {
         super.before();
-        CatalogWithBuildInProcedure procedureCatalog =
-                new CatalogWithBuildInProcedure("procedure_catalog");
+        TestProcedureCatalogFactory.CatalogWithBuiltInProcedure procedureCatalog =
+                new TestProcedureCatalogFactory.CatalogWithBuiltInProcedure("procedure_catalog");
         procedureCatalog.createDatabase(
                 "system", new CatalogDatabaseImpl(Collections.emptyMap(), null), true);
         tEnv().registerCatalog("test_p", procedureCatalog);
@@ -83,8 +85,7 @@ public class ProcedureITCase extends StreamingTestBase {
                 CollectionUtil.iteratorToList(
                         tEnv().executeSql("show procedures in `system`").collect());
         assertThat(rows.toString())
-                .isEqualTo(
-                        "[+I[generate_n], +I[generate_user], +I[get_year], +I[miss_procedure_context], +I[sum_n]]");
+                .isEqualTo("[+I[generate_n], +I[generate_user], +I[get_year], +I[sum_n]]");
 
         // show procedure with like
         rows =
@@ -110,40 +111,72 @@ public class ProcedureITCase extends StreamingTestBase {
                 CollectionUtil.iteratorToList(
                         tEnv().executeSql("show procedures in `system` not like 'generate%'")
                                 .collect());
-        assertThat(rows.toString())
-                .isEqualTo("[+I[get_year], +I[miss_procedure_context], +I[sum_n]]");
+        assertThat(rows.toString()).isEqualTo("[+I[get_year], +I[sum_n]]");
 
         // show procedure with not ilike
         rows =
                 CollectionUtil.iteratorToList(
                         tEnv().executeSql("show procedures in `system` not ilike 'generaTe%'")
                                 .collect());
-        assertThat(rows.toString())
-                .isEqualTo("[+I[get_year], +I[miss_procedure_context], +I[sum_n]]");
+        assertThat(rows.toString()).isEqualTo("[+I[get_year], +I[sum_n]]");
     }
 
-    /** A catalog with some built-in procedures for test purpose. */
-    private static class CatalogWithBuildInProcedure extends GenericInMemoryCatalog {
-        public CatalogWithBuildInProcedure(String name) {
-            super(name);
-        }
+    @Test
+    void testCallProcedure() {
+        // test call procedure can run a flink job
+        TableResult tableResult = tEnv().executeSql("call `system`.generate_n(4)");
+        verifyTableResult(
+                tableResult,
+                Arrays.asList(Row.of(0), Row.of(1), Row.of(2), Row.of(3)),
+                ResolvedSchema.of(
+                        Column.physical(
+                                "result", DataTypes.BIGINT().notNull().bridgedTo(long.class))));
 
-        @Override
-        public List<String> listProcedures(String dbName)
-                throws DatabaseNotExistException, CatalogException {
-            if (!databaseExists(dbName)) {
-                throw new DatabaseNotExistException(getName(), dbName);
-            }
-            if (dbName.equals(SYSTEM_DATABASE_NAME)) {
-                return Arrays.asList(
-                        "generate_n",
-                        "sum_n",
-                        "get_year",
-                        "generate_user",
-                        "miss_procedure_context");
-            } else {
-                return Collections.emptyList();
-            }
-        }
+        // call a procedure which will run in batch mode
+        tableResult = tEnv().executeSql("call `system`.generate_n(4, 'BATCH')");
+        verifyTableResult(
+                tableResult,
+                Arrays.asList(Row.of(0), Row.of(1), Row.of(2), Row.of(3)),
+                ResolvedSchema.of(
+                        Column.physical(
+                                "result", DataTypes.BIGINT().notNull().bridgedTo(long.class))));
+        // check the runtime mode in current env is still streaming
+        assertThat(tEnv().getConfig().get(ExecutionOptions.RUNTIME_MODE))
+                .isEqualTo(RuntimeExecutionMode.STREAMING);
+
+        // test call procedure with var-args as well as output data type hint
+        tableResult = tEnv().executeSql("call `system`.sum_n(5.5, 1.2, 3.3)");
+        verifyTableResult(
+                tableResult,
+                Collections.singletonList(Row.of("10.00", 3)),
+                ResolvedSchema.of(
+                        Column.physical("sum_value", DataTypes.DECIMAL(10, 2)),
+                        Column.physical("count", DataTypes.INT())));
+
+        // test call procedure with timestamp as input
+        tableResult =
+                tEnv().executeSql(
+                                "call `system`.get_year(timestamp '2023-04-22 00:00:00', timestamp '2024-04-22 00:00:00.300')");
+        verifyTableResult(
+                tableResult,
+                Arrays.asList(Row.of(2023), Row.of(2024)),
+                ResolvedSchema.of(Column.physical("result", DataTypes.STRING())));
+
+        // test call procedure with pojo as return type
+        tableResult = tEnv().executeSql("call `system`.generate_user('yuxia', 18)");
+        verifyTableResult(
+                tableResult,
+                Collections.singletonList(
+                        Row.of(new TestProcedureCatalogFactory.UserPojo("yuxia", 18))),
+                ResolvedSchema.of(
+                        Column.physical("name", DataTypes.STRING()),
+                        Column.physical("age", DataTypes.INT().notNull().bridgedTo(int.class))));
+    }
+
+    private void verifyTableResult(
+            TableResult tableResult, List<Row> expectedResult, ResolvedSchema expectedSchema) {
+        assertThat(CollectionUtil.iteratorToList(tableResult.collect()).toString())
+                .isEqualTo(expectedResult.toString());
+        assertThat(tableResult.getResolvedSchema()).isEqualTo(expectedSchema);
     }
 }

@@ -20,3 +20,4 @@ org.apache.flink.table.planner.factories.TableFactoryHarness$Factory
 org.apache.flink.table.planner.plan.stream.sql.TestTableFactory
 org.apache.flink.table.planner.factories.TestUpdateDeleteTableFactory
 org.apache.flink.table.planner.factories.TestSupportsStagingTableFactory
+org.apache.flink.table.planner.factories.TestProcedureCatalogFactory
