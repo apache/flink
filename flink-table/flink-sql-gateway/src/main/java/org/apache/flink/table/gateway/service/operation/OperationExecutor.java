@@ -62,11 +62,13 @@ import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.results.FunctionInfo;
 import org.apache.flink.table.gateway.api.results.TableInfo;
+import org.apache.flink.table.gateway.environment.SqlGatewayStreamExecutionEnvironment;
 import org.apache.flink.table.gateway.service.context.SessionContext;
 import org.apache.flink.table.gateway.service.result.ResultFetcher;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.BeginStatementSetOperation;
+import org.apache.flink.table.operations.CallProcedureOperation;
 import org.apache.flink.table.operations.CompileAndExecutePlanOperation;
 import org.apache.flink.table.operations.DeleteFromFilterOperation;
 import org.apache.flink.table.operations.EndStatementSetOperation;
@@ -192,9 +194,21 @@ public class OperationExecutor {
                             + "multiple 'INSERT INTO' statements wrapped in a 'STATEMENT SET' block.");
         }
         Operation op = parsedOperations.get(0);
-        return sessionContext.isStatementSetState()
-                ? executeOperationInStatementSetState(tableEnv, handle, op)
-                : executeOperation(tableEnv, handle, op);
+        if (op instanceof CallProcedureOperation) {
+            // if the operation is CallProcedureOperation, we need to set the stream environment
+            // context to it since the procedure will use the stream environment
+            try {
+                SqlGatewayStreamExecutionEnvironment.setAsContext(
+                        sessionContext.getUserClassloader());
+                return executeOperation(tableEnv, handle, op);
+            } finally {
+                SqlGatewayStreamExecutionEnvironment.unsetAsContext();
+            }
+        } else {
+            return sessionContext.isStatementSetState()
+                    ? executeOperationInStatementSetState(tableEnv, handle, op)
+                    : executeOperation(tableEnv, handle, op);
+        }
     }
 
     public String getCurrentCatalog() {

@@ -16,10 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.operations;
+package org.apache.flink.table.gateway.environment;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
 
-/** A {@link Operation} that describes the call procedure statement. */
-@Internal
-public interface CallProcedureOperation extends ExecutableOperation {}
+/**
+ * The SqlGatewayStreamExecutionEnvironment is a {@link StreamExecutionEnvironment} that runs the
+ * program with SQL gateway.
+ */
+public class SqlGatewayStreamExecutionEnvironment extends StreamExecutionEnvironment {
+    public static void setAsContext(ClassLoader classLoader) {
+        final StreamExecutionEnvironmentFactory factory =
+                conf -> new StreamExecutionEnvironment(conf, classLoader);
+        initializeContextEnvironment(factory);
+    }
+
+    public static void unsetAsContext() {
+        resetContextEnvironment();
+    }
+}

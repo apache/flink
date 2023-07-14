@@ -16,10 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.operations;
+package org.apache.flink.table.procedure;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
-/** A {@link Operation} that describes the call procedure statement. */
+/** The default implementation for {@link ProcedureContext}. */
 @Internal
-public interface CallProcedureOperation extends ExecutableOperation {}
+public class DefaultProcedureContext implements ProcedureContext {
+
+    private final StreamExecutionEnvironment executionEnvironment;
+
+    public DefaultProcedureContext(StreamExecutionEnvironment executionEnvironment) {
+        this.executionEnvironment = executionEnvironment;
+    }
+
+    @Override
+    public StreamExecutionEnvironment getExecutionEnvironment() {
+        return executionEnvironment;
+    }
+}
