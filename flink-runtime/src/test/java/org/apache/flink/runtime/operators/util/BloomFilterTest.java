@@ -21,12 +21,11 @@ package org.apache.flink.runtime.operators.util;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class BloomFilterTest {
 
@@ -35,7 +34,7 @@ public class BloomFilterTest {
     private static final int INPUT_SIZE = 1024;
     private static final double FALSE_POSITIVE_PROBABILITY = 0.05;
 
-    @BeforeClass
+    @BeforeAll
     public static void init() {
         int bitsSize = BloomFilter.optimalNumOfBits(INPUT_SIZE, FALSE_POSITIVE_PROBABILITY);
         bitsSize = bitsSize + (Long.SIZE - (bitsSize % Long.SIZE));
@@ -49,83 +48,112 @@ public class BloomFilterTest {
         bloomFilter2.setBitsLocation(memorySegment2, 0);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testBloomFilterArguments1() {
-        new BloomFilter(-1, 128);
+        assertThatThrownBy(() -> new BloomFilter(-1, 128))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test()
     public void testBloomFilterArguments2() {
-        new BloomFilter(0, 128);
+        assertThatThrownBy(() -> new BloomFilter(0, 128))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test()
     public void testBloomFilterArguments3() {
-        new BloomFilter(1024, -1);
+        assertThatThrownBy(() -> new BloomFilter(1024, -1))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test()
     public void testBloomFilterArguments4() {
-        new BloomFilter(1024, 0);
+        assertThatThrownBy(() -> new BloomFilter(1024, 0))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     public void testBloomNumBits() {
-        assertEquals(0, BloomFilter.optimalNumOfBits(0, 0));
-        assertEquals(0, BloomFilter.optimalNumOfBits(0, 1));
-        assertEquals(0, BloomFilter.optimalNumOfBits(1, 1));
-        assertEquals(7, BloomFilter.optimalNumOfBits(1, 0.03));
-        assertEquals(72, BloomFilter.optimalNumOfBits(10, 0.03));
-        assertEquals(729, BloomFilter.optimalNumOfBits(100, 0.03));
-        assertEquals(7298, BloomFilter.optimalNumOfBits(1000, 0.03));
-        assertEquals(72984, BloomFilter.optimalNumOfBits(10000, 0.03));
-        assertEquals(729844, BloomFilter.optimalNumOfBits(100000, 0.03));
-        assertEquals(7298440, BloomFilter.optimalNumOfBits(1000000, 0.03));
-        assertEquals(6235224, BloomFilter.optimalNumOfBits(1000000, 0.05));
+        assertThat(BloomFilter.optimalNumOfBits(0, 0)).isEqualTo(0);
+        assertThat(BloomFilter.optimalNumOfBits(0, 0)).isEqualTo(0);
+        assertThat(BloomFilter.optimalNumOfBits(0, 1)).isEqualTo(0);
+        assertThat(BloomFilter.optimalNumOfBits(1, 1)).isEqualTo(0);
+        assertThat(BloomFilter.optimalNumOfBits(1, 0.03)).isEqualTo(7);
+        assertThat(BloomFilter.optimalNumOfBits(10, 0.03)).isEqualTo(72);
+        assertThat(BloomFilter.optimalNumOfBits(100, 0.03)).isEqualTo(729);
+        assertThat(BloomFilter.optimalNumOfBits(1000, 0.03)).isEqualTo(7298);
+        assertThat(BloomFilter.optimalNumOfBits(10000, 0.03)).isEqualTo(72984);
+        assertThat(BloomFilter.optimalNumOfBits(100000, 0.03)).isEqualTo(729844);
+        assertThat(BloomFilter.optimalNumOfBits(1000000, 0.03)).isEqualTo(7298440);
+        assertThat(BloomFilter.optimalNumOfBits(1000000, 0.05)).isEqualTo(6235224);
     }
 
     @Test
     public void testBloomFilterNumHashFunctions() {
-        assertEquals(1, BloomFilter.optimalNumOfHashFunctions(-1, -1));
-        assertEquals(1, BloomFilter.optimalNumOfHashFunctions(0, 0));
-        assertEquals(1, BloomFilter.optimalNumOfHashFunctions(10, 0));
-        assertEquals(1, BloomFilter.optimalNumOfHashFunctions(10, 10));
-        assertEquals(7, BloomFilter.optimalNumOfHashFunctions(10, 100));
-        assertEquals(1, BloomFilter.optimalNumOfHashFunctions(100, 100));
-        assertEquals(1, BloomFilter.optimalNumOfHashFunctions(1000, 100));
-        assertEquals(1, BloomFilter.optimalNumOfHashFunctions(10000, 100));
-        assertEquals(1, BloomFilter.optimalNumOfHashFunctions(100000, 100));
-        assertEquals(1, BloomFilter.optimalNumOfHashFunctions(1000000, 100));
+        assertThat(BloomFilter.optimalNumOfHashFunctions(-1, -1)).isEqualTo(1);
+        assertThat(BloomFilter.optimalNumOfHashFunctions(0, 0)).isEqualTo(1);
+        assertThat(BloomFilter.optimalNumOfHashFunctions(10, 0)).isEqualTo(1);
+        assertThat(BloomFilter.optimalNumOfHashFunctions(10, 10)).isEqualTo(1);
+        assertThat(BloomFilter.optimalNumOfHashFunctions(10, 100)).isEqualTo(7);
+        assertThat(BloomFilter.optimalNumOfHashFunctions(100, 100)).isEqualTo(1);
+        assertThat(BloomFilter.optimalNumOfHashFunctions(1000, 100)).isEqualTo(1);
+        assertThat(BloomFilter.optimalNumOfHashFunctions(10000, 100)).isEqualTo(1);
+        assertThat(BloomFilter.optimalNumOfHashFunctions(100000, 100)).isEqualTo(1);
+        assertThat(BloomFilter.optimalNumOfHashFunctions(1000000, 100)).isEqualTo(1);
     }
 
     @Test
     public void testBloomFilterFalsePositiveProbability() {
-        assertEquals(7298440, BloomFilter.optimalNumOfBits(1000000, 0.03));
-        assertEquals(6235224, BloomFilter.optimalNumOfBits(1000000, 0.05));
-        assertEquals(4792529, BloomFilter.optimalNumOfBits(1000000, 0.1));
-        assertEquals(3349834, BloomFilter.optimalNumOfBits(1000000, 0.2));
-        assertEquals(2505911, BloomFilter.optimalNumOfBits(1000000, 0.3));
-        assertEquals(1907139, BloomFilter.optimalNumOfBits(1000000, 0.4));
+        assertThat(BloomFilter.optimalNumOfBits(1000000, 0.03)).isEqualTo(7298440);
+        assertThat(BloomFilter.optimalNumOfBits(1000000, 0.05)).isEqualTo(6235224);
+        assertThat(BloomFilter.optimalNumOfBits(1000000, 0.1)).isEqualTo(4792529);
+        assertThat(BloomFilter.optimalNumOfBits(1000000, 0.2)).isEqualTo(3349834);
+        assertThat(BloomFilter.optimalNumOfBits(1000000, 0.3)).isEqualTo(2505911);
+        assertThat(BloomFilter.optimalNumOfBits(1000000, 0.4)).isEqualTo(1907139);
 
         // Make sure the estimated fpp error is less than 1%.
-        assertTrue(
-                Math.abs(BloomFilter.estimateFalsePositiveProbability(1000000, 7298440) - 0.03)
-                        < 0.01);
-        assertTrue(
-                Math.abs(BloomFilter.estimateFalsePositiveProbability(1000000, 6235224) - 0.05)
-                        < 0.01);
-        assertTrue(
-                Math.abs(BloomFilter.estimateFalsePositiveProbability(1000000, 4792529) - 0.1)
-                        < 0.01);
-        assertTrue(
-                Math.abs(BloomFilter.estimateFalsePositiveProbability(1000000, 3349834) - 0.2)
-                        < 0.01);
-        assertTrue(
-                Math.abs(BloomFilter.estimateFalsePositiveProbability(1000000, 2505911) - 0.3)
-                        < 0.01);
-        assertTrue(
-                Math.abs(BloomFilter.estimateFalsePositiveProbability(1000000, 1907139) - 0.4)
-                        < 0.01);
+        assertThat(
+                        Math.abs(
+                                        BloomFilter.estimateFalsePositiveProbability(
+                                                        1000000, 7298440)
+                                                - 0.03)
+                                < 0.01)
+                .isTrue();
+        assertThat(
+                        Math.abs(
+                                        BloomFilter.estimateFalsePositiveProbability(
+                                                        1000000, 6235224)
+                                                - 0.05)
+                                < 0.01)
+                .isTrue();
+        assertThat(
+                        Math.abs(
+                                        BloomFilter.estimateFalsePositiveProbability(
+                                                        1000000, 4792529)
+                                                - 0.1)
+                                < 0.01)
+                .isTrue();
+        assertThat(
+                        Math.abs(
+                                        BloomFilter.estimateFalsePositiveProbability(
+                                                        1000000, 3349834)
+                                                - 0.2)
+                                < 0.01)
+                .isTrue();
+        assertThat(
+                        Math.abs(
+                                        BloomFilter.estimateFalsePositiveProbability(
+                                                        1000000, 2505911)
+                                                - 0.3)
+                                < 0.01)
+                .isTrue();
+        assertThat(
+                        Math.abs(
+                                        BloomFilter.estimateFalsePositiveProbability(
+                                                        1000000, 1907139)
+                                                - 0.4)
+                                < 0.01)
+                .isTrue();
     }
 
     @Test
@@ -137,41 +165,41 @@ public class BloomFilterTest {
         int val4 = "val4".hashCode();
         int val5 = "val5".hashCode();
 
-        assertFalse(bloomFilter.testHash(val1));
-        assertFalse(bloomFilter.testHash(val2));
-        assertFalse(bloomFilter.testHash(val3));
-        assertFalse(bloomFilter.testHash(val4));
-        assertFalse(bloomFilter.testHash(val5));
+        assertThat(bloomFilter.testHash(val1)).isFalse();
+        assertThat(bloomFilter.testHash(val2)).isFalse();
+        assertThat(bloomFilter.testHash(val3)).isFalse();
+        assertThat(bloomFilter.testHash(val4)).isFalse();
+        assertThat(bloomFilter.testHash(val5)).isFalse();
         bloomFilter.addHash(val1);
-        assertTrue(bloomFilter.testHash(val1));
-        assertFalse(bloomFilter.testHash(val2));
-        assertFalse(bloomFilter.testHash(val3));
-        assertFalse(bloomFilter.testHash(val4));
-        assertFalse(bloomFilter.testHash(val5));
+        assertThat(bloomFilter.testHash(val1)).isTrue();
+        assertThat(bloomFilter.testHash(val2)).isFalse();
+        assertThat(bloomFilter.testHash(val3)).isFalse();
+        assertThat(bloomFilter.testHash(val4)).isFalse();
+        assertThat(bloomFilter.testHash(val5)).isFalse();
         bloomFilter.addHash(val2);
-        assertTrue(bloomFilter.testHash(val1));
-        assertTrue(bloomFilter.testHash(val2));
-        assertFalse(bloomFilter.testHash(val3));
-        assertFalse(bloomFilter.testHash(val4));
-        assertFalse(bloomFilter.testHash(val5));
+        assertThat(bloomFilter.testHash(val1)).isTrue();
+        assertThat(bloomFilter.testHash(val2)).isTrue();
+        assertThat(bloomFilter.testHash(val3)).isFalse();
+        assertThat(bloomFilter.testHash(val4)).isFalse();
+        assertThat(bloomFilter.testHash(val5)).isFalse();
         bloomFilter.addHash(val3);
-        assertTrue(bloomFilter.testHash(val1));
-        assertTrue(bloomFilter.testHash(val2));
-        assertTrue(bloomFilter.testHash(val3));
-        assertFalse(bloomFilter.testHash(val4));
-        assertFalse(bloomFilter.testHash(val5));
+        assertThat(bloomFilter.testHash(val1)).isTrue();
+        assertThat(bloomFilter.testHash(val2)).isTrue();
+        assertThat(bloomFilter.testHash(val3)).isTrue();
+        assertThat(bloomFilter.testHash(val4)).isFalse();
+        assertThat(bloomFilter.testHash(val5)).isFalse();
         bloomFilter.addHash(val4);
-        assertTrue(bloomFilter.testHash(val1));
-        assertTrue(bloomFilter.testHash(val2));
-        assertTrue(bloomFilter.testHash(val3));
-        assertTrue(bloomFilter.testHash(val4));
-        assertFalse(bloomFilter.testHash(val5));
+        assertThat(bloomFilter.testHash(val1)).isTrue();
+        assertThat(bloomFilter.testHash(val2)).isTrue();
+        assertThat(bloomFilter.testHash(val3)).isTrue();
+        assertThat(bloomFilter.testHash(val4)).isTrue();
+        assertThat(bloomFilter.testHash(val5)).isFalse();
         bloomFilter.addHash(val5);
-        assertTrue(bloomFilter.testHash(val1));
-        assertTrue(bloomFilter.testHash(val2));
-        assertTrue(bloomFilter.testHash(val3));
-        assertTrue(bloomFilter.testHash(val4));
-        assertTrue(bloomFilter.testHash(val5));
+        assertThat(bloomFilter.testHash(val1)).isTrue();
+        assertThat(bloomFilter.testHash(val2)).isTrue();
+        assertThat(bloomFilter.testHash(val3)).isTrue();
+        assertThat(bloomFilter.testHash(val4)).isTrue();
+        assertThat(bloomFilter.testHash(val5)).isTrue();
     }
 
     @Test
@@ -183,11 +211,11 @@ public class BloomFilterTest {
         int val4 = "val4".hashCode();
         int val5 = "val5".hashCode();
 
-        assertFalse(bloomFilter.testHash(val1));
-        assertFalse(bloomFilter.testHash(val2));
-        assertFalse(bloomFilter.testHash(val3));
-        assertFalse(bloomFilter.testHash(val4));
-        assertFalse(bloomFilter.testHash(val5));
+        assertThat(bloomFilter.testHash(val1)).isFalse();
+        assertThat(bloomFilter.testHash(val2)).isFalse();
+        assertThat(bloomFilter.testHash(val3)).isFalse();
+        assertThat(bloomFilter.testHash(val4)).isFalse();
+        assertThat(bloomFilter.testHash(val5)).isFalse();
 
         // add element
         bloomFilter.addHash(val1);
@@ -197,11 +225,11 @@ public class BloomFilterTest {
         bloomFilter.addHash(val5);
 
         // test exists before merge
-        assertTrue(bloomFilter.testHash(val1));
-        assertTrue(bloomFilter.testHash(val2));
-        assertTrue(bloomFilter.testHash(val3));
-        assertTrue(bloomFilter.testHash(val4));
-        assertTrue(bloomFilter.testHash(val5));
+        assertThat(bloomFilter.testHash(val1)).isTrue();
+        assertThat(bloomFilter.testHash(val2)).isTrue();
+        assertThat(bloomFilter.testHash(val3)).isTrue();
+        assertThat(bloomFilter.testHash(val4)).isTrue();
+        assertThat(bloomFilter.testHash(val5)).isTrue();
 
         // Serialize bloomFilter
         byte[] serBytes = BloomFilter.toBytes(bloomFilter);
@@ -209,11 +237,11 @@ public class BloomFilterTest {
         BloomFilter deBloomFilter = BloomFilter.fromBytes(serBytes);
 
         // test exists after serialization and deserialization
-        assertTrue(deBloomFilter.testHash(val1));
-        assertTrue(deBloomFilter.testHash(val2));
-        assertTrue(deBloomFilter.testHash(val3));
-        assertTrue(deBloomFilter.testHash(val4));
-        assertTrue(deBloomFilter.testHash(val5));
+        assertThat(deBloomFilter.testHash(val1)).isTrue();
+        assertThat(deBloomFilter.testHash(val2)).isTrue();
+        assertThat(deBloomFilter.testHash(val3)).isTrue();
+        assertThat(deBloomFilter.testHash(val4)).isTrue();
+        assertThat(deBloomFilter.testHash(val5)).isTrue();
     }
 
     @Test
@@ -227,17 +255,17 @@ public class BloomFilterTest {
         int val4 = "val4".hashCode();
         int val5 = "val5".hashCode();
 
-        assertFalse(bloomFilter.testHash(val1));
-        assertFalse(bloomFilter.testHash(val2));
-        assertFalse(bloomFilter.testHash(val3));
-        assertFalse(bloomFilter.testHash(val4));
-        assertFalse(bloomFilter.testHash(val5));
+        assertThat(bloomFilter.testHash(val1)).isFalse();
+        assertThat(bloomFilter.testHash(val2)).isFalse();
+        assertThat(bloomFilter.testHash(val3)).isFalse();
+        assertThat(bloomFilter.testHash(val4)).isFalse();
+        assertThat(bloomFilter.testHash(val5)).isFalse();
 
-        assertFalse(bloomFilter2.testHash(val1));
-        assertFalse(bloomFilter2.testHash(val2));
-        assertFalse(bloomFilter2.testHash(val3));
-        assertFalse(bloomFilter2.testHash(val4));
-        assertFalse(bloomFilter2.testHash(val5));
+        assertThat(bloomFilter2.testHash(val1)).isFalse();
+        assertThat(bloomFilter2.testHash(val2)).isFalse();
+        assertThat(bloomFilter2.testHash(val3)).isFalse();
+        assertThat(bloomFilter2.testHash(val4)).isFalse();
+        assertThat(bloomFilter2.testHash(val5)).isFalse();
 
         // add element
         bloomFilter.addHash(val1);
@@ -248,17 +276,17 @@ public class BloomFilterTest {
         bloomFilter2.addHash(val5);
 
         // test exists and not-exists before serialization and merge
-        assertTrue(bloomFilter.testHash(val1));
-        assertTrue(bloomFilter.testHash(val2));
-        assertFalse(bloomFilter.testHash(val3));
-        assertFalse(bloomFilter.testHash(val4));
-        assertFalse(bloomFilter.testHash(val5));
+        assertThat(bloomFilter.testHash(val1)).isTrue();
+        assertThat(bloomFilter.testHash(val2)).isTrue();
+        assertThat(bloomFilter.testHash(val3)).isFalse();
+        assertThat(bloomFilter.testHash(val4)).isFalse();
+        assertThat(bloomFilter.testHash(val5)).isFalse();
 
-        assertFalse(bloomFilter2.testHash(val1));
-        assertFalse(bloomFilter2.testHash(val2));
-        assertTrue(bloomFilter2.testHash(val3));
-        assertTrue(bloomFilter2.testHash(val4));
-        assertTrue(bloomFilter2.testHash(val5));
+        assertThat(bloomFilter2.testHash(val1)).isFalse();
+        assertThat(bloomFilter2.testHash(val2)).isFalse();
+        assertThat(bloomFilter2.testHash(val3)).isTrue();
+        assertThat(bloomFilter2.testHash(val4)).isTrue();
+        assertThat(bloomFilter2.testHash(val5)).isTrue();
 
         // serialize bloomFilter and bloomFilter2
         byte[] bytes = BloomFilter.toBytes(bloomFilter);
@@ -269,10 +297,10 @@ public class BloomFilterTest {
         BloomFilter mergedBloomFilter = BloomFilter.fromBytes(mergedBytes);
 
         // test all exists in merged bloomFilter
-        assertTrue(mergedBloomFilter.testHash(val1));
-        assertTrue(mergedBloomFilter.testHash(val2));
-        assertTrue(mergedBloomFilter.testHash(val3));
-        assertTrue(mergedBloomFilter.testHash(val4));
-        assertTrue(mergedBloomFilter.testHash(val5));
+        assertThat(mergedBloomFilter.testHash(val1)).isTrue();
+        assertThat(mergedBloomFilter.testHash(val2)).isTrue();
+        assertThat(mergedBloomFilter.testHash(val3)).isTrue();
+        assertThat(mergedBloomFilter.testHash(val4)).isTrue();
+        assertThat(mergedBloomFilter.testHash(val5)).isTrue();
     }
 }
