@@ -210,7 +210,8 @@ public class JarFileChecker {
                     .filter(
                             path ->
                                     !pathStartsWith(
-                                            path, "/org/apache/flink/connector/pulsar/shade/javax/xml/bind/"))
+                                            path,
+                                            "/org/apache/flink/connector/pulsar/shade/javax/xml/bind/"))
                     // dual-licensed under GPL 2 and EPL 2.0
                     // contained in sql-avro-confluent-registry
                     .filter(path -> !pathStartsWith(path, "/org/glassfish/jersey/internal"))
@@ -219,7 +220,8 @@ public class JarFileChecker {
                     .filter(
                             path ->
                                     !pathStartsWith(
-                                            path, "/org/apache/flink/connector/pulsar/shade/org/glassfish/jersey/"))
+                                            path,
+                                            "/org/apache/flink/connector/pulsar/shade/org/glassfish/jersey/"))
                     .map(
                             path -> {
                                 try {
