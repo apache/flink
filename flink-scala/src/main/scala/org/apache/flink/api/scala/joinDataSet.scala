@@ -58,7 +58,14 @@ import scala.reflect.ClassTag
  *   Type of the left input of the join.
  * @tparam R
  *   Type of the right input of the join.
+ * @deprecated
+ *   All Flink Scala APIs are deprecated and will be removed in a future Flink major version. You
+ *   can still build your application in Scala, but you should move to the Java version of either
+ *   the DataStream and/or Table API.
+ * @see
+ *   <a href="https://s.apache.org/flip-265">FLIP-265 Deprecate and remove Scala API support</a>
  */
+@deprecated(org.apache.flink.api.scala.FLIP_265_WARNING, since = "1.18.0")
 @Public
 class JoinDataSet[L, R](
     defaultJoin: EquiJoin[L, R, (L, R)],
@@ -267,6 +274,7 @@ abstract private[flink] class UnfinishedJoinOperationBase[L, R, O <: JoinFunctio
  * @tparam R
  *   The type of the right input of the join.
  */
+@deprecated(org.apache.flink.api.scala.FLIP_265_WARNING, since = "1.18.0")
 @Public
 class UnfinishedJoinOperation[L, R](leftSet: DataSet[L], rightSet: DataSet[R], joinHint: JoinHint)
   extends UnfinishedJoinOperationBase[L, R, JoinDataSet[L, R]](
@@ -303,6 +311,7 @@ class UnfinishedJoinOperation[L, R](leftSet: DataSet[L], rightSet: DataSet[R], j
  * @tparam R
  *   The type of the right input of the join.
  */
+@deprecated(org.apache.flink.api.scala.FLIP_265_WARNING, since = "1.18.0")
 @Public
 class UnfinishedOuterJoinOperation[L, R](
     leftSet: DataSet[L],
@@ -343,6 +352,7 @@ class UnfinishedOuterJoinOperation[L, R](
 
 }
 
+@deprecated(org.apache.flink.api.scala.FLIP_265_WARNING, since = "1.18.0")
 @Public
 trait JoinFunctionAssigner[L, R] {
 

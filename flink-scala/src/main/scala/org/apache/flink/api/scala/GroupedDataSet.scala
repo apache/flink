@@ -42,7 +42,15 @@ import scala.reflect.ClassTag
  *
  * A secondary sort order can be added with sortGroup, but this is only used when using one of the
  * group-at-a-time operations, i.e. `reduceGroup`.
+ *
+ * @deprecated
+ *   All Flink Scala APIs are deprecated and will be removed in a future Flink major version. You
+ *   can still build your application in Scala, but you should move to the Java version of either
+ *   the DataStream and/or Table API.
+ * @see
+ *   <a href="https://s.apache.org/flip-265">FLIP-265 Deprecate and remove Scala API support</a>
  */
+@deprecated(org.apache.flink.api.scala.FLIP_265_WARNING, since = "1.18.0")
 @Public
 class GroupedDataSet[T: ClassTag](private val set: DataSet[T], private val keys: Keys[T]) {
 

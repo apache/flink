@@ -45,11 +45,14 @@ import language.experimental.macros
  *   still build your application in Scala, but you should move to the Java version of either the
  *   DataStream and/or Table API.
  * @see
- *   <a
- *   href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-265+Deprecate+and+remove+Scala+API+support">
- *   FLIP-265 Deprecate and remove Scala API support</a>
+ *   <a href="https://s.apache.org/flip-265">FLIP-265 Deprecate and remove Scala API support</a>
  */
 package object scala {
+
+  val FLIP_265_WARNING: String = "All Flink Scala APIs are deprecated and will be removed in a " +
+    "future Flink version. You can still build your application in Scala, but you should move " +
+    "to the Java version of either the DataStream and/or Table API."
+
   // We have this here so that we always have generated TypeInformationS when
   // using the Scala API
   implicit def createTypeInformation[T]: TypeInformation[T] = macro TypeUtils.createTypeInfo[T]
