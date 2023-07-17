@@ -317,7 +317,7 @@ object StreamTableEnvironmentImpl {
         new GenericInMemoryCatalog(settings.getBuiltInCatalogName, settings.getBuiltInDatabaseName))
       .executionConfig(executionEnvironment.getConfig)
       .catalogModificationListeners(TableFactoryUtil
-        .findCatalogModificationListenerList(executor.getConfiguration, userClassLoader))
+        .findCatalogModificationListenerList(tableConfig.getConfiguration, userClassLoader))
       .build
 
     val functionCatalog =
