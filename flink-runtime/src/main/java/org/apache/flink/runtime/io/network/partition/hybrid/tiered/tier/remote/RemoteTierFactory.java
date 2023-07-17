@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.remote;
 
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.PartitionFileReader;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.PartitionFileWriter;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.SegmentPartitionFile;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyService;
@@ -44,18 +45,18 @@ public class RemoteTierFactory implements TierFactory {
 
     private final int bufferSizeBytes;
 
-    private final String remoteStorageBasePath;
+    private final String remoteStoragePath;
 
     public RemoteTierFactory(
             int numBytesPerSegment, int bufferSizeBytes, String remoteStorageBasePath) {
         this.numBytesPerSegment = numBytesPerSegment;
         this.bufferSizeBytes = bufferSizeBytes;
-        this.remoteStorageBasePath = remoteStorageBasePath;
+        this.remoteStoragePath = getTieredStoragePath(remoteStorageBasePath);
     }
 
     @Override
     public TierMasterAgent createMasterAgent(TieredStorageResourceRegistry resourceRegistry) {
-        return new RemoteTierMasterAgent(remoteStorageBasePath, resourceRegistry);
+        return new RemoteTierMasterAgent(remoteStoragePath, resourceRegistry);
     }
 
     @Override
@@ -73,8 +74,7 @@ public class RemoteTierFactory implements TierFactory {
             Duration bufferRequestTimeout,
             int maxBufferReadAhead) {
         PartitionFileWriter partitionFileWriter =
-                SegmentPartitionFile.createPartitionFileWriter(
-                        getTieredStoragePath(remoteStorageBasePath), numSubpartitions);
+                SegmentPartitionFile.createPartitionFileWriter(remoteStoragePath, numSubpartitions);
         return new RemoteTierProducerAgent(
                 partitionID,
                 numSubpartitions,
@@ -90,7 +90,10 @@ public class RemoteTierFactory implements TierFactory {
     public TierConsumerAgent createConsumerAgent(
             List<TieredStorageConsumerSpec> tieredStorageConsumerSpecs,
             TieredStorageNettyService nettyService) {
-        // TODO, implement the remote tier consumer agent
-        return null;
+        PartitionFileReader partitionFileReader =
+                SegmentPartitionFile.createPartitionFileReader(remoteStoragePath);
+        RemoteStorageScanner remoteStorageScanner = new RemoteStorageScanner(remoteStoragePath);
+        return new RemoteTierConsumerAgent(
+                remoteStorageScanner, partitionFileReader, bufferSizeBytes);
     }
 }
