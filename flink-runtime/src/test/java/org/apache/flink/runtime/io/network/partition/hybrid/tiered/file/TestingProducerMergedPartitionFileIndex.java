@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition.hybrid.tiered.file;
 
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.BiFunction;
@@ -30,17 +31,25 @@ public class TestingProducerMergedPartitionFileIndex extends ProducerMergedParti
 
     private final Consumer<List<FlushedBuffer>> addBuffersConsumer;
 
-    private final BiFunction<TieredStorageSubpartitionId, Integer, Optional<Region>>
+    private final BiFunction<TieredStorageSubpartitionId, Integer, Optional<FixedSizeRegion>>
             getRegionFunction;
 
     private final Runnable releaseRunnable;
 
     private TestingProducerMergedPartitionFileIndex(
             int numSubpartitions,
+            Path indexFilePath,
+            int regionGroupSizeInBytes,
+            long numRetainedInMemoryRegionsMax,
             Consumer<List<FlushedBuffer>> addBuffersConsumer,
-            BiFunction<TieredStorageSubpartitionId, Integer, Optional<Region>> getRegionFunction,
+            BiFunction<TieredStorageSubpartitionId, Integer, Optional<FixedSizeRegion>>
+                    getRegionFunction,
             Runnable releaseRunnable) {
-        super(numSubpartitions);
+        super(
+                numSubpartitions,
+                indexFilePath,
+                regionGroupSizeInBytes,
+                numRetainedInMemoryRegionsMax);
         this.addBuffersConsumer = addBuffersConsumer;
         this.getRegionFunction = getRegionFunction;
         this.releaseRunnable = releaseRunnable;
@@ -52,7 +61,8 @@ public class TestingProducerMergedPartitionFileIndex extends ProducerMergedParti
     }
 
     @Override
-    Optional<Region> getRegion(TieredStorageSubpartitionId subpartitionId, int bufferIndex) {
+    Optional<FixedSizeRegion> getRegion(
+            TieredStorageSubpartitionId subpartitionId, int bufferIndex) {
         return getRegionFunction.apply(subpartitionId, bufferIndex);
     }
 
@@ -66,9 +76,15 @@ public class TestingProducerMergedPartitionFileIndex extends ProducerMergedParti
 
         private int numSubpartitions = 1;
 
+        private Path indexFilePath = null;
+
+        private int regionGroupSizeInBytes = 256;
+
+        private long numRetainedInMemoryRegionsMax = Long.MAX_VALUE;
+
         private Consumer<List<FlushedBuffer>> addBuffersConsumer = flushedBuffers -> {};
 
-        private BiFunction<TieredStorageSubpartitionId, Integer, Optional<Region>>
+        private BiFunction<TieredStorageSubpartitionId, Integer, Optional<FixedSizeRegion>>
                 getRegionFunction = (tieredStorageSubpartitionId, integer) -> Optional.empty();
 
         private Runnable releaseRunnable = () -> {};
@@ -81,6 +97,24 @@ public class TestingProducerMergedPartitionFileIndex extends ProducerMergedParti
             return this;
         }
 
+        public TestingProducerMergedPartitionFileIndex.Builder setIndexFilePath(
+                Path indexFilePath) {
+            this.indexFilePath = indexFilePath;
+            return this;
+        }
+
+        public TestingProducerMergedPartitionFileIndex.Builder setRegionGroupSizeInBytes(
+                int regionGroupSizeInBytes) {
+            this.regionGroupSizeInBytes = regionGroupSizeInBytes;
+            return this;
+        }
+
+        public TestingProducerMergedPartitionFileIndex.Builder setNumRetainedInMemoryRegionsMax(
+                long numRetainedInMemoryRegionsMax) {
+            this.numRetainedInMemoryRegionsMax = numRetainedInMemoryRegionsMax;
+            return this;
+        }
+
         public TestingProducerMergedPartitionFileIndex.Builder setAddBuffersConsumer(
                 Consumer<List<FlushedBuffer>> addBuffersConsumer) {
             this.addBuffersConsumer = addBuffersConsumer;
@@ -88,7 +122,7 @@ public class TestingProducerMergedPartitionFileIndex extends ProducerMergedParti
         }
 
         public TestingProducerMergedPartitionFileIndex.Builder setGetRegionFunction(
-                BiFunction<TieredStorageSubpartitionId, Integer, Optional<Region>>
+                BiFunction<TieredStorageSubpartitionId, Integer, Optional<FixedSizeRegion>>
                         getRegionFunction) {
             this.getRegionFunction = getRegionFunction;
             return this;
@@ -102,7 +136,13 @@ public class TestingProducerMergedPartitionFileIndex extends ProducerMergedParti
 
         public TestingProducerMergedPartitionFileIndex build() {
             return new TestingProducerMergedPartitionFileIndex(
-                    numSubpartitions, addBuffersConsumer, getRegionFunction, releaseRunnable);
+                    numSubpartitions,
+                    indexFilePath,
+                    regionGroupSizeInBytes,
+                    numRetainedInMemoryRegionsMax,
+                    addBuffersConsumer,
+                    getRegionFunction,
+                    releaseRunnable);
         }
     }
 }

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition.hybrid.index;
 
 import org.apache.flink.runtime.io.network.partition.BufferReaderWriterUtil;
 import org.apache.flink.runtime.io.network.partition.hybrid.HsFileDataIndexImpl.InternalRegion;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.ProducerMergedPartitionFileIndex.FixedSizeRegion;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -104,5 +105,46 @@ public class FileRegionWriteReadUtils {
             released[i] = payloadBuffer.get() != 0;
         }
         return new InternalRegion(firstBufferIndex, firstBufferOffset, numBuffers, released);
+    }
+
+    /**
+     * Write {@link FixedSizeRegion} to {@link FileChannel}.
+     *
+     * <p>Note that this type of region's length is fixed.
+     *
+     * @param channel the file's channel to write.
+     * @param regionBuffer the buffer to write {@link FixedSizeRegion}'s header.
+     * @param region the region to be written to channel.
+     */
+    public static void writeFixedSizeRegionToFile(
+            FileChannel channel, ByteBuffer regionBuffer, FileDataIndexRegionHelper.Region region)
+            throws IOException {
+        regionBuffer.clear();
+        regionBuffer.putInt(region.getFirstBufferIndex());
+        regionBuffer.putInt(region.getNumBuffers());
+        regionBuffer.putLong(region.getRegionFileOffset());
+        regionBuffer.flip();
+        BufferReaderWriterUtil.writeBuffers(channel, regionBuffer.capacity(), regionBuffer);
+    }
+
+    /**
+     * Read {@link FixedSizeRegion} from {@link FileChannel}.
+     *
+     * <p>Note that this type of region's length is fixed.
+     *
+     * @param channel the channel to read.
+     * @param regionBuffer the buffer to read {@link FixedSizeRegion}'s header.
+     * @param fileOffset the file offset to start read.
+     * @return the {@link FixedSizeRegion} that read from this channel.
+     */
+    public static FixedSizeRegion readFixedSizeRegionFromFile(
+            FileChannel channel, ByteBuffer regionBuffer, long fileOffset) throws IOException {
+        regionBuffer.clear();
+        BufferReaderWriterUtil.readByteBufferFully(channel, regionBuffer, fileOffset);
+        regionBuffer.flip();
+        int firstBufferIndex = regionBuffer.getInt();
+        int numBuffers = regionBuffer.getInt();
+        long firstBufferOffset = regionBuffer.getLong();
+        return new FixedSizeRegion(firstBufferIndex, firstBufferOffset, numBuffers);
     }
 }
