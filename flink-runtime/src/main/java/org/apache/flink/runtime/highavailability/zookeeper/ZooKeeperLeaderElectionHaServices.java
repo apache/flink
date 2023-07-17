@@ -77,7 +77,7 @@ public class ZooKeeperLeaderElectionHaServices extends AbstractHaServices {
                                 ZooKeeperUtils.getLeaderPath())),
                 executor,
                 blobStoreService,
-                FileSystemJobResultStore.fromConfiguration(configuration));
+                FileSystemJobResultStore.fromConfiguration(configuration, executor));
         this.curatorFrameworkWrapper = checkNotNull(curatorFrameworkWrapper);
     }
 

@@ -50,6 +50,7 @@ import org.apache.flink.runtime.dispatcher.cleanup.DispatcherResourceCleanerFact
 import org.apache.flink.runtime.dispatcher.cleanup.ResourceCleaner;
 import org.apache.flink.runtime.dispatcher.cleanup.ResourceCleanerFactory;
 import org.apache.flink.runtime.entrypoint.ClusterEntryPointExceptionUtils;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -513,36 +514,40 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     public CompletableFuture<Acknowledge> submitJob(JobGraph jobGraph, Time timeout) {
         final JobID jobID = jobGraph.getJobID();
         log.info("Received JobGraph submission '{}' ({}).", jobGraph.getName(), jobID);
-
-        try {
-            if (isInGloballyTerminalState(jobID)) {
-                log.warn(
-                        "Ignoring JobGraph submission '{}' ({}) because the job already reached a globally-terminal state (i.e. {}) in a previous execution.",
-                        jobGraph.getName(),
-                        jobID,
-                        Arrays.stream(JobStatus.values())
-                                .filter(JobStatus::isGloballyTerminalState)
-                                .map(JobStatus::name)
-                                .collect(Collectors.joining(", ")));
-                return FutureUtils.completedExceptionally(
-                        DuplicateJobSubmissionException.ofGloballyTerminated(jobID));
-            } else if (jobManagerRunnerRegistry.isRegistered(jobID)
-                    || submittedAndWaitingTerminationJobIDs.contains(jobID)) {
-                // job with the given jobID is not terminated, yet
-                return FutureUtils.completedExceptionally(
-                        DuplicateJobSubmissionException.of(jobID));
-            } else if (isPartialResourceConfigured(jobGraph)) {
-                return FutureUtils.completedExceptionally(
-                        new JobSubmissionException(
-                                jobID,
-                                "Currently jobs is not supported if parts of the vertices have "
-                                        + "resources configured. The limitation will be removed in future versions."));
-            } else {
-                return internalSubmitJob(jobGraph);
-            }
-        } catch (FlinkException e) {
-            return FutureUtils.completedExceptionally(e);
-        }
+        return isInGloballyTerminalState(jobID)
+                .thenComposeAsync(
+                        isTerminated -> {
+                            if (isTerminated) {
+                                log.warn(
+                                        "Ignoring JobGraph submission '{}' ({}) because the job already "
+                                                + "reached a globally-terminal state (i.e. {}) in a "
+                                                + "previous execution.",
+                                        jobGraph.getName(),
+                                        jobID,
+                                        Arrays.stream(JobStatus.values())
+                                                .filter(JobStatus::isGloballyTerminalState)
+                                                .map(JobStatus::name)
+                                                .collect(Collectors.joining(", ")));
+                                return FutureUtils.completedExceptionally(
+                                        DuplicateJobSubmissionException.ofGloballyTerminated(
+                                                jobID));
+                            } else if (jobManagerRunnerRegistry.isRegistered(jobID)
+                                    || submittedAndWaitingTerminationJobIDs.contains(jobID)) {
+                                // job with the given jobID is not terminated, yet
+                                return FutureUtils.completedExceptionally(
+                                        DuplicateJobSubmissionException.of(jobID));
+                            } else if (isPartialResourceConfigured(jobGraph)) {
+                                return FutureUtils.completedExceptionally(
+                                        new JobSubmissionException(
+                                                jobID,
+                                                "Currently jobs is not supported if parts of the vertices "
+                                                        + "have resources configured. The limitation will be "
+                                                        + "removed in future versions."));
+                            } else {
+                                return internalSubmitJob(jobGraph);
+                            }
+                        },
+                        getMainThreadExecutor());
     }
 
     @Override
@@ -565,17 +570,11 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
      * Checks whether the given job has already been executed.
      *
      * @param jobId identifying the submitted job
-     * @return true if the job has already finished, either successfully or as a failure
-     * @throws FlinkException if the job scheduling status cannot be retrieved
+     * @return a successfully completed future with {@code true} if the job has already finished,
+     *     either successfully or as a failure
      */
-    private boolean isInGloballyTerminalState(JobID jobId) throws FlinkException {
-        try {
-            return jobResultStore.hasJobResultEntry(jobId);
-        } catch (IOException e) {
-            throw new FlinkException(
-                    String.format("Failed to retrieve job scheduling status for job %s.", jobId),
-                    e);
-        }
+    private CompletableFuture<Boolean> isInGloballyTerminalState(JobID jobId) {
+        return jobResultStore.hasJobResultEntryAsync(jobId);
     }
 
     private boolean isPartialResourceConfigured(JobGraph jobGraph) {
@@ -1258,7 +1257,21 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         if (cleanupJobState.isGlobalCleanup()) {
             return globalResourceCleaner
                     .cleanupAsync(jobId)
-                    .thenRunAsync(() -> markJobAsClean(jobId), ioExecutor)
+                    .thenCompose(unused -> jobResultStore.markResultAsCleanAsync(jobId))
+                    .handle(
+                            (unusedVoid, e) -> {
+                                if (e == null) {
+                                    log.debug(
+                                            "Cleanup for the job '{}' has finished. Job has been marked as clean.",
+                                            jobId);
+                                } else {
+                                    log.warn(
+                                            "Could not properly mark job {} result as clean.",
+                                            jobId,
+                                            e);
+                                }
+                                return null;
+                            })
                     .thenRunAsync(
                             () ->
                                     runPostJobGloballyTerminated(
@@ -1266,16 +1279,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                             getMainThreadExecutor());
         } else {
             return localResourceCleaner.cleanupAsync(jobId);
-        }
-    }
-
-    private void markJobAsClean(JobID jobId) {
-        try {
-            jobResultStore.markResultAsClean(jobId);
-            log.debug(
-                    "Cleanup for the job '{}' has finished. Job has been marked as clean.", jobId);
-        } catch (IOException e) {
-            log.warn("Could not properly mark job {} result as clean.", jobId, e);
         }
     }
 
@@ -1363,10 +1366,9 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     private CompletableFuture<CleanupJobState> registerGloballyTerminatedJobInJobResultStore(
             ExecutionGraphInfo executionGraphInfo) {
-        final CompletableFuture<Void> writeFuture = new CompletableFuture<>();
         final JobID jobId = executionGraphInfo.getJobId();
 
-        final ArchivedExecutionGraph archivedExecutionGraph =
+        final AccessExecutionGraph archivedExecutionGraph =
                 executionGraphInfo.getArchivedExecutionGraph();
 
         final JobStatus terminalJobStatus = archivedExecutionGraph.getState();
@@ -1376,41 +1378,68 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                 jobId,
                 terminalJobStatus);
 
-        ioExecutor.execute(
-                () -> {
-                    try {
-                        if (jobResultStore.hasCleanJobResultEntry(jobId)) {
-                            log.warn(
-                                    "Job {} is already marked as clean but clean up was triggered again.",
-                                    jobId);
-                        } else if (!jobResultStore.hasDirtyJobResultEntry(jobId)) {
-                            jobResultStore.createDirtyResult(
-                                    new JobResultEntry(
-                                            JobResult.createFrom(archivedExecutionGraph)));
-                            log.info(
-                                    "Job {} has been registered for cleanup in the JobResultStore after reaching a terminal state.",
-                                    jobId);
-                        }
-                    } catch (IOException e) {
-                        writeFuture.completeExceptionally(e);
-                        return;
-                    }
-                    writeFuture.complete(null);
-                });
+        return jobResultStore
+                .hasCleanJobResultEntryAsync(jobId)
+                .thenCompose(
+                        hasCleanJobResultEntry ->
+                                createDirtyJobResultEntryIfMissingAsync(
+                                        archivedExecutionGraph, hasCleanJobResultEntry))
+                .handleAsync(
+                        (ignored, error) -> {
+                            if (error != null) {
+                                fatalErrorHandler.onFatalError(
+                                        new FlinkException(
+                                                String.format(
+                                                        "The job %s couldn't be marked as pre-cleanup finished in JobResultStore.",
+                                                        executionGraphInfo.getJobId()),
+                                                error));
+                            }
+                            return CleanupJobState.globalCleanup(terminalJobStatus);
+                        },
+                        getMainThreadExecutor());
+    }
 
-        return writeFuture.handleAsync(
-                (ignored, error) -> {
-                    if (error != null) {
-                        fatalErrorHandler.onFatalError(
-                                new FlinkException(
-                                        String.format(
-                                                "The job %s couldn't be marked as pre-cleanup finished in JobResultStore.",
-                                                executionGraphInfo.getJobId()),
-                                        error));
-                    }
-                    return CleanupJobState.globalCleanup(terminalJobStatus);
-                },
-                getMainThreadExecutor());
+    /**
+     * Creates a dirty entry in the {@link #jobResultStore} if there's no entry at all for the given
+     * {@code executionGraph} in the {@code JobResultStore}.
+     *
+     * @param executionGraph The {@link AccessExecutionGraph} for which the {@link JobResult} shall
+     *     be persisted.
+     * @param hasCleanJobResultEntry The decision the dirty entry check is based on.
+     * @return {@code CompletableFuture} that completes as soon as the entry exists.
+     */
+    private CompletableFuture<Void> createDirtyJobResultEntryIfMissingAsync(
+            AccessExecutionGraph executionGraph, boolean hasCleanJobResultEntry) {
+        final JobID jobId = executionGraph.getJobID();
+        if (hasCleanJobResultEntry) {
+            log.warn("Job {} is already marked as clean but clean up was triggered again.", jobId);
+            return FutureUtils.completedVoidFuture();
+        } else {
+            return jobResultStore
+                    .hasDirtyJobResultEntryAsync(jobId)
+                    .thenCompose(
+                            hasDirtyJobResultEntry ->
+                                    createDirtyJobResultEntryAsync(
+                                            executionGraph, hasDirtyJobResultEntry));
+        }
+    }
+
+    /**
+     * Creates a dirty entry in the {@link #jobResultStore} based on the passed {@code
+     * hasDirtyJobResultEntry} flag.
+     *
+     * @param executionGraph The {@link AccessExecutionGraph} that is used to generate the entry.
+     * @param hasDirtyJobResultEntry The decision the entry creation is based on.
+     * @return {@code CompletableFuture} that completes as soon as the entry exists.
+     */
+    private CompletableFuture<Void> createDirtyJobResultEntryAsync(
+            AccessExecutionGraph executionGraph, boolean hasDirtyJobResultEntry) {
+        if (hasDirtyJobResultEntry) {
+            return FutureUtils.completedVoidFuture();
+        }
+
+        return jobResultStore.createDirtyResultAsync(
+                new JobResultEntry(JobResult.createFrom(executionGraph)));
     }
 
     private void writeToExecutionGraphInfoStore(ExecutionGraphInfo executionGraphInfo) {

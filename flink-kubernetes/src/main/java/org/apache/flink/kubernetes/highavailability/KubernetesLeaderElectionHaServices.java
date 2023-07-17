@@ -107,7 +107,7 @@ public class KubernetesLeaderElectionHaServices extends AbstractHaServices {
                         configuration),
                 ioExecutor,
                 blobStoreService,
-                FileSystemJobResultStore.fromConfiguration(configuration));
+                FileSystemJobResultStore.fromConfiguration(configuration, ioExecutor));
 
         this.kubeClient = checkNotNull(kubeClient);
         this.clusterId = checkNotNull(clusterId);

@@ -171,8 +171,10 @@ class ApplicationDispatcherBootstrapITCase {
         // having a dirty entry in the JobResultStore should make the ApplicationDispatcherBootstrap
         // implementation fail to submit the job
         final JobResultStore jobResultStore = new EmbeddedJobResultStore();
-        jobResultStore.createDirtyResult(
-                new JobResultEntry(TestingJobResultStore.createSuccessfulJobResult(jobId)));
+        jobResultStore
+                .createDirtyResultAsync(
+                        new JobResultEntry(TestingJobResultStore.createSuccessfulJobResult(jobId)))
+                .get();
         final EmbeddedHaServicesWithLeadershipControl haServices =
                 new EmbeddedHaServicesWithLeadershipControl(EXECUTOR_EXTENSION.getExecutor()) {
 
@@ -202,8 +204,8 @@ class ApplicationDispatcherBootstrapITCase {
                         "The job's main method shouldn't have been succeeded due to a DuplicateJobSubmissionException.")
                 .hasAtLeastOneElementOfType(DuplicateJobSubmissionException.class);
 
-        assertThat(jobResultStore.hasDirtyJobResultEntry(jobId)).isFalse();
-        assertThat(jobResultStore.hasCleanJobResultEntry(jobId)).isTrue();
+        assertThat(jobResultStore.hasDirtyJobResultEntryAsync(jobId).get()).isFalse();
+        assertThat(jobResultStore.hasCleanJobResultEntryAsync(jobId).get()).isTrue();
     }
 
     @Test
