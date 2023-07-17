@@ -26,6 +26,7 @@ import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.runtime.plugable.SerializationDelegate;
 
 import javax.annotation.Nullable;
 
@@ -59,6 +60,21 @@ public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvid
     /** Writes the given serialized record to the target subpartition. */
     void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException;
 
+    /** Writes the given record object to the target subpartition, used in Stream Pipelined mode. */
+    default void emitRecord(SerializationDelegate<?> record, int targetSubpartition)
+            throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Writes the given broadcast record object, such as WaterMark, used in Stream Pipelined mode.
+     */
+    default void emitRecord(
+            SerializationDelegate<?> record, ByteBuffer recordBuffer, int targetSubpartition)
+            throws IOException {
+        emitRecord(recordBuffer, targetSubpartition);
+    }
+
     /**
      * Writes the given serialized record to all subpartitions. One can also achieve the same effect
      * by emitting the same record to all subpartitions one by one, however, this method can have
@@ -67,6 +83,12 @@ public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvid
      * subpartitions.
      */
     void broadcastRecord(ByteBuffer record) throws IOException;
+
+    /** Writes the given record object to all subpartitions, used in Stream Pipelined mode. */
+    default void broadcastRecord(SerializationDelegate<?> record, ByteBuffer recordBuffer)
+            throws IOException {
+        broadcastRecord(recordBuffer);
+    }
 
     /** Writes the given {@link AbstractEvent} to all channels. */
     void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException;

@@ -28,6 +28,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.metrics.TimerGauge;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.util.function.SupplierWithException;
 
 import javax.annotation.Nullable;
@@ -169,6 +170,21 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
         // partial buffer, full record
     }
 
+    /** Writes the given record object. */
+    @Override
+    public void emitRecord(SerializationDelegate<?> record, int targetSubpartition)
+            throws IOException {
+        this.subpartitions[targetSubpartition].add(record);
+    }
+
+    /** Writes the given broadcast record object. */
+    @Override
+    public void emitRecord(
+            SerializationDelegate<?> record, ByteBuffer recordBuffer, int targetSubpartition)
+            throws IOException {
+        this.subpartitions[targetSubpartition].add(record, recordBuffer);
+    }
+
     @Override
     public void broadcastRecord(ByteBuffer record) throws IOException {
         totalWrittenBytes += ((long) record.remaining() * numSubpartitions);
@@ -179,6 +195,24 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
             // full buffer, partial record
             finishBroadcastBufferBuilder();
             buffer = appendBroadcastDataForRecordContinuation(record);
+        }
+
+        if (buffer.isFull()) {
+            // full buffer, full record
+            finishBroadcastBufferBuilder();
+        }
+
+        // partial buffer, full record
+    }
+
+    public void broadcastRecord(SerializationDelegate<?> record, ByteBuffer recordBuffer)
+            throws IOException {
+        BufferBuilder buffer = appendBroadcastDataForNewRecord(record, recordBuffer);
+
+        while (recordBuffer.hasRemaining()) {
+            // full buffer, partial record
+            finishBroadcastBufferBuilder();
+            buffer = appendBroadcastDataForRecordContinuation(record, recordBuffer);
         }
 
         if (buffer.isFull()) {
@@ -200,7 +234,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
             totalWrittenBytes += ((long) eventBufferConsumer.getWrittenBytes() * numSubpartitions);
             for (ResultSubpartition subpartition : subpartitions) {
                 // Retain the buffer so that it can be recycled by each channel of targetPartition
-                subpartition.add(eventBufferConsumer.copy(), 0);
+                subpartition.add(event, eventBufferConsumer.copy(), 0);
             }
         }
     }
@@ -359,6 +393,20 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
         return buffer;
     }
 
+    private BufferBuilder appendBroadcastDataForNewRecord(
+            SerializationDelegate<?> record, final ByteBuffer recordBuffer) throws IOException {
+        BufferBuilder buffer = broadcastBufferBuilder;
+
+        if (buffer == null) {
+            buffer = requestNewBroadcastBufferBuilder();
+            createBroadcastBufferConsumers(record, buffer, 0, recordBuffer.remaining());
+        }
+
+        buffer.appendAndCommit(recordBuffer);
+
+        return buffer;
+    }
+
     private BufferBuilder appendBroadcastDataForRecordContinuation(
             final ByteBuffer remainingRecordBytes) throws IOException {
         final BufferBuilder buffer = requestNewBroadcastBufferBuilder();
@@ -370,6 +418,23 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
         // !! The next two lines can not change order.
         final int partialRecordBytes = buffer.appendAndCommit(remainingRecordBytes);
         createBroadcastBufferConsumers(buffer, partialRecordBytes, partialRecordBytes);
+
+        return buffer;
+    }
+
+    private BufferBuilder appendBroadcastDataForRecordContinuation(
+            SerializationDelegate<?> record, final ByteBuffer remainingRecordBytes)
+            throws IOException {
+        final BufferBuilder buffer = requestNewBroadcastBufferBuilder();
+        // !! Be aware, in case of partialRecordBytes != 0, partial length and data has to
+        // `appendAndCommit` first
+        // before consumer is created. Otherwise it would be confused with the case the buffer
+        // starting
+        // with a complete record.
+        // !! The next two lines can not change order.
+        final int partialRecordBytes = buffer.appendAndCommit(remainingRecordBytes);
+        createBroadcastBufferConsumersContinuation(
+                record, buffer, partialRecordBytes, partialRecordBytes);
 
         return buffer;
     }
@@ -386,6 +451,50 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
                 }
             }
             resizeBuffer(buffer, desirableBufferSize, minDesirableBufferSize);
+        }
+    }
+
+    private void createBroadcastBufferConsumers(
+            SerializationDelegate<?> record,
+            BufferBuilder recordBuffer,
+            int partialRecordBytes,
+            int minDesirableBufferSize)
+            throws IOException {
+        try (final BufferConsumer consumer = recordBuffer.createBufferConsumerFromBeginning()) {
+            int desirableBufferSize = Integer.MAX_VALUE;
+            for (ResultSubpartition subpartition : subpartitions) {
+                int subPartitionBufferSize =
+                        subpartition.add(record, consumer.copy(), partialRecordBytes);
+                desirableBufferSize =
+                        subPartitionBufferSize > 0
+                                ? Math.min(desirableBufferSize, subPartitionBufferSize)
+                                : desirableBufferSize;
+            }
+            resizeBuffer(recordBuffer, desirableBufferSize, minDesirableBufferSize);
+        }
+    }
+
+    private void createBroadcastBufferConsumersContinuation(
+            SerializationDelegate<?> record,
+            BufferBuilder recordBuffer,
+            int partialRecordBytes,
+            int minDesirableBufferSize)
+            throws IOException {
+        try (final BufferConsumer consumer = recordBuffer.createBufferConsumerFromBeginning()) {
+            int desirableBufferSize = Integer.MAX_VALUE;
+            for (ResultSubpartition subpartition : subpartitions) {
+                // The local subparition should skip further creation because the record has been
+                // successfully and completely written.
+                if (!subpartition.inLocal()) {
+                    int subPartitionBufferSize =
+                            subpartition.add(record, consumer.copy(), partialRecordBytes);
+                    desirableBufferSize =
+                            subPartitionBufferSize > 0
+                                    ? Math.min(desirableBufferSize, subPartitionBufferSize)
+                                    : desirableBufferSize;
+                }
+            }
+            resizeBuffer(recordBuffer, desirableBufferSize, minDesirableBufferSize);
         }
     }
 

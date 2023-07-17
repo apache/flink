@@ -21,10 +21,13 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
+import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
+import org.apache.flink.runtime.plugable.SerializationDelegate;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -74,6 +77,16 @@ public abstract class ResultSubpartition {
         return add(bufferConsumer, 0);
     }
 
+    @VisibleForTesting
+    public int add(SerializationDelegate<?> record, ByteBuffer recordBuffer) throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
+    @VisibleForTesting
+    public int add(SerializationDelegate<?> record) throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
     /**
      * Adds the given buffer.
      *
@@ -94,6 +107,17 @@ public abstract class ResultSubpartition {
      */
     public abstract int add(BufferConsumer bufferConsumer, int partialRecordLength)
             throws IOException;
+
+    public int add(AbstractEvent event, BufferConsumer bufferConsumer, int partialRecordLength)
+            throws IOException {
+        return add(bufferConsumer, partialRecordLength);
+    }
+
+    public int add(
+            SerializationDelegate<?> record, BufferConsumer bufferConsumer, int partialRecordLength)
+            throws IOException {
+        return add(bufferConsumer, partialRecordLength);
+    }
 
     public abstract void flush();
 
@@ -124,6 +148,10 @@ public abstract class ResultSubpartition {
     public abstract int getNumberOfQueuedBuffers();
 
     public abstract void bufferSize(int desirableNewBufferSize);
+
+    public boolean inLocal() {
+        return false;
+    }
 
     // ------------------------------------------------------------------------
 

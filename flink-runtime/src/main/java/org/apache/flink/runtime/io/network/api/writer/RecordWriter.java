@@ -111,6 +111,17 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
         }
     }
 
+    protected void emit(T record, ByteBuffer recordBuffer, int targetSubpartition)
+            throws IOException {
+        checkErroneous();
+
+        targetPartition.emitRecord(recordBuffer, targetSubpartition);
+
+        if (flushAlways) {
+            targetPartition.flush(targetSubpartition);
+        }
+    }
+
     public void broadcastEvent(AbstractEvent event) throws IOException {
         broadcastEvent(event, false);
     }
