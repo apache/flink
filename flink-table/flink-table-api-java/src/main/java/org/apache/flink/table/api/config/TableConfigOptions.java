@@ -204,7 +204,7 @@ public class TableConfigOptions {
                     .defaultValue(false)
                     .withDescription(
                             "Specifies if the CREATE TABLE/REPLACE TABLE/CREATE OR REPLACE AS SELECT statement is executed atomically. By default, the statement is non-atomic. "
-                                    + "The target table is created/replaced on the client side, and it will not be rollback even though the job fails or is canceled. "
+                                    + "The target table is created/replaced on the client side, and it will not be rolled back even though the job fails or is canceled. "
                                     + "If set this option to true and the underlying DynamicTableSink implements the SupportsStaging interface, "
                                     + "the statement is expected to be executed atomically, the behavior of which depends on the actual DynamicTableSink.");
 

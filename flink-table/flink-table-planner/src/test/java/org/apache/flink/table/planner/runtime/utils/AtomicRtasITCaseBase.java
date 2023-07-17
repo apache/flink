@@ -28,6 +28,7 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -59,6 +60,10 @@ public abstract class AtomicRtasITCaseBase extends TestLogger {
 
         String sourceDDL = "create table t1(a int, b varchar) with ('connector' = 'COLLECTION')";
         tEnv.executeSql(sourceDDL);
+    }
+
+    @AfterEach
+    void clean() {
         // clean data
         TestSupportsStagingTableFactory.JOB_STATUS_CHANGE_PROCESS.clear();
         TestSupportsStagingTableFactory.STAGING_PURPOSE_LIST.clear();
@@ -71,7 +76,7 @@ public abstract class AtomicRtasITCaseBase extends TestLogger {
     }
 
     @Test
-    void testAtomicReplaceTableAsWithDriverTableNotExists(@TempDir Path temporaryFolder)
+    void testAtomicReplaceTableAsWithReplacedTableNotExists(@TempDir Path temporaryFolder)
             throws Exception {
         commonTestForAtomicReplaceTableAs(
                 "atomic_replace_table_not_exists", false, false, temporaryFolder.toFile());
@@ -84,7 +89,7 @@ public abstract class AtomicRtasITCaseBase extends TestLogger {
     }
 
     @Test
-    void testAtomicCreateOrReplaceTableAsWithDriverTableNotExists(@TempDir Path temporaryFolder)
+    void testAtomicCreateOrReplaceTableAsWithReplacedTableNotExists(@TempDir Path temporaryFolder)
             throws Exception {
         commonTestForAtomicReplaceTableAs(
                 "atomic_create_or_replace_table_not_exists", true, false, temporaryFolder.toFile());
@@ -93,25 +98,22 @@ public abstract class AtomicRtasITCaseBase extends TestLogger {
     private void commonTestForAtomicReplaceTableAs(
             String tableName,
             boolean isCreateOrReplace,
-            boolean createDriverTable,
+            boolean isCreateReplacedTable,
             File tmpDataFolder)
             throws Exception {
-        if (createDriverTable) {
+        if (isCreateReplacedTable) {
             tEnv.executeSql("create table " + tableName + " (a int) with ('connector' = 'PRINT')");
         }
 
         tEnv.getConfig().set(TableConfigOptions.TABLE_RTAS_CTAS_ATOMICITY_ENABLED, true);
         String dataDir = tmpDataFolder.getAbsolutePath();
-        String sqlFragment =
-                isCreateOrReplace
-                        ? " create or replace table " + tableName
-                        : " replace table " + tableName;
+        String sqlFragment = getCreateOrReplaceSqlFragment(isCreateOrReplace, tableName);
         String sql =
                 sqlFragment
                         + " with ('connector' = 'test-staging', 'data-dir' = '"
                         + dataDir
                         + "') as select * from t1";
-        if (!isCreateOrReplace && !createDriverTable) {
+        if (!isCreateOrReplace && !isCreateReplacedTable) {
             assertThatThrownBy(() -> tEnv.executeSql(sql))
                     .isInstanceOf(TableException.class)
                     .hasMessage(
@@ -121,7 +123,7 @@ public abstract class AtomicRtasITCaseBase extends TestLogger {
                                     + " You can try to use CREATE TABLE AS statement or CREATE OR REPLACE TABLE AS statement.");
         } else {
             tEnv.executeSql(sql).await();
-            if (createDriverTable) {
+            if (isCreateReplacedTable) {
                 assertThat(tEnv.listTables()).contains(tableName);
             } else {
                 assertThat(tEnv.listTables()).doesNotContain(tableName);
@@ -142,16 +144,15 @@ public abstract class AtomicRtasITCaseBase extends TestLogger {
     }
 
     @Test
-    void testAtomicReplaceTableAsWithException(@TempDir Path temporaryFolder) throws Exception {
+    void testAtomicReplaceTableAsWithException(@TempDir Path temporaryFolder) {
         commonTestForAtomicReplaceTableAsWithException(
                 "atomic_replace_table_fail", false, temporaryFolder.toFile());
     }
 
     @Test
-    void testAtomicCreateOrReplaceTableAsWithException(@TempDir Path temporaryFolder)
-            throws Exception {
+    void testAtomicCreateOrReplaceTableAsWithException(@TempDir Path temporaryFolder) {
         commonTestForAtomicReplaceTableAsWithException(
-                "atomic_create_or_replace_table_fail", false, temporaryFolder.toFile());
+                "atomic_create_or_replace_table_fail", true, temporaryFolder.toFile());
     }
 
     private void commonTestForAtomicReplaceTableAsWithException(
@@ -159,10 +160,7 @@ public abstract class AtomicRtasITCaseBase extends TestLogger {
         tEnv.executeSql("create table " + tableName + " (a int) with ('connector' = 'PRINT')");
         tEnv.getConfig().set(TableConfigOptions.TABLE_RTAS_CTAS_ATOMICITY_ENABLED, true);
         String dataDir = tmpDataFolder.getAbsolutePath();
-        String sqlFragment =
-                isCreateOrReplace
-                        ? " create or replace table " + tableName
-                        : " replace table " + tableName;
+        String sqlFragment = getCreateOrReplaceSqlFragment(isCreateOrReplace, tableName);
         assertThatCode(
                         () ->
                                 tEnv.executeSql(
@@ -197,10 +195,8 @@ public abstract class AtomicRtasITCaseBase extends TestLogger {
         tEnv.executeSql("create table " + tableName + " (a int) with ('connector' = 'PRINT')");
         tEnv.getConfig().set(TableConfigOptions.TABLE_RTAS_CTAS_ATOMICITY_ENABLED, false);
         String dataDir = tmpDataFolder.getAbsolutePath();
-        String sqlFragment =
-                isCreateOrReplace
-                        ? " create or replace table " + tableName
-                        : " replace table " + tableName;
+        String sqlFragment = getCreateOrReplaceSqlFragment(isCreateOrReplace, tableName);
+
         tEnv.executeSql(
                         sqlFragment
                                 + " with ('connector' = 'test-staging', 'data-dir' = '"
@@ -219,5 +215,11 @@ public abstract class AtomicRtasITCaseBase extends TestLogger {
         assertThat(dataFile).exists();
         assertThat(dataFile).isFile();
         assertThat(FileUtils.readFileUtf8(dataFile)).isEqualTo("1,ZM");
+    }
+
+    private String getCreateOrReplaceSqlFragment(boolean isCreateOrReplace, String tableName) {
+        return isCreateOrReplace
+                ? " create or replace table " + tableName
+                : " replace table " + tableName;
     }
 }

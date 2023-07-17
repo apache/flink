@@ -68,7 +68,7 @@ import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.InternalPlan;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.delegation.Planner;
-import org.apache.flink.table.execution.AtomicJobStatusHook;
+import org.apache.flink.table.execution.StagingSinkJobStatusHook;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.FactoryUtil;
@@ -836,6 +836,16 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             ReplaceTableAsOperation rtasOperation, List<JobStatusHook> jobStatusHookList) {
         CreateTableOperation createTableOperation = rtasOperation.getCreateTableOperation();
         ObjectIdentifier tableIdentifier = createTableOperation.getTableIdentifier();
+        // First check if the replacedTable exists
+        Optional<ContextResolvedTable> replacedTable = catalogManager.getTable(tableIdentifier);
+        if (!rtasOperation.isCreateOrReplace() && !replacedTable.isPresent()) {
+            throw new TableException(
+                    String.format(
+                            "The table %s to be replaced doesn't exist. "
+                                    + "You can try to use CREATE TABLE AS statement or "
+                                    + "CREATE OR REPLACE TABLE AS statement.",
+                            tableIdentifier));
+        }
         Catalog catalog = catalogManager.getCatalog(tableIdentifier.getCatalogName()).orElse(null);
         ResolvedCatalogTable catalogTable =
                 catalogManager.resolveCatalogTable(createTableOperation.getCatalogTable());
@@ -844,18 +854,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         if (stagingDynamicTableSink.isPresent()) {
             // use atomic rtas
             DynamicTableSink dynamicTableSink = stagingDynamicTableSink.get();
-            if (!rtasOperation.isCreateOrReplace()) {
-                Optional<ContextResolvedTable> driverTable =
-                        catalogManager.getTable(tableIdentifier);
-                if (!driverTable.isPresent()) {
-                    throw new TableException(
-                            String.format(
-                                    "The table %s to be replaced doesn't exist. "
-                                            + "You can try to use CREATE TABLE AS statement or "
-                                            + "CREATE OR REPLACE TABLE AS statement.",
-                                    tableIdentifier));
-                }
-            }
             SupportsStaging.StagingPurpose stagingPurpose =
                     rtasOperation.isCreateOrReplace()
                             ? SupportsStaging.StagingPurpose.CREATE_OR_REPLACE_TABLE_AS
@@ -864,29 +862,14 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             StagedTable stagedTable =
                     ((SupportsStaging) dynamicTableSink)
                             .applyStaging(new SinkStagingContext(stagingPurpose));
-            AtomicJobStatusHook atomicJobStatusHook = new AtomicJobStatusHook(stagedTable);
-            jobStatusHookList.add(atomicJobStatusHook);
+            StagingSinkJobStatusHook stagingSinkJobStatusHook =
+                    new StagingSinkJobStatusHook(stagedTable);
+            jobStatusHookList.add(stagingSinkJobStatusHook);
             return rtasOperation.toStagedSinkModifyOperation(
                     tableIdentifier, catalogTable, catalog, dynamicTableSink);
         }
         // non-atomic rtas drop table first, then create
-        try {
-            catalogManager.dropTable(tableIdentifier, rtasOperation.isCreateOrReplace());
-        } catch (ValidationException e) {
-            if (String.format(
-                            "Table with identifier '%s' does not exist.",
-                            tableIdentifier.asSummaryString())
-                    .equals(e.getMessage())) {
-                throw new TableException(
-                        String.format(
-                                "The table %s to be replaced doesn't exist. "
-                                        + "You can try to use CREATE TABLE AS statement or "
-                                        + "CREATE OR REPLACE TABLE AS statement.",
-                                tableIdentifier));
-            } else {
-                throw e;
-            }
-        }
+        catalogManager.dropTable(tableIdentifier, rtasOperation.isCreateOrReplace());
         executeInternal(createTableOperation);
         return rtasOperation.toSinkModifyOperation(catalogManager);
     }
@@ -910,8 +893,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             StagedTable stagedTable =
                     ((SupportsStaging) dynamicTableSink)
                             .applyStaging(new SinkStagingContext(stagingPurpose));
-            AtomicJobStatusHook atomicJobStatusHook = new AtomicJobStatusHook(stagedTable);
-            jobStatusHookList.add(atomicJobStatusHook);
+            StagingSinkJobStatusHook stagingSinkJobStatusHook =
+                    new StagingSinkJobStatusHook(stagedTable);
+            jobStatusHookList.add(stagingSinkJobStatusHook);
             return ctasOperation.toStagedSinkModifyOperation(
                     tableIdentifier, catalogTable, catalog, dynamicTableSink);
         }

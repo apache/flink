@@ -27,6 +27,7 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -57,6 +58,10 @@ public abstract class AtomicCtasITCaseBase extends TestLogger {
 
         String sourceDDL = "create table t1(a int, b varchar) with ('connector' = 'COLLECTION')";
         tEnv.executeSql(sourceDDL);
+    }
+
+    @AfterEach
+    void clean() {
         // clean data
         TestSupportsStagingTableFactory.JOB_STATUS_CHANGE_PROCESS.clear();
         TestSupportsStagingTableFactory.STAGING_PURPOSE_LIST.clear();

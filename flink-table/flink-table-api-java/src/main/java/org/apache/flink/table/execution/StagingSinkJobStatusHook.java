@@ -27,11 +27,11 @@ import org.apache.flink.table.catalog.StagedTable;
  * OR] REPLACE TABLE AS SELECT) statement. It'll call the corresponding interfaces of the inner
  * {@link StagedTable} on job status changes.
  */
-public class AtomicJobStatusHook implements JobStatusHook {
+public class StagingSinkJobStatusHook implements JobStatusHook {
 
     private final StagedTable stagedTable;
 
-    public AtomicJobStatusHook(StagedTable stagedTable) {
+    public StagingSinkJobStatusHook(StagedTable stagedTable) {
         this.stagedTable = stagedTable;
     }
 
