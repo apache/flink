@@ -28,18 +28,24 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.EventAnnouncement;
+import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.EndOfChannelStateEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.EventOrRecordAndAvailability;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.streaming.runtime.io.StreamTaskNetworkInput;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
@@ -156,7 +162,7 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
         BufferOrEvent bufferOrEvent = next.get();
 
         if (bufferOrEvent.isEvent()) {
-            return handleEvent(bufferOrEvent);
+            handleEvent(bufferOrEvent);
         } else if (bufferOrEvent.isBuffer()) {
             /**
              * https://issues.apache.org/jira/browse/FLINK-19537 This is not entirely true, as it's
@@ -174,21 +180,45 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
         return next;
     }
 
-    private Optional<BufferOrEvent> handleEvent(BufferOrEvent bufferOrEvent) throws IOException {
-        Class<? extends AbstractEvent> eventClass = bufferOrEvent.getEvent().getClass();
+    public Optional<EventOrRecordAndAvailability> pollNextEventOrRecord()
+            throws IOException, InterruptedException {
+        Optional<EventOrRecordAndAvailability> next = inputGate.pollNextEventOrRecord();
+        if (!next.isPresent()) {
+            return handleEmptyEventOrRecord();
+        }
+
+        EventOrRecordAndAvailability eventOrRecord = next.get();
+
+        if (eventOrRecord.isEvent()) {
+            handleEvent(eventOrRecord);
+        } else if (eventOrRecord.isRecord()) {
+            barrierHandler.addProcessedBytes(eventOrRecord.getSize());
+        }
+
+        return next;
+    }
+
+    private void handleEvent(BufferOrEvent bufferOrEvent) throws IOException {
+        handleEvent(bufferOrEvent.getEvent(), bufferOrEvent.getChannelInfo());
+    }
+
+    private void handleEvent(EventOrRecordAndAvailability eventOrRecord) throws IOException {
+        handleEvent(eventOrRecord.getEvent(), eventOrRecord.getChannelInfo());
+    }
+
+    private void handleEvent(AbstractEvent event, InputChannelInfo channelInfo) throws IOException {
+        Class<? extends AbstractEvent> eventClass = event.getClass();
         if (eventClass == CheckpointBarrier.class) {
-            CheckpointBarrier checkpointBarrier = (CheckpointBarrier) bufferOrEvent.getEvent();
-            barrierHandler.processBarrier(checkpointBarrier, bufferOrEvent.getChannelInfo(), false);
+            CheckpointBarrier checkpointBarrier = (CheckpointBarrier) event;
+            barrierHandler.processBarrier(checkpointBarrier, channelInfo, false);
         } else if (eventClass == CancelCheckpointMarker.class) {
-            barrierHandler.processCancellationBarrier(
-                    (CancelCheckpointMarker) bufferOrEvent.getEvent(),
-                    bufferOrEvent.getChannelInfo());
+            barrierHandler.processCancellationBarrier((CancelCheckpointMarker) event, channelInfo);
         } else if (eventClass == EndOfData.class) {
-            inputGate.acknowledgeAllRecordsProcessed(bufferOrEvent.getChannelInfo());
+            inputGate.acknowledgeAllRecordsProcessed(channelInfo);
         } else if (eventClass == EndOfPartitionEvent.class) {
-            barrierHandler.processEndOfPartition(bufferOrEvent.getChannelInfo());
+            barrierHandler.processEndOfPartition(channelInfo);
         } else if (eventClass == EventAnnouncement.class) {
-            EventAnnouncement eventAnnouncement = (EventAnnouncement) bufferOrEvent.getEvent();
+            EventAnnouncement eventAnnouncement = (EventAnnouncement) event;
             AbstractEvent announcedEvent = eventAnnouncement.getAnnouncedEvent();
             checkState(
                     announcedEvent instanceof CheckpointBarrier,
@@ -196,13 +226,10 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
                     announcedEvent);
             CheckpointBarrier announcedBarrier = (CheckpointBarrier) announcedEvent;
             barrierHandler.processBarrierAnnouncement(
-                    announcedBarrier,
-                    eventAnnouncement.getSequenceNumber(),
-                    bufferOrEvent.getChannelInfo());
-        } else if (bufferOrEvent.getEvent().getClass() == EndOfChannelStateEvent.class) {
-            upstreamRecoveryTracker.handleEndOfRecovery(bufferOrEvent.getChannelInfo());
+                    announcedBarrier, eventAnnouncement.getSequenceNumber(), channelInfo);
+        } else if (eventClass == EndOfChannelStateEvent.class) {
+            upstreamRecoveryTracker.handleEndOfRecovery(channelInfo);
         }
-        return Optional.of(bufferOrEvent);
     }
 
     public CompletableFuture<Void> getAllBarriersReceivedFuture(long checkpointId) {
@@ -210,6 +237,14 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
     }
 
     private Optional<BufferOrEvent> handleEmptyBuffer() {
+        if (inputGate.isFinished()) {
+            isFinished = true;
+        }
+
+        return Optional.empty();
+    }
+
+    private Optional<EventOrRecordAndAvailability> handleEmptyEventOrRecord() {
         if (inputGate.isFinished()) {
             isFinished = true;
         }
@@ -300,5 +335,25 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
     @VisibleForTesting
     CheckpointBarrierHandler getCheckpointBarrierHandler() {
         return barrierHandler;
+    }
+
+    public <R extends RecordDeserializer<DeserializationDelegate<StreamElement>>>
+            void setChannelRecordDeserializers(Map<InputChannelInfo, R> elementDeserializers) {
+        Map<InputChannelInfo, RecordDeserializer<DeserializationDelegate>> deserializers =
+                new HashMap<>();
+        for (Map.Entry<InputChannelInfo, R> entry : elementDeserializers.entrySet()) {
+            RecordDeserializer<?> eleDeserizer1 = entry.getValue();
+            RecordDeserializer<DeserializationDelegate> eleDeserizer2 =
+                    (RecordDeserializer<DeserializationDelegate>) eleDeserizer1;
+            deserializers.put(entry.getKey(), eleDeserizer2);
+        }
+
+        inputGate.setChannelRecordDeserializers(deserializers);
+    }
+
+    public void setChannelDeserializationDelegate(
+            DeserializationDelegate<StreamElement> deserializationDelegate) {
+        DeserializationDelegate delegate = deserializationDelegate;
+        inputGate.setChannelDeserializationDelegate(delegate);
     }
 }

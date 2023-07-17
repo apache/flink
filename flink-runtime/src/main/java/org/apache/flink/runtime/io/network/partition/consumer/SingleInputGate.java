@@ -41,6 +41,7 @@ import org.apache.flink.runtime.io.network.partition.PrioritizedDeque;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.EventOrRecordAndAvailability;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyServiceImpl;
@@ -775,6 +776,12 @@ public class SingleInputGate extends IndexedInputGate {
         return getNextBufferOrEvent(false);
     }
 
+    @Override
+    public Optional<EventOrRecordAndAvailability> pollNextEventOrRecord()
+            throws IOException, InterruptedException {
+        return getNextEventOrRecord(false);
+    }
+
     private Optional<BufferOrEvent> getNextBufferOrEvent(boolean blocking)
             throws IOException, InterruptedException {
         if (hasReceivedAllEndOfPartitionEvents) {
@@ -801,6 +808,30 @@ public class SingleInputGate extends IndexedInputGate {
                         inputWithData.morePriorityEvents);
         throughputCalculator.incomingDataSize(bufferOrEvent.getSize());
         return Optional.of(bufferOrEvent);
+    }
+
+    private Optional<EventOrRecordAndAvailability> getNextEventOrRecord(boolean blocking)
+            throws IOException, InterruptedException {
+        if (hasReceivedAllEndOfPartitionEvents) {
+            return Optional.empty();
+        }
+
+        if (closeFuture.isDone()) {
+            throw new CancelTaskException("Input gate is already closed.");
+        }
+        Optional<InputWithData<InputChannel, EventOrRecordAndAvailability>> next =
+                waitAndGetNextRecordData(blocking);
+        if (!next.isPresent()) {
+            throughputCalculator.pauseMeasurement();
+            return Optional.empty();
+        }
+
+        throughputCalculator.resumeMeasurement();
+
+        InputWithData<InputChannel, EventOrRecordAndAvailability> inputWithData = next.get();
+
+        throughputCalculator.incomingDataSize(inputWithData.data.getSize());
+        return Optional.of(inputWithData.data);
     }
 
     private Optional<InputWithData<InputChannel, Buffer>> waitAndGetNextData(boolean blocking)
@@ -842,6 +873,51 @@ public class SingleInputGate extends IndexedInputGate {
         }
     }
 
+    private Optional<InputWithData<InputChannel, EventOrRecordAndAvailability>>
+            waitAndGetNextRecordData(boolean blocking) throws IOException, InterruptedException {
+        while (true) {
+            synchronized (inputChannelsWithData) {
+                Optional<InputChannel> inputChannelOpt = getChannel(blocking);
+                if (!inputChannelOpt.isPresent()) {
+                    return Optional.empty();
+                }
+
+                final InputChannel inputChannel = inputChannelOpt.get();
+                Optional<EventOrRecordAndAvailability> eventOrRecordOpt =
+                        readEventOrRecordFromInputChannel(inputChannel);
+                if (!eventOrRecordOpt.isPresent()) {
+                    checkUnavailability();
+                    continue;
+                }
+
+                final boolean morePriorityEvents =
+                        inputChannelsWithData.getNumPriorityElements() > 0;
+
+                final boolean moreAvailable = !inputChannelsWithData.isEmpty();
+
+                EventOrRecordAndAvailability eventOrRecord = eventOrRecordOpt.get();
+
+                if (eventOrRecord.hasPriority()) {
+                    if (!morePriorityEvents) {
+                        priorityAvailabilityHelper.resetUnavailable();
+                    }
+                }
+                checkUnavailability();
+
+                eventOrRecord.setMoreAvailable(moreAvailable);
+                eventOrRecord.setMorePriorityEvents(morePriorityEvents);
+                eventOrRecord.setChannelInfo(inputChannel.getChannelInfo());
+
+                return Optional.of(
+                        new InputWithData<>(
+                                inputChannel,
+                                eventOrRecordOpt.get(),
+                                moreAvailable,
+                                morePriorityEvents));
+            }
+        }
+    }
+
     private Optional<Buffer> readBufferFromInputChannel(InputChannel inputChannel)
             throws IOException, InterruptedException {
         Optional<BufferAndAvailability> bufferAndAvailabilityOpt = inputChannel.getNextBuffer();
@@ -874,6 +950,25 @@ public class SingleInputGate extends IndexedInputGate {
         // subpartition is unavailable because an empty buffer is read.
         buffer.ifPresent(result -> queueChannel(checkNotNull(inputChannel), null, false));
         return buffer;
+    }
+
+    private Optional<EventOrRecordAndAvailability> readEventOrRecordFromInputChannel(
+            InputChannel inputChannel) throws IOException, InterruptedException {
+        Optional<EventOrRecordAndAvailability> recordAndAvailabilityOpt =
+                inputChannel.getNextEventOrRecord();
+        if (!recordAndAvailabilityOpt.isPresent()) {
+            return Optional.empty();
+        }
+        final EventOrRecordAndAvailability recordAndAvailability = recordAndAvailabilityOpt.get();
+        if (recordAndAvailability.moreAvailable()) {
+            // enqueue the inputChannel at the end to avoid starvation
+            queueChannelUnsafe(inputChannel, recordAndAvailability.morePriorityEvents());
+        }
+        if (recordAndAvailability.hasPriority()) {
+            lastPrioritySequenceNumber[inputChannel.getChannelIndex()] =
+                    recordAndAvailability.getSequenceNumber();
+        }
+        return recordAndAvailabilityOpt;
     }
 
     private boolean enabledTieredStorage() {

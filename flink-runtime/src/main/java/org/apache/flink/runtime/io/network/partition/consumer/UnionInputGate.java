@@ -23,6 +23,7 @@ import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.partition.PrioritizedDeque;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.EventOrRecordAndAvailability;
 
 import org.apache.flink.shaded.guava31.com.google.common.collect.Sets;
 
@@ -201,6 +202,12 @@ public class UnionInputGate extends InputGate {
         return getNextBufferOrEvent(false);
     }
 
+    @Override
+    public Optional<EventOrRecordAndAvailability> pollNextEventOrRecord()
+            throws IOException, InterruptedException {
+        return getNextEventOrRecord(false);
+    }
+
     private Optional<BufferOrEvent> getNextBufferOrEvent(boolean blocking)
             throws IOException, InterruptedException {
         if (inputGatesWithRemainingData.isEmpty()) {
@@ -214,6 +221,29 @@ public class UnionInputGate extends InputGate {
         }
 
         InputWithData<IndexedInputGate, BufferOrEvent> inputWithData = next.get();
+
+        handleEndOfPartitionEvent(inputWithData.data, inputWithData.input);
+        handleEndOfUserDataEvent(inputWithData.data, inputWithData.input);
+        if (!inputWithData.data.moreAvailable()) {
+            inputWithData.data.setMoreAvailable(inputWithData.moreAvailable);
+        }
+
+        return Optional.of(inputWithData.data);
+    }
+
+    private Optional<EventOrRecordAndAvailability> getNextEventOrRecord(boolean blocking)
+            throws IOException, InterruptedException {
+        if (inputGatesWithRemainingData.isEmpty()) {
+            return Optional.empty();
+        }
+
+        Optional<InputWithData<IndexedInputGate, EventOrRecordAndAvailability>> next =
+                waitAndGetNextRecordData(blocking);
+        if (!next.isPresent()) {
+            return Optional.empty();
+        }
+
+        InputWithData<IndexedInputGate, EventOrRecordAndAvailability> inputWithData = next.get();
 
         handleEndOfPartitionEvent(inputWithData.data, inputWithData.input);
         handleEndOfUserDataEvent(inputWithData.data, inputWithData.input);
@@ -248,6 +278,30 @@ public class UnionInputGate extends InputGate {
         }
     }
 
+    private Optional<InputWithData<IndexedInputGate, EventOrRecordAndAvailability>>
+            waitAndGetNextRecordData(boolean blocking) throws IOException, InterruptedException {
+        while (true) {
+            synchronized (inputGatesWithData) {
+                Optional<IndexedInputGate> inputGateOpt = getInputGate(blocking);
+                if (!inputGateOpt.isPresent()) {
+                    return Optional.empty();
+                }
+                final IndexedInputGate inputGate = inputGateOpt.get();
+
+                Optional<EventOrRecordAndAvailability> nextOpt = inputGate.pollNextEventOrRecord();
+                if (!nextOpt.isPresent()) {
+                    assertNoException(
+                            inputGate
+                                    .getAvailableFuture()
+                                    .thenRun(() -> queueInputGate(inputGate, false)));
+                    continue;
+                }
+
+                return Optional.of(processEventOrRecord(inputGate, nextOpt.get()));
+            }
+        }
+    }
+
     private InputWithData<IndexedInputGate, BufferOrEvent> processBufferOrEvent(
             IndexedInputGate inputGate, BufferOrEvent bufferOrEvent) {
         assert Thread.holdsLock(inputGatesWithData);
@@ -275,6 +329,38 @@ public class UnionInputGate extends InputGate {
                 inputGate, bufferOrEvent, !inputGatesWithData.isEmpty(), morePriorityEvents);
     }
 
+    private InputWithData<IndexedInputGate, EventOrRecordAndAvailability> processEventOrRecord(
+            IndexedInputGate inputGate, EventOrRecordAndAvailability eventOrRecordAndAvailability) {
+        assert Thread.holdsLock(inputGatesWithData);
+
+        if (eventOrRecordAndAvailability.moreAvailable()) {
+            // enqueue the inputGate at the end to avoid starvation
+            inputGatesWithData.add(
+                    inputGate, eventOrRecordAndAvailability.morePriorityEvents(), false);
+        } else if (!inputGate.isFinished()) {
+            assertNoException(
+                    inputGate.getAvailableFuture().thenRun(() -> queueInputGate(inputGate, false)));
+        }
+
+        if (eventOrRecordAndAvailability.hasPriority()
+                && !eventOrRecordAndAvailability.morePriorityEvents()) {
+            assertNoException(
+                    inputGate
+                            .getPriorityEventAvailableFuture()
+                            .thenRun(() -> handlePriorityEventAvailable(inputGate)));
+        }
+        final boolean morePriorityEvents = inputGatesWithData.getNumPriorityElements() > 0;
+        if (eventOrRecordAndAvailability.hasPriority() && !morePriorityEvents) {
+            priorityAvailabilityHelper.resetUnavailable();
+        }
+
+        return new InputWithData<>(
+                inputGate,
+                eventOrRecordAndAvailability,
+                !inputGatesWithData.isEmpty(),
+                morePriorityEvents);
+    }
+
     private void handleEndOfPartitionEvent(BufferOrEvent bufferOrEvent, InputGate inputGate) {
         if (bufferOrEvent.isEvent()
                 && bufferOrEvent.getEvent().getClass() == EndOfPartitionEvent.class
@@ -291,9 +377,40 @@ public class UnionInputGate extends InputGate {
         }
     }
 
+    private void handleEndOfPartitionEvent(
+            EventOrRecordAndAvailability eventOrRecord, InputGate inputGate) {
+        if (eventOrRecord.isEvent()
+                && eventOrRecord.getEvent().getClass() == EndOfPartitionEvent.class
+                && inputGate.isFinished()) {
+
+            checkState(!eventOrRecord.moreAvailable());
+            if (!inputGatesWithRemainingData.remove(inputGate)) {
+                throw new IllegalStateException(
+                        "Couldn't find input gate in set of remaining " + "input gates.");
+            }
+            if (isFinished()) {
+                markAvailable();
+            }
+        }
+    }
+
     private void handleEndOfUserDataEvent(BufferOrEvent bufferOrEvent, InputGate inputGate) {
         if (bufferOrEvent.isEvent()
                 && bufferOrEvent.getEvent().getClass() == EndOfData.class
+                && inputGate.hasReceivedEndOfData() != EndOfDataStatus.NOT_END_OF_DATA) {
+
+            shouldDrainOnEndOfData &= inputGate.hasReceivedEndOfData() == EndOfDataStatus.DRAINED;
+            if (!inputGatesWithRemainingUserData.remove(inputGate)) {
+                throw new IllegalStateException(
+                        "Couldn't find input gate in set of remaining input gates.");
+            }
+        }
+    }
+
+    private void handleEndOfUserDataEvent(
+            EventOrRecordAndAvailability eventOrRecord, InputGate inputGate) {
+        if (eventOrRecord.isEvent()
+                && eventOrRecord.getEvent().getClass() == EndOfData.class
                 && inputGate.hasReceivedEndOfData() != EndOfDataStatus.NOT_END_OF_DATA) {
 
             shouldDrainOnEndOfData &= inputGate.hasReceivedEndOfData() == EndOfDataStatus.DRAINED;

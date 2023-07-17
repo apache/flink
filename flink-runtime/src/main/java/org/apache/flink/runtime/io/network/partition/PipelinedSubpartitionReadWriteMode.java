@@ -21,7 +21,10 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition.EventOrRecordOrBufferAndBacklog;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
+
+import javax.annotation.Nullable;
 
 import java.nio.ByteBuffer;
 
@@ -46,4 +49,8 @@ public interface PipelinedSubpartitionReadWriteMode {
 
     // for ChannelSelector broadcast record
     void add(SerializationDelegate<?> record, ByteBuffer recordBuffer);
+
+    // Get next element(Event/StreamElement/Buffer) from ResultSubPartition
+    @Nullable
+    EventOrRecordOrBufferAndBacklog pollNext();
 }

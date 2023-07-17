@@ -25,6 +25,8 @@ import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumerWithPartialRecordLength;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
@@ -86,5 +88,11 @@ public final class UnknownOrRemotePipelinedSubpartitionReadWriteMode
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Nullable
+    @Override
+    public ResultSubpartition.EventOrRecordOrBufferAndBacklog pollNext() {
+        return subPartition.pollBufferFromBuffers();
     }
 }

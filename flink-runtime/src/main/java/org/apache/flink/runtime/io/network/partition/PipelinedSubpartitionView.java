@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition.EventOrRecordOrBufferAndBacklog;
 
 import javax.annotation.Nullable;
 
@@ -48,6 +49,12 @@ public class PipelinedSubpartitionView implements ResultSubpartitionView {
     @Override
     public BufferAndBacklog getNextBuffer() {
         return parent.pollBuffer();
+    }
+
+    @Nullable
+    @Override
+    public EventOrRecordOrBufferAndBacklog getNextElement() {
+        return parent.pollNext();
     }
 
     @Override

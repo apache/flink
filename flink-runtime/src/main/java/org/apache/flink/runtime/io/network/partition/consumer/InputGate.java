@@ -22,10 +22,14 @@ import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.PullingAsyncDataInput;
+import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.partition.ChannelStateHolder;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.EventOrRecordAndAvailability;
+import org.apache.flink.runtime.plugable.DeserializationDelegate;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -94,6 +98,23 @@ public abstract class InputGate
         }
     }
 
+    public void setChannelRecordDeserializers(
+            Map<InputChannelInfo, RecordDeserializer<DeserializationDelegate>> deserializers) {
+
+        for (Map.Entry<InputChannelInfo, RecordDeserializer<DeserializationDelegate>> entry :
+                deserializers.entrySet()) {
+            final InputChannel channel = getChannel(entry.getKey().getInputChannelIdx());
+            channel.setRecordDeseralizer(entry.getValue());
+        }
+    }
+
+    public void setChannelDeserializationDelegate(DeserializationDelegate deserializationDelegate) {
+        for (InputChannelInfo inputChannelInfo : getChannelInfos()) {
+            final InputChannel channel = getChannel(inputChannelInfo.getInputChannelIdx());
+            channel.setDeserializationDelegate(deserializationDelegate);
+        }
+    }
+
     public abstract int getNumberOfInputChannels();
 
     public abstract boolean isFinished();
@@ -118,6 +139,11 @@ public abstract class InputGate
      *     returns true.
      */
     public abstract Optional<BufferOrEvent> pollNext() throws IOException, InterruptedException;
+
+    public Optional<EventOrRecordAndAvailability> pollNextEventOrRecord()
+            throws IOException, InterruptedException {
+        throw new UnsupportedOperationException();
+    }
 
     public abstract void sendTaskEvent(TaskEvent event) throws IOException;
 

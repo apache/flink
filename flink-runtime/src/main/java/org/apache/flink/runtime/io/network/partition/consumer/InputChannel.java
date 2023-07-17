@@ -21,14 +21,18 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
+import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfData;
+import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.PartitionException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition.EventOrRecordOrBufferAndBacklog;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
+import org.apache.flink.runtime.plugable.DeserializationDelegate;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -36,6 +40,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * An input channel consumes a single {@link ResultSubpartitionView}.
@@ -78,6 +83,29 @@ public abstract class InputChannel {
 
     /** The current backoff (in ms). */
     private int currentBackoff;
+
+    private RecordDeserializer<DeserializationDelegate> recordDeserializer;
+
+    private DeserializationDelegate deserializationDelegate;
+
+    private RecordDeserializer<DeserializationDelegate> currentRecordDeserializer;
+
+    public RecordDeserializer<DeserializationDelegate> getRecordDeserializer() {
+        return recordDeserializer;
+    }
+
+    public void setRecordDeseralizer(
+            RecordDeserializer<DeserializationDelegate> recordDeserializer) {
+        this.recordDeserializer = recordDeserializer;
+    }
+
+    public DeserializationDelegate getDeserializationDelegate() {
+        return deserializationDelegate;
+    }
+
+    public void setDeserializationDelegate(DeserializationDelegate deserializationDelegate) {
+        this.deserializationDelegate = deserializationDelegate;
+    }
 
     protected InputChannel(
             SingleInputGate inputGate,
@@ -186,6 +214,16 @@ public abstract class InputChannel {
      */
     public abstract Optional<BufferAndAvailability> getNextBuffer()
             throws IOException, InterruptedException;
+
+    public Optional<EventOrRecordOrBufferAndBacklog> getNextElement() throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
+    // read buffer/event/record from input channel, and deserialize maybe happen, finally return
+    // eventOrRecord
+    public Optional<EventOrRecordAndAvailability> getNextEventOrRecord() {
+        throw new UnsupportedOperationException();
+    }
 
     /**
      * Called by task thread when checkpointing is started (e.g., any input channel received
@@ -375,6 +413,260 @@ public abstract class InputChannel {
                     + nextDataType
                     + ", buffersInBacklog="
                     + buffersInBacklog
+                    + ", sequenceNumber="
+                    + sequenceNumber
+                    + '}';
+        }
+    }
+
+    public enum RecordDataType {
+        /** {@link #NONE} indicates that there is no buffer. */
+        NONE(false, false, false, false, false),
+
+        /** {@link #DATA} indicates that this buffer represents a non-event data buffer. */
+        DATA(true, false, false, false, false),
+
+        /**
+         * {@link #EVENT} indicates that this buffer represents serialized data of an event. Note
+         * that this type can be further divided into more fine-grained event types like {@link
+         * #ALIGNED_CHECKPOINT_BARRIER} and etc.
+         */
+        EVENT(false, true, false, false, false),
+
+        /** Same as EVENT_BUFFER, but the event has been prioritized (e.g. it skipped buffers). */
+        PRIORITIZED_EVENT(false, true, false, true, false),
+
+        /**
+         * {@link #ALIGNED_CHECKPOINT_BARRIER} indicates that this buffer represents a serialized
+         * checkpoint barrier of aligned exactly-once checkpoint mode.
+         */
+        ALIGNED_CHECKPOINT_BARRIER(false, true, true, false, false),
+
+        /**
+         * {@link #TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER} indicates that this buffer represents a
+         * serialized checkpoint barrier of aligned exactly-once checkpoint mode, that can be
+         * time-out'ed to an unaligned checkpoint barrier.
+         */
+        TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER(false, true, true, false, true),
+
+        /**
+         * Indicates that this subpartition state is fully recovered (emitted). Further data can be
+         * consumed after unblocking.
+         */
+        RECOVERY_COMPLETION(false, true, true, false, false),
+
+        /** {@link #END_OF_SEGMENT} indicates that a segment is finished in a subpartition. */
+        END_OF_SEGMENT(false, true, false, false, false);
+
+        private final boolean isRecord;
+        private final boolean isEvent;
+        private final boolean isBlockingUpstream;
+        private final boolean hasPriority;
+        /**
+         * If buffer (currently only Events are supported in that case) requires announcement, it's
+         * arrival in the {@link
+         * org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel} will be
+         * announced, by a special announcement message. Announcement messages are {@link
+         * #PRIORITIZED_EVENT} processed out of order. It allows readers of the input to react
+         * sooner on arrival of such Events, before it will be able to be processed normally.
+         */
+        private final boolean requiresAnnouncement;
+
+        RecordDataType(
+                boolean isRecord,
+                boolean isEvent,
+                boolean isBlockingUpstream,
+                boolean hasPriority,
+                boolean requiresAnnouncement) {
+            checkState(
+                    !(requiresAnnouncement && hasPriority),
+                    "DataType [%s] has both priority and requires announcement, which is not supported "
+                            + "and doesn't make sense. There should be no need for announcing priority events, which are always "
+                            + "overtaking in-flight data.",
+                    this);
+            this.isRecord = isRecord;
+            this.isEvent = isEvent;
+            this.isBlockingUpstream = isBlockingUpstream;
+            this.hasPriority = hasPriority;
+            this.requiresAnnouncement = requiresAnnouncement;
+        }
+
+        public boolean isRecord() {
+            return isRecord;
+        }
+
+        public boolean isEvent() {
+            return isEvent;
+        }
+
+        public boolean hasPriority() {
+            return hasPriority;
+        }
+
+        public boolean isBlockingUpstream() {
+            return isBlockingUpstream;
+        }
+
+        public boolean requiresAnnouncement() {
+            return requiresAnnouncement;
+        }
+
+        public static RecordDataType getDataType(AbstractEvent event, boolean hasPriority) {
+            if (hasPriority) {
+                return PRIORITIZED_EVENT;
+            } else if (event instanceof EndOfChannelStateEvent) {
+                return RECOVERY_COMPLETION;
+            } else if (!(event instanceof CheckpointBarrier)) {
+                return EVENT;
+            }
+            CheckpointBarrier barrier = (CheckpointBarrier) event;
+            if (barrier.getCheckpointOptions().needsAlignment()) {
+                if (barrier.getCheckpointOptions().isTimeoutable()) {
+                    return TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER;
+                } else {
+                    return ALIGNED_CHECKPOINT_BARRIER;
+                }
+            } else {
+                return EVENT;
+            }
+        }
+    }
+
+    public static final class EventOrRecordAndAvailability {
+
+        // event or streamelement
+        private final AbstractEvent event;
+
+        private final Object record;
+
+        private final RecordDataType currentDataType;
+
+        private final RecordDataType nextDataType;
+
+        // represents the number of records or buffers in the input channel
+        private final int recordOrBuffersInBacklog;
+
+        private final int sequenceNumber;
+
+        private boolean moreAvailable;
+
+        public boolean isMoreAvailable() {
+            return moreAvailable;
+        }
+
+        public void setMoreAvailable(boolean moreAvailable) {
+            this.moreAvailable = moreAvailable;
+        }
+
+        public boolean isMorePriorityEvents() {
+            return morePriorityEvents;
+        }
+
+        public void setMorePriorityEvents(boolean morePriorityEvents) {
+            this.morePriorityEvents = morePriorityEvents;
+        }
+
+        public InputChannelInfo getChannelInfo() {
+            return channelInfo;
+        }
+
+        public void setChannelInfo(InputChannelInfo channelInfo) {
+            this.channelInfo = channelInfo;
+        }
+
+        private boolean morePriorityEvents;
+
+        private InputChannelInfo channelInfo;
+
+        private int size;
+
+        public int getSize() {
+            return size;
+        }
+
+        public void setSize(int size) {
+            this.size = size;
+        }
+
+        public EventOrRecordAndAvailability(
+                Object record,
+                RecordDataType currentDataType,
+                RecordDataType nextDataType,
+                int recordOrBuffersInBacklog,
+                int sequenceNumber,
+                int size) {
+            this.event = null;
+            this.record = checkNotNull(record);
+            this.currentDataType = currentDataType;
+            this.nextDataType = checkNotNull(nextDataType);
+            this.recordOrBuffersInBacklog = recordOrBuffersInBacklog;
+            this.sequenceNumber = sequenceNumber;
+            this.size = size;
+        }
+
+        public EventOrRecordAndAvailability(
+                AbstractEvent event,
+                RecordDataType currentDataType,
+                RecordDataType nextDataType,
+                int recordOrBuffersInBacklog,
+                int sequenceNumber,
+                int size) {
+            this.event = checkNotNull(event);
+            this.record = null;
+            this.currentDataType = currentDataType;
+            this.nextDataType = checkNotNull(nextDataType);
+            this.recordOrBuffersInBacklog = recordOrBuffersInBacklog;
+            this.sequenceNumber = sequenceNumber;
+            this.size = size;
+        }
+
+        public Object getRecord() {
+            return record;
+        }
+
+        public AbstractEvent getEvent() {
+            return event;
+        }
+
+        public boolean isEvent() {
+            return this.event != null;
+        }
+
+        public boolean isRecord() {
+            return this.record != null;
+        }
+
+        public boolean moreAvailable() {
+            return nextDataType != RecordDataType.NONE;
+        }
+
+        public boolean morePriorityEvents() {
+            return nextDataType.hasPriority();
+        }
+
+        public int recordOrBuffersInBacklog() {
+            return recordOrBuffersInBacklog;
+        }
+
+        public boolean hasPriority() {
+            return currentDataType.hasPriority();
+        }
+
+        public int getSequenceNumber() {
+            return sequenceNumber;
+        }
+
+        @Override
+        public String toString() {
+            return "RecordAndAvailability{"
+                    + "record="
+                    + record
+                    + ", currentDataType="
+                    + currentDataType
+                    + ", nextDataType="
+                    + nextDataType
+                    + ", recordOrBuffersInBacklog="
+                    + recordOrBuffersInBacklog
                     + ", sequenceNumber="
                     + sequenceNumber
                     + '}';

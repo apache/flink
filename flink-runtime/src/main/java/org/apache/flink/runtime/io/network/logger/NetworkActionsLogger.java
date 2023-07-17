@@ -69,6 +69,16 @@ public class NetworkActionsLogger {
         }
     }
 
+    public static void traceOutput(
+            String action,
+            Object eventOrRecord,
+            String taskName,
+            ResultSubpartitionInfo channelInfo) {
+        if (LOG.isTraceEnabled()) {
+            LOG.trace("[{}] {} {} @ {}", taskName, action, eventOrRecord.toString(), channelInfo);
+        }
+    }
+
     public static void traceRecover(
             String action, Buffer buffer, String taskName, InputChannelInfo channelInfo) {
         if (LOG.isTraceEnabled()) {

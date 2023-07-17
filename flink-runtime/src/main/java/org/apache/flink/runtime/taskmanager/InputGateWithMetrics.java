@@ -25,6 +25,7 @@ import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.EventOrRecordAndAvailability;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 
@@ -131,6 +132,12 @@ public class InputGateWithMetrics extends IndexedInputGate {
     }
 
     @Override
+    public Optional<EventOrRecordAndAvailability> pollNextEventOrRecord()
+            throws IOException, InterruptedException {
+        return inputGate.pollNextEventOrRecord().map(this::updateMetrics);
+    }
+
+    @Override
     public void sendTaskEvent(TaskEvent event) throws IOException {
         inputGate.sendTaskEvent(event);
     }
@@ -156,5 +163,14 @@ public class InputGateWithMetrics extends IndexedInputGate {
         numBytesIn.inc(incomingDataSize);
 
         return bufferOrEvent;
+    }
+
+    private EventOrRecordAndAvailability updateMetrics(
+            EventOrRecordAndAvailability eventOrRecordAndAvailability) {
+        int incomingDataSize = eventOrRecordAndAvailability.getSize();
+
+        numBytesIn.inc(incomingDataSize);
+
+        return eventOrRecordAndAvailability;
     }
 }

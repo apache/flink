@@ -25,6 +25,8 @@ import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.EndOfChannelStateEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.EventOrRecordAndAvailability;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
@@ -65,6 +67,8 @@ public abstract class AbstractStreamTaskNetworkInput<
 
     protected final CanEmitBatchOfRecordsChecker canEmitBatchOfRecords;
 
+    private boolean haveRecordInProcessing = false;
+
     public AbstractStreamTaskNetworkInput(
             CheckpointedInputGate checkpointedInputGate,
             TypeSerializer<T> inputSerializer,
@@ -87,47 +91,33 @@ public abstract class AbstractStreamTaskNetworkInput<
         this.inputIndex = inputIndex;
         this.recordDeserializers = checkNotNull(recordDeserializers);
         this.canEmitBatchOfRecords = checkNotNull(canEmitBatchOfRecords);
+
+        this.checkpointedInputGate.setChannelRecordDeserializers(recordDeserializers);
+        this.checkpointedInputGate.setChannelDeserializationDelegate(deserializationDelegate);
     }
 
     @Override
     public DataInputStatus emitNext(DataOutput<T> output) throws Exception {
 
         while (true) {
-            // get the stream element from the deserializer
-            if (currentRecordDeserializer != null) {
-                RecordDeserializer.DeserializationResult result;
-                try {
-                    result = currentRecordDeserializer.getNextRecord(deserializationDelegate);
-                } catch (IOException e) {
-                    throw new IOException(
-                            String.format("Can't get next record for channel %s", lastChannel), e);
-                }
-                if (result.isBufferConsumed()) {
-                    currentRecordDeserializer = null;
-                }
-
-                if (result.isFullRecord()) {
-                    processElement(deserializationDelegate.getInstance(), output);
-                    if (canEmitBatchOfRecords.check()) {
-                        continue;
-                    }
-                    return DataInputStatus.MORE_AVAILABLE;
-                }
-            }
-
-            Optional<BufferOrEvent> bufferOrEvent = checkpointedInputGate.pollNext();
-            if (bufferOrEvent.isPresent()) {
-                // return to the mailbox after receiving a checkpoint barrier to avoid processing of
-                // data after the barrier before checkpoint is performed for unaligned checkpoint
-                // mode
-                if (bufferOrEvent.get().isBuffer()) {
-                    processBuffer(bufferOrEvent.get());
-                } else {
-                    DataInputStatus status = processEvent(bufferOrEvent.get());
+            Optional<InputChannel.EventOrRecordAndAvailability> eventOrRecord =
+                    checkpointedInputGate.pollNextEventOrRecord();
+            if (eventOrRecord.isPresent()) {
+                if (eventOrRecord.get().isEvent()) {
+                    DataInputStatus status = processEvent(eventOrRecord.get());
                     if (status == DataInputStatus.MORE_AVAILABLE && canEmitBatchOfRecords.check()) {
                         continue;
                     }
                     return status;
+                } else {
+                    haveRecordInProcessing = true;
+                    lastChannel = eventOrRecord.get().getChannelInfo();
+                    processElement(((StreamElement) eventOrRecord.get().getRecord()), output);
+                    haveRecordInProcessing = false;
+                    if (canEmitBatchOfRecords.check()) {
+                        continue;
+                    }
+                    return DataInputStatus.MORE_AVAILABLE;
                 }
             } else {
                 if (checkpointedInputGate.isFinished()) {
@@ -160,8 +150,15 @@ public abstract class AbstractStreamTaskNetworkInput<
     }
 
     protected DataInputStatus processEvent(BufferOrEvent bufferOrEvent) {
+        return processEvent(bufferOrEvent.getEvent(), bufferOrEvent.getChannelInfo());
+    }
+
+    protected DataInputStatus processEvent(EventOrRecordAndAvailability eventOrRecord) {
+        return processEvent(eventOrRecord.getEvent(), eventOrRecord.getChannelInfo());
+    }
+
+    protected DataInputStatus processEvent(AbstractEvent event, InputChannelInfo channelInfo) {
         // Event received
-        final AbstractEvent event = bufferOrEvent.getEvent();
         if (event.getClass() == EndOfData.class) {
             switch (checkpointedInputGate.hasReceivedEndOfData()) {
                 case NOT_END_OF_DATA:
@@ -175,7 +172,7 @@ public abstract class AbstractStreamTaskNetworkInput<
         } else if (event.getClass() == EndOfPartitionEvent.class) {
             // release the record deserializer immediately,
             // which is very valuable in case of bounded stream
-            releaseDeserializer(bufferOrEvent.getChannelInfo());
+            releaseDeserializer(channelInfo);
             if (checkpointedInputGate.isFinished()) {
                 return DataInputStatus.END_OF_INPUT;
             }
@@ -209,7 +206,7 @@ public abstract class AbstractStreamTaskNetworkInput<
 
     @Override
     public CompletableFuture<?> getAvailableFuture() {
-        if (currentRecordDeserializer != null) {
+        if (currentRecordDeserializer != null || haveRecordInProcessing) {
             return AVAILABLE;
         }
         return checkpointedInputGate.getAvailableFuture();

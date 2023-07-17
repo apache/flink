@@ -463,6 +463,11 @@ public class PipelinedSubpartition extends ResultSubpartition implements Channel
         processTimeoutableCheckpointBarrier(barrier);
     }
 
+    private void checkTimeoutableCheckpointBarrier(CheckpointBarrier barrier) {
+        checkArgument(barrier != null, "Parse the timeoutable Checkpoint Barrier failed.");
+        checkState(barrier.getCheckpointOptions().isTimeoutable());
+    }
+
     @GuardedBy("buffers")
     private void processTimeoutableCheckpointBarrier(CheckpointBarrier barrier) {
         channelStateWriter.addOutputDataFuture(
@@ -744,9 +749,155 @@ public class PipelinedSubpartition extends ResultSubpartition implements Channel
         }
     }
 
+    @Nullable
+    EventOrRecordOrBufferAndBacklog pollNext() {
+        return this.readWriteMode.pollNext();
+    }
+
+    @Nullable
+    EventOrRecordOrBufferAndBacklog pollBufferFromBuffers() {
+        synchronized (buffers) {
+            if (isBlocked) {
+                return null;
+            }
+
+            Buffer buffer = null;
+
+            if (buffers.isEmpty()) {
+                flushRequested = false;
+            }
+
+            while (!buffers.isEmpty()) {
+                BufferConsumerWithPartialRecordLength bufferConsumerWithPartialRecordLength =
+                        buffers.peek();
+                BufferConsumer bufferConsumer =
+                        bufferConsumerWithPartialRecordLength.getBufferConsumer();
+                if (Buffer.DataType.TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER
+                        == bufferConsumer.getDataType()) {
+                    completeTimeoutableCheckpointBarrier(bufferConsumer);
+                }
+                buffer = buildSliceBuffer(bufferConsumerWithPartialRecordLength);
+
+                checkState(
+                        bufferConsumer.isFinished() || buffers.size() == 1,
+                        "When there are multiple buffers, an unfinished bufferConsumer can not be at the head of the buffers queue.");
+
+                if (buffers.size() == 1) {
+                    // turn off flushRequested flag if we drained all the available data
+                    flushRequested = false;
+                }
+
+                if (bufferConsumer.isFinished()) {
+                    requireNonNull(buffers.poll()).getBufferConsumer().close();
+                    decreaseBuffersInBacklogUnsafe(bufferConsumer.isBuffer());
+                }
+
+                // if we have an empty finished buffer and the exclusive credit is 0, we just return
+                // the empty buffer so that the downstream task can release the allocated credit for
+                // this empty buffer, this happens in two main scenarios currently:
+                // 1. all data of a buffer builder has been read and after that the buffer builder
+                // is finished
+                // 2. in approximate recovery mode, a partial record takes a whole buffer builder
+                if (receiverExclusiveBuffersPerChannel == 0 && bufferConsumer.isFinished()) {
+                    break;
+                }
+
+                if (buffer.readableBytes() > 0) {
+                    break;
+                }
+                buffer.recycleBuffer();
+                buffer = null;
+                if (!bufferConsumer.isFinished()) {
+                    break;
+                }
+            }
+
+            if (buffer == null) {
+                return null;
+            }
+
+            if (buffer.getDataType().isBlockingUpstream()) {
+                isBlocked = true;
+            }
+
+            updateStatistics(buffer);
+            // Do not report last remaining buffer on buffers as available to read (assuming it's
+            // unfinished).
+            // It will be reported for reading either on flush or when the number of buffers in the
+            // queue
+            // will be 2 or more.
+            NetworkActionsLogger.traceOutput(
+                    "PipelinedSubpartition#pollBufferFromBuffers",
+                    buffer,
+                    parent.getOwningTaskName(),
+                    subpartitionInfo);
+            return new EventOrRecordOrBufferAndBacklog(
+                    buffer,
+                    getBuffersInBacklogUnsafe(),
+                    isDataAvailableUnsafe() ? getNextBufferTypeUnsafe() : Buffer.DataType.NONE,
+                    sequenceNumber++,
+                    buffer.getSize());
+        }
+    }
+
+    @Nullable
+    EventOrRecordOrBufferAndBacklog pollEventOrRecord() {
+        synchronized (buffers) {
+            if (isBlocked) {
+                return null;
+            }
+
+            if (recordOrEvents.isEmpty()) {
+                flushRequested = false;
+                return null;
+            }
+
+            Object eventOrRecord = recordOrEvents.poll();
+            int size = 0;
+            if (eventOrRecord == null) {
+                return null;
+            }
+            if (eventOrRecord instanceof CheckpointBarrier) {
+                CheckpointBarrier barrier = (CheckpointBarrier) eventOrRecord;
+                if (barrier.getCheckpointOptions().needsAlignment()
+                        && barrier.getCheckpointOptions().isTimeoutable()) {
+                    completeTimeoutableCheckpointBarrier(barrier);
+                }
+            }
+
+            if (this.recordOrEvents.size() == 0) {
+                // turn off flushRequested flag if we drained all the available data
+                flushRequested = false;
+            }
+
+            decreaseBuffersInBacklogUnsafe(eventOrRecord instanceof AbstractEvent);
+            NetworkActionsLogger.traceOutput(
+                    "PipelinedSubpartition#pollEventOrRecord",
+                    eventOrRecord,
+                    parent.getOwningTaskName(),
+                    subpartitionInfo);
+            return new EventOrRecordOrBufferAndBacklog(
+                    eventOrRecord,
+                    getBuffersInBacklogUnsafe(),
+                    isDataAvailableUnsafe() ? getNextBufferTypeUnsafe() : Buffer.DataType.NONE,
+                    sequenceNumber++,
+                    size);
+        }
+    }
+
     @GuardedBy("buffers")
     private void completeTimeoutableCheckpointBarrier(BufferConsumer bufferConsumer) {
         CheckpointBarrier barrier = parseAndCheckTimeoutableCheckpointBarrier(bufferConsumer);
+        if (!isChannelStateFutureAvailable(barrier.getId())) {
+            // It happens on a previously aborted checkpoint.
+            return;
+        }
+        completeChannelStateFuture(Collections.emptyList(), null);
+    }
+
+    @GuardedBy("buffers")
+    private void completeTimeoutableCheckpointBarrier(CheckpointBarrier barrier) {
+        checkTimeoutableCheckpointBarrier(barrier);
         if (!isChannelStateFutureAvailable(barrier.getId())) {
             // It happens on a previously aborted checkpoint.
             return;
@@ -883,7 +1034,7 @@ public class PipelinedSubpartition extends ResultSubpartition implements Channel
     public void flush() {
         final boolean notifyDataAvailable;
         synchronized (buffers) {
-            if (buffers.isEmpty() || flushRequested) {
+            if ((buffers.isEmpty() && recordOrEvents.isEmpty()) || flushRequested) {
                 return;
             }
             // if there is more than 1 buffer, we already notified the reader
@@ -913,6 +1064,10 @@ public class PipelinedSubpartition extends ResultSubpartition implements Channel
     }
 
     private void updateStatistics(BufferConsumer buffer) {
+        totalNumberOfBuffers++;
+    }
+
+    private void updateStatistics(int size) {
         totalNumberOfBuffers++;
     }
 
@@ -972,10 +1127,10 @@ public class PipelinedSubpartition extends ResultSubpartition implements Channel
     @GuardedBy("buffers")
     private boolean shouldNotifyDataAvailable() {
         // Notify only when we added first finished buffer.
-        return readView != null
-                && !flushRequested
-                && !isBlocked
-                && getNumberOfFinishedBuffers() == 1;
+        if (readView == null || flushRequested || isBlocked) {
+            return false;
+        }
+        return this.inLocal() ? true : getNumberOfFinishedBuffers() == 1;
     }
 
     private void notifyDataAvailable() {

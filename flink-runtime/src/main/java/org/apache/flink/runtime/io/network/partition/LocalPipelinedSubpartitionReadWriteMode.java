@@ -23,6 +23,8 @@ import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 
+import javax.annotation.Nullable;
+
 import java.nio.ByteBuffer;
 
 /** represent PipielinedSubpartition location, local or remoteOrUnknown. */
@@ -31,6 +33,8 @@ public final class LocalPipelinedSubpartitionReadWriteMode
         implements PipelinedSubpartitionReadWriteMode {
 
     private final PipelinedSubpartition subPartition;
+
+    private boolean skipPollFromBuffers = false;
 
     LocalPipelinedSubpartitionReadWriteMode(PipelinedSubpartition subPartition) {
         this.subPartition = subPartition;
@@ -65,6 +69,21 @@ public final class LocalPipelinedSubpartitionReadWriteMode
     @Override
     public void add(SerializationDelegate<?> record, ByteBuffer recordBuffer) {
         addInternal(record.getInstance());
+    }
+
+    @Nullable
+    @Override
+    public ResultSubpartition.EventOrRecordOrBufferAndBacklog pollNext() {
+        ResultSubpartition.EventOrRecordOrBufferAndBacklog next;
+        if (!skipPollFromBuffers) {
+            next = subPartition.pollBufferFromBuffers();
+            if (next != null) {
+                return next;
+            } else {
+                skipPollFromBuffers = true;
+            }
+        }
+        return subPartition.pollEventOrRecord();
     }
 
     public void addInternal(Object record) {

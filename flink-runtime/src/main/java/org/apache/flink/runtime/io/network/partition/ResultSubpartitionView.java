@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition.EventOrRecordOrBufferAndBacklog;
 
 import javax.annotation.Nullable;
 
@@ -42,6 +43,10 @@ public interface ResultSubpartitionView {
      */
     @Nullable
     BufferAndBacklog getNextBuffer() throws IOException;
+
+    default EventOrRecordOrBufferAndBacklog getNextElement() {
+        throw new UnsupportedOperationException();
+    }
 
     void notifyDataAvailable();
 
