@@ -223,6 +223,7 @@ import java.util.stream.Collectors;
 import static java.util.Objects.requireNonNull;
 import static org.apache.calcite.linq4j.Nullness.castNonNull;
 import static org.apache.calcite.sql.SqlUtil.stripAs;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Converts a SQL parse tree (consisting of {@link org.apache.calcite.sql.SqlNode} objects) into a
@@ -2944,9 +2945,12 @@ public class SqlToRelConverter {
     private void convertTemporalTable(Blackboard bb, SqlCall call) {
         final SqlSnapshot snapshot = (SqlSnapshot) call;
         final RexNode period = bb.convertExpression(snapshot.getPeriod());
-        final SqlNode tableRef = snapshot.getTableRef();
+
         // convert inner query, could be a table name or a derived table
         SqlNode expr = snapshot.getTableRef();
+        SqlNode tableRef = snapshot.getTableRef();
+        // Since we have simplified the SqlSnapshot in the validate phase, we only need to check
+        // whether the period is a RexLiteral and tableRef's first operand is a SqlIdentifier.
         if (tableRef instanceof SqlBasicCall
                 && ((SqlBasicCall) tableRef).operand(0) instanceof SqlIdentifier
                 && period instanceof RexLiteral) {
@@ -2954,6 +2958,10 @@ public class SqlToRelConverter {
             ZoneId zoneId = tableConfig.getLocalTimeZone();
             TimestampString timestampString =
                     ((RexLiteral) period).getValueAs(TimestampString.class);
+            checkNotNull(
+                    timestampString,
+                    "The time travel expression %s can convert to a valid timestamp string.This is a bug. Please file an issue.",
+                    period);
 
             long timeTravelTimestamp =
                     TimestampData.fromEpochMillis(timestampString.getMillisSinceEpoch())

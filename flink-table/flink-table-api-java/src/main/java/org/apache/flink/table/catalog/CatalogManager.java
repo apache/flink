@@ -417,13 +417,13 @@ public final class CatalogManager implements CatalogRegistry {
                     resolveCatalogBaseTable(temporaryTable);
             return Optional.of(ContextResolvedTable.temporary(objectIdentifier, resolvedTable));
         } else {
-            return getPermanentTable(objectIdentifier, Optional.empty());
+            return getPermanentTable(objectIdentifier, null);
         }
     }
 
     /**
      * Retrieves a fully qualified table with a specific time. If the path is not yet fully
-     * qualified use {@link #qualifyIdentifier(UnresolvedIdentifier)} first.
+     * qualified, use {@link #qualifyIdentifier(UnresolvedIdentifier)} first.
      *
      * @param objectIdentifier full path of the table to retrieve
      * @param timestamp Timestamp of the table snapshot, which is milliseconds since 1970-01-01
@@ -438,7 +438,7 @@ public final class CatalogManager implements CatalogRegistry {
                     resolveCatalogBaseTable(temporaryTable);
             return Optional.of(ContextResolvedTable.temporary(objectIdentifier, resolvedTable));
         } else {
-            return getPermanentTable(objectIdentifier, Optional.of(timestamp));
+            return getPermanentTable(objectIdentifier, timestamp);
         }
     }
 
@@ -505,18 +505,18 @@ public final class CatalogManager implements CatalogRegistry {
     }
 
     private Optional<ContextResolvedTable> getPermanentTable(
-            ObjectIdentifier objectIdentifier, Optional<Long> timestamp) {
+            ObjectIdentifier objectIdentifier, @Nullable Long timestamp) {
         Catalog currentCatalog = catalogs.get(objectIdentifier.getCatalogName());
         ObjectPath objectPath = objectIdentifier.toObjectPath();
         if (currentCatalog != null) {
             try {
                 final CatalogBaseTable table;
-                if (timestamp.isPresent()) {
-                    table = currentCatalog.getTable(objectPath, timestamp.get());
+                if (timestamp != null) {
+                    table = currentCatalog.getTable(objectPath, timestamp);
                     if (table.getTableKind() == CatalogBaseTable.TableKind.VIEW) {
                         throw new TableException(
                                 String.format(
-                                        "Table view: %s does not support time travel",
+                                        "%s is a view, but time travel is not supported for view.",
                                         objectIdentifier.asSummaryString()));
                     }
                 } else {

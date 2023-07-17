@@ -22,7 +22,7 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.schema.SchemaVersion;
 import org.apache.calcite.sql.validate.SqlValidatorCatalogReader;
 
-/** Represent the snapshot of {@link FlinkCalciteCatalogReader}. */
+/** Extends {@link FlinkCalciteCatalogReader} to allow to read a snapshot of the CalciteSchema. */
 public class FlinkCalciteCatalogSnapshotReader extends FlinkCalciteCatalogReader {
     public FlinkCalciteCatalogSnapshotReader(
             SqlValidatorCatalogReader calciteCatalogReader,

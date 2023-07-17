@@ -23,22 +23,23 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.List;
 
-/** Represent the snapshot of the {@link SqlValidatorScope} */
+/** Scope for resolving identifiers that has a {@code FOR SYSTEM_TIME AS OF TIMESTAMP}. */
 public class SnapshotScope extends DelegatingScope {
-    private final SqlValidatorSnapshot sqlValidatorSnapshot;
+    private final SqlValidatorWithSnapshot sqlValidatorWithSnapshot;
 
     public SnapshotScope(SqlValidatorScope parent, SchemaVersion schemaVersion) {
         super(parent);
-        this.sqlValidatorSnapshot =
-                new SqlValidatorSnapshot((SqlValidatorImpl) parent.getValidator(), schemaVersion);
+        this.sqlValidatorWithSnapshot =
+                new SqlValidatorWithSnapshot(
+                        (SqlValidatorImpl) parent.getValidator(), schemaVersion);
     }
 
     @Override
     public void resolveTable(
             List<String> names, SqlNameMatcher nameMatcher, Path path, Resolved resolved) {
-        // In the time travel case, the parent of the  ScopeSnapshot will always be CatalogScope
-        // with an EmptyScope as the parent of the CatalogScope, So we use EmptyScope here directly.
-        new EmptyScope(sqlValidatorSnapshot).resolveTable(names, nameMatcher, path, resolved);
+        // In the time travel case, the parent of the ScopeSnapshot will always be CatalogScope
+        // with an EmptyScope as the parent of the CatalogScope, so we use EmptyScope here directly.
+        new EmptyScope(sqlValidatorWithSnapshot).resolveTable(names, nameMatcher, path, resolved);
     }
 
     @Override

@@ -19,7 +19,7 @@ package org.apache.calcite.sql.validate;
 
 import org.apache.calcite.schema.SchemaVersion;
 
-/** Represent the snapshot of the {@link IdentifierNamespace} */
+/** A namespace for the statement with {@code FOR SYSTEM_TIME AS OF TIMESTAMP} clause. */
 public class IdentifierSnapshotNamespace extends IdentifierNamespace {
     public IdentifierSnapshotNamespace(
             IdentifierNamespace ns, SchemaVersion schemaVersion, SqlValidatorScope parentScope) {

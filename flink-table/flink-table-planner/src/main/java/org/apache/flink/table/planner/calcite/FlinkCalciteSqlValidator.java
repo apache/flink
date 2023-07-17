@@ -35,6 +35,7 @@ import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.schema.SchemaVersion;
 import org.apache.calcite.sql.JoinType;
+import org.apache.calcite.sql.SqlAsOperator;
 import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -68,6 +69,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.apache.calcite.sql.type.SqlTypeName.DECIMAL;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Extends Calcite's {@link SqlValidator} by Flink-specific behavior. */
 @Internal
@@ -77,11 +79,11 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
     private SqlNode sqlNodeForExpectedOutputType;
     private RelDataType expectedOutputType;
 
-    private RelOptCluster relOptCluster;
+    private final RelOptCluster relOptCluster;
 
-    private RelOptTable.ToRelContext toRelContext;
+    private final RelOptTable.ToRelContext toRelContext;
 
-    private FrameworkConfig frameworkConfig;
+    private final FrameworkConfig frameworkConfig;
 
     public FlinkCalciteSqlValidator(
             SqlOperatorTable opTab,
@@ -161,20 +163,21 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
         // see also SqlFunction#deriveType
     }
 
+    @Override
     protected void registerNamespace(
             @Nullable SqlValidatorScope usingScope,
             @Nullable String alias,
             SqlValidatorNamespace ns,
             boolean forceNullable) {
 
-        // apply snapshot to SqlValidatorNameSpace
+        // Generate a new validator namespace for time travel scenario.
         // Time travel only supports constant expressions, so we need to investigate scenarios
         // where the period of Snapshot is a SqlIdentifier.
+        Optional<SqlSnapshot> timeTravelNode = getTimeTravelNode(ns);
         if (usingScope != null
-                && ns instanceof IdentifierNamespace
-                && ns.getEnclosingNode() instanceof SqlSnapshot
-                && !(((SqlSnapshot) ns.getEnclosingNode()).getPeriod() instanceof SqlIdentifier)) {
-            SqlSnapshot sqlSnapshot = (SqlSnapshot) ns.getEnclosingNode();
+                && timeTravelNode.isPresent()
+                && !(timeTravelNode.get().getPeriod() instanceof SqlIdentifier)) {
+            SqlSnapshot sqlSnapshot = timeTravelNode.get();
             SqlNode periodNode = sqlSnapshot.getPeriod();
             SqlToRelConverter sqlToRelConverter = this.createSqlToRelConverter();
             RexNode rexNode = sqlToRelConverter.convertExpression(periodNode);
@@ -194,21 +197,20 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
             // check whether period is the unsupported expression
             if (!(reducedNodes.get(0) instanceof RexLiteral)) {
                 throw new UnsupportedOperationException(
-                        String.format("Unsupported time travel period: %s", periodNode));
+                        String.format(
+                                "Unsupported time travel expression: %s for the expression can not be reduced to a constant by Flink.",
+                                periodNode));
             }
 
             RexLiteral rexLiteral = (RexLiteral) (reducedNodes).get(0);
-            sqlSnapshot.setOperand(
-                    1,
-                    SqlLiteral.createTimestamp(
-                            rexLiteral.getValueAs(TimestampString.class),
-                            rexLiteral.getType().getPrecision(),
-                            sqlSnapshot.getPeriod().getParserPosition()));
-
             TimestampString timestampString = rexLiteral.getValueAs(TimestampString.class);
+            checkNotNull(
+                    timestampString,
+                    "The time travel expression %s can not reduce to a valid timestamp string. This is a bug. Please file an issue.",
+                    periodNode);
+
             TableConfig tableConfig = ShortcutUtils.unwrapContext(relOptCluster).getTableConfig();
             ZoneId zoneId = tableConfig.getLocalTimeZone();
-
             long timeTravelTimestamp =
                     TimestampData.fromEpochMillis(timestampString.getMillisSinceEpoch())
                             .toLocalDateTime()
@@ -224,9 +226,44 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
                             schemaVersion,
                             ((DelegatingScope) usingScope).getParent());
             ns = snapshotNameSpace;
+
+            sqlSnapshot.setOperand(
+                    1,
+                    SqlLiteral.createTimestamp(
+                            timestampString,
+                            rexLiteral.getType().getPrecision(),
+                            sqlSnapshot.getPeriod().getParserPosition()));
         }
 
         super.registerNamespace(usingScope, alias, ns, forceNullable);
+    }
+
+    /**
+     * For the time travel scenario, we need to build a SchemaVersion based on the Snapshot node for
+     * IdentifierNamespace in order to generate a new namespace.
+     *
+     * <p>In general, the enclosing Node of IdentifierNamespace is usually SqlSnapshot. However, if
+     * we encounter a situation with an "as" operator, we need to identify whether the enclosingNode
+     * is an "as" call and if its first operand is SqlSnapshot.
+     *
+     * @param ns Validator namespace for validator.
+     * @return snapshot node for generating a new namespace for time travel.
+     */
+    private Optional<SqlSnapshot> getTimeTravelNode(SqlValidatorNamespace ns) {
+        if (ns instanceof IdentifierNamespace) {
+            SqlNode enclosingNode = ns.getEnclosingNode();
+            // FOR SYSTEM_TIME AS OF [expression]
+            if (enclosingNode instanceof SqlSnapshot) {
+                return Optional.of((SqlSnapshot) enclosingNode);
+                // FOR SYSTEM_TIME AS OF [expression] as [identifier]
+            } else if (enclosingNode instanceof SqlBasicCall
+                    && ((SqlBasicCall) enclosingNode).getOperator() instanceof SqlAsOperator
+                    && ((SqlBasicCall) enclosingNode).getOperandList().get(0)
+                            instanceof SqlSnapshot)
+                return Optional.of(
+                        (SqlSnapshot) ((SqlBasicCall) enclosingNode).getOperandList().get(0));
+        }
+        return Optional.empty();
     }
 
     private SqlToRelConverter createSqlToRelConverter() {

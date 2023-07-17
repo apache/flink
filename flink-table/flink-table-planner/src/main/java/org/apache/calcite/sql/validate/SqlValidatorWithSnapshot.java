@@ -21,10 +21,10 @@ import org.apache.flink.table.planner.plan.FlinkCalciteCatalogSnapshotReader;
 
 import org.apache.calcite.schema.SchemaVersion;
 
-/** Represent the snapshot of {@link SqlValidatorImpl} */
-public class SqlValidatorSnapshot extends SqlValidatorImpl {
+/** Extends {@link SqlValidatorImpl} to allow to read the schema with a specific version. */
+public class SqlValidatorWithSnapshot extends SqlValidatorImpl {
 
-    public SqlValidatorSnapshot(SqlValidatorImpl parent, SchemaVersion schemaVersion) {
+    public SqlValidatorWithSnapshot(SqlValidatorImpl parent, SchemaVersion schemaVersion) {
         super(
                 parent.getOperatorTable(),
                 new FlinkCalciteCatalogSnapshotReader(

@@ -41,10 +41,10 @@ public class TestTimeTravelCatalog extends GenericInMemoryCatalog {
     public TestTimeTravelCatalog(String name) {
         super(name);
 
-        this.catalogs = new HashMap<>();
+        this.tables = new HashMap<>();
     }
 
-    private final Map<ObjectPath, List<Tuple2<Long, CatalogTable>>> catalogs;
+    private final Map<ObjectPath, List<Tuple2<Long, CatalogTable>>> tables;
 
     @Override
     public void createTable(ObjectPath tablePath, CatalogBaseTable table, boolean ignoreIfExists)
@@ -61,11 +61,11 @@ public class TestTimeTravelCatalog extends GenericInMemoryCatalog {
     public CatalogBaseTable getTable(ObjectPath tablePath, long timestamp)
             throws TableNotExistException {
 
-        if (catalogs.containsKey(tablePath)) {
-            List<Tuple2<Long, CatalogTable>> tables = catalogs.get(tablePath);
+        if (tables.containsKey(tablePath)) {
+            List<Tuple2<Long, CatalogTable>> tableList = tables.get(tablePath);
 
             Optional<Tuple2<Long, CatalogTable>> table =
-                    tables.stream()
+                    tableList.stream()
                             .filter(t -> t.f0 <= timestamp)
                             .max(Comparator.comparing(t -> t.f0));
 
@@ -89,11 +89,11 @@ public class TestTimeTravelCatalog extends GenericInMemoryCatalog {
         CatalogTable catalogTable =
                 CatalogTable.of(schema, "", Collections.emptyList(), properties);
         ObjectPath objectPath = new ObjectPath(getDefaultDatabase(), tableName);
-        if (!catalogs.containsKey(objectPath)) {
-            catalogs.put(objectPath, new ArrayList<>());
+        if (!tables.containsKey(objectPath)) {
+            tables.put(objectPath, new ArrayList<>());
         }
 
-        catalogs.get(objectPath).add(Tuple2.of(timestamp, catalogTable));
+        tables.get(objectPath).add(Tuple2.of(timestamp, catalogTable));
         if (super.tableExists(objectPath)) {
             super.dropTable(objectPath, true);
         }
