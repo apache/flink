@@ -210,6 +210,10 @@ public class JarFileChecker {
                     .filter(
                             path ->
                                     !pathStartsWith(
+                                            path, "/org/apache/pulsar/shade/javax/xml/bind/"))
+                    .filter(
+                            path ->
+                                    !pathStartsWith(
                                             path,
                                             "/org/apache/flink/connector/pulsar/shade/javax/xml/bind/"))
                     // dual-licensed under GPL 2 and EPL 2.0
@@ -217,6 +221,10 @@ public class JarFileChecker {
                     .filter(path -> !pathStartsWith(path, "/org/glassfish/jersey/internal"))
                     // contained in sql-connector-pulsar
                     // while the Pulsar connector is externalized, this is still needed for PyFlink
+                    .filter(
+                            path ->
+                                    !pathStartsWith(
+                                            path, "/org/apache/pulsar/shade/org/glassfish/jersey/"))
                     .filter(
                             path ->
                                     !pathStartsWith(
