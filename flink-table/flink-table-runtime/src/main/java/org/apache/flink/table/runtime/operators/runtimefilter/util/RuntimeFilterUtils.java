@@ -30,8 +30,14 @@ public class RuntimeFilterUtils {
 
     public static final int OVER_MAX_ROW_COUNT = -1;
 
-    public static BloomFilter createOnHeapBloomFilter(int numExpectedEntries, double fpp) {
-        int byteSize = (int) Math.ceil(BloomFilter.optimalNumOfBits(numExpectedEntries, fpp) / 8D);
+    private static final double EXPECTED_FPP = 0.05;
+
+    public static BloomFilter createOnHeapBloomFilter(int numExpectedEntries) {
+        int byteSize =
+                (int)
+                        Math.ceil(
+                                BloomFilter.optimalNumOfBits(numExpectedEntries, EXPECTED_FPP)
+                                        / 8D);
         final BloomFilter filter = new BloomFilter(numExpectedEntries, byteSize);
         filter.setBitsLocation(MemorySegmentFactory.allocateUnpooledSegment(byteSize), 0);
         return filter;

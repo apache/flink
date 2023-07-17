@@ -68,7 +68,7 @@ public class LocalRuntimeFilterBuilderOperator extends TableStreamOperator<RowDa
         super.open();
 
         this.buildSideProjection = buildProjectionCode.newInstance(getUserCodeClassloader());
-        this.filter = RuntimeFilterUtils.createOnHeapBloomFilter(estimatedRowCount, 0.05);
+        this.filter = RuntimeFilterUtils.createOnHeapBloomFilter(estimatedRowCount);
         this.collector = new StreamRecordCollector<>(output);
         this.actualRowCount = 0;
     }

@@ -140,7 +140,7 @@ class GlobalRuntimeFilterBuilderOperatorTest {
     }
 
     private static BloomFilter createBloomFilter1() {
-        final BloomFilter bloomFilter1 = RuntimeFilterUtils.createOnHeapBloomFilter(10, 0.05);
+        final BloomFilter bloomFilter1 = RuntimeFilterUtils.createOnHeapBloomFilter(10);
         bloomFilter1.addHash("var1".hashCode());
         bloomFilter1.addHash("var2".hashCode());
         bloomFilter1.addHash("var3".hashCode());
@@ -150,7 +150,7 @@ class GlobalRuntimeFilterBuilderOperatorTest {
     }
 
     private static BloomFilter createBloomFilter2() {
-        final BloomFilter bloomFilter2 = RuntimeFilterUtils.createOnHeapBloomFilter(10, 0.05);
+        final BloomFilter bloomFilter2 = RuntimeFilterUtils.createOnHeapBloomFilter(10);
         bloomFilter2.addHash("var6".hashCode());
         bloomFilter2.addHash("var7".hashCode());
         bloomFilter2.addHash("var8".hashCode());
