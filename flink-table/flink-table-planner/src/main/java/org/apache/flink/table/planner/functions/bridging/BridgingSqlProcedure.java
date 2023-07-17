@@ -22,6 +22,7 @@ import org.apache.flink.table.catalog.ContextResolvedProcedure;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.procedures.Procedure;
 import org.apache.flink.table.procedures.ProcedureDefinition;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.extraction.TypeInferenceExtractor;
 import org.apache.flink.table.types.inference.TypeInference;
 
@@ -45,7 +46,7 @@ public class BridgingSqlProcedure extends SqlFunction {
 
     private final ContextResolvedProcedure contextResolvedProcedure;
 
-    public BridgingSqlProcedure(
+    private BridgingSqlProcedure(
             String name,
             SqlIdentifier sqlIdentifier,
             @Nullable SqlReturnTypeInference returnTypeInference,
@@ -68,6 +69,12 @@ public class BridgingSqlProcedure extends SqlFunction {
         return contextResolvedProcedure;
     }
 
+    /**
+     * Creates an instance of a procedure.
+     *
+     * @param dataTypeFactory used for creating {@link DataType}
+     * @param resolvedProcedure {@link Procedure} with context
+     */
     public static BridgingSqlProcedure of(
             DataTypeFactory dataTypeFactory, ContextResolvedProcedure resolvedProcedure) {
         final Procedure procedure = resolvedProcedure.getProcedure();

@@ -183,12 +183,7 @@ class FlinkPlannerImpl(
           compileAndExecute.setOperand(0, validate(compileAndExecute.getOperandList.get(0)))
           compileAndExecute
         // for call procedure statement
-        case sqlCallNode
-            if sqlCallNode.isInstanceOf[SqlBasicCall]
-              && sqlCallNode
-                .asInstanceOf[SqlBasicCall]
-                .getOperator
-                .isInstanceOf[SqlProcedureCallOperator] =>
+        case sqlCallNode if sqlCallNode.getKind == SqlKind.PROCEDURE_CALL =>
           val callNode = sqlCallNode.asInstanceOf[SqlBasicCall]
           callNode.getOperandList.asScala.zipWithIndex.foreach {
             case (operand, idx) => callNode.setOperand(idx, validate(operand))

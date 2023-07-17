@@ -104,7 +104,7 @@ public class SqlProcedureCallConverter implements SqlNodeConverter<SqlNode> {
                         String.format(
                                 "The argument at position %s %s for calling procedure can't be converted to "
                                         + "literal.",
-                                i + 1, context.toQuotedSqlString(callProcedure.operand(i))));
+                                i, context.toQuotedSqlString(callProcedure.operand(i))));
             }
 
             // convert the literal to Flink internal representation

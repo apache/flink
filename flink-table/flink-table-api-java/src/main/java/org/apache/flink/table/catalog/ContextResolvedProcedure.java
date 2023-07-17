@@ -24,7 +24,6 @@ import org.apache.flink.table.procedures.Procedure;
 
 /**
  * This class contains information about a procedure and its relationship with a {@link Catalog}.
- * This class is meant for internal usages.
  */
 @Internal
 public class ContextResolvedProcedure {

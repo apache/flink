@@ -53,7 +53,7 @@ public class SqlNodeToCallOperationTest extends SqlNodeToOperationConversionTest
     }
 
     @Test
-    public void testCallStatement() {
+    void testCallStatement() {
         // test call the procedure which accepts primitive types as arguments
         String sql = "call `system`.primitive_arg(1, 2)";
         verifyCallOperation(
@@ -140,6 +140,12 @@ public class SqlNodeToCallOperationTest extends SqlNodeToOperationConversionTest
         assertThatThrownBy(() -> parse("call `system`.primitive_arg(1)"))
                 .hasMessageContaining(
                         "No match found for function signature primitive_arg(<NUMERIC>)");
+
+        // should throw exception when the expression argument can't be reduced
+        // to literal
+        assertThatThrownBy(() -> parse("call `system`.row_result(cast((1.2 + 2.4) as decimal))"))
+                .hasMessageContaining(
+                        "The argument at position 0 CAST(CAST(1.2 + 2.4 AS DECIMAL) AS DECIMAL(10, 2)) for calling procedure can't be converted to literal.");
     }
 
     private void verifyCallOperation(String sql, String expectSummary) {
@@ -148,7 +154,7 @@ public class SqlNodeToCallOperationTest extends SqlNodeToOperationConversionTest
         assertThat(parse(sql).asSummaryString()).isEqualTo(expectSummary);
     }
 
-    /** A catalog with some built-in procedures for test purpose. */
+    /** A catalog with some built-in procedures for testing purpose. */
     private static class CatalogWithBuiltInProcedure extends GenericInMemoryCatalog {
 
         private static final Map<ObjectPath, Procedure> PROCEDURE_MAP = new HashMap<>();
@@ -225,7 +231,7 @@ public class SqlNodeToCallOperationTest extends SqlNodeToOperationConversionTest
         }
     }
 
-    /** A simple pojo class for test purpose. */
+    /** A simple pojo class for testing purpose. */
     public static class MyPojo {
         private final String name;
         private final long id;
