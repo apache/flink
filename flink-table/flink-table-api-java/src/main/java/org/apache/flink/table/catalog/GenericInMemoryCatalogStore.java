@@ -28,7 +28,7 @@ import java.util.Set;
 import static java.lang.String.format;
 
 /** A generic catalog store implementation that store all catalog configuration in memory. */
-public class GenericInMemoryCatalogStore implements CatalogStore {
+public class GenericInMemoryCatalogStore extends AbstractCatalogStore {
 
     private final Map<String, CatalogDescriptor> descriptors;
 
@@ -39,6 +39,7 @@ public class GenericInMemoryCatalogStore implements CatalogStore {
     @Override
     public void storeCatalog(String catalogName, CatalogDescriptor catalog)
             throws CatalogException {
+        checkOpenState();
         if (descriptors.containsKey(catalogName)) {
             throw new CatalogException(
                     format("Catalog %s already exists in the catalog store.", catalogName));
@@ -49,6 +50,7 @@ public class GenericInMemoryCatalogStore implements CatalogStore {
     @Override
     public void removeCatalog(String catalogName, boolean ignoreIfNotExists)
             throws CatalogException {
+        checkOpenState();
         if (descriptors.containsKey(catalogName)) {
             descriptors.remove(catalogName);
         } else if (!ignoreIfNotExists) {
@@ -59,22 +61,19 @@ public class GenericInMemoryCatalogStore implements CatalogStore {
 
     @Override
     public Optional<CatalogDescriptor> getCatalog(String catalogName) {
+        checkOpenState();
         return Optional.ofNullable(descriptors.get(catalogName));
     }
 
     @Override
     public Set<String> listCatalogs() {
+        checkOpenState();
         return descriptors.keySet();
     }
 
     @Override
     public boolean contains(String catalogName) {
+        checkOpenState();
         return descriptors.containsKey(catalogName);
     }
-
-    @Override
-    public void open() {}
-
-    @Override
-    public void close() {}
 }

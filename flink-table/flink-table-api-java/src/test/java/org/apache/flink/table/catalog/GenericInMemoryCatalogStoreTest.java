@@ -47,5 +47,21 @@ public class GenericInMemoryCatalogStoreTest {
                 .hasMessageContaining("Catalog catalog1 does not exist in the catalog store.");
 
         catalogStore.close();
+
+        assertThatThrownBy(
+                        () ->
+                                catalogStore.storeCatalog(
+                                        "catalog1",
+                                        CatalogDescriptor.of("catalog1", new Configuration())))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Catalog store is not open.");
+
+        assertThatThrownBy(() -> catalogStore.removeCatalog("catalog1", false))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Catalog store is not open.");
+
+        assertThatThrownBy(() -> catalogStore.contains("catalog1"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Catalog store is not open.");
     }
 }
