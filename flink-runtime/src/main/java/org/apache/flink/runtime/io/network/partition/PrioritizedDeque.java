@@ -46,7 +46,7 @@ import java.util.stream.StreamSupport;
  * @param <T> the element type.
  */
 @Internal
-public final class PrioritizedDeque<T> implements Iterable<T> {
+public class PrioritizedDeque<T> implements Iterable<T> {
     private final Deque<T> deque = new ArrayDeque<>();
     private int numPriorityElements;
 

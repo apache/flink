@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
@@ -89,7 +90,7 @@ public class PipelinedSubpartition extends ResultSubpartition implements Channel
             new PrioritizedDeque<>();
 
     /** Records(StreamElement) or Event in this subpartition. */
-    final PrioritizedDeque<Object> recordOrEvents = new PrioritizedDeque<>();
+    final SizeLimitedPrioritizedDeque<Object> recordOrEvents = new SizeLimitedPrioritizedDeque<>();
 
     /** The number of non-event buffers currently in this subpartition. */
     @GuardedBy("buffers")
@@ -165,13 +166,13 @@ public class PipelinedSubpartition extends ResultSubpartition implements Channel
     }
 
     @Override
-    public boolean updateLocation(boolean isLocal) {
-        this.isLocal = isLocal;
-        if (isLocal) {
-            this.readWriteMode = new LocalPipelinedSubpartitionReadWriteMode(this);
-        } else {
-            this.readWriteMode = new UnknownOrRemotePipelinedSubpartitionReadWriteMode(this);
-        }
+    public synchronized boolean updateLocation(boolean isLocal) {
+        //        this.isLocal = isLocal;
+        //        if (isLocal) {
+        //            this.readWriteMode = new LocalPipelinedSubpartitionReadWriteMode(this);
+        //        } else {
+        this.readWriteMode = new UnknownOrRemotePipelinedSubpartitionReadWriteMode(this);
+        //        }
 
         return true;
     }
@@ -202,6 +203,10 @@ public class PipelinedSubpartition extends ResultSubpartition implements Channel
         checkNotNull(record.getInstance());
         checkNotNull(recordBuffer);
 
+        if (this.readWriteMode.blockWaitingAndTryToAdd(record, recordBuffer)) {
+            return bufferSize;
+        }
+
         final boolean notifyDataAvailable;
         int newBufferSize;
         synchronized (buffers) {
@@ -228,6 +233,10 @@ public class PipelinedSubpartition extends ResultSubpartition implements Channel
     public int add(SerializationDelegate<?> record) throws IOException {
         checkNotNull(record);
         checkNotNull(record.getInstance());
+
+        if (this.readWriteMode.blockWaitingAndTryToAdd(record)) {
+            return bufferSize;
+        }
 
         final boolean notifyDataAvailable;
         int newBufferSize;
@@ -315,6 +324,11 @@ public class PipelinedSubpartition extends ResultSubpartition implements Channel
             throws IOException {
         checkNotNull(record);
         checkNotNull(record.getInstance());
+
+        if (this.readWriteMode.blockWaitingAndTryToAdd(
+                record, bufferConsumer, partialRecordLength)) {
+            return bufferSize;
+        }
 
         final boolean notifyDataAvailable;
         int newBufferSize;
@@ -854,11 +868,13 @@ public class PipelinedSubpartition extends ResultSubpartition implements Channel
                 return null;
             }
 
-            Object eventOrRecord = recordOrEvents.poll();
-            int size = 0;
-            if (eventOrRecord == null) {
+            Tuple2<Object, Integer> eventOrRecordAndSize = recordOrEvents.pollElementAndSize();
+            if (eventOrRecordAndSize == null) {
                 return null;
             }
+            Object eventOrRecord = eventOrRecordAndSize.f0;
+            int size = eventOrRecordAndSize.f1;
+
             if (eventOrRecord instanceof CheckpointBarrier) {
                 CheckpointBarrier barrier = (CheckpointBarrier) eventOrRecord;
                 if (barrier.getCheckpointOptions().needsAlignment()

@@ -26,6 +26,7 @@ import org.apache.flink.runtime.plugable.SerializationDelegate;
 import javax.annotation.Nullable;
 
 import java.nio.ByteBuffer;
+import java.util.concurrent.ExecutionException;
 
 /** represent PipielinedSubpartition location, local or remoteOrUnknown. */
 @Internal
@@ -34,10 +35,13 @@ public final class LocalPipelinedSubpartitionReadWriteMode
 
     private final PipelinedSubpartition subPartition;
 
+    private final BufferWritingResultPartition resultPartition;
+
     private boolean skipPollFromBuffers = false;
 
     LocalPipelinedSubpartitionReadWriteMode(PipelinedSubpartition subPartition) {
         this.subPartition = subPartition;
+        this.resultPartition = (BufferWritingResultPartition) subPartition.parent;
     }
 
     @Override
@@ -86,7 +90,32 @@ public final class LocalPipelinedSubpartitionReadWriteMode
         return subPartition.pollEventOrRecord();
     }
 
+    @Override
+    public boolean blockWaitingAndTryToAdd(
+            SerializationDelegate<?> record, ByteBuffer recordBuffer) {
+        return blockWaitingAndTryToAdd(record);
+    }
+
+    @Override
+    public boolean blockWaitingAndTryToAdd(
+            SerializationDelegate<?> record,
+            BufferConsumer bufferConsumer,
+            int partialRecordLength) {
+        return blockWaitingAndTryToAdd(record);
+    }
+
+    @Override
+    public boolean blockWaitingAndTryToAdd(SerializationDelegate<?> record) {
+        try {
+            subPartition.recordOrEvents.blockingWaitingForAdd(
+                    record, resultPartition.getHardBackPressuredTimeMsPerSecond());
+        } catch (ExecutionException | InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+        return false;
+    }
+
     public void addInternal(Object record) {
-        subPartition.recordOrEvents.add(record);
+        subPartition.recordOrEvents.addAndGetSize(record);
     }
 }

@@ -63,7 +63,6 @@ public final class UnknownOrRemotePipelinedSubpartitionReadWriteMode
     // todo: resultPartition totalWrittenBytes need to be calculated when record is added
     @Override
     public void add(SerializationDelegate<?> record) {
-        System.out.printf("call add method in unknown or remote ");
         ByteBuffer recordBuffer = null;
         try {
             recordBuffer = RecordWriter.serializeRecord(subPartition.serializer, record);
@@ -95,5 +94,36 @@ public final class UnknownOrRemotePipelinedSubpartitionReadWriteMode
     @Override
     public ResultSubpartition.EventOrRecordOrBufferAndBacklog pollNext() {
         return subPartition.pollBufferFromBuffers();
+    }
+
+    @Override
+    public boolean blockWaitingAndTryToAdd(SerializationDelegate<?> record) {
+        ByteBuffer recordBuffer = null;
+        try {
+            recordBuffer = RecordWriter.serializeRecord(subPartition.serializer, record);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return blockWaitingAndTryToAdd(record, recordBuffer);
+    }
+
+    @Override
+    public boolean blockWaitingAndTryToAdd(
+            SerializationDelegate<?> record, ByteBuffer recordBuffer) {
+        try {
+            resultPartition.emitRecord(recordBuffer, this.subPartition.getSubPartitionIndex());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return true;
+    }
+
+    @Override
+    public boolean blockWaitingAndTryToAdd(
+            SerializationDelegate<?> record,
+            BufferConsumer bufferConsumer,
+            int partialRecordLength) {
+        subPartition.add(bufferConsumer, partialRecordLength);
+        return true;
     }
 }

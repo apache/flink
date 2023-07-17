@@ -29,6 +29,7 @@ import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 
 /** represent PipielinedSubpartition location, local or remoteOrUnknown. */
+@SuppressWarnings("checkstyle:JavadocType")
 @Internal
 public interface PipelinedSubpartitionReadWriteMode {
 
@@ -53,4 +54,13 @@ public interface PipelinedSubpartitionReadWriteMode {
     // Get next element(Event/StreamElement/Buffer) from ResultSubPartition
     @Nullable
     EventOrRecordOrBufferAndBacklog pollNext();
+
+    boolean blockWaitingAndTryToAdd(SerializationDelegate<?> record, ByteBuffer recordBuffer);
+
+    boolean blockWaitingAndTryToAdd(
+            SerializationDelegate<?> record,
+            BufferConsumer bufferConsumer,
+            int partialRecordLength);
+
+    boolean blockWaitingAndTryToAdd(SerializationDelegate<?> record);
 }
