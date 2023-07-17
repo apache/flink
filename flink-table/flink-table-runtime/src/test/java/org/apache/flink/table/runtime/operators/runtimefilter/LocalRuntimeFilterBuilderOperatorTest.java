@@ -47,7 +47,7 @@ import static org.apache.flink.table.runtime.operators.runtimefilter.util.Runtim
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 /** Test for {@link LocalRuntimeFilterBuilderOperator}. */
-class LocalRuntimeFilterBuilderOperatorTest implements Serializable {
+public class LocalRuntimeFilterBuilderOperatorTest implements Serializable {
 
     @Test
     void testNormalOutput() throws Exception {
@@ -106,11 +106,11 @@ class LocalRuntimeFilterBuilderOperatorTest implements Serializable {
                 projection.apply(GenericRowData.of(StringData.fromString(string))).hashCode());
     }
 
-    private static StreamRecord<RowData> createRowDataRecord(String string, int integer) {
+    public static StreamRecord<RowData> createRowDataRecord(String string, int integer) {
         return new StreamRecord<>(GenericRowData.of(StringData.fromString(string), integer));
     }
 
-    private static StreamTaskMailboxTestHarness<RowData>
+    public static StreamTaskMailboxTestHarness<RowData>
             createLocalRuntimeFilterBuilderOperatorHarnessAndProcessElements(
                     int estimatedRowCount, int maxRowCount) throws Exception {
         final GeneratedProjection buildProjectionCode =
