@@ -16,23 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.network.partition.hybrid;
-
-import org.apache.flink.runtime.io.network.partition.hybrid.HsFileDataIndexImpl.InternalRegion;
+package org.apache.flink.runtime.io.network.partition.hybrid.index;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.function.BiConsumer;
 
 /** This class is responsible for spilling region to disk and managing these spilled regions. */
-public interface HsFileDataIndexSpilledRegionManager extends AutoCloseable {
+public interface FileDataIndexSpilledRegionManager<T extends FileDataIndexRegionHelper.Region>
+        extends AutoCloseable {
     /**
      * Write this region to index file. If target region already spilled, overwrite it.
      *
      * @param subpartition the subpartition id of this region.
      * @param region the region to be spilled to index file.
      */
-    void appendOrOverwriteRegion(int subpartition, InternalRegion region) throws IOException;
+    void appendOrOverwriteRegion(int subpartition, T region) throws IOException;
 
     /**
      * Find the region contains target bufferIndex and belong to target subpartition.
@@ -48,11 +47,11 @@ public interface HsFileDataIndexSpilledRegionManager extends AutoCloseable {
     /** Close this spilled region manager. */
     void close() throws IOException;
 
-    /** Factory of {@link HsFileDataIndexSpilledRegionManager}. */
-    interface Factory {
-        HsFileDataIndexSpilledRegionManager create(
+    /** Factory of {@link FileDataIndexSpilledRegionManager}. */
+    interface Factory<T extends FileDataIndexRegionHelper.Region> {
+        FileDataIndexSpilledRegionManager<T> create(
                 int numSubpartitions,
                 Path indexFilePath,
-                BiConsumer<Integer, InternalRegion> cacheRegionConsumer);
+                BiConsumer<Integer, T> cacheRegionConsumer);
     }
 }
