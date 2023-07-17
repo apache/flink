@@ -224,7 +224,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         final JobResult jobResult =
                 TestingJobResultStore.createJobResult(
                         jobGraph.getJobID(), ApplicationStatus.SUCCEEDED);
-        haServices.getJobResultStore().createDirtyResult(new JobResultEntry(jobResult));
+        haServices.getJobResultStore().createDirtyResultAsync(new JobResultEntry(jobResult)).get();
         assertDuplicateJobSubmission();
     }
 
@@ -233,8 +233,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
         final JobResult jobResult =
                 TestingJobResultStore.createJobResult(
                         jobGraph.getJobID(), ApplicationStatus.SUCCEEDED);
-        haServices.getJobResultStore().createDirtyResult(new JobResultEntry(jobResult));
-        haServices.getJobResultStore().markResultAsClean(jobGraph.getJobID());
+        haServices.getJobResultStore().createDirtyResultAsync(new JobResultEntry(jobResult)).get();
+        haServices.getJobResultStore().markResultAsCleanAsync(jobGraph.getJobID()).get();
 
         assertDuplicateJobSubmission();
     }

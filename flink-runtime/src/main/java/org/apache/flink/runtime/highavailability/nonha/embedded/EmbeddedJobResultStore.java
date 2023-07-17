@@ -23,6 +23,7 @@ import org.apache.flink.runtime.highavailability.AbstractThreadsafeJobResultStor
 import org.apache.flink.runtime.highavailability.JobResultEntry;
 import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.util.concurrent.Executors;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -37,6 +38,10 @@ public class EmbeddedJobResultStore extends AbstractThreadsafeJobResultStore {
     private final Map<JobID, JobResultEntry> dirtyJobResults = new HashMap<>();
 
     private final Map<JobID, JobResultEntry> cleanJobResults = new HashMap<>();
+
+    public EmbeddedJobResultStore() {
+        super(Executors.directExecutor());
+    }
 
     @Override
     public void createDirtyResultInternal(JobResultEntry jobResultEntry) {

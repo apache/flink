@@ -335,8 +335,11 @@ public class DispatcherResourceCleanupTest extends TestLogger {
                                                     try {
                                                         markAsDirtyLatch.await();
                                                     } catch (InterruptedException e) {
-                                                        throw new RuntimeException(e);
+                                                        Thread.currentThread().interrupt();
+                                                        return FutureUtils.completedExceptionally(
+                                                                e);
                                                     }
+                                                    return FutureUtils.completedVoidFuture();
                                                 })
                                         .build());
 
@@ -358,7 +361,11 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
         final JobResultStore jobResultStore =
                 TestingJobResultStore.builder()
-                        .withMarkResultAsCleanConsumer(markAsCleanFuture::complete)
+                        .withMarkResultAsCleanConsumer(
+                                jobID -> {
+                                    markAsCleanFuture.complete(jobID);
+                                    return FutureUtils.completedVoidFuture();
+                                })
                         .build();
         final OneShotLatch localCleanupLatch = new OneShotLatch();
         final OneShotLatch globalCleanupLatch = new OneShotLatch();
@@ -547,9 +554,9 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         final JobResultStore jobResultStore =
                 TestingJobResultStore.builder()
                         .withCreateDirtyResultConsumer(
-                                jobResult -> {
-                                    throw new IOException("Expected IOException.");
-                                })
+                                jobResult ->
+                                        FutureUtils.completedExceptionally(
+                                                new IOException("Expected IOException.")))
                         .build();
 
         final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
@@ -579,11 +586,15 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         final CompletableFuture<JobResultEntry> dirtyJobFuture = new CompletableFuture<>();
         final JobResultStore jobResultStore =
                 TestingJobResultStore.builder()
-                        .withCreateDirtyResultConsumer(dirtyJobFuture::complete)
-                        .withMarkResultAsCleanConsumer(
-                                jobId -> {
-                                    throw new IOException("Expected IOException.");
+                        .withCreateDirtyResultConsumer(
+                                jobResultEntry -> {
+                                    dirtyJobFuture.complete(jobResultEntry);
+                                    return FutureUtils.completedVoidFuture();
                                 })
+                        .withMarkResultAsCleanConsumer(
+                                jobId ->
+                                        FutureUtils.completedExceptionally(
+                                                new IOException("Expected IOException.")))
                         .build();
 
         final TestingJobManagerRunnerFactory jobManagerRunnerFactory =

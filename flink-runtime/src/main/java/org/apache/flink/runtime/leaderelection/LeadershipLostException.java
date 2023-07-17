@@ -16,27 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.highavailability;
+package org.apache.flink.runtime.leaderelection;
 
-import org.apache.flink.core.fs.Path;
-import org.apache.flink.util.concurrent.Executors;
+/** This exception is used in the scenario that the leadership is lost. */
+public class LeadershipLostException extends LeaderElectionException {
 
-import org.junit.jupiter.api.io.TempDir;
+    private static final long serialVersionUID = 1L;
 
-import java.io.File;
-import java.io.IOException;
+    public LeadershipLostException(String message) {
+        super(message);
+    }
 
-/**
- * Tests for the {@link FileSystemJobResultStore} implementation of the {@link JobResultStore}'s
- * contracts.
- */
-public class FileSystemJobResultStoreContractTest implements JobResultStoreContractTest {
-    @TempDir File temporaryFolder;
+    public LeadershipLostException(Throwable cause) {
+        super(cause);
+    }
 
-    @Override
-    public JobResultStore createJobResultStore() throws IOException {
-        Path path = new Path(temporaryFolder.toURI());
-        return new FileSystemJobResultStore(
-                path.getFileSystem(), path, false, Executors.directExecutor());
+    public LeadershipLostException(String message, Throwable cause) {
+        super(message, cause);
     }
 }

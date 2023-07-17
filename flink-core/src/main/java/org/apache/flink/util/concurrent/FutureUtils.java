@@ -921,6 +921,26 @@ public class FutureUtils {
                 executor);
     }
 
+    /**
+     * Returns a future which is completed when {@link RunnableWithException} is finished.
+     *
+     * @param runnable represents the task
+     * @param executor to execute the runnable
+     * @return Future which is completed when runnable is finished
+     */
+    public static CompletableFuture<Void> runAsync(
+            RunnableWithException runnable, Executor executor) {
+        return CompletableFuture.runAsync(
+                () -> {
+                    try {
+                        runnable.run();
+                    } catch (Throwable e) {
+                        throw new CompletionException(e);
+                    }
+                },
+                executor);
+    }
+
     // ------------------------------------------------------------------------
     //  Converting futures
     // ------------------------------------------------------------------------
