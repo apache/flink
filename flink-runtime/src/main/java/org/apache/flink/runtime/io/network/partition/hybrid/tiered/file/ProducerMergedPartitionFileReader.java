@@ -40,7 +40,6 @@ import java.util.Optional;
 
 import static org.apache.flink.runtime.io.network.partition.BufferReaderWriterUtil.positionToNextBuffer;
 import static org.apache.flink.runtime.io.network.partition.BufferReaderWriterUtil.readFromByteChannel;
-import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.ProducerMergedPartitionFileIndex.Region;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -192,7 +191,8 @@ public class ProducerMergedPartitionFileReader implements PartitionFileReader {
             Tuple2<TieredStorageSubpartitionId, Integer> cacheKey, boolean removeKey) {
         BufferOffsetCache bufferOffsetCache = bufferOffsetCaches.remove(cacheKey);
         if (bufferOffsetCache == null) {
-            Optional<Region> regionOpt = dataIndex.getRegion(cacheKey.f0, cacheKey.f1);
+            Optional<ProducerMergedPartitionFileIndex.FixedSizeRegion> regionOpt =
+                    dataIndex.getRegion(cacheKey.f0, cacheKey.f1);
             return regionOpt.map(region -> new BufferOffsetCache(cacheKey.f1, region));
         } else {
             if (removeKey) {
@@ -211,13 +211,14 @@ public class ProducerMergedPartitionFileReader implements PartitionFileReader {
      */
     private class BufferOffsetCache {
 
-        private final Region region;
+        private final ProducerMergedPartitionFileIndex.FixedSizeRegion region;
 
         private long fileOffset;
 
         private int nextBufferIndex;
 
-        private BufferOffsetCache(int bufferIndex, Region region) {
+        private BufferOffsetCache(
+                int bufferIndex, ProducerMergedPartitionFileIndex.FixedSizeRegion region) {
             this.nextBufferIndex = bufferIndex;
             this.region = region;
             moveFileOffsetToBuffer(bufferIndex);

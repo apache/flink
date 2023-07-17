@@ -58,6 +58,8 @@ class ProducerMergedPartitionFileReaderTest {
 
     private static final String DEFAULT_TEST_FILE_NAME = "testFile";
 
+    private static final String DEFAULT_TEST_INDEX_NAME = "testIndex";
+
     private static final TieredStoragePartitionId DEFAULT_PARTITION_ID =
             TieredStorageIdMappingUtils.convertId(new ResultPartitionID());
 
@@ -72,8 +74,10 @@ class ProducerMergedPartitionFileReaderTest {
 
     @BeforeEach
     void before() throws ExecutionException, InterruptedException {
+        Path testIndexPath = new File(tempFolder.toFile(), DEFAULT_TEST_INDEX_NAME).toPath();
         ProducerMergedPartitionFileIndex partitionFileIndex =
-                new ProducerMergedPartitionFileIndex(DEFAULT_NUM_SUBPARTITION);
+                new ProducerMergedPartitionFileIndex(
+                        DEFAULT_NUM_SUBPARTITION, testIndexPath, 256, Long.MAX_VALUE);
         testFilePath = new File(tempFolder.toFile(), DEFAULT_TEST_FILE_NAME).toPath();
         ProducerMergedPartitionFileWriter partitionFileWriter =
                 new ProducerMergedPartitionFileWriter(testFilePath, partitionFileIndex);
@@ -133,11 +137,13 @@ class ProducerMergedPartitionFileReaderTest {
         AtomicInteger indexQueryTime = new AtomicInteger(0);
         TestingProducerMergedPartitionFileIndex partitionFileIndex =
                 new TestingProducerMergedPartitionFileIndex.Builder()
+                        .setIndexFilePath(new File(tempFolder.toFile(), "test-Index").toPath())
                         .setGetRegionFunction(
                                 (subpartitionId, integer) -> {
                                     indexQueryTime.incrementAndGet();
                                     return Optional.of(
-                                            new ProducerMergedPartitionFileIndex.Region(0, 0, 2));
+                                            new ProducerMergedPartitionFileIndex.FixedSizeRegion(
+                                                    0, 0, 2));
                                 })
                         .build();
         partitionFileReader =
