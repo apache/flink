@@ -20,36 +20,32 @@ package org.apache.flink.table.planner.calcite;
 
 import org.apache.calcite.schema.SchemaVersion;
 
-/** Schema version for time travel. */
-public abstract class FlinkSchemaVersion implements SchemaVersion {
+/** The implementation of {@link SchemaVersion} to specify the snapshot at the specific time. */
+public class TimestampSchemaVersion implements SchemaVersion {
+
+    private final long timestamp;
+
+    private TimestampSchemaVersion(long timestamp) {
+        this.timestamp = timestamp;
+    }
 
     public static SchemaVersion of(long timestamp) {
         return new TimestampSchemaVersion(timestamp);
     }
 
-    /** The implementation of {@link SchemaVersion} to specify the snapshot at the specific time. */
-    public static class TimestampSchemaVersion extends FlinkSchemaVersion {
+    public long getTimestamp() {
+        return timestamp;
+    }
 
-        private final long timestamp;
-
-        public TimestampSchemaVersion(long timestamp) {
-            this.timestamp = timestamp;
-        }
-
-        public long getTimestamp() {
-            return timestamp;
-        }
-
-        @Override
-        public boolean isBefore(SchemaVersion other) {
-            if (!(other instanceof TimestampSchemaVersion)) {
-                throw new IllegalArgumentException(
-                        "Cannot compare a TimestampSchemaVersion object with a "
-                                + other.getClass()
-                                + " object.");
-            } else {
-                return this.timestamp < ((TimestampSchemaVersion) other).timestamp;
-            }
+    @Override
+    public boolean isBefore(SchemaVersion other) {
+        if (!(other instanceof TimestampSchemaVersion)) {
+            throw new IllegalArgumentException(
+                    "Cannot compare a TimestampSchemaVersion object with a "
+                            + other.getClass()
+                            + " object.");
+        } else {
+            return this.timestamp < ((TimestampSchemaVersion) other).timestamp;
         }
     }
 }

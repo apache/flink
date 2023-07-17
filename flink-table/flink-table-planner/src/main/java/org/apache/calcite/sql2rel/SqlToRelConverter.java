@@ -19,7 +19,7 @@ package org.apache.calcite.sql2rel;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.planner.alias.ClearJoinHintWithInvalidPropagationShuttle;
-import org.apache.flink.table.planner.calcite.FlinkSchemaVersion;
+import org.apache.flink.table.planner.calcite.TimestampSchemaVersion;
 import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogSnapshotReader;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
@@ -144,6 +144,7 @@ import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.SqlSelectKeyword;
 import org.apache.calcite.sql.SqlSetOperator;
 import org.apache.calcite.sql.SqlSnapshot;
+import org.apache.calcite.sql.SqlTableRef;
 import org.apache.calcite.sql.SqlUnnestOperator;
 import org.apache.calcite.sql.SqlUnpivot;
 import org.apache.calcite.sql.SqlUpdate;
@@ -238,9 +239,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *   <li>Added in FLINK-28682: Lines 2277 ~ 2294
  *   <li>Added in FLINK-28682: Lines 2331 ~ 2359
  *   <li>Added in FLINK-20873: Lines 5427 ~ 5436
- *   <li>Added in FLINK-20873: Lines 5431 ~ 5440
- *   <li>Added in FLINK-32474: Lines 2839 ~ 2847
- *   <li>Added in FLINK-32474: Lines 2944 ~ 2950
+ *   <li>Added in FLINK-32474: Lines 2844 ~ 2852
+ *   <li>Added in FLINK-32474: Lines 2952 ~ 2978
  * </ol>
  */
 @SuppressWarnings("UnstableApiUsage")
@@ -2951,8 +2951,9 @@ public class SqlToRelConverter {
         SqlNode tableRef = snapshot.getTableRef();
         // Since we have simplified the SqlSnapshot in the validate phase, we only need to check
         // whether the period is a RexLiteral and tableRef's first operand is a SqlIdentifier.
-        if (tableRef instanceof SqlBasicCall
-                && ((SqlBasicCall) tableRef).operand(0) instanceof SqlIdentifier
+        if ((tableRef instanceof SqlBasicCall
+                                && ((SqlBasicCall) tableRef).operand(0) instanceof SqlIdentifier
+                        || tableRef instanceof SqlTableRef)
                 && period instanceof RexLiteral) {
             TableConfig tableConfig = ShortcutUtils.unwrapContext(relBuilder).getTableConfig();
             ZoneId zoneId = tableConfig.getLocalTimeZone();
@@ -2969,9 +2970,12 @@ public class SqlToRelConverter {
                             .atZone(zoneId)
                             .toInstant()
                             .toEpochMilli();
-            SqlIdentifier identifier = ((SqlBasicCall) tableRef).operand(0);
-            SchemaVersion schemaVersion = FlinkSchemaVersion.of(timeTravelTimestamp);
-            convertIdentifier(bb, identifier, null, null, schemaVersion);
+            SqlIdentifier sqlIdentifier =
+                    tableRef instanceof SqlBasicCall
+                            ? ((SqlBasicCall) tableRef).operand(0)
+                            : ((SqlTableRef) tableRef).operand(0);
+            SchemaVersion schemaVersion = TimestampSchemaVersion.of(timeTravelTimestamp);
+            convertIdentifier(bb, sqlIdentifier, null, null, schemaVersion);
         } else {
             convertFrom(bb, expr);
         }

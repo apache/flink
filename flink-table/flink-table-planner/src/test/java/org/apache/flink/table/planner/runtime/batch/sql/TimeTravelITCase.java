@@ -275,10 +275,27 @@ public class TimeTravelITCase extends BatchTestBase {
                                                 "SELECT\n"
                                                         + "    *\n"
                                                         + "FROM\n"
-                                                        + "    tb_view FOR SYSTEM_TIME AS OF TIMESTAMP '2013-01-01 01:00:00'"))
+                                                        + "    tb_view FOR SYSTEM_TIME AS OF TIMESTAMP '2023-01-01 01:00:00'"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
                         "TimeTravelCatalog.default.tb_view is a view, but time travel is not supported for view.");
+    }
+
+    @Test
+    void testTimeTravelWithHints() {
+        TableResult tableResult =
+                tEnv().executeSql(
+                                "SELECT * FROM t1 /*+ options('bounded'='true') */ FOR SYSTEM_TIME AS OF TIMESTAMP '2023-01-01 01:00:00'");
+
+        List<String> sortedResult = toSortedResults(tableResult);
+        assertEquals("[+I[1]]", sortedResult.toString());
+
+        tableResult =
+                tEnv().executeSql(
+                                "SELECT * FROM t1 /*+ options('bounded'='true') */ FOR SYSTEM_TIME AS OF TIMESTAMP '2023-01-01 02:00:00' AS t2");
+
+        sortedResult = toSortedResults(tableResult);
+        assertEquals("[+I[1, 2]]", sortedResult.toString());
     }
 
     private static Long convertStringToLong(String timestamp, ZoneId zoneId) {

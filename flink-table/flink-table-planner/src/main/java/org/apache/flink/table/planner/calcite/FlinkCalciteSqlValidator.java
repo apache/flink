@@ -218,7 +218,7 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
                             .toInstant()
                             .toEpochMilli();
 
-            SchemaVersion schemaVersion = FlinkSchemaVersion.of(timeTravelTimestamp);
+            SchemaVersion schemaVersion = TimestampSchemaVersion.of(timeTravelTimestamp);
             IdentifierNamespace identifierNamespace = (IdentifierNamespace) ns;
             IdentifierNamespace snapshotNameSpace =
                     new IdentifierSnapshotNamespace(
@@ -259,9 +259,10 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
             } else if (enclosingNode instanceof SqlBasicCall
                     && ((SqlBasicCall) enclosingNode).getOperator() instanceof SqlAsOperator
                     && ((SqlBasicCall) enclosingNode).getOperandList().get(0)
-                            instanceof SqlSnapshot)
+                            instanceof SqlSnapshot) {
                 return Optional.of(
                         (SqlSnapshot) ((SqlBasicCall) enclosingNode).getOperandList().get(0));
+            }
         }
         return Optional.empty();
     }
