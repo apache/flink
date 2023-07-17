@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.network.partition.hybrid;
+package org.apache.flink.runtime.io.network.partition.hybrid.index;
 
-import org.apache.flink.runtime.io.network.partition.hybrid.HsFileDataIndexImpl.InternalRegion;
+import org.apache.flink.runtime.io.network.partition.hybrid.HsFileDataIndexImpl;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -34,16 +34,15 @@ import java.util.UUID;
 
 import static org.apache.flink.runtime.io.network.partition.hybrid.HsFileDataIndexImpl.InternalRegion.HEADER_SIZE;
 import static org.apache.flink.runtime.io.network.partition.hybrid.HybridShuffleTestUtils.assertRegionEquals;
-import static org.apache.flink.runtime.io.network.partition.hybrid.HybridShuffleTestUtils.createSingleUnreleasedRegion;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Tests for {@link InternalRegionWriteReadUtils}. */
-class InternalRegionWriteReadUtilsTest {
+/** Tests for {@link FileRegionWriteReadUtils}. */
+class FileRegionWriteReadUtilsTest {
     @Test
     void testAllocateAndConfigureBuffer() {
         final int bufferSize = 16;
-        ByteBuffer buffer = InternalRegionWriteReadUtils.allocateAndConfigureBuffer(bufferSize);
+        ByteBuffer buffer = FileRegionWriteReadUtils.allocateAndConfigureBuffer(bufferSize);
         assertThat(buffer.capacity()).isEqualTo(16);
         assertThat(buffer.limit()).isEqualTo(16);
         assertThat(buffer.position()).isZero();
@@ -52,27 +51,30 @@ class InternalRegionWriteReadUtilsTest {
     }
 
     @Test
-    void testReadPrematureEndOfFile(@TempDir Path tmpPath) throws Exception {
+    void testReadPrematureEndOfFileForHsInternalRegion(@TempDir Path tmpPath) throws Exception {
         FileChannel channel = tmpFileChannel(tmpPath);
-        ByteBuffer buffer = InternalRegionWriteReadUtils.allocateAndConfigureBuffer(HEADER_SIZE);
-        InternalRegionWriteReadUtils.writeRegionToFile(
-                channel, buffer, createSingleUnreleasedRegion(0, 0L, 1));
+        ByteBuffer buffer = FileRegionWriteReadUtils.allocateAndConfigureBuffer(HEADER_SIZE);
+        FileRegionWriteReadUtils.writeHsInternalRegionToFile(
+                channel, buffer, new HsFileDataIndexImpl.InternalRegion(0, 0, 1, new boolean[1]));
         channel.truncate(channel.position() - 1);
         buffer.flip();
         assertThatThrownBy(
-                        () -> InternalRegionWriteReadUtils.readRegionFromFile(channel, buffer, 0L))
+                        () ->
+                                FileRegionWriteReadUtils.readHsInternalRegionFromFile(
+                                        channel, buffer, 0L))
                 .isInstanceOf(IOException.class);
     }
 
     @Test
-    void testWriteAndReadRegion(@TempDir Path tmpPath) throws Exception {
+    void testWriteAndReadHsInternalRegion(@TempDir Path tmpPath) throws Exception {
         FileChannel channel = tmpFileChannel(tmpPath);
-        ByteBuffer buffer = InternalRegionWriteReadUtils.allocateAndConfigureBuffer(HEADER_SIZE);
-        InternalRegion region = createSingleUnreleasedRegion(10, 100L, 1);
-        InternalRegionWriteReadUtils.writeRegionToFile(channel, buffer, region);
+        ByteBuffer buffer = FileRegionWriteReadUtils.allocateAndConfigureBuffer(HEADER_SIZE);
+        HsFileDataIndexImpl.InternalRegion region =
+                new HsFileDataIndexImpl.InternalRegion(0, 0, 1, new boolean[1]);
+        FileRegionWriteReadUtils.writeHsInternalRegionToFile(channel, buffer, region);
         buffer.flip();
-        InternalRegion readRegion =
-                InternalRegionWriteReadUtils.readRegionFromFile(channel, buffer, 0L);
+        HsFileDataIndexImpl.InternalRegion readRegion =
+                FileRegionWriteReadUtils.readHsInternalRegionFromFile(channel, buffer, 0L);
         assertRegionEquals(readRegion, region);
     }
 

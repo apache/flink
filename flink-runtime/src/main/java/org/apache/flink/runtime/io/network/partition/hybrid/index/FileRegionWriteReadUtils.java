@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.network.partition.hybrid;
+package org.apache.flink.runtime.io.network.partition.hybrid.index;
 
 import org.apache.flink.runtime.io.network.partition.BufferReaderWriterUtil;
 import org.apache.flink.runtime.io.network.partition.hybrid.HsFileDataIndexImpl.InternalRegion;
@@ -26,8 +26,8 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 
-/** Utils for read and write {@link InternalRegion}. */
-public class InternalRegionWriteReadUtils {
+/** Utils for read and write {@link FileDataIndexRegionHelper.Region}. */
+public class FileRegionWriteReadUtils {
 
     /**
      * Allocate a buffer with specific size and configure it to native order.
@@ -44,18 +44,21 @@ public class InternalRegionWriteReadUtils {
     /**
      * Write {@link InternalRegion} to {@link FileChannel}.
      *
+     * <p>Note that this type of region's length may be variable because it contains an array to
+     * indicate each buffer's release state.
+     *
      * @param channel the file's channel to write.
      * @param headerBuffer the buffer to write {@link InternalRegion}'s header.
      * @param region the region to be written to channel.
      */
-    public static void writeRegionToFile(
+    public static void writeHsInternalRegionToFile(
             FileChannel channel, ByteBuffer headerBuffer, InternalRegion region)
             throws IOException {
         // write header buffer.
         headerBuffer.clear();
         headerBuffer.putInt(region.getFirstBufferIndex());
         headerBuffer.putInt(region.getNumBuffers());
-        headerBuffer.putLong(region.getFirstBufferOffset());
+        headerBuffer.putLong(region.getRegionFileOffset());
         headerBuffer.flip();
 
         // write payload buffer.
@@ -76,22 +79,25 @@ public class InternalRegionWriteReadUtils {
     /**
      * Read {@link InternalRegion} from {@link FileChannel}.
      *
+     * <p>Note that this type of region's length may be variable because it contains an array to
+     * indicate each buffer's release state.
+     *
      * @param channel the channel to read.
      * @param headerBuffer the buffer to read {@link InternalRegion}'s header.
-     * @param position position to start read.
+     * @param fileOffset the file offset to start read.
      * @return the {@link InternalRegion} that read from this channel.
      */
-    public static InternalRegion readRegionFromFile(
-            FileChannel channel, ByteBuffer headerBuffer, long position) throws IOException {
+    public static InternalRegion readHsInternalRegionFromFile(
+            FileChannel channel, ByteBuffer headerBuffer, long fileOffset) throws IOException {
         headerBuffer.clear();
-        BufferReaderWriterUtil.readByteBufferFully(channel, headerBuffer, position);
+        BufferReaderWriterUtil.readByteBufferFully(channel, headerBuffer, fileOffset);
         headerBuffer.flip();
         int firstBufferIndex = headerBuffer.getInt();
         int numBuffers = headerBuffer.getInt();
         long firstBufferOffset = headerBuffer.getLong();
         ByteBuffer payloadBuffer = allocateAndConfigureBuffer(numBuffers);
         BufferReaderWriterUtil.readByteBufferFully(
-                channel, payloadBuffer, position + InternalRegion.HEADER_SIZE);
+                channel, payloadBuffer, fileOffset + InternalRegion.HEADER_SIZE);
         boolean[] released = new boolean[numBuffers];
         payloadBuffer.flip();
         for (int i = 0; i < numBuffers; i++) {

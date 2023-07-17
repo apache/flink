@@ -315,14 +315,16 @@ public class NettyShuffleEnvironmentOptions {
                                     // this raw value must be changed correspondingly
                                     "taskmanager.memory.framework.off-heap.batch-shuffle.size"));
 
-    /** Segment size of hybrid spilled file data index. */
+    /** Region group size of hybrid spilled file data index. */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
-    public static final ConfigOption<Integer> HYBRID_SHUFFLE_SPILLED_INDEX_SEGMENT_SIZE =
-            key("taskmanager.network.hybrid-shuffle.spill-index-segment-size")
+    public static final ConfigOption<Integer> HYBRID_SHUFFLE_SPILLED_INDEX_REGION_GROUP_SIZE =
+            key("taskmanager.network.hybrid-shuffle.spill-index-region-group-size")
                     .intType()
                     .defaultValue(1024)
+                    .withDeprecatedKeys(
+                            "taskmanager.network.hybrid-shuffle.spill-index-segment-size")
                     .withDescription(
-                            "Controls the segment size(in bytes) of hybrid spilled file data index.");
+                            "Controls the region group size(in bytes) of hybrid spilled file data index. ");
 
     /** Max number of hybrid retained regions in memory. */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)

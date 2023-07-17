@@ -75,7 +75,7 @@ public class ResultPartitionFactory {
 
     private final int sortShuffleMinParallelism;
 
-    private final int hybridShuffleSpilledIndexSegmentSize;
+    private final int hybridShuffleSpilledIndexRegionGroupSize;
 
     private final long hybridShuffleNumRetainedInMemoryRegionsMax;
 
@@ -100,7 +100,7 @@ public class ResultPartitionFactory {
             int sortShuffleMinParallelism,
             boolean sslEnabled,
             int maxOverdraftBuffersPerGate,
-            int hybridShuffleSpilledIndexSegmentSize,
+            int hybridShuffleSpilledIndexRegionGroupSize,
             long hybridShuffleNumRetainedInMemoryRegionsMax) {
 
         this.partitionManager = partitionManager;
@@ -119,7 +119,7 @@ public class ResultPartitionFactory {
         this.sortShuffleMinParallelism = sortShuffleMinParallelism;
         this.sslEnabled = sslEnabled;
         this.maxOverdraftBuffersPerGate = maxOverdraftBuffersPerGate;
-        this.hybridShuffleSpilledIndexSegmentSize = hybridShuffleSpilledIndexSegmentSize;
+        this.hybridShuffleSpilledIndexRegionGroupSize = hybridShuffleSpilledIndexRegionGroupSize;
         this.hybridShuffleNumRetainedInMemoryRegionsMax =
                 hybridShuffleNumRetainedInMemoryRegionsMax;
     }
@@ -261,7 +261,7 @@ public class ResultPartitionFactory {
                         resultPartitionType == ResultPartitionType.HYBRID_FULL
                                 ? HybridShuffleConfiguration.SpillingStrategyType.FULL
                                 : HybridShuffleConfiguration.SpillingStrategyType.SELECTIVE)
-                .setSpilledIndexSegmentSize(hybridShuffleSpilledIndexSegmentSize)
+                .setRegionGroupSizeInBytes(hybridShuffleSpilledIndexRegionGroupSize)
                 .setNumRetainedInMemoryRegionsMax(hybridShuffleNumRetainedInMemoryRegionsMax)
                 .build();
     }

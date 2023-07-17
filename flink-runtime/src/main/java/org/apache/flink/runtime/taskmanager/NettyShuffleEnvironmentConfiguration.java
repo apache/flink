@@ -105,7 +105,7 @@ public class NettyShuffleEnvironmentConfiguration {
 
     private final int maxOverdraftBuffersPerGate;
 
-    private final int hybridShuffleSpilledIndexSegmentSize;
+    private final int hybridShuffleSpilledIndexRegionGroupSize;
 
     private final long hybridShuffleNumRetainedInMemoryRegionsMax;
 
@@ -134,7 +134,7 @@ public class NettyShuffleEnvironmentConfiguration {
             int maxNumberOfConnections,
             boolean connectionReuseEnabled,
             int maxOverdraftBuffersPerGate,
-            int hybridShuffleSpilledIndexSegmentSize,
+            int hybridShuffleSpilledIndexRegionGroupSize,
             long hybridShuffleNumRetainedInMemoryRegionsMax,
             @Nullable TieredStorageConfiguration tieredStorageConfiguration) {
 
@@ -160,7 +160,7 @@ public class NettyShuffleEnvironmentConfiguration {
         this.maxNumberOfConnections = maxNumberOfConnections;
         this.connectionReuseEnabled = connectionReuseEnabled;
         this.maxOverdraftBuffersPerGate = maxOverdraftBuffersPerGate;
-        this.hybridShuffleSpilledIndexSegmentSize = hybridShuffleSpilledIndexSegmentSize;
+        this.hybridShuffleSpilledIndexRegionGroupSize = hybridShuffleSpilledIndexRegionGroupSize;
         this.hybridShuffleNumRetainedInMemoryRegionsMax =
                 hybridShuffleNumRetainedInMemoryRegionsMax;
         this.tieredStorageConfiguration = tieredStorageConfiguration;
@@ -264,8 +264,8 @@ public class NettyShuffleEnvironmentConfiguration {
         return hybridShuffleNumRetainedInMemoryRegionsMax;
     }
 
-    public int getHybridShuffleSpilledIndexSegmentSize() {
-        return hybridShuffleSpilledIndexSegmentSize;
+    public int getHybridShuffleSpilledIndexRegionGroupSize() {
+        return hybridShuffleSpilledIndexRegionGroupSize;
     }
 
     public TieredStorageConfiguration getTieredStorageConfiguration() {
@@ -376,7 +376,8 @@ public class NettyShuffleEnvironmentConfiguration {
 
         int hybridShuffleSpilledIndexSegmentSize =
                 configuration.get(
-                        NettyShuffleEnvironmentOptions.HYBRID_SHUFFLE_SPILLED_INDEX_SEGMENT_SIZE);
+                        NettyShuffleEnvironmentOptions
+                                .HYBRID_SHUFFLE_SPILLED_INDEX_REGION_GROUP_SIZE);
 
         long hybridShuffleNumRetainedInMemoryRegionsMax =
                 configuration.get(

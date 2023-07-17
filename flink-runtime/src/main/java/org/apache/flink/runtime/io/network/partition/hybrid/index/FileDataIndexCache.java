@@ -16,9 +16,8 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.network.partition.hybrid;
+package org.apache.flink.runtime.io.network.partition.hybrid.index;
 
-import org.apache.flink.runtime.io.network.partition.hybrid.HsFileDataIndexImpl.InternalRegion;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.IOUtils;
 
@@ -42,25 +41,25 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * and automatically caches some indexes in memory. When there are too many cached indexes, it is
  * this class's responsibility to decide and eliminate some indexes to disk.
  */
-public class HsFileDataIndexCache {
+public class FileDataIndexCache<T extends FileDataIndexRegionHelper.Region> {
     /**
-     * This struct stores all in memory {@link InternalRegion}s. Each element is a treeMap contains
-     * all in memory {@link InternalRegion}'s of specific subpartition corresponding to the
-     * subscript. The value of this treeMap is a {@link InternalRegion}, and the key is
-     * firstBufferIndex of this region. Only cached in memory region will be put to here.
+     * This struct stores all in memory {@link FileDataIndexRegionHelper.Region}s. Each element is a
+     * treeMap contains all in memory {@link FileDataIndexRegionHelper.Region}'s of specific
+     * subpartition corresponding to the subscript. The value of this treeMap is a {@link
+     * FileDataIndexRegionHelper.Region}, and the key is firstBufferIndex of this region. Only
+     * cached in memory region will be put to here.
      */
-    private final List<TreeMap<Integer, InternalRegion>>
-            subpartitionFirstBufferIndexInternalRegions;
+    private final List<TreeMap<Integer, T>> subpartitionFirstBufferIndexRegions;
 
     /**
      * This cache is used to help eliminate regions from memory. It is only maintains the key of
      * each in memory region, the value is just a placeholder. Note that this internal cache must be
-     * consistent with subpartitionFirstBufferIndexInternalRegions, that means both of them must add
+     * consistent with subpartitionFirstBufferIndexHsBaseRegions, that means both of them must add
      * or delete elements at the same time.
      */
     private final Cache<CachedRegionKey, Object> internalCache;
 
-    private final HsFileDataIndexSpilledRegionManager spilledRegionManager;
+    private final FileDataIndexSpilledRegionManager<T> spilledRegionManager;
 
     private final Path indexFilePath;
 
@@ -70,14 +69,14 @@ public class HsFileDataIndexCache {
      */
     public static final Object PLACEHOLDER = new Object();
 
-    public HsFileDataIndexCache(
+    public FileDataIndexCache(
             int numSubpartitions,
             Path indexFilePath,
             long numRetainedInMemoryRegionsMax,
-            HsFileDataIndexSpilledRegionManager.Factory spilledRegionManagerFactory) {
-        this.subpartitionFirstBufferIndexInternalRegions = new ArrayList<>(numSubpartitions);
+            FileDataIndexSpilledRegionManager.Factory<T> spilledRegionManagerFactory) {
+        this.subpartitionFirstBufferIndexRegions = new ArrayList<>(numSubpartitions);
         for (int subpartitionId = 0; subpartitionId < numSubpartitions; ++subpartitionId) {
-            subpartitionFirstBufferIndexInternalRegions.add(new TreeMap<>());
+            subpartitionFirstBufferIndexRegions.add(new TreeMap<>());
         }
         this.internalCache =
                 CacheBuilder.newBuilder()
@@ -93,7 +92,7 @@ public class HsFileDataIndexCache {
                             if (!getCachedRegionContainsTargetBufferIndex(
                                             subpartition, region.getFirstBufferIndex())
                                     .isPresent()) {
-                                subpartitionFirstBufferIndexInternalRegions
+                                subpartitionFirstBufferIndexRegions
                                         .get(subpartition)
                                         .put(region.getFirstBufferIndex(), region);
                                 internalCache.put(
@@ -117,12 +116,12 @@ public class HsFileDataIndexCache {
      * @return If target region can be founded from memory or disk, return optional contains target
      *     region. Otherwise, return {@code Optional#empty()};
      */
-    public Optional<InternalRegion> get(int subpartitionId, int bufferIndex) {
+    public Optional<T> get(int subpartitionId, int bufferIndex) {
         // first of all, try to get region in memory.
-        Optional<InternalRegion> regionOpt =
+        Optional<T> regionOpt =
                 getCachedRegionContainsTargetBufferIndex(subpartitionId, bufferIndex);
         if (regionOpt.isPresent()) {
-            InternalRegion region = regionOpt.get();
+            T region = regionOpt.get();
             checkNotNull(
                     // this is needed for cache entry remove algorithm like LRU.
                     internalCache.getIfPresent(
@@ -139,22 +138,20 @@ public class HsFileDataIndexCache {
      * Put regions to cache.
      *
      * @param subpartition the subpartition's id of regions.
-     * @param internalRegions regions to be cached.
+     * @param fileRegions regions to be cached.
      */
-    public void put(int subpartition, List<InternalRegion> internalRegions) {
-        TreeMap<Integer, InternalRegion> treeMap =
-                subpartitionFirstBufferIndexInternalRegions.get(subpartition);
-        for (InternalRegion internalRegion : internalRegions) {
+    public void put(int subpartition, List<T> fileRegions) {
+        TreeMap<Integer, T> treeMap = subpartitionFirstBufferIndexRegions.get(subpartition);
+        for (T region : fileRegions) {
             internalCache.put(
-                    new CachedRegionKey(subpartition, internalRegion.getFirstBufferIndex()),
-                    PLACEHOLDER);
-            treeMap.put(internalRegion.getFirstBufferIndex(), internalRegion);
+                    new CachedRegionKey(subpartition, region.getFirstBufferIndex()), PLACEHOLDER);
+            treeMap.put(region.getFirstBufferIndex(), region);
         }
     }
 
     /**
-     * Close {@link HsFileDataIndexCache}, this will delete the index file. After that, the index
-     * can no longer be read or written.
+     * Close {@link FileDataIndexCache}, this will delete the index file. After that, the index can
+     * no longer be read or written.
      */
     public void close() throws IOException {
         spilledRegionManager.close();
@@ -165,8 +162,8 @@ public class HsFileDataIndexCache {
     private void handleRemove(RemovalNotification<CachedRegionKey, Object> removedEntry) {
         CachedRegionKey removedKey = removedEntry.getKey();
         // remove the corresponding region from memory.
-        InternalRegion removedRegion =
-                subpartitionFirstBufferIndexInternalRegions
+        T removedRegion =
+                subpartitionFirstBufferIndexRegions
                         .get(removedKey.getSubpartition())
                         .remove(removedKey.getFirstBufferIndex());
 
@@ -175,7 +172,7 @@ public class HsFileDataIndexCache {
         writeRegion(removedKey.getSubpartition(), removedRegion);
     }
 
-    private void writeRegion(int subpartition, InternalRegion region) {
+    private void writeRegion(int subpartition, T region) {
         try {
             spilledRegionManager.appendOrOverwriteRegion(subpartition, region);
         } catch (IOException e) {
@@ -191,10 +188,10 @@ public class HsFileDataIndexCache {
      * @return If target region is cached in memory, return optional contains target region.
      *     Otherwise, return {@code Optional#empty()};
      */
-    private Optional<InternalRegion> getCachedRegionContainsTargetBufferIndex(
+    private Optional<T> getCachedRegionContainsTargetBufferIndex(
             int subpartitionId, int bufferIndex) {
         return Optional.ofNullable(
-                        subpartitionFirstBufferIndexInternalRegions
+                        subpartitionFirstBufferIndexRegions
                                 .get(subpartitionId)
                                 .floorEntry(bufferIndex))
                 .map(Map.Entry::getValue)
