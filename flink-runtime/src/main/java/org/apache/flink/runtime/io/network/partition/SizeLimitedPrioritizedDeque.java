@@ -48,6 +48,10 @@ import java.util.concurrent.ExecutionException;
 @Internal
 public class SizeLimitedPrioritizedDeque<T> extends PrioritizedDeque<T>
         implements AvailabilityProvider {
+    // todo hx: There are two types of objects,
+    // 1. For example, Event/broadcast objects have been serialized, and the memory size can be
+    // determined by the serialized size
+    // 2. StreamRecord, the memory size cannot be determined
 
     private AvailabilityHelper availabilityHelper = new AvailabilityHelper();
 
@@ -62,6 +66,7 @@ public class SizeLimitedPrioritizedDeque<T> extends PrioritizedDeque<T>
 
     private final int minSampleLength = 10;
 
+    // todo hx: sampleLenth calculate function need to be adjust
     private int sampleLength = minSampleLength;
 
     private int avgElementMemorySize = 0;

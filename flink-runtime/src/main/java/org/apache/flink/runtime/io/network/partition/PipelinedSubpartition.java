@@ -167,12 +167,12 @@ public class PipelinedSubpartition extends ResultSubpartition implements Channel
 
     @Override
     public synchronized boolean updateLocation(boolean isLocal) {
-        //        this.isLocal = isLocal;
-        //        if (isLocal) {
-        //            this.readWriteMode = new LocalPipelinedSubpartitionReadWriteMode(this);
-        //        } else {
-        this.readWriteMode = new UnknownOrRemotePipelinedSubpartitionReadWriteMode(this);
-        //        }
+        this.isLocal = isLocal;
+        if (isLocal) {
+            this.readWriteMode = new LocalPipelinedSubpartitionReadWriteMode(this);
+        } else {
+            this.readWriteMode = new UnknownOrRemotePipelinedSubpartitionReadWriteMode(this);
+        }
 
         return true;
     }
@@ -260,6 +260,7 @@ public class PipelinedSubpartition extends ResultSubpartition implements Channel
         return newBufferSize;
     }
 
+    // todo hx: lots of add interface, should to be reduce
     public int add(AbstractEvent event, BufferConsumer bufferConsumer, int partialRecordLength)
             throws IOException {
         return this.addEvent(event, bufferConsumer, partialRecordLength, false);
@@ -273,6 +274,10 @@ public class PipelinedSubpartition extends ResultSubpartition implements Channel
             throws IOException {
         checkNotNull(event);
         checkNotNull(eventBufferConsumer);
+
+        // todo hx: The event size is small, whether the writing of event needs to be blocked
+        // todo hx: How to calculate the size of the written object, estimate per record? use an
+        // average size?
 
         final boolean notifyDataAvailable;
         int prioritySequenceNumber = DEFAULT_PRIORITY_SEQUENCE_NUMBER;

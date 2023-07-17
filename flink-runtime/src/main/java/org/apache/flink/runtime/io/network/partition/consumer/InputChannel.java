@@ -504,6 +504,7 @@ public abstract class InputChannel {
         }
     }
 
+    // todo hx: This is a bit redundant
     public enum RecordDataType {
         /** {@link #NONE} indicates that there is no buffer. */
         NONE(false, false, false, false, false),
@@ -617,6 +618,7 @@ public abstract class InputChannel {
         }
     }
 
+    // todo hx: This is a bit redundant
     public static final class EventOrRecordAndAvailability {
 
         // event or streamelement

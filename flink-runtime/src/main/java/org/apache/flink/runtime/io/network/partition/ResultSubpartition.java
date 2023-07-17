@@ -210,6 +210,7 @@ public abstract class ResultSubpartition {
         }
     }
 
+    // todo hx: should keep it?
     public static final class EventOrRecordOrBufferAndBacklog {
         private final Object eventOrRecord;
 
