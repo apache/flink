@@ -22,8 +22,8 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
 
 /**
- * The SqlGatewayStreamExecutionEnvironment is a StreamExecutionEnvironment that runs the program
- * with SQL gateway.
+ * The SqlGatewayStreamExecutionEnvironment is a {@link StreamExecutionEnvironment} that runs the
+ * program with SQL gateway.
  */
 public class SqlGatewayStreamExecutionEnvironment extends StreamExecutionEnvironment {
     public static void setAsContext(ClassLoader classLoader) {

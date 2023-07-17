@@ -45,7 +45,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/** A factory to create a catalog with some built-in procedures for test purpose. */
+/** A factory to create a catalog with some built-in procedures for testing purpose. */
 public class TestProcedureCatalogFactory implements CatalogFactory {
     private static final String IDENTIFIER = "test_procedure_catalog";
 
@@ -72,7 +72,7 @@ public class TestProcedureCatalogFactory implements CatalogFactory {
         return new CatalogWithBuiltInProcedure(context.getName());
     }
 
-    /** A catalog with some built-in procedures for test purpose. */
+    /** A catalog with some built-in procedures for testing purpose. */
     public static class CatalogWithBuiltInProcedure extends GenericInMemoryCatalog {
 
         private static final Map<ObjectPath, Procedure> PROCEDURE_MAP = new HashMap<>();
@@ -113,7 +113,7 @@ public class TestProcedureCatalogFactory implements CatalogFactory {
         }
     }
 
-    /** A procedure to a sequence from 0 to n for test purpose. */
+    /** A procedure to a sequence from 0 to n for testing purpose. */
     public static class GenerateSequenceProcedure implements Procedure {
         public long[] call(ProcedureContext procedureContext, int n) throws Exception {
             return generate(procedureContext.getExecutionEnvironment(), n);
@@ -139,7 +139,7 @@ public class TestProcedureCatalogFactory implements CatalogFactory {
         }
     }
 
-    /** A procedure to sum decimal values for test purpose. */
+    /** A procedure to sum decimal values for testing purpose. */
     public static class SumProcedure implements Procedure {
         public @DataTypeHint("ROW< sum_value decimal(10, 2), count INT >") Row[] call(
                 ProcedureContext procedureContext,
@@ -156,7 +156,7 @@ public class TestProcedureCatalogFactory implements CatalogFactory {
         }
     }
 
-    /** A procedure to get year from the passed timestamp parameter for test purpose. */
+    /** A procedure to get year from the passed timestamp parameter for testing purpose. */
     public static class GetYearProcedure implements Procedure {
         public String[] call(ProcedureContext procedureContext, LocalDateTime... timestamps) {
             String[] results = new String[timestamps.length];
@@ -167,14 +167,14 @@ public class TestProcedureCatalogFactory implements CatalogFactory {
         }
     }
 
-    /** A procedure to generate a user according to the passed parameters for test purpose. */
+    /** A procedure to generate a user according to the passed parameters for testing purpose. */
     public static class GenerateUserProcedure implements Procedure {
         public UserPojo[] call(ProcedureContext procedureContext, String name, Integer age) {
             return new UserPojo[] {new UserPojo(name, age)};
         }
     }
 
-    /** A simple pojo class for test purpose. */
+    /** A simple pojo class for testing purpose. */
     public static class UserPojo {
         private final String name;
         private final int age;
