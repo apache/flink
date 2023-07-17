@@ -128,6 +128,7 @@ public class RecordWriterOutput<OUT>
     }
 
     private <X> void pushToRecordWriter(StreamRecord<X> record) {
+        record = record.copy(record.getValue());
         serializationDelegate.setInstance(record);
 
         try {

@@ -63,6 +63,7 @@ public final class UnknownOrRemotePipelinedSubpartitionReadWriteMode
     // todo: resultPartition totalWrittenBytes need to be calculated when record is added
     @Override
     public void add(SerializationDelegate<?> record) {
+        System.out.printf("call add method in unknown or remote ");
         ByteBuffer recordBuffer = null;
         try {
             recordBuffer = RecordWriter.serializeRecord(subPartition.serializer, record);

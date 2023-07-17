@@ -30,6 +30,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.io.network.partition.ChannelStateHolder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition.EventOrRecordOrBufferAndBacklog;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -285,5 +286,22 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
     @Override
     void announceBufferSize(int newBufferSize) {
         // Not supported.
+    }
+
+    @Override
+    public Optional<EventOrRecordOrBufferAndBacklog> getNextElement() throws IOException {
+
+        BufferAndAvailability bufferAndAvailability = getNextRecoveredStateBuffer();
+        if (bufferAndAvailability == null) {
+            return Optional.empty();
+        }
+
+        return Optional.of(
+                new EventOrRecordOrBufferAndBacklog(
+                        bufferAndAvailability.buffer(),
+                        bufferAndAvailability.buffersInBacklog(),
+                        bufferAndAvailability.buffer().getDataType(),
+                        bufferAndAvailability.getSequenceNumber(),
+                        bufferAndAvailability.buffer().getSize()));
     }
 }

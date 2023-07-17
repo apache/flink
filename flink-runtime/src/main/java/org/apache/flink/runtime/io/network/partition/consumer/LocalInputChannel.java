@@ -26,6 +26,7 @@ import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.CompositeBuffer;
 import org.apache.flink.runtime.io.network.buffer.FileRegionBuffer;
@@ -35,7 +36,9 @@ import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition.EventOrRecordOrBufferAndBacklog;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
+import org.apache.flink.runtime.plugable.DeserializationDelegate;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -99,6 +102,39 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
         this.partitionManager = checkNotNull(partitionManager);
         this.taskEventPublisher = checkNotNull(taskEventPublisher);
         this.channelStatePersister = new ChannelStatePersister(stateWriter, getChannelInfo());
+    }
+
+    public LocalInputChannel(
+            SingleInputGate inputGate,
+            int channelIndex,
+            ResultPartitionID partitionId,
+            int consumedSubpartitionIndex,
+            ResultPartitionManager partitionManager,
+            TaskEventPublisher taskEventPublisher,
+            int initialBackoff,
+            int maxBackoff,
+            Counter numBytesIn,
+            Counter numBuffersIn,
+            ChannelStateWriter stateWriter,
+            RecordDeserializer<DeserializationDelegate> deserializer,
+            DeserializationDelegate deserializationDelegate) {
+        this(
+                inputGate,
+                channelIndex,
+                partitionId,
+                consumedSubpartitionIndex,
+                partitionManager,
+                taskEventPublisher,
+                initialBackoff,
+                maxBackoff,
+                numBytesIn,
+                numBuffersIn,
+                stateWriter);
+        this.setRecordDeseralizer(deserializer);
+        this.setDeserializationDelegate(deserializationDelegate);
+
+        partitionManager.updateResultSubpartitionLocation(
+                partitionId, consumedSubpartitionIndex, true);
     }
 
     // ------------------------------------------------------------------------
@@ -263,6 +299,80 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
                         next.getNextDataType(),
                         next.buffersInBacklog(),
                         next.getSequenceNumber()));
+    }
+
+    @Override
+    public Optional<EventOrRecordOrBufferAndBacklog> getNextElement() throws IOException {
+        checkError();
+
+        ResultSubpartitionView subpartitionView = this.subpartitionView;
+        if (subpartitionView == null) {
+            // There is a possible race condition between writing a EndOfPartitionEvent (1) and
+            // flushing (3) the Local
+            // channel on the sender side, and reading EndOfPartitionEvent (2) and processing flush
+            // notification (4). When
+            // they happen in that order (1 - 2 - 3 - 4), flush notification can re-enqueue
+            // LocalInputChannel after (or
+            // during) it was released during reading the EndOfPartitionEvent (2).
+            if (isReleased) {
+                return Optional.empty();
+            }
+
+            // this can happen if the request for the partition was triggered asynchronously
+            // by the time trigger
+            // would be good to avoid that, by guaranteeing that the requestPartition() and
+            // getNextBuffer() always come from the same thread
+            // we could do that by letting the timer insert a special "requesting channel" into the
+            // input gate's queue
+            subpartitionView = checkAndWaitForSubpartitionView();
+        }
+
+        EventOrRecordOrBufferAndBacklog next = subpartitionView.getNextElement();
+
+        // ignore the empty buffer directly
+        while (next != null && next.isBuffer() && next.getBuffer().readableBytes() == 0) {
+            next.getBuffer().recycleBuffer();
+            next = subpartitionView.getNextElement();
+            numBuffersIn.inc();
+        }
+
+        if (next == null) {
+            if (subpartitionView.isReleased()) {
+                throw new CancelTaskException(
+                        "Consumed partition " + subpartitionView + " has been released.");
+            } else {
+                return Optional.empty();
+            }
+        }
+
+        if (next.isBuffer()) {
+            Buffer buffer = next.getBuffer();
+            if (buffer instanceof FileRegionBuffer) {
+                buffer = ((FileRegionBuffer) buffer).readInto(inputGate.getUnpooledSegment());
+                next.setBuffer(buffer);
+            }
+
+            if (buffer instanceof CompositeBuffer) {
+                buffer =
+                        ((CompositeBuffer) buffer)
+                                .getFullBufferData(inputGate.getUnpooledSegment());
+                next.setBuffer(buffer);
+            }
+
+            numBytesIn.inc(buffer.readableBytes());
+            numBuffersIn.inc();
+            channelStatePersister.checkForBarrier(buffer);
+            channelStatePersister.maybePersist(buffer);
+            NetworkActionsLogger.traceInput(
+                    "LocalInputChannel#getNextElement",
+                    buffer,
+                    inputGate.getOwningTaskName(),
+                    channelInfo,
+                    channelStatePersister,
+                    next.getSequenceNumber());
+        }
+
+        return Optional.of(next);
     }
 
     @Override

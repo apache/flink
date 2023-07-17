@@ -39,6 +39,7 @@ import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.PrioritizedDeque;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition.EventOrRecordOrBufferAndBacklog;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.guava31.com.google.common.collect.Iterators;
@@ -245,6 +246,51 @@ public class RemoteInputChannel extends InputChannel {
         numBuffersIn.inc();
         return Optional.of(
                 new BufferAndAvailability(next.buffer, nextDataType, 0, next.sequenceNumber));
+    }
+
+    @Override
+    public Optional<EventOrRecordOrBufferAndBacklog> getNextElement() throws IOException {
+        checkPartitionRequestQueueInitialized();
+
+        final SequenceBuffer next;
+        final DataType nextDataType;
+
+        synchronized (receivedBuffers) {
+            next = receivedBuffers.poll();
+
+            if (next != null) {
+                totalQueueSizeInBytes -= next.buffer.getSize();
+            }
+            nextDataType =
+                    receivedBuffers.peek() != null
+                            ? receivedBuffers.peek().buffer.getDataType()
+                            : DataType.NONE;
+        }
+
+        if (next == null) {
+            if (isReleased.get()) {
+                throw new CancelTaskException(
+                        "Queried for a buffer after channel has been released.");
+            }
+            return Optional.empty();
+        }
+
+        NetworkActionsLogger.traceInput(
+                "RemoteInputChannel#getNextBuffer",
+                next.buffer,
+                inputGate.getOwningTaskName(),
+                channelInfo,
+                channelStatePersister,
+                next.sequenceNumber);
+        numBytesIn.inc(next.buffer.getSize());
+        numBuffersIn.inc();
+
+        LOG.debug(
+                "Call getNextElement in RemoteInputChannel, return buffer: {}",
+                next.buffer.toString());
+        return Optional.of(
+                new EventOrRecordOrBufferAndBacklog(
+                        next.buffer, 0, nextDataType, next.sequenceNumber, next.buffer.getSize()));
     }
 
     // ------------------------------------------------------------------------

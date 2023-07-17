@@ -81,6 +81,24 @@ public class ResultPartitionManager implements ResultPartitionProvider {
         return subpartitionView;
     }
 
+    public boolean updateResultSubpartitionLocation(
+            ResultPartitionID partitionId, int subpartitionIndex, boolean inLocal) {
+
+        synchronized (registeredPartitions) {
+            final ResultPartition partition = registeredPartitions.get(partitionId);
+
+            if (partition == null) {
+                LOG.warn("Try to update an unexist ResultPartition {} location", partitionId);
+            }
+
+            partition.updateResultSubpartitionLocation(subpartitionIndex, inLocal);
+
+            LOG.debug("Update location subpartition {} of {}.", subpartitionIndex, partition);
+        }
+
+        return true;
+    }
+
     public void releasePartition(ResultPartitionID partitionId, Throwable cause) {
         synchronized (registeredPartitions) {
             ResultPartition resultPartition = registeredPartitions.remove(partitionId);

@@ -72,6 +72,8 @@ public class LocalRecoveredInputChannel extends RecoveredInputChannel {
                 maxBackoff,
                 numBytesIn,
                 numBuffersIn,
-                channelStateWriter);
+                channelStateWriter,
+                this.getRecordDeserializer(),
+                this.getDeserializationDelegate());
     }
 }

@@ -298,4 +298,9 @@ public class PipelinedResultPartition extends BufferWritingResultPartition
         decrementNumberOfUsers(PIPELINED_RESULT_PARTITION_ITSELF);
         super.close();
     }
+
+    @Override
+    public boolean updateResultSubpartitionLocation(int subpartitionIndex, boolean inLocal) {
+        return this.subpartitions[subpartitionIndex].updateLocation(inLocal);
+    }
 }

@@ -26,6 +26,7 @@ import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfData;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.PartitionException;
@@ -221,8 +222,92 @@ public abstract class InputChannel {
 
     // read buffer/event/record from input channel, and deserialize maybe happen, finally return
     // eventOrRecord
-    public Optional<EventOrRecordAndAvailability> getNextEventOrRecord() {
-        throw new UnsupportedOperationException();
+    public Optional<EventOrRecordAndAvailability> getNextEventOrRecord() throws IOException {
+        int recordOrBuffersInBacklog = 0;
+        int sequenceNumber = 0;
+        while (true) {
+            if (currentRecordDeserializer != null) {
+                RecordDeserializer.DeserializationResult result;
+                try {
+                    result = currentRecordDeserializer.getNextRecord(getDeserializationDelegate());
+                } catch (IOException e) {
+                    throw new IOException(
+                            String.format(
+                                    "Can't get next record for channel %s",
+                                    getChannelInfo().toString()),
+                            e);
+                }
+                if (result.isBufferConsumed()) {
+                    currentRecordDeserializer = null;
+                }
+
+                if (result.isFullRecord()) {
+                    Object record = getDeserializationDelegate().getInstance();
+                    int size = 0;
+                    return Optional.of(
+                            new EventOrRecordAndAvailability(
+                                    record,
+                                    RecordDataType.DATA,
+                                    RecordDataType.DATA,
+                                    recordOrBuffersInBacklog,
+                                    sequenceNumber,
+                                    size));
+                }
+            }
+
+            Optional<EventOrRecordOrBufferAndBacklog> nextElementOpt = getNextElement();
+            if (!nextElementOpt.isPresent()) {
+                return Optional.empty();
+            }
+
+            EventOrRecordOrBufferAndBacklog nextElement = nextElementOpt.get();
+            if (nextElement.isBuffer()) {
+                Buffer buffer = nextElement.getBuffer();
+                if (buffer.isBuffer()) {
+                    recordOrBuffersInBacklog = nextElement.buffersInBacklog();
+                    sequenceNumber = nextElement.getSequenceNumber();
+                    currentRecordDeserializer = getRecordDeserializer();
+                    currentRecordDeserializer.setNextBuffer(buffer);
+                } else {
+                    AbstractEvent event =
+                            EventSerializer.fromBuffer(
+                                    buffer, SingleInputGate.class.getClassLoader());
+                    buffer.recycleBuffer();
+                    return Optional.of(
+                            new EventOrRecordAndAvailability(
+                                    event,
+                                    RecordDataType.DATA,
+                                    RecordDataType.DATA,
+                                    nextElement.buffersInBacklog(),
+                                    nextElement.getSequenceNumber(),
+                                    buffer.getSize()));
+                }
+            } else if (nextElement.isEventOrRecord()) {
+                Object eventOrRecord = nextElement.getEventOrRecord();
+                int size = (int) nextElement.getSize();
+                if (eventOrRecord instanceof AbstractEvent) {
+                    return Optional.of(
+                            new EventOrRecordAndAvailability(
+                                    (AbstractEvent) eventOrRecord,
+                                    RecordDataType.DATA,
+                                    RecordDataType.DATA,
+                                    nextElement.buffersInBacklog(),
+                                    nextElement.getSequenceNumber(),
+                                    size));
+                } else {
+                    return Optional.of(
+                            new EventOrRecordAndAvailability(
+                                    eventOrRecord,
+                                    RecordDataType.DATA,
+                                    RecordDataType.DATA,
+                                    nextElement.buffersInBacklog(),
+                                    nextElement.getSequenceNumber(),
+                                    size));
+                }
+            } else {
+                throw new UnsupportedOperationException();
+            }
+        }
     }
 
     /**

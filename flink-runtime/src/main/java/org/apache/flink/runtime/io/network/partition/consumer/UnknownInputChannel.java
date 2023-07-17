@@ -186,7 +186,9 @@ class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
                 maxBackoff,
                 metrics.getNumBytesInRemoteCounter(),
                 metrics.getNumBuffersInRemoteCounter(),
-                channelStateWriter == null ? ChannelStateWriter.NO_OP : channelStateWriter);
+                channelStateWriter == null ? ChannelStateWriter.NO_OP : channelStateWriter,
+                this.getRecordDeserializer(),
+                this.getDeserializationDelegate());
     }
 
     @Override

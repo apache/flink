@@ -164,6 +164,7 @@ public class PipelinedSubpartition extends ResultSubpartition implements Channel
         this.updateLocation(false);
     }
 
+    @Override
     public boolean updateLocation(boolean isLocal) {
         this.isLocal = isLocal;
         if (isLocal) {
@@ -305,7 +306,7 @@ public class PipelinedSubpartition extends ResultSubpartition implements Channel
             notifyDataAvailable();
         }
 
-        return bufferSize;
+        return newBufferSize;
     }
 
     @Override
@@ -339,11 +340,12 @@ public class PipelinedSubpartition extends ResultSubpartition implements Channel
 
     @Override
     public int finish() throws IOException {
-        BufferConsumer eventBufferConsumer =
-                EventSerializer.toBufferConsumer(EndOfPartitionEvent.INSTANCE, false);
-        add(eventBufferConsumer, 0, true);
+        EndOfPartitionEvent event = EndOfPartitionEvent.INSTANCE;
+        BufferConsumer bufferConsumer = EventSerializer.toBufferConsumer(event, false);
+        addEvent(event, bufferConsumer, 0, true);
         LOG.debug("{}: Finished {}.", parent.getOwningTaskName(), this);
-        return eventBufferConsumer.getWrittenBytes();
+        // todo hx: size need to be added
+        return 0;
     }
 
     private int add(BufferConsumer bufferConsumer, int partialRecordLength, boolean finish) {

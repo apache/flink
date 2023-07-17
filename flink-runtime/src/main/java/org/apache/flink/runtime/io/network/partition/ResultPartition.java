@@ -359,4 +359,8 @@ public abstract class ResultPartition implements ResultPartitionWriter {
     protected boolean canBeCompressed(Buffer buffer) {
         return bufferCompressor != null && buffer.isBuffer() && buffer.readableBytes() > 0;
     }
+
+    public boolean updateResultSubpartitionLocation(int subpartitionIndex, boolean inLocal) {
+        throw new UnsupportedOperationException();
+    }
 }

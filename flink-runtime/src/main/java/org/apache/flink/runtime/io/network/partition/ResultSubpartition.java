@@ -153,6 +153,10 @@ public abstract class ResultSubpartition {
         return false;
     }
 
+    public boolean updateLocation(boolean inLocal) {
+        throw new UnsupportedOperationException();
+    }
+
     // ------------------------------------------------------------------------
 
     /**
