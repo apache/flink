@@ -57,8 +57,8 @@ import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamGraph;
@@ -623,7 +623,7 @@ public class DataStreamTest extends TestLogger {
                                     }
                                 });
 
-        windowed.addSink(new DiscardingSink<Long>());
+        windowed.sinkTo(new DiscardingSink<Long>());
 
         DataStreamSink<Long> sink =
                 map.addSink(
@@ -665,7 +665,7 @@ public class DataStreamTest extends TestLogger {
         }
 
         DataStreamSource<Long> parallelSource = env.generateSequence(0, 0);
-        parallelSource.addSink(new DiscardingSink<Long>());
+        parallelSource.sinkTo(new DiscardingSink<Long>());
         assertEquals(7, getStreamGraph(env).getStreamNode(parallelSource.getId()).getParallelism());
 
         parallelSource.setParallelism(3);
@@ -921,7 +921,7 @@ public class DataStreamTest extends TestLogger {
         DataStream<Integer> processed =
                 src.keyBy(new IdentityKeySelector<Long>()).process(processFunction);
 
-        processed.addSink(new DiscardingSink<Integer>());
+        processed.sinkTo(new DiscardingSink<Integer>());
 
         assertEquals(processFunction, getFunctionForDataStream(processed));
         assertTrue(getOperatorForDataStream(processed) instanceof LegacyKeyedProcessOperator);
@@ -956,7 +956,7 @@ public class DataStreamTest extends TestLogger {
         DataStream<Integer> processed =
                 src.keyBy(new IdentityKeySelector<Long>()).process(keyedProcessFunction);
 
-        processed.addSink(new DiscardingSink<Integer>());
+        processed.sinkTo(new DiscardingSink<Integer>());
 
         assertEquals(keyedProcessFunction, getFunctionForDataStream(processed));
         assertTrue(getOperatorForDataStream(processed) instanceof KeyedProcessOperator);
@@ -990,7 +990,7 @@ public class DataStreamTest extends TestLogger {
 
         DataStream<Integer> processed = src.process(processFunction);
 
-        processed.addSink(new DiscardingSink<Integer>());
+        processed.sinkTo(new DiscardingSink<Integer>());
 
         assertEquals(processFunction, getFunctionForDataStream(processed));
         assertTrue(getOperatorForDataStream(processed) instanceof ProcessOperator);
@@ -1258,7 +1258,7 @@ public class DataStreamTest extends TestLogger {
                     }
                 };
         DataStream<Integer> map = src.map(mapFunction);
-        map.addSink(new DiscardingSink<Integer>());
+        map.sinkTo(new DiscardingSink<Integer>());
         assertEquals(mapFunction, getFunctionForDataStream(map));
 
         FlatMapFunction<Long, Integer> flatMapFunction =
@@ -1269,7 +1269,7 @@ public class DataStreamTest extends TestLogger {
                     public void flatMap(Long value, Collector<Integer> out) throws Exception {}
                 };
         DataStream<Integer> flatMap = src.flatMap(flatMapFunction);
-        flatMap.addSink(new DiscardingSink<Integer>());
+        flatMap.sinkTo(new DiscardingSink<Integer>());
         assertEquals(flatMapFunction, getFunctionForDataStream(flatMap));
 
         FilterFunction<Integer> filterFunction =
@@ -1282,7 +1282,7 @@ public class DataStreamTest extends TestLogger {
 
         DataStream<Integer> unionFilter = map.union(flatMap).filter(filterFunction);
 
-        unionFilter.addSink(new DiscardingSink<Integer>());
+        unionFilter.sinkTo(new DiscardingSink<Integer>());
 
         assertEquals(filterFunction, getFunctionForDataStream(unionFilter));
 
@@ -1314,7 +1314,7 @@ public class DataStreamTest extends TestLogger {
                     }
                 };
         DataStream<String> coMap = connect.map(coMapper);
-        coMap.addSink(new DiscardingSink<String>());
+        coMap.sinkTo(new DiscardingSink<String>());
         assertEquals(coMapper, getFunctionForDataStream(coMap));
 
         try {
@@ -1792,7 +1792,7 @@ public class DataStreamTest extends TestLogger {
                                 return null;
                             }
                         });
-        coMap.addSink(new DiscardingSink());
+        coMap.sinkTo(new DiscardingSink());
         return coMap.getId();
     }
 

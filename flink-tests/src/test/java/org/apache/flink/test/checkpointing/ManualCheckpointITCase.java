@@ -34,7 +34,7 @@ import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
 
@@ -83,7 +83,7 @@ public class ManualCheckpointITCase extends AbstractTestBase {
                         "generator")
                 .keyBy(key -> key % parallelism)
                 .flatMap(new StatefulMapper())
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         final JobClient jobClient = env.executeAsync();
         final JobID jobID = jobClient.getJobID();
@@ -115,7 +115,7 @@ public class ManualCheckpointITCase extends AbstractTestBase {
                         "generator")
                 .keyBy(key -> key % parallelism)
                 .flatMap(new StatefulMapper())
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         final JobClient jobClient = env.executeAsync();
         final JobID jobID = jobClient.getJobID();

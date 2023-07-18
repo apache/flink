@@ -24,8 +24,8 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.table.api.DataTypes;
@@ -541,7 +541,7 @@ public class TestUpdateDeleteTableFactory
                                     .setParallelism(1);
                         } else {
                             // otherwise, do nothing
-                            return dataStream.addSink(new DiscardingSink<>());
+                            return dataStream.sinkTo(new DiscardingSink<>());
                         }
                     }
                 };

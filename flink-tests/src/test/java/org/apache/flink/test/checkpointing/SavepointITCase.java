@@ -76,8 +76,8 @@ import org.apache.flink.streaming.api.datastream.IterativeStream;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -212,7 +212,7 @@ public class SavepointITCase extends TestLogger {
         DataStream<Long> stream =
                 env.fromSequence(0, Long.MAX_VALUE)
                         .transform("pass-through", BasicTypeInfo.LONG_TYPE_INFO, operator);
-        stream.addSink(new DiscardingSink<>());
+        stream.sinkTo(new DiscardingSink<>());
 
         final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
         final JobID jobId = jobGraph.getJobID();
@@ -319,7 +319,7 @@ public class SavepointITCase extends TestLogger {
         env.addSource(new InfiniteTestSource())
                 .name("Infinite Source")
                 .map(new FailingOnCompletedSavepointMapFunction(2))
-                .addSink(new DiscardingSink<>())
+                .sinkTo(new DiscardingSink<>())
                 // different parallelism to break chaining and add some concurrent tasks
                 .setParallelism(sinkParallelism);
 
@@ -802,7 +802,7 @@ public class SavepointITCase extends TestLogger {
         env.getCheckpointConfig().disableCheckpointing();
         env.setParallelism(1);
 
-        env.addSource(new IntegerStreamSource()).addSink(new DiscardingSink<>());
+        env.addSource(new IntegerStreamSource()).sinkTo(new DiscardingSink<>());
 
         JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
@@ -920,7 +920,7 @@ public class SavepointITCase extends TestLogger {
                     env.addSource(new InfiniteTestSource())
                             .transform("pass-through", BasicTypeInfo.INT_TYPE_INFO, operator);
 
-            stream.addSink(new DiscardingSink<>());
+            stream.sinkTo(new DiscardingSink<>());
 
             final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
             final JobID jobId = jobGraph.getJobID();
@@ -1051,7 +1051,7 @@ public class SavepointITCase extends TestLogger {
                 .setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
         env.addSource(new InfiniteTestSource())
                 .name("Infinite test source")
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
@@ -1143,7 +1143,7 @@ public class SavepointITCase extends TestLogger {
                             failingPipelineLatch.trigger();
                             return value;
                         })
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
         env.addSource(new InfiniteTestSource())
                 .name("Succeeding Source")
                 .map(
@@ -1151,7 +1151,7 @@ public class SavepointITCase extends TestLogger {
                             succeedingPipelineLatch.trigger();
                             return value;
                         })
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
@@ -1269,7 +1269,7 @@ public class SavepointITCase extends TestLogger {
                     .uid("statefulCounter")
                     .shuffle()
                     .map(value -> 2 * value)
-                    .addSink(new DiscardingSink<>());
+                    .sinkTo(new DiscardingSink<>());
 
             JobGraph originalJobGraph = env.getStreamGraph().getJobGraph();
 
@@ -1317,7 +1317,7 @@ public class SavepointITCase extends TestLogger {
                     .uid("statefulCounter")
                     .shuffle()
                     .map(value -> value)
-                    .addSink(new DiscardingSink<>());
+                    .sinkTo(new DiscardingSink<>());
 
             JobGraph modifiedJobGraph = env.getStreamGraph().getJobGraph();
 
@@ -1366,7 +1366,7 @@ public class SavepointITCase extends TestLogger {
         DataStream<Integer> stream =
                 env.addSource(new InfiniteTestSource()).shuffle().map(new StatefulCounter());
 
-        stream.addSink(new DiscardingSink<>());
+        stream.sinkTo(new DiscardingSink<>());
 
         return env.getStreamGraph().getJobGraph();
     }

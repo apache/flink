@@ -30,7 +30,7 @@ import org.apache.flink.avro.generated.Address;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.types.Either;
 
@@ -164,7 +164,7 @@ public class StatefulStreamingJob {
                 .keyBy(anInt -> 0)
                 .map(new MyStatefulFunction())
                 .uid("my-map")
-                .addSink(new DiscardingSink<>())
+                .sinkTo(new DiscardingSink<>())
                 .uid("my-sink");
         env.execute();
     }

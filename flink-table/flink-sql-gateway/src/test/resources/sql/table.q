@@ -802,9 +802,20 @@ Sink(table=[default_catalog.default_database.orders2], fields=[user, product, am
     } ]
   }, {
     "id" : ,
-    "type" : "Sink: orders2[]",
-    "pact" : "Data Sink",
-    "contents" : "[]:Sink(table=[default_catalog.default_database.orders2], fields=[user, product, amount, ts])",
+    "type" : "StreamRecordTimestampInserter[]",
+    "pact" : "Operator",
+    "contents" : "[]:StreamRecordTimestampInserter(rowtime field: 3)",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "orders2[]: Writer",
+    "pact" : "Operator",
+    "contents" : "orders2[]: Writer",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,

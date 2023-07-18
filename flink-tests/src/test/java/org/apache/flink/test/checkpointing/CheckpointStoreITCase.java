@@ -30,7 +30,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServicesFactory
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServicesWithLeadershipControl;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.ExceptionUtils;
@@ -81,7 +81,7 @@ public class CheckpointStoreITCase extends TestLogger {
         env.setRestartStrategy(fixedDelayRestart(2 /* failure on processing + on recovery */, 0));
         env.addSource(emitUntil(() -> FailingMapper.failedAndProcessed))
                 .map(new FailingMapper())
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
         final JobClient jobClient = env.executeAsync();
 
         BlockingHighAvailabilityServiceFactory.fetchRemoteCheckpointsStart.await();

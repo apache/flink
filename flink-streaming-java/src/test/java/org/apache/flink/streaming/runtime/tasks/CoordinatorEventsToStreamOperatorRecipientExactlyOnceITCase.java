@@ -33,7 +33,7 @@ import org.apache.flink.runtime.operators.coordination.OperatorEventHandler;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -166,7 +166,7 @@ public class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
         env.addSource(new ManuallyClosedSourceFunction<>(), TypeInformation.of(Long.class))
                 .disableChaining()
                 .transform(factory.name, TypeInformation.of(Long.class), factory)
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         JobExecutionResult executionResult =
                 MINI_CLUSTER

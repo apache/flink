@@ -30,7 +30,7 @@ import org.apache.flink.core.execution.JobListener;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.TestLogger;
 
@@ -189,7 +189,7 @@ public class JobListenerITCase extends TestLogger {
                     }
                 });
 
-        env.fromElements(1, 2, 3, 4, 5).addSink(new DiscardingSink<>());
+        env.fromElements(1, 2, 3, 4, 5).sinkTo(new DiscardingSink<>());
         JobExecutionResult jobExecutionResult = env.execute();
 
         submissionLatch.await(2000L, TimeUnit.MILLISECONDS);
@@ -218,7 +218,7 @@ public class JobListenerITCase extends TestLogger {
                             JobExecutionResult jobExecutionResult, Throwable throwable) {}
                 });
 
-        env.fromElements(1, 2, 3, 4, 5).addSink(new DiscardingSink<>());
+        env.fromElements(1, 2, 3, 4, 5).sinkTo(new DiscardingSink<>());
         JobClient jobClient = env.executeAsync();
 
         submissionLatch.await(2000L, TimeUnit.MILLISECONDS);
@@ -245,7 +245,7 @@ public class JobListenerITCase extends TestLogger {
                             JobExecutionResult jobExecutionResult, Throwable throwable) {}
                 });
 
-        env.fromElements(1, 2, 3, 4, 5).addSink(new DiscardingSink<>());
+        env.fromElements(1, 2, 3, 4, 5).sinkTo(new DiscardingSink<>());
         env.execute();
 
         assertThat(Thread.currentThread(), is(threadReference.get()));
@@ -269,7 +269,7 @@ public class JobListenerITCase extends TestLogger {
                             JobExecutionResult jobExecutionResult, Throwable throwable) {}
                 });
 
-        env.fromElements(1, 2, 3, 4, 5).addSink(new DiscardingSink<>());
+        env.fromElements(1, 2, 3, 4, 5).sinkTo(new DiscardingSink<>());
         env.executeAsync();
 
         assertThat(Thread.currentThread(), is(threadReference.get()));

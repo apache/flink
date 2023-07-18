@@ -40,7 +40,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -132,7 +132,7 @@ public class TimestampITCase extends TestLogger {
                 .connect(source2)
                 .map(new IdentityCoMap())
                 .transform("Custom Operator", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator(true))
-                .addSink(new DiscardingSink<Integer>());
+                .sinkTo(new DiscardingSink<>());
 
         env.execute();
 
@@ -170,7 +170,7 @@ public class TimestampITCase extends TestLogger {
                 .union(dataStream1)
                 .transform(
                         "Custom Operator", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator(false))
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
         env.execute();
 
         assertEquals(
@@ -206,7 +206,7 @@ public class TimestampITCase extends TestLogger {
                 .connect(source2)
                 .map(new IdentityCoMap())
                 .transform("Custom Operator", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator(true))
-                .addSink(new DiscardingSink<Integer>());
+                .sinkTo(new DiscardingSink<Integer>());
 
         Thread t =
                 new Thread("stopper") {
@@ -309,7 +309,7 @@ public class TimestampITCase extends TestLogger {
                         "Custom Operator",
                         BasicTypeInfo.INT_TYPE_INFO,
                         new TimestampCheckingOperator())
-                .addSink(new DiscardingSink<Integer>());
+                .sinkTo(new DiscardingSink<Integer>());
 
         env.execute();
     }
@@ -335,7 +335,7 @@ public class TimestampITCase extends TestLogger {
                         "Custom Operator",
                         BasicTypeInfo.INT_TYPE_INFO,
                         new DisabledTimestampCheckingOperator())
-                .addSink(new DiscardingSink<Integer>());
+                .sinkTo(new DiscardingSink<Integer>());
 
         env.execute();
     }

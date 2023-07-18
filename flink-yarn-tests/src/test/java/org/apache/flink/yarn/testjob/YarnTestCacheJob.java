@@ -24,7 +24,7 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
 import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableList;
@@ -58,7 +58,7 @@ public class YarnTestCacheJob {
                 .setParallelism(1)
                 .map(new MapperFunction(), TypeInformation.of(String.class))
                 .setParallelism(1)
-                .addSink(new DiscardingSink<String>())
+                .sinkTo(new DiscardingSink<String>())
                 .setParallelism(1);
 
         return env.getStreamGraph().getJobGraph();

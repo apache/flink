@@ -44,7 +44,7 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.AbstractID;
@@ -162,7 +162,7 @@ public class WritableSavepointITCase extends AbstractTestBase {
                 .connect(sEnv.fromCollection(currencyRates).broadcast(descriptor))
                 .process(new CurrencyValidationFunction())
                 .uid(CURRENCY_UID)
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         StreamGraph streamGraph = sEnv.getStreamGraph();
         streamGraph.setSavepointRestoreSettings(
@@ -205,7 +205,7 @@ public class WritableSavepointITCase extends AbstractTestBase {
         stream.map(acc -> acc.id)
                 .map(new StatefulOperator())
                 .uid(MODIFY_UID)
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         StreamGraph streamGraph = sEnv.getStreamGraph();
         streamGraph.setSavepointRestoreSettings(

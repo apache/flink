@@ -23,7 +23,7 @@ import org.apache.flink.client.deployment.application.JarManifestParserTest;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -36,7 +36,7 @@ public class TestJob {
 
         final DataStreamSource<Integer> source = env.fromElements(1, 2, 3, 4);
         final SingleOutputStreamOperator<Integer> mapper = source.map(element -> 2 * element);
-        mapper.addSink(new DiscardingSink<>());
+        mapper.sinkTo(new DiscardingSink<>());
 
         ParameterTool parameterTool = ParameterTool.fromArgs(args);
         env.execute(TestJob.class.getCanonicalName() + "-" + parameterTool.getRequired("arg"));
