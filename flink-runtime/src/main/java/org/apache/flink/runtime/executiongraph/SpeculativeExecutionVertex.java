@@ -308,10 +308,4 @@ public class SpeculativeExecutionVertex extends ExecutionVertex {
         throw new UnsupportedOperationException(
                 "Method is not supported in SpeculativeExecutionVertex.");
     }
-
-    @Override
-    public CompletableFuture<TaskManagerLocation> getCurrentTaskManagerLocationFuture() {
-        throw new UnsupportedOperationException(
-                "Method is not supported in SpeculativeExecutionVertex.");
-    }
 }
