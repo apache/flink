@@ -113,6 +113,12 @@ By default no operator is disabled.</td>
             <td>Determines how Flink enforces NOT NULL column constraints when inserting null values.<br /><br />Possible values:<ul><li>"ERROR": Throw a runtime exception when writing null values into NOT NULL column.</li><li>"DROP": Drop records silently if a null value would have to be inserted into a NOT NULL column.</li></ul></td>
         </tr>
         <tr>
+            <td><h5>table.exec.sink.rowtime-inserter</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">ENABLED</td>
+            <td><p>Enum</p></td>
+            <td>Some sink implementations require a single rowtime attribute in the input that can be inserted into the underlying stream record. This option allows disabling the timestamp insertion and avoids errors around multiple time attributes being present in the query schema.<br /><br />Possible values:<ul><li>"ENABLED": Insert a rowtime attribute (if available) into the underlying stream record. This requires at most one time attribute in the input for the sink.</li><li>"DISABLED": Do not insert the rowtime attribute into the underlying stream record.</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>table.exec.sink.type-length-enforcer</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">IGNORE</td>
             <td><p>Enum</p></td>

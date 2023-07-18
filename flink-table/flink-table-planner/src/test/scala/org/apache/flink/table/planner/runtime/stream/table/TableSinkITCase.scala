@@ -21,11 +21,12 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
+import org.apache.flink.table.api.config.ExecutionConfigOptions.RowtimeInserter
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.factories.TestValuesTableFactory.changelogRow
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase
-import org.apache.flink.table.planner.runtime.utils.TestData.{data1, nullData4, smallTupleData3, tupleData2, tupleData3, tupleData5}
+import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.util.ExceptionUtils
 
@@ -38,7 +39,6 @@ import java.math.{BigDecimal => JBigDecimal}
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.JavaConversions._
-import scala.collection.Seq
 import scala.util.{Failure, Success, Try}
 
 class TableSinkITCase extends StreamingTestBase {
@@ -444,7 +444,7 @@ class TableSinkITCase extends StreamingTestBase {
   }
 
   @Test
-  def testMultiRowtime(): Unit = {
+  def testMultiRowtimeWithRowtimeInserter(): Unit = {
     val t = env
       .fromCollection(tupleData3)
       .assignAscendingTimestamps(_._1.toLong)
@@ -471,6 +471,45 @@ class TableSinkITCase extends StreamingTestBase {
       "The query contains more than one rowtime attribute column [rowtime1, rowtime2] for " +
         "writing into table 'default_catalog.default_database.sink'.")
     table.executeInsert("sink")
+  }
+
+  @Test
+  def testMultiRowtimeWithoutTimestampInserter(): Unit = {
+    val t = env
+      .fromCollection(tupleData3)
+      .assignAscendingTimestamps(_._1.toLong)
+      .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
+
+    // disable inserter
+    tEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_SINK_ROWTIME_INSERTER,
+      RowtimeInserter.DISABLED)
+
+    tEnv.executeSql(s"""
+                       |CREATE TABLE sink (
+                       |  `num` BIGINT,
+                       |  `ts1` TIMESTAMP(3),
+                       |  `ts2` TIMESTAMP(3)
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'sink-insert-only' = 'true'
+                       |)
+                       |""".stripMargin)
+
+    val table = t
+      .window(Tumble.over(5.milli).on('rowtime).as('w))
+      .groupBy('num, 'w)
+      .select('num, 'w.rowtime.as('rowtime1), 'w.rowtime.as('rowtime2))
+    table.executeInsert("sink").await()
+
+    val result = TestValuesTableFactory.getResults("sink")
+    assertEquals(result.size(), 10)
+
+    // clean up
+    tEnv.getConfig
+      .set(
+        ExecutionConfigOptions.TABLE_EXEC_SINK_ROWTIME_INSERTER,
+        ExecutionConfigOptions.TABLE_EXEC_SINK_ROWTIME_INSERTER.defaultValue())
   }
 
   @Test

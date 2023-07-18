@@ -23,6 +23,8 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.api.config.ExecutionConfigOptions.RowtimeInserter;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.RowData;
@@ -74,7 +76,8 @@ import java.util.stream.Collectors;
             "table.exec.sink.not-null-enforcer",
             "table.exec.sink.type-length-enforcer",
             "table.exec.sink.upsert-materialize",
-            "table.exec.sink.keyed-shuffle"
+            "table.exec.sink.keyed-shuffle",
+            "table.exec.sink.rowtime-inserter"
         },
         producedTransformations = {
             CommonExecSink.CONSTRAINT_VALIDATOR_TRANSFORMATION,
@@ -193,6 +196,9 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
         final RowType inputRowType = (RowType) inputEdge.getOutputType();
         final DynamicTableSink tableSink = tableSinkSpec.getTableSink(planner.getFlinkContext());
         final boolean isCollectSink = tableSink instanceof CollectDynamicSink;
+        final boolean isDisabled =
+                config.get(ExecutionConfigOptions.TABLE_EXEC_SINK_ROWTIME_INSERTER)
+                        == RowtimeInserter.DISABLED;
 
         final List<Integer> rowtimeFieldIndices = new ArrayList<>();
         for (int i = 0; i < inputRowType.getFieldCount(); ++i) {
@@ -200,8 +206,11 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
                 rowtimeFieldIndices.add(i);
             }
         }
+
         final int rowtimeFieldIndex;
-        if (rowtimeFieldIndices.size() > 1 && !isCollectSink) {
+        if (isCollectSink || isDisabled) {
+            rowtimeFieldIndex = -1;
+        } else if (rowtimeFieldIndices.size() > 1) {
             throw new TableException(
                     String.format(
                             "The query contains more than one rowtime attribute column [%s] for writing into table '%s'.\n"
