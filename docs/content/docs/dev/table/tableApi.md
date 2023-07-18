@@ -238,7 +238,7 @@ The Table API supports the following operations. Please note that not all operat
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
 Similar to the `FROM` clause in a SQL query.
-Performs a scane of registered table.
+Performs a scan of registered table.
 
 {{< tabs "from" >}}
 {{< tab "Java" >}}
