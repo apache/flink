@@ -1,4 +1,4 @@
-package org.apache.flink.streaming.examples.allowlatency;
+package org.apache.flink.streaming.examples.allowlatency.utils;
 
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
@@ -30,7 +30,8 @@ public class MyAggregator extends AbstractStreamOperator<Tuple2<Integer, Long>>
         implements OneInputStreamOperator<Integer, Tuple2<Integer, Long>> {
     private Map<Integer, Long> bundle;
     private final KeySelector<Integer, Integer> keySelector;
-    private int numOfElements;
+    private int keySize = 0;
+    private int flushCnt = 0;
     private ValueState<Long> store;
     private long visits;
 
@@ -55,11 +56,6 @@ public class MyAggregator extends AbstractStreamOperator<Tuple2<Integer, Long>>
         super.open();
         this.bundle = new HashMap<>();
         visits = 0;
-
-        // counter metric to get the size of bundle
-        getRuntimeContext()
-                .getMetricGroup()
-                .gauge("bundleSize", (Gauge<Integer>) () -> numOfElements);
     }
 
     @Override
@@ -83,12 +79,17 @@ public class MyAggregator extends AbstractStreamOperator<Tuple2<Integer, Long>>
     public void finish() throws Exception {
         finishBundle();
         System.out.println("RocksDB visits: " + visits);
+        if (flushCnt > 0) {
+            System.out.println("Average key size: " + keySize / flushCnt);
+        }
     }
 
     public void finishBundle() {
         if (bundle != null && !bundle.isEmpty()) {
+            keySize += bundle.size();
+            flushCnt++;
             finishBundle(bundle, output);
-            bundle.replaceAll((k, v) -> 0L);
+            bundle.clear();
         }
     }
 

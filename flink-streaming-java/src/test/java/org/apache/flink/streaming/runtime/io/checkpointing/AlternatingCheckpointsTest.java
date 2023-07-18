@@ -1342,7 +1342,8 @@ public class AlternatingCheckpointsTest {
                         gate,
                         barrierHandler,
                         new FlushEventHandler(new DummyCheckpointInvokable(),"test"),
-                        new SyncMailboxExecutor());
+                        new SyncMailboxExecutor(),
+                        false);
 
         if (checkpointType.isSavepoint()) {
             fast.setBlocked(true);

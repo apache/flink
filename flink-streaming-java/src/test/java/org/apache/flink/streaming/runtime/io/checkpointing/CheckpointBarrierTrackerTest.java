@@ -838,7 +838,8 @@ public class CheckpointBarrierTrackerTest {
                 new CheckpointBarrierTracker(
                         inputGate.getNumberOfInputChannels(), toNotifyOnCheckpoint, clock, true),
                 new FlushEventHandler(new DummyCheckpointInvokable(),"test"),
-                new SyncMailboxExecutor());
+                new SyncMailboxExecutor(),
+                false);
     }
 
     private static BufferOrEvent createBarrier(long checkpointId, int channel) {

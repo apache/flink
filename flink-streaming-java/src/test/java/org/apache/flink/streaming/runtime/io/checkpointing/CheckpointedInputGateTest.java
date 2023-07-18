@@ -236,6 +236,7 @@ public class CheckpointedInputGateTest {
                                 barrierHandler,
                                 new FlushEventHandler(new DummyCheckpointInvokable(),"test"),
                                 mailboxExecutor,
+                                false,
                                 UpstreamRecoveryTracker.forInputGate(singleInputGate));
 
                 final int oldSize = mailbox.size();
@@ -357,6 +358,7 @@ public class CheckpointedInputGateTest {
                         barrierHandler,
                         new FlushEventHandler(new DummyCheckpointInvokable(),"test"),
                         mailboxExecutor,
+                        false,
                         UpstreamRecoveryTracker.forInputGate(singleInputGate));
         for (int i = 0; i < numberOfChannels; i++) {
             ((RemoteInputChannel) checkpointedInputGate.getChannel(i)).requestSubpartition();
@@ -398,6 +400,7 @@ public class CheckpointedInputGateTest {
                         barrierHandler,
                         new FlushEventHandler(new DummyCheckpointInvokable(),"test"),
                         mailboxExecutor,
+                        false,
                         UpstreamRecoveryTracker.forInputGate(singleInputGate));
         for (int i = 0; i < numberOfChannels; i++) {
             ((RemoteInputChannel) checkpointedInputGate.getChannel(i)).requestSubpartition();

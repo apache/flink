@@ -1024,7 +1024,8 @@ public class UnalignedCheckpointsTest {
                 gate,
                 barrierHandler,
                 new FlushEventHandler(new DummyCheckpointInvokable(),"test"),
-                new SyncMailboxExecutor());
+                new SyncMailboxExecutor(),
+                false);
     }
 
     private void assertInflightData(BufferOrEvent... expected) {

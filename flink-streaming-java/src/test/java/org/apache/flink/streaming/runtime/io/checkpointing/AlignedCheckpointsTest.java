@@ -156,7 +156,8 @@ public class AlignedCheckpointsTest {
                         enableCheckpointsAfterTasksFinish,
                         gate),
                 new FlushEventHandler(new DummyCheckpointInvokable(),"test"),
-                new SyncMailboxExecutor());
+                new SyncMailboxExecutor(),
+                false);
     }
 
     @After

@@ -156,7 +156,8 @@ public class StreamTaskNetworkInputTest {
                                                 false,
                                                 inputGate.getInputGate()),
                                 new FlushEventHandler(new DummyCheckpointInvokable(),"test"),
-                                new SyncMailboxExecutor()),
+                                new SyncMailboxExecutor(),
+                                false),
                         inSerializer,
                         ioManager,
                         new StatusWatermarkValve(numInputChannels),
@@ -348,6 +349,7 @@ public class StreamTaskNetworkInputTest {
                         1, new DummyCheckpointInvokable(), SystemClock.getInstance(), false),
                 new FlushEventHandler(new DummyCheckpointInvokable(), "test"),
                 new SyncMailboxExecutor(),
+                false,
                 UpstreamRecoveryTracker.forInputGate(inputGate));
     }
 

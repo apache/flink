@@ -122,6 +122,8 @@ public class StreamConfig implements Serializable {
                     .withDescription(
                             "If state backend is specified, whether it uses managed memory.");
 
+    private static final String FLUSHING_ENABLED = "flushing";
+
     // ------------------------------------------------------------------------
     //  Default Values
     // ------------------------------------------------------------------------
@@ -607,6 +609,14 @@ public class StreamConfig implements Serializable {
 
     public int getChainIndex() {
         return this.config.getInteger(CHAIN_INDEX, 0);
+    }
+
+    public void setFlushingEnabled(boolean enabled) {
+        config.setBoolean(FLUSHING_ENABLED, enabled);
+    }
+
+    public boolean isFlushingEnabled() {
+        return config.getBoolean(FLUSHING_ENABLED, false);
     }
 
     // ------------------------------------------------------------------------

@@ -79,6 +79,7 @@ public class InputProcessorUtil {
                                         barrierHandler,
                                         flushEventHandler,
                                         mailboxExecutor,
+                                        config.isFlushingEnabled(),
                                         config.isGraphContainingLoops()
                                                 ? UpstreamRecoveryTracker.NO_OP
                                                 : UpstreamRecoveryTracker.forInputGate(

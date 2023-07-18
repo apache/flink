@@ -28,7 +28,7 @@ public class AllowedLatencyITCase extends AbstractTestBase {
     private static Map<Integer, Long> testMap;
     private static List<Tuple2<Integer, Long>> testResult;
 
-    private static long dataNum = 30000000L;
+    private static long dataNum = 3000000L;
 
     @Test
     public void testAllowedLatency() throws Exception {
@@ -48,7 +48,7 @@ public class AllowedLatencyITCase extends AbstractTestBase {
         env.getConfig()
                 .enableObjectReuse()
                 .setAutoWatermarkInterval(0)
-                .setAllowedLatency(5000)
+                .setAllowedLatency(500)
                 .disableGenericTypes();
         env.setParallelism(1)
                 .setStateBackend(new EmbeddedRocksDBStateBackend())

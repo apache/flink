@@ -1116,6 +1116,7 @@ public class StreamingJobGraphGenerator {
         config.setAlignedCheckpointTimeout(checkpointCfg.getAlignedCheckpointTimeout());
         config.setMaxSubtasksPerChannelStateFile(checkpointCfg.getMaxSubtasksPerChannelStateFile());
         config.setMaxConcurrentCheckpoints(checkpointCfg.getMaxConcurrentCheckpoints());
+        config.setFlushingEnabled(streamGraph.getExecutionConfig().getFLushEnabled());
 
         for (int i = 0; i < vertex.getStatePartitioners().length; i++) {
             config.setStatePartitioner(i, vertex.getStatePartitioners()[i]);

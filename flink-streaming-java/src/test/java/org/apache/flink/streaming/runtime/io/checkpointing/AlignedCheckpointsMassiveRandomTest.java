@@ -81,7 +81,8 @@ public class AlignedCheckpointsMassiveRandomTest {
                                     true,
                                     myIG),
                             new FlushEventHandler(new DummyCheckpointInvokable(),"test"),
-                            new SyncMailboxExecutor());
+                            new SyncMailboxExecutor(),
+                            false);
 
             for (int i = 0; i < 2000000; i++) {
                 BufferOrEvent boe = checkpointedInputGate.pollNext().get();

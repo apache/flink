@@ -87,7 +87,7 @@ public class FlushAggregator extends AbstractStreamOperator<Tuple2<Integer, Long
     public void finishBundle() {
         if (bundle != null && !bundle.isEmpty()) {
             finishBundle(bundle, output);
-            bundle.replaceAll((k, v) -> 0L);
+            bundle.clear();
         }
     }
 

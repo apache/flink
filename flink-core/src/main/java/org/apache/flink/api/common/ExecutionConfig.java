@@ -1186,6 +1186,12 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
         configuration
                 .getOptional(JobManagerOptions.SCHEDULER)
                 .ifPresent(t -> this.configuration.set(JobManagerOptions.SCHEDULER, t));
+        configuration
+                .getOptional(ExecutionOptions.ALLOWED_LATENCY)
+                .ifPresent(l -> this.configuration.set(ExecutionOptions.ALLOWED_LATENCY, l));
+        configuration
+                .getOptional(ExecutionOptions.FLUSH_ENABLED)
+                .ifPresent(f -> this.configuration.set(ExecutionOptions.FLUSH_ENABLED, f));
     }
 
     /**

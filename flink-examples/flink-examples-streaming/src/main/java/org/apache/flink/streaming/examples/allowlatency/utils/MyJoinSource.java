@@ -1,22 +1,25 @@
-package org.apache.flink.streaming.examples.allowlatency;
+package org.apache.flink.streaming.examples.allowlatency.utils;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 
+import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 /** A parallel source to generate data stream for joining operation. */
 public class MyJoinSource extends RichParallelSourceFunction<Integer> {
 
+    private final int keySize;
     private long numValues;
     private long numValuesOnThisTask;
-    private int numPreGeneratedData;
     private Integer[] preGeneratedData;
     private long pause;
 
-    public MyJoinSource(long numValues, long pause) {
+    public MyJoinSource(long numValues, long pause, int keySize) {
         this.numValues = numValues;
         this.pause = pause;
+        this.keySize = keySize > 0 ? keySize : (int) Math.max(numValues / 1000, 100);
     }
 
     @Override
@@ -27,9 +30,8 @@ public class MyJoinSource extends RichParallelSourceFunction<Integer> {
         long div = numValues / numTasks;
         long mod = numValues % numTasks;
         numValuesOnThisTask = mod > taskIdx ? div + 1 : div;
-        numPreGeneratedData = (int) Math.min(Math.max(numValues / 1000, 10), 100000000);
-        preGeneratedData = new Integer[numPreGeneratedData];
-        for (int i = 0; i < numPreGeneratedData; i++) {
+        preGeneratedData = new Integer[keySize];
+        for (int i = 0; i < keySize; i++) {
             preGeneratedData[i] = i;
         }
     }
@@ -38,12 +40,16 @@ public class MyJoinSource extends RichParallelSourceFunction<Integer> {
     public void run(SourceContext ctx) throws Exception {
         long cnt = 0;
         while (cnt < this.numValuesOnThisTask) {
-            if (cnt % pause == 0) {
-                TimeUnit.MILLISECONDS.sleep(500);
+            if (pause > 0 && cnt % pause == 0) {
+                TimeUnit.MILLISECONDS.sleep(getRandomSleepInterval());
             }
-            ctx.collect(preGeneratedData[(int) (cnt % this.numPreGeneratedData)]);
+            ctx.collect(preGeneratedData[(int) (cnt % this.keySize)]);
             cnt += 1;
         }
+    }
+
+    private long getRandomSleepInterval() {
+        return ThreadLocalRandom.current().nextInt(300, 600);
     }
 
     @Override

@@ -7,13 +7,14 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.utils.MultipleParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
-import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
+import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.examples.allowlatency.utils.CountingAndDiscardingSink;
 import org.apache.flink.streaming.examples.allowlatency.utils.MyAggregator;
 import org.apache.flink.streaming.examples.allowlatency.utils.MyJoinSource;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -25,9 +26,14 @@ import java.util.Map;
  * <p>The example uses a built-in sample data generator that generates the streams of pairs at a
  * configurable rate.
  */
-public class AllowLatency {
+public class FlushInterval {
+    private static Map<Integer, Long> testMap;
+
     public static void main(String[] args) throws Exception {
+        testMap = new HashMap<>();
+
         final Map<String, String> params = MultipleParameterTool.fromArgs(args).toMap();
+
         Configuration config = new Configuration();
         config.setBoolean(DeploymentOptions.ATTACHED, true);
         final StreamExecutionEnvironment env =
@@ -38,19 +44,17 @@ public class AllowLatency {
         env.setParallelism(1);
         env.getConfig().setAutoWatermarkInterval(0);
         env.getCheckpointConfig().disableCheckpointing();
-//        env.setStateBackend(new EmbeddedRocksDBStateBackend());
-        env.setStateBackend(new HashMapStateBackend());
+        env.setStateBackend(new EmbeddedRocksDBStateBackend());
 
         Configuration conf = Configuration.fromMap(params);
-        env.getCheckpointConfig().configure(conf);
         env.getConfig().configure(conf, Thread.currentThread().getContextClassLoader());
 
-        long dataNum = params.get("dataNum") == null ? 30000000 : Long.parseLong(params.get("dataNum"));
+        long dataNum = params.get("dataNum") == null ? 100000000 : Long.parseLong(params.get("dataNum"));
         System.out.println("Number of records: " + dataNum);
-        System.out.println("Checkpoint interval: " + env.getCheckpointConfig().getCheckpointInterval());
-        System.out.println("Allowed latency: " + env.getConfig().getAllowedLatency());
+        System.out.println("flush enabled: " + env.getConfig().getFLushEnabled());
+        long pause = params.get("pause") == null ? dataNum / 5: Long.parseLong(params.get("pause"));
 
-        DataStream<Integer> ds1 = env.addSource(new MyJoinSource(dataNum, 0, 100000));
+        DataStream<Integer> ds1 = env.addSource(new MyJoinSource(dataNum, pause, 0));
         ds1.keyBy(value -> value)
                 .transform(
                         "MyAggregator",
@@ -82,3 +86,4 @@ public class AllowLatency {
     }
 
 }
+

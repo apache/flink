@@ -72,6 +72,8 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
     /** Indicate end of the input. */
     private boolean isFinished;
 
+    private final boolean isFlushingEnabled;
+
     /**
      * Creates a new checkpoint stream aligner.
      *
@@ -86,8 +88,9 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
             InputGate inputGate,
             CheckpointBarrierHandler barrierHandler,
             FlushEventHandler flushEventHandler,
-            MailboxExecutor mailboxExecutor) {
-        this(inputGate, barrierHandler, flushEventHandler, mailboxExecutor, UpstreamRecoveryTracker.NO_OP);
+            MailboxExecutor mailboxExecutor,
+            boolean isFlushingEnabled) {
+        this(inputGate, barrierHandler, flushEventHandler, mailboxExecutor, isFlushingEnabled, UpstreamRecoveryTracker.NO_OP);
     }
 
     public CheckpointedInputGate(
@@ -95,11 +98,13 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
             CheckpointBarrierHandler barrierHandler,
             FlushEventHandler flushEventHandler,
             MailboxExecutor mailboxExecutor,
+            boolean isFlushingEnabled,
             UpstreamRecoveryTracker upstreamRecoveryTracker) {
         this.inputGate = inputGate;
         this.barrierHandler = barrierHandler;
         this.flushEventHandler = flushEventHandler;
         this.mailboxExecutor = mailboxExecutor;
+        this.isFlushingEnabled = isFlushingEnabled;
         this.upstreamRecoveryTracker = upstreamRecoveryTracker;
 
         waitForPriorityEvents(inputGate, mailboxExecutor);
@@ -158,7 +163,9 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
         Optional<BufferOrEvent> next = inputGate.pollNext();
 
         if (!next.isPresent()) {
-            flushEventHandler.processLocalFlushEvent();
+            if (isFlushingEnabled) {
+                flushEventHandler.processLocalFlushEvent();
+            }
             return handleEmptyBuffer();
         }
 
