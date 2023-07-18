@@ -1843,6 +1843,8 @@ object TableTestUtil {
   /** Ignore exec node in operator name and description. */
   def replaceNodeIdInOperator(s: String): String = {
     s.replaceAll("\"contents\"\\s*:\\s*\"\\[\\d+\\]:", "\"contents\" : \"[]:")
+      // for sink v2.
+      .replaceAll("\"contents\"\\s*:\\s*\"(\\w+)\\[\\d+\\]:", "\"contents\" : \"$1[]:")
       .replaceAll("(\"type\"\\s*:\\s*\".*?)\\[\\d+\\]", "$1[]")
   }
 }

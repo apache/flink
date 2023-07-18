@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.datastream.MultipleConnectedStreams;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
 import org.apache.flink.streaming.api.operators.AbstractInput;
@@ -359,7 +359,7 @@ public class SourceNAryInputChainingITCase extends TestLogger {
     }
 
     private static JobGraph sinkAndCompileJobGraph(DataStream<?> stream) {
-        stream.addSink(new DiscardingSink<>());
+        stream.sinkTo(new DiscardingSink<>());
 
         final StreamGraph streamGraph = stream.getExecutionEnvironment().getStreamGraph();
         return StreamingJobGraphGenerator.createJobGraph(streamGraph);

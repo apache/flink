@@ -32,7 +32,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.MultipleConnectedStreams;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
 import org.apache.flink.testutils.junit.SharedObjects;
@@ -95,7 +95,7 @@ public class TestJobBuilders {
                                                     mapForward, eventQueue, commandQueue))
                                     .setUidHash(mapForward);
 
-                    forwardTransform.addSink(new DiscardingSink<>());
+                    forwardTransform.sinkTo(new DiscardingSink<>());
 
                     Map<String, Integer> operatorsNumberOfInputs = new HashMap<>();
                     operatorsNumberOfInputs.put(mapForward, 1);
@@ -222,7 +222,7 @@ public class TestJobBuilders {
                                             new TwoInputTestStreamOperator(mapTwoInput, eventQueue))
                                     .setUidHash(mapTwoInput);
 
-                    twoInputTransform.addSink(new DiscardingSink<>());
+                    twoInputTransform.sinkTo(new DiscardingSink<>());
 
                     Map<String, Integer> operatorsNumberOfInputs = new HashMap<>();
                     operatorsNumberOfInputs.put(mapForward, 1);

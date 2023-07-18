@@ -28,7 +28,7 @@ import org.apache.flink.state.api.utils.JobResultRetriever;
 import org.apache.flink.state.api.utils.SavepointTestBase;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.util.Collector;
 
 import org.junit.Assert;
@@ -66,7 +66,7 @@ public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
                 .keyBy(id -> id.key)
                 .process(new KeyedStatefulOperator())
                 .uid(uid)
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         String savepointPath = takeSavepoint(env);
 

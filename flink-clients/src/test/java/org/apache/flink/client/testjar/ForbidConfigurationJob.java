@@ -21,7 +21,7 @@ package org.apache.flink.client.testjar;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 
 import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
 
@@ -37,7 +37,7 @@ public class ForbidConfigurationJob {
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(config);
 
-        env.fromCollection(Lists.newArrayList(1, 2, 3)).addSink(new DiscardingSink<>());
+        env.fromCollection(Lists.newArrayList(1, 2, 3)).sinkTo(new DiscardingSink<>());
         env.execute();
     }
 }

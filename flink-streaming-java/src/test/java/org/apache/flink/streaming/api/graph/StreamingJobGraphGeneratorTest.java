@@ -80,9 +80,9 @@ import org.apache.flink.streaming.api.datastream.IterativeStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.PrintSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -736,7 +736,7 @@ class StreamingJobGraphGeneratorTest {
                         new MockSource(Boundedness.BOUNDED, 1),
                         WatermarkStrategy.noWatermarks(),
                         "TestSource");
-        source.addSink(new DiscardingSink<>());
+        source.sinkTo(new DiscardingSink<>());
 
         StreamGraph streamGraph = env.getStreamGraph();
         JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
@@ -963,7 +963,7 @@ class StreamingJobGraphGeneratorTest {
     @Test
     void testStreamingJobTypeByDefault() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.fromElements("test").addSink(new DiscardingSink<>());
+        env.fromElements("test").sinkTo(new DiscardingSink<>());
         JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
         assertThat(jobGraph.getJobType()).isEqualTo(JobType.STREAMING);
     }
@@ -972,7 +972,7 @@ class StreamingJobGraphGeneratorTest {
     void testBatchJobType() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
-        env.fromElements("test").addSink(new DiscardingSink<>());
+        env.fromElements("test").sinkTo(new DiscardingSink<>());
         JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
         assertThat(jobGraph.getJobType()).isEqualTo(JobType.BATCH);
     }
@@ -994,7 +994,7 @@ class StreamingJobGraphGeneratorTest {
                 .map(value -> value)
                 .keyBy(value -> value)
                 .map(value -> value)
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
         List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
@@ -1170,7 +1170,7 @@ class StreamingJobGraphGeneratorTest {
                 .map((x) -> x)
                 .transform("test", BasicTypeInfo.INT_TYPE_INFO, new YieldingTestOperatorFactory<>())
                 .map((x) -> x)
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         final JobGraph jobGraph = chainEnv.getStreamGraph().getJobGraph();
 
@@ -1226,7 +1226,7 @@ class StreamingJobGraphGeneratorTest {
                 .map((x) -> x)
                 .transform(
                         "test", BasicTypeInfo.LONG_TYPE_INFO, new YieldingTestOperatorFactory<>())
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         final JobGraph jobGraph = chainEnv.getStreamGraph().getJobGraph();
 
@@ -1269,7 +1269,7 @@ class StreamingJobGraphGeneratorTest {
                 .union(createSource(env, 2))
                 .union(createSource(env, 3))
                 .union(createSource(env, 4))
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         return StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
     }
@@ -1491,7 +1491,7 @@ class StreamingJobGraphGeneratorTest {
                                 source.getTransformation(),
                                 new RebalancePartitioner<>(),
                                 StreamExchangeMode.HYBRID_FULL));
-        partitioned.addSink(new DiscardingSink<>());
+        partitioned.sinkTo(new DiscardingSink<>());
         StreamGraph streamGraph = env.getStreamGraph();
         assertThatThrownBy(() -> StreamingJobGraphGenerator.createJobGraph(streamGraph))
                 .isInstanceOf(IllegalStateException.class);
@@ -1666,8 +1666,8 @@ class StreamingJobGraphGeneratorTest {
                 .isEqualTo("mit [Source: source-1, Source: source-2, Source: source-3]\n");
 
         JobVertex sinkVertex = iterator.next();
-        assertThat(sinkVertex.getName()).isEqualTo("Sink: sink");
-        assertThat(sinkVertex.getOperatorPrettyName()).isEqualTo("Sink: sink\n");
+        assertThat(sinkVertex.getName()).isEqualTo("sink: Writer");
+        assertThat(sinkVertex.getOperatorPrettyName()).isEqualTo("sink: Writer\n");
     }
 
     @Test
@@ -1694,8 +1694,8 @@ class StreamingJobGraphGeneratorTest {
         assertThat(multipleVertex.getOperatorPrettyName()).isEqualTo("mit\n");
 
         JobVertex sinkVertex = iterator.next();
-        assertThat(sinkVertex.getName()).isEqualTo("Sink: sink");
-        assertThat(sinkVertex.getOperatorPrettyName()).isEqualTo("Sink: sink\n");
+        assertThat(sinkVertex.getName()).isEqualTo("sink: Writer");
+        assertThat(sinkVertex.getOperatorPrettyName()).isEqualTo("sink: Writer\n");
     }
 
     public JobGraph createGraphWithMultipleInputs(
@@ -1718,7 +1718,7 @@ class StreamingJobGraphGeneratorTest {
 
         DataStream<Long> dataStream = new DataStream<>(env, transform);
         // do not chain with sink operator.
-        dataStream.rebalance().addSink(new DiscardingSink<>()).name(sinkName);
+        dataStream.rebalance().sinkTo(new DiscardingSink<>()).name(sinkName);
 
         env.addOperator(transform);
 
@@ -1883,7 +1883,7 @@ class StreamingJobGraphGeneratorTest {
                                 isSelective
                                         ? StreamExchangeMode.HYBRID_SELECTIVE
                                         : StreamExchangeMode.HYBRID_FULL));
-        partitionAfterSourceDataStream.addSink(new DiscardingSink<>());
+        partitionAfterSourceDataStream.sinkTo(new DiscardingSink<>());
 
         JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
 
@@ -1944,18 +1944,18 @@ class StreamingJobGraphGeneratorTest {
                                 new ForwardPartitioner<>(),
                                 StreamExchangeMode.HYBRID_FULL));
         // these two vertices can reuse the same intermediate dataset
-        partition1.addSink(new DiscardingSink<>()).setParallelism(2).name("sink1");
-        partition2.addSink(new DiscardingSink<>()).setParallelism(2).name("sink2");
+        partition1.sinkTo(new DiscardingSink<>()).setParallelism(2).name("sink1");
+        partition2.sinkTo(new DiscardingSink<>()).setParallelism(2).name("sink2");
 
         // this can not reuse the same intermediate dataset because of different parallelism
-        partition3.addSink(new DiscardingSink<>()).setParallelism(3);
+        partition3.sinkTo(new DiscardingSink<>()).setParallelism(3);
 
         // this can not reuse the same intermediate dataset because of different partitioner
-        partition4.addSink(new DiscardingSink<>()).setParallelism(2);
+        partition4.sinkTo(new DiscardingSink<>()).setParallelism(2);
 
         // this can not reuse the same intermediate dataset because of different result partition
         // type
-        partition5.addSink(new DiscardingSink<>()).setParallelism(2);
+        partition5.sinkTo(new DiscardingSink<>()).setParallelism(2);
 
         SingleOutputStreamOperator<Integer> mapStream =
                 partition7.map(value -> value).setParallelism(1);
@@ -1966,7 +1966,7 @@ class StreamingJobGraphGeneratorTest {
                                 mapStream.getTransformation(),
                                 new RescalePartitioner<>(),
                                 StreamExchangeMode.HYBRID_FULL));
-        mapPartition.addSink(new DiscardingSink<>()).name("sink3");
+        mapPartition.sinkTo(new DiscardingSink<>()).name("sink3");
 
         StreamGraph streamGraph = env.getStreamGraph();
         JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
@@ -2016,25 +2016,25 @@ class StreamingJobGraphGeneratorTest {
         DataStream<Integer> source = env.fromElements(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
 
         // these two vertices can reuse the same intermediate dataset
-        source.rebalance().addSink(new DiscardingSink<>()).setParallelism(2).name("sink1");
-        source.rebalance().addSink(new DiscardingSink<>()).setParallelism(2).name("sink2");
+        source.rebalance().sinkTo(new DiscardingSink<>()).setParallelism(2).name("sink1");
+        source.rebalance().sinkTo(new DiscardingSink<>()).setParallelism(2).name("sink2");
 
         // this can not reuse the same intermediate dataset because of different parallelism
-        source.rebalance().addSink(new DiscardingSink<>()).setParallelism(3);
+        source.rebalance().sinkTo(new DiscardingSink<>()).setParallelism(3);
 
         // this can not reuse the same intermediate dataset because of different partitioner
-        source.broadcast().addSink(new DiscardingSink<>()).setParallelism(2);
+        source.broadcast().sinkTo(new DiscardingSink<>()).setParallelism(2);
 
         // these two vertices can not reuse the same intermediate dataset because of the pipelined
         // edge
-        source.forward().addSink(new DiscardingSink<>()).setParallelism(1).disableChaining();
-        source.forward().addSink(new DiscardingSink<>()).setParallelism(1).disableChaining();
+        source.forward().sinkTo(new DiscardingSink<>()).setParallelism(1).disableChaining();
+        source.forward().sinkTo(new DiscardingSink<>()).setParallelism(1).disableChaining();
 
         DataStream<Integer> mapStream = source.forward().map(value -> value).setParallelism(1);
 
         // these two vertices can reuse the same intermediate dataset
-        mapStream.broadcast().addSink(new DiscardingSink<>()).setParallelism(2).name("sink3");
-        mapStream.broadcast().addSink(new DiscardingSink<>()).setParallelism(2).name("sink4");
+        mapStream.broadcast().sinkTo(new DiscardingSink<>()).setParallelism(2).name("sink3");
+        mapStream.broadcast().sinkTo(new DiscardingSink<>()).setParallelism(2).name("sink4");
 
         StreamGraph streamGraph = env.getStreamGraph();
         streamGraph.setGlobalStreamExchangeMode(GlobalStreamExchangeMode.FORWARD_EDGES_PIPELINED);

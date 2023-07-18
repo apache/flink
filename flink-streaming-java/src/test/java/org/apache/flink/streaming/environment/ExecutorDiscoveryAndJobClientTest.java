@@ -25,7 +25,7 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.core.execution.PipelineExecutorFactory;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 
 import org.junit.Test;
 
@@ -65,7 +65,7 @@ public class ExecutorDiscoveryAndJobClientTest {
     private JobExecutionResult executeTestJobBasedOnConfig(final Configuration configuration)
             throws Exception {
         final StreamExecutionEnvironment env = new StreamExecutionEnvironment(configuration);
-        env.fromCollection(Collections.singletonList(42)).addSink(new DiscardingSink<>());
+        env.fromCollection(Collections.singletonList(42)).sinkTo(new DiscardingSink<>());
         return env.execute();
     }
 

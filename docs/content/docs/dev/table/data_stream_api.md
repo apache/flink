@@ -2790,7 +2790,7 @@ The following example shows how to add table programs to a DataStream API progra
 ```java
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.table.api.*;
 import org.apache.flink.table.api.bridge.java.*;
 
@@ -2827,7 +2827,7 @@ statementSet.add(tableFromStream.insertInto(sinkDescriptor));
 statementSet.attachAsDataStream();
 
 // define other DataStream API parts
-env.fromElements(4, 5, 6).addSink(new DiscardingSink<>());
+env.fromElements(4, 5, 6).sinkTo(new DiscardingSink<>());
 
 // use DataStream API to submit the pipelines
 env.execute();
@@ -2843,7 +2843,7 @@ env.execute();
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
@@ -2878,7 +2878,7 @@ statementSet.add(tableFromStream.insertInto(sinkDescriptor))
 statementSet.attachAsDataStream()
 
 // define other DataStream API parts
-env.fromElements(4, 5, 6).addSink(new DiscardingSink[Int]())
+env.fromElements(4, 5, 6).sinkTo(new DiscardingSink[Int]())
 
 // now use DataStream API to submit the pipelines
 env.execute()

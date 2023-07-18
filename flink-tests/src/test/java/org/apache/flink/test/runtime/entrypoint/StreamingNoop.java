@@ -22,7 +22,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction;
 
 import java.io.File;
@@ -47,7 +47,7 @@ public class StreamingNoop {
         env.setParallelism(2);
         env.setRestartStrategy(RestartStrategies.fixedDelayRestart(10, 1000));
         env.readFileStream("input/", 60000, FileMonitoringFunction.WatchType.ONLY_NEW_FILES)
-                .addSink(new DiscardingSink<String>());
+                .sinkTo(new DiscardingSink<>());
 
         // generate a job graph
         final JobGraph jobGraph = env.getStreamGraph().getJobGraph();

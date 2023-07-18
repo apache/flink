@@ -41,7 +41,7 @@ import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorV2;
@@ -133,7 +133,7 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
 
         SingleOutputStreamOperator<Integer> process =
                 env.fromElements(1, 2).keyBy(Integer::intValue).process(DUMMY_PROCESS_FUNCTION);
-        DataStreamSink<Integer> sink = process.addSink(new DiscardingSink<>());
+        DataStreamSink<Integer> sink = process.sinkTo(new DiscardingSink<>());
 
         StreamGraph graph = getStreamGraphInBatchMode(sink);
         StreamNode processNode = graph.getStreamNode(process.getId());
@@ -155,7 +155,7 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         SingleOutputStreamOperator<Integer> process =
                 env.fromElements(1, 2).keyBy(Integer::intValue).process(DUMMY_PROCESS_FUNCTION);
-        DataStreamSink<Integer> sink = process.addSink(new DiscardingSink<>());
+        DataStreamSink<Integer> sink = process.sinkTo(new DiscardingSink<>());
 
         final Configuration configuration = new Configuration();
         configuration.set(ExecutionOptions.SORTED_INPUTS_MEMORY, MemorySize.ofMebiBytes(42));
@@ -179,7 +179,7 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
 
         SingleOutputStreamOperator<Integer> process =
                 env.fromElements(1, 2).keyBy(Integer::intValue).process(DUMMY_PROCESS_FUNCTION);
-        DataStreamSink<Integer> sink = process.addSink(new DiscardingSink<>());
+        DataStreamSink<Integer> sink = process.sinkTo(new DiscardingSink<>());
 
         StreamGraph graph = getStreamGraphInBatchMode(sink);
 
@@ -201,7 +201,7 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
 
         SingleOutputStreamOperator<Integer> process =
                 env.fromElements(1, 2).keyBy(Integer::intValue).process(DUMMY_PROCESS_FUNCTION);
-        DataStreamSink<Integer> sink = process.addSink(new DiscardingSink<>());
+        DataStreamSink<Integer> sink = process.sinkTo(new DiscardingSink<>());
 
         Configuration configuration = new Configuration();
         configuration.set(ExecutionOptions.USE_BATCH_STATE_BACKEND, false);
@@ -225,7 +225,7 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
 
         SingleOutputStreamOperator<Integer> process =
                 env.fromElements(1, 2).keyBy(Integer::intValue).process(DUMMY_PROCESS_FUNCTION);
-        DataStreamSink<Integer> sink = process.addSink(new DiscardingSink<>());
+        DataStreamSink<Integer> sink = process.sinkTo(new DiscardingSink<>());
 
         Configuration configuration = new Configuration();
         configuration.set(ExecutionOptions.USE_BATCH_STATE_BACKEND, false);
@@ -245,7 +245,7 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
 
         SingleOutputStreamOperator<Integer> process =
                 env.fromElements(1, 2).keyBy(Integer::intValue).process(DUMMY_PROCESS_FUNCTION);
-        DataStreamSink<Integer> sink = process.addSink(new DiscardingSink<>());
+        DataStreamSink<Integer> sink = process.sinkTo(new DiscardingSink<>());
 
         Configuration configuration = new Configuration();
         configuration.set(ExecutionOptions.SORT_INPUTS, false);
@@ -267,7 +267,7 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
                         .connect(elements2)
                         .keyBy(Integer::intValue, Integer::intValue)
                         .process(DUMMY_KEYED_CO_PROCESS_FUNCTION);
-        DataStreamSink<Integer> sink = process.addSink(new DiscardingSink<>());
+        DataStreamSink<Integer> sink = process.sinkTo(new DiscardingSink<>());
 
         StreamGraph graph = getStreamGraphInBatchMode(sink);
 
@@ -297,7 +297,7 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
                         .connect(elements2)
                         .keyBy(Integer::intValue, Integer::intValue)
                         .process(DUMMY_KEYED_CO_PROCESS_FUNCTION);
-        DataStreamSink<Integer> sink = process.addSink(new DiscardingSink<>());
+        DataStreamSink<Integer> sink = process.sinkTo(new DiscardingSink<>());
 
         Configuration configuration = new Configuration();
         configuration.set(ExecutionOptions.USE_BATCH_STATE_BACKEND, false);
@@ -329,7 +329,7 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
                         .connect(elements2)
                         .keyBy(Integer::intValue, Integer::intValue)
                         .process(DUMMY_KEYED_CO_PROCESS_FUNCTION);
-        DataStreamSink<Integer> sink = process.addSink(new DiscardingSink<>());
+        DataStreamSink<Integer> sink = process.sinkTo(new DiscardingSink<>());
 
         Configuration configuration = new Configuration();
         configuration.set(ExecutionOptions.USE_BATCH_STATE_BACKEND, false);
@@ -355,7 +355,7 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
                         .connect(elements2)
                         .keyBy(Integer::intValue, Integer::intValue)
                         .process(DUMMY_KEYED_CO_PROCESS_FUNCTION);
-        DataStreamSink<Integer> sink = process.addSink(new DiscardingSink<>());
+        DataStreamSink<Integer> sink = process.sinkTo(new DiscardingSink<>());
 
         Configuration configuration = new Configuration();
         configuration.set(ExecutionOptions.SORT_INPUTS, false);
@@ -386,7 +386,7 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
                                 BasicTypeInfo.INT_TYPE_INFO,
                                 new InputSelectableTwoInputOperator());
 
-        DataStreamSink<Integer> sink = selectableOperator.addSink(new DiscardingSink<>());
+        DataStreamSink<Integer> sink = selectableOperator.sinkTo(new DiscardingSink<>());
 
         expectedException.expect(IllegalStateException.class);
         expectedException.expectMessage(
@@ -418,7 +418,7 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
         DataStreamSink<Integer> sink =
                 new MultipleConnectedStreams(env)
                         .transform(multipleInputTransformation)
-                        .addSink(new DiscardingSink<>());
+                        .sinkTo(new DiscardingSink<>());
 
         StreamGraph graph = getStreamGraphInBatchMode(sink);
 
@@ -460,7 +460,7 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
         DataStreamSink<Integer> sink =
                 new MultipleConnectedStreams(env)
                         .transform(multipleInputTransformation)
-                        .addSink(new DiscardingSink<>());
+                        .sinkTo(new DiscardingSink<>());
 
         expectedException.expect(IllegalStateException.class);
         expectedException.expectMessage(
@@ -539,7 +539,7 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
         return env.fromElements(1, 2)
                 .keyBy(Integer::intValue)
                 .process(DUMMY_PROCESS_FUNCTION)
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
     }
 
     private StreamGraph getStreamGraphInBatchMode(DataStreamSink<?> sink) {

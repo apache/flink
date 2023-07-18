@@ -21,7 +21,7 @@ package org.apache.flink.test.classloading.jar;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.util.Collector;
 
@@ -38,7 +38,7 @@ public class StreamingProgram {
 
         DataStream<Word> counts = text.flatMap(new Tokenizer()).keyBy("word").sum("frequency");
 
-        counts.addSink(new DiscardingSink<>());
+        counts.sinkTo(new DiscardingSink<>());
 
         env.execute();
     }

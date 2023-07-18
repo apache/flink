@@ -20,7 +20,7 @@ package org.apache.flink.python.util;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 
 import org.junit.jupiter.api.Test;
@@ -39,7 +39,7 @@ class PythonConfigUtilTest {
         config.set(PipelineOptions.NAME, jobName);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
 
-        env.fromCollection(Collections.singletonList("test")).addSink(new DiscardingSink<>());
+        env.fromCollection(Collections.singletonList("test")).sinkTo(new DiscardingSink<>());
         StreamGraph streamGraph = env.getStreamGraph(true);
         assertThat(streamGraph.getJobName()).isEqualTo(jobName);
     }
