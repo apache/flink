@@ -2062,6 +2062,16 @@ public class AdaptiveSchedulerTest {
         scheduler.updateJobResourceRequirements(newJobResourceRequirements);
         assertThat(scheduler.requestJobResourceRequirements())
                 .isEqualTo(newJobResourceRequirements);
+
+        final JobResourceRequirements newJobResourceRequirements2 =
+                JobResourceRequirements.newBuilder()
+                        .setParallelismForJobVertex(JOB_VERTEX.getID(), 4, 12)
+                        .build();
+        assertThat(scheduler.requestJobResourceRequirements())
+                .isNotEqualTo(newJobResourceRequirements2);
+        scheduler.updateJobResourceRequirements(newJobResourceRequirements2);
+        assertThat(scheduler.requestJobResourceRequirements())
+                .isEqualTo(newJobResourceRequirements2);
     }
 
     // ---------------------------------------------------------------------------------------------

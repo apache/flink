@@ -798,7 +798,8 @@ public class AdaptiveScheduler
     public JobResourceRequirements requestJobResourceRequirements() {
         final JobResourceRequirements.Builder builder = JobResourceRequirements.newBuilder();
         for (JobInformation.VertexInformation vertex : jobInformation.getVertices()) {
-            builder.setParallelismForJobVertex(vertex.getJobVertexID(), 1, vertex.getParallelism());
+            builder.setParallelismForJobVertex(
+                    vertex.getJobVertexID(), vertex.getMinParallelism(), vertex.getParallelism());
         }
         return builder.build();
     }
