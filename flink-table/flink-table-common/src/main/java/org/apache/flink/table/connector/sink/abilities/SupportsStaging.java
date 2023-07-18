@@ -24,11 +24,12 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
 
 /**
  * Interface for {@link DynamicTableSink}s that support atomic semantic for CTAS(CREATE TABLE AS
- * SELECT) statement using a two-phase commit protocol. The table sink is responsible for returning
- * a {@link StagedTable} to tell the Flink how to implement the atomicity semantics.
+ * SELECT) or RTAS([CREATE OR] REPLACE TABLE AS SELECT) statement using a two-phase commit protocol.
+ * The table sink is responsible for returning a {@link StagedTable} to tell the Flink how to
+ * implement the atomicity semantics.
  *
- * <p>If the user turns on {@link TableConfigOptions#TABLE_CTAS_ATOMICITY_ENABLED}, and the {@link
- * DynamicTableSink} implements {@link SupportsStaging}, the planner will call method {@link
+ * <p>If the user turns on {@link TableConfigOptions#TABLE_RTAS_CTAS_ATOMICITY_ENABLED}, and the
+ * {@link DynamicTableSink} implements {@link SupportsStaging}, the planner will call method {@link
  * #applyStaging(StagingContext)} to get the {@link StagedTable} returned by the sink, then the
  * {@link StagedTable} will be used by Flink to implement a two-phase commit with the actual
  * implementation of the {@link StagedTable}.
@@ -38,8 +39,8 @@ public interface SupportsStaging {
 
     /**
      * Provides a {@link StagingContext} for the sink modification and return a {@link StagedTable}.
-     * The {@link StagedTable} provides transaction abstraction to support atomicity for CTAS. Flink
-     * will call the relevant API of StagedTable when the Job status switches,
+     * The {@link StagedTable} provides transaction abstraction to support atomicity for CTAS/RTAS.
+     * Flink will call the relevant API of StagedTable when the Job status switches,
      *
      * <p>Note: This method will be called at the compile stage.
      *
@@ -74,6 +75,8 @@ public interface SupportsStaging {
     @PublicEvolving
     enum StagingPurpose {
         CREATE_TABLE_AS,
-        CREATE_TABLE_AS_IF_NOT_EXISTS
+        CREATE_TABLE_AS_IF_NOT_EXISTS,
+        REPLACE_TABLE_AS,
+        CREATE_OR_REPLACE_TABLE_AS
     }
 }

@@ -27,6 +27,7 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -57,6 +58,10 @@ public abstract class AtomicCtasITCaseBase extends TestLogger {
 
         String sourceDDL = "create table t1(a int, b varchar) with ('connector' = 'COLLECTION')";
         tEnv.executeSql(sourceDDL);
+    }
+
+    @AfterEach
+    void clean() {
         // clean data
         TestSupportsStagingTableFactory.JOB_STATUS_CHANGE_PROCESS.clear();
         TestSupportsStagingTableFactory.STAGING_PURPOSE_LIST.clear();
@@ -74,7 +79,7 @@ public abstract class AtomicCtasITCaseBase extends TestLogger {
 
     private void commonTestForAtomicCtas(String tableName, boolean ifNotExists, File tmpDataFolder)
             throws Exception {
-        tEnv.getConfig().set(TableConfigOptions.TABLE_CTAS_ATOMICITY_ENABLED, true);
+        tEnv.getConfig().set(TableConfigOptions.TABLE_RTAS_CTAS_ATOMICITY_ENABLED, true);
         String dataDir = tmpDataFolder.getAbsolutePath();
         String sqlFragment = ifNotExists ? " if not exists " + tableName : tableName;
         tEnv.executeSql(
@@ -101,7 +106,7 @@ public abstract class AtomicCtasITCaseBase extends TestLogger {
 
     @Test
     void testAtomicCtasWithException(@TempDir Path temporaryFolder) throws Exception {
-        tEnv.getConfig().set(TableConfigOptions.TABLE_CTAS_ATOMICITY_ENABLED, true);
+        tEnv.getConfig().set(TableConfigOptions.TABLE_RTAS_CTAS_ATOMICITY_ENABLED, true);
         String dataDir = temporaryFolder.toFile().getAbsolutePath();
         assertThatCode(
                         () ->
@@ -121,7 +126,7 @@ public abstract class AtomicCtasITCaseBase extends TestLogger {
 
     @Test
     void testWithoutAtomicCtas(@TempDir Path temporaryFolder) throws Exception {
-        tEnv.getConfig().set(TableConfigOptions.TABLE_CTAS_ATOMICITY_ENABLED, false);
+        tEnv.getConfig().set(TableConfigOptions.TABLE_RTAS_CTAS_ATOMICITY_ENABLED, false);
         String dataDir = temporaryFolder.toFile().getAbsolutePath();
         tEnv.executeSql(
                         "create table atomic_ctas_table with ('connector' = 'test-staging', 'data-dir' = '"

@@ -29,14 +29,15 @@ import java.util.Map;
 
 /**
  * DML operation that tells to write to a sink which implements {@link SupportsStaging}. Currently.
- * this operation is only for CTAS(CREATE TABLE AS SELECT) statement.
+ * this operation is for CTAS(CREATE TABLE AS SELECT) and RTAS([CREATE OR] REPLACE TABLE AS SELECT)
+ * statement.
  *
- * <p>StagedSinkModifyOperation is an extension of SinkModifyOperation in the atomic CTAS scenario.
- * Whiling checking whether the corresponding sink support atomic CTAS or not, we will need to get
- * DynamicTableSink firstly and check whether it implements {@link SupportsStaging} and then call
- * the method {@link SupportsStaging#applyStaging}. We maintain the DynamicTableSink in this
- * operation so that we can reuse this DynamicTableSink instead of creating a new DynamicTableSink
- * during translating the operation again which is error-prone.
+ * <p>StagedSinkModifyOperation is an extension of SinkModifyOperation in the atomic CTAS/RTAS
+ * scenario. Whiling checking whether the corresponding sink support atomic CTAS/RTAS or not, we
+ * will need to get DynamicTableSink firstly and check whether it implements {@link SupportsStaging}
+ * and then call the method {@link SupportsStaging#applyStaging}. We maintain the DynamicTableSink
+ * in this operation so that we can reuse this DynamicTableSink instead of creating a new
+ * DynamicTableSink during translating the operation again which is error-prone.
  */
 @Internal
 public class StagedSinkModifyOperation extends SinkModifyOperation {
