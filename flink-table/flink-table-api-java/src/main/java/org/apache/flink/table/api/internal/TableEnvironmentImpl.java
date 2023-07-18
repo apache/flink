@@ -846,7 +846,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                     + "CREATE OR REPLACE TABLE AS statement.",
                             tableIdentifier));
         }
-        Catalog catalog = catalogManager.getCatalog(tableIdentifier.getCatalogName()).orElse(null);
+        Catalog catalog =
+                catalogManager.getCatalogOrThrowException(tableIdentifier.getCatalogName());
         ResolvedCatalogTable catalogTable =
                 catalogManager.resolveCatalogTable(createTableOperation.getCatalogTable());
         Optional<DynamicTableSink> stagingDynamicTableSink =
@@ -868,8 +869,10 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             return rtasOperation.toStagedSinkModifyOperation(
                     tableIdentifier, catalogTable, catalog, dynamicTableSink);
         }
-        // non-atomic rtas drop table first, then create
-        catalogManager.dropTable(tableIdentifier, rtasOperation.isCreateOrReplace());
+        // non-atomic rtas drop table first if exists, then create
+        if (replacedTable.isPresent()) {
+            catalogManager.dropTable(tableIdentifier, false);
+        }
         executeInternal(createTableOperation);
         return rtasOperation.toSinkModifyOperation(catalogManager);
     }
@@ -878,7 +881,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             CreateTableASOperation ctasOperation, List<JobStatusHook> jobStatusHookList) {
         CreateTableOperation createTableOperation = ctasOperation.getCreateTableOperation();
         ObjectIdentifier tableIdentifier = createTableOperation.getTableIdentifier();
-        Catalog catalog = catalogManager.getCatalog(tableIdentifier.getCatalogName()).orElse(null);
+        Catalog catalog =
+                catalogManager.getCatalogOrThrowException(tableIdentifier.getCatalogName());
         ResolvedCatalogTable catalogTable =
                 catalogManager.resolveCatalogTable(createTableOperation.getCatalogTable());
         Optional<DynamicTableSink> stagingDynamicTableSink =
