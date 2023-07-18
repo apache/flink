@@ -140,6 +140,18 @@ public class ExecutionOptions {
                                     + "per-record processing delays, or operators that hold records until the next "
                                     + "checkpoint. This configuration is applicable only in the STREAMING runtime mode.");
 
+    public static final ConfigOption<Boolean> FLUSH_ENABLED =
+            ConfigOptions.key("execution.flush.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "If enabled, operators will try to buffer records until no upstreaming "
+                                                    + "input is immediately available to optimize the throughput. "
+                                                    + "This configuration is applicable only in the STREAMING runtime mode.")
+                                    .build());
+
     @Documentation.ExcludeFromDocumentation(
             "This is an expert option, that we do not want to expose in the documentation")
     public static final ConfigOption<Boolean> SORT_INPUTS =

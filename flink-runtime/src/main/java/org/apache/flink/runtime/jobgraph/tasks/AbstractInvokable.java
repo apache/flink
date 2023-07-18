@@ -184,6 +184,11 @@ public abstract class AbstractInvokable
     }
 
     @Override
+    public void triggerLocalFlushEvent(long flushEventID) {
+        throw new UnsupportedOperationException("should never be called");
+    }
+
+    @Override
     public void triggerCheckpointOnBarrier(
             CheckpointMetaData checkpointMetaData,
             CheckpointOptions checkpointOptions,

@@ -54,12 +54,12 @@ public class CheckpointCoordinatorDeActivator implements JobStatusListener {
                 coordinator.startFlushEventScheduler();
             }
         } else {
+            if (flushEventEnabled) {
+                coordinator.stopFlushEventScheduler();;
+            }
             if (checkpointEnabled) {
                 // anything else should stop the trigger for now
                 coordinator.stopCheckpointScheduler();
-            }
-            if (flushEventEnabled) {
-                coordinator.stopFlushEventScheduler();;
             }
         }
     }

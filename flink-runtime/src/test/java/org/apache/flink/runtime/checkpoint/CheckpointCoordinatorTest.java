@@ -469,7 +469,7 @@ class CheckpointCoordinatorTest extends TestLogger {
         assertThat(checkpointCoordinator.getNumberOfSuccessfulFlushEvents()).isZero();
 
         // trigger the first checkpoint. this should not succeed
-        checkpointCoordinator.triggerFlushEvent();
+        checkpointCoordinator.triggerFlushEvent(false);
         manuallyTriggeredScheduledExecutor.triggerAll();
 
         // still, nothing should be happening
@@ -535,7 +535,7 @@ class CheckpointCoordinatorTest extends TestLogger {
         assertThat(checkpointCoordinator.getNumberOfSuccessfulFlushEvents()).isZero();
 
         // trigger the first checkpoint. this should not succeed
-        checkpointCoordinator.triggerFlushEvent();
+        checkpointCoordinator.triggerFlushEvent(false);
         manuallyTriggeredScheduledExecutor.triggerAll();
 
         // still, nothing should be happening
@@ -639,7 +639,7 @@ class CheckpointCoordinatorTest extends TestLogger {
 
         // trigger the first checkpoint. this will not fail because we allow checkpointing even with
         // finished tasks
-        checkpointCoordinator.triggerFlushEvent();
+        checkpointCoordinator.triggerFlushEvent(false);
         manuallyTriggeredScheduledExecutor.triggerAll();
 
         assertThat(checkpointCoordinator.getNumberOfSuccessfulFlushEvents()).isOne();
@@ -777,7 +777,7 @@ class CheckpointCoordinatorTest extends TestLogger {
 
         // trigger the first checkpoint. this will not fail because we allow checkpointing even with
         // finished tasks
-        checkpointCoordinator.triggerFlushEvent();
+        checkpointCoordinator.triggerFlushEvent(false);
         manuallyTriggeredScheduledExecutor.triggerAll();
 
         assertThat(checkpointCoordinator.getNumberOfSuccessfulFlushEvents()).isOne();
@@ -1495,7 +1495,7 @@ class CheckpointCoordinatorTest extends TestLogger {
         assertThat(checkpointCoordinator.getNumberOfSuccessfulFlushEvents()).isZero();
 
         // trigger the first checkpoint. this should succeed
-        checkpointCoordinator.triggerFlushEvent();
+        checkpointCoordinator.triggerFlushEvent(false);
         manuallyTriggeredScheduledExecutor.triggerAll();
 
         // validate that we have a pending checkpoint

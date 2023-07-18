@@ -158,6 +158,7 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
         Optional<BufferOrEvent> next = inputGate.pollNext();
 
         if (!next.isPresent()) {
+            flushEventHandler.processLocalFlushEvent();
             return handleEmptyBuffer();
         }
 
@@ -185,7 +186,7 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
     private Optional<BufferOrEvent> handleEvent(BufferOrEvent bufferOrEvent) throws IOException {
         Class<? extends AbstractEvent> eventClass = bufferOrEvent.getEvent().getClass();
         if (eventClass == FlushEvent.class) {
-            flushEventHandler.processFlushEvent(
+            flushEventHandler.processGlobalFlushEvent(
                     (FlushEvent) bufferOrEvent.getEvent(),
                     bufferOrEvent.getChannelInfo());
         } else if (eventClass == CheckpointBarrier.class) {

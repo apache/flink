@@ -759,7 +759,7 @@ class CheckpointCoordinatorTriggeringTest extends TestLogger {
                 .build(graph);
 
         checkpointCoordinator.startFlushEventScheduler();
-        checkpointCoordinator.triggerFlushEvent();
+        checkpointCoordinator.triggerFlushEvent(false);
 
         checkpointCoordinator.shutdown();
         manuallyTriggeredScheduledExecutor.triggerAll();

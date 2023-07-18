@@ -239,6 +239,10 @@ public class CheckpointCoordinator {
     @GuardedBy("lock")
     private final Map<Long, FLushEventTriggerRequest> successfulFlushEvents;
 
+    private long lastFlushTime = -1L;
+
+    private boolean periodicFlushing = false;
+
     // --------------------------------------------------------------------------------------------
 
     public CheckpointCoordinator(
@@ -433,6 +437,7 @@ public class CheckpointCoordinator {
                 LOG.info("Stopping checkpoint coordinator for job {}.", job);
 
                 periodicScheduling = false;
+                periodicFlushing = false;
 
                 // shut down the hooks
                 MasterHooks.close(masterHooks.values(), LOG);
@@ -597,6 +602,10 @@ public class CheckpointCoordinator {
             isTriggering = true;
 
             final long timestamp = System.currentTimeMillis();
+
+            if (shouldFlushBeforeCheckpoint(timestamp)) {
+                flushBeforeCheckpoint();
+            }
 
             CompletableFuture<Plan> checkpointPlanFuture = checkoutPlanCalculator.calculateEventPlan();
 
@@ -2008,7 +2017,7 @@ public class CheckpointCoordinator {
 
             // make sure all prior timers are cancelled
             stopFlushEventScheduler();
-
+            periodicFlushing = true;
             currentPeriodicFlushTrigger = scheduleFlushTriggerWithDelay(getRandomFlushInitDelay());
         }
     }
@@ -2016,6 +2025,7 @@ public class CheckpointCoordinator {
     public void stopFlushEventScheduler() {
         synchronized (lock) {
             cancelPeriodicFlushTrigger();
+            periodicFlushing = false;
         }
     }
     private long getRandomFlushInitDelay() {
@@ -2067,19 +2077,20 @@ public class CheckpointCoordinator {
     }
 
     @VisibleForTesting
-    void triggerFlushEvent() {
-        startTriggeringFlushEvent();
+    void triggerFlushEvent(boolean isPeriodic) {
+        startTriggeringFlushEvent(isPeriodic);
     }
 
-    private void startTriggeringFlushEvent() {
+    private void startTriggeringFlushEvent(boolean isPeriodic) {
         try {
             synchronized (lock) {
-                if (shutdown) {
+                if (shutdown || (isPeriodic && !periodicFlushing)) {
                     throw new CheckpointException(CheckpointFailureReason.CHECKPOINT_COORDINATOR_SHUTDOWN);
                 }
             }
 
             final long timestamp = System.currentTimeMillis();
+            this.lastFlushTime = timestamp;
 
             // use the same strategy to decide which tasks to send flush events
             CompletableFuture<Plan> flushPlanFuture =
@@ -2116,6 +2127,7 @@ public class CheckpointCoordinator {
                 throw new CompletionException(e);
             }
         } catch (Exception e) {
+            onFlushFailure();
             throw new RuntimeException(e);
         }
     }
@@ -2136,16 +2148,61 @@ public class CheckpointCoordinator {
 
 
     private void onFlushSuccess(FLushEventTriggerRequest request) {
+        LOG.info(
+                "Completed flush event {} (isPeriodic={}, duration={}) for job {}.",
+                request.getFlushEventId(),
+                periodicFlushing,
+                System.currentTimeMillis() - request.getTimestamp(),
+                job);
         successfulFlushEvents.put(request.getFlushEventId(), request);
+        restartFlushEventTimer();
+    }
+
+    private void onFlushFailure() {
+        LOG.info(
+                "Failed flush event (isPeriodic={}) for job {}.",
+                periodicFlushing,
+                job);
+        restartFlushEventTimer();
     }
 
     private CompletableFuture<Void> triggerFlushEvents(FLushEventTriggerRequest request) {
+        LOG.info(
+                "Triggering global flush event {} (isPeriodic={}) @ {} for job {}.",
+                request.getFlushEventId(),
+                periodicFlushing,
+                request.getTimestamp(),
+                job);
         // send messages to the tasks to trigger flush events
         List<CompletableFuture<Acknowledge>> acks = new ArrayList<>();
         for (Execution execution : request.getFlushEventPlan().getTasksToTrigger()) {
-            acks.add(execution.triggerFlushEvent(request.getFlushEventId(), request.getTimestamp()));
+            acks.add(execution.triggerFlushEvent(
+                    request.getFlushEventId(),
+                    request.getTimestamp()));
         }
         return FutureUtils.waitForAll(acks);
+    }
+
+    private boolean shouldFlushBeforeCheckpoint(long timestamp) {
+        return isAllowedLatencyConfigured() && (timestamp - lastFlushTime > allowedLatency - baseInterval);
+    }
+
+    void flushBeforeCheckpoint() {
+        synchronized (lock) {
+            periodicFlushing = false;
+            cancelPeriodicFlushTrigger();
+        }
+        triggerFlushEvent(false);
+    }
+
+    void restartFlushEventTimer() {
+        synchronized (lock) {
+            if (!periodicFlushing) {
+                periodicFlushing = true;
+                cancelPeriodicFlushTrigger();
+                currentPeriodicFlushTrigger = scheduleFlushTriggerWithDelay(allowedLatency);
+            }
+        }
     }
 
     // --------------------------------------------------------------------------------------------
@@ -2295,7 +2352,7 @@ public class CheckpointCoordinator {
         @Override
         public void run() {
             try {
-                triggerFlushEvent();
+                triggerFlushEvent(true);
 
             } catch (Exception e) {
                 LOG.error("Exception while triggering checkpoint for job {}.", job, e);

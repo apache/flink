@@ -17,8 +17,6 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import com.sun.org.apache.xerces.internal.util.SynchronizedSymbolTable;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
@@ -1136,23 +1134,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             long flushEventID, long flushEventTimeStamp) {
         CompletableFuture<Boolean> result = new CompletableFuture<>();
         try {
-            mainMailboxExecutor.execute(
-                    () -> {
-                        try {
-                            result.complete(
-                                    performFlushEvent(
-                                            flushEventID, flushEventTimeStamp));
-                        } catch (Exception ex) {
-                            // Report the failure both via the Future result but also to the mailbox
-                            result.completeExceptionally(ex);
-                            throw ex;
-                        }
-                    },
-                    "flush event %s at %s",
-                    flushEventID,
-                    flushEventTimeStamp);
+            result.complete(performFlushEvent(flushEventID, flushEventTimeStamp));
         } catch (Exception e) {
-            System.out.println(e);
             result.completeExceptionally(e);
         }
         return result;
@@ -1166,6 +1149,22 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             throw new IOException(
                     "Could not perform flush event "
                             + flushEvent.getFlushEventId()
+                            + " for operator "
+                            + getName()
+                            + '.',
+                    e);
+        }
+    }
+
+    @Override
+    public void triggerLocalFlushEvent(long flushEventID) throws IOException {
+        try {
+            LOG.info("Triggering local flush event {} on operator {}.", flushEventID, getName());
+            operatorChain.flush();
+        } catch (Exception e) {
+            throw new IOException(
+                    "Could not perform flush event "
+                            + flushEventID
                             + " for operator "
                             + getName()
                             + '.',

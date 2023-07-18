@@ -65,7 +65,7 @@ public class MyAggregator extends AbstractStreamOperator<Tuple2<Integer, Long>>
     @Override
     public void processElement(StreamRecord<Integer> element) throws Exception {
         Integer input = element.getValue();
-        if (getExecutionConfig().getAllowedLatency() > 0) {
+        if (getExecutionConfig().getAllowedLatency() > 0 || getExecutionConfig().getFLushEnabled()) {
             Long bundleValue = bundle.get(input);
             // get a new value after adding this element to bundle
             Long newBundleValue = bundleValue == null ? 1 : bundleValue + 1;

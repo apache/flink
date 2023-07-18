@@ -13,6 +13,8 @@ public interface FlushingTask {
      */
     void triggerFlushEventOnEvent(FlushEvent flushEvent) throws IOException;
 
+    void triggerLocalFlushEvent(long flushEventID) throws IOException;
+
     /**
      * This method is used to broadcast flush events to downstream operators, asynchronously
      * by the checkpoint coordinator.

@@ -959,6 +959,15 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
         return allowedLatency == null ? 0 : allowedLatency.toMillis();
     }
 
+    public ExecutionConfig setFlushEnabled(boolean flush) {
+        configuration.set(ExecutionOptions.FLUSH_ENABLED, flush);
+        return this;
+    }
+
+    public boolean getFLushEnabled() {
+        return configuration.get(ExecutionOptions.FLUSH_ENABLED);
+    }
+
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof ExecutionConfig) {

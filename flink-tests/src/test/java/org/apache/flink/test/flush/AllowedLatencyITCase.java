@@ -26,7 +26,6 @@ import static org.apache.flink.test.util.TestBaseUtils.compareResultAsTuples;
 /** Tests for flushing module. */
 public class AllowedLatencyITCase extends AbstractTestBase {
     private static Map<Integer, Long> testMap;
-
     private static List<Tuple2<Integer, Long>> testResult;
 
     private static long dataNum = 30000000L;

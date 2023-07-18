@@ -1,10 +1,8 @@
 package org.apache.flink.streaming.runtime.io.flushing;
 
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
-import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.FlushEvent;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointableTask;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -22,6 +20,8 @@ public class FlushEventHandler implements Closeable {
     /** The highest flush event ID encountered so far. */
     private long lastFlushingEventID = -1;
 
+    private long localFlushEventIDCounter = -1L;
+
     public FlushEventHandler(CheckpointableTask toNotifyOnFlushEvent, String taskName) {
         this.toNotifyOnFlushEvent = toNotifyOnFlushEvent;
         this.taskName = taskName;
@@ -32,7 +32,7 @@ public class FlushEventHandler implements Closeable {
      * @param flushEvent The flush event from upstream tasks.
      * @param channelInfo of which the flush event is received.
      */
-    public void processFlushEvent(
+    public void processGlobalFlushEvent(
             FlushEvent flushEvent, InputChannelInfo channelInfo)
             throws IOException {
         if (flushEvent.getFlushEventId() > lastFlushingEventID) {
@@ -40,6 +40,12 @@ public class FlushEventHandler implements Closeable {
             toNotifyOnFlushEvent.triggerFlushEventOnEvent(flushEvent);
         }
     }
+    public void processLocalFlushEvent()
+            throws IOException {
+        localFlushEventIDCounter++;
+        toNotifyOnFlushEvent.triggerLocalFlushEvent(localFlushEventIDCounter);
+    }
+
 
     @Override
     public void close() throws IOException {}
