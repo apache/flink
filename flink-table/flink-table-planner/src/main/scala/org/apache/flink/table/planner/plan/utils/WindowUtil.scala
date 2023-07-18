@@ -27,7 +27,6 @@ import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalAggregate, FlinkLogicalJoin, FlinkLogicalRank, FlinkLogicalTableFunctionScan}
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.inferAggAccumulatorNames
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED}
-import org.apache.flink.table.planner.plan.utils.WindowJoinUtil.satisfyWindowJoin
 import org.apache.flink.table.planner.typeutils.RowTypeUtils
 import org.apache.flink.table.runtime.groupwindow._
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
@@ -36,16 +35,17 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.canBeTimeAtt
 
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.{RelNode, SingleRel}
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall, Calc}
+import org.apache.calcite.rel.{RelNode, SingleRel}
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.`type`.SqlTypeFamily
 import org.apache.calcite.sql.SqlKind
+import org.apache.calcite.sql.`type`.SqlTypeFamily
 import org.apache.calcite.util.{ImmutableBitSet, Util}
 
 import java.time.Duration
 import java.util.Collections
 
+import scala.annotation.tailrec
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -316,21 +316,14 @@ object WindowUtil {
 
   /**
    * For rowtime window, return true if the given aggregate grouping contains window start and end.
-   * <p>For proctime window, we have additional rules to check:
-   *
-   * <li>valid pattern: [winAgg - winTvf]* <li>invalid pattern: winAgg - [winOp - winTvf]*
-   *
-   * Note: winOp include: windowAggregate, windowRank, windowDeduplicate, windowJoin
+   * For proctime window, we should also check if it exists a neighbour windowTableFunctionCall.
    */
-  def isValidWindowAggregate(agg: FlinkLogicalAggregate, fmq: FlinkRelMetadataQuery): Boolean = {
+  def isValidWindowAggregate(agg: FlinkLogicalAggregate): Boolean = {
+    val fmq = FlinkRelMetadataQuery.reuseOrCreate(agg.getCluster.getMetadataQuery)
     val windowProperties = fmq.getRelWindowProperties(agg.getInput)
     val grouping = agg.getGroupSet
     if (WindowUtil.groupingContainsWindowStartEnd(grouping, windowProperties)) {
-      if (windowProperties.isRowtime) {
-        true
-      } else {
-        !containsNeighbourWindowOperator(agg, fmq)
-      }
+      windowProperties.isRowtime || existNeighbourWindowTableFunc(agg.getInput)
     } else {
       false
     }
@@ -369,59 +362,34 @@ object WindowUtil {
     }
   }
 
-  private def containsNeighbourWindowOperator(
-      agg: FlinkLogicalAggregate,
-      fmq: FlinkRelMetadataQuery): Boolean = {
+  private def existNeighbourWindowTableFunc(rel: RelNode): Boolean = {
 
-    def find(rel: RelNode, fmq: FlinkRelMetadataQuery): Unit = {
+    @tailrec
+    def find(rel: RelNode): Unit = {
       rel match {
         case rss: RelSubset =>
           val innerRel = Option.apply(rss.getBest).getOrElse(rss.getOriginal)
-          find(innerRel, fmq)
+          find(innerRel)
 
         case scan: FlinkLogicalTableFunctionScan =>
           if (WindowUtil.isWindowTableFunctionCall(scan.getCall)) {
-            throw new Util.FoundOne(scan)
+            throw new Util.FoundOne
           }
-          find(scan.getInput(0), fmq)
+          find(scan.getInput(0))
 
-        case aggregate: FlinkLogicalAggregate =>
-          val winProperties = fmq.getRelWindowProperties(aggregate.getInput)
-          val groups = aggregate.getGroupSet
-          // window agg
-          if (WindowUtil.groupingContainsWindowStartEnd(groups, winProperties)) {
-            throw new Util.FoundOne(aggregate)
-          }
-          find(aggregate.getInput, fmq)
+        // proctime attribute comes from these operators can not be used directly for proctime
+        // window aggregate, so further traversal of child nodes is unnecessary
+        case _: FlinkLogicalAggregate | _: FlinkLogicalRank | _: FlinkLogicalJoin =>
 
-        case rank: FlinkLogicalRank =>
-          val winProperties = fmq.getRelWindowProperties(rank.getInput)
-          val partitionKey = rank.partitionKey
-          // both window rank & deduplicate
-          if (WindowUtil.groupingContainsWindowStartEnd(partitionKey, winProperties)) {
-            throw new Util.FoundOne(rank)
-          }
-          find(rank.getInput, fmq)
-
-        case join: FlinkLogicalJoin =>
-          // window join
-          if (satisfyWindowJoin(join)) {
-            throw new Util.FoundOne(join)
-          }
-        // others joins can not propagate both window_start and window_end time attribute, so
-        // further traversal of child nodes is unnecessary
-
-        case sr: SingleRel => find(sr.getInput, fmq)
+        case sr: SingleRel => find(sr.getInput)
       }
     }
 
     try {
-      find(agg.getInput, fmq)
+      find(rel)
     } catch {
-      case e: Util.FoundOne =>
-        return !e.getNode.isInstanceOf[FlinkLogicalTableFunctionScan]
+      case _: Util.FoundOne => return true
     }
-
     false
   }
 }

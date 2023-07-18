@@ -55,9 +55,7 @@ class StreamPhysicalWindowAggregateRule(config: Config) extends ConverterRule(co
       return false
     }
 
-    val fmq = FlinkRelMetadataQuery.reuseOrCreate(call.getMetadataQuery)
-
-    WindowUtil.isValidWindowAggregate(agg, fmq)
+    WindowUtil.isValidWindowAggregate(agg)
   }
 
   override def convert(rel: RelNode): RelNode = {

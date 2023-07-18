@@ -19,7 +19,6 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
-import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalAggregate
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalGroupAggregate
@@ -50,8 +49,7 @@ class StreamPhysicalGroupAggregateRule(config: Config) extends ConverterRule(con
     }
 
     // check not window aggregate
-    val fmq = FlinkRelMetadataQuery.reuseOrCreate(call.getMetadataQuery)
-    !WindowUtil.isValidWindowAggregate(agg, fmq)
+    !WindowUtil.isValidWindowAggregate(agg)
   }
 
   override def convert(rel: RelNode): RelNode = {
