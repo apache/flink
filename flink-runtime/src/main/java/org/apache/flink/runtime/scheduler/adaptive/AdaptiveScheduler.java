@@ -835,7 +835,7 @@ public class AdaptiveScheduler
     @Override
     public boolean hasDesiredResources() {
         final Collection<? extends SlotInfo> freeSlots =
-                declarativeSlotPool.getFreeSlotsInformation();
+                declarativeSlotPool.getFreeSlotInfoTracker().getFreeSlotsInformation();
         return hasDesiredResources(desiredResources, freeSlots);
     }
 
@@ -873,7 +873,7 @@ public class AdaptiveScheduler
         return slotAllocator
                 .determineParallelismAndCalculateAssignment(
                         jobInformation,
-                        declarativeSlotPool.getFreeSlotsInformation(),
+                        declarativeSlotPool.getFreeSlotInfoTracker().getFreeSlotsInformation(),
                         JobAllocationsInformation.fromGraph(previousExecutionGraph))
                 .orElseThrow(
                         () ->

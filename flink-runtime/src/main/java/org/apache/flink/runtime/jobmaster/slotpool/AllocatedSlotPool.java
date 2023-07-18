@@ -113,13 +113,6 @@ public interface AllocatedSlotPool {
     /**
      * Returns information about all currently free slots.
      *
-     * @return collection of free slot information
-     */
-    Collection<FreeSlotInfo> getFreeSlotsInformation();
-
-    /**
-     * Returns information about all currently free slots.
-     *
      * @return free slot information
      */
     FreeSlotInfoTracker getFreeSlotInfoTracker();

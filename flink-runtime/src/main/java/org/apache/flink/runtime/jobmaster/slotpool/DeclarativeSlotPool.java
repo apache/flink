@@ -108,14 +108,6 @@ public interface DeclarativeSlotPool {
             long currentTime);
 
     /**
-     * Returns the slot information for all free slots (slots which can be allocated from the slot
-     * pool).
-     *
-     * @return collection of free slot information
-     */
-    Collection<SlotInfo> getFreeSlotsInformation();
-
-    /**
      * Returns the free slot tracker.
      *
      * @return free slot tracker

@@ -186,7 +186,8 @@ class DefaultAllocatedSlotPoolTest {
         assertThat(slotPool.freeReservedSlot(slot.getAllocationId(), releaseTime)).isPresent();
         assertSlotPoolContainsFreeSlots(slotPool, slots);
 
-        for (AllocatedSlotPool.FreeSlotInfo freeSlotInfo : slotPool.getFreeSlotsInformation()) {
+        for (AllocatedSlotPool.FreeSlotInfo freeSlotInfo :
+                slotPool.getFreeSlotInfoTracker().getFreeSlotsWithIdleSinceInformation()) {
             final long time;
             if (freeSlotInfo.getAllocationId().equals(slot.getAllocationId())) {
                 time = releaseTime;
@@ -208,7 +209,8 @@ class DefaultAllocatedSlotPoolTest {
         assertThat(slotPool.freeReservedSlot(slot.getAllocationId(), 1)).isNotPresent();
 
         final AllocatedSlotPool.FreeSlotInfo freeSlotInfo =
-                Iterables.getOnlyElement(slotPool.getFreeSlotsInformation());
+                Iterables.getOnlyElement(
+                        slotPool.getFreeSlotInfoTracker().getFreeSlotsWithIdleSinceInformation());
 
         assertThat(freeSlotInfo.getFreeSince()).isEqualTo(0L);
     }
@@ -221,32 +223,32 @@ class DefaultAllocatedSlotPoolTest {
 
         slotPool.addSlots(slots, 0);
 
-        assertThat(slotPool.getFreeSlotsInformation())
+        FreeSlotInfoTracker freeSlotInfoTracker = slotPool.getFreeSlotInfoTracker();
+
+        assertThat(freeSlotInfoTracker.getAvailableSlots())
                 .allSatisfy(
-                        freeSlotInfo ->
+                        allocationId ->
                                 assertThat(
-                                                slotPool.getTaskExecutorUtilization(
-                                                        freeSlotInfo
-                                                                .asSlotInfo()
-                                                                .getTaskManagerLocation()
-                                                                .getResourceID()))
+                                                freeSlotInfoTracker.getTaskExecutorUtilization(
+                                                        freeSlotInfoTracker.getSlotInfo(
+                                                                allocationId)))
                                         .isCloseTo(0, offset(0.1)));
 
         int numAllocatedSlots = 0;
         for (AllocatedSlot slot : slots) {
             assertThat(slotPool.reserveFreeSlot(slot.getAllocationId())).isEqualTo(slot);
+            freeSlotInfoTracker.reserveSlot(slot.getAllocationId());
             numAllocatedSlots++;
+            final double utilization = (double) numAllocatedSlots / slots.size();
 
-            for (AllocatedSlotPool.FreeSlotInfo freeSlotInfo : slotPool.getFreeSlotsInformation()) {
-                final double utilization = (double) numAllocatedSlots / slots.size();
-                assertThat(
-                                slotPool.getTaskExecutorUtilization(
-                                        freeSlotInfo
-                                                .asSlotInfo()
-                                                .getTaskManagerLocation()
-                                                .getResourceID()))
-                        .isCloseTo(utilization, offset(0.1));
-            }
+            assertThat(freeSlotInfoTracker.getAvailableSlots())
+                    .allSatisfy(
+                            allocationId ->
+                                    assertThat(
+                                                    freeSlotInfoTracker.getTaskExecutorUtilization(
+                                                            freeSlotInfoTracker.getSlotInfo(
+                                                                    allocationId)))
+                                            .isCloseTo(utilization, offset(0.1)));
         }
     }
 
@@ -305,7 +307,7 @@ class DefaultAllocatedSlotPoolTest {
     private void assertSlotPoolContainsFreeSlots(
             DefaultAllocatedSlotPool slotPool, Collection<AllocatedSlot> allocatedSlots) {
         final Collection<AllocatedSlotPool.FreeSlotInfo> freeSlotsInformation =
-                slotPool.getFreeSlotsInformation();
+                slotPool.getFreeSlotInfoTracker().getFreeSlotsWithIdleSinceInformation();
 
         assertThat(freeSlotsInformation).hasSize(allocatedSlots.size());
 
