@@ -175,11 +175,6 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
     }
 
     @Override
-    public Collection<SlotInfo> getFreeSlotsInformation() {
-        return getFreeSlotsInformationSupplier.get();
-    }
-
-    @Override
     public FreeSlotInfoTracker getFreeSlotInfoTracker() {
         return getFreeSlotInfoTrackerSupplier.get();
     }

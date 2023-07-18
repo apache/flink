@@ -241,7 +241,7 @@ public class DeclarativeSlotPoolService implements SlotPoolService {
         if (isTaskManagerRegistered(taskManagerId)) {
 
             Collection<AllocationID> freeSlots =
-                    declarativeSlotPool.getFreeSlotsInformation().stream()
+                    declarativeSlotPool.getFreeSlotInfoTracker().getFreeSlotsInformation().stream()
                             .filter(
                                     slotInfo ->
                                             slotInfo.getTaskManagerLocation()
@@ -338,6 +338,6 @@ public class DeclarativeSlotPoolService implements SlotPoolService {
                 "Registered TMs: %d, registered slots: %d free slots: %d",
                 registeredTaskManagers.size(),
                 declarativeSlotPool.getAllSlotsInformation().size(),
-                declarativeSlotPool.getFreeSlotsInformation().size());
+                declarativeSlotPool.getFreeSlotInfoTracker().getAvailableSlots().size());
     }
 }

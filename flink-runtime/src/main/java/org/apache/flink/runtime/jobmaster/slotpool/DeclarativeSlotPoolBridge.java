@@ -422,21 +422,11 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
         final Collection<? extends SlotInfo> allSlotsInformation =
                 getDeclarativeSlotPool().getAllSlotsInformation();
         final Set<AllocationID> freeSlots =
-                getDeclarativeSlotPool().getFreeSlotsInformation().stream()
-                        .map(SlotInfo::getAllocationId)
-                        .collect(Collectors.toSet());
+                getDeclarativeSlotPool().getFreeSlotInfoTracker().getAvailableSlots();
 
         return allSlotsInformation.stream()
                 .filter(slotInfo -> !freeSlots.contains(slotInfo.getAllocationId()))
                 .collect(Collectors.toList());
-    }
-
-    @Override
-    @Nonnull
-    public Collection<SlotInfo> getAvailableSlotsInformation() {
-        assertRunningInMainThread();
-
-        return getDeclarativeSlotPool().getFreeSlotsInformation();
     }
 
     @Override
@@ -519,7 +509,7 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
 
     private Set<ResourceProfile> getResourceProfilesFromAllSlots() {
         return Stream.concat(
-                        getAvailableSlotsInformation().stream(),
+                        getFreeSlotInfoTracker().getFreeSlotsInformation().stream(),
                         getAllocatedSlotsInformation().stream())
                 .map(SlotInfo::getResourceProfile)
                 .collect(Collectors.toSet());

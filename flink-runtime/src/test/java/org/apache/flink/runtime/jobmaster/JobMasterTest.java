@@ -572,17 +572,6 @@ class JobMasterTest {
                     "TestingSlotPool does not support this operation.");
         }
 
-        @Nonnull
-        @Override
-        public Collection<SlotInfo> getAvailableSlotsInformation() {
-            final Collection<SlotInfo> allSlotInfos =
-                    registeredSlots.values().stream()
-                            .flatMap(Collection::stream)
-                            .collect(Collectors.toList());
-
-            return Collections.unmodifiableCollection(allSlotInfos);
-        }
-
         @Override
         public FreeSlotInfoTracker getFreeSlotInfoTracker() {
             Map<AllocationID, SlotInfo> freeSlots =
