@@ -54,14 +54,18 @@ public class GenericInMemoryCatalogStoreTest {
                                         "catalog1",
                                         CatalogDescriptor.of("catalog1", new Configuration())))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Catalog store is not open.");
+                .hasMessageContaining("CatalogStore is not opened yet.");
 
         assertThatThrownBy(() -> catalogStore.removeCatalog("catalog1", false))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Catalog store is not open.");
+                .hasMessageContaining("CatalogStore is not opened yet.");
 
         assertThatThrownBy(() -> catalogStore.contains("catalog1"))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Catalog store is not open.");
+                .hasMessageContaining("CatalogStore is not opened yet.");
+
+        assertThatThrownBy(() -> catalogStore.listCatalogs())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("CatalogStore is not opened yet.");
     }
 }

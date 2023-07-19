@@ -44,6 +44,6 @@ public abstract class AbstractCatalogStore implements CatalogStore {
      * @throws IllegalStateException if the store is closed
      */
     protected void checkOpenState() {
-        Preconditions.checkState(isOpen, "Catalog store is not open.");
+        Preconditions.checkState(isOpen, "CatalogStore is not opened yet.");
     }
 }
