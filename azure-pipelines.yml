@@ -34,67 +34,17 @@ trigger:
     include:
     - '*'  # must quote since "*" is a YAML reserved character; we want a string
 
-resources:
-  containers:
-  # Container with Maven 3.8.6, SSL to have the same environment everywhere.
-  # see https://github.com/apache/flink-connector-shared-utils/tree/ci_utils
-  - container: flink-build-container
-    image: chesnay/flink-ci:java_8_11_17_maven_386_v2
-    # On AZP provided machines, set this flag to allow writing coredumps in docker
-    options: --privileged
-
-# Define variables:
-# - See tools/azure-pipelines/jobs-template.yml for a short summary of the caching
-# - See https://stackoverflow.com/questions/60742105/how-can-i-access-a-secret-value-from-an-azure-pipelines-expression
-#   to understand why the secrets are handled like this
-variables:
-  MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
-  E2E_CACHE_FOLDER: $(Pipeline.Workspace)/e2e_cache
-  E2E_TARBALL_CACHE: $(Pipeline.Workspace)/e2e_artifact_cache
-  MAVEN_ARGS: '-Dmaven.repo.local=$(MAVEN_CACHE_FOLDER)'
-  PIPELINE_START_YEAR: $[format('{0:yyyy}', pipeline.startTime)]
-  CACHE_KEY: maven | $(Agent.OS) | **/pom.xml, !**/target/**
-  CACHE_FALLBACK_KEY: maven | $(Agent.OS)
-  DOCKER_IMAGES_CACHE_KEY: docker-images-cache | $(Agent.OS) | **/cache_docker_images.sh | flink-test-utils-parent/**/DockerImageVersions.java
-  DOCKER_IMAGES_CACHE_FOLDER: $(Pipeline.Workspace)/.docker-cache
-  FLINK_ARTIFACT_DIR: $(Pipeline.Workspace)/flink_artifact
-  SECRET_S3_BUCKET: $[variables.IT_CASE_S3_BUCKET]
-  SECRET_S3_ACCESS_KEY: $[variables.IT_CASE_S3_ACCESS_KEY]
-  SECRET_S3_SECRET_KEY: $[variables.IT_CASE_S3_SECRET_KEY]
-
-
-stages:
-  # CI / PR triggered stage:
-  - stage: ci
-    displayName: "CI build (custom builders)"
-    condition: not(eq(variables['MODE'], 'release'))
-    jobs:
-      - template: tools/azure-pipelines/jobs-template.yml
-        parameters: # see template file for a definition of the parameters.
-          stage_name: ci_build
-          test_pool_definition:
-            vmImage: 'ubuntu-20.04'
-          e2e_pool_definition:
-            vmImage: 'ubuntu-20.04'
-          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Dscala-2.12"
-          run_end_to_end: false
-          container: flink-build-container
-          jdk: 8
-      - job: docs_404_check # run on a MSFT provided machine
-        pool:
-          vmImage: 'ubuntu-20.04'
-        steps:
-          - task: GoTool@0
-            inputs:
-              version: '1.18.1'
-          - script: ./tools/ci/docs.sh
-  # CI / Special stage for release, e.g. building PyFlink wheel packages, etc:
-  - stage: ci_release
-    displayName: "CI build (release)"
-    condition: and(eq(variables['Build.Reason'], 'Manual'), eq(variables['MODE'], 'release'))
-    jobs:
-      - template: tools/azure-pipelines/build-python-wheels.yml
-        parameters:
-          stage_name: cron_python_wheels
-          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Dscala-2.12"
-          container: flink-build-container
+steps:
+- task: Kubernetes@1
+  inputs:
+    connectionType: 'Azure Resource Manager'
+    azureSubscriptionEndpoint: 'flink_service_connection'
+    azureResourceGroup: 'hdi-5a2a3b76654642ccabca5a37b5afb637'
+    kubernetesCluster: 'contoso-flink-pool'
+    useClusterAdmin: true
+    namespace: 'f5eb55abffaf4522a9f8c18bc7102f15'
+    command: 'exec'
+    arguments: 'pod-0 -- flink run /opt/flink-webssh/examples/streaming/WordCount.jar'
+    secretType: 'dockerRegistry'
+    containerRegistryType: 'Azure Container Registry'
+    
