@@ -23,7 +23,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.List;
 
-/** Scope for resolving identifiers that has a {@code FOR SYSTEM_TIME AS OF TIMESTAMP}. */
+/**
+ * Represents the name-resolution context for expressions in an FOR SYSTEM_TIME AS OF TIMESTAMP
+ * clause.
+ */
 public class SnapshotScope extends DelegatingScope {
     private final SqlValidatorWithSnapshot sqlValidatorWithSnapshot;
 
@@ -37,7 +40,7 @@ public class SnapshotScope extends DelegatingScope {
     @Override
     public void resolveTable(
             List<String> names, SqlNameMatcher nameMatcher, Path path, Resolved resolved) {
-        // In the time travel case, the parent of the ScopeSnapshot will always be CatalogScope
+        // In the time travel case, the parent of the SnapshotScope will always be CatalogScope
         // with an EmptyScope as the parent of the CatalogScope, so we use EmptyScope here directly.
         new EmptyScope(sqlValidatorWithSnapshot).resolveTable(names, nameMatcher, path, resolved);
     }

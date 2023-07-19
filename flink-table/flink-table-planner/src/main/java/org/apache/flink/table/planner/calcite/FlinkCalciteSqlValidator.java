@@ -171,13 +171,13 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
             boolean forceNullable) {
 
         // Generate a new validator namespace for time travel scenario.
-        // Time travel only supports constant expressions, so we need to investigate scenarios
-        // where the period of Snapshot is a SqlIdentifier.
-        Optional<SqlSnapshot> timeTravelNode = getTimeTravelNode(ns);
+        // Time travel only supports constant expressions, We need to ensure that the period of
+        // snapshot is not an identifier.
+        Optional<SqlSnapshot> snapshot = getSnapShotNode(ns);
         if (usingScope != null
-                && timeTravelNode.isPresent()
-                && !(timeTravelNode.get().getPeriod() instanceof SqlIdentifier)) {
-            SqlSnapshot sqlSnapshot = timeTravelNode.get();
+                && snapshot.isPresent()
+                && !(snapshot.get().getPeriod() instanceof SqlIdentifier)) {
+            SqlSnapshot sqlSnapshot = snapshot.get();
             SqlNode periodNode = sqlSnapshot.getPeriod();
             SqlToRelConverter sqlToRelConverter = this.createSqlToRelConverter();
             RexNode rexNode = sqlToRelConverter.convertExpression(periodNode);
@@ -220,12 +220,11 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
 
             SchemaVersion schemaVersion = TimestampSchemaVersion.of(timeTravelTimestamp);
             IdentifierNamespace identifierNamespace = (IdentifierNamespace) ns;
-            IdentifierNamespace snapshotNameSpace =
+            ns =
                     new IdentifierSnapshotNamespace(
                             identifierNamespace,
                             schemaVersion,
                             ((DelegatingScope) usingScope).getParent());
-            ns = snapshotNameSpace;
 
             sqlSnapshot.setOperand(
                     1,
@@ -239,17 +238,17 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
     }
 
     /**
-     * For the time travel scenario, we need to build a SchemaVersion based on the Snapshot node for
-     * IdentifierNamespace in order to generate a new namespace.
+     * Get the {@link SqlSnapshot} node in a {@link SqlValidatorNamespace}.
      *
-     * <p>In general, the enclosing Node of IdentifierNamespace is usually SqlSnapshot. However, if
-     * we encounter a situation with an "as" operator, we need to identify whether the enclosingNode
-     * is an "as" call and if its first operand is SqlSnapshot.
+     * <p>In general, if there is a snapshot expression, the enclosing node of IdentifierNamespace
+     * is usually SqlSnapshot. However, if we encounter a situation with an "as" operator, we need
+     * to identify whether the enclosingNode is an "as" call and if its first operand is
+     * SqlSnapshot.
      *
      * @param ns Validator namespace for validator.
-     * @return snapshot node for generating a new namespace for time travel.
+     * @return SqlSnapshot found in {@param ns}, empty if not found.
      */
-    private Optional<SqlSnapshot> getTimeTravelNode(SqlValidatorNamespace ns) {
+    private Optional<SqlSnapshot> getSnapShotNode(SqlValidatorNamespace ns) {
         if (ns instanceof IdentifierNamespace) {
             SqlNode enclosingNode = ns.getEnclosingNode();
             // FOR SYSTEM_TIME AS OF [expression]

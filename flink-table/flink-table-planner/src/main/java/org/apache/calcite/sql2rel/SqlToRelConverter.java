@@ -2949,11 +2949,13 @@ public class SqlToRelConverter {
         // convert inner query, could be a table name or a derived table
         SqlNode expr = snapshot.getTableRef();
         SqlNode tableRef = snapshot.getTableRef();
-        // Since we have simplified the SqlSnapshot in the validate phase, we only need to check
-        // whether the period is a RexLiteral and tableRef's first operand is a SqlIdentifier.
-        if ((tableRef instanceof SqlBasicCall
-                                && ((SqlBasicCall) tableRef).operand(0) instanceof SqlIdentifier
-                        || tableRef instanceof SqlTableRef)
+        // since we have reduced the period of SqlSnapshot in the validate phase, we only need to
+        // check whether the period is a RexLiteral.
+        // in most cases, tableRef is a SqlBasicCall and the first operand is a SqlIdentifier.
+        // when using SQL Hints, tableRef will be a SqlTableRef.
+        if (((tableRef instanceof SqlBasicCall
+                                && ((SqlBasicCall) tableRef).operand(0) instanceof SqlIdentifier)
+                        || (tableRef instanceof SqlTableRef))
                 && period instanceof RexLiteral) {
             TableConfig tableConfig = ShortcutUtils.unwrapContext(relBuilder).getTableConfig();
             ZoneId zoneId = tableConfig.getLocalTimeZone();
@@ -2961,7 +2963,7 @@ public class SqlToRelConverter {
                     ((RexLiteral) period).getValueAs(TimestampString.class);
             checkNotNull(
                     timestampString,
-                    "The time travel expression %s can convert to a valid timestamp string.This is a bug. Please file an issue.",
+                    "The time travel expression %s can not convert to a valid timestamp string. This is a bug. Please file an issue.",
                     period);
 
             long timeTravelTimestamp =
