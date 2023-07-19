@@ -43,6 +43,7 @@ under the License.
 		<module>flink-metrics-influxdb</module>
 		<module>flink-metrics-jmx</module>
 		<module>flink-metrics-prometheus</module>
+		<module>flink-metrics-prometheus-native</module>
 		<module>flink-metrics-statsd</module>
 		<module>flink-metrics-datadog</module>
 		<module>flink-metrics-slf4j</module>
