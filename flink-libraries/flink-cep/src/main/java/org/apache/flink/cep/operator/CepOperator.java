@@ -33,13 +33,16 @@ import org.apache.flink.cep.EventComparator;
 import org.apache.flink.cep.configuration.SharedBufferCacheConfig;
 import org.apache.flink.cep.functions.PatternProcessFunction;
 import org.apache.flink.cep.functions.TimedOutPartialMatchHandler;
+import org.apache.flink.cep.nfa.ComputationState;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.NFAState;
 import org.apache.flink.cep.nfa.NFAStateSerializer;
+import org.apache.flink.cep.nfa.State;
 import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBuffer;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
+import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.time.TimerService;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
@@ -64,9 +67,11 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
+import java.util.Queue;
 import java.util.stream.Stream;
 
 /**
@@ -227,6 +232,88 @@ public class CepOperator<IN, KEY, OUT>
         if (partialMatches != null) {
             partialMatches.releaseCacheStatisticsTimer();
         }
+    }
+
+    /**
+     * @Description: 接收到的数据是否会触发逻辑更新
+     *
+     * @param: [element]
+     * @return: boolean
+     * @auther: zhangyf
+     * @date: 2023/7/17 15:51
+     */
+    private boolean needChange(IN element) {
+        // 获取用户对象
+        PatternProcessFunction<IN, OUT> userFunction = this.userFunction;
+        return userFunction.getFlagNeedListern() && userFunction.needchange(element);
+    }
+
+    /**
+     * @Description: 触发新逻辑注入时通过调用用户代码得到返回的pattern更新NFA
+     *
+     * @param: []
+     * @return: void
+     * @auther: zhangyf
+     * @date: 2023/7/17 15:51
+     */
+    private void changeNFA(IN flagElement) throws Exception {
+        Pattern pattern;
+        pattern = userFunction.getNewPattern(flagElement);
+        NFACompiler.NFAFactoryCompiler<IN> nfaFactoryCompiler =
+                new NFACompiler.NFAFactoryCompiler<IN>((Pattern<IN, ?>) pattern);
+        nfaFactoryCompiler.compileFactory();
+        boolean timeoutHandling = userFunction instanceof TimedOutPartialMatchHandler;
+        NFACompiler.NFAFactory nfaFactory = NFACompiler.compileFactory(pattern, timeoutHandling);
+        //		得到工厂的nfa
+        NFA<IN> newNFA = nfaFactory.createNFA();
+        //		这个地方为所有的边transition设置了cepRuntimeContext
+        newNFA.open(cepRuntimeContext, new Configuration());
+        //		覆盖
+        nfa = newNFA;
+        //		清理以前的未完成的数据，以及共享缓存
+        cleanBeforeMatch();
+        cleanSharedBuffer();
+    }
+
+    /**
+     * @Description: 用于清理以前未匹配完成的部分状态，并且用新逻辑初始化新的NFAstate
+     * 中必须包含可能作为开始的所有未匹配状态，否则无法进行匹配，因为没有开始state作为初始匹配
+     *
+     * @param: []
+     * @return: void
+     * @auther: zhangyf
+     * @date: 2023/7/17 15:51
+     */
+    private void cleanBeforeMatch() throws Exception {
+        // 将原来的为匹配完全的状态清理
+        NFAState nfaState = getNFAState();
+        Queue<ComputationState> partialMatches = nfaState.getPartialMatches();
+        partialMatches.clear();
+        // 因为nfaState中的partialMatches为未匹配完成的下一个状态，但是初始化的时候就是所有的start状态，所以
+        // 这里需要根据新逻辑初始化一个新的NFAstate，里面的partialMatches设置为新逻辑中可能作为start的所有作为
+        // 下一个可匹配状态选择
+        Queue<ComputationState> startingStates = new LinkedList<>();
+        for (State<IN> state : nfa.getStates()) {
+            if (state.isStart()) {
+                //				这里创建了一个start状态
+                startingStates.add(ComputationState.createStartState(state.getName()));
+            }
+        }
+        for (ComputationState startingState : startingStates) {
+            partialMatches.add(startingState);
+        }
+    }
+
+    /**
+     * @Description: 用于清理以前的共享缓存SharedBuffer
+     *
+     * @param: []
+     * @return: void
+     * @auther: greenday
+     * @date: 2019/9/10 10:53
+     */
+    private void cleanSharedBuffer() {
+        partialMatches.clean();
     }
 
     @Override

@@ -87,7 +87,9 @@ public class NFA<T> {
      * A set of all the valid NFA states, as returned by the {@link NFACompiler NFACompiler}. These
      * are directly derived from the user-specified pattern.
      */
-    private final Map<String, State<T>> states;
+    //	因为需要动态修改所以改为 去掉final ->
+    private Map<String, State<T>> states;
+    // private final Map<String, State<T>> states;
 
     /**
      * The lengths of a windowed pattern, as specified using the {@link
