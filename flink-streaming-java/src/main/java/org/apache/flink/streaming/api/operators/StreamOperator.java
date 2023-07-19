@@ -150,6 +150,6 @@ public interface StreamOperator<OUT> extends CheckpointListener, KeyContext, Ser
     OperatorID getOperatorID();
 
     default void flush() throws Exception {
-//        System.out.println("flush in single operator");
+        //        System.out.println("flush in single operator");
     }
 }

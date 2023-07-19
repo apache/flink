@@ -173,8 +173,7 @@ public abstract class AbstractInvokable
 
     @Override
     public CompletableFuture<Boolean> triggerFlushEventAsync(
-            long flushEventID,
-            long flushEventTimeStamp) {
+            long flushEventID, long flushEventTimeStamp) {
         throw new UnsupportedOperationException("should never be called");
     }
 

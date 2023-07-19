@@ -33,20 +33,16 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Default implementation for {@link PlanCalculator}. If all tasks are running, it
- * directly marks all the sources as tasks to trigger, otherwise it would try to find the running
- * tasks without running processors as tasks to trigger.
+ * Default implementation for {@link PlanCalculator}. If all tasks are running, it directly marks
+ * all the sources as tasks to trigger, otherwise it would try to find the running tasks without
+ * running processors as tasks to trigger.
  */
 public abstract class DefaultPlanCalculator implements PlanCalculator {
 
@@ -149,9 +145,9 @@ public abstract class DefaultPlanCalculator implements PlanCalculator {
     protected boolean hasActiveUpstreamVertex(
             DistributionPattern distribution, BitSet upstreamRunningTasks) {
         return (distribution == DistributionPattern.ALL_TO_ALL
-                && upstreamRunningTasks.cardinality() > 0)
+                        && upstreamRunningTasks.cardinality() > 0)
                 || (distribution == DistributionPattern.POINTWISE
-                && upstreamRunningTasks.cardinality() == upstreamRunningTasks.size());
+                        && upstreamRunningTasks.cardinality() == upstreamRunningTasks.size());
     }
 
     protected boolean hasRunningPrecedentTasks(

@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.flink.test.flush.util;
 
 import org.apache.flink.api.common.state.ValueState;
@@ -15,13 +32,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Example illustrating a windowed stream join between two data streams.
+ * An aggregation operator with user-defined flush function.
  *
- * <p>The example works on two input streams with pairs (name, grade) and (name, salary)
- * respectively. It joins the streams based on "name" within a configurable window.
- *
- * <p>The example uses a built-in sample data generator that generates the streams of pairs at a
- * configurable rate.
+ * <p>The operator will buffer inputs in memory until a flush operation is triggered.
  */
 public class FlushAggregator extends AbstractStreamOperator<Tuple2<Integer, Long>>
         implements OneInputStreamOperator<Integer, Tuple2<Integer, Long>> {

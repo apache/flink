@@ -51,8 +51,7 @@ import java.util.stream.Stream;
 public class InputProcessorUtil {
 
     public static FlushEventHandler createFlushEventHandler(
-            StreamTask toNotifyOnFlushEvent,
-            String taskName) {
+            StreamTask toNotifyOnFlushEvent, String taskName) {
         return new FlushEventHandler(toNotifyOnFlushEvent, taskName);
     }
 

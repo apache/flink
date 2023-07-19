@@ -1023,7 +1023,7 @@ public class UnalignedCheckpointsTest {
         return new CheckpointedInputGate(
                 gate,
                 barrierHandler,
-                new FlushEventHandler(new DummyCheckpointInvokable(),"test"),
+                new FlushEventHandler(new DummyCheckpointInvokable(), "test"),
                 new SyncMailboxExecutor(),
                 false);
     }

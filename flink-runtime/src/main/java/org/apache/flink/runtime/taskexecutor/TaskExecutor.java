@@ -1106,9 +1106,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     // ----------------------------------------------------------------------
     @Override
     public CompletableFuture<Acknowledge> triggerFlushEvent(
-            ExecutionAttemptID executionAttemptID,
-            long flushEventID,
-            long flushEventTimestamp) {
+            ExecutionAttemptID executionAttemptID, long flushEventID, long flushEventTimestamp) {
         log.debug(
                 "Trigger flush event {}@{} for {}.",
                 flushEventID,

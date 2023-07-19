@@ -50,12 +50,13 @@ public class CheckpointCoordinatorDeActivator implements JobStatusListener {
                 coordinator.startCheckpointScheduler();
             }
             if (flushEventEnabled) {
-                // TODO: start flush scheduler, define a new scheduler class to periodically trigger flush events
+                // TODO: start flush scheduler, define a new scheduler class to periodically trigger
+                // flush events
                 coordinator.startFlushEventScheduler();
             }
         } else {
             if (flushEventEnabled) {
-                coordinator.stopFlushEventScheduler();;
+                coordinator.stopFlushEventScheduler();
             }
             if (checkpointEnabled) {
                 // anything else should stop the trigger for now

@@ -40,7 +40,6 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
-import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -155,7 +154,7 @@ public class StreamTaskNetworkInputTest {
                                                 SystemClock.getInstance(),
                                                 false,
                                                 inputGate.getInputGate()),
-                                new FlushEventHandler(new DummyCheckpointInvokable(),"test"),
+                                new FlushEventHandler(new DummyCheckpointInvokable(), "test"),
                                 new SyncMailboxExecutor(),
                                 false),
                         inSerializer,

@@ -24,6 +24,9 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.CollectionUtil;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
@@ -43,6 +46,8 @@ class DefaultOperatorStateBackendSnapshotStrategy
                 DefaultOperatorStateBackendSnapshotStrategy
                         .DefaultOperatorStateBackendSnapshotResources> {
 
+    private static final Logger LOG =
+            LoggerFactory.getLogger(DefaultOperatorStateBackendSnapshotStrategy.class);
     private final ClassLoader userClassLoader;
     private final Map<String, PartitionableListState<?>> registeredOperatorStates;
     private final Map<String, BackendWritableBroadcastState<?, ?>> registeredBroadcastStates;
@@ -94,6 +99,7 @@ class DefaultOperatorStateBackendSnapshotStrategy
                     BackendWritableBroadcastState<?, ?> broadcastState = entry.getValue();
                     if (null != broadcastState) {
                         broadcastState = broadcastState.deepCopy();
+                        LOG.info("OperatorState(bundle) size: {}", broadcastState.size());
                     }
                     registeredBroadcastStatesDeepCopies.put(entry.getKey(), broadcastState);
                 }

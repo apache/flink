@@ -145,9 +145,7 @@ public interface TaskExecutorGateway
             CheckpointOptions checkpointOptions);
 
     CompletableFuture<Acknowledge> triggerFlushEvent(
-            ExecutionAttemptID executionAttemptID,
-            long flushEventID,
-            long flushEventTimestamp);
+            ExecutionAttemptID executionAttemptID, long flushEventID, long flushEventTimestamp);
 
     /**
      * Confirm a checkpoint for the given task. The checkpoint is identified by the checkpoint ID

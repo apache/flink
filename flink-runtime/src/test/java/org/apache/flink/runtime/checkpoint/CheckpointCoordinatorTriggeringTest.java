@@ -747,16 +747,17 @@ class CheckpointCoordinatorTriggeringTest extends TestLogger {
                         .setTransitToRunning(false)
                         .build(EXECUTOR_RESOURCE.getExecutor());
 
-        CheckpointCoordinator checkpointCoordinator = new CheckpointCoordinatorBuilder()
-                .setCheckpointCoordinatorConfiguration(
-                        CheckpointCoordinatorConfiguration.builder()
-                                .setAllowedLatency(10)
-                                .setCheckpointInterval(Long.MAX_VALUE)
-                                .setAlignedCheckpointTimeout(Long.MAX_VALUE)
-                                .setMaxConcurrentCheckpoints(Integer.MAX_VALUE)
-                                .build())
-                .setFlushEventTimer(manuallyTriggeredScheduledExecutor)
-                .build(graph);
+        CheckpointCoordinator checkpointCoordinator =
+                new CheckpointCoordinatorBuilder()
+                        .setCheckpointCoordinatorConfiguration(
+                                CheckpointCoordinatorConfiguration.builder()
+                                        .setAllowedLatency(10)
+                                        .setCheckpointInterval(Long.MAX_VALUE)
+                                        .setAlignedCheckpointTimeout(Long.MAX_VALUE)
+                                        .setMaxConcurrentCheckpoints(Integer.MAX_VALUE)
+                                        .build())
+                        .setFlushEventTimer(manuallyTriggeredScheduledExecutor)
+                        .build(graph);
 
         checkpointCoordinator.startFlushEventScheduler();
         checkpointCoordinator.triggerFlushEvent(false);
@@ -1008,7 +1009,8 @@ class CheckpointCoordinatorTriggeringTest extends TestLogger {
                 Executors.newSingleThreadScheduledExecutor();
         final CheckpointCoordinator checkpointCoordinator =
                 new CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder()
-                        .setCheckpointTimer(new ScheduledExecutorServiceAdapter(scheduledExecutorService))
+                        .setCheckpointTimer(
+                                new ScheduledExecutorServiceAdapter(scheduledExecutorService))
                         .setCheckpointCoordinatorConfiguration(
                                 CheckpointCoordinatorConfiguration.builder().build())
                         // Since timer thread != main thread we should override the default main

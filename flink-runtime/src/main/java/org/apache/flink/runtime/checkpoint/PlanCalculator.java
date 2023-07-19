@@ -20,9 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Calculates the plan of the next checkpoint or flushing.
- */
+/** Calculates the plan of the next checkpoint or flushing. */
 public interface PlanCalculator {
 
     /**

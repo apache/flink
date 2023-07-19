@@ -34,7 +34,6 @@ import org.apache.flink.runtime.io.network.partition.consumer.EndOfChannelStateE
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.streaming.runtime.io.StreamTaskNetworkInput;
-
 import org.apache.flink.streaming.runtime.io.flushing.FlushEventHandler;
 
 import org.slf4j.Logger;
@@ -90,7 +89,13 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
             FlushEventHandler flushEventHandler,
             MailboxExecutor mailboxExecutor,
             boolean isFlushingEnabled) {
-        this(inputGate, barrierHandler, flushEventHandler, mailboxExecutor, isFlushingEnabled, UpstreamRecoveryTracker.NO_OP);
+        this(
+                inputGate,
+                barrierHandler,
+                flushEventHandler,
+                mailboxExecutor,
+                isFlushingEnabled,
+                UpstreamRecoveryTracker.NO_OP);
     }
 
     public CheckpointedInputGate(
@@ -194,8 +199,7 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
         Class<? extends AbstractEvent> eventClass = bufferOrEvent.getEvent().getClass();
         if (eventClass == FlushEvent.class) {
             flushEventHandler.processGlobalFlushEvent(
-                    (FlushEvent) bufferOrEvent.getEvent(),
-                    bufferOrEvent.getChannelInfo());
+                    (FlushEvent) bufferOrEvent.getEvent(), bufferOrEvent.getChannelInfo());
         } else if (eventClass == CheckpointBarrier.class) {
             CheckpointBarrier checkpointBarrier = (CheckpointBarrier) bufferOrEvent.getEvent();
             barrierHandler.processBarrier(checkpointBarrier, bufferOrEvent.getChannelInfo(), false);

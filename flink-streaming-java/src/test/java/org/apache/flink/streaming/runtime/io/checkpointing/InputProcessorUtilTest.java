@@ -82,9 +82,8 @@ public class InputProcessorUtilTest {
                             new SyncMailboxExecutor(),
                             new TestProcessingTimeService());
 
-            FlushEventHandler flushEventHandler = InputProcessorUtil.createFlushEventHandler(
-                    streamTask,
-                    streamTask.getName());
+            FlushEventHandler flushEventHandler =
+                    InputProcessorUtil.createFlushEventHandler(streamTask, streamTask.getName());
 
             CheckpointedInputGate[] checkpointedMultipleInputGate =
                     InputProcessorUtil.createCheckpointedMultipleInputGate(

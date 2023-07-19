@@ -234,7 +234,7 @@ public class CheckpointedInputGateTest {
                         new CheckpointedInputGate(
                                 singleInputGate,
                                 barrierHandler,
-                                new FlushEventHandler(new DummyCheckpointInvokable(),"test"),
+                                new FlushEventHandler(new DummyCheckpointInvokable(), "test"),
                                 mailboxExecutor,
                                 false,
                                 UpstreamRecoveryTracker.forInputGate(singleInputGate));
@@ -356,7 +356,7 @@ public class CheckpointedInputGateTest {
                 new CheckpointedInputGate(
                         singleInputGate,
                         barrierHandler,
-                        new FlushEventHandler(new DummyCheckpointInvokable(),"test"),
+                        new FlushEventHandler(new DummyCheckpointInvokable(), "test"),
                         mailboxExecutor,
                         false,
                         UpstreamRecoveryTracker.forInputGate(singleInputGate));
@@ -398,7 +398,7 @@ public class CheckpointedInputGateTest {
                 new CheckpointedInputGate(
                         singleInputGate,
                         barrierHandler,
-                        new FlushEventHandler(new DummyCheckpointInvokable(),"test"),
+                        new FlushEventHandler(new DummyCheckpointInvokable(), "test"),
                         mailboxExecutor,
                         false,
                         UpstreamRecoveryTracker.forInputGate(singleInputGate));

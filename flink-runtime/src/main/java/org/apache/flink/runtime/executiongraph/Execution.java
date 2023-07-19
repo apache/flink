@@ -857,9 +857,11 @@ public class Execution
 
     /**
      * Emit a flush event on the task of this excution.
+     *
      * @param flushEventId of the flush event to emit
      * @param timestamp of the flush event to emit
-     * @return Future acknowledge which is returned once the flush function has been triggered on receiving the flush event
+     * @return Future acknowledge which is returned once the flush function has been triggered on
+     *     receiving the flush event
      */
     public CompletableFuture<Acknowledge> triggerFlushEvent(long flushEventId, long timestamp) {
         return triggerFlushEventHelper(flushEventId, timestamp);
@@ -894,7 +896,8 @@ public class Execution
         return CompletableFuture.completedFuture(Acknowledge.get());
     }
 
-    private CompletableFuture<Acknowledge> triggerFlushEventHelper(long flushEventId, long timestamp) {
+    private CompletableFuture<Acknowledge> triggerFlushEventHelper(
+            long flushEventId, long timestamp) {
 
         final LogicalSlot slot = assignedResource;
 

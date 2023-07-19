@@ -76,9 +76,8 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
                         mainMailboxExecutor,
                         systemTimerService);
 
-        flushEventHandler = InputProcessorUtil.createFlushEventHandler(
-                this,
-                getTaskNameWithSubtaskAndId());
+        flushEventHandler =
+                InputProcessorUtil.createFlushEventHandler(this, getTaskNameWithSubtaskAndId());
 
         CheckpointedInputGate[] checkpointedInputGates =
                 InputProcessorUtil.createCheckpointedMultipleInputGate(
@@ -112,8 +111,6 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
                         gatePartitioners,
                         getEnvironment().getTaskInfo(),
                         getCanEmitBatchOfRecords());
-
-
     }
 
     // This is needed for StreamMultipleInputProcessor#processInput to preserve the existing

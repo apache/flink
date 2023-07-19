@@ -560,7 +560,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
      * @throws Exception on any problems in the action.
      */
     protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
-//        System.out.println("process input in Stream Task");
+        //        System.out.println("process input in Stream Task");
         DataInputStatus status = inputProcessor.processInput();
         switch (status) {
             case MORE_AVAILABLE:
@@ -1172,9 +1172,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         }
     }
 
-    private boolean performFlushEvent(
-            long flushEventID,
-            long flushEventTimeStamp) throws Exception {
+    private boolean performFlushEvent(long flushEventID, long flushEventTimeStamp)
+            throws Exception {
 
         LOG.debug(
                 "Starting flush event {}@{} on task {}",
@@ -1197,7 +1196,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         } else {
             actionExecutor.runThrowing(
                     () -> {
-                        System.out.println("cannot emit flush event");
+                        LOG.debug("cannot emit flush event");
                     });
 
             return false;

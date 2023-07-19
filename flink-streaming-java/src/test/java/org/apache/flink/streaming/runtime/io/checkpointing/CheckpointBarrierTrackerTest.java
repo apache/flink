@@ -837,7 +837,7 @@ public class CheckpointBarrierTrackerTest {
                 inputGate,
                 new CheckpointBarrierTracker(
                         inputGate.getNumberOfInputChannels(), toNotifyOnCheckpoint, clock, true),
-                new FlushEventHandler(new DummyCheckpointInvokable(),"test"),
+                new FlushEventHandler(new DummyCheckpointInvokable(), "test"),
                 new SyncMailboxExecutor(),
                 false);
     }

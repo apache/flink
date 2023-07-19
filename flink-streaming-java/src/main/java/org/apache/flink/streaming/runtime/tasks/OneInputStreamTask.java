@@ -172,9 +172,8 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
                         mainMailboxExecutor,
                         systemTimerService);
 
-
-        flushEventHandler = InputProcessorUtil.createFlushEventHandler(this, getTaskNameWithSubtaskAndId());
-
+        flushEventHandler =
+                InputProcessorUtil.createFlushEventHandler(this, getTaskNameWithSubtaskAndId());
 
         CheckpointedInputGate[] checkpointedInputGates =
                 InputProcessorUtil.createCheckpointedMultipleInputGate(

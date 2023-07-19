@@ -240,7 +240,7 @@ public class RegularOperatorChain<OUT, OP extends StreamOperator<OUT>>
 
     @Override
     void flush() throws Exception {
-//        System.out.println("flush in operator chain");
+        //        System.out.println("flush in operator chain");
         for (StreamOperatorWrapper<?, ?> operatorWrapper : getAllOperators()) {
             if (!operatorWrapper.isClosed()) {
                 operatorWrapper.getStreamOperator().flush();

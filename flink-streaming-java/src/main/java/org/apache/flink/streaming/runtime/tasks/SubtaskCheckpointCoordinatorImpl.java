@@ -254,12 +254,10 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             long flushEventTimeStamp,
             OperatorChain<?, ?> operatorChain,
             boolean isTaskFinished,
-            Supplier<Boolean> isRunning) throws Exception {
+            Supplier<Boolean> isRunning)
+            throws Exception {
         if (lastFlushEventId >= flushEventID) {
-            LOG.info(
-                    "Out of order flush event: {} >= {}",
-                    lastFlushEventId,
-                    flushEventID);
+            LOG.info("Out of order flush event: {} >= {}", lastFlushEventId, flushEventID);
             return;
         }
 
@@ -268,8 +266,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
         // call flush function on all the operators in the chain
         operatorChain.flush();
         // broadcast flush events to all the output channels
-        FlushEvent flushEvent =
-                new FlushEvent(flushEventID, flushEventTimeStamp);
+        FlushEvent flushEvent = new FlushEvent(flushEventID, flushEventTimeStamp);
         operatorChain.broadcastEvent(flushEvent, false);
     }
 
@@ -756,15 +753,21 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             checkpointStorage.clearCacheFor(checkpointId);
         }
 
-        LOG.debug(
+        checkpointMetrics.setSyncDurationMillis((System.nanoTime() - started) / 1_000_000);
+        LOG.info(
                 "{} - finished synchronous part of checkpoint {}. Alignment duration: {} ms, snapshot duration {} ms, is unaligned checkpoint : {}",
                 taskName,
                 checkpointId,
                 checkpointMetrics.getAlignmentDurationNanosOrDefault() / 1_000_000,
                 checkpointMetrics.getSyncDurationMillis(),
                 checkpointOptions.isUnalignedCheckpoint());
-
-        checkpointMetrics.setSyncDurationMillis((System.nanoTime() - started) / 1_000_000);
+        //        System.out.println(
+        //                taskName
+        //                        + " - finished synchronous part of checkpoint "
+        //                        + checkpointId
+        //                        + ". Snapshot duration "
+        //                        + checkpointMetrics.getSyncDurationMillis()
+        //                        + " ms.");
         return true;
     }
 

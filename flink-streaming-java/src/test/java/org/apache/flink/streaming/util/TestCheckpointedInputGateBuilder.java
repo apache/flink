@@ -107,7 +107,7 @@ public class TestCheckpointedInputGateBuilder {
         return new CheckpointedInputGate(
                 gate,
                 barrierHandlerFactory.create(gate, channelStateWriter),
-                new FlushEventHandler(new DummyCheckpointInvokable(),"test"),
+                new FlushEventHandler(new DummyCheckpointInvokable(), "test"),
                 mailboxExecutor,
                 false);
     }

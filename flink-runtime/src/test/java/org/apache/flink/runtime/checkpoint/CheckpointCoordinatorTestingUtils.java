@@ -500,8 +500,9 @@ public class CheckpointCoordinatorTestingUtils {
                 JobID jobId,
                 long flushEventId,
                 long timestamp) {
-            triggeredFlushEvents.computeIfAbsent(executionAttemptID, k -> new ArrayList<>())
-                                .add(new TriggeredFlushEvent(jobId, flushEventId, timestamp));
+            triggeredFlushEvents
+                    .computeIfAbsent(executionAttemptID, k -> new ArrayList<>())
+                    .add(new TriggeredFlushEvent(jobId, flushEventId, timestamp));
             return CompletableFuture.completedFuture(Acknowledge.get());
         }
 

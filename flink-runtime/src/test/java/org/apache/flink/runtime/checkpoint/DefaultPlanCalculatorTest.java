@@ -187,8 +187,7 @@ public class DefaultPlanCalculatorTest {
             // The second vertex is everything except RUNNING.
             transitVertexToState(graph, notRunningVertex, notRunningState);
 
-            DefaultPlanCalculator checkpointPlanCalculator =
-                    createCheckpointPlanCalculator(graph);
+            DefaultPlanCalculator checkpointPlanCalculator = createCheckpointPlanCalculator(graph);
 
             try {
                 checkpointPlanCalculator.calculateEventPlan().get();

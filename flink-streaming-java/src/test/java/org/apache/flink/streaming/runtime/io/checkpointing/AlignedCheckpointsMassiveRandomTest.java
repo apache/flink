@@ -80,7 +80,7 @@ public class AlignedCheckpointsMassiveRandomTest {
                                     (callable, duration) -> () -> {},
                                     true,
                                     myIG),
-                            new FlushEventHandler(new DummyCheckpointInvokable(),"test"),
+                            new FlushEventHandler(new DummyCheckpointInvokable(), "test"),
                             new SyncMailboxExecutor(),
                             false);
 

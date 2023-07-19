@@ -181,7 +181,8 @@ public class EventSerializer {
             if (type == FLUSH_EVENT) {
                 long flushEventId = buffer.getLong();
                 long timestamp = buffer.getLong();
-//                System.out.println("reading flush event: id = " + flushEventId + ", timestamp = " + timestamp);
+                //                System.out.println("reading flush event: id = " + flushEventId +
+                // ", timestamp = " + timestamp);
                 return new FlushEvent(flushEventId, timestamp);
             } else if (type == END_OF_PARTITION_EVENT) {
                 return EndOfPartitionEvent.INSTANCE;

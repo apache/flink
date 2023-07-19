@@ -60,7 +60,8 @@ public interface SubtaskCheckpointCoordinator extends Closeable {
             long flushEventTimeStamp,
             OperatorChain<?, ?> operatorChain,
             boolean isTaskFinished,
-            Supplier<Boolean> isRunning) throws Exception;
+            Supplier<Boolean> isRunning)
+            throws Exception;
 
     void checkpointState(
             CheckpointMetaData checkpointMetaData,

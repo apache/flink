@@ -21,7 +21,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.io.network.api.FlushEvent;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
@@ -108,6 +107,4 @@ public interface CheckpointableTask extends FlushingTask {
      * @param cause The reason why the checkpoint was aborted during alignment
      */
     void abortCheckpointOnBarrier(long checkpointId, CheckpointException cause) throws IOException;
-
-
 }

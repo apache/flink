@@ -116,12 +116,8 @@ public class RpcTaskManagerGateway implements TaskManagerGateway {
 
     @Override
     public CompletableFuture<Acknowledge> triggerFlushEvent(
-            ExecutionAttemptID executionAttemptID,
-            JobID jobId,
-            long flushEventId,
-            long timestamp) {
-        return taskExecutorGateway.triggerFlushEvent(
-                executionAttemptID, flushEventId, timestamp);
+            ExecutionAttemptID executionAttemptID, JobID jobId, long flushEventId, long timestamp) {
+        return taskExecutorGateway.triggerFlushEvent(executionAttemptID, flushEventId, timestamp);
     }
 
     @Override

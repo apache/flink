@@ -159,6 +159,14 @@ public class HeapBroadcastState<K, V> implements BackendWritableBroadcastState<K
         return Collections.unmodifiableSet(backingMap.entrySet());
     }
 
+    public boolean isEmpty() {
+        return backingMap.isEmpty();
+    }
+
+    public int size() {
+        return backingMap.size();
+    }
+
     @VisibleForTesting
     public MapSerializer<K, V> getInternalMapCopySerializer() {
         return internalMapCopySerializer;

@@ -1386,9 +1386,7 @@ public class Task
         }
     }
 
-    public void triggerFlushEvent(
-            final long flushEventID,
-            final long flushEventTimestamp) {
+    public void triggerFlushEvent(final long flushEventID, final long flushEventTimestamp) {
 
         final TaskInvokable invokable = this.invokable;
 

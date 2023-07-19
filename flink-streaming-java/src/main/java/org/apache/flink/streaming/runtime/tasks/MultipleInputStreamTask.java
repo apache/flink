@@ -153,9 +153,8 @@ public class MultipleInputStreamTask<OUT>
                         mainMailboxExecutor,
                         timerService);
 
-        flushEventHandler = InputProcessorUtil.createFlushEventHandler(
-                this,
-                getTaskNameWithSubtaskAndId());
+        flushEventHandler =
+                InputProcessorUtil.createFlushEventHandler(this, getTaskNameWithSubtaskAndId());
 
         CheckpointedInputGate[] checkpointedInputGates =
                 InputProcessorUtil.createCheckpointedMultipleInputGate(
@@ -187,8 +186,6 @@ public class MultipleInputStreamTask<OUT>
                         gatePartitioners,
                         getEnvironment().getTaskInfo(),
                         getCanEmitBatchOfRecords());
-
-
     }
 
     protected Optional<CheckpointBarrierHandler> getCheckpointBarrierHandler() {

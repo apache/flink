@@ -184,7 +184,9 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
     }
 
     public long getAllowedLatency() {
-        return allowedLatency > 0 && allowedLatency < MINIMAL_ALLOWED_LATENCY ? MINIMAL_ALLOWED_LATENCY : allowedLatency;
+        return allowedLatency > 0 && allowedLatency < MINIMAL_ALLOWED_LATENCY
+                ? MINIMAL_ALLOWED_LATENCY
+                : allowedLatency;
     }
 
     @Override

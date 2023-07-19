@@ -936,9 +936,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
         configuration.set(ExecutionOptions.SNAPSHOT_COMPRESSION, useSnapshotCompression);
     }
 
-    /**
-     * Sets the processing latency of a Flink job.
-     */
+    /** Sets the processing latency of a Flink job. */
     public ExecutionConfig setAllowedLatency(long latency) {
         Preconditions.checkArgument(latency >= 0, "Allowed latency must not be negative.");
         return setAllowedLatency(Duration.ofMillis(latency));

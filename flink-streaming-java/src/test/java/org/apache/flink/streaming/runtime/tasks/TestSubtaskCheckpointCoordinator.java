@@ -80,9 +80,8 @@ public class TestSubtaskCheckpointCoordinator implements SubtaskCheckpointCoordi
             long flushEventTimeStamp,
             OperatorChain<?, ?> operatorChain,
             boolean isTaskFinished,
-            Supplier<Boolean> isRunning) throws IOException {
-
-    }
+            Supplier<Boolean> isRunning)
+            throws IOException {}
 
     @Override
     public void checkpointState(

@@ -156,10 +156,7 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 
     @Override
     public CompletableFuture<Acknowledge> triggerFlushEvent(
-            ExecutionAttemptID executionAttemptID,
-            JobID jobId,
-            long flushEventId,
-            long timestamp) {
+            ExecutionAttemptID executionAttemptID, JobID jobId, long flushEventId, long timestamp) {
         return CompletableFuture.completedFuture(Acknowledge.get());
     }
 

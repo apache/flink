@@ -250,9 +250,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
     @Override
     public CompletableFuture<Acknowledge> triggerFlushEvent(
-            ExecutionAttemptID executionAttemptID,
-            long flushEventID,
-            long flushEventTimestamp) {
+            ExecutionAttemptID executionAttemptID, long flushEventID, long flushEventTimestamp) {
         return CompletableFuture.completedFuture(Acknowledge.get());
     }
 

@@ -2019,7 +2019,8 @@ public class StreamingJobGraphGenerator {
                                         cfg.getAlignedCheckpointTimeout().toMillis())
                                 .setEnableCheckpointsAfterTasksFinish(
                                         streamGraph.isEnableCheckpointsAfterTasksFinish())
-                                .setAllowedLatency(streamGraph.getExecutionConfig().getAllowedLatency())
+                                .setAllowedLatency(
+                                        streamGraph.getExecutionConfig().getAllowedLatency())
                                 .build(),
                         serializedStateBackend,
                         streamGraph.isChangelogStateBackendEnabled(),

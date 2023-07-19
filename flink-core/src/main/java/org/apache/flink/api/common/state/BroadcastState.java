@@ -84,4 +84,8 @@ public interface BroadcastState<K, V> extends ReadOnlyBroadcastState<K, V> {
      * @throws Exception Thrown if the system cannot access the state.
      */
     Iterable<Map.Entry<K, V>> entries() throws Exception;
+
+    boolean isEmpty();
+
+    int size();
 }
