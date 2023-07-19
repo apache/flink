@@ -58,22 +58,38 @@ public interface CatalogStore {
      *
      * @param catalogName name of the catalog to retrieve
      * @return the requested catalog or empty if the catalog does not exist
+     * @throws CatalogException in case of any runtime exception
      */
-    Optional<CatalogDescriptor> getCatalog(String catalogName);
+    Optional<CatalogDescriptor> getCatalog(String catalogName) throws CatalogException;
 
     /**
      * Retrieves the names of all registered catalogs.
      *
      * @return the names of registered catalogs
+     * @throws CatalogException in case of any runtime exception
      */
-    Set<String> listCatalogs();
+    Set<String> listCatalogs() throws CatalogException;
 
-    /** Return whether the catalog exists in the catalog store. */
-    boolean contains(String catalogName);
+    /**
+     * Return whether the catalog exists in the catalog store.
+     *
+     * @param catalogName the name of catalog
+     * @throws CatalogException in case of any runtime exception
+     */
+    boolean contains(String catalogName) throws CatalogException;
 
-    /** Initialize the catalog store. */
-    void open();
+    /**
+     * Open the catalog store. Used for any required preparation in initialization phase.
+     *
+     * @throws CatalogException in case of any runtime exception
+     */
+    void open() throws CatalogException;
 
-    /** Close the catalog store. */
-    void close();
+    /**
+     * Close the catalog store when it is no longer needed and release any resource that it might be
+     * holding.
+     *
+     * @throws CatalogException in case of any runtime exception
+     */
+    void close() throws CatalogException;
 }
