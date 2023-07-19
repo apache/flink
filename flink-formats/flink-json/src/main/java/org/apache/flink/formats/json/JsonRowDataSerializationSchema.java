@@ -38,7 +38,7 @@ import java.util.Objects;
  * <p>Serializes the input Flink object into a JSON string and converts it into <code>byte[]</code>.
  *
  * <p>Result <code>byte[]</code> messages can be deserialized using {@link
- * JsonRowDataDeserializationSchema}.
+ * JsonRowDataDeserializationSchema} or {@link JsonParserRowDataDeserializationSchema}.
  */
 @Internal
 public class JsonRowDataSerializationSchema implements SerializationSchema<RowData> {
