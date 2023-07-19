@@ -65,6 +65,23 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
                                 |)
                                 |""".stripMargin)
 
+    util.tableEnv.executeSql(
+      """
+        |CREATE VIEW proctime_win AS
+        |SELECT
+        |   a,
+        |   b,
+        |   window_start as ws,
+        |   window_end as we,
+        |   window_time as wt,
+        |   proctime() as new_proctime,
+        |   count(*) as cnt,
+        |   sum(d) as sum_d,
+        |   max(d) as max_d
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '5' MINUTE))
+        |GROUP BY a, window_start, window_end, window_time, b
+      """.stripMargin)
+
     // set agg-phase strategy
     util.tableEnv.getConfig
       .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, aggPhaseEnforcer.toString)
@@ -276,6 +293,30 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
         |""".stripMargin
 
     util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testTumble_CascadingWindow_RelaxForm(): Unit = {
+    // a relax form of cascaded rowtime window which is actually supported
+    util.verifyRelPlan(
+      """
+        |SELECT
+        |  a,
+        |  window_start,
+        |  window_end,
+        |  COUNT(*)
+        |  FROM
+        |  (
+        |    SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    COUNT(DISTINCT c) AS cnt
+        |    FROM TABLE(
+        |      TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '1' DAY, INTERVAL '8' HOUR))
+        |    GROUP BY a, b, window_start, window_end
+        |) GROUP BY a, window_start, window_end
+      """.stripMargin)
   }
 
   @Test
@@ -1008,6 +1049,205 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
         |GROUP BY window_start, window_end, window_time
       """.stripMargin
     util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testTumble_CascadingWindow_OnIndividualProctime(): Unit = {
+    assumeTrue(!isTwoPhase)
+    // a standard cascaded proctime window
+    util.verifyExecPlan(
+      """
+        |SELECT
+        |  window_start,
+        |  window_end,
+        |  sum(cnt),
+        |  count(*)
+        |FROM TABLE(TUMBLE(TABLE proctime_win, DESCRIPTOR(new_proctime), INTERVAL '10' MINUTE))
+        |GROUP BY a, window_start, window_end
+        |""".stripMargin)
+  }
+
+  @Test
+  def testTumble_CascadingWindow_OnInheritProctime(): Unit = {
+    assumeTrue(!isTwoPhase)
+    // a standard cascaded proctime window
+    util.verifyExecPlan(
+      """
+        |SELECT
+        |  window_start,
+        |  window_end,
+        |  sum(cnt),
+        |  count(*)
+        |FROM TABLE(TUMBLE(TABLE proctime_win, DESCRIPTOR(wt), INTERVAL '10' MINUTE))
+        |GROUP BY a, window_start, window_end
+        |""".stripMargin)
+  }
+
+  @Test
+  def testInvalidRelaxFormCascadeProctimeWindow(): Unit = {
+    assumeTrue(!isTwoPhase)
+    // a relax form of cascaded proctime window unsupported for now, will be translated to group agg
+    util.verifyRelPlan("""
+                         |SELECT
+                         |  a,
+                         |  ws,
+                         |  we,
+                         |  COUNT(*)
+                         |FROM proctime_win
+                         |GROUP BY a, ws, we
+      """.stripMargin)
+  }
+
+  @Test
+  def testTumble_CascadeProctimeWindow_OnWindowRank(): Unit = {
+    assumeTrue(!isTwoPhase)
+    // create window top10
+    createProctimeWindowTopN("proctime_winrank", 10)
+
+    util.verifyRelPlan(
+      """
+        |SELECT
+        |  a,
+        |  window_start,
+        |  window_end,
+        |  COUNT(*)
+        |FROM TABLE(TUMBLE(TABLE proctime_winrank, DESCRIPTOR(new_proctime), INTERVAL '5' MINUTE))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin)
+  }
+
+  private def createProctimeWindowTopN(viewName: String, topNum: Int): Unit = {
+    util.tableEnv.executeSql(
+      s"""
+         |CREATE VIEW $viewName AS
+         |SELECT *
+         |FROM(
+         | SELECT
+         |    a,
+         |    b,
+         |    window_start as ws,
+         |    window_end as we,
+         |    window_time as wt,
+         |    proctime() as new_proctime,
+         |    ROW_NUMBER() OVER (PARTITION BY window_start, window_end ORDER BY proctime DESC) AS rn
+         | FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '5' MINUTE))
+         |) WHERE rn <= $topNum
+     """.stripMargin)
+  }
+
+  @Test
+  def testInvalidRelaxFormCascadeProctimeWindow_OnWindowRank(): Unit = {
+    assumeTrue(!isTwoPhase)
+    // create window top10
+    createProctimeWindowTopN("proctime_winrank", 10)
+
+    // a relax form of cascaded proctime window on a window rank is unsupported for now, will be translated to group agg
+    util.verifyRelPlan("""
+                         |SELECT
+                         |  a,
+                         |  ws,
+                         |  we,
+                         |  COUNT(*)
+                         |FROM proctime_winrank
+                         |GROUP BY a, ws, we
+      """.stripMargin)
+  }
+
+  @Test
+  def testTumble_CascadeProctimeWindow_OnWindowDedup(): Unit = {
+    assumeTrue(!isTwoPhase)
+    // create window dedup(top1)
+    createProctimeWindowTopN("proctime_windedup", 1)
+
+    // a relax form of cascaded proctime window on a window dedup is unsupported for now, will be translated to group agg
+    util.verifyRelPlan(
+      """
+        |SELECT
+        |  a,
+        |  window_start,
+        |  window_end,
+        |  COUNT(*)
+        |FROM TABLE(TUMBLE(TABLE proctime_windedup, DESCRIPTOR(new_proctime), INTERVAL '5' MINUTE))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin)
+  }
+
+  @Test
+  def testInvalidRelaxFormCascadeProctimeWindow_OnWindowDedup(): Unit = {
+    assumeTrue(!isTwoPhase)
+    // create window dedup(top1)
+    createProctimeWindowTopN("proctime_windedup", 1)
+
+    // a relax form of cascaded proctime window unsupported for now, will be translated to group agg
+    util.verifyRelPlan("""
+                         |SELECT
+                         |  a,
+                         |  ws,
+                         |  we,
+                         |  COUNT(*)
+                         |FROM proctime_windedup
+                         |GROUP BY a, ws, we
+      """.stripMargin)
+  }
+
+  @Test
+  def testTumble_CascadeProctimeWindow_OnWindowJoin(): Unit = {
+    assumeTrue(!isTwoPhase)
+    createWindowJoin
+
+    util.verifyRelPlan(
+      """
+        |SELECT
+        |  a,
+        |  window_start,
+        |  window_end,
+        |  COUNT(*)
+        |FROM TABLE(TUMBLE(TABLE win_join, DESCRIPTOR(new_proctime), INTERVAL '5' MINUTE))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin)
+  }
+
+  private def createWindowJoin(): Unit = {
+    util.tableEnv.executeSql(
+      """
+        |CREATE VIEW proctime_window AS
+        |SELECT
+        |   a,
+        |   b,
+        |   window_start,
+        |   window_end
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '5' MINUTE))
+    """.stripMargin)
+
+    util.tableEnv.executeSql(
+      """
+        |CREATE VIEW win_join AS
+        |SELECT
+        |   w1.a as a,
+        |   w1.b as b,
+        |   COALESCE(w1.window_start, w2.window_start) as ws,
+        |   COALESCE(w1.window_end, w2.window_end) as we,
+        |   proctime() as new_proctime
+        |FROM proctime_window w1 join proctime_window w2
+        |ON w1.window_start = w2.window_start AND w1.window_end = w2.window_end
+    """.stripMargin)
+  }
+
+  @Test
+  def testInvalidRelaxFormCascadeProctimeWindow_OnWindowJoin(): Unit = {
+    assumeTrue(!isTwoPhase)
+    createWindowJoin
+
+    // a relax form of cascaded proctime window on a window join is unsupported for now, will be translated to group agg
+    util.verifyRelPlan("""
+                         |SELECT
+                         |  a,
+                         |  ws,
+                         |  we,
+                         |  COUNT(*)
+                         |FROM win_join
+                         |GROUP BY a, ws, we
+      """.stripMargin)
   }
 }
 

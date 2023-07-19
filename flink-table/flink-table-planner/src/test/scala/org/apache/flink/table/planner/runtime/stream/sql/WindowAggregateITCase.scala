@@ -24,7 +24,7 @@ import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.ConcatDistinctAggFunction
-import org.apache.flink.table.planner.runtime.utils.{FailingCollectionSource, StreamingWithStateTestBase, TestData, TestingAppendSink}
+import org.apache.flink.table.planner.runtime.utils.{FailingCollectionSource, StreamingWithStateTestBase, TestData, TestingAppendSink, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.utils.AggregatePhaseStrategy
 import org.apache.flink.table.planner.utils.AggregatePhaseStrategy._
@@ -941,6 +941,51 @@ class WindowAggregateITCase(
       )
     }
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+  }
+
+  @Test
+  def testRelaxFormProctimeCascadeWindowAgg(): Unit = {
+    val timestampDataId = TestValuesTableFactory.registerData(TestData.windowDataWithTimestamp)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE proctime_src (
+                       | `ts` STRING,
+                       | `int` INT,
+                       | `double` DOUBLE,
+                       | `float` FLOAT,
+                       | `bigdec` DECIMAL(10, 2),
+                       | `string` STRING,
+                       | `name` STRING,
+                       | `proctime` AS PROCTIME()
+                       |) WITH (
+                       | 'connector' = 'values',
+                       | 'data-id' = '$timestampDataId',
+                       | 'failing-source' = 'true'
+                       |)
+                       |""".stripMargin)
+
+    val sql =
+      """
+        |SELECT
+        |  window_start,
+        |  window_end,
+        |  COUNT(*)
+        |FROM
+        |(
+        |    SELECT
+        |    `name`,
+        |    window_start,
+        |    window_end,
+        |    COUNT(DISTINCT `string`) AS cnt
+        |    FROM TABLE(
+        |      TUMBLE(TABLE proctime_src, DESCRIPTOR(proctime), INTERVAL '1' SECOND))
+        |    GROUP BY `name`, window_start, window_end
+        |) GROUP BY window_start, window_end
+        """.stripMargin
+    val sink = new TestingRetractSink()
+    val res = tEnv.sqlQuery(sql)
+    res.toRetractStream[Row].addSink(sink)
+    // do not verify the result due to proctime window aggregate result is non-deterministic
+    env.execute()
   }
 }
 
