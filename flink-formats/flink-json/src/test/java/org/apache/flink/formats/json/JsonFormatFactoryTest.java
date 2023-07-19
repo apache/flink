@@ -151,8 +151,8 @@ class JsonFormatFactoryTest {
     }
 
     private void testSchemaDeserializationSchema(Map<String, String> options) {
-        final JsonRowDataDeserializationSchema expectedDeser =
-                new JsonRowDataDeserializationSchema(
+        final JsonParserRowDataDeserializationSchema expectedDeser =
+                new JsonParserRowDataDeserializationSchema(
                         PHYSICAL_TYPE,
                         InternalTypeInfo.of(PHYSICAL_TYPE),
                         false,
