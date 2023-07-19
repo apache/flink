@@ -35,11 +35,11 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.canBeTimeAtt
 
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.{Aggregate, AggregateCall, Calc}
 import org.apache.calcite.rel.{RelNode, SingleRel}
+import org.apache.calcite.rel.core.{Aggregate, AggregateCall, Calc}
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.`type`.SqlTypeFamily
+import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.util.{ImmutableBitSet, Util}
 
 import java.time.Duration
