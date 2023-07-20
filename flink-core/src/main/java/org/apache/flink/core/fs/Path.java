@@ -30,6 +30,7 @@ import org.apache.flink.util.StringUtils;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.Serializable;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.regex.Pattern;
@@ -42,7 +43,7 @@ import java.util.regex.Pattern;
  */
 @Public
 @PublicEvolving
-public class Path {
+public class Path implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
