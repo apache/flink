@@ -79,18 +79,17 @@ public class RestClientTest extends TestLogger {
         final Configuration config = new Configuration();
         config.setLong(RestOptions.CONNECTION_TIMEOUT, 1);
         try (final RestClient restClient = new RestClient(config, Executors.directExecutor())) {
-            restClient
-                    .sendRequest(
+            CompletableFuture<?> future =
+                    restClient.sendRequest(
                             unroutableIp,
                             80,
                             new TestMessageHeaders(),
                             EmptyMessageParameters.getInstance(),
-                            EmptyRequestBody.getInstance())
-                    .get(60, TimeUnit.SECONDS);
-        } catch (final ExecutionException e) {
-            final Throwable throwable = ExceptionUtils.stripExecutionException(e);
-            assertThat(throwable, instanceOf(ConnectTimeoutException.class));
-            assertThat(throwable.getMessage(), containsString(unroutableIp));
+                            EmptyRequestBody.getInstance());
+
+            final Throwable cause = assertThrows(ExecutionException.class, future::get).getCause();
+            assertThat(cause, instanceOf(ConnectTimeoutException.class));
+            assertThat(cause.getMessage(), containsString(unroutableIp));
         }
     }
 
