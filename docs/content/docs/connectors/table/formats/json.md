@@ -146,6 +146,14 @@ Format Options
       <td>Boolean</td>
       <td>Encode all decimals as plain numbers instead of possible scientific notations. By default, decimals may be written using scientific notation. For example, <code>0.000000027</code> is encoded as <code>2.7E-8</code> by default, and will be written as <code>0.000000027</code> if set this option to true.</td>
     </tr>
+    <tr>
+      <td><h5>decode.json-parser.enabled</h5></td>
+      <td>optional</td>
+      <td></td>
+      <td style="word-wrap: break-word;">true</td>
+      <td>Boolean</td>
+      <td>Whether to use the Jackson <code>JsonParser</code> to decode json. <code>JsonParser</code> is the Jackson JSON streaming API to read JSON data. This is much faster and consumes less memory compared to the previous <code>JsonNode</code> approach. Meanwhile, <code>JsonParser</code> also supports nested projection pushdown when reading data. This option is enabled by default. You can disable and fallback to the previous <code>JsonNode</code> approach when encountering any incompatibility issues.</td>
+    </tr>
     </tbody>
 </table>
 
